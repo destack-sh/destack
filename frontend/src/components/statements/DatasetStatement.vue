@@ -60,7 +60,7 @@ import { toValueRef } from "@/utils/functools";
 
 const context = useStatementContext();
 const module = useCurrentModule();
-const PAGE_SIZE = context.standalone.value ? 50 : 20;
+const PAGE_SIZE = context.standalone.value ? 50 : 15;
 const editor = useEditorContext();
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
@@ -141,8 +141,8 @@ function addSort(field: Field, order: SortOrder) {
 function clearSort() {
   properties.sorts = undefined;
 }
-function removeSort(field: Field) {
-  properties.sorts = properties.sorts?.filter((s) => !s.key.includes(field.key));
+function removeSort(sort: { key: string }) {
+  properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
 }
 const sort: Ref<DatasetSort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) return null;
@@ -180,24 +180,24 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     }
   }
 `);
+const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
+  () =>
+    ({
+      statementId: context.statement.value.id,
+      after: null as string | null,
+      query: inlineQuery.value,
+      sort: sort.value,
+      limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+    } as SearchDatasetQueryVariables)
+);
 const {
   loading,
   result: recordsFetchedResult,
   refetch,
   fetchMore,
-} = useQuery(
-  SEARCH_QUERY,
-  {
-    statementId: computed(() => context.statement.value.id),
-    after: null as string | null,
-    query: toValueRef(inlineQuery) as any,
-    sort: toValueRef(sort) as any,
-    limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
-  } as SearchDatasetQueryVariables,
-  {
-    enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
-  }
-);
+} = useQuery(SEARCH_QUERY, toValueRef(searchQueryVariables), {
+  enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
+});
 const pageInfo = computed(() => recordsFetchedResult.value?.searchDataset.pageInfo);
 const recordsFetched = computed(
   () =>
@@ -350,14 +350,10 @@ watch(
 const gridBounding = useElementBounding(gridRef);
 const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
-const headerOffsetY = computed(() => {
+const isPartiallyOccluded = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
   const editorTop = editor.pos.value.top + appearance.editorHeaderHeight;
-  if (gridBounding.top.value < editorTop && gridBounding.bottom.value > editorTop) {
-    return editorTop - gridBounding.top.value;
-  } else {
-    return 0;
-  }
+  return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
 });
 
 // navigation
@@ -507,11 +503,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   client.client.cache.updateQuery(
     {
       query: SEARCH_QUERY,
-      variables: {
-        statementId: context.statement.value.id,
-        after: null,
-        first: PAGE_SIZE + 1,
-      },
+      variables: searchQueryVariables.value,
     },
     (
       data = {
@@ -693,9 +685,10 @@ defineExpose({
         {{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }}
       </span>
     </div>
+    <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
     <div
       class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
-      :class="context.focused.value ? '' : 'opacity-0'"
+      :class="context.focused.value || properties.inlineQuery != null ? '' : 'opacity-0'"
     >
       <!-- Quick inline search -->
       <button
@@ -805,14 +798,13 @@ defineExpose({
       <!-- TODO @Broken: header pokes out of containing editor view (because it's fixed) -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
-        :class="(context.focused.value && !context.editing.value) || headerOffsetY == 0 ? '' : 'bg-white'"
+        :class="(context.focused.value && !context.editing.value) || !isPartiallyOccluded ? '' : 'bg-white'"
         :style="{
-          position: headerOffsetY == 0 ? 'absolute' : 'fixed',
-          left:
-            headerOffsetY == 0
-              ? -gridScrollOffsetX + 4 + 'px'
-              : -gridScrollOffsetX + editor.pos.value.left + gridOffsetX + 'px',
-          top: headerOffsetY == 0 ? undefined : editor.pos.value.top + appearance.editorHeaderHeight + 'px',
+          position: !isPartiallyOccluded ? 'absolute' : 'fixed',
+          left: !isPartiallyOccluded
+            ? -gridScrollOffsetX + 4 + 'px'
+            : -gridScrollOffsetX + editor.pos.value.left + gridOffsetX + 'px',
+          top: !isPartiallyOccluded ? undefined : editor.pos.value.top + appearance.editorHeaderHeight + 'px',
         }"
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">

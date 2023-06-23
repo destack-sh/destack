@@ -8,6 +8,7 @@ import structlog
 from django.db import models
 
 from bench.models.utils import UUIDModel
+from bench.settings import PROJECT_BUCKET_NAME
 
 REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
 REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
@@ -110,20 +111,6 @@ class RemoteObject(UUIDModel):
     def __repr__(self):
         return f"<RemoteObject {self}>"
 
-    def delete(self, *args, **kwargs):
-        if self.status == RemoteObjectStatus.AVAILABLE:
-            from bench.models.project import get_project_bucket_name
-
-            try:
-                s3_client = get_s3_client()
-                s3_client.delete_object(
-                    Bucket=get_project_bucket_name(self.project_id),
-                    Key=str(self.id),
-                )
-            except Exception as e:
-                logger.exception(f"failed to delete object {self}: {e}")
-        super().delete(*args, **kwargs)
-
     @property
     def presigned_post(self) -> Optional[str]:
         return self._presigned_post  # must be set manually
@@ -139,13 +126,11 @@ class RemoteObject(UUIDModel):
             return None
 
     def generate_presigned_post(self) -> str:
-        from bench.models.project import get_project_bucket_name
-
         if self.presigned_post is not None:
             return self.presigned_post
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_post(
-            Bucket=get_project_bucket_name(self.project_id),
+            Bucket=PROJECT_BUCKET_NAME,
             Key=str(self.id),
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_POST_EXPIRY,
             Fields={},
@@ -160,15 +145,13 @@ class RemoteObject(UUIDModel):
 
     def generate_presigned_get(self) -> str:
         """Generate a presigned get url for this object."""
-        from bench.models.project import get_project_bucket_name
-
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"cannot generate presigned get for {self} with status {self.status}")
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_url(
             ClientMethod="get_object",
             Params={
-                "Bucket": get_project_bucket_name(self.project_id),
+                "Bucket": PROJECT_BUCKET_NAME,
                 "Key": str(self.id),
             },
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_GET_EXPIRY,

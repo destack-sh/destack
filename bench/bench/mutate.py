@@ -6,7 +6,7 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import Any, Optional, Union
+from typing import Any, Callable, Optional, Union
 from uuid import UUID
 
 from bench.bench.core import Module, ModuleNode, ModuleObjectType, StatementType
@@ -304,6 +304,9 @@ def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
         return wire.pack_node_flat(node)
 
 
+ModuleMutationHook = Callable[["ModuleMutator", ModuleMutation], None]
+
+
 class ModuleMutator:
     """Helper for mutating module data."""
 
@@ -311,6 +314,7 @@ class ModuleMutator:
         self,
         module: Union[Module, "ModuleTreeData", UUID],
         mutations: list[ModuleMutation] = None,
+        hooks: list[ModuleMutationHook] = None,
         # default file and statement id
         file_id: UUID = None,
         statement_id: UUID = None,
@@ -333,7 +337,8 @@ class ModuleMutator:
         if self.statement_id and not self.file_id:
             raise ValueError("statement_id requires file_id")
         self.mutations = []
-        # immediately apply mutations
+        self.hooks = hooks
+        # immediately apply given mutations
         for mutation in mutations or []:
             self.apply(mutation)
 
@@ -342,6 +347,9 @@ class ModuleMutator:
 
     def __repr__(self):
         return f"<Mutator {self}>"
+
+    def reset(self):
+        self.mutations = []
 
     def do(
         self, type: MMT, obj: "NodeData", apply: bool = True, properties: list[str] = None
@@ -382,6 +390,9 @@ class ModuleMutator:
         self.mutations.append(mutation)
         if apply:
             self.apply(mutation)
+        if self.hooks:
+            for hook in self.hooks:
+                hook(self, mutation)
         return self
 
     def apply(self, mut: ModuleMutation):

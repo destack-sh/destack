@@ -22,7 +22,7 @@ from bench.settings import logging
 from bench.utils.utils import required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.bench.mutate import ModuleMutation
+    from bench.bench.mutate import ModuleMutation, ModuleMutator
 
 logger = structlog.get_logger(__name__)
 
@@ -702,6 +702,9 @@ class SessionBase(abc.ABC):
         raise NotImplementedError
 
 
+SESSION_MUTATION_FLUSH_WATERMARK = 200
+
+
 class Session:
     """A managed context for running code in a module (may mutate)."""
 
@@ -738,7 +741,7 @@ class Session:
         self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
-        self.mutator = ModuleMutator(self.module)
+        self.mutator = ModuleMutator(self.module, hooks=[self._on_mutated])
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
@@ -812,10 +815,12 @@ class Session:
             raise RuntimeError(f"cannot mutate read-only session {self}")
         logger.debug("session.flush", session=self, mutator=self.mutator)
         mutations = self.mutator.bundle().compact()
+        # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.write(mutations)
         if not success:
             raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
         logger.debug("session.flush.done", session=self)
+        self.mutator.reset()
 
     def flush(self):
         async_to_sync(self.aflush)()
@@ -832,6 +837,10 @@ class Session:
 
     def close(self, flush: bool = True):
         async_to_sync(self.aclose)(flush=flush)
+
+    def _on_mutated(self, mutator: "ModuleMutator", mutation: "ModuleMutation"):
+        if len(self.mutator.mutations) > SESSION_MUTATION_FLUSH_WATERMARK:
+            self.flush()
 
     async def __aenter__(self):
         self.open()

@@ -58,7 +58,9 @@ class RemoteObject(HasSession):
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url) as response:
                 if response.status != 200:
-                    raise ValueError(f"unable to download {self}")
+                    raise ValueError(
+                        f"unable to download {self}: {response.status} {response.reason}"
+                    )
                 return await response.read()
 
     async def areadtext(self) -> str:

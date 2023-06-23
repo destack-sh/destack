@@ -19,7 +19,7 @@ from bench.bench.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
-from bench.settings import LOCAL
+from bench.settings import LOCAL, PROJECT_BUCKET_NAME
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -141,10 +141,6 @@ class Project(UUIDModel, CrudModel):
         return f"{self.owner.slug}.{self.slug}"
 
     @property
-    def bucket_name(self):
-        return get_project_bucket_name(self.id)
-
-    @property
     def head_(self) -> ProjectVersion:
         if self.head is None:
             raise ValueError(f"project {self} has no head")
@@ -201,18 +197,13 @@ class Project(UUIDModel, CrudModel):
         ]
 
 
-def get_project_bucket_name(project_id: UUID) -> str:
-    return f"bench-user"
-
-
-def create_project_s3_bucket(project: Project):
+def create_project_s3_bucket():
     """
-    Creates a public S3 bucket for the project.
-    TODO @Cleanup: projects are no longer 1:1 with S3 buckets, that was a bad idea. Clean this up.
+    Creates a public S3 bucket for all projects.
     """
     s3_client = get_s3_client()
     response = s3_client.create_bucket(
-        Bucket=project.bucket_name,
+        Bucket=PROJECT_BUCKET_NAME,
         CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
     )
     if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
@@ -220,7 +211,7 @@ def create_project_s3_bucket(project: Project):
     if not LOCAL:
         # enable cors
         response = s3_client.put_bucket_cors(
-            Bucket=project.bucket_name,
+            Bucket=PROJECT_BUCKET_NAME,
             CORSConfiguration={
                 "CORSRules": [
                     {
@@ -237,7 +228,7 @@ def create_project_s3_bucket(project: Project):
             raise RuntimeError(f"failed to set cors on s3 bucket: {response}")
         # set encryption
         response = s3_client.put_bucket_encryption(
-            Bucket=project.bucket_name,
+            Bucket=PROJECT_BUCKET_NAME,
             ServerSideEncryptionConfiguration={
                 "Rules": [
                     {

@@ -332,8 +332,8 @@ const nats = new k8s.helm.v3.Release("nats", {
       enabled: false,
     },
     limits: {
-      // 8MB max message size
-      maxPayload: 8 * 1024 * 1024,
+      // 32MB max message size
+      maxPayload: 32 * 1024 * 1024,
     },
   },
 });
@@ -380,6 +380,10 @@ const AWS_BACKEND_ENV_VARS = [
 
 // general backend env vars
 const PUBLIC_BACKEND_VARS = [
+  {
+    name: "ENVIRONMENT",
+    value: config.require("env"),
+  },
   {
     name: "NOISY_LOG_LEVEL",
     value: "DEBUG",

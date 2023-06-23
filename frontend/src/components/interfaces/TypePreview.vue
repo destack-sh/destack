@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { TypeHint, TypeTag, type Field, StatementType } from "@/gql/graphql";
 import { TypeFlag, useCurrentModule } from "@/state/module";
+import { getStatementIcon } from "@/state/statement";
 import { renderBuiltinType } from "@/state/type";
 import {
   AdjustmentsHorizontalIcon,
@@ -61,8 +62,8 @@ const iconsByTag: Partial<Record<TypeTag, any>> = {
   [TypeTag.Vector]: SparklesIcon,
   [TypeTag.Null]: MinusSmallIcon,
   [TypeTag.File]: DocumentIcon,
-  [TypeTag.Struct]: RectangleGroupIcon,
-  [TypeTag.Enum]: ChevronDoubleDownIcon,
+  [TypeTag.Struct]: getStatementIcon(StatementType.Type, TypeTag.Struct),
+  [TypeTag.Enum]: getStatementIcon(StatementType.Type, TypeTag.Enum),
 };
 const iconsByHint: Partial<Record<TypeHint, any>> = {
   // string
