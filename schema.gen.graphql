@@ -177,9 +177,10 @@ type Dataset implements Node {
 }
 
 input DatasetQuery {
-  key: String!
   op: QueryOp!
+  key: String = null
   value: JSON = null
+  queries: [DatasetQuery!] = null
 }
 
 input DatasetSort {
@@ -1295,10 +1296,10 @@ enum QueryOp {
   MATCHES
   STARTS_WITH
   EXISTS
+  DOES_NOT_EXIST
   INTERSECTS
   DISJOINT
   WITHIN
-  CONTAINS
   NEAR
 }
 

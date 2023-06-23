@@ -192,8 +192,9 @@ export type Dataset = Node & {
 };
 
 export type DatasetQuery = {
-  key: Scalars["String"];
+  key?: InputMaybe<Scalars["String"]>;
   op: QueryOp;
+  queries?: InputMaybe<Array<DatasetQuery>>;
   value?: InputMaybe<Scalars["JSON"]>;
 };
 
@@ -1557,8 +1558,8 @@ export type QueryUsersArgs = {
 
 export enum QueryOp {
   And = "AND",
-  Contains = "CONTAINS",
   Disjoint = "DISJOINT",
+  DoesNotExist = "DOES_NOT_EXIST",
   Equals = "EQUALS",
   Exists = "EXISTS",
   GreaterThan = "GREATER_THAN",
@@ -2527,6 +2528,8 @@ export type UpdateUserMutation = {
 
 export type SearchRecordsQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
+  query?: InputMaybe<DatasetQuery>;
+  sort?: InputMaybe<Array<DatasetSort> | DatasetSort>;
   after?: InputMaybe<Scalars["String"]>;
   limit?: InputMaybe<Scalars["Int"]>;
 }>;
@@ -6539,6 +6542,19 @@ export const SearchRecordsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "DatasetQuery" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "DatasetSort" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -6559,6 +6575,16 @@ export const SearchRecordsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "statementId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "query" },
+                value: { kind: "Variable", name: { kind: "Name", value: "query" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sort" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sort" } },
               },
               {
                 kind: "Argument",

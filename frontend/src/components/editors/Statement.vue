@@ -23,6 +23,8 @@ import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
   EllipsisHorizontalCircleIcon,
+  EllipsisHorizontalIcon,
+  EllipsisVerticalIcon,
   PencilIcon,
   PlusIcon,
   Square2StackIcon,
@@ -448,7 +450,7 @@ defineExpose({
                 }"
               >
                 <template v-if="lineNumber > 0">{{ lineNumber }}</template>
-                <EllipsisHorizontalCircleIcon v-else class="-mr-1.5 mt-0.5 h-4 w-4" />
+                <EllipsisVerticalIcon v-else class="mt-0.5 h-4 w-4" />
               </span>
             </ActionPopover>
             <!-- Add statement below button -->

@@ -18,6 +18,7 @@ from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os
 from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id
 from bench.bench import query
+from bench.bench.query import Q
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -274,20 +275,27 @@ class DatasetSort:
     order: SortOrder = SortOrder.ASC
     mode: Optional[SortMode] = None
 
+    def to_dsl(self) -> query.Sort:
+        return query.Sort(self.key, self.order, self.mode)
+
 
 @gql.input
 class DatasetQuery:
-    key: str
     op: QueryOp
+    key: Optional[str] = None
     value: Optional[JSON] = None
-    # queries: Optional[list["DatasetQuery"]] = None (doesn't work??)
+    queries: Optional[list["DatasetQuery"]] = None
+
+    def to_dsl(self) -> query.Query:
+        queries = [q.to_dsl() for q in self.queries] if self.queries else None
+        return Q(self.op, queries=queries, key=self.key, value=self.value)
 
 
 DEFAULT_QUERY_LIMIT = 100
 
 
 @gql.type
-class DatasetQuery:
+class DataQuery:  # avoid name conflict with DatasetQuery
     @gql.relay.connection
     @async_safe
     def search_records(
@@ -304,20 +312,22 @@ class DatasetQuery:
 
         # nocheckin: compile query and sort
         # prepare search
-        compiled_query = compile_to_os(query) if query else None
-        compiled_sort = compile_to_os(sort) if sort else None
-        filter = [
-            {"term": {"dataset_id": statement.dataset.backend_id}},
-            {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
-        ]
-        query = {
-            "bool": {"filter": filter},
-        }
-        sort = [{"order_key": "asc"}, {"_id": "asc"}]
+        combined_query = Q(
+            QueryOp.AND,
+            queries=[
+                Q(QueryOp.EQUALS, key="dataset_id", value=statement.dataset.backend_id),
+                ~Q(QueryOp.EXISTS, key="deleted_at"),
+            ],
+        )
+        if query is not None:
+            combined_query &= query.to_dsl()
+        compiled_query = compile_to_os(combined_query)
+        compiled_sort = compile_to_os([s.to_dsl() for s in sort]) if sort else None
+        sort = compiled_sort or [{"order_key": "asc"}, {"_id": "asc"}]
         effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
         search = {
             "size": effective_limit + 1,  # +1 to determine if there is a next page
-            "query": query,
+            "query": compiled_query,
             "sort": sort,
             "track_total_hits": True,
             "version": True,
@@ -325,6 +335,7 @@ class DatasetQuery:
         if after is not None:
             # cursor is base64 encoded json of search after (sort key) :RecordCursor
             search["search_after"] = json.loads(base64.b64decode(after).decode())
+        print(json.dumps(compiled_query, indent=2))  # nocheckin
 
         # do the search
         results = os_client.search(

@@ -1,13 +1,13 @@
 import { graphql } from "@/gql";
 import {
   StatementType,
+  type Record as BRecord,
+  type Field,
   type File,
   type Project,
   type ProjectVersion,
   type Scalars,
-  type Field,
   type Statement,
-  type Record as BRecord,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -31,7 +31,6 @@ import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, type Ref } from "vue";
-import { toValueRef, wrapValueRefs } from "@/utils/functools";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -1074,6 +1073,5 @@ export function useElementEditorSettings<T>(element: Ref<{ id: string }>, defaul
       },
     }
   );
-
   return proxy as T;
 }
