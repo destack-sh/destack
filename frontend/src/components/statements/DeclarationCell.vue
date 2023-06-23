@@ -55,12 +55,11 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex w-fit flex-row items-baseline gap-1 whitespace-nowrap">
+  <div class="relative flex w-fit flex-row whitespace-nowrap">
     <!-- Start trap -->
     <EditableSpan
       :model-value="''"
       ref="startRef"
-      class="-mx-0.5"
       v-if="context.statement.value.modifier != null"
       @navigate-up="context.navigateUp"
       @navigate-down="emit('navigateDown')"
@@ -71,9 +70,8 @@ defineExpose({
       :readonly="context.readonly.value"
     />
     <!-- Modifier -->
-    <ModifierCell v-if="context.statement.value.modifier" />
+    <ModifierCell v-if="context.statement.value.modifier" class="mr-1.5" />
     <SelectTypeInterface
-      class="-mx-0.5"
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="emit('navigateDown')"
@@ -83,12 +81,12 @@ defineExpose({
       @enter="context.insertAbove"
       @escape="context.escape"
     />
-    <StatementTypeCell />
+    <StatementTypeCell class="mr-0.5 text-orange-600" />
     <!-- Name or ref -->
     <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
-      class="text-md mx-0.5"
+      class="text-md px-0.5 font-extrabold text-orange-600"
       :class="altKeyState ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : ''"
       @click="altKeyState && openInEditor()"
       v-model="name"

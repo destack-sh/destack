@@ -12,7 +12,7 @@ from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.utils import safe_mutation
 from bench.models.object import REMOTE_OBJECT_MAX_SIZE, get_s3_client, is_allowed_content_type
-from bench.models.project import get_project_bucket_name
+from bench.settings import PROJECT_BUCKET_NAME
 
 logger = structlog.get_logger(__name__)
 
@@ -93,7 +93,7 @@ class ObjectMutation:
         s3_client = get_s3_client()
         try:
             metadata = s3_client.head_object(
-                Bucket=get_project_bucket_name(remote_object.project_id),
+                Bucket=PROJECT_BUCKET_NAME,
                 Key=str(remote_object.id),
             )
             if metadata["ContentLength"] != remote_object.content_length:

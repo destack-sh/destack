@@ -5,7 +5,7 @@ import structlog
 from django.core.exceptions import ImproperlyConfigured
 
 from bench.settings import get_from_env
-from bench.settings.base import BASE_DIR, DEBUG, TEST
+from bench.settings.base import BASE_DIR, DEBUG, ENVIRONMENT, TEST
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -66,3 +66,7 @@ OPENSEARCH_URL = os.getenv("OPENSEARCH_URL", "localhost")
 OPENSEARCH_PORT = get_from_env("OPENSEARCH_PORT", 9200, type_cast=int)
 OPENSEARCH_USERNAME = os.getenv("OPENSEARCH_USERNAME", "admin")
 OPENSEARCH_PASSWORD = os.getenv("OPENSEARCH_PASSWORD", "admin")
+
+# S3
+
+PROJECT_BUCKET_NAME = f"bench-user-{ENVIRONMENT}"

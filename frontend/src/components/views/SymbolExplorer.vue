@@ -10,6 +10,7 @@ import {
   getSymbolSubtype,
 } from "@/state/module";
 import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
+import { getStatementIcon } from "@/state/statement";
 import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllStatements?: boolean }>();
@@ -79,7 +80,7 @@ defineExpose({
         'text-gray-700 hover:bg-orange-100': ordered.id != bench?.focusedStatementId,
       }"
       :style="{
-        marginLeft: ordered.depth * 6 + 'px',
+        marginLeft: ordered.depth * 8 + 'px',
       }"
       @click.prevent="focusStatement(ordered.statement)"
       @mousedown.prevent="focusStatement(ordered.statement)"
@@ -87,16 +88,12 @@ defineExpose({
       @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
       @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
     >
-      <!-- Statement type (probably should be a proper icon later) -->
-      <span
-        class="text rounded-sm px-1 font-mono"
-        :class="[ordered.id == bench?.focusedStatementId ? 'bg-orange-100' : 'bg-gray-100']"
-        >{{
-          (getSymbolSubtype(ordered.statement) ?? STATEMENT_TYPE_KEYWORD[ordered.statement.type])
-            ?.slice(0, 1)
-            .toUpperCase()
-        }}</span
-      >
+      <span class="text rounded-sm font-mono">
+        <component
+          :is="getStatementIcon(ordered.statement.type, ordered.statement.rootTypeTag)"
+          class="mt-0.5 h-4 w-4"
+        />
+      </span>
       <span class="">{{ ordered.statement.name }}</span>
     </li>
   </ul>

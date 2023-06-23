@@ -17,6 +17,17 @@ import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
+import {
+  ChevronDoubleDownIcon,
+  CircleStackIcon,
+  CodeBracketSquareIcon,
+  QueueListIcon,
+  RectangleGroupIcon,
+  ServerStackIcon,
+  SparklesIcon,
+  TableCellsIcon,
+  WrenchIcon,
+} from "@heroicons/vue/24/outline";
 import { computed, inject, watch, type Ref } from "vue";
 
 // not using Symbol here to improve hotreload experience (Symbol is not a constant)
@@ -543,4 +554,23 @@ export function getEnumColor(type: { key: string }) {
   const lightness = 70;
 
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+}
+
+const icons: Partial<Record<StatementType, any>> = {
+  [StatementType.Task]: SparklesIcon,
+  [StatementType.Value]: TableCellsIcon,
+  [StatementType.Dataset]: CircleStackIcon,
+  [StatementType.Code]: CodeBracketSquareIcon,
+  [StatementType.Model]: ServerStackIcon,
+  [StatementType.Expectation]: WrenchIcon,
+  [StatementType.Block]: QueueListIcon,
+};
+export function getStatementIcon(type: StatementType, rootTypeTag?: TypeTag | null) {
+  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+    return RectangleGroupIcon;
+  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+    return ChevronDoubleDownIcon;
+  } else {
+    return icons[type];
+  }
 }
