@@ -12,6 +12,7 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
+import { QueryOp, SortOrder, SortMode, TypeTag, type DatasetSort, type DatasetQuery } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
   useEditorContext,
@@ -41,12 +42,14 @@ import {
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
-import { onStartTyping, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
+import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { INTEGER_ZERO } from "@/utils/fractional";
+import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -54,25 +57,6 @@ const PAGE_SIZE = context.standalone.value ? 50 : 20;
 const editor = useEditorContext();
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
-
-type DatasetStatementProperties = {
-  inlineQuery?: string;
-  wrapColumns: boolean;
-  // local 'view' (because we don't have proper module dataset view yet, this is the only view)
-  sorts?: DatasetSort[];
-  query?: DatasetQuery;
-};
-const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
-  inlineQuery: undefined,
-  wrapColumns: false,
-});
-
-// reset inline query to undefined if it's empty on load
-onMounted(() => {
-  if ((properties.inlineQuery ?? "").trim().length == 0) {
-    properties.inlineQuery = undefined;
-  }
-});
 
 const appearance = useAppearance();
 const client = useApolloClient();
@@ -89,9 +73,83 @@ const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const searchRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
+type DatasetStatementProperties = {
+  inlineQuery?: string;
+  wrapColumns: boolean;
+  // local 'view' (because we don't have proper module dataset view yet, this is the only view)
+  sorts?: DatasetSort[];
+  query?: DatasetQuery;
+};
+
+const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
+  inlineQuery: undefined,
+  wrapColumns: false,
+});
+
+// reset inline query to undefined if it's empty on load
+onMounted(() => {
+  if ((properties.inlineQuery ?? "").trim().length == 0) {
+    properties.inlineQuery = undefined;
+  }
+});
+
+// find every string-stored field
+const stringFields = computed(() =>
+  context.allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
+);
+// update search query on inline query change
+const inlineQuery: Ref<DatasetQuery | null> = ref(null);
+function getInlineQuery() {
+  if ((properties.inlineQuery ?? "").trim().length == 0) return null;
+  const subqueries = stringFields.value.map(
+    (f) =>
+      ({
+        op: QueryOp.Matches,
+        key: "value." + module.getTypedKey(f),
+        value: properties.inlineQuery,
+      } as DatasetQuery)
+  );
+  if (subqueries.length == 0) return null; // TODO @UX: indicate inline search is not possible if no plausible subqueries
+  return { op: QueryOp.Or, queries: subqueries } as DatasetQuery;
+}
+function updateInlineQuery() {
+  inlineQuery.value = getInlineQuery();
+}
+const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 200);
+watch(() => [properties.inlineQuery, stringFields.value], updateInlineQueryDebounced, { immediate: true });
+
+function addSort(field: Field, order: SortOrder) {
+  const key = "value." + module.getTypedKey(field);
+  if (key == null) throw new Error("field has no typed key: " + field.key);
+  if (properties.sorts == null) properties.sorts = [];
+  // replace or append sort
+  const oldIndex = properties.sorts.findIndex((s) => s.key == key);
+  if (oldIndex >= 0) {
+    properties.sorts.splice(oldIndex, 1, { key, order });
+  } else {
+    properties.sorts.push({ key, order });
+  }
+}
+function clearSort() {
+  properties.sorts = undefined;
+}
+function removeSort(field: Field) {
+  properties.sorts = properties.sorts?.filter((s) => !s.key.includes(field.key));
+}
+const sort: Ref<DatasetSort[] | null> = computed(() => {
+  if (properties.sorts == null || properties.sorts.length == 0) return null;
+  return properties.sorts;
+});
+
 const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchRecords($statementId: GlobalID!, $after: String, $limit: Int) {
-    searchRecords(statementId: $statementId, after: $after, limit: $limit) {
+  query searchRecords(
+    $statementId: GlobalID!
+    $query: DatasetQuery
+    $sort: [DatasetSort!]
+    $after: String
+    $limit: Int
+  ) {
+    searchRecords(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit) {
       totalCount
       pageInfo {
         hasNextPage
@@ -122,6 +180,8 @@ const {
 } = useQuery(SEARCH_QUERY, {
   statementId: computed(() => context.statement.value.id),
   after: null as string | null,
+  query: inlineQuery,
+  sort,
   limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
@@ -681,6 +741,25 @@ defineExpose({
   >
     Add description
   </button>
+  <!-- Sorts/filters -->
+  <div
+    v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
+    class="-mx-0.5 mb-1 mt-0.5 flex flex-row flex-wrap gap-1.5"
+  >
+    <!-- Sorts pill -->
+    <span
+      v-for="sort in properties.sorts ?? []"
+      :key="sort.key"
+      class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
+    >
+      <span class="">{{ context.allFields.value.find((f) => sort.key.includes(f.key))?.name }}</span>
+      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Asc ? "↑" : "↓" }}</span>
+      <!-- Clear button -->
+      <button @click="removeSort(sort)">
+        <XMarkIcon class="h-3 w-3 text-gray-400" />
+      </button>
+    </span>
+  </div>
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div
@@ -725,6 +804,7 @@ defineExpose({
               :type="field"
               :readonly="context.readonly.value"
               :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
+              is-view
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
@@ -736,6 +816,7 @@ defineExpose({
               @delete-self="deleteField(field)"
               @duplicate-self="duplicateField(field.id)"
               @drop="(p, v) => dropField(v.id, p, field.id)"
+              @sort="(order) => addSort(field, order)"
               @enter="grid.navigateDown('', field.key as string)"
               :style="{
                 width: columnWidths[x] + 'px',

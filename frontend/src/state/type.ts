@@ -115,7 +115,7 @@ export function renderBuiltinType(tag: TypeTag, hint: TypeHint | null): string |
 
 export const DEFAULT_EMBEDDING_DIMENSION = 1536; // currently only support :FixedEmbeddingDimension
 // sync with :TypeStorageFormat
-enum TypeStorageFormat {
+export enum TypeStorageFormat {
   STRING = "str",
   DOUBLE = "f64",
   LONG = "s64",
@@ -127,6 +127,13 @@ enum TypeStorageFormat {
   OBJECT = "obj",
   RELATION = "rel",
 }
+
+export const NATIVELY_SORTABLE_STORAGE_FORMATS = [
+  TypeStorageFormat.DOUBLE,
+  TypeStorageFormat.LONG,
+  TypeStorageFormat.DATE,
+  TypeStorageFormat.KEYWORD,
+];
 
 const STORAGE_FORMAT_BY_TYPE_TAG: Partial<{ [key in TypeTag]: TypeStorageFormat }> = {
   STRING: TypeStorageFormat.STRING,
@@ -152,7 +159,7 @@ const STORAGE_FORMAT_BY_TYPE_HINT: Partial<{ [key in TypeHint]: TypeStorageForma
 
 export function getStorageFormat(
   tag: TypeTag,
-  hint: TypeHint | undefined,
+  hint: TypeHint | undefined | null,
   flags: TypeFlag
 ): TypeStorageFormat | undefined {
   if (flags & TypeFlag.IsSecret) {
@@ -163,6 +170,15 @@ export function getStorageFormat(
   }
   return STORAGE_FORMAT_BY_TYPE_TAG[tag];
 }
+
+export type TypeIndexInfo = {
+  tag: TypeTag;
+  hint: TypeHint | null;
+  flags: TypeFlag;
+  format: TypeStorageFormat | null;
+  sortable: boolean;
+  subfields: TypeIndexInfo[] | null;
+};
 
 export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const REMOTE_OBJECT_TYPENAME = "RemoteObject";

@@ -9,9 +9,17 @@ import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/bench";
 import { setDragData, useRelativeDropZone, type Dragged } from "@/utils/drop";
 import { syncProperty } from "@/utils/sync";
-import { AdjustmentsHorizontalIcon, Square2StackIcon } from "@heroicons/vue/24/outline";
+import {
+  AdjustmentsHorizontalIcon,
+  ArrowDownIcon,
+  ArrowUpIcon,
+  FunnelIcon,
+  Square2StackIcon,
+} from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { SortOrder } from "@/gql/graphql";
+import { NATIVELY_SORTABLE_STORAGE_FORMATS, TypeStorageFormat, getStorageFormat } from "@/state/type";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -22,6 +30,7 @@ const props = defineProps<{
   extraActions?: TypeAction[];
   tupleName?: string;
   isEnum?: boolean;
+  isView?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
 }>();
@@ -39,6 +48,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "focus", event: FocusEvent): void;
   (e: "drop", p: "above" | "below" | "left" | "right", v: Dragged): void;
+  (e: "sort", order: SortOrder): void;
 }>();
 
 const tupleName = computed(() => props.tupleName ?? "field");
@@ -48,6 +58,7 @@ const description: Ref<string> = ref(props.modelValue?.description ?? "");
 const editing = ref(false);
 const editingType = ref(false);
 const hasDescription = computed(() => description.value.trim().length > 0);
+const storageFormat = computed(() => getStorageFormat(value.value.tag, value.value.hint, value.value.flags));
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -106,6 +117,7 @@ const actions: Ref<TypeAction[]> = computed(() => {
   if (!props.readonly) {
     if (!props.isEnum) {
       actions.push({
+        groupId: "general",
         label: "Edit type",
         icon: AdjustmentsHorizontalIcon,
         keepOpen: true,
@@ -113,15 +125,44 @@ const actions: Ref<TypeAction[]> = computed(() => {
       });
     }
     actions.push({
+      groupId: "general",
       label: "Duplicate " + tupleName.value,
       icon: Square2StackIcon,
       action: () => emit("duplicateSelf"),
     });
     actions.push({
+      groupId: "general",
       label: "Delete " + tupleName.value,
       icon: TrashIcon,
       action: () => emit("deleteSelf"),
     });
+    if (props.isView) {
+      // TODO @UX: support filter and sort via subfields if available (and default to it if native sort is unavailable)
+      const canSort = NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat.value);
+      actions.push({
+        groupId: "query",
+        label: "Sort ascending",
+        icon: ArrowUpIcon,
+        action: () => emit("sort", SortOrder.Asc),
+        disabled: !canSort,
+      });
+      actions.push({
+        groupId: "query",
+        label: "Sort descending",
+        icon: ArrowDownIcon,
+        action: () => emit("sort", SortOrder.Desc),
+        disabled: !canSort,
+      });
+      actions.push({
+        groupId: "query",
+        label: "Filter",
+        icon: FunnelIcon,
+        disabled: true,
+        action: () => {
+          /* not implemented yet */
+        },
+      });
+    }
   }
   if (props.extraActions != null) {
     actions.push(...props.extraActions);
@@ -354,6 +395,13 @@ defineExpose({
           :ref="(el: any) => actionRefs.registerRef(action.label, el)"
           :key="action.label"
           class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+          :class="[
+            i > 0 && actions[i - 1].groupId != action.groupId
+              ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-2'
+              : '',
+            action.disabled ? 'cursor-not-allowed opacity-50' : '',
+          ]"
+          :disabled="action.disabled"
           @click="
             action.action(value);
             action.keepOpen || close();
