@@ -1186,7 +1186,7 @@ type Query {
     active: Boolean = null
     present: Boolean = true
   ): ClientConnection!
-  searchRecords(
+  searchDataset(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
     after: String = null

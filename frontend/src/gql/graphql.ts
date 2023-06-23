@@ -1428,7 +1428,7 @@ export type Query = {
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
-  searchRecords: RecordConnection;
+  searchDataset: RecordConnection;
   secret?: Maybe<Secret>;
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
@@ -1521,7 +1521,7 @@ export type QueryRemoteObjectArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QuerySearchRecordsArgs = {
+export type QuerySearchDatasetArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
@@ -2526,7 +2526,7 @@ export type UpdateUserMutation = {
     | { __typename?: "User"; id: any; name: string; description?: string | null };
 };
 
-export type SearchRecordsQueryVariables = Exact<{
+export type SearchDatasetQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
   query?: InputMaybe<DatasetQuery>;
   sort?: InputMaybe<Array<DatasetSort> | DatasetSort>;
@@ -2534,9 +2534,9 @@ export type SearchRecordsQueryVariables = Exact<{
   limit?: InputMaybe<Scalars["Int"]>;
 }>;
 
-export type SearchRecordsQuery = {
+export type SearchDatasetQuery = {
   __typename?: "Query";
-  searchRecords: {
+  searchDataset: {
     __typename?: "RecordConnection";
     totalCount?: number | null;
     pageInfo: {
@@ -6527,13 +6527,13 @@ export const UpdateUserDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
-export const SearchRecordsDocument = {
+export const SearchDatasetDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "searchRecords" },
+      name: { kind: "Name", value: "searchDataset" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -6569,7 +6569,7 @@ export const SearchRecordsDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "searchRecords" },
+            name: { kind: "Name", value: "searchDataset" },
             arguments: [
               {
                 kind: "Argument",
@@ -6647,7 +6647,7 @@ export const SearchRecordsDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<SearchRecordsQuery, SearchRecordsQueryVariables>;
+} as unknown as DocumentNode<SearchDatasetQuery, SearchDatasetQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
