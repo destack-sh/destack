@@ -298,7 +298,7 @@ DEFAULT_QUERY_LIMIT = 100
 class DataQuery:  # avoid name conflict with DatasetQuery
     @gql.relay.connection
     @async_safe
-    def search_records(
+    def search_dataset(
         self,
         info: Info,
         statement_id: GlobalID,
@@ -310,7 +310,6 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        # nocheckin: compile query and sort
         # prepare search
         combined_query = Q(
             QueryOp.AND,
@@ -335,7 +334,6 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         if after is not None:
             # cursor is base64 encoded json of search after (sort key) :RecordCursor
             search["search_after"] = json.loads(base64.b64decode(after).decode())
-        print(json.dumps(compiled_query, indent=2))  # nocheckin
 
         # do the search
         results = os_client.search(
@@ -355,7 +353,7 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         page_info = gql.relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(edges) > effective_limit,
+            has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"]

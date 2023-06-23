@@ -12,7 +12,13 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import { QueryOp, SortOrder, SortMode, TypeTag, type DatasetSort, type DatasetQuery } from "@/gql/graphql";
+import {
+  QueryOp,
+  SortOrder,
+  type SearchDatasetQueryVariables,
+  type DatasetSort,
+  type DatasetQuery,
+} from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
   useEditorContext,
@@ -50,6 +56,7 @@ import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
+import { toValueRef } from "@/utils/functools";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -93,14 +100,15 @@ onMounted(() => {
   }
 });
 
-// find every string-stored field
+// find every string-stored field for search
 const stringFields = computed(() =>
   context.allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
 );
+// TODO @UX: apply inline search to local records immediately/optmistically
 // update search query on inline query change
-const inlineQuery: Ref<DatasetQuery | null> = ref(null);
+const inlineQuery: Ref<DatasetQuery | undefined> = ref(undefined);
 function getInlineQuery() {
-  if ((properties.inlineQuery ?? "").trim().length == 0) return null;
+  if ((properties.inlineQuery ?? "").trim().length == 0) return undefined;
   const subqueries = stringFields.value.map(
     (f) =>
       ({
@@ -109,7 +117,7 @@ function getInlineQuery() {
         value: properties.inlineQuery,
       } as DatasetQuery)
   );
-  if (subqueries.length == 0) return null; // TODO @UX: indicate inline search is not possible if no plausible subqueries
+  if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
   return { op: QueryOp.Or, queries: subqueries } as DatasetQuery;
 }
 function updateInlineQuery() {
@@ -142,14 +150,14 @@ const sort: Ref<DatasetSort[] | null> = computed(() => {
 });
 
 const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchRecords(
+  query searchDataset(
     $statementId: GlobalID!
     $query: DatasetQuery
     $sort: [DatasetSort!]
     $after: String
     $limit: Int
   ) {
-    searchRecords(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit) {
+    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit) {
       totalCount
       pageInfo {
         hasNextPage
@@ -177,17 +185,23 @@ const {
   result: recordsFetchedResult,
   refetch,
   fetchMore,
-} = useQuery(SEARCH_QUERY, {
-  statementId: computed(() => context.statement.value.id),
-  after: null as string | null,
-  query: inlineQuery,
-  sort,
-  limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
-});
-const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
+} = useQuery(
+  SEARCH_QUERY,
+  {
+    statementId: computed(() => context.statement.value.id),
+    after: null as string | null,
+    query: toValueRef(inlineQuery) as any,
+    sort: toValueRef(sort) as any,
+    limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+  } as SearchDatasetQueryVariables,
+  {
+    enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
+  }
+);
+const pageInfo = computed(() => recordsFetchedResult.value?.searchDataset.pageInfo);
 const recordsFetched = computed(
   () =>
-    recordsFetchedResult.value?.searchRecords.edges
+    recordsFetchedResult.value?.searchDataset.edges
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node) ?? []
 );
@@ -200,14 +214,14 @@ const recordsInView = computed(
 );
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
-  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.node : null
+  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.node : null
 );
 
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
-      after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
+      after: recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.cursor,
       limit: PAGE_SIZE, // no need to overfetch again, already have 1 extra
     },
   });
@@ -501,7 +515,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     },
     (
       data = {
-        searchRecords: {
+        searchDataset: {
           __typename: "RecordConnection" as any,
           totalCount: 0,
           edges: [],
@@ -509,15 +523,20 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
         },
       }
     ) => ({
-      searchRecords: {
-        ...data?.searchRecords,
-        pageInfo: data?.searchRecords.pageInfo ?? { hasNextPage: false, hasPreviousPage: false },
-        totalCount: (data?.searchRecords.totalCount ?? 0) + 1,
+      searchDataset: {
+        ...data?.searchDataset,
+        pageInfo: data?.searchDataset.pageInfo ?? {
+          startCursor: null,
+          endCursor: null,
+          hasNextPage: false,
+          hasPreviousPage: false,
+        },
+        totalCount: (data?.searchDataset.totalCount ?? 0) + 1,
         edges: [
-          ...(data?.searchRecords.edges ?? []),
+          ...(data?.searchDataset.edges ?? []),
           {
             __typename: "RecordEdge" as any,
-            cursor: data?.searchRecords.pageInfo.endCursor ?? "0",
+            cursor: data?.searchDataset.pageInfo.endCursor ?? "0",
             node: { __ref: recordRef, ...optimisticRecord } as any,
           },
         ],
@@ -671,7 +690,7 @@ defineExpose({
       />
       <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
       <span class="ml-1 text-gray-400">
-        {{ humanizeNumber(recordsFetchedResult?.searchRecords.totalCount ?? 0) }}
+        {{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }}
       </span>
     </div>
     <div
@@ -955,7 +974,7 @@ defineExpose({
         :disabled="loading"
       >
         <template v-if="loading">
-          <BusySpinnerIcon class="h-4 w-4" :class="loading ? 'animate-spin' : ''" />
+          <BusySpinnerIcon class="mr-1 h-4 w-4" :class="loading ? 'animate-spin' : ''" />
           Loading
         </template>
         <template v-else>

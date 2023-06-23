@@ -1,3 +1,5 @@
+import { relayStylePagination } from "@apollo/client/utilities";
+
 const useIncoming = {
   merge: (existing: any, incoming: any) => incoming,
 };
@@ -54,6 +56,11 @@ export const TYPE_POLICIES = {
   ExecutionConnection: {
     fields: {
       edges: useIncoming,
+    },
+  },
+  Query: {
+    fields: {
+      searchDataset: relayStylePagination(["statementId", "query", "sort"]),
     },
   },
 };

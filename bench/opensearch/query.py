@@ -4,11 +4,11 @@ from typing import Any, Union
 from bench.bench.query import (
     ComparisonQuery,
     CompoundQuery,
-    Sort,
-    QueryOp,
+    ExistenceQuery,
     KnnQuery,
     Query,
-    ExistenceQuery,
+    QueryOp,
+    Sort,
 )
 
 
@@ -116,8 +116,9 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
     Combine a list of queries into a single query.
     Unroll and un-nest as much as possible
      - two terms queries with different keys into one terms
+    TODO @Cleanup @Performance?: actually compact OS queries
     """
     if len(queries) == 1:
         return queries[0]
     else:
-        return {"bool": {"must": queries}}  # nocheckin
+        return {"bool": {"must": queries}}
