@@ -25,7 +25,7 @@ class Dataset(UUIDModel, ModuleNode):
 
     @property
     def parent_id(self) -> Optional[UUID]:
-        return self.statement_id
+        return self.statement.id
 
     @staticmethod
     def get_id(statement: "Statement") -> UUID:

@@ -48,7 +48,17 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
     parents {
       id
     }
-    ...CrudModelContent
+    id
+    createdAt
+    updatedAt
+    deletedAt
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
   }
 `);
 
@@ -99,7 +109,17 @@ export const FileHeaderType = graphql(/* GraphQL */ `
       id
     }
     deletedAt
-    ...CrudModelContent
+    id
+    createdAt
+    updatedAt
+    deletedAt
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
   }
 `);
 
@@ -120,8 +140,10 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
         id
       }
     }
+    createdAt
+    updatedAt
     deletedAt
-    ...CrudModelContent
+    lastEditedAt
   }
 `);
 
@@ -144,8 +166,16 @@ export const FieldType = graphql(/* GraphQL */ `
       id
     }
     metadata
+    createdAt
+    updatedAt
     deletedAt
-    ...CrudModelContent
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
   }
 `);
 
@@ -187,8 +217,16 @@ export const StatementContentType = graphql(/* GraphQL */ `
     issues {
       ...IssueContent
     }
+    createdAt
+    updatedAt
     deletedAt
-    ...CrudModelContent
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
   }
 `);
 
@@ -239,8 +277,10 @@ export const InterpFileType = graphql(/* GraphQL */ `
     issues {
       ...IssueContent
     }
+    createdAt
+    updatedAt
     deletedAt
-    ...CrudModelContent
+    lastEditedAt
   }
 `);
 
@@ -272,7 +312,9 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }
+    createdAt
+    updatedAt
     deletedAt
-    ...CrudModelContent
+    lastEditedAt
   }
 `);

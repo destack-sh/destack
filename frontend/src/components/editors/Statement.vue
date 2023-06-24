@@ -210,7 +210,7 @@ onClickOutside(containerRef, (e) => {
     editor.container.value?.parentNode?.contains(e.target as Node)
   ) {
     // we don't blur the root cell here because the focus is already elsewhere
-    nav?.value?.editor.blurElement(statement.value as StatementHeader);
+    nav?.value?.editor.blurElement(statement.value);
   }
 });
 
@@ -224,7 +224,7 @@ whenever(inRootCellFocused, () => {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
-    nav?.value?.editor.editElement(statement.value as StatementHeader);
+    nav?.value?.editor.editElement(statement.value);
   }
 });
 
@@ -233,7 +233,7 @@ function focusInEditor() {
     bench.focusStatement(statement.value as any);
   } else {
     bench.focusFile(file.value as any);
-    nav?.value?.editor.focusElement(statement.value as StatementHeader);
+    nav?.value?.editor.focusElement(statement.value);
   }
 }
 
@@ -263,7 +263,7 @@ function onClickContainer(e: MouseEvent) {
     focusInEditor();
   }
   if (!bench.readonly) {
-    nav?.value?.editor.editElement(statement.value as StatementHeader);
+    nav?.value?.editor.editElement(statement.value);
   }
   if (!inContainerFocused.value) {
     statementRef.value?.focus();
@@ -308,14 +308,14 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
     if (
       thing.id == statement.value.id ||
       targetStatement == null ||
-      nav?.value?.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
-      nav?.value?.isDescendantOf(statement.value as StatementHeader, targetStatement)
+      nav?.value?.isDescendantOf(targetStatement, statement.value) ||
+      nav?.value?.isDescendantOf(statement.value, targetStatement)
     ) {
       return;
     }
     const dropLocation = dragInTopHalf.value
-      ? nav?.value?.getLocationRightAbove(statement.value as StatementHeader)
-      : nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
+      ? nav?.value?.getLocationRightAbove(statement.value)
+      : nav?.value?.getLocationRightBelow(statement.value);
     console.log("drop move statement", thing, dropLocation);
     await nav?.value?.moveTo(targetStatement as StatementHeader, dropLocation);
   } else {
@@ -334,7 +334,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        nav?.value?.editor.bench.openStatement(statement.value as StatementHeader, { focus: true });
+        nav?.value?.editor.bench.openStatement(statement.value, { focus: true });
       },
     });
   }
@@ -343,7 +343,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     label: "Rename",
     icon: PencilIcon,
     action: () => {
-      nav?.value?.editor.editElement(statement.value as StatementHeader);
+      nav?.value?.editor.editElement(statement.value);
       nextTick(() => statementRef.value?.focus());
     },
   });
