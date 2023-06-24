@@ -17,7 +17,7 @@ import {
   type UseMutationReturn,
 } from "@vue/apollo-composable";
 import { parse, print } from "graphql";
-import { computed, type Ref } from "vue";
+import { computed, onUnmounted, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
@@ -122,6 +122,32 @@ export class OpRegistry {
   }
 }
 
+const mutationListeners: Partial<Record<string, ((mutation: ModuleMutation) => void)[]>> = {};
+
+function getMutationKey(mutation: Pick<ModuleMutation, "type" | "statementId">) {
+  return `${mutation.type}:${mutation.statementId}`;
+}
+
+export function useMutationListener(
+  types: ModuleMutationType[],
+  statementId: string,
+  listener: (mutation: ModuleMutation) => void
+) {
+  for (const type of types) {
+    const key = getMutationKey({ type, statementId });
+    if (mutationListeners[key] == null) {
+      mutationListeners[key] = [];
+    }
+    mutationListeners[key]?.push(listener);
+  }
+  onUnmounted(() => {
+    for (const type of types) {
+      const key = getMutationKey({ type, statementId });
+      mutationListeners[key] = mutationListeners[key]?.filter((l) => l != listener);
+    }
+  });
+}
+
 export function useModuleSync(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
   const {
@@ -178,6 +204,10 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
           // apply manually
           syncedOps.applyRawMutation(mutation);
         }
+        const key = getMutationKey(mutation);
+        for (const listener of mutationListeners[key] ?? []) {
+          listener(mutation);
+        }
       }
     }
   });
@@ -211,7 +241,7 @@ export function useProjectSync(projectId: Ref<string | null>) {
   );
 
   const client = useApolloClient();
-  onProjectChanged((result) => {
+  onProjectChanged(() => {
     // just reload versions query for now?
     client.client.refetchQueries({
       include: ["projectVersions"],
@@ -228,7 +258,7 @@ function useSyncedOps() {
     // mutations that we just pass through to the regular op with the original input
     const registeredOp = opRegistry.ops[mutation.type];
     if (registeredOp == null) {
-      throw new Error(`cannot apply unknown input mutation: ${mutation.type}`);
+      console.warn(`cannot apply unknown input mutation: ${mutation.type}`);
     }
     console.debug("apply sync mutation", mutation);
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
@@ -303,7 +333,7 @@ function useSyncedOps() {
         },
       });
     } else {
-      throw new Error(`cannot apply unknown data mutation: ${mutation.type} ${mutation.data}`);
+      console.warn(`cannot apply unknown data mutation: ${mutation.type} ${mutation.data}`);
     }
   }
 

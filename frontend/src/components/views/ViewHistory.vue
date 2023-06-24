@@ -263,7 +263,7 @@ defineExpose({
       </CommitPopover>
     </div>
     <!-- View versions -->
-    <div class="relative flex-1" v-if="!loading">
+    <div class="relative flex-1 pb-10" v-if="!loading">
       <!-- Versions -->
       <ul role="list" class="-mb-8 h-full w-full pb-10 pt-2">
         <li

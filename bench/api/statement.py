@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional, Union
+from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
 import pytz
@@ -20,7 +20,7 @@ from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
-from bench.api.utils import CrudModel, Revisioned, ThingBatch
+from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
 from bench.models import RefMappingKind
 
 if TYPE_CHECKING:
@@ -49,7 +49,8 @@ TypeHint = gql.enum(bench.bench.const.TypeHint)
 
 
 @gql.django.type(models.Field)
-class Field(CrudModel, Revisioned, gql.Node):
+class Field(CrudModel, ModuleNode, Revisioned, gql.Node):
+    parent: "Statement" = gql.django.field(field_name="statement")
     statement: "Statement"
     name: auto
     key: auto
@@ -63,10 +64,10 @@ class Field(CrudModel, Revisioned, gql.Node):
 
 
 @gql.django.type(models.Statement)
-class Statement(CrudModel, Revisioned, gql.Node):
+class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".project")]
-    parent: Union["Statement", Annotated["File", lazy(".project")]]
+    parent: Optional["ModuleNode"]
     type: StatementType
     name: auto
     commented: auto

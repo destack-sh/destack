@@ -510,6 +510,10 @@ class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
     def parent_id(self) -> Optional[uuid.UUID]:
         return None
 
+    @property
+    def parent(self) -> Optional["ModuleNode"]:
+        return None
+
     @transaction.atomic
     def commit(
         self,

@@ -188,6 +188,7 @@ defineExpose({
     monacoRef.value?.blur();
   },
   run,
+  loading: computed(() => executions.loading.value),
 });
 </script>
 <template>

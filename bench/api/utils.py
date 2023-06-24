@@ -7,7 +7,7 @@ from uuid import UUID
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from strawberry import auto, lazy
+from strawberry import lazy
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
@@ -15,7 +15,6 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
-from bench import models
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 
@@ -30,14 +29,21 @@ class Revisioned:
     revision: int
 
 
-@gql.type
+@gql.interface
 class CrudModel:
+    id: GlobalID
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
     created_by: Optional[typing.Annotated["User", lazy(".user")]]
     last_edited_at: Optional[datetime]
     last_edited_by: Optional[typing.Annotated["User", lazy(".user")]]
+
+
+@gql.interface
+class ModuleNode:
+    id: GlobalID
+    parent: Optional["ModuleNode"]
 
 
 def safe_mutation(

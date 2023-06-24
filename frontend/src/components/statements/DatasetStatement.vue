@@ -18,6 +18,7 @@ import {
   type SearchDatasetQueryVariables,
   type DatasetSort,
   type DatasetQuery,
+  ModuleMutationType,
 } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -57,6 +58,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { INTEGER_ZERO } from "@/utils/fractional";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
+import { useMutationListener } from "@/state/sync";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -191,11 +193,12 @@ const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
     } as SearchDatasetQueryVariables)
 );
 const {
-  loading,
+  loading: recordsLoading,
   result: recordsFetchedResult,
   refetch,
   fetchMore,
 } = useQuery(SEARCH_QUERY, toValueRef(searchQueryVariables), {
+  fetchPolicy: "network-only",
   enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchDataset.pageInfo);
@@ -205,6 +208,7 @@ const recordsFetched = computed(
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node) ?? []
 );
+const loading = computed(() => recordsFetchedResult.value == null || recordsLoading.value);
 
 const recordsInView = computed(
   () =>
@@ -217,12 +221,16 @@ const overfetchedRecord = computed(() =>
   pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.node : null
 );
 
+useMutationListener([ModuleMutationType.BumpStatement], context.statement.value?.id, () => {
+  refetch();
+});
+
 function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
       after: recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.cursor,
-      limit: PAGE_SIZE, // no need to overfetch again, already have 1 extra
+      limit: PAGE_SIZE + 1, // technically no need to overfetch but limit is a key arg for the relay style pagination merge policy
     },
   });
 }
@@ -668,6 +676,7 @@ defineExpose({
   },
   // prevent outer drag and drop while inside grid
   innerDrag: computed(() => !position.isOutside.value),
+  loading,
 });
 </script>
 <template>
@@ -756,7 +765,7 @@ defineExpose({
   <!-- Sorts/filters -->
   <div
     v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
-    class="-mx-0.5 mb-1 mt-0.5 flex flex-row flex-wrap gap-1.5"
+    class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
   >
     <!-- Sorts pill -->
     <span

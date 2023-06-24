@@ -60,7 +60,7 @@ export const TYPE_POLICIES = {
   },
   Query: {
     fields: {
-      searchDataset: relayStylePagination(["statementId", "query", "sort"]),
+      searchDataset: relayStylePagination(["statementId", "query", "sort", "limit"]),
     },
   },
 };

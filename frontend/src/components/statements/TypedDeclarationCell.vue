@@ -4,6 +4,8 @@ import { useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import DeclarationCell from "@/components/statements/DeclarationCell.vue";
 import TypeInterface from "@/components/interfaces/TypeInterface.vue";
+import { StatementType } from "@/gql/graphql";
+import { ArrowLeftIcon } from "@heroicons/vue/24/outline";
 
 const context = useStatementContext();
 
@@ -36,7 +38,7 @@ defineExpose({
   <DeclarationCell ref="declarationRef" @navigate-up="emit('navigateUp')" @navigate-down="emit('navigateDown')" />
   <!-- Base types -->
   <div class="ml-1 whitespace-nowrap" v-if="(baseTypes.length ?? 0) > 0">
-    <span class="mr-1 text-orange-600">has</span>
+    <ArrowLeftIcon class="mb-0.5 mr-1 inline-block h-4 w-4 text-gray-700" />
     <div class="inline-flex flex-row gap-x-1">
       <TypeInterface
         v-for="field of baseTypes"

@@ -35,15 +35,16 @@ defineExpose({
     startRef.value?.blur();
     gapRef.value?.blur();
   },
+  loading: ref(false),
 });
 </script>
 <template>
   <!-- TODO @Cleanup: compress/simplify navigation across cells (proto, definition, ..) -->
-  <span class="flex flex-row gap-1 outline-none">
+  <span class="flex flex-row outline-none">
     <EditableSpan
       :model-value="''"
       ref="startRef"
-      class="-mx-0.5"
+      class=""
       v-if="context.statement.value.modifier != null"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
@@ -53,9 +54,9 @@ defineExpose({
       @escape="context.escape"
       :readonly="context.readonly.value"
     />
-    <ModifierCell v-if="context.statement.value.modifier" />
+    <ModifierCell v-if="context.statement.value.modifier != null" />
     <ProtoStatementTypeCell
-      class="-mx-0.5"
+      class=""
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
@@ -74,7 +75,7 @@ defineExpose({
         gapRef?.content?.length == 0 &&
         context.focused.value
       "
-      class="-mx-1 h-full w-full select-none group-hover:opacity-100"
+      class="h-full w-full select-none group-hover:opacity-100"
     >
       <span class="text-gray-400" v-if="!context.editing.value">...</span>
       <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>

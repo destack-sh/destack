@@ -50,7 +50,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
             path
             name
           }
-          files {
+          files(filters: { isVisible: true }) {
             edges {
               node {
                 ...InterpFile
@@ -254,7 +254,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
   }
 
   return {
-    loading,
+    loading: computed(() => loading.value || projectVersionId.value == null),
     module,
     id: computed(() => module.value?.projectVersion?.id),
     name: computed(() => module.value?.projectVersion?.project.name),
