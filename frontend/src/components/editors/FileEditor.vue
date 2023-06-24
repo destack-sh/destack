@@ -272,8 +272,14 @@ const statementAddAreaPositionX = computed(() => {
   <!-- File container -->
   <!-- Only files have a white background :FileBackground -->
   <div class="relative overflow-x-hidden bg-white">
-    <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
-    <!-- File main content -->
+    <FixedInlineHeader
+      :thing="file"
+      :actions="fileActions"
+      :editing="editor.editing"
+      :path="name"
+      :subpath="context?.statementsById[editor.activeStatementId ?? '']?.name"
+    />
+    <!-- Loading -->
     <div
       v-if="fileLoading || !statementsLoaded"
       class="flex h-full w-full flex-col items-center justify-center"
@@ -284,16 +290,10 @@ const statementAddAreaPositionX = computed(() => {
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
+    <!-- File main content -->
+    <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- (bottom padding is in last StatementAddArea) -->
     <div class="relative flex flex-col bg-white" v-if="!fileLoading && fileHeader" v-show="statementsLoaded">
-      <!-- Editor inline header -->
-      <FixedInlineHeader
-        :thing="file"
-        :actions="fileActions"
-        :editing="editor.editing"
-        :path="name"
-        :subpath="context?.statementsById[editor.activeStatementId ?? '']?.name"
-      />
       <!-- Title & inline actions -->
       <TitleBanner
         ref="titleRef"
