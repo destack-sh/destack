@@ -12,7 +12,8 @@ import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, watchEffect } from "vue";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ editor: EditorContext<StatementEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -50,6 +51,13 @@ const { result: statementResult, loading: statementLoading } = useQuery(
 const statement = computed(() => useFragment(StatementContentType, statementResult.value?.statement) ?? undefined);
 const file = computed(() => useFragment(FileHeaderType, statementResult.value?.statement?.file) ?? undefined);
 const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
+const statementComponentLoaded = ref(false);
+watchEffect(() => {
+  if (statementComponentLoaded.value || statementComponentRef.value == null) return;
+  if (statementComponentRef.value?.loading === false) {
+    statementComponentLoaded.value = true;
+  }
+});
 
 // sync name/path into editor
 watch(
@@ -63,18 +71,30 @@ watch(
 </script>
 <template>
   <div class="overflow-x-hidden bg-white">
+    <FixedInlineHeader
+      :thing="statement"
+      :actions="[]"
+      :editing="false /* not sure */"
+      :readonly="bench.readonly"
+      :path="editor.path"
+    />
     <EditedThingBanner :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
-    <div class="flex flex-col bg-white" v-if="statement">
+    <!-- Loading -->
+    <div
+      v-if="statementLoading || !statementComponentLoaded"
+      class="flex h-full w-full flex-col items-center justify-center"
+      :style="{
+        width: props.editor.size.value?.width + 'px',
+        height: props.editor.size.value?.height + 'px',
+      }"
+    >
+      <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
+    </div>
+    <!-- Statement content -->
+    <div class="flex flex-col bg-white" v-if="statement" v-show="statementComponentLoaded">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="statement?.deletedAt != null" class="absolute inset-0 z-20 flex justify-center opacity-100" />
       <!-- Editor inline header -->
-      <FixedInlineHeader
-        :thing="statement"
-        :actions="[]"
-        :editing="false /* not sure */"
-        :readonly="bench.readonly"
-        :path="editor.path"
-      />
       <!-- Title -->
       <!-- TODO @UX: parse and enrich statement editor title & prettify statements in this view -->
       <!-- also see how we currently assume unnested statements and parse editor paths -->
