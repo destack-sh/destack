@@ -251,7 +251,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     logger.info(
         "os.update_mappings.done",
         project_version=project_v,
-        data_mappings=len(value_mappings),
+        value_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
     )

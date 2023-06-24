@@ -169,6 +169,16 @@ type CommitPayload {
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
+interface CrudModel {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+}
+
 type Dataset implements Node {
   id: GlobalID!
   backend: String!
@@ -268,15 +278,16 @@ enum ExpectationModifier {
   CHECK
 }
 
-type Field implements Node {
+type Field implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  parent: Statement!
   revision: Int!
-  id: GlobalID!
   statement: Statement!
   name: String
   key: String!
@@ -351,20 +362,20 @@ input FieldUpdateTypeInput {
   referenceId: GlobalID = null
 }
 
-type File implements Node {
+type File implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  parent: ModuleNode!
   revision: Int!
-  id: GlobalID!
   projectVersion: ProjectVersion!
   name: String!
   directory: Boolean!
   files: [File!]!
-  parent: FileProjectVersion!
   statements(filters: StatementFilter): [Statement!]!
   issues: [Issue!]!
 }
@@ -415,8 +426,6 @@ input FilePasteInput {
   targetId: GlobalID = null
   parentId: GlobalID = null
 }
-
-union FileProjectVersion = File | ProjectVersion
 
 input FileRenameInput {
   id: GlobalID!
@@ -547,6 +556,11 @@ enum ModuleMutationType {
   DELETE_ISSUE
   TRUNCATE_RESOLVED_FIELDS
   CREATE_RESOLVED_FIELD
+}
+
+interface ModuleNode {
+  id: GlobalID!
+  parent: ModuleNode
 }
 
 type Mutation {
@@ -1045,14 +1059,15 @@ input ProjectUpdateVisibilityInput {
   visibility: ProjectVisibility!
 }
 
-type ProjectVersion implements Node {
+type ProjectVersion implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
-  id: GlobalID!
+  parent: ModuleNode
   project: Project!
   name: String
   tag: String
@@ -1303,7 +1318,8 @@ enum QueryOp {
   NEAR
 }
 
-type Record {
+type Record implements CrudModel {
+  id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
@@ -1311,7 +1327,6 @@ type Record {
   lastEditedAt: DateTime
   lastEditedBy: User
   revision: Int!
-  id: GlobalID!
   datasetId: String!
   orderKey: String
   value: JSON!
@@ -1536,18 +1551,18 @@ enum SortOrder {
   DESC
 }
 
-type Statement implements Node {
+type Statement implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
   deletedAt: DateTime
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  parent: ModuleNode
   revision: Int!
-  id: GlobalID!
   projectVersion: ProjectVersion!
   file: File!
-  parent: StatementFile!
   type: StatementType!
   name: String
   commented: Boolean!
@@ -1630,8 +1645,6 @@ input StatementCreateInput {
 input StatementDeleteInput {
   id: GlobalID!
 }
-
-union StatementFile = Statement | File
 
 input StatementFilter {
   isVisible: Boolean = true

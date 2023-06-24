@@ -12,9 +12,9 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag, wire
-from bench.bench.dataset import new_dataset_backend_id
 from bench.bench.const import DatasetBackend, TypeFlag
-from bench.bench.type import new_field_key, FIELD_KEY_LENGTH
+from bench.bench.dataset import new_dataset_backend_id
+from bench.bench.type import FIELD_KEY_LENGTH, new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,
@@ -75,6 +75,10 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.statement_id
+
+    @property
+    def parent(self) -> Statement:
+        return self.statement
 
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)

@@ -28,7 +28,7 @@ _SCOPE_TO_TYPE_NAME = {
     MOT.RECORD: "Record",
 }
 
-MAX_RECORD_MUTATIONS_PER_BATCH = 50
+MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
 
 def trim_record_mutations(

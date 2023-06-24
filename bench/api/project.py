@@ -19,17 +19,23 @@ from bench.api.auth import (
     is_owner_or_member,
 )
 from bench.api.sync import MMT, tracked_db_mutation
-from bench.api.utils import CrudModel, Revisioned, get_client_origin_from_info, safe_mutation
+from bench.api.utils import (
+    CrudModel,
+    ModuleNode,
+    Revisioned,
+    get_client_origin_from_info,
+    safe_mutation,
+)
 from bench.bench import core
 from bench.bench.mutate import MOT
 from bench.msg.core import publish_soon
-from bench.msg.messages import ProjectChangedPayload, NMessageType
+from bench.msg.messages import NMessageType, ProjectChangedPayload
 
 if TYPE_CHECKING:
+    from bench.api.interp import Issue
     from bench.api.organization import Organization
     from bench.api.statement import Statement
     from bench.api.user import User
-    from bench.api.interp import Issue
 
 StatementType = gql.enum(core.StatementType)
 
@@ -195,8 +201,9 @@ class RefMappingFilter:
 
 
 @gql.django.type(models.ProjectVersion)
-class ProjectVersion(CrudModel, gql.Node):
+class ProjectVersion(CrudModel, ModuleNode, gql.Node):
     project: Project
+    parent: Optional[ModuleNode]
     name: auto
     tag: auto  # :ProjectVersionTags
     description: auto
@@ -210,14 +217,12 @@ class ProjectVersion(CrudModel, gql.Node):
 
 
 @gql.django.type(models.File)
-class File(CrudModel, Revisioned, gql.Node):
+class File(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: ProjectVersion
     name: auto
     directory: auto
     files: list["File"]  # if folder
-    parent: Union["File", "ProjectVersion"]
-    # TODO @Cleanup: File.statements should be a connection (but strawberry errors)
-    #  There is an error with double-prefetching type_nodes when using a connection.
+    parent: ModuleNode
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )

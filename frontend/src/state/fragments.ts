@@ -21,18 +21,34 @@ export const OperationInfoContentType = graphql(/* GraphQL */ `
   }
 `);
 
+export const CrudModelType = graphql(/* GraphQL */ `
+  fragment CrudModelContent on CrudModel {
+    id
+    createdAt
+    updatedAt
+    deletedAt
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
+  }
+`);
+
 export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id
     name
     tag
     description
-    createdAt
     committed
     committedAt
     parents {
       id
     }
+    ...CrudModelContent
   }
 `);
 
@@ -41,10 +57,10 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
     id
     type
     visibility
-    name
-    slug
     createdAt
     updatedAt
+    name
+    slug
     canWrite
     head {
       ...ProjectVersionHeader
@@ -78,13 +94,12 @@ export const FileHeaderType = graphql(/* GraphQL */ `
         id
       }
     }
-    createdAt
-    updatedAt
-    deletedAt
     directory
     projectVersion {
       id
     }
+    deletedAt
+    ...CrudModelContent
   }
 `);
 
@@ -93,9 +108,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     id
     type
     revision
-    createdAt
-    updatedAt
-    deletedAt
     modifier
     name
     commented
@@ -108,6 +120,8 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
         id
       }
     }
+    deletedAt
+    ...CrudModelContent
   }
 `);
 
@@ -115,9 +129,6 @@ export const FieldType = graphql(/* GraphQL */ `
   fragment FieldContent on Field {
     # :FieldContent
     id
-    createdAt
-    updatedAt
-    deletedAt
     revision
     name
     key
@@ -129,7 +140,12 @@ export const FieldType = graphql(/* GraphQL */ `
     reference {
       id
     }
+    parent {
+      id
+    }
     metadata
+    deletedAt
+    ...CrudModelContent
   }
 `);
 
@@ -138,9 +154,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     id
     type
     revision
-    createdAt
-    updatedAt
-    deletedAt
     name
     commented
     modifier
@@ -174,6 +187,8 @@ export const StatementContentType = graphql(/* GraphQL */ `
     issues {
       ...IssueContent
     }
+    deletedAt
+    ...CrudModelContent
   }
 `);
 
@@ -213,9 +228,6 @@ export const InterpFileType = graphql(/* GraphQL */ `
     revision
     name
     directory
-    createdAt
-    updatedAt
-    deletedAt
     parent {
       ... on File {
         id
@@ -227,6 +239,8 @@ export const InterpFileType = graphql(/* GraphQL */ `
     issues {
       ...IssueContent
     }
+    deletedAt
+    ...CrudModelContent
   }
 `);
 
@@ -238,9 +252,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     name
     modifier
     revision
-    createdAt
-    updatedAt
-    deletedAt
     file {
       id
     }
@@ -261,5 +272,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }
+    deletedAt
+    ...CrudModelContent
   }
 `);

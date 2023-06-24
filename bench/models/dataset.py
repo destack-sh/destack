@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid5
 
@@ -24,14 +25,14 @@ class Dataset(UUIDModel, ModuleNode):
 
     @property
     def parent_id(self) -> Optional[UUID]:
-        return self.statement.id
+        return self.statement_id
 
     @staticmethod
     def get_id(statement: "Statement") -> UUID:
         return uuid5(statement.id, "dataset")
 
 
-class DatasetView(UUIDModel, CrudModel):
+class DatasetView(UUIDModel, CrudModel, ModuleNode):
     """A view of a dataset."""
 
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="views")
@@ -40,9 +41,25 @@ class DatasetView(UUIDModel, CrudModel):
     sort = models.JSONField()
     fields: models.QuerySet[DatasetViewField]  # noqa via DatasetViewField.view
 
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.dataset_id
 
-class DatasetViewField(UUIDModel):
+    @property
+    def parent(self) -> Optional["Dataset"]:
+        return self.dataset
+
+
+class DatasetViewField(UUIDModel, CrudModel, ModuleNode):
     view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, related_name="fields")
     field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="views+")
     order_key = models.CharField(max_length=64, null=True, blank=True)
     visible = models.BooleanField(default=True)
+
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.view_id
+
+    @property
+    def parent(self) -> Optional["DatasetView"]:
+        return self.view

@@ -16,7 +16,7 @@ from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
-from bench.api.dataset import DatasetMutation, DataQuery
+from bench.api.dataset import DataQuery, DatasetMutation
 from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
@@ -37,6 +37,7 @@ from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
+from bench.api.utils import CrudModel
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
@@ -218,4 +219,5 @@ schema = SentryCaptureSchema(
     Mutation,
     Subscription,
     extensions=extensions,
+    types=[CrudModel],
 )

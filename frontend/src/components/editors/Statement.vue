@@ -22,8 +22,6 @@ import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
-  EllipsisHorizontalCircleIcon,
-  EllipsisHorizontalIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   PlusIcon,
@@ -146,7 +144,7 @@ const rootCell: Ref<Cell> = computed(() => {
 
 const containerRef = ref<HTMLElement | null>(null);
 const innerWrapperRef = ref<HTMLElement | null>(null);
-const rootCellRef = ref<InstanceType<typeof BlankStatement>>();
+const statementRef = ref<InstanceType<typeof BlankStatement>>();
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
@@ -173,8 +171,8 @@ whenever(
   isEditing,
   () => {
     if (isEditing.value && !inContainerFocused.value) {
-      rootCellRef.value?.focus();
-      nextTick(() => rootCellRef.value?.focus()); // required to focus if just loaded
+      statementRef.value?.focus();
+      nextTick(() => statementRef.value?.focus()); // required to focus if just loaded
     }
   },
   { immediate: true }
@@ -185,7 +183,7 @@ watch(
   () => rootCell.value.component,
   (oldComponent, newComponent) => {
     if (isEditing.value && oldComponent !== newComponent) {
-      nextTick(() => rootCellRef.value?.focus());
+      nextTick(() => statementRef.value?.focus());
     }
   },
   { deep: false }
@@ -196,7 +194,7 @@ watch(
   () => [isEditing.value, inRootCellFocused.value],
   () => {
     if (!isEditing.value && inRootCellFocused.value) {
-      rootCellRef.value?.blur();
+      statementRef.value?.blur();
     }
   }
 );
@@ -268,7 +266,7 @@ function onClickContainer(e: MouseEvent) {
     nav?.value?.editor.editElement(statement.value as StatementHeader);
   }
   if (!inContainerFocused.value) {
-    rootCellRef.value?.focus();
+    statementRef.value?.focus();
   }
 }
 
@@ -280,7 +278,7 @@ function insertStatementOnClick(e: MouseEvent) {
 }
 
 // drag & drop
-const innerDrag = computed(() => (rootCellRef.value as any)?.innerDrag == true);
+const innerDrag = computed(() => (statementRef.value as any)?.innerDrag == true);
 const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
@@ -346,7 +344,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     icon: PencilIcon,
     action: () => {
       nav?.value?.editor.editElement(statement.value as StatementHeader);
-      nextTick(() => rootCellRef.value?.focus());
+      nextTick(() => statementRef.value?.focus());
     },
   });
   if (!props.standalone) {
@@ -385,10 +383,11 @@ const hasLocalIssues = computed(() => (localIssues.value?.length ?? 0) > 0);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    return rootCellRef.value?.focus(position);
+    return statementRef.value?.focus(position);
   },
-  blur: () => rootCellRef.value?.blur(),
-  root: rootCellRef,
+  blur: () => statementRef.value?.blur(),
+  root: statementRef,
+  loading: computed(() => statementRef.value == null || (statementRef.value?.loading ?? false)),
   showActionsPopover,
 });
 </script>
@@ -492,11 +491,11 @@ defineExpose({
         <component
           v-if="rootCell.component == DeclarationCell"
           :is="rootCell.component"
-          ref="rootCellRef"
+          ref="statementRef"
           @navigate-up="magic.moveFocusUp"
           @navigate-down="magic.moveFocusDown"
         />
-        <component v-else ref="rootCellRef" :is="rootCell.component" v-bind="rootCell.props" />
+        <component v-else ref="statementRef" :is="rootCell.component" v-bind="rootCell.props" />
       </div>
       <!-- Gutter indicators on the right margin -->
       <div

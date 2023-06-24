@@ -183,6 +183,16 @@ export type CommitPayload = {
 
 export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
 
+export type CrudModel = {
+  createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
+  deletedAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
+  updatedAt: Scalars["DateTime"];
+};
+
 export type Dataset = Node & {
   __typename?: "Dataset";
   backend: Scalars["String"];
@@ -280,27 +290,30 @@ export enum ExpectationModifier {
   Unlike = "UNLIKE",
 }
 
-export type Field = Node & {
-  __typename?: "Field";
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  description?: Maybe<Scalars["String"]>;
-  flags: Scalars["Int"];
-  hint?: Maybe<TypeHint>;
-  id: Scalars["GlobalID"];
-  key: Scalars["String"];
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  metadata?: Maybe<Scalars["JSON"]>;
-  name?: Maybe<Scalars["String"]>;
-  orderKey: Scalars["String"];
-  reference?: Maybe<Statement>;
-  revision: Scalars["Int"];
-  statement: Statement;
-  tag: TypeTag;
-  updatedAt: Scalars["DateTime"];
-};
+export type Field = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "Field";
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    description?: Maybe<Scalars["String"]>;
+    flags: Scalars["Int"];
+    hint?: Maybe<TypeHint>;
+    id: Scalars["GlobalID"];
+    key: Scalars["String"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    metadata?: Maybe<Scalars["JSON"]>;
+    name?: Maybe<Scalars["String"]>;
+    orderKey: Scalars["String"];
+    parent: Statement;
+    reference?: Maybe<Statement>;
+    revision: Scalars["Int"];
+    statement: Statement;
+    tag: TypeTag;
+    updatedAt: Scalars["DateTime"];
+  };
 
 export type FieldCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
@@ -364,24 +377,26 @@ export type FieldUpdateTypeInput = {
   tag: TypeTag;
 };
 
-export type File = Node & {
-  __typename?: "File";
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  directory: Scalars["Boolean"];
-  files: Array<File>;
-  id: Scalars["GlobalID"];
-  issues: Array<Issue>;
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  name: Scalars["String"];
-  parent: FileProjectVersion;
-  projectVersion: ProjectVersion;
-  revision: Scalars["Int"];
-  statements: Array<Statement>;
-  updatedAt: Scalars["DateTime"];
-};
+export type File = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "File";
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    directory: Scalars["Boolean"];
+    files: Array<File>;
+    id: Scalars["GlobalID"];
+    issues: Array<Issue>;
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    name: Scalars["String"];
+    parent: ModuleNode;
+    projectVersion: ProjectVersion;
+    revision: Scalars["Int"];
+    statements: Array<Statement>;
+    updatedAt: Scalars["DateTime"];
+  };
 
 export type FileStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
@@ -432,8 +447,6 @@ export type FilePasteInput = {
   targetId?: InputMaybe<Scalars["GlobalID"]>;
   targetVersionId: Scalars["GlobalID"];
 };
-
-export type FileProjectVersion = File | ProjectVersion;
 
 export type FileRenameInput = {
   id: Scalars["GlobalID"];
@@ -559,6 +572,11 @@ export enum ModuleMutationType {
   UpdateSymbolModifier = "UPDATE_SYMBOL_MODIFIER",
   UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
 }
+
+export type ModuleNode = {
+  id: Scalars["GlobalID"];
+  parent?: Maybe<ModuleNode>;
+};
 
 export type Mutation = {
   __typename?: "Mutation";
@@ -1323,27 +1341,30 @@ export type ProjectUpdateVisibilityInput = {
   visibility: ProjectVisibility;
 };
 
-export type ProjectVersion = Node & {
-  __typename?: "ProjectVersion";
-  childRefs: RefMappingConnection;
-  children: Array<ProjectVersion>;
-  committed: Scalars["Boolean"];
-  committedAt?: Maybe<Scalars["DateTime"]>;
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  description?: Maybe<Scalars["String"]>;
-  files: FileConnection;
-  id: Scalars["GlobalID"];
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  name?: Maybe<Scalars["String"]>;
-  parentRefs: RefMappingConnection;
-  parents: Array<ProjectVersion>;
-  project: Project;
-  tag?: Maybe<Scalars["String"]>;
-  updatedAt: Scalars["DateTime"];
-};
+export type ProjectVersion = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "ProjectVersion";
+    childRefs: RefMappingConnection;
+    children: Array<ProjectVersion>;
+    committed: Scalars["Boolean"];
+    committedAt?: Maybe<Scalars["DateTime"]>;
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    description?: Maybe<Scalars["String"]>;
+    files: FileConnection;
+    id: Scalars["GlobalID"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    name?: Maybe<Scalars["String"]>;
+    parent?: Maybe<ModuleNode>;
+    parentRefs: RefMappingConnection;
+    parents: Array<ProjectVersion>;
+    project: Project;
+    tag?: Maybe<Scalars["String"]>;
+    updatedAt: Scalars["DateTime"];
+  };
 
 export type ProjectVersionChildRefsArgs = {
   after?: InputMaybe<Scalars["String"]>;
@@ -1576,7 +1597,7 @@ export enum QueryOp {
   Within = "WITHIN",
 }
 
-export type Record = {
+export type Record = CrudModel & {
   __typename?: "Record";
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
@@ -1815,39 +1836,41 @@ export enum SortOrder {
   Desc = "DESC",
 }
 
-export type Statement = Node & {
-  __typename?: "Statement";
-  children: Array<Statement>;
-  code?: Maybe<Scalars["String"]>;
-  commented: Scalars["Boolean"];
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  dataset?: Maybe<Dataset>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  descendants: Array<Statement>;
-  description?: Maybe<Scalars["String"]>;
-  fields: Array<Field>;
-  file: File;
-  id: Scalars["GlobalID"];
-  issues?: Maybe<Array<Issue>>;
-  lang?: Maybe<Scalars["String"]>;
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  modifier?: Maybe<Scalars["String"]>;
-  name?: Maybe<Scalars["String"]>;
-  orderKey: Scalars["String"];
-  parent: StatementFile;
-  projectVersion: ProjectVersion;
-  referenceProjectVersion?: Maybe<ProjectVersion>;
-  resolvedFields?: Maybe<Array<Field>>;
-  revision: Scalars["Int"];
-  rootTypeFlags?: Maybe<Scalars["Int"]>;
-  rootTypeTag?: Maybe<TypeTag>;
-  text?: Maybe<Scalars["String"]>;
-  type: StatementType;
-  updatedAt: Scalars["DateTime"];
-  value?: Maybe<Scalars["JSON"]>;
-};
+export type Statement = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "Statement";
+    children: Array<Statement>;
+    code?: Maybe<Scalars["String"]>;
+    commented: Scalars["Boolean"];
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    dataset?: Maybe<Dataset>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    descendants: Array<Statement>;
+    description?: Maybe<Scalars["String"]>;
+    fields: Array<Field>;
+    file: File;
+    id: Scalars["GlobalID"];
+    issues?: Maybe<Array<Issue>>;
+    lang?: Maybe<Scalars["String"]>;
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    modifier?: Maybe<Scalars["String"]>;
+    name?: Maybe<Scalars["String"]>;
+    orderKey: Scalars["String"];
+    parent?: Maybe<ModuleNode>;
+    projectVersion: ProjectVersion;
+    referenceProjectVersion?: Maybe<ProjectVersion>;
+    resolvedFields?: Maybe<Array<Field>>;
+    revision: Scalars["Int"];
+    rootTypeFlags?: Maybe<Scalars["Int"]>;
+    rootTypeTag?: Maybe<TypeTag>;
+    text?: Maybe<Scalars["String"]>;
+    type: StatementType;
+    updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
+  };
 
 export type StatementFieldsArgs = {
   filters?: InputMaybe<FieldFilter>;
@@ -1919,8 +1942,6 @@ export type StatementCreateInput = {
 export type StatementDeleteInput = {
   id: Scalars["GlobalID"];
 };
-
-export type StatementFile = File | Statement;
 
 export type StatementFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
@@ -3050,27 +3071,90 @@ export type OperationInfoContentFragment = {
   }>;
 } & { " $fragmentName"?: "OperationInfoContentFragment" };
 
-export type ProjectVersionHeaderFragment = {
+type CrudModelContent_Field_Fragment = {
+  __typename?: "Field";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_Field_Fragment" };
+
+type CrudModelContent_File_Fragment = {
+  __typename?: "File";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_File_Fragment" };
+
+type CrudModelContent_ProjectVersion_Fragment = {
+  __typename?: "ProjectVersion";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_ProjectVersion_Fragment" };
+
+type CrudModelContent_Record_Fragment = {
+  __typename?: "Record";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_Record_Fragment" };
+
+type CrudModelContent_Statement_Fragment = {
+  __typename?: "Statement";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_Statement_Fragment" };
+
+export type CrudModelContentFragment =
+  | CrudModelContent_Field_Fragment
+  | CrudModelContent_File_Fragment
+  | CrudModelContent_ProjectVersion_Fragment
+  | CrudModelContent_Record_Fragment
+  | CrudModelContent_Statement_Fragment;
+
+export type ProjectVersionHeaderFragment = ({
   __typename?: "ProjectVersion";
   id: any;
   name?: string | null;
   tag?: string | null;
   description?: string | null;
-  createdAt: any;
   committed: boolean;
   committedAt?: any | null;
   parents: Array<{ __typename?: "ProjectVersion"; id: any }>;
-} & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
+} & { " $fragmentRefs"?: { CrudModelContent_ProjectVersion_Fragment: CrudModelContent_ProjectVersion_Fragment } }) & {
+  " $fragmentName"?: "ProjectVersionHeaderFragment";
+};
 
 export type ProjectHeaderFragment = {
   __typename?: "Project";
   id: any;
   type: ProjectType;
   visibility: ProjectVisibility;
-  name: string;
-  slug: string;
   createdAt: any;
   updatedAt: any;
+  name: string;
+  slug: string;
   canWrite: boolean;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
@@ -3080,40 +3164,46 @@ export type ProjectHeaderFragment = {
     | { __typename?: "User"; id: any; slug: string; username: string; name: string };
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
-export type FileHeaderFragment = {
+export type FileHeaderFragment = ({
   __typename?: "File";
   id: any;
   revision: number;
   name: string;
-  createdAt: any;
-  updatedAt: any;
-  deletedAt?: any | null;
   directory: boolean;
-  parent: { __typename?: "File"; id: any } | { __typename?: "ProjectVersion"; id: any };
+  deletedAt?: any | null;
+  parent:
+    | { __typename?: "Field" }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "Statement" };
   projectVersion: { __typename?: "ProjectVersion"; id: any };
-} & { " $fragmentName"?: "FileHeaderFragment" };
+} & { " $fragmentRefs"?: { CrudModelContent_File_Fragment: CrudModelContent_File_Fragment } }) & {
+  " $fragmentName"?: "FileHeaderFragment";
+};
 
-export type StatementHeaderFragment = {
+export type StatementHeaderFragment = ({
   __typename?: "Statement";
   id: any;
   type: StatementType;
   revision: number;
-  createdAt: any;
-  updatedAt: any;
-  deletedAt?: any | null;
   modifier?: string | null;
   name?: string | null;
   commented: boolean;
   orderKey: string;
-  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
-} & { " $fragmentName"?: "StatementHeaderFragment" };
+  deletedAt?: any | null;
+  parent?:
+    | { __typename?: "Field" }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "ProjectVersion" }
+    | { __typename?: "Statement"; id: any }
+    | null;
+} & { " $fragmentRefs"?: { CrudModelContent_Statement_Fragment: CrudModelContent_Statement_Fragment } }) & {
+  " $fragmentName"?: "StatementHeaderFragment";
+};
 
-export type FieldContentFragment = {
+export type FieldContentFragment = ({
   __typename?: "Field";
   id: any;
-  createdAt: any;
-  updatedAt: any;
-  deletedAt?: any | null;
   revision: number;
   name?: string | null;
   key: string;
@@ -3123,17 +3213,18 @@ export type FieldContentFragment = {
   description?: string | null;
   orderKey: string;
   metadata?: any | null;
+  deletedAt?: any | null;
   reference?: { __typename?: "Statement"; id: any } | null;
-} & { " $fragmentName"?: "FieldContentFragment" };
+  parent: { __typename?: "Statement"; id: any };
+} & { " $fragmentRefs"?: { CrudModelContent_Field_Fragment: CrudModelContent_Field_Fragment } }) & {
+  " $fragmentName"?: "FieldContentFragment";
+};
 
-export type StatementContentFragment = {
+export type StatementContentFragment = ({
   __typename?: "Statement";
   id: any;
   type: StatementType;
   revision: number;
-  createdAt: any;
-  updatedAt: any;
-  deletedAt?: any | null;
   name?: string | null;
   commented: boolean;
   modifier?: string | null;
@@ -3145,7 +3236,13 @@ export type StatementContentFragment = {
   value?: any | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
-  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
+  deletedAt?: any | null;
+  parent?:
+    | { __typename?: "Field" }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "ProjectVersion" }
+    | { __typename?: "Statement"; id: any }
+    | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
@@ -3154,7 +3251,9 @@ export type StatementContentFragment = {
   issues?: Array<
     { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
   > | null;
-} & { " $fragmentName"?: "StatementContentFragment" };
+} & { " $fragmentRefs"?: { CrudModelContent_Statement_Fragment: CrudModelContent_Statement_Fragment } }) & {
+  " $fragmentName"?: "StatementContentFragment";
+};
 
 export type IssueContentFragment = {
   __typename?: "Issue";
@@ -3174,37 +3273,46 @@ export type ResolvedFieldContentFragment = {
   field: { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } };
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
 
-export type InterpFileFragment = {
+export type InterpFileFragment = ({
   __typename?: "File";
   id: any;
   revision: number;
   name: string;
   directory: boolean;
-  createdAt: any;
-  updatedAt: any;
   deletedAt?: any | null;
-  parent: { __typename?: "File"; id: any } | { __typename?: "ProjectVersion"; id: any };
+  parent:
+    | { __typename?: "Field" }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "Statement" };
   issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
-} & { " $fragmentName"?: "InterpFileFragment" };
+} & { " $fragmentRefs"?: { CrudModelContent_File_Fragment: CrudModelContent_File_Fragment } }) & {
+  " $fragmentName"?: "InterpFileFragment";
+};
 
-export type InterpStatementFragment = {
+export type InterpStatementFragment = ({
   __typename?: "Statement";
   id: any;
   type: StatementType;
   name?: string | null;
   modifier?: string | null;
   revision: number;
-  createdAt: any;
-  updatedAt: any;
-  deletedAt?: any | null;
   orderKey: string;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
+  deletedAt?: any | null;
   file: { __typename?: "File"; id: any };
-  parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
+  parent?:
+    | { __typename?: "Field" }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "ProjectVersion" }
+    | { __typename?: "Statement"; id: any }
+    | null;
   referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
-} & { " $fragmentName"?: "InterpStatementFragment" };
+} & { " $fragmentRefs"?: { CrudModelContent_Statement_Fragment: CrudModelContent_Statement_Fragment } }) & {
+  " $fragmentName"?: "InterpStatementFragment";
+};
 
 export type ModuleQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -3783,7 +3891,12 @@ export type CreateStatementMutation = {
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
         file: { __typename?: "File"; id: any };
-        parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
+        parent?:
+          | { __typename?: "Field" }
+          | { __typename?: "File"; id: any }
+          | { __typename?: "ProjectVersion" }
+          | { __typename?: "Statement"; id: any }
+          | null;
         referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
@@ -3892,7 +4005,12 @@ export type MoveStatementMutation = {
         orderKey: string;
         revision: number;
         file: { __typename?: "File"; id: any };
-        parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
+        parent?:
+          | { __typename?: "Field" }
+          | { __typename?: "File"; id: any }
+          | { __typename?: "ProjectVersion" }
+          | { __typename?: "Statement"; id: any }
+          | null;
       };
 };
 
@@ -3917,7 +4035,12 @@ export type BatchMoveStatementMutation = {
           orderKey: string;
           revision: number;
           file: { __typename?: "File"; id: any };
-          parent: { __typename?: "File"; id: any } | { __typename?: "Statement"; id: any };
+          parent?:
+            | { __typename?: "Field" }
+            | { __typename?: "File"; id: any }
+            | { __typename?: "ProjectVersion" }
+            | { __typename?: "Statement"; id: any }
+            | null;
         }>;
       };
 };
@@ -4775,6 +4898,42 @@ export const OperationInfoContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<OperationInfoContentFragment, unknown>;
+export const CrudModelContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "CrudModelContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CrudModel" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<CrudModelContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -4789,7 +4948,6 @@ export const ProjectVersionHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "committed" } },
           { kind: "Field", name: { kind: "Name", value: "committedAt" } },
           {
@@ -4800,6 +4958,7 @@ export const ProjectVersionHeaderFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -4818,10 +4977,10 @@ export const ProjectHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
-          { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "slug" } },
           { kind: "Field", name: { kind: "Name", value: "canWrite" } },
           {
             kind: "Field",
@@ -4908,9 +5067,6 @@ export const FileHeaderFragmentDoc = {
               ],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "directory" } },
           {
             kind: "Field",
@@ -4920,6 +5076,8 @@ export const FileHeaderFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -4938,9 +5096,6 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
@@ -4970,6 +5125,8 @@ export const StatementHeaderFragmentDoc = {
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -4986,9 +5143,6 @@ export const FieldContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
@@ -5005,7 +5159,17 @@ export const FieldContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
           { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -5060,9 +5224,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
@@ -5147,6 +5308,8 @@ export const StatementContentFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -5198,9 +5361,6 @@ export const InterpFileFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "directory" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -5234,6 +5394,8 @@ export const InterpFileFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -5254,9 +5416,6 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "file" },
@@ -5325,6 +5484,8 @@ export const InterpStatementFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          { kind: "FragmentSpread", name: { kind: "Name", value: "CrudModelContent" } },
         ],
       },
     },
@@ -5754,6 +5915,7 @@ export const FileContentByIdDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
@@ -5815,6 +5977,7 @@ export const StatementContentByIdDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
@@ -6723,6 +6886,7 @@ export const ProjectVersionsDocument = {
       },
     },
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectVersionsQuery, ProjectVersionsQueryVariables>;
 export const CheckOwnerBySlugDocument = {
@@ -6826,6 +6990,7 @@ export const ProjectBySlugDocument = {
     },
     ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
 export const ProjectVersionContentDocument = {
@@ -8009,6 +8174,22 @@ export const ModuleDocument = {
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "files" },
+                  arguments: [
+                    {
+                      kind: "Argument",
+                      name: { kind: "Name", value: "filters" },
+                      value: {
+                        kind: "ObjectValue",
+                        fields: [
+                          {
+                            kind: "ObjectField",
+                            name: { kind: "Name", value: "isVisible" },
+                            value: { kind: "BooleanValue", value: true },
+                          },
+                        ],
+                      },
+                    },
+                  ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -8078,6 +8259,7 @@ export const ModuleDocument = {
     },
     ...InterpFileFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
   ],
@@ -8688,6 +8870,7 @@ export const CreateFileDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
@@ -9073,6 +9256,7 @@ export const PasteFileDocument = {
       },
     },
     ...FileHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
@@ -9573,6 +9757,7 @@ export const CreateProjectDocument = {
     },
     ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateProjectMutation, CreateProjectMutationVariables>;
@@ -11723,6 +11908,7 @@ export const BatchPasteStatementDocument = {
     },
     ...StatementContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
@@ -13500,6 +13686,7 @@ export const UpdateVersionDocument = {
       },
     },
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateVersionMutation, UpdateVersionMutationVariables>;
@@ -13620,6 +13807,7 @@ export const CommitDocument = {
     },
     ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;
@@ -13710,6 +13898,7 @@ export const RestoreDocument = {
     },
     ...ProjectHeaderFragmentDoc.definitions,
     ...ProjectVersionHeaderFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RestoreMutation, RestoreMutationVariables>;
@@ -13845,6 +14034,7 @@ export const ModuleChangedDocument = {
     ...IssueContentFragmentDoc.definitions,
     ...ResolvedFieldContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...CrudModelContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
 export const ProjectChangedDocument = {

@@ -17,7 +17,7 @@ import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { whenever } from "@vueuse/core";
-import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { newFileId } from "@/state/operations/file";
 
@@ -93,13 +93,28 @@ const fileState: Ref<FileState | null> = computed(() => {
     focused: props.focused,
     editing: editor.value.editing || titleRef.value?.editing,
     file: fileHeader.value as any,
-    statementsUnordered: statements.value,
+    statementsUnordered: statements.value as any,
     statementsComponents: statementsComponents.value,
     navigateUp: focusTitle,
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
 const context = provideFileState(fileState);
+
+const statementsLoaded = ref(false); // first time that all statements are loaded (subsequent loads are ignored)
+watchEffect(() => {
+  if (statementsLoaded.value || fileLoading.value) return;
+  if (Object.keys(statementsComponents.value).length == statements.value.length) {
+    for (const statement of statements.value) {
+      if (statementsComponents.value[statement.id].loading) {
+        return;
+      }
+    }
+    statementsLoaded.value = true;
+  }
+});
+
+// navigation
 
 function focusTitle() {
   titleRef.value?.focus();
@@ -260,7 +275,7 @@ const statementAddAreaPositionX = computed(() => {
     <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
     <div
-      v-if="fileLoading"
+      v-if="fileLoading || !statementsLoaded"
       class="flex h-full w-full flex-col items-center justify-center"
       :style="{
         width: props.editor.size.value?.width + 'px',
@@ -270,7 +285,7 @@ const statementAddAreaPositionX = computed(() => {
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
     <!-- (bottom padding is in last StatementAddArea) -->
-    <div class="relative flex flex-col bg-white" v-else-if="fileHeader">
+    <div class="relative flex flex-col bg-white" v-if="!fileLoading && fileHeader" v-show="statementsLoaded">
       <!-- Editor inline header -->
       <FixedInlineHeader
         :thing="file"

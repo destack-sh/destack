@@ -90,7 +90,7 @@ watch(
 <template>
   <div ref="containerRef" class="relative flex h-full flex-col">
     <!-- View panels -->
-    <div class="flex flex-1 flex-col gap-y-3">
+    <div class="flex flex-1 flex-col gap-y-3 pb-10">
       <div v-for="panel in panels" :key="panel.title" class="min-h-0">
         <!-- Panel header -->
         <div

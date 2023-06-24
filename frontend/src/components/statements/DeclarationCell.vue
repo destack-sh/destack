@@ -42,9 +42,6 @@ function openInEditor() {
   editor.editor.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
 }
 
-// runtime
-const localErrors = module.localErrorsOf(context.statement);
-
 defineExpose({
   focus: (position: "first" | "last" = "first") => nameRef.value?.focus(),
   blur: () => {
@@ -106,10 +103,5 @@ defineExpose({
     >
       no name
     </button>
-    <!-- Error underline for declaration if unlocated -->
-    <div
-      v-if="localErrors != null && localErrors.length > 0"
-      class="absolute bottom-0 left-0 h-0.5 w-full bg-red-600"
-    />
   </div>
 </template>
