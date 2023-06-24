@@ -9,7 +9,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
-import { humanizeNumber } from "@/composables/useNow";
+import { humanizeNumber, useNow } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import {
@@ -59,6 +59,7 @@ import { INTEGER_ZERO } from "@/utils/fractional";
 import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
+import { DateTime } from "luxon";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -221,8 +222,17 @@ const overfetchedRecord = computed(() =>
   pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.node : null
 );
 
+// auto refetch when bumped (1s is the OS indexing delay)
+const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
 useMutationListener([ModuleMutationType.BumpStatement], context.statement.value?.id, () => {
-  refetch();
+  refetchDebounced();
+});
+// trigger refetch (debounced) once if just created to autoload if the dataset was duplicated
+onMounted(() => {
+  const delta = DateTime.now().diff(DateTime.fromISO(context.statement.value?.createdAt ?? ""));
+  if (delta.as("seconds") < 1) {
+    refetchDebounced();
+  }
 });
 
 function loadMore() {

@@ -39,21 +39,11 @@ export type ProjectVersionHeader = Pick<
 >;
 export type FileHeader = Pick<
   File,
-  "__typename" | "id" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "directory"
+  "__typename" | "id" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "directory" | "parent"
 >;
 export type StatementHeader = Pick<
   Statement,
-  | "__typename"
-  | "id"
-  | "modifier"
-  | "type"
-  | "name"
-  | "createdAt"
-  | "updatedAt"
-  | "deletedAt"
-  | "orderKey"
-  | "commented"
-  | "parent"
+  "__typename" | "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "commented" | "parent"
 >;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";

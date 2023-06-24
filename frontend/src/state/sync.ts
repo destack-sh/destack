@@ -204,6 +204,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
           // apply manually
           syncedOps.applyRawMutation(mutation);
         }
+        // nocheckin: cascade mutation into relevant bumps
         const key = getMutationKey(mutation);
         for (const listener of mutationListeners[key] ?? []) {
           listener(mutation);
@@ -259,6 +260,7 @@ function useSyncedOps() {
     const registeredOp = opRegistry.ops[mutation.type];
     if (registeredOp == null) {
       console.warn(`cannot apply unknown input mutation: ${mutation.type}`);
+      return;
     }
     console.debug("apply sync mutation", mutation);
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
@@ -268,9 +270,7 @@ function useSyncedOps() {
     // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
     // TODO @Cleanup: organize 'manual' mutations better
     // map dataset mutations to bumps
-    if (mutation.type == ModuleMutationType.TruncateRecords) {
-      // nocheckin: bump dataset statement to reload view (for this and any other relevant record, field or dataset mutation)
-    } else if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
+    if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
       if (mutation.statementId != null) {
         client.cache.modify({
           id: `Statement:${mutation.statementId}`,
