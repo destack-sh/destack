@@ -3892,9 +3892,6 @@ export type CreateStatementMutation = {
         id: any;
         type: StatementType;
         revision: number;
-        createdAt: any;
-        updatedAt: any;
-        deletedAt?: any | null;
         name?: string | null;
         commented: boolean;
         modifier?: string | null;
@@ -3906,6 +3903,10 @@ export type CreateStatementMutation = {
         value?: any | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        lastEditedAt?: any | null;
         file: { __typename?: "File"; id: any };
         parent?:
           | { __typename?: "Field" }
@@ -3917,6 +3918,8 @@ export type CreateStatementMutation = {
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
+        createdBy?: { __typename?: "User"; id: any } | null;
+        lastEditedBy?: { __typename?: "User"; id: any } | null;
       };
 };
 
@@ -10693,9 +10696,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "commented" } },
                       { kind: "Field", name: { kind: "Name", value: "modifier" } },
@@ -10783,6 +10783,26 @@ export const CreateStatementDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "issues" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "createdBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "lastEditedBy" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],

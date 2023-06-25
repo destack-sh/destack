@@ -177,9 +177,9 @@ registerInterface("file", {
 // vector
 registerInterface("vector", {
   tags: [TypeTag.Vector],
-  read: (t, v) => toArrayAsFlagged(t, v),
-  write: (t, v) => toArrayIfFlagged(t, v),
-  supportsList: true,
+  read: (t, v) => v,
+  write: (t, v) => v,
+  supportsList: false,
   minWidth: 60,
   grow: 0.5,
   inline: true,

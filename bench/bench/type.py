@@ -536,6 +536,10 @@ def check_type(
         _check(isinstance(value, (int, float)), "expected number")
     elif expected.tag == TypeTag.BOOLEAN:
         _check(isinstance(value, bool), "expected boolean")
+    elif expected.tag == TypeTag.VECTOR:
+        _check(isinstance(value, Collection), "expected vector")
+        if value:
+            _check(isinstance(value[0], float), "expected vector of numbers")
     elif expected.tag == TypeTag.ENUM:
         # assumes literal/value enums
         _check(any(member.name == value for member in expected.fields), "expected enum member")
@@ -768,6 +772,18 @@ class StaticTypeMapper(TypeMapper):
         return self.py_type(value)
 
 
+@dataclass(repr=False, slots=True)
+class NoopTypeMapper(TypeMapper):
+    def to_py_type(self, type: TypeBase) -> type:
+        return type
+
+    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+        return value
+
+    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+        return value
+
+
 class StringifyTypeMapping(StaticTypeMapper):
     def to_py_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
@@ -907,6 +923,7 @@ register_mapper(StaticTypeMapper(str), tags=[TypeTag.STRING])
 register_mapper(StaticTypeMapper(float), tags=[TypeTag.NUMBER])
 register_mapper(StaticTypeMapper(type(None)), tags=[TypeTag.NULL])
 register_mapper(StaticTypeMapper(bool), tags=[TypeTag.BOOLEAN])
+register_mapper(StaticTypeMapper(list[float]), tags=[TypeTag.VECTOR])
 register_mapper(FileMapper(), tags=[TypeTag.FILE])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])

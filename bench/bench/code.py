@@ -411,13 +411,15 @@ def instantiate_callable(
     code: Code, session: Session
 ) -> tuple[CodeTransformation, Callable[..., Any]]:
     """Instantiates code into a Python callable in the context of the session."""
+    from bench.bench.task import embed
+
     context = {**code._references}
     if not code._parse.is_async:
         # replace any async functions with sync versions
         for key, symbol in context.items():
             from bench.bench import Task
 
-            if isinstance(symbol, (Code, Task)) and symbol.is_async:
+            if isinstance(symbol, (Code, Task)) and symbol._is_async:
                 context[key] = symbol.to_sync()
 
     dynamic_context = {
@@ -425,6 +427,7 @@ def instantiate_callable(
         "context": {symbol.name: symbol for symbol in context.values()},  # by name
         **context,  # inlined
         "random": Random(code.id.hex.encode()),
+        "embed": embed,
     }
 
     if code.language == "python":
@@ -464,7 +467,7 @@ def instantiate_callable(
     return transform, callable
 
 
-STATIC_BUILTINS = {
+STATIC_BUILTINS: dict[str, Any] = {
     # primitive type builtins
     "string": str,
     "text": str,
@@ -483,10 +486,11 @@ STATIC_BUILTINS = {
     "last": last,
     "chain": itertools.chain,
 }
-DYNAMIC_BUILTINS = {
+DYNAMIC_BUILTINS: set[str] = {
     "session",
     "context",
     "random",
+    "embed",
 }
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 

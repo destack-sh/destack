@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 import json
+import random
 import re
 import typing
 import uuid
@@ -25,6 +26,7 @@ from bench.bench.model import (
     XSource,
 )
 from bench.bench.type import (
+    DEFAULT_EMBEDDING_DIMENSION,
     HasType,
     Type,
     TypeBase,
@@ -125,6 +127,15 @@ class Task(Symbol, HasType, HasExpectations):
         if self.is_async:
             raise NotImplementedError  # nocheckin
         return self
+
+
+def embed(text: list[str] | str) -> list[float] | list[list[float]]:
+    """Embed text into a vector. nocheckin implement embed properly"""
+    if isinstance(text, list):
+        return [embed(t) for t in text]
+    else:
+        # array of DEFAULT_EMBEDDING_DIMENSION random 0-1 floats
+        return [random.random() for _ in range(DEFAULT_EMBEDDING_DIMENSION)]
 
 
 class XGenerationErrorType(enum.StrEnum):

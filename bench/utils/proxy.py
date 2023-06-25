@@ -107,6 +107,10 @@ class ProxyList(Collection):
         self._onread(str(key))
         return key in self._inner
 
+    def __getitem__(self, item: int | slice) -> Any:
+        self._onread(str(item))
+        return self._inner[item]
+
     def __len__(self):
         self._onread("")
         return len(self._inner)

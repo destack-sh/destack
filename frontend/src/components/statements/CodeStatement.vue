@@ -258,7 +258,7 @@ defineExpose({
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
     v-if="showTraceback"
-    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-1 py-1.5 font-mono transition duration-150"
+    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
     :key="lastExecution?.id"
     :name="context.statement.value?.name ?? 'run'"
