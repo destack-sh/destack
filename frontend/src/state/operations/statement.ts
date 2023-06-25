@@ -98,9 +98,6 @@ export function useStatementOps() {
             id
             type
             revision
-            createdAt
-            updatedAt
-            deletedAt
             name
             commented
             modifier
@@ -135,6 +132,17 @@ export function useStatementOps() {
               id
             }
             issues {
+              id
+            }
+            # crud
+            createdAt
+            updatedAt
+            deletedAt
+            createdBy {
+              id
+            }
+            lastEditedAt
+            lastEditedBy {
               id
             }
           }
@@ -175,10 +183,6 @@ export function useStatementOps() {
                 : { __typename: "Statement", id: vars.parentId },
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
-            // default new fields (all! fields in StatementContent fragment)
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            deletedAt: null,
             type: vars.type,
             modifier: vars.modifier,
             name: vars.name,
@@ -195,6 +199,13 @@ export function useStatementOps() {
             // interp
             resolvedFields: [],
             issues: [],
+            // crud
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            createdBy: null,
+            lastEditedAt: null,
+            lastEditedBy: null,
           },
         } as CreateStatementMutation),
       update(cache, { data }) {

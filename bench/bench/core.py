@@ -702,7 +702,7 @@ class SessionBase(abc.ABC):
         raise NotImplementedError
 
 
-SESSION_MUTATION_FLUSH_WATERMARK = 200
+SESSION_MUTATION_FLUSH_WATERMARK = 16
 
 
 class Session:

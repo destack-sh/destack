@@ -76,8 +76,9 @@ class Record(ModuleNode, HasSession, HasCrud):
         if not self._instantiated:
             return self.value
         else:
+            value = unproxy_value(self.value)
             return map_value(
-                value=self.value,
+                value=value,
                 type=self.parent,
                 map_k=lambda f: (f.ident, f.typed_key),
                 map_v=strip_py_value_flat,
@@ -89,6 +90,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         pass
 
     def _onwrite(self, key: Optional[str]):
+        # TODO @Performance: writing an entire update on every change is obviously inefficient
         self.session.tracer.dataset_update(self.parent, self, key)
 
     def __getitem__(self, item: str):
@@ -303,11 +305,50 @@ class SearchResult:
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given function."""
-        raise NotImplementedError
+        batch: list[Record] = []
+        for record in self:
+            if batch_size is None:
+                self._map_single_ret(record, func(record))
+            elif len(batch) >= batch_size:
+                self._map_batch_ret(batch, func(batch))
+                batch = []
+        if batch_size is not None and batch:
+            self._map_batch_ret(batch, func(batch))
 
-    def amap(self, func: AmapFunction | BatchMapFunction, batch_size: Optional[int] = None):
+    async def amap(self, func: AmapFunction | BatchAmapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given async function."""
-        raise NotImplementedError
+        batch: list[Record] = []
+        async for record in self:
+            if batch_size is None:
+                self._map_single_ret(record, await func(record))
+            elif len(batch) >= batch_size:
+                self._map_batch_ret(batch, await func(batch))
+                batch = []
+        if batch_size is not None and batch:
+            self._map_batch_ret(batch, await func(batch))
+
+    def _map_single_ret(self, record: Record, ret: Record) -> None:
+        if isinstance(ret, dict):
+            for key, value in ret.items():
+                record[key] = value
+        elif isinstance(ret, Record):
+            pass  # already tracked
+        elif ret is not None:
+            raise TypeError(f"map function returned {ret!r} instead of None or dict")
+
+    def _map_batch_ret(self, records: list[Record], ret: list[Any]) -> None:
+        if len(ret) != len(records):
+            raise TypeError(
+                f"batch map function returned {len(ret)} records instead of {len(records)}"
+            )
+        for record, ret in zip(records, ret):
+            if isinstance(ret, dict):
+                for key, value in ret.items():
+                    record[key] = value
+            elif isinstance(ret, Record):
+                pass  # already tracked
+            elif ret is not None:
+                raise TypeError(f"batch map function returned {ret!r} instead of None or dict")
 
 
 @node(tracked=["description", "value"])

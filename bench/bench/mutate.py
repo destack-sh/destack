@@ -498,7 +498,7 @@ class MutationBundle:
     def complex_mutations(self):
         return [m for m in self.mutations if m.type not in SIMPLE_MUTATIONS]
 
-    # TODO @Perofmrance: mutation compaction & batching can be much smarter
+    # TODO @Performance: mutation compaction & batching can be much smarter
     def compact(self) -> list[ModuleMutation]:
         """
         Compact simple mutations into fewer semantically identical mutations.
