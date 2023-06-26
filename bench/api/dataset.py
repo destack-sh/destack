@@ -80,7 +80,7 @@ class RecordInput:
 @gql.input
 class RecordCreateInput(RecordInput, gql.NodeInput):
     value: JSON
-    order_key: str
+    order_key: Optional[str] = None
 
 
 @gql.input
@@ -96,7 +96,7 @@ class RecordUpdatePathInput(RecordInput, gql.NodeInput):
 
 @gql.input
 class RecordMoveInput(RecordInput, gql.NodeInput):
-    order_key: str
+    order_key: Optional[str] = None
 
 
 @gql.input
