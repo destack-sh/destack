@@ -13,6 +13,7 @@ from typing import Any, Awaitable, Callable, Generic, Type, TypeVar
 from uuid import UUID
 
 import janus as janus
+import msgpack
 import nats
 import nats.aio.client
 import structlog
@@ -115,10 +116,10 @@ class NMessage(Generic[PayloadT]):
         reply_msg = NMessage(reply_type, payload, sent_at=datetime.utcnow())
         log.debug("reply", msg=self, reply=reply_msg)
         serialized = _serialize_message(reply_msg)
-        await self.msg.respond(serialized.encode("utf-8"))
+        await self.msg.respond(serialized)
 
 
-def _serialize_message(message: NMessage) -> str:
+def _serialize_message(message: NMessage) -> bytes:
     # serialize any dataclass as something jsonable
     message_dict = {
         "type": message.type,
@@ -130,11 +131,12 @@ def _serialize_message(message: NMessage) -> str:
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
         message_dict["payload"] = to_dict(message.payload)
-    return json.dumps(message_dict, cls=MessageJSONEncoder)
+    # return json.dumps(message_dict, cls=MessageJSONEncoder) nocheckin
+    return msgpack.packb(message_dict, use_bin_type=True)
 
 
-def _parse_message(message_json: str) -> NMessage:
-    message_dict = json.loads(message_json)
+def _parse_message(message_json: bytes) -> NMessage:
+    message_dict = msgpack.unpackb(message_json, raw=False)
     payload_cls = REGISTERED_MESSAGE_PAYLOADS.get(message_dict["type"])
     if payload_cls and message_dict.get("payload") is not None:
         try:
@@ -171,7 +173,7 @@ async def process_nats_message(
     expect_t: Type[PayloadT] = None,
 ):
     try:
-        message = _parse_message(msg.data.decode())
+        message = _parse_message(msg.data)
         message.msg = msg
         if expect_t is not None and not isinstance(message.payload, expect_t):
             raise TypeError(f"expected message {expect_t} for {func}, got {message}")
@@ -226,8 +228,8 @@ async def request(
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
     log.debug("request", topic=topic, message=message)
-    reply = await nc.request(topic, serialized.encode("utf-8"), timeout=timeout)
-    reply_msg = _parse_message(reply.data.decode())
+    reply = await nc.request(topic, serialized, timeout=timeout)
+    reply_msg = _parse_message(reply.data)
     if not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
@@ -264,7 +266,7 @@ async def do_publish(message: NMessage, topic: str):
         raise RuntimeError("nats not initialized")
     log.debug("publish", topic=topic, message=message)
     serialized = _serialize_message(message)
-    await nc.publish(topic, serialized.encode("utf-8"))
+    await nc.publish(topic, serialized)
 
 
 _soon_queue_unbatched: janus.Queue[NMessage] | None = None
@@ -368,7 +370,7 @@ class NSubscription(Generic[PayloadT]):
         self.sub = None
 
     async def _on_msg(self, msg: nats.aio.client.Msg) -> None:
-        message = _parse_message(msg.data.decode())
+        message = _parse_message(msg.data)
         message.msg = msg
         log.debug("subscribe.receive", msg=message)
         await self.message_q.put(message)

@@ -5,8 +5,8 @@ import bench.bench as lang
 import bench.bench.type
 import bench.opensearch.core as os
 from bench.bench import TypeHint, TypeTag
-from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
 from bench.bench.const import TypeFlag
+from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
 MAXIMUM_NESTING_DEPTH = 3
@@ -129,7 +129,6 @@ register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 # boolean
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
-
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # file
 register_mapper(

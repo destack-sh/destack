@@ -4384,9 +4384,6 @@ export type CreateFieldMutation = {
     | {
         __typename?: "Field";
         id: any;
-        createdAt: any;
-        updatedAt: any;
-        deletedAt?: any | null;
         key: string;
         orderKey: string;
         revision: number;
@@ -4396,8 +4393,15 @@ export type CreateFieldMutation = {
         description?: string | null;
         flags: number;
         metadata?: any | null;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        lastEditedAt?: any | null;
         statement: { __typename?: "Statement"; id: any };
+        parent: { __typename?: "Statement"; id: any };
         reference?: { __typename?: "Statement"; id: any } | null;
+        createdBy?: { __typename?: "User"; id: any } | null;
+        lastEditedBy?: { __typename?: "User"; id: any } | null;
       }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -13091,14 +13095,19 @@ export const CreateFieldDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "statement" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
@@ -13119,6 +13128,26 @@ export const CreateFieldDocument = {
                       },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "createdBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "lastEditedBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                     ],
                   },
                 },
