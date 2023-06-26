@@ -337,10 +337,7 @@ class RepReadSecretPayload:
 @payload(NMessageType.REQUEST_RUN_INFERENCE)
 class ReqRunInferencePayload:
     model_fqn: str
-    model_external_name: str
-    modality: str
-    blocks: list[XBlockData]
-    settings: dict[str, typing.Any]
+    inputs: typing.Any
     timeout: int
 
 

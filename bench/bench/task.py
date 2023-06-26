@@ -6,25 +6,15 @@ import random
 import re
 import typing
 import uuid
-from copy import deepcopy
-from dataclasses import asdict, dataclass, is_dataclass
 from json import JSONDecodeError
 from typing import Optional, Self
 
-from bench.bench.const import ExpectationModifier, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import TypeFlag, TypeHint, TypeTag
 from bench.bench.core import Scope, Session, Symbol, node
 from bench.bench.dataset import Dataset
 from bench.bench.expect import Expectation, HasExpectations
-from bench.bench.model import (
-    SETTINGS_CLS_BY_MODALITY,
-    Modality,
-    Model,
-    TextGenerationSettings,
-    XBlock,
-    XBlockContent,
-    XKind,
-    XSource,
-)
+from bench.bench.model import Model, OpenAITextEmbeddingEndpoint, get_model_endpoint
+from bench.bench.remote import RemoteObject
 from bench.bench.type import (
     DEFAULT_EMBEDDING_DIMENSION,
     HasType,
@@ -42,9 +32,6 @@ class Task(Symbol, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
-    _implementations: dict[str, "XPrompt"] | None = None
-    # should probably store last good implementation ... in redis?
-    _last_good_impl_idx: int = 0
 
     def _clear(self) -> None:
         Symbol._clear(self)
@@ -99,7 +86,7 @@ class Task(Symbol, HasType, HasExpectations):
                 self._last_good_impl_idx = impl_idx
                 self.session.tracer.code_exit(self, args, kwargs, ret)
                 return ret
-            except XGenerationError as e:
+            except TaskError as e:
                 semantic_errors.append(e)
                 log.warning("task.failed", exc_info=e)
                 if len(semantic_errors) <= self.session.inference_retries / len(candidates):
@@ -129,393 +116,75 @@ class Task(Symbol, HasType, HasExpectations):
         return self
 
 
-def embed(text: list[str] | str) -> list[float] | list[list[float]]:
+async def embed(text: list[str] | str) -> list[float] | list[list[float]]:
     """Embed text into a vector. nocheckin implement embed properly"""
-    if isinstance(text, list):
-        return [embed(t) for t in text]
-    else:
-        # array of DEFAULT_EMBEDDING_DIMENSION random 0-1 floats
-        return [random.random() for _ in range(DEFAULT_EMBEDDING_DIMENSION)]
+    model = typing.cast(OpenAITextEmbeddingEndpoint, get_model_endpoint("openai.std.text.ada"))
+    return model(text)
 
 
-class XGenerationErrorType(enum.StrEnum):
+async def transcribe(audio: RemoteObject):
+    raise NotImplementedError
+
+
+class TaskErrorType(enum.StrEnum):
     TIMEOUT = "timeout"
-    INVALID_JSON = "invalid_json"
+    INVALID_FORMAT = "invalid_json"
     INVALID_TYPE = "invalid_type"
     UNKNOWN = "unknown"
 
 
-class XGenerationError(ValueError):
-    def __init__(self, type: XGenerationErrorType, message: str, path: str = None):
+class TaskError(ValueError):
+    def __init__(self, type: TaskErrorType, message: str, path: str = None):
         super().__init__(message)
         self.type = type
         self.path = path
 
 
-@dataclass(repr=False)
-class XEmit:
-    """Generate X blocks for models with dynamic code to manage dynamic values."""
-
-    def __call__(self) -> XBlock | DynamicXBlock | list[XBlock | DynamicXBlock]:
-        raise NotImplementedError
-
-
-def xemit(func):
-    # just forward to dataclass(repr=False, slots=True)
-    return dataclass(repr=False, slots=True)(func)
-
-
-ValueT = typing.TypeVar("ValueT", bound=typing.Any)
-
-
-def xstatic(
-    value: ValueT, source: XSource = XSource.Developer, path: str = None
-) -> XBlockContent[ValueT]:
-    return XBlockContent(kind=XKind.Static, source=source, value=value, path=path)
-
-
-XInputHandler = typing.Callable[[XBlock, typing.Any], None]
-XOutputHandler = typing.Callable[[typing.Any], typing.Any]
-
-
-@dataclass
-class DynamicXBlock:
-    xblock: XBlockContent
-    handler: XInputHandler | XOutputHandler
-
-
-def build_task_implementation(task: Task, model: Model, session: Session) -> XPrompt:
-    """Build the implementation for a task using some model."""
-    # TODO @Broken: consider context length in X prompt planning/building
-    if not task.outputs:
-        raise RuntimeError(f"cannot build task {task} without output")
-    expectations: list[Expectation] = [
-        e for e in task.walk_expectations() if isinstance(e, Expectation)
-    ]
-    data_samples: list[Dataset] = [d for d in task.walk_expectations() if isinstance(d, Dataset)]
-    x = XPrompt(task=task, model=model, modality=Modality.GenerateText, session=session)
-    x.emit(
-        XSystem(),
-        XTypeSchema(type=task.type, type_label="Output", recursive=True),
-    )
-    if expectations:
-        x.emit(XExpectations(task_label=task.name, expectations=expectations))
-    for dataset in data_samples:
-        if len(dataset) > 0:
-            positive = dataset.modifier == ExpectationModifier.LIKE
-            x.emit(XSamples(dataset=dataset, task_label=task.name, positive=positive))
-    x.emit(
-        XTask(task=task),
-        XTypeFabricatedSample(type=task.type, type_label="Output", is_output=True),
-    )
-    if task.type.inputs:
-        x.emit(XInput(type=task.type))
-    x.emit(
-        # TODO @Broken: adjust & tune generation settings
-        XEmitSettings(TextGenerationSettings(temperature=0.5, max_tokens=512, top_p=1.0)),
-        XOutputText(type=task.type, type_label=f"output for task {task.name}"),
-    )
-
-    return x
-
-
-class XPrompt:
-    """Build a structured X prompt."""
-
-    def __init__(self, task: Task, model: Model, modality: Modality, session: Session):
-        self.task = task
-        self.model = model
-        self.modality = modality
-        self.session = session
-        # the actual prompt
-        self.blocks: list[XBlock] = []
-        self.input_handlers: dict[int, XInputHandler] = {}
-        self.output_handler: XOutputHandler | None = None
-        self.settings: typing.Any | None = None
-
-    def __str__(self):
-        return f"{self.model.fqn} {self.modality} ({len(self.blocks)})"
-
-    def __repr__(self):
-        return f"<XPrompt {self}>"
-
-    def copy(self) -> XPrompt:
-        x = XPrompt(self.task, self.model, self.modality, self.session)
-        x.blocks = [b.copy() for b in self.blocks]
-        x.input_handlers = {**self.input_handlers}
-        x.output_handler = self.output_handler
-        x.settings = deepcopy(self.settings)
-        return x
-
-    def emit(self, *emits: XEmit):
-        blocks = []
-        for emit in emits:
-            x = emit()
-            if isinstance(x, list):
-                blocks.extend(x)
-            else:
-                blocks.append(x)
-        for x in blocks:
-            if isinstance(x, DynamicXBlock):
-                if x.xblock.kind == XKind.Input:
-                    self.input_handlers[len(self.blocks)] = x.handler
-                    self.blocks.append(x.xblock)
-                elif x.xblock.kind == XKind.Output:
-                    if self.output_handler:
-                        raise RuntimeError("cannot have multiple output handlers")
-                    self.output_handler = x.handler
-                    # not added to blocks since it's not a real xblock
-                else:
-                    raise RuntimeError(f"cannot have dynamic x block of kind {x.xblock.kind}")
-            elif x.kind == XKind.Settings:
-                if self.settings:
-                    raise RuntimeError("cannot have multiple settings")
-                settings_cls = SETTINGS_CLS_BY_MODALITY[self.modality]
-                self.settings = settings_cls(**x.value)
-            else:
-                self.blocks.append(x)
-        return self
-
-    async def __call__(
-        self, *args, cache: bool = None, timeout: float = None, **kwargs
-    ) -> typing.Any:
-        inputs = {**kwargs}  # combine inputs from args/kwargs
-        for input_t, input in zip(self.task.type.inputs, args):
-            inputs[input_t.name] = input
-        # copy x blocks to impute dynamic inputs
-        blocks_copy = [xblock.copy() for xblock in self.blocks]
-        # apply dynamic inputs
-        for i, impute in self.input_handlers.items():
-            impute(blocks_copy[i], inputs)
-        try:
-            outputs = await self.model.inference(
-                self.modality, blocks_copy, self.settings, cache=cache, timeout=timeout
-            )
-        except TimeoutError as e:
-            raise XGenerationError(XGenerationErrorType.TIMEOUT, "model backend timed out") from e
-        except Exception as e:
-            raise XGenerationError(XGenerationErrorType.UNKNOWN, "model backend failed") from e
-        return self.output_handler(outputs)
-
-
-@dataclass(repr=False)
-class XSystem(XEmit):
-    """Emits the system message about general expectations for JSON."""
-
-    message: str = (
-        "You are a precise and concise assistant."
-        " Perform the given tasks following the instructions to the letter."
-        " If the task is underspecified or ambiguous, guess without asking."
-        " Output valid JSON as dictated by the type schema."
-    )
-
-    def __call__(self) -> XBlock:
-        return xstatic(self.message, XSource.System)
-
-
-@xemit
-class XTask(XEmit):
-    """Emits the task exactly as written"""
-
-    task: Task
-    task_label: str = None
-    include_description: bool = True
-
-    def __call__(self) -> XBlock:
-        text = f"Task {self.task_label or self.task.name}:"
-        if self.include_description:
-            text += f" {self.task.description}"
-        return xstatic(text, XSource.Developer)
-
-
-@xemit
-class XExpectations(XEmit):
-    """Emits the expectation exactly as written"""
-
-    task_label: str
-    expectations: list[Expectation]
-
-    def __call__(self) -> XBlock:
-        expectation_strs = [
-            f" - {expectation.name}: {expectation.description}" for expectation in self.expectations
-        ]
-        return xstatic(
-            f"For task {self.task_label}, you must consider:\n" + "\n".join(expectation_strs),
-            XSource.Developer,
-        )
-
-
-@xemit
-class XSamples(XEmit):
-    """Emits fewshot examples in a specific format"""
-
-    dataset: Dataset
-    task_label: str
-    positive: bool
-
-    def __call__(self) -> XBlock:
-        if len(self.dataset) == 0:
-            raise RuntimeError(f"expected at least one sample for {self.task.name}")
-        if self.positive:
-            preamble = f"Good examples of {self.task_label}"
+def parse_string_output(output: str, type: Type):
+    # escape/try to parse the output if needed (handles trivial model confusions)
+    value = output.strip()
+    if not value.startswith("{"):
+        # sometimes the model prefixes the output with some explanation, find the { ... }
+        value = re.compile(r"\{.*}", re.DOTALL).search(value)
+        if value:
+            value = value.group(0)
         else:
-            preamble = f"Bad examples of {self.task_label} (don't do this!)"
-        data_str = "\n".join(json.dumps(record.value, sort_keys=True) for record in self.dataset)
-        return xstatic(f"{preamble}:\n{data_str}", XSource.Developer)
-
-
-@xemit
-class XTypeSchema(XEmit):
-    """Emits the type exactly as written"""
-
-    type: Type
-    type_label: Optional[str]
-    recursive: bool
-
-    def __call__(self) -> XBlock:
-        bench_lines = []
-        seen_types: set[uuid.UUID] = set()  # TODO @Cleanup: seen types dedup shouldn't be needed
-        for n in self.type.walk_type(include_references=True):
-            if n.id in seen_types:
-                continue
-            seen_types.add(n.id)
-            if n.reference is not None:
-                continue  # skip the link
-            if n.tag in (TypeTag.STRUCT, TypeTag.FUNCTION, TypeTag.ENUM, TypeTag.UNION):
-                # nocheckin: render type schema properly for model backend
-                line = render_statement(n.source, include_content=n.tag != TypeTag.FUNCTION)
-                bench_lines.append(line)
-        bench_str = "\n\n".join(bench_lines)
-        schema_str = f"Type schemas you must adhere to. Do not invent new fields or options. ? = optional:\n{bench_str}".strip()
-        return xstatic(schema_str, XSource.Developer)
-
-
-@xemit
-class XTypeFabricatedSample(XEmit):
-    """Emits a single sample output of the given type (default to fabricate)"""
-
-    type: Type
-    type_label: Optional[str]
-    is_output: bool
-
-    def __call__(self) -> list[XBlock]:
-        fabricated_sample = fabricate_value(self.type, is_output=self.is_output)
-        sample_declaration = xstatic(
-            f"Example {self.type_label or self.type.name} with fabricated values:",
-            XSource.System,
-        )
-        sample = xstatic(json.dumps(fabricated_sample, sort_keys=True), XSource.Developer)
-        return [sample_declaration, sample]
-
-
-@xemit
-class XInput(XEmit):
-    """Emits the code to input the given type"""
-
-    type: Type
-    type_label: str = "Input"
-    path: str = ""
-
-    def impute_input(self, input: XBlock, value: typing.Any) -> None:
-        input.value = json.dumps(value, sort_keys=True)
-
-    def __call__(self) -> list[XBlock | DynamicXBlock]:
-        input_declaration = xstatic(f"{self.type_label}:", XSource.System)
-        input = XBlockContent(kind=XKind.Input, source=XSource.User, value=None, path=self.path)
-        return [input_declaration, DynamicXBlock(input, self.impute_input)]
-
-
-@xemit
-class XOutputText(XEmit):
-    """Emits the code to request and read generated output of the given type"""
-
-    type: Type
-    type_label: str = "Output"
-    path: str = ""
-
-    def parse_output(self, output: str):
-        # escape/try to parse the output if needed (handles trivial model confusions)
-        value = output.strip()
-        if not value.startswith("{"):
-            # sometimes the model prefixes the output with some explanation, find the { ... }
-            value = re.compile(r"\{.*}", re.DOTALL).search(value)
-            if value:
-                value = value.group(0)
-            else:
-                raise XGenerationError(
-                    XGenerationErrorType.INVALID_JSON,
-                    f"output does not contain JSON object: {output}",
-                )
-
-        # escape strings with multiline content
-        # these aren't technically valid JSON, but they're very useful for model output
-        def sub_multiline_str(match):
-            # replace line breaks with \n escape sequence
-            modified_string = match.group(1).replace("\n", "\\n").replace("\r", "")
-            return f'"{modified_string}"'
-
-        value = re.compile(r'"(.*?)(?<!\\)"', re.DOTALL).sub(sub_multiline_str, value)
-
-        try:
-            ret = json.loads(value)
-            ret = map_value(
-                ret,
-                self.type,
-                map_v=instantiate_py_value_flat,
-                is_output=True,
-                ignore_outer_map=True,
+            raise TaskError(
+                TaskErrorType.INVALID_FORMAT,
+                f"output does not contain JSON object: {output}",
             )
-            check_type(ret, self.type, is_output=True)
-            ret = DotDict(**ret)  # behave like a typed dict
-            return ret
-        except Exception as e:
-            if isinstance(e, JSONDecodeError):
-                error_type = XGenerationErrorType.INVALID_JSON
-            elif isinstance(e, TypeError):
-                error_type = XGenerationErrorType.INVALID_TYPE
-            else:
-                error_type = XGenerationErrorType.UNKNOWN
-            raise XGenerationError(
-                type=error_type, message=f"output is invalid for {self.type}: {e}", path=None
-            ) from e
 
-    def __call__(self) -> list[XBlock | DynamicXBlock]:
-        output_keys = ", ".join(t.name for t in self.type.outputs)
-        output_request = xstatic(
-            f"Generate {self.type_label} given the inputs and instructions - a JSON object with keys [{output_keys}], starting with {{",
-            XSource.System,
+    # escape strings with multiline content
+    # these aren't technically valid JSON, but they're very useful for model output
+    def sub_multiline_str(match):
+        # replace line breaks with \n escape sequence
+        modified_string = match.group(1).replace("\n", "\\n").replace("\r", "")
+        return f'"{modified_string}"'
+
+    value = re.compile(r'"(.*?)(?<!\\)"', re.DOTALL).sub(sub_multiline_str, value)
+
+    try:
+        ret = json.loads(value)
+        ret = map_value(
+            ret,
+            type,
+            map_v=instantiate_py_value_flat,
+            is_output=True,
+            ignore_outer_map=True,
         )
-        output = XBlockContent(kind=XKind.Output, source=XSource.Model, value=None, path=self.path)
-        return [output_request, DynamicXBlock(output, self.parse_output)]
-
-
-@xemit
-class XConsiderError(XEmit):
-    """Emits a note about an error that occured previously"""
-
-    error: XGenerationError
-
-    def __call__(self) -> XBlock:
-        error_str = str(self.error)
-        # remove (source=...) from error message
-        error_str = re.sub(r"\(source=.+\)", "", error_str)
-        return xstatic(f"Note: please avoid mistakes like this: {error_str}", XSource.System)
-
-
-@xemit
-class XEmitSettings(XEmit):
-    settings: typing.Any
-
-    def __call__(self) -> XBlock:
-        if is_dataclass(self.settings):
-            value = asdict(self.settings)
-        return XBlockContent(
-            kind=XKind.Settings, source=XSource.System, value=self.settings, path=None
-        )
-
-    @property
-    def sources(self) -> list[Symbol]:
-        return []
+        check_type(ret, type, is_output=True)
+        ret = DotDict(**ret)  # behave like a typed dict
+        return ret
+    except Exception as e:
+        if isinstance(e, JSONDecodeError):
+            error_type = TaskErrorType.INVALID_FORMAT
+        elif isinstance(e, TypeError):
+            error_type = TaskErrorType.INVALID_TYPE
+        else:
+            error_type = TaskErrorType.UNKNOWN
+        raise TaskError(
+            type=error_type, message=f"output is invalid for {type}: {e}", path=None
+        ) from e
 
 
 SAMPLE_BY_TYPE_HINT = {

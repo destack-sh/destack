@@ -161,7 +161,7 @@ function getInlineQuery() {
 function updateInlineQuery() {
   inlineQuery.value = getInlineQuery();
 }
-const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 200);
+const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 100);
 watch(
   () => [properties.inlineQuery, stringFields.value, nameFields.value, enumFields.value],
   updateInlineQueryDebounced,
