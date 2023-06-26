@@ -56,7 +56,7 @@ class StatementType(enum.StrEnum):
     BLANK = "blank"
     TYPE = "type"
     TASK = "task"
-    EXPECTATION = "expect"
+    EXPECTATION = "expectation"
     CODE = "code"
     MODEL = "model"
     VALUE = "value"
@@ -702,7 +702,7 @@ class SessionBase(abc.ABC):
         raise NotImplementedError
 
 
-SESSION_MUTATION_FLUSH_WATERMARK = 16
+SESSION_MUTATION_FLUSH_WATERMARK = 200
 
 
 class Session:

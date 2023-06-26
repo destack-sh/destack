@@ -15,6 +15,9 @@ module.exports = {
         rose: colors.rose,
         gray: colors.zinc,
       },
+      blur: {
+        xs: "2px",
+      },
     },
   },
   plugins: [

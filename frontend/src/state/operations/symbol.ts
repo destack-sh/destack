@@ -529,14 +529,14 @@ export function useSymbolContentOps() {
           }
         ) {
           ... on Field {
-            # should match FieldContent fragment
+            # should match :FieldContent fragment
             id
-            createdAt
-            updatedAt
-            deletedAt
             key
             orderKey
             statement {
+              id
+            }
+            parent {
               id
             }
             revision
@@ -549,6 +549,17 @@ export function useSymbolContentOps() {
             }
             flags
             metadata
+            # crud
+            createdAt
+            updatedAt
+            deletedAt
+            createdBy {
+              id
+            }
+            lastEditedAt
+            lastEditedBy {
+              id
+            }
           }
           ...OperationInfoContent
         }
@@ -577,10 +588,11 @@ export function useSymbolContentOps() {
               __typename: "Statement",
               id: vars.statementId,
             },
+            parent: {
+              __typename: "Statement",
+              id: vars.statementId,
+            },
             revision: PENDING_REVISION,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            deletedAt: null,
             tag: vars.tag,
             hint: vars.hint ?? null,
             name: vars.name,
@@ -590,6 +602,13 @@ export function useSymbolContentOps() {
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             flags: vars.flags,
             metadata: vars.metadata ?? null,
+            // crud
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            createdBy: null,
+            lastEditedAt: null,
+            lastEditedBy: null,
           },
         } as any),
       update(cache, { data }) {
