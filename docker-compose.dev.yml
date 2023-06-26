@@ -36,13 +36,15 @@ services:
   nats:
     image: nats:2.9
     restart: on-failure
-    environment:
-      # max payload 32MB
-      NATS_MAX_PAYLOAD: 33554432
     ports:
       - '4222:4222'
       - '6222:6222'
       - '8222:8222'
+    # 32MB in bytes
+    volumes:
+      - ./infra/nats.conf:/nats-server.conf
+    command: ["-c", "nats-server", "--config", "/nats-server.conf"]
+
 
   redis:
     image: redis:7.0-bullseye

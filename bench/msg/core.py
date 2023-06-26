@@ -131,7 +131,6 @@ def _serialize_message(message: NMessage) -> bytes:
     if message.payload is not None:
         # use custom dict encoder for speed and to handle recursive loops
         message_dict["payload"] = to_dict(message.payload)
-    # return json.dumps(message_dict, cls=MessageJSONEncoder) nocheckin
     return msgpack.packb(message_dict, use_bin_type=True)
 
 
@@ -227,13 +226,13 @@ async def request(
         raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
-    log.debug("request", topic=topic, message=message)
+    log.debug("request", topic=topic, message=message, bytes=len(serialized))
     reply = await nc.request(topic, serialized, timeout=timeout)
     reply_msg = _parse_message(reply.data)
     if not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
-    log.debug("request.reply", topic=topic, message=message, reply=reply_msg)
+    log.debug("request.reply", topic=topic, message=message, reply=reply_msg, bytes=len(reply.data))
     return reply_msg
 
 
@@ -264,8 +263,8 @@ def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
 async def do_publish(message: NMessage, topic: str):
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
-    log.debug("publish", topic=topic, message=message)
     serialized = _serialize_message(message)
+    log.debug("publish", topic=topic, message=message, bytes=len(serialized))
     await nc.publish(topic, serialized)
 
 

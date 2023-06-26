@@ -25,7 +25,7 @@ from bench.bench.execution import ExecutionFrame, PyFrameData, RunErrorData
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
 from bench.utils.func import describe_type
-from bench.utils.serialize import from_dict
+from bench.utils.serialize import from_dict, to_dict
 
 #
 # Stable, concise and flat language data nodes for transit and storage.
@@ -416,7 +416,7 @@ class ModuleTreeData(ModuleData):
 
     def encode_some_attrs(self) -> dict[str, Any]:
         # hack to wire nodes with the type of their base class until :WireFormat
-        serialized_nodes = [{**node.__dict__, "cls": type(node).__name__} for node in self.nodes]
+        serialized_nodes = [{**to_dict(node), "cls": type(node).__name__} for node in self.nodes]
         return {"nodes": serialized_nodes}
 
     @classmethod
