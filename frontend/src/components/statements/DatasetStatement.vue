@@ -11,7 +11,7 @@ import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.v
 import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber, useNow } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
-import { graphql } from "@/gql";
+import { graphql, useFragment } from "@/gql";
 import {
   QueryOp,
   SortOrder,
@@ -19,6 +19,7 @@ import {
   type DatasetSort,
   type DatasetQuery,
   ModuleMutationType,
+  TypeHint,
 } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -60,6 +61,8 @@ import { TypeStorageFormat, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
+import { TypeTag } from "@/gql/graphql";
+import { FieldType } from "@/state/fragments";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -107,19 +110,51 @@ onMounted(() => {
 const stringFields = computed(() =>
   context.allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
 );
+const nameFields = computed(() => stringFields.value.filter((f) => f.hint == TypeHint.Name));
+const enumFields = computed(() =>
+  context.allFields.value.filter(
+    (f) =>
+      f.tag == TypeTag.Enum ||
+      (f.tag == TypeTag.TypeReference && module.statementOf(f.reference?.id)?.rootTypeTag == TypeTag.Enum)
+  )
+);
 // TODO @UX: apply inline search to local records immediately/optmistically
 // update search query on inline query change
 const inlineQuery: Ref<DatasetQuery | undefined> = ref(undefined);
 function getInlineQuery() {
   if ((properties.inlineQuery ?? "").trim().length == 0) return undefined;
-  const subqueries = stringFields.value.map(
-    (f) =>
-      ({
-        op: QueryOp.Matches,
-        key: "value." + module.getTypedKey(f),
-        value: properties.inlineQuery,
-      } as DatasetQuery)
-  );
+  const subqueries = [
+    ...stringFields.value.map(
+      (f) =>
+        ({
+          op: QueryOp.Matches,
+          key: "value." + module.getTypedKey(f),
+          value: properties.inlineQuery,
+        } as DatasetQuery)
+    ),
+    ...nameFields.value.map(
+      (f) =>
+        ({
+          op: QueryOp.StartsWith,
+          key: "value." + module.getTypedKey(f),
+          value: properties.inlineQuery,
+        } as DatasetQuery)
+    ),
+  ];
+  // filter for enum fields members that match the query
+  for (const enumField of enumFields.value) {
+    const matchingMembers = module
+      .statementOf(enumField.reference?.id)
+      ?.fields.map((m) => useFragment(FieldType, m))
+      .filter((m) => m.name?.toLowerCase().startsWith(properties.inlineQuery?.toLowerCase() ?? ""));
+    if (matchingMembers == null || matchingMembers.length == 0) continue;
+    subqueries.push({
+      key: "value." + module.getTypedKey(enumField),
+      op: QueryOp.Equals,
+      value: matchingMembers.map((m) => m.key),
+    } as DatasetQuery);
+  }
+
   if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
   return { op: QueryOp.Or, queries: subqueries } as DatasetQuery;
 }
@@ -127,7 +162,11 @@ function updateInlineQuery() {
   inlineQuery.value = getInlineQuery();
 }
 const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 200);
-watch(() => [properties.inlineQuery, stringFields.value], updateInlineQueryDebounced, { immediate: true });
+watch(
+  () => [properties.inlineQuery, stringFields.value, nameFields.value, enumFields.value],
+  updateInlineQueryDebounced,
+  { immediate: true }
+);
 
 function addSort(field: Field, order: SortOrder) {
   const key = "value." + module.getTypedKey(field);
@@ -492,10 +531,12 @@ function dropField(droppedId: string, position: "above" | "below" | "right" | "l
   nextTick(() => grid.focus("", dropped.key ?? ""));
 }
 
-function getNewOrderKey(belowRecordId?: string) {
+function getNewOrderKey(belowRecordId?: string): string | null {
   const recordIdx = recordsInView.value.findIndex((r) => r.id === belowRecordId);
   const recordBelow = recordsInView.value[recordIdx + 1] ?? overfetchedRecord.value;
-  return generateKeyBetween(recordsInView.value[recordIdx]?.orderKey ?? null, recordBelow?.orderKey ?? null);
+  const beforeOk = recordsInView.value[recordIdx]?.orderKey ?? null;
+  const afterOk = recordBelow?.orderKey ?? null;
+  return generateKeyBetween(beforeOk, afterOk);
 }
 
 function insertRecordAtEnd() {

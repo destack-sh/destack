@@ -206,7 +206,7 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = registry.useMutation(
     ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
-      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String!, $value: JSON!) {
+      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String, $value: JSON!) {
         createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, value: $value }) {
           ... on Record {
             id
@@ -408,7 +408,7 @@ export function useSymbolContentOps() {
     tx: Transaction | null,
     id: string,
     statementId: string,
-    orderKey: string,
+    orderKey: string | null,
     value: Scalars["JSON"]
   ) {
     await ops.perform({

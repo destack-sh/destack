@@ -1364,7 +1364,7 @@ input RecordCreateInput {
   statementId: GlobalID!
   id: GlobalID!
   value: JSON!
-  orderKey: String!
+  orderKey: String = null
 }
 
 input RecordDeleteInput {
@@ -1384,7 +1384,7 @@ type RecordEdge {
 input RecordMoveInput {
   statementId: GlobalID!
   id: GlobalID!
-  orderKey: String!
+  orderKey: String = null
 }
 
 union RecordOperationInfo = Record | OperationInfo

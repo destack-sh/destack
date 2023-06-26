@@ -1642,7 +1642,7 @@ export type RecordConnection = {
 
 export type RecordCreateInput = {
   id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  orderKey?: InputMaybe<Scalars["String"]>;
   statementId: Scalars["GlobalID"];
   value: Scalars["JSON"];
 };
@@ -1663,7 +1663,7 @@ export type RecordEdge = {
 
 export type RecordMoveInput = {
   id: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  orderKey?: InputMaybe<Scalars["String"]>;
   statementId: Scalars["GlobalID"];
 };
 
@@ -4257,7 +4257,7 @@ export type UpdateSymbolValueMutation = {
 export type CreateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
-  orderKey: Scalars["String"];
+  orderKey?: InputMaybe<Scalars["String"]>;
   value: Scalars["JSON"];
 }>;
 
@@ -12413,7 +12413,7 @@ export const CreateRecordDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",
