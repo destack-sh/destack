@@ -1,46 +1,42 @@
-from __future__ import annotations
-
 import asyncio
-import copy
 import enum
 import hashlib
 import json
 import typing
-import uuid
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from datetime import datetime
-from functools import cached_property
 from json import JSONDecodeError
 from logging import Logger
 from typing import Any, Optional
-from uuid import UUID
 
+import anthropic
+import openai
 import pytz
 import structlog
 
-from bench.bench.core import Scope, Session, Symbol, node
+from bench.bench.core import Scope, Symbol, node
+from bench.bench.remote import RemoteObject
 from bench.utils.cache import redis
-from bench.utils.fractional import INTEGER_ZERO
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env, required_field
 
 if typing.TYPE_CHECKING:
-    from bench.bench import wire
-    from bench.bench.tracing import Tracer
+    pass
 
 logger = structlog.get_logger(__name__)
+
+INFERENCE_CACHE_EXPIRY = get_from_env("INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int)
 
 
 @node
 class Model(Symbol):
     external_name: str = required_field()
-
-    @cached_property
-    def inference(self) -> "ModelInference":
-        return instantiate_inference(self, self.session)
+    _is_async: bool = True
+    _remote: bool = False
+    _endpoint: Optional["ModelEndpoint"] = None
 
     def _clear(self) -> None:
-        pass
+        self._endpoint = None
 
     def _interp(self, scope: Scope) -> None:
         pass
@@ -48,181 +44,14 @@ class Model(Symbol):
     def __str__(self):
         return f"{self.external_name}"
 
-    # forward inference methods
-    def __getattr__(self, item: str):
-        if item in self.inference.__dict__:
-            return getattr(self.inference, item)
-        else:
-            raise AttributeError(item)
+    async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
+        if self._endpoint is None and not self._remote:
+            self._endpoint = get_model_endpoint(self.model.fqn)
 
-
-# Ideally, endpoint settings should be 1) extensible and 2) types in the std lib or something
-# For now, we just use internal dataclasses. :TypeSafeSettings
-
-
-class IncapableError(NotImplementedError):
-    pass
-
-
-class Modality(enum.StrEnum):
-    """Core modality capabilities of a model."""
-
-    GenerateText = "generate_text"  # any -> text
-    GenerateImage = "generate_image"  # any -> image
-    GenerateAudio = "generate_audio"  # any -> audio
-    Embed = "embed"  # any -> embedding
-    Struct = "struct"  # any -> struct(ture prediction)
-
-
-@dataclass
-class TextGenerationSettings:
-    temperature: float
-    max_tokens: int
-    top_p: Optional[float]
-    stop: Optional[list[str]] = field(default_factory=list)
-    logit_bias: Optional[dict[str, float]] = field(default_factory=dict)
-
-
-@dataclass
-class ImageGenerationSettings:
-    seed: int
-    steps: int
-    width: int
-    height: int
-    cfg_scale: float
-
-
-@dataclass
-class AudioGenerationSettings:
-    pass
-
-
-@dataclass
-class EmbeddingSettings:
-    pass
-
-
-@dataclass
-class StructSettings:
-    pass
-
-
-SETTINGS_CLS_BY_MODALITY = {
-    Modality.GenerateText: TextGenerationSettings,
-    Modality.GenerateImage: ImageGenerationSettings,
-    Modality.GenerateAudio: AudioGenerationSettings,
-    Modality.Embed: EmbeddingSettings,
-}
-
-
-@dataclass
-class ModelInference:
-    """Generic model with an endpoint for each core modality."""
-
-    external_name: str
-    key: str | None
-
-    def incapable_error(self, method):
-        modality = Modality(method.__name__)
-        return IncapableError(f"{self} is incapable of modality {modality}")
-
-    async def __call__(
-        self, modality: Modality, input: list["XBlock"], settings: Any, **kwargs
-    ) -> Any:
-        method = getattr(self, modality.value)
-        return await method(input, settings, **kwargs)
-
-    async def generate_text(self, input: list["XBlock"], settings: TextGenerationSettings) -> str:
-        raise self.incapable_error(self.generate_text)
-
-    async def generate_image(
-        self, input: list["XBlock"], settings: ImageGenerationSettings
-    ) -> bytes:
-        raise self.incapable_error(self.generate_image)
-
-    async def generate_audio(
-        self, input: list["XBlock"], settings: AudioGenerationSettings
-    ) -> bytes:
-        raise self.incapable_error(self.generate_audio)
-
-    async def embed(self, input: list["XBlock"], settings: EmbeddingSettings) -> list[float]:
-        raise self.incapable_error(self.embed)
-
-    async def struct(self, input: list["XBlock"], settings: StructSettings) -> Any:
-        raise self.incapable_error(self.struct)
-
-
-BASE_SETTINGS_BY_MODALITY = {
-    Modality.GenerateText: TextGenerationSettings,
-    Modality.GenerateImage: ImageGenerationSettings,
-    Modality.GenerateAudio: AudioGenerationSettings,
-    Modality.Embed: EmbeddingSettings,
-    Modality.Struct: StructSettings,
-}
-
-INFERENCE_CACHE_EXPIRY = get_from_env(
-    "INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int
-)  # 1 month
-
-
-@dataclass(slots=True)
-class Inference:
-    """The cached inference struct"""
-
-    generated_at: datetime
-    duration: float
-    result: Any
-
-    def to_json_str(self) -> str:
-        inference_json = {
-            "generated_at": self.generated_at.isoformat(),
-            "duration": self.duration,
-            "result": self.result,
-        }
-        return json.dumps(inference_json)
-
-    @classmethod
-    def from_json_str(cls, json_str: str):
-        data = json.loads(json_str)
-        return cls(
-            generated_at=datetime.fromisoformat(data["generated_at"]),
-            duration=data["duration"],
-            result=data["result"],
-        )
-
-
-InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
-
-
-class CachedInferenceEndpoint:
-    """Trace and cache a specific inference endpoint."""
-
-    def __init__(
-        self,
-        model: Model,
-        modality: Modality,
-        endpoint: InferenceEndpoint,
-        tracer: "Tracer",
-        cache_inferences: bool,
-        timeout: int,
-    ):
-        self.model = model
-        self.modality = modality
-        self.endpoint = endpoint
-        self.tracer = tracer
-        self.cache_inferences = cache_inferences
-        self.timeout = timeout
-
-    # insecure hash is fine here, it's just for caching
-    # noinspection InsecureHash
-    async def __call__(
-        self, blocks: list["XBlock"], settings: Any, cache: bool = None, timeout: int = None
-    ) -> Any:
-        cache_key = get_inference_cache_key(self.model.fqn, self.modality, blocks, settings)
+        cache_key = get_inference_cache_key(self.model.fqn, inputs)
         log = logger.bind(
             model=self.model.fqn,
-            modality=self.modality,
-            blocks=len(blocks),
+            inputs=describe_type(inputs),
             cache_key=cache_key,
             cache_inferences=self.cache_inferences,
         )
@@ -234,33 +63,122 @@ class CachedInferenceEndpoint:
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_str(cached_inference)
-                    log.debug("inference.cache.hit", ret=describe_type(inference.result))
-                    self.tracer.inference_cached(self.model, blocks, settings, inference)
-                    return inference.result
+                    log.debug("inference.cache.hit", output=describe_type(inference.output))
+                    self.tracer.inference_cached(self.model, inputs, inference)
+                    return inference.output
                 except (ValueError, TypeError, JSONDecodeError):
                     log.warning("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
 
-        #  otherwise run inference
+        # request remote inference if needed
+        if self._remote:
+            from bench.msg.core import NMessage, request
+            from bench.msg.messages import (
+                NMessageType,
+                RepRunInferencePayload,
+                ReqRunInferencePayload,
+            )
+
+            timeout = timeout if timeout is not None else self.timeout
+            rep: NMessage[RepRunInferencePayload] = await request(
+                NMessageType.REQUEST_RUN_INFERENCE,
+                ReqRunInferencePayload(model_fqn=self.model.fqn, inputs=inputs, timeout=timeout),
+                RepRunInferencePayload,
+                timeout=timeout + 1,  # for network
+            )
+            if rep.p.output is None:
+                raise RuntimeError("remote inference failed")
+            return rep.p.output
+
+        # otherwise run inference through endpoint
         try:
-            self.tracer.inference_enter(self.model, blocks, settings)
+            self.tracer.inference_enter(self.model, inputs)
             timeout = timeout if timeout is not None else self.timeout
             result = await asyncio.wait_for(
-                asyncio.shield(run_inference(self.endpoint, blocks, settings, cache_key, log)),
+                asyncio.shield(run_inference(self.endpoint, inputs, cache_key, log)),
                 timeout,
             )
-            self.tracer.inference_exit(self.model, blocks, settings, result)
+            self.tracer.inference_exit(self.model, inputs, result)
             return result
         except Exception as exception:
-            self.tracer.inference_exception(self.model, blocks, settings, exception)
+            self.tracer.inference_exception(self.model, inputs, exception)
             log.debug("inference.exception", exc_info=True)
             raise
+
+    def to_sync(self):
+        raise NotImplementedError
+
+
+class IncapableError(NotImplementedError):
+    pass
+
+
+@dataclass
+class ModelEndpoint:
+    model: str
+    key: str | None
+
+    async def __call__(self, **kwargs) -> Any:
+        raise NotImplementedError
+
+
+model_endpoints: dict[str, type[ModelEndpoint]] = {}
+
+
+def get_model_endpoint(fqn: str) -> ModelEndpoint:
+    if fqn not in model_endpoints:
+        raise RuntimeError(f"no model endpoint registered for {fqn}")
+    return model_endpoints[fqn](fqn)
+
+
+def model(fqns: list[str]):
+    """Registers a model endpoint."""
+
+    def decorator(endpoint: type[ModelEndpoint]) -> type[ModelEndpoint]:
+        for fqn in fqns:
+            if fqn in model_endpoints:
+                raise RuntimeError(f"model endpoint already exists {fqn}: {model_endpoints[fqn]}")
+            model_endpoints[fqn] = endpoint
+        return endpoint
+
+    return decorator
+
+
+@dataclass(slots=True)
+class Inference:
+    """A model inference."""
+
+    generated_at: datetime
+    duration: float
+    inputs: Any
+    output: Any
+
+    def to_json_str(self) -> str:
+        inference_json = {
+            "generated_at": self.generated_at.isoformat(),
+            "duration": self.duration,
+            "inputs": self.inputs,
+            "output": self.output,
+        }
+        return json.dumps(inference_json)
+
+    @classmethod
+    def from_json_str(cls, json_str: str):
+        data = json.loads(json_str)
+        return cls(
+            generated_at=datetime.fromisoformat(data["generated_at"]),
+            duration=data["duration"],
+            inputs=data["inputs"],
+            output=data["output"],
+        )
+
+
+InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
 
 
 async def run_inference(
     endpoint: InferenceEndpoint,
-    blocks: list["XBlock"],
-    settings: Any,
+    inputs: Any,
     cache_key: str,
     log: Logger = logger,
     write_to_cache: bool = True,
@@ -271,169 +189,192 @@ async def run_inference(
     """
     started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
     log.debug("inference.enter")
-    result = await endpoint(blocks, settings)
+    output = await endpoint(**inputs)
     now = datetime.utcnow().replace(tzinfo=pytz.utc)
     duration = (now - started_at).total_seconds()
     if write_to_cache:
         # result is assumed to be JSON serializable, will obviously error here if not
-        inference = Inference(generated_at=now, duration=duration, result=result)
+        inference = Inference(generated_at=now, duration=duration, inputs=inputs, output=output)
         await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
-    log.debug("inference.exit", ret=describe_type(result), write_to_cache=write_to_cache)
-    return result
+    log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
+    return output
 
 
-def get_inference_cache_key(
-    model_fqn: str, modality: Modality, blocks: list["XBlock"], settings: Any
-):
-    block_strings = [f"{b.kind}{b.source}{b.value}{b.path}" for b in blocks]
-    blocks_hash = hashlib.sha256("".join(block_strings).encode("utf-8")).hexdigest()
-    settings_hash = hashlib.sha256(
-        json.dumps(asdict(settings), sort_keys=True).encode("utf-8")
-    ).hexdigest()
-    cache_key = f"inference.{model_fqn}.{modality}:{settings_hash}:{blocks_hash}"
+def get_inference_cache_key(model_fqn: str, inputs: Any):
+    input_hash = hashlib.sha256(json.dumps(inputs).encode("utf-8")).hexdigest()
+    cache_key = f"inference.{model_fqn}.{input_hash}"
     return cache_key
 
 
-class RemoteInferenceEndpoint:
-    """Proxy an inference endpoint to a remote service."""
+class OpenAIChatRole(enum.StrEnum):
+    system = "system"
+    developer = "developer"
+    assistant = "assistant"
+    user = "user"
+    function = "function"
 
-    def __init__(
+
+@dataclass
+class OpenAIChatMessage:
+    role: OpenAIChatRole
+    content: str
+
+
+@dataclass
+class OpenAIChatCompletionSettings:
+    temperature: float = 1.0
+    max_tokens: int = None
+    top_p: float = 1.0
+    stop: Optional[str] = None
+    logit_bias: Optional[dict[str, float]] = None
+    frequence_penalty: float = 0.0
+    presence_penalty: float = 0.0
+    function_call: Optional[str] = None
+    user: Optional[str] = None
+
+
+@dataclass
+class OpenAIFunction:
+    name: str
+    description: str
+    parameters: "OpenAIFunctionParameter"
+
+
+@dataclass
+class OpenAIFunctionParameter:
+    type: str
+    description: str
+    properties: dict[str, "OpenAIFunctionParameter"] | None = None
+    enum: list[str] | None = None
+    required: list[str] | None = None
+
+
+@dataclass
+class OpenAIFunctionCall:
+    name: str
+    parameters: dict[str, Any]
+
+
+@dataclass
+class OpenAITokenUsage:
+    prompt_tokens: int
+    completion_tokens: Optional[int]
+    total_tokens: int
+
+
+@dataclass
+class OpenAIChatCompletion:
+    text: Optional[str]
+    function_call: Optional[OpenAIFunctionCall]
+    usage: OpenAITokenUsage
+
+
+@model(["openai.std.text.gpt4", "openai.std.text.gpt3"])
+class OpenAIChatCompletionEndpoint(ModelEndpoint):
+    async def __call__(
         self,
-        model: Model,
-        modality: Modality,
-        timeout: int,
-    ):
-        self.model = model
-        self.modality = modality
-        self.timeout = timeout
-
-    async def __call__(self, blocks: list["XBlock"], settings: Any, timeout: int = None) -> Any:
-        from bench.msg.core import NMessage, request
-        from bench.msg.messages import NMessageType, RepRunInferencePayload, ReqRunInferencePayload
-
-        timeout = timeout if timeout is not None else self.timeout
-        rep: NMessage[RepRunInferencePayload] = await request(
-            NMessageType.REQUEST_RUN_INFERENCE,
-            ReqRunInferencePayload(
-                model_fqn=self.model.fqn,
-                model_external_name=self.model.external_name,
-                modality=self.modality,
-                blocks=[pack_xblock(b) for b in blocks],
-                settings=asdict(settings),
-                timeout=timeout,
+        messages: list[OpenAIChatMessage],
+        functions: dict[str, OpenAIFunction],
+        settings: OpenAIChatCompletionSettings,
+    ) -> OpenAIChatCompletion:
+        response = await openai.ChatCompletion.acreate(
+            model=self.model,
+            messages=[asdict(m) for m in messages],
+            temperature=settings.temperature,
+            max_tokens=settings.max_tokens,
+            top_p=settings.top_p,
+            stop=settings.stop or None,
+            logit_bias=settings.logit_bias,
+            api_key=self.key,
+        )
+        response_message = response["choices"][0]["message"]
+        text = response_message.get("text")
+        function_call = response_message.get("function_call")
+        return OpenAIChatCompletion(
+            text=text,
+            function_call=function_call,
+            usage=OpenAITokenUsage(
+                prompt_tokens=response["usage"]["prompt_tokens"],
+                completion_tokens=response["usage"].get("completion_tokens"),
+                total_tokens=response["usage"]["total_tokens"],
             ),
-            RepRunInferencePayload,
-            timeout=timeout + 1,  # for network
         )
-        if rep.p.output is None:
-            raise RuntimeError("remote inference failed")
-        return rep.p.output
 
 
-def instantiate_inference(model: Model, session: Session) -> "ModelInference":
-    """
-    Instantiates the model inference endpoints for the session.
-    If we don't have the key, we proxy to the langserver.
-    """
-    from bench.runtime.common.models import get_inference_endpoints_cls
+@dataclass
+class OpenAITextEmbedding:
+    embedding: Optional[list[float]]
+    embeddings: Optional[list[list[float]]]
+    usage: OpenAITokenUsage
 
-    key = None  # TODO @Broken: get model key from module? same file? some constant?
-    inference = ModelInference(external_name=model.external_name, key=key)
-    endpoints = list(get_inference_endpoints_cls(model))
 
-    if not endpoints:
-        raise RuntimeError(f"no endpoints found for model: {model}")
-    for modality, endpoint_cls in endpoints:
-        if key is not None:
-            endpoint = getattr(endpoint_cls(**inference.__dict__), modality)
+@model(["openai.std.text.ada"])
+class OpenAITextEmbeddingEndpoint(ModelEndpoint):
+    async def __call__(self, text: str | list[str]) -> OpenAITextEmbedding:
+        rep = await openai.Embedding.acreate(text, model=self.model, api_key=self.key)
+        if isinstance(text, str):
+            embedding = rep["data"][0]["embedding"]
+            embeddings = None
         else:
-            endpoint = RemoteInferenceEndpoint(
-                model=model, modality=modality, timeout=session.inference_timeout
-            )
-        endpoint_proxy = CachedInferenceEndpoint(
-            model=model,
-            modality=modality,
-            endpoint=endpoint,
-            tracer=session.tracer,
-            cache_inferences=session.cache_inferences,
-            timeout=session.inference_timeout,
-        )
-        setattr(inference, modality, endpoint_proxy)
-    return inference
-
-
-class XKind(enum.StrEnum):
-    Settings = "settings"
-    Static = "static"
-    Input = "input"
-    Output = "output"
-
-
-class XSource(enum.StrEnum):
-    System = "system"
-    User = "user"
-    Developer = "developer"
-    Model = "model"
-
-
-ValueT = typing.TypeVar("ValueT", bound=typing.Any)
-
-
-# TODO @Architecture: XBlock should just be a wrapper around a regular value, not special in any way
-
-
-@dataclass(repr=False)
-class XBlock(typing.Generic[ValueT]):
-    kind: XKind
-    source: XSource
-    value: Optional[ValueT]
-    path: Optional[str] = None  # jsonpath of value if partial block
-
-    def __len__(self):
-        if self.value is None:
-            return 0
-        elif isinstance(self.value, str):
-            return len(self.value)
-        else:
-            raise TypeError(f"cannot get length of {self}")
-
-    def copy(self):
-        return XBlock(
-            kind=self.kind,
-            source=self.source,
-            value=copy.deepcopy(self.value),
-            path=self.path,
+            embedding = None
+            embeddings = [d["embedding"] for d in rep["data"]]
+        return OpenAITextEmbedding(
+            embedding=embedding,
+            embeddings=embeddings,
+            usage=OpenAITokenUsage(
+                prompt_tokens=rep["usage"]["prompt_tokens"],
+                completion_tokens=rep["usage"].get("completion_tokens"),
+                total_tokens=rep["usage"]["total_tokens"],
+            ),
         )
 
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path or ''})"
 
-    def __repr__(self):
-        return f"<XBlock {str(self)}>"
-
-
-@dataclass(repr=False)
-class XBlockContent(XBlock, typing.Generic[ValueT]):
-    description: Optional[str] = None
-    order_key: str = field(default=INTEGER_ZERO)
-    id: UUID = field(default_factory=uuid.uuid4)
-
-    def __str__(self):
-        return f"{self.value} ({self.kind}/{self.source}, .{self.path})"
-
-    def __repr__(self):
-        return f"<XBlockContent {str(self)}>"
+class OpenAIAudioTranscription(ModelEndpoint):
+    async def __call__(self, audio: RemoteObject) -> str:
+        raise NotImplementedError
 
 
-def unpack_xblock(xblock: wire.XBlockData) -> XBlockContent:
-    """Maps an xblock data object to an xblock."""
-    return XBlockContent(
-        kind=xblock.kind, source=xblock.source, value=xblock.value, path=xblock.path
-    )
+@dataclass
+class AnthropicTextCompletionSettings:
+    temperature: float = 1.0
+    top_p: Optional[float] = None
+    top_k: Optional[int] = None
+    max_tokens_to_sample: int = 64
+    stop_sequences: list[str] | None = None
 
 
-def pack_xblock(xblock: XBlockContent) -> wire.XBlockData:
-    """Maps an xblock to an xblock data object."""
-    return wire.XBlockData(
-        kind=xblock.kind, source=xblock.source, value=xblock.value, path=xblock.path
-    )
+@dataclass
+class AnthropicTextCompletion:
+    stop_reason: str
+
+
+@model(
+    [
+        "anthropic.std.text.claude-1",
+        "anthropic.std.text.claude-1-100k",
+        "anthropic.std.text.clause-instant-1",
+        "anthropic.std.text.clause-instant-1-100k",
+    ]
+)
+class AnthropicTextCompletionEndpoint(ModelEndpoint):
+    def __post_init__(self):
+        self.client = anthropic.Client(self.key)
+
+        # monkey patch Anthropic's validation (which is broken)
+        from anthropic import api
+
+        api._validate_prompt_length = lambda *args, **kwargs: None
+
+    async def __call__(
+        self, prompt: str, settings: AnthropicTextCompletionSettings
+    ) -> AnthropicTextCompletion:
+        # see https://console.anthropic.com/docs/api
+        rep = await self.client.acompletion(
+            prompt=prompt,
+            model=self.model,
+            stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
+            temperature=settings.temperature,
+            max_tokens_to_sample=settings.max_tokens_to_sample,
+            top_p=settings.top_p,
+        )
+        return rep["completion"]

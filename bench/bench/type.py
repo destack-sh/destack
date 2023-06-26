@@ -480,6 +480,10 @@ class Type(Symbol, HasType, HasExpectations):
             return self.fields[item]
         return super(HasType).__getattr__(item)
 
+    @staticmethod
+    def from_py_type(py_type: Any):
+        return type_from_py_type(py_type)
+
 
 def on_invalid_raise(
     value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
@@ -887,6 +891,14 @@ def instantiate_py_type(node: TypeBase) -> type | Any | None:
         return list[py_type]
     else:
         return py_type
+
+
+def type_from_py_type(py_type: type, type_map: dict[Any, Type] = None) -> TypeBase:
+    """
+    Maps a python type to a Type (recursively).
+    Nested types are read/written in the given type_map.
+    """
+    raise NotImplementedError  # nocheckin
 
 
 def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:

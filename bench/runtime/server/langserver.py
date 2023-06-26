@@ -14,12 +14,7 @@ from django.db.models import Q
 from bench import models
 from bench.bench import HasType, Issue, ResolvedField, model, wire
 from bench.bench.core import MOT, ModuleReference
-from bench.bench.model import (
-    SETTINGS_CLS_BY_MODALITY,
-    Modality,
-    get_inference_cache_key,
-    run_inference,
-)
+from bench.bench.model import get_inference_cache_key, run_inference
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
 from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
@@ -63,7 +58,6 @@ from bench.runtime.common.interp import (
     get_requirements,
     interp_module,
 )
-from bench.runtime.common.models import get_inference_endpoint, get_model_key_from_env
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -294,15 +288,13 @@ class LanguageServer:
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
-        modality = Modality(msg.p.modality)
-        log = logger.bind(model=msg.p.model_fqn, modality=modality, msg=msg)
+        log = logger.bind(model=msg.p.model_fqn, msg=msg)
         log.debug("inference.run")
-        key = get_model_key_from_env(msg.p.model_fqn)
         inference = get_inference_endpoint(
             model=msg.p.model_fqn,
             modality=modality,
             external_name=msg.p.model_external_name,
-            key=key,
+            key=(get_model_key_from_env(msg.p.model_fqn)),
         )
         endpoint = getattr(inference, modality.value)
         try:

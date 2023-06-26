@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Field } from "@/gql/graphql";
+import { TypeHint, type Field } from "@/gql/graphql";
 import { ref, type Ref } from "vue";
 
 const props = defineProps<{
@@ -19,7 +19,16 @@ defineExpose({
 });
 </script>
 <template>
-  <div v-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
+  <a
+    v-if="preview && type.hint == TypeHint.Url"
+    class="h-full w-full text-gray-500 underline decoration-gray-300 underline-offset-4"
+    :href="modelValue"
+    target="_blank"
+  >
+    <span @click.stop>{{ modelValue }}</span>
+    <template v-if="(modelValue ?? '') == ''">&nbsp;</template></a
+  >
+  <div v-else-if="preview" class="h-full w-full">{{ modelValue }}&nbsp;</div>
   <input
     v-else
     ref="inputRef"
