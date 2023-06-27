@@ -12,12 +12,11 @@ from asgiref.sync import sync_to_async
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, model, wire
-from bench.bench.core import MOT, ModuleReference
+from bench.bench import HasType, Issue, ResolvedField, wire
+from bench.bench.core import MOT, Module, ModuleReference, parse_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
-from bench.bench.model import get_inference_cache_key, run_inference
 from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.wire import ExecutionFrameData
+from bench.bench.wire import ExecutionFrameData, ModuleTree
 from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
 from bench.models.packer import write_mutations
@@ -52,10 +51,6 @@ from bench.msg.messages import (
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
-from bench.runtime.common.interp import (
-    InterpModule,
-    interp_module,
-)
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -157,7 +152,7 @@ class LanguageServer:
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = LanguageWorker(self.id, project_version, self.module_db.fetch)
+            worker = LanguageWorker(self.id, project_version, self.module_db)
             self.lang_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         if not worker.ready.is_set():
@@ -290,23 +285,13 @@ class LanguageServer:
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
+        module_name, localized_path = parse_statement_reference(msg.p.model_fqn)
         log = logger.bind(model=msg.p.model_fqn, msg=msg)
         log.debug("inference.run")
-        inference = get_inference_endpoint(
-            model=msg.p.model_fqn,
-            modality=modality,
-            external_name=msg.p.model_external_name,
-            key=(get_model_key_from_env(msg.p.model_fqn)),
-        )
-        endpoint = getattr(inference, modality.value)
         try:
-            settings = SETTINGS_CLS_BY_MODALITY[msg.p.modality](**msg.p.settings)
-            xblocks = [model.unpack_xblock(xblock) for xblock in msg.p.blocks]
-            cache_key = get_inference_cache_key(msg.p.model_fqn, modality, xblocks, settings)
-            output = await asyncio.wait_for(
-                asyncio.shield(run_inference(endpoint, xblocks, settings, cache_key, log)),
-                msg.p.timeout,
-            )
+            module = DEFAULT_MODULES[module_name]
+            model = module.lookup_symbol(localized_path)
+            output = await model(**msg.p.inputs, timeout=msg.p.timeout)
             timeout = False
         except Exception as e:
             log.error("inference.exception", exc_info=True, sentry=sentry_capture_if_enabled(e))
@@ -428,18 +413,21 @@ COMPLETED_JOBS_BUFFER_SIZE = 128
 class LanguageWorker:
     """Language server worker for a single module"""
 
-    def __init__(self, worker_id: UUID, project_version: models.ProjectVersion, fetcher: ModuleDB):
+    def __init__(
+        self, worker_id: UUID, project_version: models.ProjectVersion, module_db: ModuleDB
+    ):
         self.worker_id = worker_id
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
             module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
         )
-        self.fetcher = fetcher
+        self.module_db = module_db
         # module data
         self.source: wire.ModuleTreeData | None = None
-        self.interp: Optional[InterpModule] = None
-        self.last_interp: Optional[InterpModule] = None
+        self.module: Optional[Module] = None
+        self.module_tree: Optional[ModuleTree] = None
+        self.last_module: Optional[Module] = None
 
     @property
     def client(self) -> ClientOrigin:
@@ -459,16 +447,8 @@ class LanguageWorker:
     def project_id(self) -> UUID:
         return self.project_version.project_id
 
-    @property
-    def module(self):
-        return self.interp.module
-
     def mutate(self) -> ModuleMutator:
-        return ModuleMutator(self.interp.module)
-
-    @property
-    def interpreted(self) -> bool:
-        return self.interp.module is not None
+        return ModuleMutator(self.module)
 
     async def on_module_changed(self, mutations: list[ModuleMutation]):
         mutator = ModuleMutator(self.source, mutations)
@@ -485,7 +465,7 @@ class LanguageWorker:
             mutations = mutations.mutations
         logger.debug("write_module", mutations=mutations[:5], total=len(mutations), origins=origins)
         await sync_to_async(write_mutations)(
-            self.project_version, self.interp.tree, mutations, wait_for_os=wait
+            self.project_version, self.module_tree, mutations, wait_for_os=wait
         )
 
         # trim mutations to remove overhead from large dataset updates
@@ -509,20 +489,17 @@ class LanguageWorker:
             ),
         )
 
-    def _do_interp_sync(
-        self, new_source: wire.ModuleTreeData, dependencies: list[InterpModule]
-    ) -> tuple[InterpModule, InterpModule]:
+    def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, Module]:
         self.source = new_source
-        old = self.interp
-        self.interp = interp_module(
-            source=new_source, dependencies=[d.module for d in dependencies], session=None
-        )
-        return old, self.interp
+        old = self.module
+        self.module = Module.interp_from(source=new_source, session=None)
+        self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
+        return old, self.module
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         dependencies = DEFAULT_MODULES.values()
-        old_interp, new_interp = await asyncio.get_event_loop().run_in_executor(
+        old_module, new_module = await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
 
@@ -531,37 +508,37 @@ class LanguageWorker:
         # prune existing interp data from mut tree to track changes
         interp_mut.tree.prune(wire.ResolvedFieldData)
         # resolved fields
-        if old_interp is None:
+        if old_module is None:
             interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
-        for symbol in new_interp.module.symbols_by_id.values():
+        for symbol in new_module.symbols_by_id.values():
             if not isinstance(symbol, HasType):
                 continue
-            old_symbol = old_interp.module.symbols_by_id.get(symbol.id) if old_interp else None
+            old_symbol = old_module.symbols_by_id.get(symbol.id) if old_module else None
             if old_symbol is None or old_symbol.resolved_fields != symbol.resolved_fields:
-                if old_interp is not None:
+                if old_module is not None:
                     interp_mut.truncate(symbol, MOT.RESOLVED_FIELD)
                 for resolved in symbol.resolved_fields:
                     if isinstance(resolved, ResolvedField):
                         interp_mut.create(resolved)
         # issues
-        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in new_interp.issues}
-        old_issues: set[UUID] = {issue.id for issue in old_interp.issues} if old_interp else {}
-        if old_interp is None:
+        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in new_module.issues}
+        old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
+        if old_module is None:
             interp_mut.truncate(new_source.module, MOT.ISSUE)
         else:
-            for issue in old_interp.issues:
+            for issue in old_module.issues:
                 if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
                     interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():
             if issue.id not in old_issues:
-                if old_interp and issue.subject_id not in old_interp.tree:
+                if old_module and issue.subject_id not in old_module.tree:
                     interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
                 interp_mut.create(issue)
 
         # save and notify
         if interp_mut.mutations:
             await sync_to_async(write_mutations)(
-                self.project_version, self.interp.tree, interp_mut.mutations, wait_for_os=False
+                self.project_version, self.module_tree, interp_mut.mutations, wait_for_os=False
             )
             await publish(
                 NMessageType.MODULE_CHANGED,
@@ -571,7 +548,7 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source, project = await self.fetcher.get_module(self.module_ref)
+        source, project = await self.module_db.get_module(self.module_ref)
         await self.do_interp(source)
         self.ready.set()
 

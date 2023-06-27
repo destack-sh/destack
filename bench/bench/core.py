@@ -23,6 +23,7 @@ from bench.utils.utils import required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.bench.mutate import ModuleMutation, ModuleMutator
+    from bench.bench.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
 
@@ -82,12 +83,8 @@ def parse_statement_path(statement_path: str) -> "StatementPath":
     return StatementPath(path, name)
 
 
-REFERENCE_REGEX = re.compile(
+STATEMENT_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?(\.(?P<path>[\w.\- ]+)\.)?(?P<name>[\w\- ]+)$"
-)
-RELATIVE_REFERENCE_REGEX = re.compile(r"^\.(?P<path>[\w.\- ]+)$")
-ABSOLUTE_IMPORT_SOURCE_REGEX = re.compile(
-    r"^(?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+)\.(?P<path>[\w.\- ]+)$"
 )
 
 
@@ -325,6 +322,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
     files: list["File"] = field(default_factory=list)
     dependencies: dict[str, Union["Module", ModuleReference]] = field(default_factory=dict)
+    builtins: list["File"] = field(default_factory=list)
     parent: None = None
     parent_scope: Scope = None
     committed: bool = False
@@ -332,6 +330,9 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     @property
     def attached(self) -> bool:
         return True  # root is always "attached"
+
+    def add_builtin(self, file: "File") -> None:
+        self.builtins.append(file)
 
     def add_dependency(self, module: Union["Module", ModuleReference]) -> None:
         if module.name in self.dependencies:
@@ -351,12 +352,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         elif path.startswith("."):
             return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
         else:
-            match = REFERENCE_REGEX.match(path)
-            module_name = match.group("module_owner") + "." + match.group("module_name")
+            module_name, localized_path = parse_statement_reference(path)
             dependency = self.dependencies.get(module_name)
             if dependency is None:
                 raise LookupError(f"could not find dependency {module_name}")
-            localized_path = "." + match.group("path") + ":" + match.group("name")
             return dependency.lookup_symbol(localized_path, symbol_t=symbol_t, by=by)
 
     def __str__(self):
@@ -368,9 +367,15 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def create_file(self, name: str) -> "File":
         if name in self.scopes_by_name:
             raise ValueError(f"{name} already exists in {self}: {self.scopes_by_name[name]}")
-        file = File(name=name, parent=self)
+        file = File(name=name, parent=self, module=self)
         self.files.append(file)
         return file
+
+    def get_file(self, name: str) -> "File":
+        scope = self.scopes_by_name.get(name)
+        if not isinstance(scope, File):
+            raise ValueError(f"expected file, got {type(scope)}")
+        return scope
 
     def instantiate_in(self, session: "Session"):
         if self._session is not None:
@@ -389,6 +394,11 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             file._clear()
 
     def index(self):
+        for builtin in self.builtins:
+            for statement in builtin.statements:
+                self._add_statement(statement, by_name=True)
+        for dependency in self.dependencies.values():
+            self.symbols_by_id.update(dependency.symbols_by_id)
         for file in self.files:
             file._index()
             if file.name in self.scopes_by_name:
@@ -396,12 +406,26 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             else:
                 self.scopes_by_name[file.name] = file
             self.symbols_by_id.update(file.symbols_by_id)
-        for dependency in self.dependencies.values():
-            self.symbols_by_id.update(dependency.symbols_by_id)
 
     def interp(self):
         for file in self.files:
             file._interp()
+
+    @staticmethod
+    def interp_from(source: "ModuleTreeData", session: Optional["Session"]) -> "Module":
+        from bench.bench import wire
+        from bench.bench.libs import DEFAULT_MODULES, symbolx_builtins
+
+        logger.debug("module.interp", module=source)
+        module = wire.unpack_module(source, session=session)
+        module.add_builtin(symbolx_builtins)
+        for dependency in DEFAULT_MODULES.values():
+            module.add_dependency(dependency)
+        logger.debug("module.interp.index", module=module)
+        module.index()
+        module.interp()
+        logger.debug("module.interp.done", module=module)
+        return module
 
 
 @node(tracked=["name"])
@@ -577,6 +601,13 @@ class Text(Statement):
 
 StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 StatementReference = typing.Union[Statement, StatementPath, UUID]
+
+
+def parse_statement_reference(path) -> tuple[str, str]:
+    match = STATEMENT_REFERENCE_REGEX.match(path)
+    module_name = match.group("module_owner") + "." + match.group("module_name")
+    localized_path = "." + match.group("path") + ":" + match.group("name")
+    return module_name, localized_path
 
 
 class SymbolBase(abc.ABC):

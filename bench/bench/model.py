@@ -13,6 +13,7 @@ import pytz
 import structlog
 
 from bench.bench.core import Scope, Symbol, node
+from bench.bench.type import HasType, TypeTag
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env, required_field
@@ -26,8 +27,10 @@ INFERENCE_CACHE_EXPIRY = get_from_env("INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 3
 
 
 @node
-class Model(Symbol):
-    external_name: str = required_field()
+class Model(Symbol, HasType):
+    external_name: typing.Optional[str] = None
+    description: typing.Optional[str] = None
+    tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
     _remote: bool = False
     _key: str = None
@@ -93,8 +96,7 @@ class Model(Symbol):
             self.tracer.inference_enter(self.model, inputs)
             timeout = timeout if timeout is not None else self.timeout
             result = await asyncio.wait_for(
-                asyncio.shield(run_inference(self._endpoint, inputs, cache_key, log)),
-                timeout,
+                asyncio.shield(self._inference(inputs, cache_key, log)), timeout
             )
             self.tracer.inference_exit(self.model, inputs, result)
             return result
@@ -102,6 +104,29 @@ class Model(Symbol):
             self.tracer.inference_exception(self.model, inputs, exception)
             log.debug("inference.exception", exc_info=True)
             raise
+
+    async def _inference(
+        self,
+        inputs: Any,
+        cache_key: str,
+        log: Logger = logger,
+        write_to_cache: bool = True,
+    ) -> Any:
+        """
+        Runs inference on the given endpoint without timeout.
+        This should be asyncio.shield-ed to ensure we write the result to cache.
+        """
+        started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        log.debug("inference.enter")
+        output = await self._endpoint(**inputs)
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        duration = (now - started_at).total_seconds()
+        if write_to_cache:
+            # result is assumed to be JSON serializable, will obviously error here if not
+            inference = Inference(generated_at=now, duration=duration, inputs=inputs, output=output)
+            await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
+        log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
+        return output
 
     async def _endpoint(self, **kwargs) -> Any:
         raise NotImplementedError
@@ -137,33 +162,6 @@ class Inference:
             inputs=data["inputs"],
             output=data["output"],
         )
-
-
-InferenceEndpoint = typing.Callable[[..., Any], typing.Awaitable[Any]]
-
-
-async def run_inference(
-    endpoint: InferenceEndpoint,
-    inputs: Any,
-    cache_key: str,
-    log: Logger = logger,
-    write_to_cache: bool = True,
-) -> Any:
-    """
-    Runs inference on the given endpoint without timeout.
-    This should be asyncio.shield-ed to ensure we write the result to cache.
-    """
-    started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-    log.debug("inference.enter")
-    output = await endpoint(**inputs)
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    duration = (now - started_at).total_seconds()
-    if write_to_cache:
-        # result is assumed to be JSON serializable, will obviously error here if not
-        inference = Inference(generated_at=now, duration=duration, inputs=inputs, output=output)
-        await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
-    log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
-    return output
 
 
 def get_inference_cache_key(model_fqn: str, inputs: Any):
