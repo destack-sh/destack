@@ -377,7 +377,7 @@ type File implements CrudModel & ModuleNode & Node {
   directory: Boolean!
   files: [File!]!
   statements(filters: StatementFilter): [Statement!]!
-  issues: [Issue!]!
+  issues(filters: IssueFilter): [Issue!]!
 }
 
 """A connection to a list of items."""
@@ -451,6 +451,10 @@ type Issue implements Node {
   file: File
   statement: Statement
   message: String
+}
+
+input IssueFilter {
+  scope: InterpScope!
 }
 
 enum IssueKind {
@@ -1580,7 +1584,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   description: String
   value: JSON
   referenceProjectVersion: ProjectVersion
-  issues: [Issue!]
+  issues(filters: IssueFilter): [Issue!]
   resolvedFields(filters: FieldFilter): [Field!]
 }
 

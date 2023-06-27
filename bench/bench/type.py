@@ -468,6 +468,7 @@ class Type(Symbol, HasType, HasExpectations):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasExpectations._interp(self, scope)
+        self._fields_by_ident = {}
         for field_ in self.fields:
             self._fields_by_ident[field_.ident] = field_
 
@@ -1021,8 +1022,14 @@ class FunctionTypeMapper(TypeMapper):
         type_map[py_type] = type
         signature = inspect.signature(py_type)
         for py_param in signature.parameters.values():
+            if py_param.name == "self" and (
+                py_param.annotation is py_param.empty
+                or py_param.annotation.__name__ is py_type.__name__
+            ):
+                continue
             param = field_from_py_field(py_param.annotation, py_param.name, type_map)
             type.fields.append(param)
+
         # output must be a struct, inline it with output flag
         if signature.return_annotation is inspect.Signature.empty:
             raise ValueError(f"missing return annotation for {py_type}")

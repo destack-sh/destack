@@ -48,7 +48,6 @@ from bench.msg.messages import (
     RunErrorType,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.common.interp import InterpModule
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -93,7 +92,7 @@ class ModuleWorker:
         self.ready = asyncio.Event()
 
         self.source: wire.ModuleTreeData | None = None
-        self.interp: InterpModule | None = None
+        self.module: Module | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
@@ -103,24 +102,20 @@ class ModuleWorker:
     def interpreted(self) -> bool:
         return self.interp is not None
 
-    @property
-    def module(self) -> Module:
-        return self.interp.module
-
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
         self.source = source
-        self.interp = await sync_to_async(Module.interp_from)(source, session=None)
+        self.module = await sync_to_async(Module.interp_from)(source, session=None)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
         new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
-        self.interp = await sync_to_async(Module.interp_from)(new_source, session=None)
+        self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
-        new_source = ModuleMutator(self.interp.module, mutations).to_module()
+        new_source = ModuleMutator(self.module, mutations).to_module()
         # interp and write in parallel
         self.source = new_source
         req = ReqWriteModulePayload(
@@ -129,7 +124,7 @@ class ModuleWorker:
             client=self.master.client,
             wait=False,
         )
-        self.interp, rep = await asyncio.gather(
+        self.module, rep = await asyncio.gather(
             sync_to_async(Module.interp_from)(new_source, session=None),
             request(NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload),
         )

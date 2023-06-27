@@ -18,7 +18,7 @@ import bench.bench.const
 import bench.bench.type
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
-from bench.api.interp import Issue
+from bench.api.interp import Issue, IssueFilter
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
 from bench.models import RefMappingKind
@@ -87,7 +87,7 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     value: auto
     reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     # interp
-    issues: Optional[list[Issue]]
+    issues: Optional[list[Issue]] = gql.django.field(filters=IssueFilter)
     resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)
 
 

@@ -274,7 +274,7 @@ export const InterpFileType = graphql(/* GraphQL */ `
         id
       }
     }
-    issues {
+    issues(filters: { scope: FILE }) {
       ...IssueContent
     }
     createdAt

@@ -4,6 +4,9 @@ import typing
 from dataclasses import dataclass
 from typing import Any, Optional
 
+import anthropic
+import openai
+
 from bench.bench.const import TypeTag
 from bench.bench.core import File, Module
 from bench.bench.model import Model
@@ -58,8 +61,8 @@ def _model(file: File, names: list[str]):
     return decorator
 
 
-symbolx = Module(name="symbolx.std")
-symbolx_builtins = symbolx.create_file("builtin")
+symbolx_std = Module(name="symbolx.std")
+symbolx_builtins = symbolx_std.create_file("builtin")
 
 EmbeddingOutput = typing.TypedDict(
     "EmbeddingOutput", {"vector": typing.Union[Vector, list[Vector]]}
@@ -81,10 +84,10 @@ def transcribe(audio: RemoteObject) -> TranscriptionOutput:
 
 SYMBOLX_STD_BUILTINS: set[str] = {symbol.name for symbol in symbolx_builtins.symbols_by_id.values()}
 
-openai = Module(name="openai.std")
-openai_chat = openai.create_file("chat")
-openai_text = openai.create_file("text")
-openai_audio = openai.create_file("audio")
+openai_std = Module(name="openai.std")
+openai_chat = openai_std.create_file("chat")
+openai_text = openai_std.create_file("text")
+openai_audio = openai_std.create_file("audio")
 
 
 @_enum(openai_chat, "ChatRole")
@@ -183,7 +186,7 @@ class OpenAIChatCompletionModel(Model):
         )
 
 
-@_struct("TextEmbeddingResponse")
+@_struct(openai_text, "TextEmbeddingResponse")
 class OpenAITextEmbeddingResponse:
     vector: typing.Union[Vector, list[Vector]]
     usage: OpenAITokenUsage
@@ -191,7 +194,7 @@ class OpenAITextEmbeddingResponse:
 
 @_model(openai_text, ["ada"])
 class OpenAITextEmbeddingModel(Model):
-    async def _endpoint(self, text: str | list[str]) -> OpenAITextEmbeddingResponse:
+    async def _endpoint(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
         rep = await openai.Embedding.acreate(text, model=self.model, api_key=self.key)
         if text is not None:
             vector = rep["data"][0]["embedding"]
@@ -207,17 +210,22 @@ class OpenAITextEmbeddingModel(Model):
         )
 
 
-@_model(["whisper"])
+@_struct(openai_text, "AudioTranscriptionResponse")
+class OpenAIAudioTranscriptionResponse:
+    text: str
+
+
+@_model(openai_audio, ["whisper"])
 class OpenAIAudioTranscriptionModel(Model):
-    async def _endpoint(self, audio: RemoteObject) -> str:
+    async def _endpoint(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
         raise NotImplementedError
 
 
-anthropic = Module(name="anthropic.std")
-anthropic_text = anthropic.create_file("text")
+anthropic_std = Module(name="anthropic.std")
+anthropic_text = anthropic_std.create_file("text")
 
 
-@_struct("TextCompletionSettings")
+@_struct(openai_text, "TextCompletionSettings")
 class AnthropicTextCompletionSettings:
     temperature: float = 1.0
     top_p: Optional[float] = None
@@ -226,7 +234,7 @@ class AnthropicTextCompletionSettings:
     stop_sequences: Optional[list[str]] = None
 
 
-@_struct("TextCompletion")
+@_struct(openai_text, "TextCompletion")
 class AnthropicTextCompletion:
     completion: str
     stop_reason: str
@@ -263,9 +271,9 @@ class AnthropicTextCompletionModel(Model):
 
 
 DEFAULT_MODULES: dict[str, Module] = {
-    "symbolx.std": symbolx,
-    "openai.std": openai,
-    "anthropic.std": anthropic,
+    "symbolx.std": symbolx_std,
+    "openai.std": openai_std,
+    "anthropic.std": anthropic_std,
 }
 
 # interp/index them

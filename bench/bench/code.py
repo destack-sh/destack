@@ -411,7 +411,7 @@ def instantiate_callable(
     code: Code, session: Session
 ) -> tuple[CodeTransformation, Callable[..., Any]]:
     """Instantiates code into a Python callable in the context of the session."""
-    from bench.bench.libs import symbolx
+    from bench.bench.libs import symbolx_std
 
     context = {**code._references}
     if not code._parse.is_async:

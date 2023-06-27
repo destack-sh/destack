@@ -616,7 +616,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
             id=issue.id,
-            parent_id=issue.statemen_id or issue.file_id or issue.project_version_id,
+            parent_id=issue.statement_id or issue.file_id or issue.project_version_id,
             scope=InterpScope(issue.scope),
             kind=IssueKind(issue.kind),
             type=IssueType(issue.type),
