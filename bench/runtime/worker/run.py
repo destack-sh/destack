@@ -47,7 +47,7 @@ from bench.msg.messages import (
     RunErrorType,
     WorkerHeartbeatPayload,
 )
-from bench.runtime.common.interp import InterpModule, LanguageInterpreter
+from bench.runtime.common.interp import InterpModule
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT

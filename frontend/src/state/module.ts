@@ -25,6 +25,7 @@ export enum TypeFlag { // :TypeFlags
   IsNullable = 1 << 2,
   IsUnionWith = 1 << 3,
   IsSecret = 1 << 4,
+  IsStoreOnly = 1 << 5,
 }
 
 export type ModuleIndex = {

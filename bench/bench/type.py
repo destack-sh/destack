@@ -261,14 +261,10 @@ class TypeBase(abc.ABC):
 
     def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
         """'Unkeys' data by replacing keys with the names of the type nodes."""
-        from bench.bench.type import unkey_value
-
         return unkey_value(data, self, is_output=is_output, to_ident=to_ident)
 
     def rekey(self, data: Any, is_output: bool = None, via_ident: bool = False) -> Any:
         """'Keys' data by replacing names with the keys of the type nodes."""
-        from bench.bench.type import rekey_value
-
         return rekey_value(data, self, is_output=is_output, from_ident=via_ident)
 
 
@@ -893,12 +889,17 @@ def instantiate_py_type(node: TypeBase) -> type | Any | None:
         return py_type
 
 
-def type_from_py_type(py_type: type, type_map: dict[Any, Type] = None) -> TypeBase:
+_TYPE_MAP: dict[Any, Type] = {}
+
+
+def type_from_py_type(py_type: type, name: str, type_map: dict[Any, Type] = None) -> "Type":
     """
     Maps a python type to a Type (recursively).
     Nested types are read/written in the given type_map.
+    Types are keyed by name since we have no way to associate keys over time.
     """
-    raise NotImplementedError  # nocheckin
+    type_map = type_map or _TYPE_MAP
+    raise NotImplementedError
 
 
 def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
