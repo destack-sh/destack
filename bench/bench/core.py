@@ -365,6 +365,13 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def __repr__(self):
         return f"<Module {str(self)}>"
 
+    def create_file(self, name: str) -> "File":
+        if name in self.scopes_by_name:
+            raise ValueError(f"{name} already exists in {self}: {self.scopes_by_name[name]}")
+        file = File(name=name, parent=self)
+        self.files.append(file)
+        return file
+
     def instantiate_in(self, session: "Session"):
         if self._session is not None:
             self._session.remove(self)
@@ -397,7 +404,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             file._interp()
 
 
-@node(tracked=["name", "parent"])
+@node(tracked=["name"])
 class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     module: Module = required_field()
     name: str = required_field()
@@ -473,7 +480,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             statement._interp(statement)
 
 
-@node(tracked=["name", "parent", "order_key"])
+@node(tracked=["name"])
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A Bench statement."""
 

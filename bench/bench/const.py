@@ -90,6 +90,8 @@ class TypeFlag(enum.IntFlag):
     IsNullable = 2**2
     IsUnionWith = 2**3
     IsSecret = 2**4
+    IsStoreOnly = 2**5
+    IsArrayable = 2**6
 
 
 class RemoteObjectStatus(enum.StrEnum):

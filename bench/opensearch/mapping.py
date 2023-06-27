@@ -162,4 +162,7 @@ register_mapper(os.Field(os.FT.KEYWORD), tags=[TypeTag.ENUM])
 
 
 def map_to_os_field(field: bench.bench.type.Field) -> os.Field:
-    return get_mapper(field).to_os_type(field, depth=0)
+    os_field = get_mapper(field).to_os_type(field, depth=0)
+    if field.flags & TypeFlag.IsStoreOnly:
+        os_field.index = False
+    return os_field

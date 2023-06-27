@@ -14,6 +14,7 @@ from django.db.models import Q
 from bench import models
 from bench.bench import HasType, Issue, ResolvedField, model, wire
 from bench.bench.core import MOT, ModuleReference
+from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.model import get_inference_cache_key, run_inference
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
@@ -53,9 +54,6 @@ from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.runtime.common.interp import (
     InterpModule,
-    LanguageInterpreter,
-    ModuleFetcher,
-    get_requirements,
     interp_module,
 )
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
@@ -78,9 +76,13 @@ MAX_SEARCH_DATASET_LIMIT = 500
 class ModuleDB:
     def __init__(self, cache_committed: bool = True):
         self.cache_committed = cache_committed
-        self._cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, UUID]] = {}
+        self._cached_modules: dict[
+            ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]
+        ] = {}
 
-    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
+    async def get_module(
+        self, ref: ModuleReference | UUID
+    ) -> tuple[wire.ModuleTreeData, models.Project]:
         # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
         if ref in self._cached_modules:
             return self._cached_modules[ref]
@@ -103,8 +105,8 @@ class ModuleDB:
             project_version = project_version.head
         module = await sync_to_async(packer.pack_module)(project_version)
         if self.cache_committed and project_version.committed:
-            self._cached_modules[ref] = module, project_version.id
-        return module, project_version.project_id
+            self._cached_modules[ref] = module, project_version.project
+        return module, project_version.project
 
     async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
         return (await self.get_module(ref))[0]
@@ -190,8 +192,8 @@ class LanguageServer:
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
-        module, project_id = await self.module_db.get_module(msg.p.ref)
-        await msg.reply(RepReadModulePayload(module=module, project_id=project_id))
+        module, project = await self.module_db.get_module(msg.p.ref)
+        await msg.reply(RepReadModulePayload(module=module, project_id=project.id))
 
     @message_handler
     async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
@@ -426,9 +428,7 @@ COMPLETED_JOBS_BUFFER_SIZE = 128
 class LanguageWorker:
     """Language server worker for a single module"""
 
-    def __init__(
-        self, worker_id: UUID, project_version: models.ProjectVersion, fetcher: ModuleFetcher
-    ):
+    def __init__(self, worker_id: UUID, project_version: models.ProjectVersion, fetcher: ModuleDB):
         self.worker_id = worker_id
         self.project_version = project_version
         self.ready = asyncio.Event()
@@ -436,7 +436,6 @@ class LanguageWorker:
             module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
         )
         self.fetcher = fetcher
-        self.interpreter = LanguageInterpreter(fetcher)
         # module data
         self.source: wire.ModuleTreeData | None = None
         self.interp: Optional[InterpModule] = None
@@ -522,8 +521,7 @@ class LanguageWorker:
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
-        requirements = get_requirements(new_source)
-        dependencies = await self.interpreter.interp_requirements(requirements)
+        dependencies = DEFAULT_MODULES.values()
         old_interp, new_interp = await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source, dependencies)
         )
@@ -573,7 +571,7 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source = await self.fetcher(self.module_ref)
+        source, project = await self.fetcher.get_module(self.module_ref)
         await self.do_interp(source)
         self.ready.set()
 
