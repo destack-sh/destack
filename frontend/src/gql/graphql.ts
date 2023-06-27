@@ -398,6 +398,10 @@ export type File = CrudModel &
     updatedAt: Scalars["DateTime"];
   };
 
+export type FileIssuesArgs = {
+  filters?: InputMaybe<IssueFilter>;
+};
+
 export type FileStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
 };
@@ -468,6 +472,10 @@ export type Issue = Node & {
   scope: InterpScope;
   statement?: Maybe<Statement>;
   type: IssueType;
+};
+
+export type IssueFilter = {
+  scope: InterpScope;
 };
 
 export enum IssueKind {
@@ -1874,6 +1882,10 @@ export type Statement = CrudModel &
 
 export type StatementFieldsArgs = {
   filters?: InputMaybe<FieldFilter>;
+};
+
+export type StatementIssuesArgs = {
+  filters?: InputMaybe<IssueFilter>;
 };
 
 export type StatementResolvedFieldsArgs = {
@@ -5490,6 +5502,22 @@ export const InterpFileFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "issues" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "scope" },
+                      value: { kind: "EnumValue", value: "FILE" },
+                    },
+                  ],
+                },
+              },
+            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -8333,6 +8361,22 @@ export const ModuleDocument = {
                                         {
                                           kind: "Field",
                                           name: { kind: "Name", value: "issues" },
+                                          arguments: [
+                                            {
+                                              kind: "Argument",
+                                              name: { kind: "Name", value: "filters" },
+                                              value: {
+                                                kind: "ObjectValue",
+                                                fields: [
+                                                  {
+                                                    kind: "ObjectField",
+                                                    name: { kind: "Name", value: "scope" },
+                                                    value: { kind: "EnumValue", value: "STATEMENT" },
+                                                  },
+                                                ],
+                                              },
+                                            },
+                                          ],
                                           selectionSet: {
                                             kind: "SelectionSet",
                                             selections: [

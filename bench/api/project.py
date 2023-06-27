@@ -30,9 +30,9 @@ from bench.bench import core
 from bench.bench.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
+from bench.api.interp import Issue, IssueFilter
 
 if TYPE_CHECKING:
-    from bench.api.interp import Issue
     from bench.api.organization import Organization
     from bench.api.statement import Statement
     from bench.api.user import User
@@ -226,7 +226,7 @@ class File(CrudModel, ModuleNode, Revisioned, gql.Node):
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )
-    issues: list[Annotated["Issue", lazy(".interp")]]
+    issues: list[Annotated["Issue", lazy(".interp")]] = gql.django.field(filters=IssueFilter)
 
 
 @gql.input

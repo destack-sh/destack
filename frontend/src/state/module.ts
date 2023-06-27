@@ -26,6 +26,7 @@ export enum TypeFlag { // :TypeFlags
   IsUnionWith = 1 << 3,
   IsSecret = 1 << 4,
   IsStoreOnly = 1 << 5,
+  IsArrayable = 1 << 6,
 }
 
 export type ModuleIndex = {
@@ -57,7 +58,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
                 ...InterpFile
                 statements(filters: { isVisible: true }) {
                   ...InterpStatement
-                  issues {
+                  issues(filters: { scope: STATEMENT }) {
                     ...IssueContent
                   }
                 }

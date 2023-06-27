@@ -281,7 +281,13 @@ function useSyncedOps() {
           },
         });
       } else {
-        // TODO @Broken: clear all resolved fields (cache.modify does not work as it needs an id)
+        const allStatements = client.cache.extract(true);
+        Object.keys(allStatements).forEach((key) => {
+          if (key.startsWith("Statement")) {
+            client.cache.evict({ id: key, fieldName: "resolvedFields" });
+          }
+        });
+        client.cache.gc();
       }
     } else if (mutation.type == ModuleMutationType.TruncateIssues) {
       if (mutation.statementId != null) {
@@ -295,6 +301,13 @@ function useSyncedOps() {
         });
       } else {
         // TODO @Broken: clear all issues (cache.modify does not work as it needs an id)
+        const allStatements = client.cache.extract(true);
+        Object.keys(allStatements).forEach((key) => {
+          if (key.startsWith("Statement") || key.startsWith("File") || key.startsWith("module")) {
+            client.cache.evict({ id: key, fieldName: "issues" });
+          }
+        });
+        client.cache.gc();
       }
     } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
       client.cache.modify({

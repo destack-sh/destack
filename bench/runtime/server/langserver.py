@@ -489,18 +489,19 @@ class LanguageWorker:
             ),
         )
 
-    def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, Module]:
+    def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, ModuleTree, Module]:
         self.source = new_source
         old = self.module
+        old_tree = self.module_tree
         self.module = Module.interp_from(source=new_source, session=None)
         self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
-        return old, self.module
+        return old, old_tree, self.module
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
         dependencies = DEFAULT_MODULES.values()
-        old_module, new_module = await asyncio.get_event_loop().run_in_executor(
-            None, partial(self._do_interp_sync, new_source, dependencies)
+        old_module, old_tree, new_module = await asyncio.get_event_loop().run_in_executor(
+            None, partial(self._do_interp_sync, new_source)
         )
 
         # check for any interp changes
@@ -531,7 +532,7 @@ class LanguageWorker:
                     interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():
             if issue.id not in old_issues:
-                if old_module and issue.subject_id not in old_module.tree:
+                if old_module and issue.subject_id not in old_tree:
                     interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
                 interp_mut.create(issue)
 

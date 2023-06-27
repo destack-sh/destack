@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
+from django.db.models import QuerySet
 import structlog
 from strawberry import lazy
 from strawberry_django_plus import gql
@@ -26,6 +27,16 @@ class Issue(gql.Node):
     file: Optional[Annotated["File", lazy(".project")]]
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     message: Optional[str]
+
+
+@gql.django.filter(models.Issue)
+class IssueFilter:
+    scope: InterpScope
+
+    def filter(self, queryset: QuerySet[models.Issue]):
+        if self.scope:
+            queryset = queryset.filter(scope=self.scope)
+        return queryset
 
 
 @gql.django.type(models.ResolvedField)

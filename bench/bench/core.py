@@ -275,7 +275,8 @@ class Scope:
         symbol_t: StatementType | typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
     ) -> SymbolT | None:
-        """Lookup the symbol either by path or id. If path is a string, it can be
+        """
+        Lookup the symbol either by path or id. If path is a string, it can be
         it can be a name (lookup upwards) or a full relative/absolute path).
         """
         if isinstance(path, UUID):
@@ -285,7 +286,7 @@ class Scope:
                 return self.find_symbol(path, by=by)
             path = parse_statement_path(path)
         if path.path == ".":
-            return self.find_symbol(path.name, by=by)
+            return self.find_symbol(path.name, by=by)  # nocheckin broken for builtins?
         # strip leading . in path
         path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
