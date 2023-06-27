@@ -1,26 +1,47 @@
-import functools
-from typing import Optional, Any
 import enum
+import functools
+import typing
+from dataclasses import dataclass
+from typing import Any, Optional
 
 from bench.bench.const import TypeTag
-from bench.bench.core import Module, File
+from bench.bench.core import File, Module
 from bench.bench.model import Model
 from bench.bench.remote import RemoteObject
-from bench.bench.type import type_from_py_type
+from bench.bench.task import Task
+from bench.bench.type import Key, Vector, type_from_py_type
 
 
 def _type(file: File, name: str, tag: TypeTag):
     def decorator(cls):
-        bench_type = type_from_py_type(cls, name=name, root=tag)
+        bench_type = type_from_py_type(cls, name=name)
+        if bench_type.tag != tag:
+            raise TypeError(f"Expected {tag}, got {bench_type.tag}")
         file.append(bench_type)
         return cls
 
     return decorator
 
 
+def _struct(file: File, name: str):
+    def decorator(cls):
+        cls = dataclass(cls)
+        bench_type = type_from_py_type(cls, name=name)
+        if bench_type.tag != TypeTag.STRUCT:
+            raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
+        file.append(bench_type)
+        return cls
+
+    return decorator
+
+
+_enum = functools.partial(_type, tag=TypeTag.ENUM)
+
+
 def _task(file: File, name: str):
     def decorator(fn):
-        task = Task(fn, name=name)
+        task = Task(name=name)
+        task.fields = type_from_py_type(fn, name=None).fields
         file.append(task)
         return task
 
@@ -29,34 +50,38 @@ def _task(file: File, name: str):
 
 def _model(file: File, names: list[str]):
     def decorator(cls):
-        statement = Model(cls, names=names)
         for name in names:
-            file.append(statement)
+            model = Model(name=name)
+            model.fields = type_from_py_type(cls._endpoint, name=None).fields
         return cls
 
     return decorator
 
 
-_struct = functools.partial(_type, tag=TypeTag.STRUCT)
-_enum = functools.partial(_type, tag=TypeTag.ENUM)
-
-symbolx = Module("symbolx.std")
+symbolx = Module(name="symbolx.std")
 symbolx_builtins = symbolx.create_file("builtin")
+
+EmbeddingOutput = typing.TypedDict(
+    "EmbeddingOutput", {"vector": typing.Union[Vector, list[Vector]]}
+)
 
 
 @_task(symbolx_builtins, "embed")
-def embed(text: str | list[str]) -> list[float] | list[list[float]]:
+def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
     raise NotImplementedError
 
 
+TranscriptionOutput = typing.TypedDict("TranscriptionOutput", {"text": str})
+
+
 @_task(symbolx_builtins, "transcribe")
-def transcribe(audio: RemoteObject) -> str:
+def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise NotImplementedError
 
 
 SYMBOLX_STD_BUILTINS: set[str] = {symbol.name for symbol in symbolx_builtins.symbols_by_id.values()}
 
-openai = Module("openai.std")
+openai = Module(name="openai.std")
 openai_chat = openai.create_file("chat")
 openai_text = openai.create_file("text")
 openai_audio = openai.create_file("audio")
@@ -90,25 +115,25 @@ class OpenAIChatCompletionSettings:
     user: Optional[str] = None
 
 
+@_struct(openai_chat, "FunctionParameter")
+class OpenAIFunctionParameter:
+    type: Key
+    description: str
+    properties: Optional[dict[str, "OpenAIFunctionParameter"]] = None
+    enum: Optional[list[str]] = None
+    required: Optional[list[str]] = None
+
+
 @_struct(openai_chat, "Function")
 class OpenAIFunction:
-    name: str
+    name: Key
     description: str
     parameters: "OpenAIFunctionParameter"
 
 
-@_struct(openai_chat, "FunctionParameter")
-class OpenAIFunctionParameter:
-    type: str
-    description: str
-    properties: dict[str, "OpenAIFunctionParameter"] | None = None
-    enum: list[str] | None = None
-    required: list[str] | None = None
-
-
 @_struct(openai_chat, "FunctionCall")
 class OpenAIFunctionCall:
-    name: str
+    name: Key
     parameters: dict[str, Any]
 
 
@@ -160,7 +185,7 @@ class OpenAIChatCompletionModel(Model):
 
 @_struct("TextEmbeddingResponse")
 class OpenAITextEmbeddingResponse:
-    embedding: list[float] | list[list[float]]
+    vector: typing.Union[Vector, list[Vector]]
     usage: OpenAITokenUsage
 
 
@@ -169,11 +194,11 @@ class OpenAITextEmbeddingModel(Model):
     async def _endpoint(self, text: str | list[str]) -> OpenAITextEmbeddingResponse:
         rep = await openai.Embedding.acreate(text, model=self.model, api_key=self.key)
         if text is not None:
-            embedding = rep["data"][0]["embedding"]
+            vector = rep["data"][0]["embedding"]
         else:
-            embedding = [d["embedding"] for d in rep["data"]]
+            vector = [d["embedding"] for d in rep["data"]]
         return OpenAITextEmbeddingResponse(
-            embedding=embedding,
+            vector=vector,
             usage=OpenAITokenUsage(
                 prompt_tokens=rep["usage"]["prompt_tokens"],
                 completion_tokens=rep["usage"].get("completion_tokens"),
@@ -188,7 +213,7 @@ class OpenAIAudioTranscriptionModel(Model):
         raise NotImplementedError
 
 
-anthropic = Module("anthropic.std")
+anthropic = Module(name="anthropic.std")
 anthropic_text = anthropic.create_file("text")
 
 
@@ -198,7 +223,7 @@ class AnthropicTextCompletionSettings:
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     max_tokens_to_sample: int = 64
-    stop_sequences: list[str] | None = None
+    stop_sequences: Optional[list[str]] = None
 
 
 @_struct("TextCompletion")
@@ -242,3 +267,10 @@ DEFAULT_MODULES: dict[str, Module] = {
     "openai.std": openai,
     "anthropic.std": anthropic,
 }
+
+# interp/index them
+for module in DEFAULT_MODULES.values():
+    module.index()
+    module.interp()
+    if module.issues:
+        raise RuntimeError(f"default module {module.name} has issues: {module.issues}")

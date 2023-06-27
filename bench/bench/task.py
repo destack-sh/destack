@@ -12,7 +12,7 @@ from typing import Optional, Self
 from bench.bench import Code
 from bench.bench.const import TypeFlag, TypeHint, TypeTag
 from bench.bench.core import Scope, Symbol, node
-from bench.bench.expect import HasExpectations, Expectation
+from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
 from bench.bench.type import (
     HasType,
@@ -119,7 +119,7 @@ class IncapableError(TaskError):
         super().__init__(TaskErrorType.INCAPABLE, message, path)
 
 
-def do_task(self: Task, model: Model | str = None, retries: int = None, **kwargs):
+async def do_task(self: Task, model: Model | str = None, retries: int = None, **kwargs):
     # get candidate task implementations
     if model is not None:
         if isinstance(model, str):

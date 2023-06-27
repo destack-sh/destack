@@ -5,6 +5,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 import structlog
+from asgiref.sync import sync_to_async
 
 from bench.bench import Code, Task, wire
 from bench.bench.code import RunError, run
@@ -91,7 +92,6 @@ class ModuleWorker:
         self.timeout = timeout
         self.ready = asyncio.Event()
 
-        self.interpreter = LanguageInterpreter(master.fetch)
         self.source: wire.ModuleTreeData | None = None
         self.interp: InterpModule | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
@@ -110,13 +110,13 @@ class ModuleWorker:
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
         self.source = source
-        self.interp = await self.interpreter.interp(source, session=None)
+        self.interp = await sync_to_async(Module.interp_from)(source, session=None)
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
         new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
-        self.interp = await self.interpreter.interp(new_source, session=None)
+        self.interp = await sync_to_async(Module.interp_from)(new_source, session=None)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
         self.log.debug("module.write")
@@ -130,7 +130,7 @@ class ModuleWorker:
             wait=False,
         )
         self.interp, rep = await asyncio.gather(
-            self.interpreter.interp(new_source, session=None),
+            sync_to_async(Module.interp_from)(new_source, session=None),
             request(NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload),
         )
         return rep.p.success
