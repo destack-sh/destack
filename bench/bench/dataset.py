@@ -64,7 +64,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         self.value = map_value(
             value=self.value,
             type=self.parent,
-            map_k=lambda f: (f.typed_key, f.ident),
+            map_k=lambda f: (f.typed_key, f.py_ident),
             map_v=instantiate_py_value_flat,
             ignore_outer_map=True,
             ignore_array=True,
@@ -80,7 +80,7 @@ class Record(ModuleNode, HasSession, HasCrud):
             return map_value(
                 value=value,
                 type=self.parent,
-                map_k=lambda f: (f.ident, f.typed_key),
+                map_k=lambda f: (f.py_ident, f.typed_key),
                 map_v=strip_py_value_flat,
                 ignore_outer_map=True,
                 ignore_array=True,
@@ -386,7 +386,7 @@ class Value(Statement, HasType, IsExpectable):
         self.value = map_value(
             value=self.value,
             type=self,
-            map_k=lambda f: (f.typed_key, f.ident),
+            map_k=lambda f: (f.typed_key, f.py_ident),
             map_v=instantiate_py_value_flat,
             ignore_outer_map=True,
         )
@@ -400,7 +400,7 @@ class Value(Statement, HasType, IsExpectable):
             return map_value(
                 value=self.value,
                 type=self,
-                map_k=lambda f: (f.ident, f.typed_key),
+                map_k=lambda f: (f.py_ident, f.typed_key),
                 map_v=strip_py_value_flat,
                 ignore_outer_map=True,
             )

@@ -7,6 +7,7 @@ from uuid import UUID
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
+from more_itertools import first
 from strawberry import lazy
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
@@ -175,8 +176,16 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
 
 
 def get_client_origin_from_info(info: Info) -> ClientOrigin:
-    client_id = info.context["request"].scope["session"]["client_id"]
-    client_nonce = info.context["request"].headers.get("x-client-nonce")
+    request = info.context["request"]
+    if isinstance(request, GraphQLWSConsumer):
+        scope = request.scope
+    elif isinstance(request, ChannelsRequest):
+        scope = request.consumer.scope
+    else:
+        raise TypeError(f"unexpected request type: {request}")
+    client_id = scope["session"]["client_id"]
+    # get nonce from list of headers
+    client_nonce = first((v for k, v in scope["headers"] if k.lower() == "x-client-nonce"), None)
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
 

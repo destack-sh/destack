@@ -19,7 +19,7 @@ from bench.bench.execution import PyFrameData
 from bench.bench.expect import IsExpectable
 from bench.bench.type import HasType
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env, to_pyidentifier
+from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
 
 
 @node
@@ -60,7 +60,7 @@ class Code(Statement, HasType, IsExpectable):
         HasType._interp(self, scope)
 
         # parse and resolve code references
-        input_idents = {input.ident for input in self.inputs}
+        input_idents = {input.py_ident for input in self.inputs}
         self._parse = parse_code(self.code)
         self._is_async = self._parse.is_async
         self._references = {}
@@ -440,9 +440,9 @@ def instantiate_callable(
 
     # create python function from python code
     input_keys = [i.name for i in code.inputs]
-    func_name = f"{to_pyidentifier(code.name)}_{code.id.hex[:6]}"
+    func_name = f"{to_pyidentifier(code.name, IdentifierType.METHOD)}_{code.id.hex[:6]}"
     async_str = "async " if code._parse.is_async else ""
-    func_params = ", ".join(to_pyidentifier(key) for key in input_keys)
+    func_params = ", ".join(to_pyidentifier(key, IdentifierType.VARIABLE) for key in input_keys)
     indented_code = textwrap.indent(python_code, " " * 4)
     try:
         method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
@@ -542,7 +542,9 @@ async def run(
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
         raise RunError(RunErrorType.UNTRUSTED, code)
     # transform keys to valid python identifiers
-    arguments = {to_pyidentifier(k): v for k, v in (arguments or {}).items()}
+    arguments = {
+        to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
+    }
     try:
         # set current session
         session.open()

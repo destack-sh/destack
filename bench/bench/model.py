@@ -36,17 +36,16 @@ class Model(Statement, HasType):
     _key: str = None
 
     def _clear(self) -> None:
+        HasType._clear(self)
         self._endpoint = None
         self._remote = False
 
     def _interp(self, scope: Scope) -> None:
+        HasType._interp(self, scope)
         # model is remote if we don't have the key in scope or environment
         provider = self.fqn.split(".")[0]
         self._key = os.environ.get(f"{provider.upper()}_API_KEY")
         self._remote = self._key is None
-
-    def __str__(self):
-        return f"{self.external_name}"
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
         cache_key = get_inference_cache_key(self.model.fqn, inputs)

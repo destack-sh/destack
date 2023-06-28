@@ -45,18 +45,20 @@ _enum = functools.partial(_type, tag=TypeTag.ENUM)
 def _task(file: File, name: str):
     def decorator(fn):
         task = Task(name=name)
-        task.fields = type_from_py_type(fn, name=None)._copy_fields(to=task)
+        task_type = type_from_py_type(fn, name=None)
+        task.fields = task_type._copy_fields(to=task)
         file.append(task)
         return task
 
     return decorator
 
 
-def _model(file: File, names: list[str]):
+def _model(file: File, name: str, external_name: str):
     def decorator(cls):
-        for name in names:
-            model = Model(name=name)
-            model.fields = type_from_py_type(cls._endpoint, name=None)._copy_fields(to=model)
+        model = Model(name=name, external_name=external_name)
+        model_type = type_from_py_type(cls._endpoint, name=None)
+        model.fields = model_type._copy_fields(to=model)
+        file.append(model)
         return cls
 
     return decorator
@@ -153,7 +155,8 @@ class OpenAIChatCompletion:
     usage: OpenAITokenUsage
 
 
-@_model(_openai_chat, ["gpt3", "gpt4"])
+@_model(_openai_chat, "gpt3", "gpt3-5")
+@_model(_openai_chat, "gpt4", "gpt4")
 class OpenAIChatCompletionModel(Model):
     async def _endpoint(
         self,
@@ -191,7 +194,7 @@ class OpenAITextEmbeddingResponse:
     usage: OpenAITokenUsage
 
 
-@_model(_openai_text, ["ada"])
+@_model(_openai_text, "ada", "text-embedding-ada-002")
 class OpenAITextEmbeddingModel(Model):
     async def _endpoint(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
         rep = await openai.Embedding.acreate(text, model=self.model, api_key=self.key)
@@ -214,7 +217,7 @@ class OpenAIAudioTranscriptionResponse:
     text: str
 
 
-@_model(_openai_audio, ["whisper"])
+@_model(_openai_audio, "whisper", "whisper")
 class OpenAIAudioTranscriptionModel(Model):
     async def _endpoint(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
         raise NotImplementedError
@@ -239,7 +242,10 @@ class AnthropicTextCompletion:
     stop_reason: str
 
 
-@_model(_anthropic_text, ["claude-1", "claude-1-100k", "clause-instant-1", "clause-instant-1-100k"])
+@_model(_anthropic_text, "claude-1", "claude-1")
+@_model(_anthropic_text, "claude-1-100k", "claude-1-100k")
+@_model(_anthropic_text, "claude-instant-1", "claude-instant-1")
+@_model(_anthropic_text, "claude-instant-1-100k", "claude-instant-1-100k")
 class AnthropicTextCompletionModel(Model):
     _client: anthropic.Client | None = None
 
@@ -252,7 +258,7 @@ class AnthropicTextCompletionModel(Model):
         if self._client is None:
             self.client = anthropic.Client(self.key)
 
-            # monkey patch Anthropic's validation (which is broken)
+            # monkey patch Anthropic validation (which is broken)
             from anthropic import api
 
             api._validate_prompt_length = lambda *args, **kwargs: None

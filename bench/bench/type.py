@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import structlog
 from more_itertools import first
 
-from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import RemoteObjectStatus, StatementType, TypeFlag, TypeHint, TypeTag
 from bench.bench.core import (
     HasCrud,
     HasSession,
@@ -25,7 +25,6 @@ from bench.bench.core import (
     StatementBase,
     StatementPath,
     StatementReference,
-    StatementType,
     node,
 )
 from bench.bench.expect import HasExpectations
@@ -33,7 +32,7 @@ from bench.bench.issue import IssueType
 from bench.bench.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus
-from bench.utils.utils import required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
@@ -208,8 +207,8 @@ class TypeBase(abc.ABC):
         return get_storage_format(self.tag, self.hint, self.flags)
 
     @property
-    def ident(self):
-        return to_pyidentifier(self.name)
+    def py_ident(self):
+        return to_pyidentifier(self.name, IdentifierType.FIELD)
 
     @property
     def effective_type(self) -> Union["TypeBase", "HasType"]:
@@ -235,7 +234,7 @@ class TypeBase(abc.ABC):
             (
                 child
                 for child in self.fields
-                if child.name == item or child.ident == item or child.key == item
+                if child.name == item or child.py_ident == item or child.key == item
             ),
             None,
         )
@@ -247,7 +246,7 @@ class TypeBase(abc.ABC):
         return any(
             child
             for child in self.fields
-            if child.name == item or child.ident == item or child.key == item
+            if child.name == item or child.py_ident == item or child.key == item
         )
 
     def walk_type(self, path: list["TypeBase"] | None = None, include_references: bool = False):
@@ -351,7 +350,7 @@ class HasType(TypeBase, StatementBase):
             if n.reference is None:
                 symbol = None
             else:
-                symbol = scope.lookup(n.reference, StatementType.TYPE)
+                symbol = scope.lookup(n.reference, statement_t=Type)
             if not isinstance(symbol, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"
@@ -396,6 +395,7 @@ class HasType(TypeBase, StatementBase):
         new_fields = []
         for field_ in self.fields:
             new_field = field_.copy()
+            new_field.reference = field_.reference  # keep exact reference
             new_field.parent = to
             new_fields.append(new_field)
         if to is not None:
@@ -495,14 +495,14 @@ class Type(Statement, HasType, HasExpectations):
         HasExpectations._interp(self, scope)
         self._fields_by_ident = {}
         for field_ in self.fields:
-            self._fields_by_ident[field_.ident] = field_
+            self._fields_by_ident[field_.py_ident] = field_
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
 
     def __str__(self):
-        name_str = f"{self.name} " if self.name else ""
-        return f"{name_str}{self.tag}"
+        path_str = f"{self.path} " if self.name else ""
+        return f"{path_str}{self.tag}"
 
     def __repr__(self):
         return f"<Type {self}>"
@@ -512,6 +512,10 @@ class Type(Statement, HasType, HasExpectations):
             return self._fields_by_ident[item]
         else:
             return super().__getattr__(item)
+
+    @property
+    def py_ident(self) -> str:
+        return to_pyidentifier(self.name, IdentifierType.TYPE)
 
     @staticmethod
     def from_py_type(py_type: Any):
@@ -587,7 +591,7 @@ def check_type(
             for f in expected.fields:
                 if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                     continue
-                alt_name = to_pyidentifier(f.name)
+                alt_name = to_pyidentifier(f.name, IdentifierType.VARIABLE)
                 subvalue = value.get(f.name, value.get(alt_name))
                 if subvalue is None:
                     _check(bool(f.flags & TypeFlag.IsNullable), "expected non-nullable value")
@@ -688,7 +692,7 @@ def unkey_value(
     if to_ident:
 
         def map_k(t: Field):
-            return t.typed_key, t.ident
+            return t.typed_key, t.py_ident
 
     else:
 
@@ -716,7 +720,7 @@ def rekey_value(
     if from_ident:
 
         def map_k(t: Field):
-            return t.ident, t.typed_key
+            return t.py_ident, t.typed_key
 
     else:
 
@@ -911,7 +915,10 @@ class IsoDtTypeMapping(StaticTypeMapper):
 
 class EnumMapper(TypeMapper):
     def to_py_type(self, type: TypeBase) -> Any:
-        members = {to_pyidentifier(child.name): child.name for child in type.fields}
+        members = {
+            to_pyidentifier(child.name, IdentifierType.CONSTANT): child.name
+            for child in type.fields
+        }
         enum_name = type.name or "_anon_" + uuid4().hex
         return enum.StrEnum(enum_name, members)
 
@@ -995,7 +1002,7 @@ class StructTypeMapper(TypeMapper):
     def to_py_type(self, type: TypeBase) -> typing.TypedDict:
         return typing.TypedDict(
             type.name,
-            {member.ident: instantiate_py_type(member) for member in type.fields},
+            {member.py_ident: instantiate_py_type(member) for member in type.fields},
         )
 
     def maps_py_type(self, py_type: type) -> bool:

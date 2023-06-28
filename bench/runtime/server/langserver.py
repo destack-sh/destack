@@ -13,7 +13,7 @@ from django.db.models import Q
 
 from bench import models
 from bench.bench import HasType, Issue, ResolvedField, wire
-from bench.bench.core import MOT, Module, ModuleReference, parse_statement_reference
+from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData, ModuleTree
@@ -285,7 +285,7 @@ class LanguageServer:
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
-        module_name, localized_path = parse_statement_reference(msg.p.model_fqn)
+        module_name, localized_path = parse_absolute_statement_reference(msg.p.model_fqn)
         log = logger.bind(model=msg.p.model_fqn, msg=msg)
         log.debug("inference.run")
         try:

@@ -1,3 +1,4 @@
+import enum
 import inspect
 import os
 import re
@@ -72,12 +73,53 @@ def get_method_source(method) -> str:
     return textwrap.dedent("".join(cleaned_lines))
 
 
-def to_pyidentifier(name: str) -> str:
-    return re.sub(r"\W|^(?=\d)", "_", name)
+class IdentifierType(enum.StrEnum):
+    METHOD = "method"
+    TYPE = "type"
+    CONSTANT = "constant"
+    PATH = "path"
+    VARIABLE = "variable"
+    FIELD = "field"
 
 
-def to_pyidentifier_multi(*parts: str) -> str:
-    return ".".join(to_pyidentifier(part) for part in parts)
+def to_pyidentifier(name: str, type: IdentifierType) -> str:
+    """Turns a string into a valid Python identifier."""
+    if type in (
+        IdentifierType.METHOD,
+        IdentifierType.VARIABLE,
+        IdentifierType.FIELD,
+        IdentifierType.PATH,
+    ):
+        # snake_case, turn non-alphanumeric characters into underscores
+        name = _strip_alpha_num(name)
+        return name.lower()
+    elif type == IdentifierType.TYPE:
+        # CamelCase, ignore non-alphanumeric characters and capitalize the next character
+        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
+        name = "".join(word.capitalize() for word in name.split(" "))
+        return name
+    elif type == IdentifierType.CONSTANT:
+        # ALL_CAPS, turn non-alphanumeric characters into underscores
+        name = _strip_alpha_num(name)
+        return name.upper()
+
+
+def _strip_alpha_num(name: str) -> str:
+    # replace non-alphanumeric characters with underscores
+    name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
+    # remove leading underscores
+    name = re.sub(r"^_+", "", name)
+    # remove trailing underscores
+    name = re.sub(r"_+$", "", name)
+    # remove double underscores
+    name = re.sub(r"__+", "_", name)
+    # remove leading digits
+    name = re.sub(r"^[0-9]+", "", name)
+    return name
+
+
+def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
+    return ".".join(to_pyidentifier(part, type) for part in parts)
 
 
 def sentry_capture_if_enabled(e: Exception) -> bool:
