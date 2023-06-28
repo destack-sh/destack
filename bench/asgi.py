@@ -9,8 +9,6 @@ and
 https://channels.readthedocs.io/en/latest/deploying.html
 """
 import os
-import random
-from uuid import uuid4
 
 from channels.auth import AuthMiddlewareStack
 from channels.routing import ProtocolTypeRouter, URLRouter
@@ -21,9 +19,8 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-import bench.bench.code
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
-from bench.settings import CORS_ALLOWED_ORIGINS, DEBUG, RUN_LANGSERVER, RUN_WORKER, TEST
+from bench.settings import CORS_ALLOWED_ORIGINS, RUN_LANGSERVER
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -62,11 +59,11 @@ application = ProtocolTypeRouter(
 #  For now I just couldn't find the appropriate place to run this, so we rely
 #  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
 
-# NATS must always run.
+# start NATS.
 task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
 reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 
-# 'soon' publish queue must always run.
+# start 'soon' publish queue
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
 if RUN_LANGSERVER:
@@ -76,16 +73,3 @@ if RUN_LANGSERVER:
     coro = server.run()
     task = reactor._asyncioEventloop.create_task(wrap_task(coro, "langserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
-
-# for local development only
-if RUN_WORKER:
-    if not DEBUG or TEST:
-        raise RuntimeError("worker should be run via isolated runworker in prod")
-    from bench.runtime.worker.run import SandboxedWorker
-
-    local_id = random.randint(0, 2**32)  # just some random number
-    bench.bench.code.ALLOW_UNTRUSTED_CODE = True
-    worker = SandboxedWorker(worker_id=uuid4(), project_id=None)
-    coro = worker.run()
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "worker"))
-    reactor.addSystemEventTrigger("before", "shutdown", worker.stop)

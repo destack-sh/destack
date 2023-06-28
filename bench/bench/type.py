@@ -804,7 +804,7 @@ def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFla
     # strip optional
     if typing.get_origin(py_type) is typing.Union:
         args = typing.get_args(py_type)
-        if len(args) == 2 and isinstance(args[1], type(None)):
+        if len(args) == 2 and args[1] == type(None):  # noqa: E721
             py_type = args[0]
             flags |= TypeFlag.IsNullable
         # convert x | list[x] as isarrayable

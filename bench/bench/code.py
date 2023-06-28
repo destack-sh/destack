@@ -11,8 +11,6 @@ from dataclasses import field
 from random import Random
 from typing import Any, Callable, Optional
 
-import numpy
-import pandas
 from more_itertools import first, last
 
 from bench.bench.const import TypeTag
@@ -411,7 +409,6 @@ def instantiate_callable(
     code: Code, session: Session
 ) -> tuple[CodeTransformation, Callable[..., Any]]:
     """Instantiates code into a Python callable in the context of the session."""
-    from bench.bench.libs import symbolx_std
 
     context = {**code._references}
     if not code._parse.is_async:
@@ -473,10 +470,6 @@ STATIC_BUILTINS: dict[str, Any] = {
     "number": float,
     "boolean": bool,
     # library builtins
-    "numpy": numpy,
-    "np": numpy,
-    "pandas": pandas,
-    "pd": pandas,
     "asyncio": asyncio,
     # functional builtins
     "itertools": itertools,

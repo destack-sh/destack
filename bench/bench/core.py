@@ -9,6 +9,7 @@ from concurrent.futures import Executor, ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
+from logging import Logger
 from typing import Callable, NamedTuple, Optional, Union
 from uuid import UUID, uuid4
 
@@ -18,7 +19,6 @@ from more_itertools import first
 
 from bench.bench.const import ExecutionTriggerType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
-from bench.settings import logging
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import required_field, to_pyidentifier
 
@@ -196,7 +196,7 @@ class HasSession(abc.ABC):
         self._session = session
 
     @property
-    def logger(self) -> logging.Logger:
+    def logger(self) -> Logger:
         return self.session.logger
 
 
