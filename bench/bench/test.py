@@ -4,18 +4,11 @@ from uuid import UUID
 
 import pytest
 
-from bench.bench import TypeHint, TypeTag, Task, Code, Dataset, Field, Type
-from bench.bench.const import TypeFlag
-from bench.bench.issue import BenchError, IssueType
+from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
 from bench.bench.code import parse_code
-from bench.bench.core import (
-    File,
-    Module,
-    StatementPath,
-    SessionTracingLevel,
-    SessionContext,
-    Session,
-)
+from bench.bench.const import TypeFlag
+from bench.bench.core import Module, Session, SessionContext, SessionTracingLevel, StatementPath
+from bench.bench.issue import BenchError, IssueType
 
 
 def test_extract_code_references():
@@ -147,10 +140,26 @@ def test_recursive_union_fail():
 
 
 def test_nested_resolve():
-    with Session(ctx=MOCK_SESSION_CONTEXT).sync() as session:
-        module = Module(name="test")
-        file = File(name="test-file", module=module)
-        task = Task(name="task", file=file)
-        dataset = Dataset(name="a", file=file)
-        code = Code(name="b", file=file)
-        # nocheckin: test this
+    module = Module(name="test.lib")
+    file = module.create_file("test-file")
+    task = Task(name="task")
+    dataset = Dataset(name="dataset")
+    code = Code(name="load")
+    dataset.append_child(code)
+    file.append(task, dataset)
+    module.index()
+    module.interp()
+
+    # absolute with module name
+    assert module.find_symbol("test.lib.task") == task
+    assert module.find_symbol("test.lib.dataset") == dataset
+    assert module.find_symbol("test.lib.dataset.load") == code
+
+    # absolute local
+    assert module.find_symbol(".task") == task
+    assert module.find_symbol("dataset") == dataset
+    assert module.find_symbol("dataset.load") == code
+
+    # relative
+    assert code.find_symbol("dataset") == dataset
+    assert code.find_symbol(".task") == task

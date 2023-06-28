@@ -41,9 +41,6 @@ class Task(Symbol, HasType, HasExpectations):
         HasType._interp(self, scope)
         HasExpectations._interp(self, scope)
 
-    async def _generate(self, scope: Scope) -> None:
-        raise NotImplementedError
-
     async def __call__(
         self,
         *args,
@@ -53,7 +50,21 @@ class Task(Symbol, HasType, HasExpectations):
         timeout: float = None,
         **kwargs,
     ):
-        raise NotImplementedError
+        inputs = {**kwargs}
+        for input_t, input in zip(self.inputs, args):
+            inputs[input_t.name] = input
+        # shortcut for built-in tasks with fixed implementations
+        if self.fqn == "symbolx.lib.builtins.embed":
+            from bench.bench.libs import openai_lib
+
+            ada = openai_lib.lookup_symbol("openai.lib.text.ada", Model)
+            if ada is None:
+                raise RuntimeError("openai.lib.text.ada not found")
+            return await ada(**inputs, retries=retries, cache=cache, timeout=timeout)
+        elif self.fqn == "symbolx.lib.builtins.transcribe":
+            raise NotImplementedError
+        else:
+            raise NotImplementedError  # nocheckin
 
     def to_sync(self) -> "Self":
         if self._is_async:
@@ -74,7 +85,7 @@ class TaskProxy:
             return self._task(*args, **kwargs)
         else:
             if self._task_callable_sync is None:
-                self._task_callable_sync = self._task.session.sync_to_async(self._task)
+                self._task_callable_sync = self._task.session.async_to_sync(self._task.__call__)
             return self._task_callable_sync(*args, **kwargs)
 
     def __getattr__(self, name):
