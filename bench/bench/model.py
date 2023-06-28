@@ -12,7 +12,7 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.bench.core import Scope, Symbol, node
+from bench.bench.core import Scope, Statement, node
 from bench.bench.type import HasType, TypeTag
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
@@ -27,7 +27,7 @@ INFERENCE_CACHE_EXPIRY = get_from_env("INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 3
 
 
 @node
-class Model(Symbol, HasType):
+class Model(Statement, HasType):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION

@@ -151,15 +151,15 @@ def test_nested_resolve():
     module.interp()
 
     # absolute with module name
-    assert module.find_symbol("test.lib.task") == task
-    assert module.find_symbol("test.lib.dataset") == dataset
-    assert module.find_symbol("test.lib.dataset.load") == code
+    assert module.lookup("test.lib.task") == task
+    assert module.lookup("test.lib.dataset") == dataset
+    assert module.lookup("test.lib.dataset.load") == code
 
     # absolute local
-    assert module.find_symbol(".task") == task
-    assert module.find_symbol("dataset") == dataset
-    assert module.find_symbol("dataset.load") == code
+    assert module.lookup(".task") == task
+    assert module.lookup("dataset") == dataset
+    assert module.lookup("dataset.load") == code
 
     # relative
-    assert code.find_symbol("dataset") == dataset
-    assert code.find_symbol(".task") == task
+    assert code.lookup("dataset") == dataset
+    assert code.lookup(".task") == task

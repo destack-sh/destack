@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from bench.bench.core import File, InterpScope, Statement, Symbol, statement_path_as_str
+    from bench.bench.core import File, InterpScope, Statement, statement_path_as_str
 
 
 class IssueKind(enum.StrEnum):
@@ -69,16 +69,16 @@ class Issue:
     type: IssueType
     message: str
     scope: Optional["InterpScope"] = None
-    subject: Union["Symbol", "Statement", "File", None] = None
+    subject: Union["Statement", "Statement", "File", None] = None
 
     def __init__(
-        self, type: IssueType, subject: Union["Symbol", "Statement", "File", None], **kwargs
+        self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
     ):
-        from bench.bench.core import File, InterpScope, Statement, StatementPath, Symbol
+        from bench.bench.core import File, InterpScope, Statement, StatementPath
 
         # auto convert kwargs
         for key, value in kwargs.items():
-            if isinstance(value, (Symbol, Statement, File)):
+            if isinstance(value, (Statement, Statement, File)):
                 kwargs[key] = value.name
             if isinstance(value, StatementPath):
                 kwargs[key] = statement_path_as_str(value)
@@ -88,7 +88,7 @@ class Issue:
         if isinstance(subject, File):
             self.scope = InterpScope.FILE
             self.subject = subject
-        elif isinstance(subject, (Statement, Symbol)):
+        elif isinstance(subject, (Statement, Statement)):
             self.scope = InterpScope.STATEMENT
             self.subject = subject
 
@@ -135,7 +135,7 @@ class IssueHandler(abc.ABC):
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Symbol", "Statement", "File", None],
+        subject: Union["Statement", "Statement", "File", None],
         type: IssueType,
         **kwargs,
     ):

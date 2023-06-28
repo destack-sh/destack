@@ -290,7 +290,7 @@ class LanguageServer:
         log.debug("inference.run")
         try:
             module = DEFAULT_MODULES[module_name]
-            model = module.lookup_symbol(localized_path)
+            model = module.lookup(localized_path)
             output = await model(**msg.p.inputs, timeout=msg.p.timeout)
             timeout = False
         except Exception as e:
@@ -510,10 +510,10 @@ class LanguageWorker:
         # resolved fields
         if old_module is None:
             interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
-        for symbol in new_module.symbols_by_id.values():
+        for symbol in new_module._statements_by_id.values():
             if not isinstance(symbol, HasType):
                 continue
-            old_symbol = old_module.symbols_by_id.get(symbol.id) if old_module else None
+            old_symbol = old_module._statements_by_id.get(symbol.id) if old_module else None
             if old_symbol is None or old_symbol.resolved_fields != symbol.resolved_fields:
                 if old_module is not None:
                     interp_mut.truncate(symbol, MOT.RESOLVED_FIELD)

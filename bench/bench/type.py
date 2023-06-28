@@ -22,11 +22,10 @@ from bench.bench.core import (
     ModuleNode,
     Scope,
     Statement,
+    StatementBase,
     StatementPath,
     StatementReference,
     StatementType,
-    Symbol,
-    SymbolBase,
     node,
 )
 from bench.bench.expect import HasExpectations
@@ -330,7 +329,7 @@ class ResolvedField(Field):
 
 
 @node
-class HasType(TypeBase, SymbolBase):
+class HasType(TypeBase, StatementBase):
     """A symbol that has (but is not) a type"""
 
     tag: TypeTag = required_field()
@@ -347,12 +346,12 @@ class HasType(TypeBase, SymbolBase):
     def _interp(self, scope: Scope) -> None:
         # resolve references
         for n in self.walk_type():
-            if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Symbol):
+            if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Statement):
                 continue  # nothing to resolve
             if n.reference is None:
                 symbol = None
             else:
-                symbol = scope.lookup_symbol(n.reference, StatementType.TYPE)
+                symbol = scope.lookup(n.reference, StatementType.TYPE)
             if not isinstance(symbol, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"
@@ -471,7 +470,7 @@ class HasType(TypeBase, SymbolBase):
 
 
 @node
-class Type(Symbol, HasType, HasExpectations):
+class Type(Statement, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
@@ -486,7 +485,7 @@ class Type(Symbol, HasType, HasExpectations):
         return instantiate_py_type(self, self.session)
 
     def _clear(self) -> None:
-        Symbol._clear(self)
+        Statement._clear(self)
         HasType._clear(self)
         HasExpectations._clear(self)
         self._fields_by_ident = None
