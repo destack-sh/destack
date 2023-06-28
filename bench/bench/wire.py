@@ -11,6 +11,7 @@ from typing import Any, ClassVar, Optional
 from uuid import UUID
 
 from bench import bench as lang
+from bench.bench import StatementType
 from bench.bench.const import (
     DatasetBackend,
     ExecutionTriggerType,
@@ -20,7 +21,7 @@ from bench.bench.const import (
     TypeHint,
     TypeTag,
 )
-from bench.bench.core import MOT, InterpScope, ModuleNode, Session, StatementType
+from bench.bench.core import MOT, InterpScope, ModuleNode, Session
 from bench.bench.execution import ExecutionFrame, PyFrameData, RunErrorData
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort

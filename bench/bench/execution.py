@@ -8,10 +8,10 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.bench.core import Session
-from bench.utils.utils import to_pyidentifier_multi
+from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.bench.code import Code
+    from bench.bench.code_ import Code
     from bench.bench.model import Model
     from bench.bench.task import Task
 
@@ -98,7 +98,7 @@ class PyFrameData:
 
     @staticmethod
     def clean(stack: list[PyFrameData], from_code: "Code", session: "Session") -> list[PyFrameData]:
-        from bench.bench.code import Code
+        from bench.bench.code_ import Code
 
         code_by_method: dict[str, Code] = {
             symbol._transform.method_name: symbol
@@ -120,7 +120,9 @@ class PyFrameData:
                         found_start = True
                     elif not found_start:
                         continue  # ignore
-                    frame.filename = to_pyidentifier_multi(from_code.file.name, from_code.name)
+                    frame.filename = to_pyidentifier_multi(
+                        from_code.file.name, from_code.name, type=IdentifierType.PATH
+                    )
                     frame.name = from_code.name
                     frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - transform.start_offset

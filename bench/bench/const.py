@@ -7,6 +7,21 @@ import enum
 #
 
 
+class StatementType(enum.StrEnum):
+    """The type of Bench statement."""
+
+    TEXT = "text"
+    BLANK = "blank"
+    TYPE = "type"
+    TASK = "task"
+    EXPECTATION = "expectation"
+    CODE = "code"
+    MODEL = "model"
+    VALUE = "value"
+    DATASET = "dataset"
+    BLOCK = "block"
+
+
 class DatasetBackend(enum.StrEnum):
     OPENSEARCH = "os"
 

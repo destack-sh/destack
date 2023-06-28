@@ -28,7 +28,7 @@ from bench.api.utils import (
     get_user_from_info,
     safe_mutation,
 )
-from bench.bench import core
+from bench.bench import const
 from bench.bench.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
@@ -38,7 +38,7 @@ if TYPE_CHECKING:
     from bench.api.statement import Statement
     from bench.api.user import User
 
-StatementType = gql.enum(core.StatementType)
+StatementType = gql.enum(const.StatementType)
 
 
 @gql.django.filter(models.ProjectVersion)

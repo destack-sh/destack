@@ -5,9 +5,16 @@ from uuid import UUID
 import pytest
 
 from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
-from bench.bench.code import parse_code
+from bench.bench.code_ import parse_code
 from bench.bench.const import TypeFlag
-from bench.bench.core import Module, Session, SessionContext, SessionTracingLevel, StatementPath
+from bench.bench.core import (
+    LookupBy,
+    Module,
+    Session,
+    SessionContext,
+    SessionTracingLevel,
+    StatementPath,
+)
 from bench.bench.issue import BenchError, IssueType
 
 
@@ -142,7 +149,7 @@ def test_recursive_union_fail():
 def test_nested_resolve():
     module = Module(name="test.lib")
     file = module.create_file("test-file")
-    task = Task(name="task")
+    task = Task(name="Organize goats")
     dataset = Dataset(name="dataset")
     code = Code(name="load")
     dataset.append_child(code)
@@ -151,15 +158,20 @@ def test_nested_resolve():
     module.interp()
 
     # absolute with module name
-    assert module.lookup("test.lib.task") == task
-    assert module.lookup("test.lib.dataset") == dataset
-    assert module.lookup("test.lib.dataset.load") == code
+    assert module.lookup("test.lib.test-file.Organize goats") == task
+    assert module.lookup("test.lib.test_file.organize_goats", LookupBy.PyIdent) == task
+    assert module.lookup("test.lib.test-file.dataset") == dataset
+    assert module.lookup("test.lib.test-file.dataset.load") == code
 
     # absolute local
-    assert module.lookup(".task") == task
-    assert module.lookup("dataset") == dataset
-    assert module.lookup("dataset.load") == code
+    assert module.lookup(".test-file.dataset") == dataset
+    assert module.lookup(".test-file.dataset.load") == code
 
     # relative
     assert code.lookup("dataset") == dataset
-    assert code.lookup(".task") == task
+    assert code.lookup("organize_goats", LookupBy.PyIdent) == task
+
+    # self
+    assert module.lookup(task.path, LookupBy.PyIdent) == task
+    assert module.lookup(dataset.path, LookupBy.PyIdent) == dataset
+    assert module.lookup(code.path, LookupBy.PyIdent) == code

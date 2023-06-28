@@ -14,13 +14,13 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-import bench.bench.const
 import bench.bench.type
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue, IssueFilter
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
+from bench.bench import const
 from bench.models import RefMappingKind
 
 if TYPE_CHECKING:
@@ -29,8 +29,8 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-StatementType = gql.enum(bench.bench.core.StatementType)
-ExpectationModifier = gql.enum(bench.bench.const.ExpectationModifier)
+StatementType = gql.enum(const.StatementType)
+ExpectationModifier = gql.enum(const.ExpectationModifier)
 
 
 @gql.django.filter(models.Field)

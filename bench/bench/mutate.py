@@ -9,7 +9,8 @@ from functools import cached_property
 from typing import Any, Callable, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Module, ModuleNode, ModuleObjectType, StatementType
+from bench.bench import StatementType
+from bench.bench.core import Module, ModuleNode, ModuleObjectType
 from bench.bench.wire import (
     CodeData,
     DatasetData,

@@ -8,7 +8,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench.bench import Code, Task, wire
-from bench.bench.code import RunError, run
+from bench.bench.code_ import RunError, run
 from bench.bench.const import ExecutionTriggerType, WorkerTenancy
 from bench.bench.core import (
     Module,
