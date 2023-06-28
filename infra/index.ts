@@ -518,7 +518,7 @@ const workerDeployment = new k8s.apps.v1.Deployment(
                 },
                 { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
               ],
-              command: ["python", "bench/runworker.py"],
+              command: ["python", "manageworker.py"],
               resources: { requests: { cpu: "500m", memory: "1000Mi" } },
             },
           ],

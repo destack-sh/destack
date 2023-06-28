@@ -53,3 +53,8 @@ COPY bench/msg/ bench/msg/
 COPY bench/runworker.py bench/runworker.py
 COPY pyproject.toml pyproject.toml
 COPY version .
+
+ARG GIT_COMMIT
+ARG VERSION
+ENV GIT_COMMIT $GIT_COMMIT
+ENV VERSION $VERSION

@@ -22,9 +22,7 @@ anyio==3.7.0
 argilla==1.7.0
     # via unstructured
 asgiref==3.7.2
-    # via
-    #   -r requirements-worker.in
-    #   django
+    # via -r requirements-worker.in
 async-generator==1.10
     # via trio
 async-timeout==4.0.2
@@ -94,8 +92,6 @@ deprecated==1.2.14
     # via argilla
 dictdiffer==0.9.0
     # via notion
-django==4.2.1
-    # via sentry-sdk
 dropbox==11.34.0
     # via -r requirements-worker.in
 duckdb==0.7.1
@@ -174,6 +170,8 @@ importlib-resources==5.12.0
     # via etils
 itsdangerous==2.1.2
     # via -r requirements-worker.in
+janus==1.0.0
+    # via -r requirements-worker.in
 jax==0.3.23
     # via -r requirements-worker.in
 jedi==0.17.2
@@ -222,6 +220,8 @@ more-itertools==9.0.0
     # via -r requirements-worker.in
 msg-parser==1.2.0
     # via unstructured
+msgpack==1.0.5
+    # via -r requirements-worker.in
 multidict==6.0.2
     # via
     #   -r requirements-worker.in
@@ -395,7 +395,7 @@ semver==2.13.0
     # via -r requirements-worker.in
 sentencepiece==0.1.97
     # via -r requirements-worker.in
-sentry-sdk[django]==1.18.0
+sentry-sdk==1.18.0
     # via -r requirements-worker.in
 six==1.16.0
     # via
@@ -420,10 +420,10 @@ soupsieve==2.4.1
     # via beautifulsoup4
 sqlalchemy==2.0.15
     # via langchain
-sqlparse==0.4.4
-    # via django
 stone==3.3.1
     # via dropbox
+structlog==23.1.0
+    # via -r requirements-worker.in
 tabulate==0.9.0
     # via -r requirements-worker.in
 tenacity==8.2.2
@@ -454,6 +454,7 @@ typing-extensions==4.6.2
     # via
     #   etils
     #   huggingface-hub
+    #   janus
     #   jax
     #   pydantic
     #   pyee
@@ -476,6 +477,8 @@ urllib3[socks]==1.26.16
     #   requests
     #   selenium
     #   sentry-sdk
+watchdog==3.0.0
+    # via -r requirements-worker.in
 wrapt==1.14.1
     # via
     #   argilla

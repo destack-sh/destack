@@ -7,11 +7,6 @@ python -m piptools compile requirements.in requirements-dev.in --output-file req
 
 # optionally also sync packages with --sync
 if [ "$1" == "--sync" ]; then
-    python -m piptools sync requirements-dev.txt
+    ./venv/bin/python -m piptools sync requirements-dev.txt
+    ./venv-worker/bin/python -m piptools sync requirements-worker.txt
 fi
-
-# create/update worker venv
-python -m venv venv-worker
-base_site_packages="$(python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
-derived_site_packages="$(./venv-worker/bin/python -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
-echo "$base_site_packages" > "$derived_site_packages"/_base_packages.pth

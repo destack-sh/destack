@@ -277,14 +277,19 @@ class SandboxedWorker:
     async def run(self):
         await nc_init.wait()
         logger.info("start", worker_id=self.worker_id, tenancy=self.tenancy)
-        register_rep: NMessage[RepRegisterWorkerPayload] = await request(
-            NMessageType.REQUEST_REGISTER_WORKER,
-            ReqRegisterWorkerPayload(
-                worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
-            ),
-            RepRegisterWorkerPayload,
-        )
-        if not register_rep.p.success:
+        try:
+            register_rep: NMessage[RepRegisterWorkerPayload] = await request(
+                NMessageType.REQUEST_REGISTER_WORKER,
+                ReqRegisterWorkerPayload(
+                    worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
+                ),
+                RepRegisterWorkerPayload,
+            )
+            success = register_rep.p.success
+        except Exception as e:
+            logger.exception("register.failed", exc_info=e)
+            success = False
+        if not success:
             raise RuntimeError("failed to register worker")
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),

@@ -1,11 +1,13 @@
 import asyncio
 import os
+import sys
+import time
 import uuid
 from pathlib import Path
 
 import dotenv
 
-from bench.msg.core import init_nats
+from bench.msg.core import init_nats, process_soon_queue
 from bench.runtime.worker import SandboxedWorker
 from bench.utils.analytics import init_sentry
 from bench.utils.cache import test_redis_connection
@@ -25,6 +27,7 @@ init_sentry(django=False)
 
 
 async def _run():
+    asyncio.create_task(process_soon_queue())
     await init_nats(name=f"worker-{worker.worker_id}")
     await worker.run_forever()
 
@@ -32,3 +35,27 @@ async def _run():
 asyncio.run(test_redis_connection())  # fail early
 
 asyncio.run(_run())
+
+# auto reload on file change if in dev mode
+if os.environ.get("ENVIRONMENT") == "dev":
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    class Handler(FileSystemEventHandler):
+        def on_any_event(self, event):
+            if event.is_directory:
+                return
+            if event.src_path.endswith(".py"):
+                print("reloading...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    observer = Observer()
+    observer.schedule(Handler(), ".", recursive=True)
+    observer.start()
+
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
