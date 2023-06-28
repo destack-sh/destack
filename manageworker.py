@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-import time
 import uuid
 from pathlib import Path
 
@@ -26,7 +25,35 @@ worker = SandboxedWorker(worker_id=worker_id, project_id=project_id)
 init_sentry(django=False)
 
 
+async def watch_for_changes():
+    print("watching for changes...")
+    from watchdog.events import FileSystemEventHandler
+    from watchdog.observers import Observer
+
+    class Handler(FileSystemEventHandler):
+        def on_any_event(self, event):
+            if event.is_directory:
+                return
+            if event.src_path.endswith(".py"):
+                print(f"{event.src_path} changed, reloading...")
+                os.execv(sys.executable, [sys.executable] + sys.argv)
+
+    observer = Observer()
+    observer.schedule(Handler(), ".", recursive=True)
+    observer.start()
+
+    try:
+        while True:
+            await asyncio.sleep(1)
+    except KeyboardInterrupt:
+        observer.stop()
+    observer.join()
+
+
 async def _run():
+    if os.environ.get("DEBUG") == "1":
+        asyncio.create_task(watch_for_changes())
+
     asyncio.create_task(process_soon_queue())
     await init_nats(name=f"worker-{worker.worker_id}")
     await worker.run_forever()
@@ -37,25 +64,3 @@ asyncio.run(test_redis_connection())  # fail early
 asyncio.run(_run())
 
 # auto reload on file change if in dev mode
-if os.environ.get("ENVIRONMENT") == "dev":
-    from watchdog.events import FileSystemEventHandler
-    from watchdog.observers import Observer
-
-    class Handler(FileSystemEventHandler):
-        def on_any_event(self, event):
-            if event.is_directory:
-                return
-            if event.src_path.endswith(".py"):
-                print("reloading...")
-                os.execv(sys.executable, [sys.executable] + sys.argv)
-
-    observer = Observer()
-    observer.schedule(Handler(), ".", recursive=True)
-    observer.start()
-
-    try:
-        while True:
-            time.sleep(1)
-    except KeyboardInterrupt:
-        observer.stop()
-    observer.join()
