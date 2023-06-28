@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional, cast
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
 import pytz
@@ -10,6 +10,8 @@ from channels.auth import logout as channels_logout
 from django.core.exceptions import PermissionDenied
 from django.db.models import F, Q
 from strawberry import lazy
+from strawberry.channels.handlers.http_handler import ChannelsRequest
+from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.gql import auto
@@ -20,7 +22,7 @@ from bench import models
 from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
-from bench.api.utils import asafe_subscription, safe_mutation, to_uuid
+from bench.api.utils import asafe_subscription, get_user_from_info, safe_mutation, to_uuid
 from bench.models.user import (
     CLIENT_ACTIVE_TIMEOUT_SECONDS,
     CLIENT_PRESENT_TIMEOUT_SECONDS,
@@ -80,12 +82,12 @@ class User(gql.relay.Node, Owner):
 
     @gql.field
     def can_view_full(self, info: OperationInfo):
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         return can_write_user(user, self)
 
     @gql.field
     def can_write(self, info: OperationInfo):
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         return can_write_user(user, self)
 
     @gql.django.field(only=["first_name"])
@@ -158,7 +160,7 @@ class UserMutation:
     @safe_mutation(atomic=True)
     def complete_signup(self, info, input: UserCompleteSignupInput) -> User | OperationInfo:
         user = models.User.objects.get(id=input.id.node_id)
-        requesting_user = info.context.request.scope["user"]
+        requesting_user = get_user_from_info(info)
         if not requesting_user.is_authenticated or user.id != requesting_user.id:
             raise PermissionDenied("can only complete signup for yourself")
         user.change_username(input.username)
@@ -185,7 +187,7 @@ class UserMutation:
 
     @safe_mutation
     def logout(self, info: Info) -> None | OperationInfo:
-        if not info.context.request.scope["user"].is_authenticated:
+        if not get_user_from_info(info).is_authenticated:
             raise PermissionDenied("can only logout when logged in")
         # also close client
         client_id = _get_client_id(info)
@@ -195,7 +197,7 @@ class UserMutation:
             client.last_seen_at = client.closed_at
             client.save()
             _publish_client_changed(client, info)
-        async_to_sync(channels_logout)(info.context.request.scope)
+        async_to_sync(channels_logout)(info.context["request"].scope)
         return None
 
     # TODO @Security: check that secret root login is never exposed in prod
@@ -205,13 +207,13 @@ class UserMutation:
             raise PermissionDenied("can only use this in test mode")
         user = models.User.objects.get(username=username)
         async_to_sync(channels_login)(
-            info.context.request.scope, user, backend="django.contrib.auth.backends.ModelBackend"
+            info.context["request"].scope, user, backend="django.contrib.auth.backends.ModelBackend"
         )
         return user
 
     @safe_mutation
     def upsert_client(self, info: Info, input: ClientUpsertInput) -> Client | OperationInfo:
-        user = info.context.request.scope["user"]
+        user = get_user_from_info(info)
         if not user.is_authenticated:
             raise PermissionDenied("can only upsert client when logged in")
         client, _ = models.Client.objects.get_or_create(
@@ -242,7 +244,7 @@ class UserMutation:
 
     @safe_mutation
     def close_client(self, info: Info) -> None | Client | OperationInfo:
-        user = info.context.request.scope["user"]
+        user = get_user_from_info(info)
         if not user.is_authenticated:
             raise PermissionDenied("can only close client when logged in")
         client_id = _get_client_id(info)
@@ -257,7 +259,7 @@ class UserMutation:
 
     @safe_mutation
     def update_presence(self, info: Info) -> Client | OperationInfo:
-        user = info.context.request.scope["user"]
+        user = get_user_from_info(info)
         if not user.is_authenticated:
             raise PermissionDenied("can only update presence when logged in")
         client_id = _get_client_id(info)
@@ -271,7 +273,13 @@ class UserMutation:
 
 
 def _get_client_id(info: Info) -> Optional[UUID]:
-    client_id = info.context.request.scope["session"].get("client_id")
+    request = info.context["request"]
+    if isinstance(request, GraphQLWSConsumer):
+        client_id = request.scope["session"].get("client_id")
+    elif isinstance(request, ChannelsRequest):
+        client_id = request.consumer.scope["session"].get("client_id")
+    else:
+        raise TypeError(f"unexpected request type: {type(request)}")
     if client_id is None:
         return None
     return UUID(client_id)
@@ -283,13 +291,18 @@ def _set_client_id(info: Info, client_id: UUID) -> None:
     #  In practice this means the first upsert client request will hang and
     #  clog one client connection per host for a while (minutes?).
     #  This isn't great and should be addressed but it doesn't affect the UX.
-    info.context.request.scope["session"]["client_id"] = str(client_id)
+    if isinstance(info.context["request"], GraphQLWSConsumer):
+        info.context["request"].scope["session"]["client_id"] = str(client_id)
+    elif isinstance(info.context["request"], ChannelsRequest):
+        info.context["request"].consumer.scope["session"]["client_id"] = str(client_id)
+    else:
+        raise TypeError(f"unexpected request type: {type(info.context['request'])}")
 
 
 def _publish_client_changed(client: models.Client, info: Info):
     # TODO @Performance: client/presence info should live in Redis
     #  (and status changes should contain the entire data, so no reads are required after initial)
-    client_nonce = info.context.request.headers.get("x-client-nonce")
+    client_nonce = info.context["request"].headers.get("x-client-nonce")
     origin = ClientOrigin("user", client.id, client_nonce)
     client_data = pack_client(client)
     publish_soon(
@@ -312,7 +325,7 @@ class ClientQuery:
         present: Optional[bool] = True,
     ) -> Iterable[Client]:
         qs = models.Client.objects.all()
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         if not user.is_authenticated:
             raise PermissionDenied("can only query clients when logged in")
 
@@ -363,11 +376,11 @@ class ClientSubscription:
         project_id: GlobalID | None,
         project_version_id: GlobalID | None,
     ) -> AsyncGenerator[Client, None]:
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
         client_id = _get_client_id(info)
-        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         log = logger.bind(user=user, project_version_id=project_version_id, client_id=client_id)
 
         change_sub = await subscribe(NMessageType.CLIENT_CHANGED, payload_t=ClientChangedPayload)

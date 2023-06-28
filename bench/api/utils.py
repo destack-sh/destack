@@ -8,6 +8,8 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from strawberry import lazy
+from strawberry.channels.handlers.http_handler import ChannelsRequest
+from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
@@ -15,6 +17,7 @@ from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
+from bench import models
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 
@@ -171,11 +174,21 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
     return GlobalID(type, str(id))
 
 
-def get_client_origin_from_info(info: Info):
-    client_id = info.context.request.scope["session"]["client_id"]
-    client_nonce = info.context.request.headers.get("x-client-nonce")
+def get_client_origin_from_info(info: Info) -> ClientOrigin:
+    client_id = info.context["request"].scope["session"]["client_id"]
+    client_nonce = info.context["request"].headers.get("x-client-nonce")
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
+
+
+def get_user_from_info(info: Info) -> models.User:
+    request = info.context["request"]
+    if isinstance(request, GraphQLWSConsumer):
+        return request.scope["user"]._wrapped
+    elif isinstance(request, ChannelsRequest):
+        return request.consumer.scope["user"]._wrapped
+    else:
+        raise TypeError(f"unexpected request type: {request}")
 
 
 class ThingBatch(Iterable):

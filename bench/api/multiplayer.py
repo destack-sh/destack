@@ -1,4 +1,4 @@
-from typing import AsyncGenerator, Optional, Union, cast
+from typing import AsyncGenerator, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -14,7 +14,7 @@ from bench.api import sync
 from bench.api.auth import check_can_view_project_by_id
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
-from bench.api.utils import asafe_subscription, to_global_id, to_uuid
+from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid
 from bench.bench import mutate, wire
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
@@ -147,11 +147,11 @@ class MultiplayerSubscription:
     async def project_changed(
         self, info: Info, project_id: GlobalID
     ) -> AsyncGenerator[ProjectChange, None]:
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         project_id = UUID(project_id.node_id)
         log = logger.bind(project_id=project_id, user=user)
-        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
-        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         try:
             await sync_to_async(check_can_view_project_by_id)(user, project_id=project_id)
         except PermissionDenied:
@@ -184,11 +184,11 @@ class MultiplayerSubscription:
     async def module_changed(
         self, info: Info, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleChange, None]:
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         project_version_id = UUID(project_version_id.node_id)
         log = logger.bind(project_version_id=project_version_id, user=user)
-        client_id = to_uuid(info.context.request.scope["session"].get("client_id"))
-        client_nonce = to_uuid(info.context.connection_params.get("X-Client-Nonce"))
+        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         try:
             await sync_to_async(check_can_view_project_by_id)(user, project_version_id)
         except PermissionDenied:

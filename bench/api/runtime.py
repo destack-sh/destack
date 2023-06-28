@@ -1,4 +1,4 @@
-from typing import Optional, cast
+from typing import Optional
 from uuid import UUID
 
 import posthog
@@ -14,7 +14,7 @@ from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
-from bench.api.utils import asafe_mutation, to_uuid
+from bench.api.utils import asafe_mutation, to_uuid, get_user_from_info
 from bench.bench.core import SessionTracingLevel
 from bench.models import packer
 from bench.msg import messages
@@ -30,7 +30,6 @@ from bench.msg.messages import (
 )
 
 logger = structlog.get_logger(__name__)
-
 
 InterpErrorType = gql.enum(language.IssueType)
 
@@ -101,7 +100,7 @@ class RuntimeMutation:
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write_project)(info, project_version)
@@ -150,7 +149,7 @@ class RuntimeMutation:
         self, info: Info, input: CancelRunInput
     ) -> CancelRunPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_write_project)(info, project_version)
         cancel = ReqCancelRunPayload(

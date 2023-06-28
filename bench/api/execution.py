@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional, cast
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
 import structlog
@@ -13,7 +13,7 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
-from bench.api.utils import asafe_subscription, to_uuid, to_uuids
+from bench.api.utils import asafe_subscription, get_user_from_info, to_uuid, to_uuids
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ExecutionSavedPayload, NMessageType
@@ -167,7 +167,7 @@ class ExecutionSubscription:
     ) -> AsyncGenerator[Execution, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         log = logger.bind(
             project_id=project_id,
             project_version_id=project_version_id,

@@ -1,15 +1,16 @@
-# To add, delete or modify a dependency, please update
-# the reference .in file and then execute the following to
-# update the corresponding locked .txt file:
-#  `python -m piptools compile requirements-worker.in`
-# Then - optionally - update your installed packages:
-#  `python -m piptools sync requirements-worker.txt`
+# Run ./scripts/update-requirements.sh to update downstream requirements
 
 aiohttp==3.8.3
 anthropic==0.2.9
 asgiref==3.7.2
+black==22.10.0
 base58==2.1.1
 bcrypt==4.0.0
+pytest==7.2.0
+isort==5.10.1
+mypy==0.990
+flake8-import-order==0.18.1
+flake8==5.0.4
 beautifulsoup4==4.11.1
 boto3==1.26.125
 botocore==1.29.125
@@ -55,7 +56,7 @@ protobuf==3.20.3
 psutil==5.9.2
 psycopg2==2.9.3
 pyarrow==10.0.1
-pydantic==1.10.6
+pydantic>=1.10.7,<2
 python-dotenv==0.21.0
 pytz==2022.2.1
 redis[hiredis]==4.5.3

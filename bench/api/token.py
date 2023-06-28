@@ -10,7 +10,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import models
 from bench.api.auth import is_owner_or_member
-from bench.api.utils import safe_mutation
+from bench.api.utils import get_user_from_info, safe_mutation
 from bench.models import Organization, User
 
 AccessTokenScope = gql.enum(models.AccessTokenScope)
@@ -51,7 +51,7 @@ class AccessTokenMutation:
     def create_access_token(
         self, info, input: AccessTokenCreateInput
     ) -> AccessTokenCreatePayload | OperationInfo:
-        requesting_user = info.context.request.scope["user"]
+        requesting_user = get_user_from_info(info)
         owner = input.owner_id.resolve_node(info, required=True)
         if not is_owner_or_member(requesting_user, owner):
             raise PermissionDenied("cannot create access token for this owner")
@@ -62,7 +62,7 @@ class AccessTokenMutation:
 
     @safe_mutation
     def revoke_access_token(self, info, id: GlobalID) -> AccessToken | OperationInfo:
-        requesting_user = info.context.request.scope["user"]
+        requesting_user = get_user_from_info(info)
         access_token = models.AccessToken.objects.get(id=id.node_id)
         if not is_owner_or_member(requesting_user, access_token.owner):
             raise PermissionDenied("cannot revoke access token for this owner")

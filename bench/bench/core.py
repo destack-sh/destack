@@ -388,6 +388,8 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for n in self.walk():
             if n != self and isinstance(n, HasSession):
                 n.instantiate_in(session)
+        for dependency in self.dependencies.values():
+            dependency.instantiate_in(session)
 
     def clear(self):
         super()._clear()
@@ -434,7 +436,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     module: Module = required_field()
     name: str = required_field()
     parent: Union["File", Module] = None
-    children: list["File"] | None = None
+    children: list["File"] = field(default_factory=list)
     statements: list["Statement"] = field(default_factory=list)
     # index
     statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
@@ -760,8 +762,8 @@ class Session:
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
-            module.lookup_symbol("openai.std.text.gpt3"),
-            module.lookup_symbol("anthropic.std.text.claude-instant"),
+            module.lookup_symbol("openai.lib.text.gpt3"),
+            module.lookup_symbol("anthropic.lib.text.claude-instant"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout

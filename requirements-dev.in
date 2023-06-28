@@ -1,9 +1,4 @@
-# To add, delete or modify a dependency, please update
-# the reference .in file and then execute the following to
-# update the corresponding locked .txt file:
-#  `python -m piptools compile requirements.in requirements-dev.in --output-file requirements-dev.txt`
-# Then - optionally - update your installed packages:
-#  `python -m piptools sync requirements-dev.txt`
+# Run ./scripts/update-requirements.sh to update downstream requirements
 
 -c requirements.txt
 
