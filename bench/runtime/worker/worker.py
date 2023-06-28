@@ -144,7 +144,7 @@ class ModuleWorker:
             return RunErrorType.NOT_READY
 
         # get the runnable
-        runnable = self.module.lookup_symbol(runnable)
+        runnable = self.module.lookup(runnable)
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 

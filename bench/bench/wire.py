@@ -630,16 +630,8 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
         return lang.Text(**statement.__dict__, text=symbol.text)
 
 
-# symbols
-
-
 @dataclass
-class SymbolData(StatementData):
-    pass
-
-
-@dataclass
-class TypeData(SymbolData):
+class TypeData(StatementData):
     tag: Optional[TypeTag]
     flags: Optional[TypeFlag]
     description: Optional[str]
@@ -681,7 +673,7 @@ class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
 
 
 @dataclass
-class TaskData(SymbolData):
+class TaskData(StatementData):
     description: Optional[str]
     modifier: Optional[ExpectationModifier]
 
@@ -720,7 +712,7 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
 
 
 @dataclass
-class ExpectationData(SymbolData):
+class ExpectationData(StatementData):
     description: Optional[str]
     modifier: Optional[ExpectationModifier]
     reference_id: Optional[UUID]
@@ -761,7 +753,7 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
 
 
 @dataclass
-class CodeData(SymbolData):
+class CodeData(StatementData):
     modifier: Optional[ExpectationModifier]
     language: Optional[str]
     code: Optional[str]
@@ -803,7 +795,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
 
 
 @dataclass
-class ModelData(SymbolData):
+class ModelData(StatementData):
     external_name: Optional[str]
 
 
@@ -823,7 +815,7 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
 
 
 @dataclass
-class ValueData(SymbolData):
+class ValueData(StatementData):
     description: Optional[str]
     value: Optional[typing.Any]
     modifier: Optional[ExpectationModifier]
@@ -865,7 +857,7 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 
 
 @dataclass
-class DatasetData(SymbolData):
+class DatasetData(StatementData):
     description: Optional[str]
     modifier: Optional[ExpectationModifier]
     versioned: bool

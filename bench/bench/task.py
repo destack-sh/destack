@@ -11,7 +11,7 @@ from typing import Optional, Self
 
 from bench.bench import Code
 from bench.bench.const import TypeFlag, TypeHint, TypeTag
-from bench.bench.core import Scope, Symbol, node
+from bench.bench.core import Scope, Statement, node
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
 from bench.bench.type import (
@@ -26,13 +26,13 @@ from bench.utils.utils import DotDict
 
 
 @node(tracked=["description"])
-class Task(Symbol, HasType, HasExpectations):
+class Task(Statement, HasType, HasExpectations):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
 
     def _clear(self) -> None:
-        Symbol._clear(self)
+        Statement._clear(self)
         HasType._clear(self)
         HasExpectations._clear(self)
         self._implementations = None
@@ -57,7 +57,7 @@ class Task(Symbol, HasType, HasExpectations):
         if self.fqn == "symbolx.lib.builtins.embed":
             from bench.bench.libs import openai_lib
 
-            ada = openai_lib.lookup_symbol("openai.lib.text.ada", Model)
+            ada = openai_lib.lookup("openai.lib.text.ada", Model)
             if ada is None:
                 raise RuntimeError("openai.lib.text.ada not found")
             return await ada(**inputs, retries=retries, cache=cache, timeout=timeout)
@@ -137,7 +137,7 @@ async def do_task(self: Task, model: Model | str = None, retries: int = None, **
     # get candidate task implementations
     if model is not None:
         if isinstance(model, str):
-            model = self.module.find_symbol(model, symbol_t=Model)
+            model = self.module.lookup(model, statement_t=Model)
         models = [model]
     else:
         models = self.session.default_models

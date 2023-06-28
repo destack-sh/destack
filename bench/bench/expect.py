@@ -4,10 +4,10 @@ from dataclasses import field
 from typing import Optional, Self, Union
 
 from bench.bench.const import ExpectationModifier
-from bench.bench.core import Scope, Statement, StatementReference, Symbol, SymbolBase, node
+from bench.bench.core import Scope, Statement, StatementBase, StatementReference, node
 from bench.bench.issue import IssueType
 
-Expectable = Union["Expectation", "Task", "Dataset", "Code"]
+Expectable = Union["Expectation", "Task", "Dataset", "Code"]  # noqa: F821
 
 
 @node
@@ -18,7 +18,7 @@ class IsExpectable:
 
 
 @node
-class HasExpectations(SymbolBase, IsExpectable):
+class HasExpectations(StatementBase, IsExpectable):
     """Symbols we can attach expectations to"""
 
     description: Optional[str] = None
@@ -55,14 +55,14 @@ class HasExpectations(SymbolBase, IsExpectable):
 
 
 @node(tracked=["reference", "description"])
-class Expectation(Symbol, HasExpectations):
+class Expectation(Statement, HasExpectations):
     reference: StatementReference | Statement | None = None
     description: Optional[str] = None
 
     def _interp(self, scope: Scope) -> None:
         # resolve reference
         if self.reference is not None:
-            resolved = scope.lookup_symbol(self.reference)
+            resolved = scope.lookup(self.reference)
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
             else:
@@ -73,5 +73,5 @@ class Expectation(Symbol, HasExpectations):
             self.resolved_expectations.extend(self.reference.expectations)
 
     def _clear(self) -> None:
-        Symbol._clear(self)
+        Statement._clear(self)
         HasExpectations._clear(self)

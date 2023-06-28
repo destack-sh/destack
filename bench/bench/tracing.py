@@ -27,7 +27,6 @@ if typing.TYPE_CHECKING:
         RemoteObject,
         Secret,
         Statement,
-        Symbol,
         Task,
         Value,
     )
@@ -430,7 +429,7 @@ class PermissionCheckingTracer(Tracer):
     def statement_create(self, statement: Statement):
         self.session.check_can(ModuleOp.CREATE, statement)
 
-    def symbol_create(self, symbol: Symbol):
+    def symbol_create(self, symbol: Statement):
         self.session.check_can(ModuleOp.CREATE, symbol)
 
     def value_update(self, value: Value, key: typing.Optional[str] = None):

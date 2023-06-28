@@ -234,7 +234,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     value_mappings = {}
     inputs_mappings = {}
     outputs_mappings = {}
-    for symbol in module.symbols_by_id.values():
+    for symbol in module._statements_by_id.values():
         if symbol.errors:
             continue  # ignore symbols with issues
         elif isinstance(symbol, bench.bench.dataset.Dataset):

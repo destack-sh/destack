@@ -1,15 +1,6 @@
 from bench.bench.code import Code
 from bench.bench.const import DatasetViewLayout, ExpectationModifier, TypeHint, TypeTag
-from bench.bench.core import (
-    Blank,
-    File,
-    Module,
-    Scope,
-    Statement,
-    StatementType,
-    Symbol,
-    Text,
-)
+from bench.bench.core import Blank, File, Module, Scope, Statement, StatementType, Text
 from bench.bench.dataset import Dataset, DatasetView, Record, Value
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.issue import Issue, IssueType
@@ -41,7 +32,7 @@ __all__ = [
     "Secret",
     "Statement",
     "StatementType",
-    "Symbol",
+    "Statement",
     "Task",
     "Text",
     "Type",

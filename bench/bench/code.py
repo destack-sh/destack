@@ -14,7 +14,7 @@ from typing import Any, Callable, Optional
 from more_itertools import first, last
 
 from bench.bench.const import TypeTag
-from bench.bench.core import IssueType, LookupBy, Scope, Session, StatementPath, Symbol, node
+from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.execution import PyFrameData
 from bench.bench.expect import IsExpectable
 from bench.bench.type import HasType
@@ -38,18 +38,18 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(Symbol, HasType, IsExpectable):
+class Code(Statement, HasType, IsExpectable):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
     code: Optional[str] = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
-    _references: dict[str, Symbol] | None = None
+    _references: dict[str, Statement] | None = None
     _transform: Optional[CodeTransformation] = None
     _callable: AsyncCodeCallable | SyncCodeCallable | None = None
 
     def _clear(self) -> None:
-        Symbol._clear(self)
+        Statement._clear(self)
         HasType._clear(self)
         self._parse = None
         self._references = None
@@ -67,7 +67,7 @@ class Code(Symbol, HasType, IsExpectable):
         for key, reference in self._parse.references.items():
             if key in input_idents:
                 continue  # input arguments are not context
-            resolved = scope.lookup_symbol(reference, by=LookupBy.PyIdent)
+            resolved = scope.lookup(reference, by=LookupBy.PyIdent)
             if resolved is not None:
                 self._references[key] = resolved
             else:
@@ -515,7 +515,7 @@ class RunError(Exception):
     def __init__(
         self,
         _t: RunErrorType,
-        symbol: typing.Optional[Symbol],
+        symbol: typing.Optional[Statement],
         cause: typing.Optional[Exception] = None,
     ):
         self.type = _t

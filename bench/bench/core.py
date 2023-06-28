@@ -15,7 +15,6 @@ from uuid import UUID, uuid4
 
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
-from more_itertools import first
 
 from bench.bench.const import ExecutionTriggerType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
@@ -71,21 +70,27 @@ ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
 )
 
+StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
+StatementReference = typing.Union["Statement", StatementPath, UUID]
+STATEMENT_REFERENCE_REGEX = re.compile(
+    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
+)
 
-def statement_path_as_str(statement_path: "StatementPath") -> str:
-    return f"{statement_path.path}:{statement_path.name}"
+
+def parse_statement_reference(path: str) -> tuple[str, str]:
+    match = STATEMENT_REFERENCE_REGEX.match(path)
+    module_name = match.group("module_owner") + "." + match.group("module_name")
+    localized_path = "." + match.group("path")
+    return module_name, localized_path
 
 
 def parse_statement_path(statement_path: str) -> "StatementPath":
-    if ":" not in statement_path:
-        raise ValueError(f"invalid statement path: {statement_path}")
-    path, name = statement_path.split(":")
+    path, name = statement_path.rsplit(".", 1)
     return StatementPath(path, name)
 
 
-STATEMENT_REFERENCE_REGEX = re.compile(
-    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?(\.(?P<path>[\w.\- ]+)\.)?(?P<name>[\w\- ]+)$"
-)
+def statement_path_as_str(statement_path: "StatementPath") -> str:
+    return f"{statement_path.path}:{statement_path.name}"
 
 
 class LookupBy(enum.StrEnum):
@@ -220,7 +225,7 @@ class HasIssues(abc.ABC):
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Symbol", "Statement", "File", None] = None,
+        subject: Union["Statement", "Statement", "File", None] = None,
         type: IssueType = None,
         **kwargs,
     ):
@@ -233,15 +238,15 @@ class HasIssues(abc.ABC):
             self.parent._on_issue(issue)
 
 
-SymbolT = typing.TypeVar("SymbolT", bound="Symbol")
+StatementT = typing.TypeVar("StatementT", bound="Statement")
 
 
 @node
 class Scope:
     parent: Optional["Scope"] = None
-    scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
-    symbols_by_id: dict[UUID, "Symbol"] = field(default_factory=dict)
-    names_by_identifier: dict[str, str] = field(default_factory=dict)
+    _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
+    _statements_by_id: dict[UUID, "Statement"] = field(default_factory=dict)
+    _names_by_identifier: dict[str, str] = field(default_factory=dict)
 
     @cached_property
     def _root_scope(self) -> "Scope":
@@ -251,11 +256,11 @@ class Scope:
 
     def _get_in_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         if by == LookupBy.Name:
-            return self.scopes_by_name.get(name)
+            return self._scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
-            if name in self.names_by_identifier:
-                name = self.names_by_identifier[name]
-                return self.scopes_by_name.get(name)
+            if name in self._names_by_identifier:
+                name = self._names_by_identifier[name]
+                return self._scopes_by_name.get(name)
         else:
             raise ValueError(f"unexpected lookup type: {by}")
         return None
@@ -268,59 +273,60 @@ class Scope:
             return self.parent._find_scope(name, by=by)
         return None
 
-    def find_symbol(self, name: str, by: LookupBy = LookupBy.Name) -> SymbolT | None:
+    def _find_statement(self, name: str, by: LookupBy = LookupBy.Name) -> StatementT | None:
         """Find the statement recursively in this scope and its parents."""
         scope = self._find_scope(name, by)
-        if scope is not None and not isinstance(scope, Symbol):
+        if scope is not None and not isinstance(scope, Statement):
             raise TypeError(f"expected symbol, got {type(scope)}")
         return scope
 
-    def lookup_symbol(
+    def lookup(
         self,
         path: Union["StatementPath", UUID, str],
-        symbol_t: StatementType | typing.Type[SymbolT] | None = None,
+        statement_t: StatementType | typing.Type[StatementT] | None = None,
         by: LookupBy = LookupBy.Name,
-    ) -> SymbolT | None:
+    ) -> StatementT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
         it can be a name (lookup upwards) or a full relative/absolute path.
         """
         if isinstance(path, UUID):
-            return self._root_scope.symbols_by_id.get(path)
+            return self._root_scope._statements_by_id.get(path)
         elif isinstance(path, str):
-            if ":" not in path and "." not in path:
-                return self.find_symbol(path, by=by)
+            if "." not in path:
+                return self._find_statement(path, by=by)
             path = parse_statement_path(path)
         if path.path == ".":
-            return self.find_symbol(path.name, by=by)
+            return self._find_statement(path.name, by=by)
         # strip leading . in path
-        path = StatementPath(path.path[1:], path.name)
+        if path.path.startswith("."):
+            path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
         scope = self._find_scope(first_part, by=by)
         if scope is None:
             return None
-        return scope.lookup_symbol(path, symbol_t=symbol_t)
+        return scope.lookup(path, statement_t=statement_t)
 
     def _add_statement(self, statement: "Statement", by_name: bool) -> None:
         if statement.name is not None and by_name:
-            if statement.name in self.scopes_by_name:
+            if statement.name in self._scopes_by_name:
                 self._on_issue(
                     type=IssueType.AMBIGUOUS_DEFINITION, subject=statement, path=statement.path
                 )
             else:
-                self.scopes_by_name[statement.name] = statement
-                self.names_by_identifier[statement.ident] = statement.name
+                self._scopes_by_name[statement.name] = statement
+                self._names_by_identifier[statement.ident] = statement.name
 
-        self.symbols_by_id.update(statement.symbols_by_id)
-        if isinstance(statement, Symbol):
-            self.symbols_by_id[statement.id] = statement
+        self._statements_by_id.update(statement._statements_by_id)
+        if isinstance(statement, Statement):
+            self._statements_by_id[statement.id] = statement
 
     def _clear(self):
         """Resets this scope and all child scopes."""
-        self.scopes_by_name.clear()
-        self.symbols_by_id.clear()
-        self.names_by_identifier.clear()
-        for scope in self.scopes_by_name.values():
+        self._scopes_by_name.clear()
+        self._statements_by_id.clear()
+        self._names_by_identifier.clear()
+        for scope in self._scopes_by_name.values():
             scope._clear()
 
 
@@ -356,16 +362,16 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             )
         self.dependencies[module.name] = module
 
-    def lookup_symbol(
+    def lookup(
         self,
         path: Union["StatementPath", UUID, str],
-        symbol_t: typing.Type[SymbolT] | None = None,
+        statement_t: typing.Type[StatementT] | None = None,
         by: LookupBy = LookupBy.Name,
-    ) -> SymbolT | None:
+    ) -> StatementT | None:
         if isinstance(path, UUID):
-            return self.symbols_by_id.get(path)
+            return self._statements_by_id.get(path)
         elif path.startswith("."):
-            return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
+            return super().lookup(path, statement_t=statement_t, by=by)
         else:
             module_name, localized_path = parse_statement_reference(path)
             if module_name == self.name:
@@ -374,7 +380,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 dependency = self.dependencies.get(module_name)
             if dependency is None:
                 raise LookupError(f"could not find dependency {module_name}")
-            return dependency.lookup_symbol(localized_path, symbol_t=symbol_t, by=by)
+            return dependency.lookup(localized_path, statement_t=statement_t, by=by)
 
     def __str__(self):
         return f"{self.name} ({self.status.name}, {len(self.files)} files)"
@@ -383,14 +389,14 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         return f"<Module {str(self)}>"
 
     def create_file(self, name: str) -> "File":
-        if name in self.scopes_by_name:
-            raise ValueError(f"{name} already exists in {self}: {self.scopes_by_name[name]}")
+        if name in self._scopes_by_name:
+            raise ValueError(f"{name} already exists in {self}: {self._scopes_by_name[name]}")
         file = File(name=name, parent=self, module=self)
         self.files.append(file)
         return file
 
     def get_file(self, name: str) -> "File":
-        scope = self.scopes_by_name.get(name)
+        scope = self._scopes_by_name.get(name)
         if not isinstance(scope, File):
             raise ValueError(f"expected file, got {type(scope)}")
         return scope
@@ -424,14 +430,14 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             for statement in builtin.statements:
                 self._add_statement(statement, by_name=True)
         for dependency in self.dependencies.values():
-            self.symbols_by_id.update(dependency.symbols_by_id)
+            self._statements_by_id.update(dependency._statements_by_id)
         for file in self.files:
             file._index()
-            if file.name in self.scopes_by_name:
+            if file.name in self._scopes_by_name:
                 self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.name)
             else:
-                self.scopes_by_name[file.name] = file
-            self.symbols_by_id.update(file.symbols_by_id)
+                self._scopes_by_name[file.name] = file
+            self._statements_by_id.update(file._statements_by_id)
         self.status = ModuleStatus.INDEXED
 
     def interp(self):
@@ -574,6 +580,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     order_key: str | None = None
     type: StatementType = StatementType.BLANK
     name: Optional[str] = None
+    issues: list[Issue] | None = None
     id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
@@ -600,7 +607,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.file is None:
             return f"<detached>:{self.infile_path}"
         else:
-            return self.file.path + ":" + str(self.infile_path)
+            return self.file.path + "." + str(self.infile_path)
 
     @property
     def infile_path(self) -> str:
@@ -661,38 +668,25 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             # (unlike in file/module, statement nesting is only semantic, not structural)
             self._add_statement(child, by_name=True)
 
+    def _clear(self) -> None:
+        """Clears any derived/interpreted values on this statement."""
+        self.issues = None
+
     def _interp(self, scope: Scope) -> None:
+        """Updates, resolves and checks any derived/interpreted values on this statement."""
         pass
 
-
-@node(tracked=[])
-class Blank(Statement):
-    """A blank statement."""
-
-    type: StatementType = StatementType.BLANK
-
-
-@node(tracked=["text"])
-class Text(Statement):
-    """A comment that's not semantic/interpreted by default."""
-
-    type: StatementType = StatementType.TEXT
-    text: str | None = None
+    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
+        """Clears and re-interprets this statement in scope."""
+        self._clear()
+        self._index()
+        self._interp(scope or self)
+        if raise_errors and self.errors:
+            raise BenchError(self.errors[0])
 
 
-StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
-StatementReference = typing.Union[Statement, StatementPath, UUID]
-
-
-def parse_statement_reference(path) -> tuple[str, str]:
-    match = STATEMENT_REFERENCE_REGEX.match(path)
-    module_name = match.group("module_owner") + "." + match.group("module_name")
-    localized_path = "." + match.group("path") + ":" + match.group("name")
-    return module_name, localized_path
-
-
-class SymbolBase(abc.ABC):
-    """Base for interpretable symbols for type-checking."""
+class StatementBase(abc.ABC):
+    """Base for statements for type-checking."""
 
     parent: Statement | File
     session: "Session"
@@ -709,46 +703,19 @@ class SymbolBase(abc.ABC):
     _on_issue: IssueHandler
 
 
-@node
-class Symbol(Statement, SymbolBase):
-    """An interpretable and semantic statement (symbol) in Bench source."""
+@node(tracked=[])
+class Blank(Statement):
+    """A blank statement."""
 
-    issues: list[Issue] | None = None
-
-    def _clear(self) -> None:
-        """Clears any derived/interpreted values on this symbol."""
-        Statement._clear(self)
-        self.issues = None
-
-    def _interp(self, scope: Scope) -> None:
-        """Updates, resolves and checks any derived/interpreted values on this symbol."""
-        pass
-
-    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
-        """Clears and re-interprets this symbol in scope."""
-        self._clear()
-        self._index()
-        self._interp(scope or self)
-        if raise_errors and self.errors:
-            raise BenchError(self.errors[0])
+    type: StatementType = StatementType.BLANK
 
 
-@node
-class Block(Symbol):
-    contents: list[Symbol] = field(default_factory=list)
+@node(tracked=["text"])
+class Text(Statement):
+    """A comment that's not semantic/interpreted by default."""
 
-    def __iter__(self):
-        return iter(self.contents)
-
-    def __getattr__(self, item: str):
-        content = first(self.contents, lambda c: c.name == item, None)
-        if content is not None:
-            return content
-        else:
-            raise AttributeError(item)
-
-    def _interp(self, scope: Scope) -> None:
-        pass
+    type: StatementType = StatementType.TEXT
+    text: str | None = None
 
 
 class ModuleOp(enum.StrEnum):
@@ -789,6 +756,8 @@ class SessionContext:
 
 
 class SessionBase(abc.ABC):
+    """Base for sessions for type-checking."""
+
     module: Module
 
     @property
@@ -829,8 +798,8 @@ class Session:
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
-            module.lookup_symbol("openai.lib.text.gpt3"),
-            module.lookup_symbol("anthropic.lib.text.claude-instant"),
+            module.lookup("openai.lib.text.gpt3"),
+            module.lookup("anthropic.lib.text.claude-instant"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -873,15 +842,15 @@ class Session:
                     self.tracer.file_create(obj)
                 elif isinstance(obj, Statement):
                     self.tracer.statement_create(obj)
-                    if isinstance(obj, Symbol):
+                    if isinstance(obj, Statement):
                         # it feels like this should be done in some tracer? also (re?)-index?
-                        self.module.symbols_by_id[obj.id] = obj
+                        self.module._statements_by_id[obj.id] = obj
         for obj in objs:
             self.instances[obj.id] = obj
 
     def remove(self, *objs: "HasSession") -> None:
         for obj in objs:
-            if isinstance(obj, (Symbol, Statement, File)) and obj.id in self.instances:
+            if isinstance(obj, (Statement, Statement, File)) and obj.id in self.instances:
                 del self.instances[obj.id]
                 # not doing anything yet?
 
@@ -907,7 +876,7 @@ class Session:
         active_session.set(self)
         logger.debug("session.open", session=self)
 
-    async def aflush(self, keep_open: bool = True):
+    async def aflush(self):
         """Flushes all module mutations."""
         if not self.mutator.mutations:
             return
@@ -931,7 +900,7 @@ class Session:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
         if flush:
-            await self.aflush(keep_open=False)
+            await self.aflush()
         active_session.set(None)
         logger.debug("session.close", session=self)
 
