@@ -32,7 +32,7 @@ from bench.bench.core import (
 from bench.bench.expect import HasExpectations
 from bench.bench.issue import IssueType
 from bench.bench.remote import RemoteObject, Secret
-from bench.utils.fractional import INTEGER_ZERO
+from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus
 from bench.utils.utils import required_field, to_pyidentifier
 
@@ -281,7 +281,7 @@ def new_field_key() -> str:
     return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
 
 
-@node(tracked=["name", "description", "tag", "hint", "order_key", "flags", "metadata"])
+@node(tracked=["name", "description", "tag", "hint", "flags", "metadata"])
 class Field(ModuleNode, HasCrud, HasSession, TypeBase):
     parent: Statement | None = None
     name: Optional[str] = None
@@ -293,6 +293,13 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase):
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
+
+    def __str__(self):
+        name_str = f"{self.name} " if self.name else ""
+        return f"{name_str}{self.tag}"
+
+    def __repr__(self):
+        return f"<Field {self}>"
 
     @property
     def dimensions(self) -> int:
@@ -306,13 +313,6 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase):
             return f"{self.key}-{self.storage_format.value}{self.dimensions}"
         else:
             return f"{self.key}-{self.storage_format.value}"
-
-    def __str__(self):
-        name_str = f"{self.name} " if self.name else ""
-        return f"{name_str}{self.tag}"
-
-    def __repr__(self):
-        return f"<Field {self}>"
 
     @property
     def resolved_fields(self) -> list["Field"]:
@@ -366,24 +366,27 @@ class HasType(TypeBase, SymbolBase):
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""
         for base in bases:
-            field = Field(
+            field_ = Field(
                 parent=self.parent,
                 name=None,
                 tag=TypeTag.TYPE_REFERENCE,
                 reference=base,
                 flags=TypeFlag.IsUnionWith,
             )
-            self.session.tracer.field_append(self, field)
-            self.fields.append(field)
+            self.session.tracer.field_append(self, field_)
+            self.fields.append(field_)
         self._reinterp()
         return self
 
-    def add_field(self, *fields: Field) -> "Self":
+    def add_field(self, *fields_: Field) -> "Self":
         """Adds a field to this type"""
-        for field in fields:  # noqa shadows dataclass.field
-            self.session.tracer.field_append(self, field)
-            field.parent = self
-            self.fields.append(field)
+        last_ok = self.fields[-1].order_key if self.fields else None
+        oks = generate_n_keys_between(last_ok, None, len(fields_))
+        for ok, field_ in zip(oks, fields_):  # noqa shadows dataclass.field
+            self.session.tracer.field_append(self, field_)
+            field_.parent = self
+            field_.order_key = ok
+            self.fields.append(field_)
         self._reinterp()
         return self
 
@@ -487,6 +490,11 @@ class Type(Symbol, HasType, HasExpectations):
             return self._fields_by_ident[item]
         else:
             return super().__getattr__(item)
+
+    def _assign_oks(self):
+        oks = generate_n_keys_between(None, None, len(self.fields))
+        for ok, field_ in zip(oks, self.fields):
+            field_.order_key = ok
 
     @staticmethod
     def from_py_type(py_type: Any):
@@ -796,7 +804,7 @@ def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFla
     # strip optional
     if typing.get_origin(py_type) is typing.Union:
         args = typing.get_args(py_type)
-        if len(args) == 2 and args[1] is type(None):
+        if len(args) == 2 and isinstance(args[1], type(None)):
             py_type = args[0]
             flags |= TypeFlag.IsNullable
         # convert x | list[x] as isarrayable
@@ -900,6 +908,7 @@ class EnumMapper(TypeMapper):
         for py_member in py_type.__members__.values():
             member = Field(name=py_member.name, key=py_member.name, tag=TypeTag.LITERAL)
             type.fields.append(member)
+        type._assign_oks()
         return type
 
     def to_py_value(self, type: TypeBase, value: Any) -> Any:
@@ -988,6 +997,7 @@ class StructTypeMapper(TypeMapper):
                 type.fields.append(field_)
         else:
             raise ValueError(f"unsupported struct type: {py_type}")
+        type._assign_oks()
         return type
 
     def to_py_value(self, type: TypeBase, value: Any) -> Any:
@@ -1040,6 +1050,8 @@ class FunctionTypeMapper(TypeMapper):
             field_ = wire.unpack_node_flat(wire.pack_node_flat(field_), parent=type, session=None)
             field_.flags |= TypeFlag.IsOutput
             type.fields.append(field_)
+
+        type._assign_oks()
         return type
 
 
@@ -1083,11 +1095,11 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
             raise ValueError(f"unknown type name: {py_type}")
     else:
         type = type_from_py_type(py_type, name, type_map)
-        if type.tag in (TypeTag.STRUCT, TypeTag.ENUM):
-            # turn into reference
-            return Field(name=name, tag=TypeTag.TYPE_REFERENCE, reference=type)
-        else:
-            return Field(name=name, tag=type.tag, hint=type.hint, flags=type.flags)
+    if type.tag in (TypeTag.STRUCT, TypeTag.ENUM):
+        # turn into reference
+        return Field(name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type)
+    else:
+        return Field(name=name, key=name, tag=type.tag, hint=type.hint, flags=type.flags)
 
 
 def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:

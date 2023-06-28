@@ -469,7 +469,6 @@ enum IssueType {
   INTERNAL
   UNKNOWN_IMPORT_SOURCE
   MISSING_REFERENCE
-  AMBIGUOUS_REQUIREMENT
   CIRCULAR_ANCESTRY
   CIRCULAR_UNION
   MISMATCHED_UNION
@@ -1583,7 +1582,6 @@ type Statement implements CrudModel & ModuleNode & Node {
   code: String
   description: String
   value: JSON
-  referenceProjectVersion: ProjectVersion
   issues(filters: IssueFilter): [Issue!]
   resolvedFields(filters: FieldFilter): [Field!]
 }
@@ -1701,7 +1699,6 @@ enum StatementType {
   MODEL
   VALUE
   DATASET
-  REQUIREMENT
   BLOCK
 }
 

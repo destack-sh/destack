@@ -20,7 +20,7 @@ from bench.bench.const import (
     TypeHint,
     TypeTag,
 )
-from bench.bench.core import MOT, InterpScope, ModuleNode, ModuleReference, Session, StatementType
+from bench.bench.core import MOT, InterpScope, ModuleNode, Session, StatementType
 from bench.bench.execution import ExecutionFrame, PyFrameData, RunErrorData
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
@@ -813,46 +813,6 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
 
 
 @dataclass
-class RequirementData(SymbolData):
-    reference_module: Optional[ModuleReference]
-
-
-@node_packer(MOT.STATEMENT, RequirementData, lang.Requirement)
-class RequirementPacker(StatementPacker, NodePacker[RequirementData, lang.Requirement]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
-
-    def pack(self, symbol: lang.Requirement) -> "RequirementData":
-        statement_data = super().pack(symbol)
-        reference = (
-            ModuleReference(
-                module_id=symbol.module_id,
-                module_name=symbol.module_name,
-                version=symbol.version,
-            )
-            if symbol.module_id
-            else None
-        )
-        return RequirementData(
-            **statement_data.__dict__,
-            reference_module=reference,
-        )
-
-    def unpack(
-        self,
-        symbol: RequirementData,
-        parent: lang.File | lang.Statement,
-        session: Optional[Session],
-    ) -> lang.Requirement:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Requirement(
-            **statement.__dict__,
-            module_id=symbol.reference_module.id if symbol.reference_module else None,
-            module_name=symbol.reference_module.name if symbol.reference_module else None,
-            version=symbol.reference_module.version if symbol.reference_module else None,
-        )
-
-
-@dataclass
 class ValueData(SymbolData):
     description: Optional[str]
     value: Optional[typing.Any]
@@ -948,7 +908,6 @@ STATEMENT_DATA_BY_TYPE = {
     StatementType.EXPECTATION: ExpectationData,
     StatementType.CODE: CodeData,
     StatementType.MODEL: ModelData,
-    StatementType.REQUIREMENT: RequirementData,
     StatementType.DATASET: DatasetData,
     StatementType.VALUE: ValueData,
 }
@@ -1218,20 +1177,6 @@ def unpack_data(data: DataT) -> ObjectT:
     """Unpack a flat module node into a language data object"""
     packer = _data_packers_by_data[type(data)]
     return packer.unpack(data)
-
-
-@dataclass
-class XBlockData:
-    kind: str
-    source: str
-    value: Optional[typing.Any] = None
-    path: Optional[str] = None
-
-    def __str__(self):
-        return f"{self.kind} {self.source}"
-
-    def __repr__(self):
-        return f"<XBlock {str(self)}>"
 
 
 @dataclass

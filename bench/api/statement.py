@@ -85,7 +85,6 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     code: auto
     description: auto
     value: auto
-    reference_project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
     # interp
     issues: Optional[list[Issue]] = gql.django.field(filters=IssueFilter)
     resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)

@@ -23,7 +23,6 @@ from bench.bench.wire import (
     ModuleTreeData,
     NodeData,
     RecordData,
-    RequirementData,
     ResolvedFieldData,
     StatementData,
     TaskData,
@@ -242,7 +241,6 @@ class ModuleMutation:
     _data_statement_expectation: Optional[ExpectationData] = None
     _data_statement_code: Optional[CodeData] = None
     _data_statement_model: Optional[ModelData] = None
-    _data_statement_requirement: Optional[RequirementData] = None
     _data_statement_value: Optional[ValueData] = None
     _data_statement_dataset: Optional[DatasetData] = None
     _data_field: Optional[FieldData] = None

@@ -6,14 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from bench.bench.core import (
-        File,
-        InterpScope,
-        Statement,
-        StatementPath,
-        Symbol,
-        statement_path_as_str,
-    )
+    from bench.bench.core import File, InterpScope, Statement, Symbol, statement_path_as_str
 
 
 class IssueKind(enum.StrEnum):
@@ -27,7 +20,6 @@ class IssueType(enum.StrEnum):
     INTERNAL = "INTERNAL"
     UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE"
     MISSING_REFERENCE = "MISSING_REFERENCE"
-    AMBIGUOUS_REQUIREMENT = "AMBIGUOUS_REQUIREMENT"
     CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY"
     CIRCULAR_UNION = "CIRCULAR_UNION"
     MISMATCHED_UNION = "MISMATCHED_UNION"
@@ -44,7 +36,6 @@ _ISSUE_MESSAGES = {
     # errors
     IssueType.INTERNAL.value: "Internal error",
     IssueType.MISSING_REFERENCE.value: "missing reference at {path}",
-    IssueType.AMBIGUOUS_REQUIREMENT.value: "multiple requirements for {path}",
     IssueType.CIRCULAR_ANCESTRY.value: "circular ancestry via {path}",
     IssueType.CIRCULAR_UNION.value: "circular union via {path}",
     IssueType.MISMATCHED_UNION.value: "mismatched union at {node} vs {other}",
@@ -57,7 +48,6 @@ _ISSUE_KIND_BY_TYPE = {
     IssueType.INTERNAL.value: IssueKind.ERROR,
     IssueType.UNKNOWN_IMPORT_SOURCE.value: IssueKind.ERROR,
     IssueType.MISSING_REFERENCE.value: IssueKind.ERROR,
-    IssueType.AMBIGUOUS_REQUIREMENT.value: IssueKind.ERROR,
     IssueType.CIRCULAR_ANCESTRY.value: IssueKind.ERROR,
     IssueType.CIRCULAR_UNION.value: IssueKind.ERROR,
     IssueType.MISMATCHED_UNION.value: IssueKind.ERROR,

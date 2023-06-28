@@ -19,7 +19,6 @@ from bench.bench.wire import (
     RecordData,
     RemoteObjectData,
     SecretData,
-    XBlockData,
 )
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}

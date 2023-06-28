@@ -17,7 +17,7 @@ from bench.bench.core import SessionTracingLevel
 from bench.models import ExecutionTriggerType, Project, ProjectVersion
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg.core import request
-from bench.msg.messages import RepRunPayload, ReqRunPayload, NMessageType
+from bench.msg.messages import NMessageType, RepRunPayload, ReqRunPayload
 
 logger = structlog.get_logger(__name__)
 
@@ -177,7 +177,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
     rep = await request(NMessageType.REQUEST_RUN, run, RepRunPayload, timeout=60)
     outputs = dict(
         execution_id=rep.p.execution_id,
-        output=rep.p.output,
+        output=rep.p.outputs,
         success=not rep.p.error,
         error=dict(type=rep.p.error.value, details=rep.p.error_details) if rep.p.error else None,
     )

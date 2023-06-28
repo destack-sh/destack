@@ -62,7 +62,7 @@ def _model(file: File, names: list[str]):
 
 
 symbolx_std = Module(name="symbolx.std")
-symbolx_builtins = symbolx_std.create_file("builtin")
+symbolx_builtins = symbolx_std.create_file("builtins")
 
 EmbeddingOutput = typing.TypedDict(
     "EmbeddingOutput", {"vector": typing.Union[Vector, list[Vector]]}
@@ -81,8 +81,6 @@ TranscriptionOutput = typing.TypedDict("TranscriptionOutput", {"text": str})
 def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise NotImplementedError
 
-
-SYMBOLX_STD_BUILTINS: set[str] = {symbol.name for symbol in symbolx_builtins.symbols_by_id.values()}
 
 openai_std = Module(name="openai.std")
 openai_chat = openai_std.create_file("chat")
@@ -277,7 +275,8 @@ DEFAULT_MODULES: dict[str, Module] = {
 }
 
 # interp/index them
-for module in DEFAULT_MODULES.values():
+for name, module in DEFAULT_MODULES.items():
+    assert module.name == name
     module.index()
     module.interp()
     if module.issues:
