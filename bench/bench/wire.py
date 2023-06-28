@@ -337,7 +337,17 @@ def unpack_node(
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
-        node_parent = unpacked_tree.nodes[node.parent_id] if node.parent_id else parent
+        if node.parent_id is None:
+            node_parent = parent
+        elif node.parent_id not in unpacked_tree.nodes:
+            if parent is not None and node.parent_id == parent.id:
+                node_parent = parent
+            else:
+                raise ValueError(
+                    f"node {node} parent {node.parent_id} not found in unpacked {unpacked_tree}"
+                )
+        else:
+            node_parent = unpacked_tree.nodes[node.parent_id]
         unpacked_tree.add(packer.unpack(node, node_parent, session))
 
     # 'unwalk' all nodes to re-assign descendants

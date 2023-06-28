@@ -493,13 +493,12 @@ class LanguageWorker:
         self.source = new_source
         old = self.module
         old_tree = self.module_tree
-        self.module = Module.interp_from(source=new_source, session=None)
+        self.module = Module.interp_from(module=new_source, session=None)
         self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
         return old, old_tree, self.module
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
         """Interprets the new module source, fetching deps and firing reactivity jobs"""
-        dependencies = DEFAULT_MODULES.values()
         old_module, old_tree, new_module = await asyncio.get_event_loop().run_in_executor(
             None, partial(self._do_interp_sync, new_source)
         )

@@ -145,6 +145,12 @@ class ModuleNode(abc.ABC):
 
         return walk_node(self)
 
+    def copy(self):
+        from bench.bench import wire
+
+        _, node_datas = wire.pack_node(self)
+        return wire.unpack_node(node_datas, parent=self.parent, session=None)
+
     @property
     def attached(self) -> bool:
         return self.parent is not None
@@ -262,7 +268,7 @@ class Scope:
             return self.parent._find_scope(name, by=by)
         return None
 
-    def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
+    def find_symbol(self, name: str, by: LookupBy = LookupBy.Name) -> SymbolT | None:
         """Find the statement recursively in this scope and its parents."""
         scope = self._find_scope(name, by)
         if scope is not None and not isinstance(scope, Symbol):
@@ -318,6 +324,13 @@ class Scope:
             scope._clear()
 
 
+class ModuleStatus(enum.IntEnum):
+    RAW = 0
+    INDEXED = 1
+    INTERPED = 2
+    INSTANTIATED = 3
+
+
 @node
 class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
@@ -327,6 +340,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     parent: None = None
     parent_scope: Scope = None
     committed: bool = False
+    status: ModuleStatus = ModuleStatus.RAW
 
     @property
     def attached(self) -> bool:
@@ -347,20 +361,23 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         path: Union["StatementPath", UUID, str],
         symbol_t: typing.Type[SymbolT] | None = None,
         by: LookupBy = LookupBy.Name,
-    ) -> SymbolT:
+    ) -> SymbolT | None:
         if isinstance(path, UUID):
             return self.symbols_by_id.get(path)
         elif path.startswith("."):
             return super().lookup_symbol(path, symbol_t=symbol_t, by=by)
         else:
             module_name, localized_path = parse_statement_reference(path)
-            dependency = self.dependencies.get(module_name)
+            if module_name == self.name:
+                dependency = self
+            else:
+                dependency = self.dependencies.get(module_name)
             if dependency is None:
                 raise LookupError(f"could not find dependency {module_name}")
             return dependency.lookup_symbol(localized_path, symbol_t=symbol_t, by=by)
 
     def __str__(self):
-        return f"{self.name} ({len(self.files)} files)"
+        return f"{self.name} ({self.status.name}, {len(self.files)} files)"
 
     def __repr__(self):
         return f"<Module {str(self)}>"
@@ -377,6 +394,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if not isinstance(scope, File):
             raise ValueError(f"expected file, got {type(scope)}")
         return scope
+
+    def _expect_status(self, status: ModuleStatus):
+        if self.status != status:
+            raise ValueError(f"need {self} to be {status.name}")
 
     def instantiate_in(self, session: "Session"):
         if self._session is not None:
@@ -395,8 +416,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         super()._clear()
         for file in self.files:
             file._clear()
+        self.status = ModuleStatus.RAW
 
     def index(self):
+        self._expect_status(ModuleStatus.RAW)
         for builtin in self.builtins:
             for statement in builtin.statements:
                 self._add_statement(statement, by_name=True)
@@ -409,20 +432,40 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             else:
                 self.scopes_by_name[file.name] = file
             self.symbols_by_id.update(file.symbols_by_id)
+        self.status = ModuleStatus.INDEXED
 
     def interp(self):
+        self._expect_status(ModuleStatus.INDEXED)
         for file in self.files:
             file._interp()
+        self.status = ModuleStatus.INTERPED
+
+    def copy(self):
+        from bench.bench import wire
+
+        module_data = wire.pack_module(self)
+        module_copy = wire.unpack_module(module_data, session=None)
+        if self.status >= ModuleStatus.INDEXED:
+            module_copy.index()
+        if self.status >= ModuleStatus.INTERPED:
+            module_copy.interp()
+        return module_copy
 
     @staticmethod
-    def interp_from(source: "ModuleTreeData", session: Optional["Session"]) -> "Module":
+    def interp_from(
+        module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
+    ) -> "Module":
         from bench.bench import wire
-        from bench.bench.libs import DEFAULT_MODULES, symbolx_builtins
+        from bench.bench.libs import DEFAULT_MODULES
 
-        logger.debug("module.interp", module=source)
-        module = wire.unpack_module(source, session=session)
-        module.add_builtin(symbolx_builtins)
-        for dependency in DEFAULT_MODULES.values():
+        # copy default dependencies
+        dependencies = {name: dep.copy() for name, dep in DEFAULT_MODULES.items()}
+
+        logger.debug("module.interp", module=module)
+        if isinstance(module, wire.ModuleTreeData):
+            module = wire.unpack_module(module, session=session)
+        module.add_builtin(dependencies["symbolx.lib"].get_file("builtins"))
+        for dependency in dependencies.values():
             module.add_dependency(dependency)
         logger.debug("module.interp.index", module=module)
         module.index()
@@ -465,10 +508,13 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         last_ok = self.statements[-1].order_key if self.statements else None
         oks = generate_n_keys_between(last_ok, None, len(statements))
         for ok, statement in zip(oks, statements):
+            if statement.parent is not None and statement.parent != self:
+                raise ValueError(f"statement {statement} belongs to {statement.parent}")
             statement.order_key = ok
-            statement.file = self
             statement.parent = self
-            self.statements.append(statement)
+            for descendant in statement.walk_descendants():
+                descendant.file = self
+                self.statements.append(descendant)
 
     def _sort(self):
         """Sorts the files statements in-place according to parent & order keys."""
@@ -585,6 +631,27 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
+
+    def append_child(self, *statements: "Statement"):
+        last_ok = self.children[-1].order_key if self.children else None
+        oks = generate_n_keys_between(last_ok, None, len(statements))
+        for ok, statement in zip(oks, statements):
+            if statement.parent is not None and statement.parent != self:
+                raise ValueError(f"statement {statement} belongs to {statement.parent}")
+            statement.order_key = ok
+            statement.file = self.file
+            statement.parent = self
+        if self.children is None:
+            self.children = [*statements]
+        else:
+            self.children.extend(statements)
+
+    def walk_descendants(self) -> typing.Iterator["Statement"]:
+        """Yields all descendant statements in DFS order."""
+        yield self
+        if self.children is not None:
+            for child in self.children:
+                yield from child.walk_descendants()
 
     def _index(self):
         self._clear()

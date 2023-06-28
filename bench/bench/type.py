@@ -384,16 +384,39 @@ class HasType(TypeBase, SymbolBase):
         oks = generate_n_keys_between(last_ok, None, len(fields_))
         for ok, field_ in zip(oks, fields_):  # noqa shadows dataclass.field
             self.session.tracer.field_append(self, field_)
+            if not field_.detached:
+                raise ValueError(f"{field_} is already attached to {field_.parent}")
             field_.parent = self
             field_.order_key = ok
             self.fields.append(field_)
         self._reinterp()
         return self
 
+    def _copy_fields(self, to: Optional["HasType"] = None) -> list[Field]:
+        """Copies the fields of this type to a new parent"""
+        new_fields = []
+        for field_ in self.fields:
+            new_field = field_.copy()
+            new_field.parent = to
+            new_fields.append(new_field)
+        if to is not None:
+            to.fields.extend(new_fields)
+            to._assign_oks()
+        return new_fields
+
     @property
     def type(self) -> TypeBase:
         """For clarity when explicitly referring to the type of a symbol"""
         return self
+
+    def _assign_oks(self):
+        oks = generate_n_keys_between(None, None, len(self.fields))
+        for ok, field_ in zip(oks, self.fields):
+            if field_.parent is None:
+                field_.parent = self
+            elif field_.parent is not self:
+                raise ValueError(f"{field_} is already attached to {field_.parent}")
+            field_.order_key = ok
 
     @staticmethod
     def _resolve_unions(type: "Type", path: list[TypeBase]) -> None:
@@ -490,11 +513,6 @@ class Type(Symbol, HasType, HasExpectations):
             return self._fields_by_ident[item]
         else:
             return super().__getattr__(item)
-
-    def _assign_oks(self):
-        oks = generate_n_keys_between(None, None, len(self.fields))
-        for ok, field_ in zip(oks, self.fields):
-            field_.order_key = ok
 
     @staticmethod
     def from_py_type(py_type: Any):

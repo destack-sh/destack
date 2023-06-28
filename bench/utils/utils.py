@@ -8,6 +8,10 @@ from typing import Any, Callable, Optional
 import sentry_sdk
 
 
+class UnreachableError(Exception):
+    pass
+
+
 def str_to_bool(value: str) -> bool:
     truthy_strs_lower = ("y", "yes", "t", "true", "on", "yup", "1")
     return value is not None and str(value).lower() in truthy_strs_lower
