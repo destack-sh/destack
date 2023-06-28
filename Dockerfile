@@ -10,19 +10,19 @@ RUN apt-get install -y libpq-dev libzbar-dev
 # Install ML libs
 RUN apt-get install -y ffmpeg
 
+# Install GCC and Fortran
+RUN apt-get install -y gcc gfortran
+RUN apt-get install -y pkg-config cmake libopenblas-dev liblapack-dev
+
 ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
-# Copy the requirements file into the container
-COPY requirements.txt .
-COPY requirements-worker.txt .
-
-# Install dependencies from requirements.txt
-# TODO @Cleanup @Architecture: use separate requirements for worker
-RUN pip install --no-cache-dir -r requirements.txt -r requirements-worker.txt
 
 # Define the API image
 FROM base as bench-api
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the application code into the container
 COPY bench/ bench/
@@ -41,7 +41,6 @@ EXPOSE 80
 # Define the worker image
 FROM base as bench-worker
 
-# Copy the additional requirements file for the worker and install dependencies
 COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 

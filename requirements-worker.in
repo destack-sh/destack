@@ -1,21 +1,68 @@
 # To add, delete or modify a dependency, please update
 # the reference .in file and then execute the following to
 # update the corresponding locked .txt file:
-#  `python -m piptools compile requirements.in requirements-worker.in --output-file requirements-worker.txt`
+#  `python -m piptools compile requirements-worker.in`
 # Then - optionally - update your installed packages:
 #  `python -m piptools sync requirements-worker.txt`
 
-# shared with main
 aiohttp==3.8.3
 anthropic==0.2.9
 asgiref==3.7.2
+boto3==1.26.125
+botocore==1.29.125
 cachetools==5.2.0
-opensearch-py[async]==2.2.0
+dropbox==11.34.0
+duckdb==0.7.1
+gitpython==3.1.27
+google-api-python-client==2.90.0
+google-auth-httplib2==0.1.0
+google-auth-oauthlib==1.0.0
+googlemaps==4.6.0
+grpcio==1.56.0
+h3==3.7.6
+hdbscan==0.8.29
+huggingface-hub==0.9.1
+idna==3.4
+itsdangerous==2.1.2
+jax==0.3.23
+jedi==0.17.2
+jinja2==3.1.2
+jsonschema==4.16.0
+langchain==0.0.166
+langcodes==3.3.0
+lxml==4.9.1
+markdown==3.4.1
+markupsafe==2.1.1
+marshmallow==3.18.0
 more-itertools==9.0.0
+multidict==6.0.2
+munch==2.5.0
+nats-py==2.2.0
+nltk==3.7
+notion==0.0.28
 numpy<2,>=1.20.0
 openai==0.27.2
+opensearch-py[async]==2.2.0
+orjson==3.8.9
 pandas<2,>=1.0.0
-# worker specific
-langchain==0.0.166
+playwright==1.35.0
+protobuf==3.20.3
+psutil==5.9.2
+psycopg2==2.9.3
+pyarrow==10.0.1
+pydantic==1.10.6
+python-dotenv==0.21.0
+pytz==2022.2.1
+redis[hiredis]==4.5.3
+requests==2.31.0
+selenium==4.10.0
+semver==2.13.0
+sentencepiece==0.1.97
+sentry-sdk[django]==1.18.0
+tabulate==0.9.0
+tqdm==4.64.1
+base58==2.1.1
+bcrypt==4.0.0
 unstructured==0.6.6
-httpx==0.23.3 # for unstructured->argilla
+beautifulsoup4==4.11.1
+yarl==1.8.1
