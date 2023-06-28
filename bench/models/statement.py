@@ -231,9 +231,6 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
-    reference_project_version = models.ForeignKey(  # for requirement
-        "ProjectVersion", on_delete=models.SET_NULL, null=True, blank=True
-    )
     external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
     dataset = models.OneToOneField("Dataset", on_delete=models.SET_NULL, null=True, blank=True)
     fields: models.QuerySet[Field]  # noqa via Field.statement

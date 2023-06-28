@@ -1,9 +1,9 @@
 from bench.bench.code import Code
+from bench.bench.const import DatasetViewLayout, ExpectationModifier, TypeHint, TypeTag
 from bench.bench.core import (
     Blank,
     File,
     Module,
-    Requirement,
     Scope,
     Statement,
     StatementType,
@@ -11,20 +11,12 @@ from bench.bench.core import (
     Text,
 )
 from bench.bench.dataset import Dataset, DatasetView, Record, Value
-from bench.bench.const import DatasetViewLayout, ExpectationModifier, TypeTag, TypeHint
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.issue import Issue, IssueType
 from bench.bench.model import Model
 from bench.bench.remote import RemoteObject, Secret
 from bench.bench.task import Task
-from bench.bench.type import (
-    Field,
-    HasType,
-    ResolvedField,
-    Type,
-    TypeBase,
-    TypeStorageFormat,
-)
+from bench.bench.type import Field, HasType, ResolvedField, Type, TypeBase, TypeStorageFormat
 
 __all__ = [
     "Blank",
@@ -44,7 +36,6 @@ __all__ = [
     "Module",
     "Record",
     "RemoteObject",
-    "Requirement",
     "ResolvedField",
     "Scope",
     "Secret",

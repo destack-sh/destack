@@ -202,9 +202,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     code
     description
     value
-    referenceProjectVersion {
-      id
-    }
     rootTypeTag
     rootTypeFlags
     fields(filters: { isVisible: true }) {
@@ -304,9 +301,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       }
     }
     orderKey
-    referenceProjectVersion {
-      id
-    }
     rootTypeTag
     rootTypeFlags
     fields(filters: { isVisible: true }) {

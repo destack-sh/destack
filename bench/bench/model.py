@@ -16,7 +16,7 @@ from bench.bench.core import Scope, Symbol, node
 from bench.bench.type import HasType, TypeTag
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env, required_field
+from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
     pass
@@ -64,9 +64,9 @@ class Model(Symbol, HasType):
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_str(cached_inference)
-                    log.debug("inference.cache.hit", output=describe_type(inference.output))
+                    log.debug("inference.cache.hit", output=describe_type(inference.outputs))
                     self.tracer.inference_cached(self.model, inputs, inference)
-                    return inference.output
+                    return inference.outputs
                 except (ValueError, TypeError, JSONDecodeError):
                     log.warning("inference.cache.error", excinfo=True)
                     # ignore and continue, will be overwritten
@@ -87,9 +87,9 @@ class Model(Symbol, HasType):
                 RepRunInferencePayload,
                 timeout=timeout + 1,  # for network
             )
-            if rep.p.output is None:
+            if rep.p.outputs is None:
                 raise RuntimeError("remote inference failed")
-            return rep.p.output
+            return rep.p.outputs
 
         # otherwise run inference through endpoint
         try:
@@ -123,7 +123,9 @@ class Model(Symbol, HasType):
         duration = (now - started_at).total_seconds()
         if write_to_cache:
             # result is assumed to be JSON serializable, will obviously error here if not
-            inference = Inference(generated_at=now, duration=duration, inputs=inputs, output=output)
+            inference = Inference(
+                generated_at=now, duration=duration, inputs=inputs, outputs=output
+            )
             await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
         log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
         return output
@@ -142,14 +144,14 @@ class Inference:
     generated_at: datetime
     duration: float
     inputs: Any
-    output: Any
+    outputs: Any
 
     def to_json_str(self) -> str:
         inference_json = {
             "generated_at": self.generated_at.isoformat(),
             "duration": self.duration,
             "inputs": self.inputs,
-            "output": self.output,
+            "output": self.outputs,
         }
         return json.dumps(inference_json)
 
@@ -160,7 +162,7 @@ class Inference:
             generated_at=datetime.fromisoformat(data["generated_at"]),
             duration=data["duration"],
             inputs=data["inputs"],
-            output=data["output"],
+            outputs=data["output"],
         )
 
 

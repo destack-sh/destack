@@ -119,9 +119,6 @@ export function useStatementOps() {
             text
             description
             value
-            referenceProjectVersion {
-              id
-            }
             rootTypeTag
             rootTypeFlags
             fields(filters: { isVisible: true }) {
@@ -190,7 +187,6 @@ export function useStatementOps() {
             value: vars.value,
             code: vars.code,
             text: vars.text,
-            referenceProjectVersion: null,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
             fields: [],
@@ -362,9 +358,6 @@ export function useStatementOps() {
             text
             description
             value
-            referenceProjectVersion {
-              id
-            }
             rootTypeTag
             rootTypeFlags
           }
@@ -405,7 +398,6 @@ export function useStatementOps() {
             value: vars.value,
             code: vars.code,
             text: vars.text,
-            referenceProjectVersion: null,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
             fields: [],

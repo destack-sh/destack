@@ -19,6 +19,7 @@ from more_itertools import first
 from bench.bench.const import ExecutionTriggerType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.settings import logging
+from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -62,7 +63,6 @@ class StatementType(enum.StrEnum):
     MODEL = "model"
     VALUE = "value"
     DATASET = "dataset"
-    REQUIREMENT = "require"
     BLOCK = "block"
 
 
@@ -134,7 +134,7 @@ class ModuleNode(abc.ABC):
     revision: int = 0
 
     def __eq__(self, other):
-        return self.id == other.id
+        return isinstance(other, self.__class__) and self.id == other.id
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -238,12 +238,12 @@ class Scope:
     names_by_identifier: dict[str, str] = field(default_factory=dict)
 
     @cached_property
-    def root_scope(self) -> "Scope":
+    def _root_scope(self) -> "Scope":
         if self.parent is None:
             return self
-        return self.parent.root_scope
+        return self.parent._root_scope
 
-    def get_in_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
+    def _get_in_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         if by == LookupBy.Name:
             return self.scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
@@ -254,17 +254,17 @@ class Scope:
             raise ValueError(f"unexpected lookup type: {by}")
         return None
 
-    def find_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
-        scope = self.get_in_scope(name, by)
+    def _find_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
+        scope = self._get_in_scope(name, by)
         if scope is not None:
             return scope
         if self.parent is not None:
-            return self.parent.find_scope(name, by=by)
+            return self.parent._find_scope(name, by=by)
         return None
 
     def find_symbol(self, name: str, by: LookupBy) -> SymbolT | None:
         """Find the statement recursively in this scope and its parents."""
-        scope = self.find_scope(name, by)
+        scope = self._find_scope(name, by)
         if scope is not None and not isinstance(scope, Symbol):
             raise TypeError(f"expected symbol, got {type(scope)}")
         return scope
@@ -277,20 +277,20 @@ class Scope:
     ) -> SymbolT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
-        it can be a name (lookup upwards) or a full relative/absolute path).
+        it can be a name (lookup upwards) or a full relative/absolute path.
         """
         if isinstance(path, UUID):
-            return self.root_scope.symbols_by_id.get(path)
+            return self._root_scope.symbols_by_id.get(path)
         elif isinstance(path, str):
             if ":" not in path and "." not in path:
                 return self.find_symbol(path, by=by)
             path = parse_statement_path(path)
         if path.path == ".":
-            return self.find_symbol(path.name, by=by)  # nocheckin broken for builtins?
+            return self.find_symbol(path.name, by=by)
         # strip leading . in path
         path = StatementPath(path.path[1:], path.name)
         first_part = path.path.split(".")[0]
-        scope = self.find_scope(first_part, by=by)
+        scope = self._find_scope(first_part, by=by)
         if scope is None:
             return None
         return scope.lookup_symbol(path, symbol_t=symbol_t)
@@ -446,7 +446,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self._sort()
 
     def __str__(self):
-        return f"{self.module.name}/{self.name}"
+        return f"{self.module.name}/{self.name} ({len(self.statements)} statements)"
 
     def __repr__(self):
         return f"<File {str(self)}>"
@@ -460,9 +460,12 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def append(self, *statements: "Statement"):
         """Appends the statements to this file."""
-        for statement in statements:
+        last_ok = self.statements[-1].order_key if self.statements else None
+        oks = generate_n_keys_between(last_ok, None, len(statements))
+        for ok, statement in zip(oks, statements):
+            statement.order_key = ok
             statement.file = self
-            statement.parent_scope = self
+            statement.parent = self
             self.statements.append(statement)
 
     def _sort(self):
@@ -484,7 +487,15 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for statement in sorted(roots, key=lambda s: s.order_key):
             walk_dfs(statement)
 
+        if len(sorted_statements) != len(self.statements):
+            raise RuntimeError(f"invalid statement order: {sorted_statements} != {self.statements}")
         self.statements = sorted_statements
+
+    def _assign_oks(self):
+        for statements in self.statements_by_parent_id.values():
+            oks = generate_n_keys_between(None, None, len(statements))
+            for ok, statement in zip(oks, statements):
+                statement.order_key = ok
 
     def _clear(self):
         """Resets this scope and all child scopes."""
@@ -651,25 +662,6 @@ class Symbol(Statement, SymbolBase):
         self._interp(scope or self)
         if raise_errors and self.errors:
             raise BenchError(self.errors[0])
-
-
-@node
-class Requirement(Symbol):
-    module_name: Optional[str] = None
-    module_id: Optional[UUID] = None
-    version: Optional[str] = None
-
-    async def arequire(self) -> None:
-        raise NotImplementedError
-
-    def require(self) -> None:
-        async_to_sync(self.arequire)()
-
-    def __str__(self):
-        return f"{self.module_name or '<unspecified>'}@{self.version or '<any>'}"
-
-    def _interp(self, scope: Scope) -> None:
-        pass
 
 
 @node

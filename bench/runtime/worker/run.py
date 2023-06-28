@@ -100,7 +100,7 @@ class ModuleWorker:
 
     @property
     def interpreted(self) -> bool:
-        return self.interp is not None
+        return self.module is not None
 
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
@@ -144,7 +144,7 @@ class ModuleWorker:
             return RunErrorType.NOT_READY
 
         # get the runnable
-        runnable = self.interp.module.lookup_symbol(runnable)
+        runnable = self.module.lookup_symbol(runnable)
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 

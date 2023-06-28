@@ -56,7 +56,7 @@ class Task(Symbol, HasType, HasExpectations):
         raise NotImplementedError
 
     def to_sync(self) -> "Self":
-        if self.is_async:
+        if self._is_async:
             return TaskProxy.to_sync(self)
         return self
 
@@ -76,6 +76,9 @@ class TaskProxy:
             if self._task_callable_sync is None:
                 self._task_callable_sync = self._task.session.sync_to_async(self._task)
             return self._task_callable_sync(*args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._task, name)
 
     @classmethod
     def to_sync(cls, task: Task) -> "TaskProxy":

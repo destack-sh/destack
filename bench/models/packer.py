@@ -18,7 +18,6 @@ import pytz
 from django.db import transaction
 from django.db.models import Model, QuerySet
 
-import bench.bench.core
 from bench import models
 from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
@@ -492,25 +491,6 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.external_name = data.external_name
-        return statement
-
-
-@node_packer(MOT.STATEMENT, wire.RequirementData, models.Statement, StatementType.REQUIREMENT)
-class RequirementPacker(StatementPacker, NodePacker[wire.RequirementData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.RequirementData:
-        statement_data = super().pack(statement)
-        reference_module = (
-            bench.bench.core.ModuleReference(id=statement.reference_project_id)
-            if statement.reference_project_id
-            else None
-        )
-        return wire.RequirementData(**statement_data.__dict__, reference_module=reference_module)
-
-    def unpack(
-        self, data: wire.RequirementData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.reference_project_id = data.reference_module.id if data.reference_module else None
         return statement
 
 

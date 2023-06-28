@@ -488,7 +488,6 @@ export type IssueResolvedField = Issue | ResolvedField;
 
 export enum IssueType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
-  AmbiguousRequirement = "AMBIGUOUS_REQUIREMENT",
   CircularAncestry = "CIRCULAR_ANCESTRY",
   CircularUnion = "CIRCULAR_UNION",
   Internal = "INTERNAL",
@@ -1869,7 +1868,6 @@ export type Statement = CrudModel &
     orderKey: Scalars["String"];
     parent?: Maybe<ModuleNode>;
     projectVersion: ProjectVersion;
-    referenceProjectVersion?: Maybe<ProjectVersion>;
     resolvedFields?: Maybe<Array<Field>>;
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
@@ -2003,7 +2001,6 @@ export enum StatementType {
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",
-  Requirement = "REQUIREMENT",
   Task = "TASK",
   Text = "TEXT",
   Type = "TYPE",
@@ -3269,7 +3266,6 @@ export type StatementContentFragment = {
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | null;
-  referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
     { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
@@ -3338,7 +3334,6 @@ export type InterpStatementFragment = {
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | null;
-  referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
@@ -3926,7 +3921,6 @@ export type CreateStatementMutation = {
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | null;
-        referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
@@ -3972,7 +3966,6 @@ export type UpdateStatementMutation = {
         value?: any | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
-        referenceProjectVersion?: { __typename?: "ProjectVersion"; id: any } | null;
       };
 };
 
@@ -5353,14 +5346,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "referenceProjectVersion" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
           {
@@ -5581,14 +5566,6 @@ export const InterpStatementFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "referenceProjectVersion" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
           {
@@ -10786,14 +10763,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "referenceProjectVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
                       {
@@ -11036,14 +11005,6 @@ export const UpdateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "referenceProjectVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
                     ],
