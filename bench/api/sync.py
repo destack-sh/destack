@@ -2,7 +2,7 @@ import functools
 import inspect
 import typing
 from inspect import Signature
-from typing import Any, Optional, Sequence, cast
+from typing import Any, Optional, Sequence
 
 import posthog
 import structlog
@@ -16,7 +16,7 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
-from bench.api.utils import get_client_origin_from_info, wrap_exceptions
+from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
 from bench.bench import Statement
 from bench.bench.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
@@ -259,7 +259,7 @@ def track_mutation_for_analytics(
     type: MMT, project_version: ProjectVersion, things, batch: bool, info: Info
 ):
     """Tracks a project mutation for Posthog analytics."""
-    user = cast(models.User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if user.is_anonymous:
         return
 

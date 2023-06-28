@@ -174,11 +174,11 @@ def parse_code(code: str | None) -> "CodeParse":
 
     Also handles imported references like
     ```py
-    from x.symbolx.std.y import z
+    from x.symbolx.lib.y import z
     from x.flotothemoon.test.a import b as c
     from .x.local import apple
     ```
-    -> 'z' is an external reference to ("x.symbolx.std.y", "z")
+    -> 'z' is an external reference to ("x.symbolx.lib.y", "z")
     -> 'c' is an external reference to ("x.flotothemoon.test.a", "b")
     -> 'apple' is an external reference to ("<module>.local", "apple").
     """

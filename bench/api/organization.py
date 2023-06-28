@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional, cast
+from typing import TYPE_CHECKING, Annotated, Optional
 
 from django.core.exceptions import PermissionDenied
 from strawberry import auto, lazy
@@ -14,7 +14,7 @@ from bench.api.auth import (
     check_can_write_organization,
 )
 from bench.api.owner import AccessTokenFilter, Owner
-from bench.api.utils import safe_mutation
+from bench.api.utils import get_user_from_info, safe_mutation
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -52,12 +52,12 @@ class Organization(gql.relay.Node, Owner):
 
     @gql.field
     def can_view_full(self, info: OperationInfo):
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         return can_write_organization(user, self)
 
     @gql.field
     def can_write(self, info: OperationInfo):
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         return can_write_organization(user, self)
 
     @gql.django.field(only=["owner_slug_id"])
@@ -129,7 +129,7 @@ class OrganizationMutation:
     def create_organization(
         self, info, input: OrganizationCreateInput
     ) -> Organization | OperationInfo:
-        user = info.context.request.scope["user"]._wrapped
+        user = get_user_from_info(info)
         if not user.is_authenticated:
             raise PermissionDenied("you must be logged in to create an organization")
         organization = models.Organization.objects.create_organization(
@@ -157,7 +157,7 @@ class OrganizationMutation:
         check_can_write_organization(info, organization)
         for email in input.emails:
             invite = organization.create_invite(
-                email, input.level, input.message, created_by=info.context.request.scope["user"]
+                email, input.level, input.message, created_by=get_user_from_info(info)
             )
             invite.full_clean()
         return organization

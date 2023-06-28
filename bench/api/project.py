@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, Optional, Union, cast
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 import pytz
@@ -18,19 +18,20 @@ from bench.api.auth import (
     check_can_write_project,
     is_owner_or_member,
 )
+from bench.api.interp import Issue, IssueFilter
 from bench.api.sync import MMT, tracked_db_mutation
 from bench.api.utils import (
     CrudModel,
     ModuleNode,
     Revisioned,
     get_client_origin_from_info,
+    get_user_from_info,
     safe_mutation,
 )
 from bench.bench import core
 from bench.bench.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
-from bench.api.interp import Issue, IssueFilter
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -122,7 +123,7 @@ class Project(gql.Node):
     # TODO @Performance: specify only/select_related for can_write field
     @gql.field
     def can_write(self, info: OperationInfo) -> bool:
-        user = cast(models.User, info.context.request.scope["user"]._wrapped)
+        user = get_user_from_info(info)
         return can_write_project(user, self) is not None
 
     @gql.field
@@ -252,7 +253,7 @@ class ProjectUpdateNameInput(gql.NodeInput):
 class ProjectMutation:
     @safe_mutation
     def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
-        requesting_user = info.context.request.scope["user"]
+        requesting_user = get_user_from_info(info)
         owner = input.owner_id.resolve_node(info, required=True)
         if not is_owner_or_member(requesting_user, owner):
             raise PermissionError("cannot create project for this owner")

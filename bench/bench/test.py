@@ -61,14 +61,14 @@ test.files = ",".join(file_paths[:50])
 def test_extract_code_references_imported():
     analysis = parse_code(
         """
-from x.symbolx.std.nlp import EntityType
+from x.symbolx.lib.nlp import EntityType
 from x.notion.sdk import Client as NotionClient
 from .x.cooking import Recipe, Ingredient, notion_recipes
 print(bananas)
 """,
     )
     assert analysis.references == {
-        "EntityType": StatementPath("symbolx.std.nlp", "EntityType"),
+        "EntityType": StatementPath("symbolx.lib.nlp", "EntityType"),
         "NotionClient": StatementPath("notion.sdk", "Client"),
         "Recipe": StatementPath(".cooking", "Recipe"),
         "Ingredient": StatementPath(".cooking", "Ingredient"),

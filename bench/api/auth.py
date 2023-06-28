@@ -12,7 +12,6 @@ from django.db.models import Model, Q, QuerySet
 from graphql import GraphQLResolveInfo
 from social_django.strategy import DjangoStrategy
 from strawberry import Private
-from strawberry.channels import StrawberryChannelsContext
 from strawberry.schema_directive import Location
 from strawberry.types import Info
 from strawberry_django_plus import field, permissions
@@ -31,6 +30,7 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
+from bench.api.utils import get_user_from_info
 from bench.models import Notification, Organization, User
 from bench.models.notification import create_notifications_on_signup
 from bench.models.owner import OwnerSlug, slugify
@@ -55,11 +55,10 @@ class HasCustomPermDirective(AuthDirective, abc.ABC):
         **kwargs,
     ):
         # exactly like AuthDirective.resolve, but get user from channels context
-        context = cast(StrawberryChannelsContext, info.context)
         resolver = functools.partial(_next, root, info, *args, **kwargs)
 
-        user = cast(User, context.request.scope["user"]._wrapped)
-        if not getattr(context, _user_ensured_attr, False):
+        user = get_user_from_info(info)
+        if not getattr(info.context["request"].consumer, _user_ensured_attr, False):
             return aio.resolve(
                 cast(User, get_user_or_anonymous(user)),
                 functools.partial(
@@ -183,7 +182,7 @@ def filter_with_perms(qs: QuerySet, info: Info) -> QuerySet:
         set_perm_safe(False)
         return qs
 
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     for check in checks:
         if not isinstance(check, HasCustomPermDirective):
             raise ValueError("filter_with_perms only supports HasCustomPermDirective")
@@ -257,7 +256,7 @@ def can_write_project(user: User, obj: Any) -> bool:
 
 def check_can_read_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot view the given object."""
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if not can_read_project(user, obj):
         raise PermissionDenied("User cannot view this.")
 
@@ -285,7 +284,7 @@ def check_can_view_project_by_id(
 
 def check_can_write_project(info: Info, obj: Any) -> None:
     """Raises a PermissionDenied error if the user cannot write to the given object."""
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if not can_write_project(user, obj):
         raise PermissionDenied("User cannot write to this.")
 
@@ -377,7 +376,7 @@ def can_view_full_organization(user: User, obj: "Organization") -> bool:
 
 
 def check_can_view_full_organization(info: Info, obj: "Organization") -> None:
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if not can_view_full_organization(user, obj):
         raise PermissionDenied("User cannot view this.")
 
@@ -393,7 +392,7 @@ def can_write_organization(user: User, obj: "Organization") -> bool:
 
 
 def check_can_write_organization(info: Info, obj: "Organization") -> None:
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if not can_write_organization(user, obj):
         raise PermissionDenied("User cannot write to this.")
 
@@ -410,7 +409,7 @@ def can_write_user(user: User, obj: Any) -> bool:
 
 
 def check_can_write_user(info: Info, obj: User) -> None:
-    user = cast(User, info.context.request.scope["user"]._wrapped)
+    user = get_user_from_info(info)
     if not can_write_user(user, obj):
         raise PermissionDenied("User cannot write to this.")
 

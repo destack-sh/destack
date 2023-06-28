@@ -37,7 +37,7 @@ from bench.api.sentry import SentryPerformanceExtension
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
-from bench.api.utils import CrudModel
+from bench.api.utils import CrudModel, get_user_from_info
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
@@ -61,7 +61,7 @@ SYSTEM_INFO = SystemInfo(
 
 def get_me(self, info: Info) -> Optional[User]:
     # unwrap because we need the actual object but channels.auth gives us a UserLazyObject
-    user = info.context.request.scope["user"]._wrapped
+    user = get_user_from_info(info)
     if isinstance(user, AnonymousUser):
         return None
     return user

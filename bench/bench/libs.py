@@ -61,8 +61,8 @@ def _model(file: File, names: list[str]):
     return decorator
 
 
-symbolx_std = Module(name="symbolx.std")
-symbolx_builtins = symbolx_std.create_file("builtins")
+symbolx_lib = Module(name="symbolx.lib")
+symbolx_builtins = symbolx_lib.create_file("builtins")
 
 EmbeddingOutput = typing.TypedDict(
     "EmbeddingOutput", {"vector": typing.Union[Vector, list[Vector]]}
@@ -82,10 +82,10 @@ def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise NotImplementedError
 
 
-openai_std = Module(name="openai.std")
-openai_chat = openai_std.create_file("chat")
-openai_text = openai_std.create_file("text")
-openai_audio = openai_std.create_file("audio")
+openai_lib = Module(name="openai.lib")
+openai_chat = openai_lib.create_file("chat")
+openai_text = openai_lib.create_file("text")
+openai_audio = openai_lib.create_file("audio")
 
 
 @_enum(openai_chat, "ChatRole")
@@ -219,8 +219,8 @@ class OpenAIAudioTranscriptionModel(Model):
         raise NotImplementedError
 
 
-anthropic_std = Module(name="anthropic.std")
-anthropic_text = anthropic_std.create_file("text")
+anthropic_lib = Module(name="anthropic.lib")
+anthropic_text = anthropic_lib.create_file("text")
 
 
 @_struct(openai_text, "TextCompletionSettings")
@@ -269,9 +269,9 @@ class AnthropicTextCompletionModel(Model):
 
 
 DEFAULT_MODULES: dict[str, Module] = {
-    "symbolx.std": symbolx_std,
-    "openai.std": openai_std,
-    "anthropic.std": anthropic_std,
+    "symbolx.lib": symbolx_lib,
+    "openai.lib": openai_lib,
+    "anthropic.lib": anthropic_lib,
 }
 
 # interp/index them
