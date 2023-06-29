@@ -1,5 +1,4 @@
-from __future__ import annotations
-
+import enum
 import sys
 import traceback
 from dataclasses import dataclass, field
@@ -8,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.bench.core import Session
+from bench.bench.reflect import reflect_enum, reflect_struct
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
@@ -16,13 +16,13 @@ if TYPE_CHECKING:
     from bench.bench.task import Task
 
 
-@dataclass(slots=True)
+@dataclass
 class ExecutionFrame:
     id: UUID
     module_id: UUID
-    runnable: Union[Code, Model, Task]
-    root: Optional[ExecutionFrame]
-    parent: Optional[ExecutionFrame]
+    runnable: Union["Code", "Model", "Task"]
+    root: Optional["ExecutionFrame"]
+    parent: Optional["ExecutionFrame"]
     entered_at: datetime
     exited_at: Optional[datetime]
     cached_generated_at: Optional[datetime]
@@ -31,7 +31,7 @@ class ExecutionFrame:
     outputs: Optional[dict[str, Any]]
     error: Optional[Exception]
     queue_position: Optional[int]
-    children: list[ExecutionFrame] = field(default_factory=list)
+    children: list["ExecutionFrame"] = field(default_factory=list)
 
     @property
     def duration(self) -> float:
@@ -74,34 +74,31 @@ IGNORED_PACKAGE_PREFIXES = [
 IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in IGNORED_PACKAGE_PREFIXES]
 
 
-# TODO @Architecture: PyFrame/RunError should also be symbolx lib types
-#  (maybe Execution too? Though that will be available in another way)
-
-
-@dataclass(slots=True)
-class PyFrameData:
+@reflect_struct("PyFrame")
+class ExecutionCodeFrame:
     filename: str
     lineno: int
     name: str
-    locals: dict[str, Any] = None
+    locals: dict[str, Any] = None  # locals should be richer for deep linking (with ids)
     line: str = None
 
     @staticmethod
-    def from_traceback(frame: traceback.FrameSummary):
-        return PyFrameData(
-            filename=frame.filename,
-            lineno=frame.lineno,
-            name=frame.name,
-            locals=frame.locals,
-            line=frame.line,
-        )
+    def from_stack(stack: traceback.StackSummary) -> list["ExecutionCodeFrame"]:
+        return [
+            ExecutionCodeFrame(
+                filename=frame.filename,
+                lineno=frame.lineno,
+                name=frame.name,
+                locals=frame.locals,
+                line=frame.line,
+            )
+            for frame in stack
+        ]
 
     @staticmethod
-    def from_stack(stack: traceback.StackSummary) -> list[PyFrameData]:
-        return [PyFrameData.from_traceback(frame) for frame in stack]
-
-    @staticmethod
-    def clean(stack: list[PyFrameData], from_code: "Code", session: "Session") -> list[PyFrameData]:
+    def clean(
+        stack: list["ExecutionCodeFrame"], from_code: "Code", session: "Session"
+    ) -> list["ExecutionCodeFrame"]:
         from bench.bench.code_ import Code
 
         code_by_method: dict[str, Code] = {
@@ -143,22 +140,34 @@ class PyFrameData:
         return cleaned_stack
 
 
-@dataclass(slots=True)
-class RunErrorData:
+@reflect_enum("RunErrorType")
+class RunErrorKind(enum.StrEnum):
+    INTERNAL = "INTERNAL"
+    PARSE = "PARSE"
+    VALIDATION = "VALIDATION"
+    RUNTIME = "RUNTIME"
+    UNTRUSTED = "UNTRUSTED"
+
+
+@reflect_struct("RunError")
+class RunError(Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
+    kind: RunErrorKind
     type: str
-    message: str
-    symbol: Optional[str]
-    traceback: list[PyFrameData]
+    message: Optional[str] = None
+    statement_id: Optional[UUID] = None
+    traceback: list[ExecutionCodeFrame] = None
 
-    @staticmethod
-    def from_dict(data: dict[str, Any]) -> "RunErrorData":
-        return RunErrorData(
-            type=data["type"],
-            message=data["message"],
-            symbol=data.get("symbol"),
-            traceback=[PyFrameData(**frame) for frame in data["traceback"]]
-            if data.get("traceback")
-            else [],
-        )
+
+@reflect_struct("LogEntry")
+class LogEntry:
+    module_id: UUID
+    created_at: datetime
+    level: str
+    logger: str
+    session_id: Optional[UUID] = None
+    statement_id: Optional[UUID] = None
+    execution_id: Optional[UUID] = None
+    message: Optional[str] = None
+    metadata: dict[str, Any] = None

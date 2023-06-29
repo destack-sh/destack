@@ -421,7 +421,7 @@ class TypeCheckingTracer(Tracer):
             # validate only this key
             field_ = dataset.get_field(key)
             if field_ is None:
-                raise ValueError(f"{key} does not exist on {dataset.type}")
+                raise ValueError(f"{key} does not exist in {dataset} (available: {dataset.fields})")
             check_type(record.value.get(key), field_)
         else:
             check_type(record.value, dataset, ignore_array=True)

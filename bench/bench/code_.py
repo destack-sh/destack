@@ -2,10 +2,8 @@ from __future__ import annotations
 
 import ast
 import asyncio
-import enum
 import itertools
 import textwrap
-import traceback
 import typing
 from dataclasses import field
 from random import Random
@@ -15,7 +13,6 @@ from more_itertools import first, last
 
 from bench.bench.const import TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
-from bench.bench.execution import PyFrameData
 from bench.bench.expect import IsExpectable
 from bench.bench.type import HasType
 from bench.utils.func import describe_type
@@ -531,50 +528,16 @@ def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
     return new_globals
 
 
-class RunErrorType(enum.Enum):
-    INTERNAL = 0, "Internal error"
-    PARSE = 1, "Parse error"
-    VALIDATION = 2, "Validation error"
-    RUNTIME = 3, "Runtime code error"
-    UNTRUSTED = 4, "Untrusted code error"
-
-    def __new__(cls, value, description):
-        obj = object.__new__(cls)
-        obj._value_ = value
-        obj.description = description
-        return obj
-
-
-class RunError(Exception):
-    def __init__(
-        self,
-        _t: RunErrorType,
-        symbol: typing.Optional[Statement],
-        cause: typing.Optional[Exception] = None,
-    ):
-        self.type = _t
-        self.symbol = symbol
-        self.cause = cause
-        super().__init__(self.type.description)
-
-    def get_traceback(self, from_code: Code) -> Optional[list[PyFrameData]]:
-        if self.cause is None:
-            return None
-        stack_summary = traceback.StackSummary.extract(
-            traceback.walk_tb(self.cause.__traceback__), capture_locals=True
-        )
-        stack = PyFrameData.from_stack(stack_summary)
-        return PyFrameData.clean(stack, from_code)
-
-
 async def run(
     code: Code,
     arguments: dict[str, Any] | None,
     session: "Session",
     is_trusted: bool = False,
 ) -> Any:
+    from bench.bench.execution import RunError, RunErrorKind
+
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
-        raise RunError(RunErrorType.UNTRUSTED, code)
+        raise RunError(RunErrorKind.UNTRUSTED, code)
     # transform keys to valid python identifiers
     arguments = {
         to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
@@ -588,4 +551,6 @@ async def run(
         await session.aclose()
         return ret
     except Exception as e:
-        raise RunError(RunErrorType.RUNTIME, code, cause=e) from e
+        raise RunError(
+            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), statement_id=code.id
+        ) from e

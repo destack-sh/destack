@@ -8,7 +8,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench.bench import Code, Task, wire
-from bench.bench.code_ import RunError, run
+from bench.bench.code_ import run
 from bench.bench.const import ExecutionTriggerType, WorkerTenancy
 from bench.bench.core import (
     Module,
@@ -18,7 +18,7 @@ from bench.bench.core import (
     SessionMode,
     SessionTracingLevel,
 )
-from bench.bench.execution import ExecutionFrame
+from bench.bench.execution import ExecutionFrame, RunError
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import (

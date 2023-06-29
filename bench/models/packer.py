@@ -9,7 +9,6 @@ from __future__ import annotations
 import abc
 import typing
 from collections import OrderedDict, defaultdict
-from dataclasses import asdict
 from datetime import datetime
 from typing import Optional, TypeVar
 from uuid import UUID, uuid5
@@ -22,7 +21,7 @@ from bench import models
 from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
 from bench.bench.core import InterpScope, ModuleObjectType
-from bench.bench.execution import RunErrorData
+from bench.bench.execution import RunError
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
 from bench.bench.wire import ModuleTree
@@ -749,27 +748,27 @@ class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
 
 @data_packer(wire.ExecutionFrameData, models.Execution)
 class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]):
-    def pack(self, data: models.Execution) -> wire.ExecutionFrameData:
+    def pack(self, model: models.Execution) -> wire.ExecutionFrameData:
         return wire.ExecutionFrameData(
-            id=data.id,
-            project_id=data.project_id,
-            module_id=data.project_version_id,
-            root_id=data.root_id,
-            parent_id=data.parent_id,
-            runnable_id=data.runnable_id,
-            entered_at=data.started_at,
-            exited_at=data.terminated_at,
-            cached_generated_at=data.cached_generated_at,
-            cached_duration=data.cached_duration,
+            id=model.id,
+            project_id=model.project_id,
+            module_id=model.project_version_id,
+            root_id=model.root_id,
+            parent_id=model.parent_id,
+            runnable_id=model.runnable_id,
+            entered_at=model.started_at,
+            exited_at=model.terminated_at,
+            cached_generated_at=model.cached_generated_at,
+            cached_duration=model.cached_duration,
             queue_position=None,
-            inputs=data.inputs,
-            outputs=data.outputs,
-            error=RunErrorData.from_dict(data.error) if data.error else None,
+            inputs=model.inputs,
+            outputs=model.outputs,
+            error=RunError.instantiate_from(model.error) if model.error else None,
             # additional context
-            tracing_level=data.tracing_level,
-            worker_id=data.worker_id,
-            trigger_type=data.trigger_type,
-            trigger_id=data.user_id or data.access_token_id,
+            tracing_level=model.tracing_level,
+            worker_id=model.worker_id,
+            trigger_type=model.trigger_type,
+            trigger_id=model.user_id or model.access_token_id,
         )
 
     def unpack(self, data: wire.ExecutionFrameData) -> models.Execution:
@@ -786,6 +785,7 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
         access_token_id = (
             data.trigger_id if data.trigger_type == models.ExecutionTriggerType.API else None
         )
+        error = data.error.strip() if data.error else None
         return models.Execution(
             id=data.id,
             project_id=data.project_id,
@@ -802,7 +802,7 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
             cached_duration=data.cached_duration,
             inputs=data.inputs,
             outputs=data.outputs,
-            error=asdict(data.error) if data.error else None,
+            error=error,
             # additional context
             tracing_level=data.tracing_level,
             worker_id=data.worker_id,

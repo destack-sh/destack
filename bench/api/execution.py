@@ -13,7 +13,8 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
-from bench.api.utils import asafe_subscription, get_user_from_info, to_uuid, to_uuids
+from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid, to_uuids
+from bench.bench import execution
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ExecutionSavedPayload, NMessageType
@@ -37,29 +38,39 @@ class PyFrame:
     line: str = None
     locals: Optional[JSON] = None
 
-    def from_dict(self, data: dict) -> "PyFrame":
-        return PyFrame(**data)
+    @staticmethod
+    def from_data(data: execution.ExecutionCodeFrame) -> "PyFrame":
+        return PyFrame(
+            filename=data.filename,
+            lineno=data.lineno,
+            name=data.name,
+            line=data.line,
+            locals=data.locals,
+        )
 
 
 @gql.type
 class RunError:
     """Wire-able representation of an exception."""
 
+    kind: str
     type: str
     message: str
-    statement: Optional[str]
+    statement_id: Optional[GlobalID]
     traceback: Optional[list[PyFrame]]
 
     @staticmethod
     def from_dict(data: dict) -> "RunError":
-        if data["traceback"]:
-            traceback = [PyFrame(**frame) for frame in data["traceback"]]
-        else:
-            traceback = None
+        error: execution.RunError = execution.RunError.instantiate_from(data)
+        statement_id = to_global_id("Statement", error.statement_id) if error.statement_id else None
+        traceback = (
+            [PyFrame.from_data(frame) for frame in error.traceback] if error.traceback else None
+        )
         return RunError(
-            type=data["type"],
-            message=data["message"],
-            statement=data.get("statement"),
+            kind=error.kind,
+            type=error.type,
+            message=error.message,
+            statement_id=statement_id,
             traceback=traceback,
         )
 

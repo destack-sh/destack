@@ -397,6 +397,13 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.files.append(file)
         return file
 
+    def add_file(self, file: "File") -> None:
+        if file.parent is not None and file.parent != self:
+            raise ValueError(f"{file} is already in {file.parent}")
+        file.module = self
+        file.parent = self
+        self.files.append(file)
+
     def get_file(self, name: str) -> "File":
         scope = self._scopes_by_name.get(name)
         if not isinstance(scope, File):
@@ -463,11 +470,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def interp_from(
         module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
     ) -> "Module":
-        from bench.bench import wire
-        from bench.bench.libs import DEFAULT_MODULES
+        from bench.bench import libs, wire
 
         # copy default dependencies
-        dependencies = {name: dep.copy() for name, dep in DEFAULT_MODULES.items()}
+        dependencies = {name: dep.copy() for name, dep in libs.DEFAULT_MODULES.items()}
 
         logger.debug("module.interp", module=module)
         if isinstance(module, wire.ModuleTreeData):
@@ -484,8 +490,8 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
 @node(tracked=["name"])
 class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
-    module: Module = required_field()
     name: str = required_field()
+    module: Optional[Module] = None
     parent: Union["File", Module] = None
     children: list["File"] = field(default_factory=list)
     statements: list["Statement"] = field(default_factory=list)

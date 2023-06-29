@@ -237,9 +237,9 @@ class TypeBase(abc.ABC):
     def outputs(self) -> list["TypeBase"]:
         return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
-    def get_field(self, name_or_key: str) -> Optional["Field"]:
-        for field_ in self.fields:
-            if field_.name == name_or_key or field_.key == name_or_key:
+    def get_field(self, some_key: str) -> Optional["Field"]:
+        for field_ in self.resolved_fields or self.fields:
+            if field_.py_ident == some_key or field_.name == some_key or field_.key == some_key:
                 return field_
         return None
 
@@ -468,6 +468,7 @@ class Type(Statement, HasType, HasExpectations):
     key = None
     reference = None
     _fields_by_ident: dict[str, Field] | None = None
+    _fields_by_key: dict[str, Field] | None = None
 
     @cached_property
     def py_type(self) -> type | enum.Enum:
@@ -478,13 +479,16 @@ class Type(Statement, HasType, HasExpectations):
         HasType._clear(self)
         HasExpectations._clear(self)
         self._fields_by_ident = None
+        self._fields_by_key = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasExpectations._interp(self, scope)
         self._fields_by_ident = {}
+        self._fields_by_key = {}
         for field_ in self.fields:
             self._fields_by_ident[field_.py_ident] = field_
+            self._fields_by_key[field_.key] = field_
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
@@ -655,6 +659,8 @@ def map_value(
         return map_v(value=value, type=type, ignore_array=ignore_array)
     elif type.effective_tag == TypeTag.ENUM:
         return map_v(value=value, type=type, ignore_array=ignore_array)
+    elif type.effective_tag == TypeTag.JSON:
+        return value  # nothing to do ?
     elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
     if not isinstance(value, Mapping) and not dataclasses.is_dataclass(value):
@@ -875,11 +881,13 @@ class EnumMapper(TypeMapper):
         type._assign_oks()
         return type
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
-        return type[value].name
+    def to_py_value(self, type: Type, value: Any) -> Any:
+        field_ = type.get_field(value)
+        return field_.name if field_ else value
 
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
-        return type[value].key
+    def from_py_value(self, type: Type, value: Any) -> Any:
+        field_ = type.get_field(value)
+        return field_.key if field_ else value
 
 
 class FileMapper(TypeMapper):
@@ -1061,7 +1069,9 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
         type = type_from_py_type(py_type, name, type_map)
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM):
         # turn into reference
-        return Field(name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type)
+        return Field(
+            name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=type.flags
+        )
     else:
         return Field(name=name, key=name, tag=type.tag, hint=type.hint, flags=type.flags)
 
