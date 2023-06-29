@@ -162,6 +162,7 @@ SyncCodeCallable = typing.Callable[..., Any]
 def parse_code(code: str | None) -> "CodeParse":
     """
     Extracts references and other info for Bench from the Python code.
+    TODO @Architecture @Cleanup: remove manual code parsing, integrate into LSP/Jedi stuff
 
     Handles plain references like
     ```py
@@ -184,8 +185,6 @@ def parse_code(code: str | None) -> "CodeParse":
     """
     if code is None:
         return CodeParse()
-
-    # TODO @Architecture @Cleanup: robustify code parsing and also use for LSP stuff
 
     class ReferenceExtractor(ast.NodeVisitor):
         def __init__(self):
@@ -297,6 +296,41 @@ def parse_code(code: str | None) -> "CodeParse":
                 if isinstance(item.optional_vars, ast.Name):
                     self.local_variables.add(item.optional_vars.id)
             self.is_async = True
+            self.generic_visit(node)
+
+        def visit_ExceptHandler(self, node):
+            if node.name is not None:
+                self.local_variables.add(node.name)
+            self.generic_visit(node)
+
+        def visit_Lambda(self, node):
+            for arg in node.args.args:
+                if isinstance(arg, ast.Name):
+                    self.local_variables.add(arg.id)
+            self.generic_visit(node)
+
+        def visit_ListComp(self, node) -> Any:
+            for generator in node.generators:
+                if isinstance(generator.target, ast.Name):
+                    self.local_variables.add(generator.target.id)
+            self.generic_visit(node)
+
+        def visit_SetComp(self, node) -> Any:
+            for generator in node.generators:
+                if isinstance(generator.target, ast.Name):
+                    self.local_variables.add(generator.target.id)
+            self.generic_visit(node)
+
+        def visit_DictComp(self, node) -> Any:
+            for generator in node.generators:
+                if isinstance(generator.target, ast.Name):
+                    self.local_variables.add(generator.target.id)
+            self.generic_visit(node)
+
+        def visit_GeneratorExp(self, node) -> Any:
+            for generator in node.generators:
+                if isinstance(generator.target, ast.Name):
+                    self.local_variables.add(generator.target.id)
             self.generic_visit(node)
 
     try:
