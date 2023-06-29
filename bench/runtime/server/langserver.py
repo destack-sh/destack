@@ -525,10 +525,13 @@ class LanguageWorker:
             interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
         for statement in new_module._statements_by_id.values():
             old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
-            if not isinstance(statement, HasType) or not isinstance(old_statement, HasType):
+            if not isinstance(statement, HasType):
                 continue
-            if old_statement is None or old_statement.resolved_fields != statement.resolved_fields:
-                if old_module is not None:
+            if (
+                not isinstance(old_statement, HasType)
+                or old_statement.resolved_fields != statement.resolved_fields
+            ):
+                if old_statement is not None:
                     interp_mut.truncate(statement, MOT.RESOLVED_FIELD)
                 for resolved in statement.resolved_fields:
                     if isinstance(resolved, ResolvedField):

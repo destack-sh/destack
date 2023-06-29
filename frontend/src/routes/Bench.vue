@@ -548,16 +548,18 @@ onBeforeUnmount(() => {
           </span>
         </div>
         <!-- Comments/notes, issues/warnings/lints, errors -->
-        <div v-if="versionLoaded" class="ml-2 flex items-center gap-2">
-          <!-- Errors -->
-          <button
-            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-            v-if="module.issues.value?.length || 0 > 0"
-            @click="openIssues.apply"
-          >
-            <XCircleIcon class="h-5 w-5 text-red-700" />
-            <span class="text-sm text-gray-700">{{ module.issues.value?.length }}</span>
-          </button>
+        <div class="ml-2 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
+          <FadeTransition>
+            <!-- Errors -->
+            <button
+              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+              v-if="module.issues.value?.length || 0 > 0"
+              @click="openIssues.apply"
+            >
+              <XCircleIcon class="h-5 w-5 text-red-700" />
+              <span class="text-sm text-gray-700">{{ module.issues.value?.length }}</span>
+            </button>
+          </FadeTransition>
         </div>
       </template>
 

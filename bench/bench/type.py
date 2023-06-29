@@ -584,7 +584,7 @@ def check_type(
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
         if _check(isinstance(value, Mapping), "expected struct"):
-            for f in expected.fields:
+            for f in expected.resolved_fields or expected.fields:
                 if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                     continue
                 alt_name = to_pyidentifier(f.name, IdentifierType.VARIABLE)
