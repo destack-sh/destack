@@ -422,7 +422,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.index()
         self.interp()
         for n in self.walk():
-            if n != self and isinstance(n, HasSession):
+            if n.id != self.id and isinstance(n, HasSession):
                 n.instantiate_in(session)
         for dependency in self.dependencies.values():
             dependency.instantiate_in(session)

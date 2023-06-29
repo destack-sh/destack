@@ -4,6 +4,8 @@ import enum
 from dataclasses import dataclass
 from typing import Any, Optional
 
+from bench.bench.const import TypeHint, TypeTag
+
 #
 # Dataset access ORM *and* wireable data representation.
 # We abstract the database backend here to fit seamlessly with the language.
@@ -132,10 +134,10 @@ class KnnQuery(Query):
     approximate: bool = True
 
 
-def Q(op: QueryOp, **kwargs) -> Query:
+def Q(op: QueryOp, *args, **kwargs) -> Query:
     cls = _QUERIES[op]
     kwargs = {k: v for k, v in kwargs.items() if v is not None and k in cls._PROPERTIES}
-    return cls(op, **kwargs)
+    return cls(op, *args, **kwargs)
 
 
 class AggregationOp(enum.StrEnum):
@@ -178,3 +180,98 @@ class Sort:
     key: str
     order: SortOrder = SortOrder.ASC
     mode: Optional[SortMode] = None
+
+
+class FieldQueryOps:
+    name: Optional[str]
+    typed_key: Optional[str]
+    tag: TypeTag
+    hint: Optional[TypeHint]
+    metadata: dict[str, Any]
+
+    def _strip_value(self, value: Any) -> Any:
+        from bench.bench.type import Field
+
+        if isinstance(value, Field):
+            if value.tag == TypeTag.ENUM:
+                value = value.key
+            else:
+                raise TypeError(f"cannot compare a field to a non-literal field: {self} == {value}")
+        return value
+
+    # comparison
+
+    def equals(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        if value is None:
+            return self.not_exists()
+        return Q(QueryOp.EQUALS, self.typed_key, value)
+
+    def __eq__(self, other):
+        return self.equals(other)
+
+    def not_equal(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        return Q(QueryOp.NOT_EQUALS, self.typed_key, value)
+
+    def __ne__(self, other):
+        return self.not_equal(other)
+
+    def in_(self, *values: list[Any]) -> Query:
+        values = [self._strip_value(value) for value in values]
+        return Q(QueryOp.EQUALS, self.typed_key, values)
+
+    def greater_than(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        return Q(QueryOp.GREATER_THAN, self.typed_key, value)
+
+    def __gt__(self, other):
+        return self.greater_than(other)
+
+    def greater_than_or_equals(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self.typed_key, value)
+
+    def __ge__(self, other):
+        return self.greater_than_or_equals(other)
+
+    def less_than(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        return Q(QueryOp.LESS_THAN, self.typed_key, value)
+
+    def __lt__(self, other):
+        return self.less_than(other)
+
+    def less_than_or_equals(self, value: Any) -> Query:
+        value = self._strip_value(value)
+        return Q(QueryOp.LESS_THAN_OR_EQUALS, self.typed_key, value)
+
+    def __le__(self, other):
+        return self.less_than_or_equals(other)
+
+    # string comparison
+
+    def matches(self, value: str) -> Query:
+        return Q(QueryOp.MATCHES, self.typed_key, value)
+
+    def contains(self, value: str) -> Query:
+        return Q(QueryOp.MATCHES, self.typed_key, value)
+
+    def starts_with(self, value: str) -> Query:
+        return Q(QueryOp.STARTS_WITH, self.typed_key, value)
+
+    # existence
+
+    def exists(self) -> Query:
+        return Q(QueryOp.EXISTS, self.typed_key)
+
+    def not_exists(self) -> Query:
+        return Q(QueryOp.DOES_NOT_EXIST, self.typed_key)
+
+    # sort
+
+    def asc(self) -> Sort:
+        return Sort(self.typed_key, SortOrder.ASC)
+
+    def desc(self) -> Sort:
+        return Sort(self.typed_key, SortOrder.DESC)
