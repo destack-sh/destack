@@ -29,7 +29,13 @@ def _type(file: File, name: str, tag: TypeTag):
 
 def _struct(file: File, name: str):
     def decorator(cls):
+        # turn it into dataclass that behaves like a dict
+        # it needs to be a dataclass for getattr and getitem access
+        # and it needs to be a real distinct class so we can type map references to it properly
         cls = dataclass(cls)
+        cls.__getitem__ = lambda self, key: getattr(self, key, None)
+        cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
+        cls.__contains__ = lambda self, key: hasattr(self, key) and getattr(self, key) is not None
         bench_type = type_from_py_type(cls, name=name)
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
@@ -71,9 +77,10 @@ def _model(file: File, name: str, external_name: str):
 symbolx_lib = Module(name="symbolx.lib")
 _symbolx_builtins = symbolx_lib.create_file("builtins")
 
-EmbeddingOutput = typing.TypedDict(
-    "EmbeddingOutput", {"vector": typing.Union[Vector, list[Vector]]}
-)
+
+@_struct(_symbolx_builtins, "EmbeddingOutput")
+class EmbeddingOutput:
+    vector: typing.Union[Vector, list[Vector]]
 
 
 @_task(_symbolx_builtins, "embed")
@@ -81,7 +88,9 @@ def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
     raise UnreachableError()  # stub
 
 
-TranscriptionOutput = typing.TypedDict("TranscriptionOutput", {"text": str})
+@_struct(_symbolx_builtins, "TranscriptionOutput")
+class TranscriptionOutput:
+    text: str
 
 
 @_task(_symbolx_builtins, "transcribe")
@@ -118,24 +127,24 @@ class OpenAIChatMessage:
 
 @_struct(_openai_chat, "ChatCompletionSettings")
 class OpenAIChatCompletionSettings:
-    temperature: float = 1.0
-    max_tokens: int = None
-    top_p: float = 1.0
-    stop: Optional[str] = None
-    logit_bias: Optional[dict[str, float]] = None
-    frequence_penalty: float = 0.0
-    presence_penalty: float = 0.0
-    function_call: Optional[str] = None
-    user: Optional[str] = None
+    temperature: Optional[float]
+    max_tokens: Optional[int]
+    top_p: Optional[float]
+    stop: Optional[str]
+    logit_bias: Optional[dict[str, float]]
+    frequence_penalty: Optional[float]
+    presence_penalty: Optional[float]
+    function_call: Optional[str]
+    user: Optional[str]
 
 
 @_struct(_openai_chat, "FunctionParameter")
 class OpenAIFunctionParameter:
     type: Key
     description: str
-    properties: Optional[dict[str, "OpenAIFunctionParameter"]] = None
-    enum: Optional[list[str]] = None
-    required: Optional[list[str]] = None
+    properties: Optional[dict[str, "OpenAIFunctionParameter"]]
+    enum: Optional[list[str]]
+    required: Optional[list[str]]
 
 
 @_struct(_openai_chat, "Function")
@@ -207,7 +216,9 @@ class OpenAITextEmbeddingResponse:
 @_model(_openai_text, "ada", "text-embedding-ada-002")
 class OpenAITextEmbeddingModel(Model):
     async def _impl(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
-        rep = await openai.Embedding.acreate(text, model=self.external_name, api_key=self._key)
+        rep = await openai.Embedding.acreate(
+            input=text, model=self.external_name, api_key=self._key
+        )
         if text is not None:
             vector = rep["data"][0]["embedding"]
         else:
@@ -237,16 +248,16 @@ anthropic_lib = Module(name="anthropic.lib")
 _anthropic_text = anthropic_lib.create_file("text")
 
 
-@_struct(_openai_text, "TextCompletionSettings")
+@_struct(_anthropic_text, "TextCompletionSettings")
 class AnthropicTextCompletionSettings:
-    temperature: float = 1.0
-    top_p: Optional[float] = None
-    top_k: Optional[int] = None
-    max_tokens_to_sample: int = 64
-    stop_sequences: Optional[list[str]] = None
+    temperature: float
+    top_p: Optional[float]
+    top_k: Optional[int]
+    max_tokens_to_sample: int
+    stop_sequences: Optional[list[str]]
 
 
-@_struct(_openai_text, "TextCompletion")
+@_struct(_anthropic_text, "TextCompletion")
 class AnthropicTextCompletion:
     completion: str
     stop_reason: str
@@ -282,7 +293,7 @@ class AnthropicTextCompletionModel(Model):
             max_tokens_to_sample=settings.max_tokens_to_sample,
             top_p=settings.top_p,
         )
-        return rep["completion"]
+        return AnthropicTextCompletion(completion=rep["completion"], stop_reason=rep["stop_reason"])
 
 
 DEFAULT_MODULES: dict[str, Module] = {

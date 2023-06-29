@@ -455,7 +455,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             module_copy.interp()
         if len(module_copy.issues or []) != len(self.issues or []):
             raise RuntimeError(
-                f"expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}"
+                f"{self} copy expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}"
             )
         return module_copy
 

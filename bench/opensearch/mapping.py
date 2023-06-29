@@ -78,7 +78,7 @@ class StructFieldMapper(FieldMapper):
         subfields = {
             f.typed_key: get_mapper(f).to_os_type(f, depth + 1)
             for f in type.resolved_fields
-            if f.effective_type.tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH
+            if f.effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH
         }
         subfields[TYPENAME_SENTINEL] = os.Field(os.FT.KEYWORD)
         return os.Field(

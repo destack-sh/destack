@@ -44,7 +44,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
 </script>
 <template>
   <div
-    class="fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5"
+    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5"
     :class="appearance.baseClass"
     :style="{ height: appearance.editorHeaderHeight + 'px', width: editor.size?.value?.width + 'px' }"
   >
@@ -80,10 +80,14 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
       />
       <!-- Extra inline actions -->
       <button
-        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
-        @click.stop="editorAppearance.wide = !editorAppearance.wide"
+        class="rounded-sm p-0.5 text-gray-600 transition-opacity duration-150 hover:bg-orange-100"
+        :class="editorAppearance.wide == undefined ? 'opacity-0 group-hover:opacity-100' : ''"
+        @click.stop="editorAppearance.wide = !editor.editor.value.effectiveWide"
       >
-        <component :is="!editorAppearance.wide ? ArrowsPointingInIcon : ArrowsPointingOutIcon" class="h-4 w-4" />
+        <component
+          :is="!editor.editor.value.effectiveWide ? ArrowsPointingInIcon : ArrowsPointingOutIcon"
+          class="h-4 w-4"
+        />
       </button>
     </div>
   </div>

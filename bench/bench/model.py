@@ -1,7 +1,6 @@
 import asyncio
 import functools
 import hashlib
-import json
 import os
 import typing
 from dataclasses import dataclass
@@ -10,11 +9,12 @@ from json import JSONDecodeError
 from logging import Logger
 from typing import Any
 
+import msgpack
 import pytz
 import structlog
 
 from bench.bench.core import Scope, Statement, node
-from bench.bench.type import HasType, TypeTag
+from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -53,7 +53,7 @@ class Model(Statement, HasType):
         self._remote = self._key is None
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
-        cache_key = get_inference_cache_key(self.path, inputs)
+        cache_key = get_execution_cache_key(self.path, inputs)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
 
         # try to read from cache if enabled
@@ -62,12 +62,16 @@ class Model(Statement, HasType):
             cached_inference = await redis.get(cache_key)
             if cached_inference is not None:
                 try:
-                    inference = Inference.from_json_str(cached_inference)
-                    log.debug("inference.cache.hit", output=describe_type(inference.outputs))
+                    inference = Inference.from_json_bytes(cached_inference)
+                    outputs = instantiate_py_value(
+                        inference.outputs, self, ignore_outer_map=True, is_output=True
+                    )
+                    log.debug("inference.cache.hit", output=describe_type(outputs))
                     self.session.tracer.inference_cached(self, inputs, inference)
-                    return inference.outputs
-                except (ValueError, TypeError, JSONDecodeError):
-                    log.warning("inference.cache.error", excinfo=True)
+                    check_type(outputs, self, is_output=True)
+                    return outputs
+                except (ValueError, TypeError, JSONDecodeError) as e:
+                    log.warning("inference.cache.error", e=e, excinfo=e)
                     # ignore and continue, will be overwritten
 
         # request remote inference if needed
@@ -89,29 +93,29 @@ class Model(Statement, HasType):
             if rep.p.outputs is None:
                 raise RuntimeError("remote inference failed")
             return rep.p.outputs
+        else:
+            # otherwise run inference through endpoint :LibImplementation
+            if self._endpoint is None:
+                from bench.bench import libs
 
-        # otherwise run inference through endpoint :LibImplementation
-        if self._endpoint is None:
-            from bench.bench import libs
-
-            # find real implementation in libs  :LibImplementation
-            # (this is a stop gap until we fully support model statements, then it's just like Code)
-            actual_model_impl = libs.lookup_model_impl(self.path)
-            if actual_model_impl is None:
-                raise ValueError(f"cannot find {self} in libs")
-            self._endpoint = functools.partial(actual_model_impl, self=self)
-        try:
-            self.session.tracer.inference_enter(self, inputs)
-            timeout = timeout if timeout is not None else self.session.inference_timeout
-            result = await asyncio.wait_for(
-                asyncio.shield(self._inference(inputs, cache_key, log)), timeout
-            )
-            self.session.tracer.inference_exit(self, inputs, result)
-            return result
-        except Exception as exception:
-            self.session.tracer.inference_exception(self, inputs, exception)
-            log.debug("inference.exception", exc_info=True)
-            raise
+                # get actual model implementation from libs  :LibImplementation
+                # (this is a stop gap until we fully support model statements, then it's just like Code)
+                actual_model_impl = libs.lookup_model_impl(self.path)
+                if actual_model_impl is None:
+                    raise ValueError(f"cannot find {self} in libs")
+                self._endpoint = functools.partial(actual_model_impl, self=self)
+            try:
+                self.session.tracer.inference_enter(self, inputs)
+                timeout = timeout if timeout is not None else self.session.inference_timeout
+                result = await asyncio.wait_for(
+                    asyncio.shield(self._inference(inputs, cache_key, log)), timeout
+                )
+                self.session.tracer.inference_exit(self, inputs, result)
+                return result
+            except Exception as exception:
+                self.session.tracer.inference_exception(self, inputs, exception)
+                log.debug("inference.exception", exc_info=True)
+                raise
 
     async def _inference(
         self,
@@ -132,9 +136,12 @@ class Model(Statement, HasType):
         if write_to_cache:
             # result is assumed to be JSON serializable, will obviously error here if not
             inference = Inference(
-                generated_at=now, duration=duration, inputs=inputs, outputs=output
+                generated_at=now,
+                duration=duration,
+                inputs=strip_py_value(inputs, self, is_output=False, ignore_outer_map=True),
+                outputs=strip_py_value(output, self, is_output=True, ignore_outer_map=True),
             )
-            await redis.set(cache_key, inference.to_json_str(), ex=INFERENCE_CACHE_EXPIRY)
+            await redis.set(cache_key, inference.to_json_bytes(), ex=INFERENCE_CACHE_EXPIRY)
         log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
         return output
 
@@ -147,25 +154,25 @@ class Model(Statement, HasType):
 
 @dataclass(slots=True)
 class Inference:
-    """A model inference."""
+    """A model inference - inputs/outputs are raw."""
 
     generated_at: datetime
     duration: float
     inputs: Any
     outputs: Any
 
-    def to_json_str(self) -> str:
+    def to_json_bytes(self) -> bytes:
         inference_json = {
             "generated_at": self.generated_at.isoformat(),
             "duration": self.duration,
             "inputs": self.inputs,
             "output": self.outputs,
         }
-        return json.dumps(inference_json)
+        return msgpack.packb(inference_json, use_bin_type=True)
 
     @classmethod
-    def from_json_str(cls, json_str: str):
-        data = json.loads(json_str)
+    def from_json_bytes(cls, json_str: str):
+        data = msgpack.unpackb(json_str, raw=False)
         return cls(
             generated_at=datetime.fromisoformat(data["generated_at"]),
             duration=data["duration"],
@@ -174,7 +181,8 @@ class Inference:
         )
 
 
-def get_inference_cache_key(model_path: str, inputs: Any):
-    input_hash = hashlib.sha256(json.dumps(inputs).encode("utf-8")).hexdigest()
-    cache_key = f"inference.{model_path}.{input_hash}"
+def get_execution_cache_key(runnable_path: str, inputs: Any):
+    inputs_bytes = msgpack.packb(inputs, use_bin_type=True)
+    input_hash = hashlib.sha256(inputs_bytes).hexdigest()
+    cache_key = f"run.{runnable_path}.{input_hash}"
     return cache_key
