@@ -8,7 +8,7 @@ import anthropic
 import openai
 
 from bench.bench.const import TypeTag
-from bench.bench.core import File, Module
+from bench.bench.core import File, LookupBy, Module, Statement, parse_absolute_statement_reference
 from bench.bench.model import Model
 from bench.bench.remote import RemoteObject
 from bench.bench.task import Task
@@ -53,12 +53,16 @@ def _task(file: File, name: str):
     return decorator
 
 
+_model_impls: dict[str, typing.Callable] = {}
+
+
 def _model(file: File, name: str, external_name: str):
     def decorator(cls):
         model = Model(name=name, external_name=external_name)
-        model_type = type_from_py_type(cls._endpoint, name=None)
+        model_type = type_from_py_type(cls._impl, name=None)
         model.fields = model_type._copy_fields(to=model)
         file.append(model)
+        _model_impls[model.path] = cls._impl
         return cls
 
     return decorator
@@ -84,6 +88,12 @@ TranscriptionOutput = typing.TypedDict("TranscriptionOutput", {"text": str})
 def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
+
+# Note that beyond the symbolx standard lib, all other libs should later
+# be defined and update in Bench itself. That may also happen via code or some other
+# automatic mechanism, it just shouldn't be here.
+# The model implementations should be just like Code implementations,
+# so we don't need to hot-swap in 'impl' when calling. :LibImplementation
 
 openai_lib = Module(name="openai.lib")
 _openai_chat = openai_lib.create_file("chat")
@@ -158,14 +168,14 @@ class OpenAIChatCompletion:
 @_model(_openai_chat, "gpt3", "gpt3-5")
 @_model(_openai_chat, "gpt4", "gpt4")
 class OpenAIChatCompletionModel(Model):
-    async def _endpoint(
+    async def _impl(
         self,
         messages: list[OpenAIChatMessage],
         functions: dict[str, OpenAIFunction],
         settings: OpenAIChatCompletionSettings,
     ) -> OpenAIChatCompletion:
         response = await openai.ChatCompletion.acreate(
-            model=self.model,
+            model=self.external_name,
             messages=[asdict(m) for m in messages],
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
@@ -196,8 +206,8 @@ class OpenAITextEmbeddingResponse:
 
 @_model(_openai_text, "ada", "text-embedding-ada-002")
 class OpenAITextEmbeddingModel(Model):
-    async def _endpoint(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
-        rep = await openai.Embedding.acreate(text, model=self.model, api_key=self.key)
+    async def _impl(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
+        rep = await openai.Embedding.acreate(text, model=self.external_name, api_key=self._key)
         if text is not None:
             vector = rep["data"][0]["embedding"]
         else:
@@ -219,7 +229,7 @@ class OpenAIAudioTranscriptionResponse:
 
 @_model(_openai_audio, "whisper", "whisper")
 class OpenAIAudioTranscriptionModel(Model):
-    async def _endpoint(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
+    async def _impl(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
         raise NotImplementedError
 
 
@@ -252,7 +262,7 @@ class AnthropicTextCompletionModel(Model):
     def _clear(self) -> None:
         self._client = None
 
-    async def _endpoint(
+    async def _impl(
         self, prompt: str, settings: AnthropicTextCompletionSettings
     ) -> AnthropicTextCompletion:
         if self._client is None:
@@ -266,7 +276,7 @@ class AnthropicTextCompletionModel(Model):
         # see https://console.anthropic.com/docs/api
         rep = await self.client.acompletion(
             prompt=prompt,
-            model=self.name,
+            model=self.external_name,
             stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
             temperature=settings.temperature,
             max_tokens_to_sample=settings.max_tokens_to_sample,
@@ -288,3 +298,15 @@ for name, module in DEFAULT_MODULES.items():
     module.interp()
     if module.issues:
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
+
+
+def lookup(path: str, by: LookupBy = LookupBy.Name) -> Optional[Statement]:
+    module_name, local_path = parse_absolute_statement_reference(path)
+    module = DEFAULT_MODULES.get(module_name)
+    if module is None:
+        return None
+    return module.lookup(local_path, by=by)
+
+
+def lookup_model_impl(path: str) -> Optional[typing.Callable]:
+    return _model_impls.get(path)

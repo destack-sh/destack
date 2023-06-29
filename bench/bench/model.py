@@ -1,4 +1,5 @@
 import asyncio
+import functools
 import hashlib
 import json
 import os
@@ -24,6 +25,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 INFERENCE_CACHE_EXPIRY = get_from_env("INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int)
+ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool)
 
 
 @node
@@ -33,38 +35,36 @@ class Model(Statement, HasType):
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
     _remote: bool = False
-    _key: str = None
+    _endpoint: typing.Optional[typing.Callable] = None
+    _key: typing.Optional[str] = None
 
     def _clear(self) -> None:
         HasType._clear(self)
+        self._key = None
+        self._remote = True
         self._endpoint = None
-        self._remote = False
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         # model is remote if we don't have the key in scope or environment
-        provider = self.fqn.split(".")[0]
-        self._key = os.environ.get(f"{provider.upper()}_API_KEY")
+        provider = self.path.split(".")[0]
+        if ALLOW_KEY_FROM_ENV:
+            self._key = os.environ.get(f"{provider.upper()}_API_KEY")
         self._remote = self._key is None
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
-        cache_key = get_inference_cache_key(self.model.fqn, inputs)
-        log = logger.bind(
-            model=self.model.fqn,
-            inputs=describe_type(inputs),
-            cache_key=cache_key,
-            cache_inferences=self.cache_inferences,
-        )
+        cache_key = get_inference_cache_key(self.path, inputs)
+        log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
 
         # try to read from cache if enabled
-        if self.cache_inferences and cache is not False:
+        if self.session.cache_inferences and cache is not False:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await redis.get(cache_key)
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_str(cached_inference)
                     log.debug("inference.cache.hit", output=describe_type(inference.outputs))
-                    self.tracer.inference_cached(self.model, inputs, inference)
+                    self.session.tracer.inference_cached(self, inputs, inference)
                     return inference.outputs
                 except (ValueError, TypeError, JSONDecodeError):
                     log.warning("inference.cache.error", excinfo=True)
@@ -79,10 +79,10 @@ class Model(Statement, HasType):
                 ReqRunInferencePayload,
             )
 
-            timeout = timeout if timeout is not None else self.timeout
+            timeout = timeout if timeout is not None else self.session.inference_timeout
             rep: NMessage[RepRunInferencePayload] = await request(
                 NMessageType.REQUEST_RUN_INFERENCE,
-                ReqRunInferencePayload(model_fqn=self.model.fqn, inputs=inputs, timeout=timeout),
+                ReqRunInferencePayload(model_path=self.path, inputs=inputs, timeout=timeout),
                 RepRunInferencePayload,
                 timeout=timeout + 1,  # for network
             )
@@ -90,17 +90,26 @@ class Model(Statement, HasType):
                 raise RuntimeError("remote inference failed")
             return rep.p.outputs
 
-        # otherwise run inference through endpoint
+        # otherwise run inference through endpoint :LibImplementation
+        if self._endpoint is None:
+            from bench.bench import libs
+
+            # find real implementation in libs  :LibImplementation
+            # (this is a stop gap until we fully support model statements, then it's just like Code)
+            actual_model_impl = libs.lookup_model_impl(self.path)
+            if actual_model_impl is None:
+                raise ValueError(f"cannot find {self} in libs")
+            self._endpoint = functools.partial(actual_model_impl, self=self)
         try:
-            self.tracer.inference_enter(self.model, inputs)
-            timeout = timeout if timeout is not None else self.timeout
+            self.session.tracer.inference_enter(self, inputs)
+            timeout = timeout if timeout is not None else self.session.inference_timeout
             result = await asyncio.wait_for(
                 asyncio.shield(self._inference(inputs, cache_key, log)), timeout
             )
-            self.tracer.inference_exit(self.model, inputs, result)
+            self.session.tracer.inference_exit(self, inputs, result)
             return result
         except Exception as exception:
-            self.tracer.inference_exception(self.model, inputs, exception)
+            self.session.tracer.inference_exception(self, inputs, exception)
             log.debug("inference.exception", exc_info=True)
             raise
 
@@ -129,8 +138,8 @@ class Model(Statement, HasType):
         log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
         return output
 
-    async def _endpoint(self, **kwargs) -> Any:
-        raise NotImplementedError
+    async def _impl(self, **kwargs) -> Any:
+        raise NotImplementedError  # fake stub for :LibImplementation of model
 
     def to_sync(self):
         raise NotImplementedError
@@ -165,7 +174,7 @@ class Inference:
         )
 
 
-def get_inference_cache_key(model_fqn: str, inputs: Any):
+def get_inference_cache_key(model_path: str, inputs: Any):
     input_hash = hashlib.sha256(json.dumps(inputs).encode("utf-8")).hexdigest()
-    cache_key = f"inference.{model_fqn}.{input_hash}"
+    cache_key = f"inference.{model_path}.{input_hash}"
     return cache_key

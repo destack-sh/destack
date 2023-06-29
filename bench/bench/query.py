@@ -4,7 +4,6 @@ import enum
 from dataclasses import dataclass
 from typing import Any, Optional
 
-
 #
 # Dataset access ORM *and* wireable data representation.
 # We abstract the database backend here to fit seamlessly with the language.
@@ -67,6 +66,9 @@ class Query:
 
     def __or__(self, other):
         return Q(QueryOp.OR, queries=[self, other])
+
+    def filter(self, other):
+        return Q(QueryOp.AND, queries=[self, other])
 
 
 @query(QueryOp.NOT, QueryOp.AND, QueryOp.OR)

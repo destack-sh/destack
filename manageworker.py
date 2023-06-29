@@ -9,10 +9,11 @@ import dotenv
 from bench.msg.core import init_nats, process_soon_queue
 from bench.runtime.worker import SandboxedWorker
 from bench.utils.analytics import init_sentry
-from bench.utils.cache import test_redis_connection
+from bench.utils.logging import configure_logging
 
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
+configure_logging(apply_logging=True, apply_structlog=True)
 
 DEPLOYMENT_ID = os.environ.get("DEPLOYMENT_ID")
 if DEPLOYMENT_ID is not None:
@@ -58,8 +59,6 @@ async def _run():
     await init_nats(name=f"worker-{worker.worker_id}")
     await worker.run_forever()
 
-
-asyncio.run(test_redis_connection())  # fail early
 
 asyncio.run(_run())
 

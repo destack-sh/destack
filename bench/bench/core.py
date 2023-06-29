@@ -329,10 +329,10 @@ class Scope:
 
 
 class ModuleStatus(enum.IntEnum):
-    RAW = 0
-    INDEXED = 1
-    INTERPED = 2
-    INSTANTIATED = 3
+    Raw = 0
+    Index = 1
+    Interp = 2
+    Instance = 3
 
 
 @node
@@ -344,7 +344,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     parent: None = None
     parent_scope: Scope = None
     committed: bool = False
-    status: ModuleStatus = ModuleStatus.RAW
+    status: ModuleStatus = ModuleStatus.Raw
 
     @property
     def attached(self) -> bool:
@@ -424,10 +424,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         super()._clear()
         for file in self.files:
             file._clear()
-        self.status = ModuleStatus.RAW
+        self.status = ModuleStatus.Raw
 
     def index(self):
-        self._expect_status(ModuleStatus.RAW)
+        self._expect_status(ModuleStatus.Raw)
         for builtin in self.builtins:
             for statement in builtin.statements:
                 self._add_statement(statement, by_name=True)
@@ -436,23 +436,27 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for file in self.files:
             file._index()
             self._add_file(file, by_name=True)
-        self.status = ModuleStatus.INDEXED
+        self.status = ModuleStatus.Index
 
     def interp(self):
-        self._expect_status(ModuleStatus.INDEXED)
+        self._expect_status(ModuleStatus.Index)
         for file in self.files:
             file._interp()
-        self.status = ModuleStatus.INTERPED
+        self.status = ModuleStatus.Interp
 
     def copy(self):
         from bench.bench import wire
 
         module_data = wire.pack_module(self)
         module_copy = wire.unpack_module(module_data, session=None)
-        if self.status >= ModuleStatus.INDEXED:
+        if self.status >= ModuleStatus.Index:
             module_copy.index()
-        if self.status >= ModuleStatus.INTERPED:
+        if self.status >= ModuleStatus.Interp:
             module_copy.interp()
+        if len(module_copy.issues or []) != len(self.issues or []):
+            raise RuntimeError(
+                f"expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}"
+            )
         return module_copy
 
     @staticmethod
@@ -495,7 +499,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self._sort()
 
     def __str__(self):
-        return f"{self.path} {self.name} ({len(self.statements)} statements)"
+        return f"{self.path} '{self.name}' ({len(self.statements)} statements)"
 
     def __repr__(self):
         return f"<File {str(self)}>"
@@ -595,7 +599,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             self.parent = self.file
 
     def __str__(self):
-        return f"{self.path} {self.name or '<anon>'}"
+        return f"{self.path} '{self.name or '<anon>'}'"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
@@ -628,12 +632,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             seen_ids.add(parent.id)
             parent = parent.parent
         return ".".join(reversed(ancestor_parts))
-
-    @property
-    def fqn(self) -> str:
-        if self.file is None:
-            raise ValueError(f"cannot get fqn of detached statement {self}")
-        return f"{self.file.module.name}.{self.file.name.replace('/', '.')}.{self.name}"
 
     @property
     def py_ident(self) -> str:

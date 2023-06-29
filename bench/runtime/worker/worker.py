@@ -184,7 +184,7 @@ class ModuleWorker:
                 arguments=describe_type(job.arguments),
                 timeout=timeout,
             )
-            # TODO @Architecture: handle module instantiation & session linking more intelligently
+            # TODO @Architecture @Robustness: handle module instantiation & session linking better
             #  esp. with contexts, dependencies, parallelism, etc.
             job.session.module.instantiate_in(job.session)
             task = asyncio.create_task(run(job.runnable, job.arguments, job.session))
@@ -277,18 +277,25 @@ class SandboxedWorker:
     async def run(self):
         await nc_init.wait()
         logger.info("start", worker_id=self.worker_id, tenancy=self.tenancy)
-        try:
-            register_rep: NMessage[RepRegisterWorkerPayload] = await request(
-                NMessageType.REQUEST_REGISTER_WORKER,
-                ReqRegisterWorkerPayload(
-                    worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
-                ),
-                RepRegisterWorkerPayload,
-            )
-            success = register_rep.p.success
-        except Exception as e:
-            logger.exception("register.failed", exc_info=e)
-            success = False
+        attempts = 0
+        success = False
+        while attempts < 3 and not success:
+            try:
+                register_rep: NMessage[RepRegisterWorkerPayload] = await request(
+                    NMessageType.REQUEST_REGISTER_WORKER,
+                    ReqRegisterWorkerPayload(
+                        worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
+                    ),
+                    RepRegisterWorkerPayload,
+                )
+                success = register_rep.p.success
+            except Exception as e:
+                logger.exception("register.failed", exc_info=e)
+                success = False
+            finally:
+                attempts += 1
+                if not success:
+                    await asyncio.sleep(3)
         if not success:
             raise RuntimeError("failed to register worker")
         self.subs = [
