@@ -22,7 +22,7 @@ from bench.bench.const import (
     TypeTag,
 )
 from bench.bench.core import MOT, InterpScope, ModuleNode, Session
-from bench.bench.execution import ExecutionFrame, PyFrameData, RunErrorData
+from bench.bench.execution import ExecutionCodeFrame, ExecutionFrame, RunError, RunErrorKind
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
 from bench.utils.func import describe_type
@@ -1267,7 +1267,7 @@ class ExecutionFrameData:
     cached_duration: Optional[float]
     inputs: Optional[Any]
     outputs: Optional[Any]
-    error: Optional[RunErrorData]
+    error: Optional[RunError]
     queue_position: Optional[int]
     # additional context data not in ExecutionFrame
     project_id: UUID
@@ -1286,16 +1286,17 @@ class ExecutionFrameData:
                 traceback.walk_tb(frame.error.__traceback__), capture_locals=True
             )
             if isinstance(frame.runnable, lang.Code):
-                stack = PyFrameData.from_stack(stack_summary)
-                stack = PyFrameData.clean(stack, frame.runnable, session=session)
+                stack = ExecutionCodeFrame.from_stack(stack_summary)
+                stack = ExecutionCodeFrame.clean(stack, frame.runnable, session=session)
             else:
                 stack = []
             error_str = str(frame.error)
             # remove (source=...) from error message
             error_str = re.sub(r"\(source=.+\)", "", error_str)
-            error_data = RunErrorData(
+            error_data = RunError(
+                kind=RunErrorKind.RUNTIME,
                 type=type(frame.error).__name__,
-                symbol=str(frame.runnable),
+                statement_id=frame.runnable.id,
                 message=f"{type(frame.error).__name__}: {error_str}",
                 traceback=stack,
             )

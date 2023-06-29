@@ -256,6 +256,12 @@ class SearchResult:
         return rep
 
     def __iter__(self) -> typing.Iterator[Record]:
+        yield from self._iter(batched=False)
+
+    def batched(self) -> typing.Iterator[list[Record]]:
+        yield from self._iter(batched=True)
+
+    def _iter(self, batched: bool):
         from bench.bench import wire
 
         after = None
@@ -266,17 +272,30 @@ class SearchResult:
             )
             if len(rep.payload.records) == 0:
                 break
+            records = []
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
                 record.instantiate_in(self.dataset.session)
-                yield record
+                records.append(record)
+            if batched:
+                yield records
+            else:
+                yield from records
             after = rep.payload.last_sort_key
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.records)
 
+    async def abatched(self) -> typing.AsyncIterator[list[Record]]:
+        async for batch in self._aiter(batched=True):
+            yield batch
+
     async def __aiter__(self) -> typing.AsyncIterator[Record]:
         """Iterates over the records of the search result (batched)."""
+        async for record in self._aiter(batched=False):
+            yield record
+
+    async def _aiter(self, batched: bool) -> typing.AsyncIterator[Record]:
         from bench.bench import wire
 
         after = None
@@ -285,12 +304,20 @@ class SearchResult:
             rep = await self._do_search(after=after, limit=remaining_limit)
             if len(rep.payload.records) == 0:
                 break
+            records = []
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
                 record.instantiate_in(self.dataset.session)
-                yield record
-            after = rep.payload.after
+                if batched:
+                    records.append(record)
+                else:
+                    yield record
+            if batched:
+                yield records
+            after = rep.payload.last_sort_key
+            if remaining_limit is not None:
+                remaining_limit -= len(rep.payload.records)
 
     def __len__(self) -> int:
         return self.count()
@@ -368,10 +395,6 @@ class Value(Statement, HasType, IsExpectable):
     value: Any = field(default_factory=dict)
     _instantiated: bool = True
 
-    @property
-    def keys(self):
-        return self.value.keys()
-
     def _clear(self) -> None:
         HasType._clear(self)
         if self._instantiated:
@@ -412,7 +435,7 @@ class Value(Statement, HasType, IsExpectable):
         elif self.has_field(item):
             return None
         else:
-            raise AttributeError(f"{self} has no field {item} (available: {self.keys})")
+            raise AttributeError(f"{self} has no field {item} (available: {self.fields})")
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:

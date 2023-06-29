@@ -1772,8 +1772,9 @@ export type RestoreInput = {
 /** Wire-able representation of an exception. */
 export type RunError = {
   __typename?: "RunError";
+  kind: Scalars["String"];
   message: Scalars["String"];
-  statement?: Maybe<Scalars["String"]>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
   traceback?: Maybe<Array<PyFrame>>;
   type: Scalars["String"];
 };

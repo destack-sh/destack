@@ -1485,9 +1485,10 @@ input RestoreInput {
 
 """Wire-able representation of an exception."""
 type RunError {
+  kind: String!
   type: String!
   message: String!
-  statement: String
+  statementId: GlobalID
   traceback: [PyFrame!]
 }
 

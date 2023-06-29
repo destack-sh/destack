@@ -1,99 +1,38 @@
 import enum
-import functools
 import typing
-from dataclasses import dataclass
 from typing import Any, Optional
 
 import anthropic
 import openai
 
-from bench.bench.const import TypeTag
-from bench.bench.core import File, LookupBy, Module, Statement, parse_absolute_statement_reference
+from bench.bench.core import LookupBy, Module, Statement, parse_absolute_statement_reference
 from bench.bench.model import Model
+from bench.bench.reflect import _model_impls, _symbolx_reflect, x_enum, x_model, x_struct, x_task
 from bench.bench.remote import RemoteObject
-from bench.bench.task import Task
-from bench.bench.type import Key, Vector, type_from_py_type
+from bench.bench.type import Key, Vector
 from bench.utils.utils import UnreachableError
-
-
-def _type(file: File, name: str, tag: TypeTag):
-    def decorator(cls):
-        bench_type = type_from_py_type(cls, name=name)
-        if bench_type.tag != tag:
-            raise TypeError(f"Expected {tag}, got {bench_type.tag}")
-        file.append(bench_type)
-        return cls
-
-    return decorator
-
-
-def _struct(file: File, name: str):
-    def decorator(cls):
-        # turn it into dataclass that behaves like a dict
-        # it needs to be a dataclass for getattr and getitem access
-        # and it needs to be a real distinct class so we can type map references to it properly
-        cls = dataclass(cls)
-        cls.__getitem__ = lambda self, key: getattr(self, key, None)
-        cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
-        cls.__contains__ = lambda self, key: hasattr(self, key) and getattr(self, key) is not None
-        bench_type = type_from_py_type(cls, name=name)
-        if bench_type.tag != TypeTag.STRUCT:
-            raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
-        file.append(bench_type)
-        return cls
-
-    return decorator
-
-
-_enum = functools.partial(_type, tag=TypeTag.ENUM)
-
-
-def _task(file: File, name: str):
-    def decorator(fn):
-        task = Task(name=name)
-        task_type = type_from_py_type(fn, name=None)
-        task.fields = task_type._copy_fields(to=task)
-        file.append(task)
-        return task
-
-    return decorator
-
-
-_model_impls: dict[str, typing.Callable] = {}
-
-
-def _model(file: File, name: str, external_name: str):
-    def decorator(cls):
-        model = Model(name=name, external_name=external_name)
-        model_type = type_from_py_type(cls._impl, name=None)
-        model.fields = model_type._copy_fields(to=model)
-        file.append(model)
-        _model_impls[model.path] = cls._impl
-        return cls
-
-    return decorator
-
 
 symbolx_lib = Module(name="symbolx.lib")
 _symbolx_builtins = symbolx_lib.create_file("builtins")
+symbolx_lib.add_file(_symbolx_reflect)
 
 
-@_struct(_symbolx_builtins, "EmbeddingOutput")
+@x_struct("EmbeddingOutput", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
 
 
-@_task(_symbolx_builtins, "embed")
+@x_task("embed", file=_symbolx_builtins)
 def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
     raise UnreachableError()  # stub
 
 
-@_struct(_symbolx_builtins, "TranscriptionOutput")
+@x_struct("TranscriptionOutput", file=_symbolx_builtins)
 class TranscriptionOutput:
     text: str
 
 
-@_task(_symbolx_builtins, "transcribe")
+@x_task("transcribe", file=_symbolx_builtins)
 def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
@@ -110,7 +49,7 @@ _openai_text = openai_lib.create_file("text")
 _openai_audio = openai_lib.create_file("audio")
 
 
-@_enum(_openai_chat, "ChatRole")
+@x_enum("ChatRole", file=_openai_chat)
 class OpenAIChatRole(enum.StrEnum):
     system = "system"
     developer = "developer"
@@ -119,13 +58,13 @@ class OpenAIChatRole(enum.StrEnum):
     function = "function"
 
 
-@_struct(_openai_chat, "ChatMessage")
+@x_struct("ChatMessage", file=_openai_chat)
 class OpenAIChatMessage:
     role: OpenAIChatRole
     content: str
 
 
-@_struct(_openai_chat, "ChatCompletionSettings")
+@x_struct("ChatCompletionSettings", file=_openai_chat)
 class OpenAIChatCompletionSettings:
     temperature: Optional[float]
     max_tokens: Optional[int]
@@ -138,7 +77,7 @@ class OpenAIChatCompletionSettings:
     user: Optional[str]
 
 
-@_struct(_openai_chat, "FunctionParameter")
+@x_struct("FunctionParameter", file=_openai_chat)
 class OpenAIFunctionParameter:
     type: Key
     description: str
@@ -147,35 +86,35 @@ class OpenAIFunctionParameter:
     required: Optional[list[str]]
 
 
-@_struct(_openai_chat, "Function")
+@x_struct("Function", file=_openai_chat)
 class OpenAIFunction:
     name: Key
     description: str
     parameters: "OpenAIFunctionParameter"
 
 
-@_struct(_openai_chat, "FunctionCall")
+@x_struct("FunctionCall", file=_openai_chat)
 class OpenAIFunctionCall:
     name: Key
     parameters: dict[str, Any]
 
 
-@_struct(_openai_text, "TokenUsage")
+@x_struct("TokenUsage", file=_openai_text)
 class OpenAITokenUsage:
     prompt_tokens: int
     completion_tokens: Optional[int]
     total_tokens: int
 
 
-@_struct(_openai_chat, "ChatCompletion")
+@x_struct("ChatCompletion", file=_openai_chat)
 class OpenAIChatCompletion:
     text: Optional[str]
     function_call: Optional[OpenAIFunctionCall]
     usage: OpenAITokenUsage
 
 
-@_model(_openai_chat, "gpt3", "gpt3-5")
-@_model(_openai_chat, "gpt4", "gpt4")
+@x_model("gpt3", external_name="gpt3-5", file=_openai_chat)
+@x_model("gpt4", external_name="gpt4", file=_openai_chat)
 class OpenAIChatCompletionModel(Model):
     async def _impl(
         self,
@@ -207,13 +146,13 @@ class OpenAIChatCompletionModel(Model):
         )
 
 
-@_struct(_openai_text, "TextEmbeddingResponse")
+@x_struct("TextEmbeddingResponse", file=_openai_text)
 class OpenAITextEmbeddingResponse:
     vector: typing.Union[Vector, list[Vector]]
     usage: OpenAITokenUsage
 
 
-@_model(_openai_text, "ada", "text-embedding-ada-002")
+@x_model("ada", external_name="text-embedding-ada-002", file=_openai_text)
 class OpenAITextEmbeddingModel(Model):
     async def _impl(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
         was_list = isinstance(text, list)
@@ -236,12 +175,12 @@ class OpenAITextEmbeddingModel(Model):
         )
 
 
-@_struct(_openai_text, "AudioTranscriptionResponse")
+@x_struct("AudioTranscriptionResponse", file=_openai_text)
 class OpenAIAudioTranscriptionResponse:
     text: str
 
 
-@_model(_openai_audio, "whisper", "whisper")
+@x_model("whisper", external_name="whisper", file=_openai_audio)
 class OpenAIAudioTranscriptionModel(Model):
     async def _impl(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
         raise NotImplementedError
@@ -251,7 +190,7 @@ anthropic_lib = Module(name="anthropic.lib")
 _anthropic_text = anthropic_lib.create_file("text")
 
 
-@_struct(_anthropic_text, "TextCompletionSettings")
+@x_struct("TextCompletionSettings", file=_anthropic_text)
 class AnthropicTextCompletionSettings:
     temperature: float
     top_p: Optional[float]
@@ -260,16 +199,16 @@ class AnthropicTextCompletionSettings:
     stop_sequences: Optional[list[str]]
 
 
-@_struct(_anthropic_text, "TextCompletion")
+@x_struct("TextCompletion", file=_anthropic_text)
 class AnthropicTextCompletion:
     completion: str
     stop_reason: str
 
 
-@_model(_anthropic_text, "claude-1", "claude-1")
-@_model(_anthropic_text, "claude-1-100k", "claude-1-100k")
-@_model(_anthropic_text, "claude-instant-1", "claude-instant-1")
-@_model(_anthropic_text, "claude-instant-1-100k", "claude-instant-1-100k")
+@x_model("claude-1", external_name="claude-1", file=_anthropic_text)
+@x_model("claude-1-100k", external_name="claude-1-100k", file=_anthropic_text)
+@x_model("claude-instant-1", external_name="claude-instant-1", file=_anthropic_text)
+@x_model("claude-instant-1-100k", external_name="claude-instant-1-100k", file=_anthropic_text)
 class AnthropicTextCompletionModel(Model):
     _client: anthropic.Client | None = None
 
