@@ -804,6 +804,11 @@ class ModelData(StatementData):
 class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
+    def walk(self, symbol: lang.Value, tree: PackContext):
+        super().walk(symbol, tree)
+        for field in symbol.fields:
+            tree.visit(field)
+
     def pack(self, symbol: lang.Model) -> "ModelData":
         statement_data = super().pack(symbol)
         return ModelData(**statement_data.__dict__, external_name=symbol.external_name)
@@ -813,6 +818,10 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
     ) -> lang.Model:
         statement = super().unpack(symbol, parent, session)
         return lang.Model(**statement.__dict__, external_name=symbol.external_name)
+
+    def unwalk(self, symbol: lang.Value, tree: ModuleTree):
+        super().unwalk(symbol, tree)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
 
 
 @dataclass

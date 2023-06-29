@@ -11,7 +11,7 @@ from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel
 from bench.bench.execution import ExecutionFrame
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
-from bench.bench.type import check_type
+from bench.bench.type import check_type, strip_py_value
 from bench.bench.wire import ExecutionFrameData
 from bench.utils.uuidt import UUIDT
 
@@ -289,7 +289,7 @@ class ExecutionTracer(Tracer):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
             runnable=code,
-            inputs=code.rekey(inputs, is_output=False),
+            inputs=strip_py_value(inputs, code, is_output=False),
             trace=False,
             queue_position=queue_position,
         )
@@ -298,11 +298,11 @@ class ExecutionTracer(Tracer):
 
     def code_enter(self, code: Runnable, args, kwargs):
         # map args into kwargs
-        combined_kwargs = {**kwargs}
+        inputs = {**kwargs}
         for input_t, input in zip(code.inputs, args):
-            combined_kwargs[input_t.name] = input
+            inputs[input_t.name] = input
         frame = self._create_frame(
-            runnable=code, inputs=code.rekey(combined_kwargs, is_output=False)
+            runnable=code, inputs=strip_py_value(inputs, code, is_output=False)
         )
         self.stacktrace.append(frame)
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
@@ -311,7 +311,7 @@ class ExecutionTracer(Tracer):
     def code_exit(self, code: Runnable, args, kwargs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = code.rekey(result, is_output=True)
+        frame.outputs = strip_py_value(result, code, is_output=True)
         self.track(frame)
         logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
 
@@ -324,7 +324,7 @@ class ExecutionTracer(Tracer):
 
     def inference_enter(self, model: Model, inputs: dict[str, Any]):
         frame = self._create_frame(runnable=model)
-        frame.inputs = model.rekey(inputs, is_output=False)
+        frame.inputs = strip_py_value(inputs, model, is_output=False)
         self.stacktrace.append(frame)
         if TRACK_INFERENCES:
             self.track(frame)
@@ -333,7 +333,7 @@ class ExecutionTracer(Tracer):
     def inference_exit(self, model: Model, inputs: dict[str, Any], outputs: dict[str, Any]):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = model.rekey(outputs, is_output=True)
+        frame.outputs = strip_py_value(outputs, model, is_output=True)
         if TRACK_INFERENCES:
             self.track(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
@@ -344,7 +344,7 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = inference.generated_at
         frame.cached_duration = inference.duration
-        frame.inputs = model.rekey(inputs, is_output=False)
+        frame.inputs = inference.inputs
         frame.outputs = inference.outputs
         self._update_cached_info()
         if TRACK_INFERENCES:

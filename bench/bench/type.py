@@ -32,7 +32,7 @@ from bench.bench.issue import IssueType
 from bench.bench.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
 
@@ -218,6 +218,14 @@ class TypeBase(abc.ABC):
             return self
 
     @property
+    def effective_tag(self) -> TypeTag:
+        return self.effective_type.tag
+
+    @property
+    def effective_hint(self) -> Optional[TypeHint]:
+        return self.effective_type.hint
+
+    @property
     def bases(self):
         return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
 
@@ -262,14 +270,6 @@ class TypeBase(abc.ABC):
                 if child in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
                 yield from child.walk_type(path, include_references=include_references)
-
-    def unkey(self, data: Any, is_output: bool = None, to_ident: bool = False) -> Any:
-        """'Unkeys' data by replacing keys with the names of the type nodes."""
-        return unkey_value(data, self, is_output=is_output, to_ident=to_ident)
-
-    def rekey(self, data: Any, is_output: bool = None, via_ident: bool = False) -> Any:
-        """'Keys' data by replacing names with the keys of the type nodes."""
-        return rekey_value(data, self, is_output=is_output, from_ident=via_ident)
 
 
 def new_field_key() -> str:
@@ -482,7 +482,7 @@ class Type(Statement, HasType, HasExpectations):
 
     @cached_property
     def py_type(self) -> type | enum.Enum:
-        return instantiate_py_type(self, self.session)
+        return instantiate_py_type(self)
 
     def _clear(self) -> None:
         Statement._clear(self)
@@ -645,13 +645,13 @@ def map_value(
         if not isinstance(value, Collection):
             return value  # type error, ignore here
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
-    elif type.tag in PRIMITIVE_TYPES:
+    elif type.effective_tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)
-    elif type.tag == TypeTag.ENUM:
+    elif type.effective_tag == TypeTag.ENUM:
         return map_v(value=value, type=type, ignore_array=ignore_array)
-    elif type.tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
+    elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, Mapping):
+    if not isinstance(value, Mapping) and not dataclasses.is_dataclass(value):
         return value  # type error, ignore here
     mapped = {}
     for subtype in type.resolved_fields or type.fields:
@@ -667,74 +667,6 @@ def map_value(
     if not ignore_outer_map:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
     return mapped
-
-
-def map_unkey_enum(value: Any, type: TypeBase, *args, **kwargs):
-    if type.tag == TypeTag.ENUM:
-        return type[value].name
-    return value
-
-
-def map_rekey_enum(value: Any, type: TypeBase, *args, **kwargs):
-    if type.tag == TypeTag.ENUM:
-        return type[value].key
-    return value
-
-
-def unkey_value(
-    value: Any,
-    type: TypeBase,
-    is_output: bool = None,
-    ignore_array: bool = False,
-    to_ident: bool = False,
-) -> Any:
-    """Replaces keys with actual values."""
-    if to_ident:
-
-        def map_k(t: Field):
-            return t.typed_key, t.py_ident
-
-    else:
-
-        def map_k(t: Field):
-            return t.typed_key, t.name
-
-    return map_value(
-        value,
-        type,
-        map_v=map_unkey_enum,
-        map_k=map_k,
-        is_output=is_output,
-        ignore_array=ignore_array,
-    )
-
-
-def rekey_value(
-    value: Any,
-    type: TypeBase,
-    is_output: bool = None,
-    ignore_array: bool = False,
-    from_ident: bool = False,
-) -> Any:
-    """Replaces names with keys."""
-    if from_ident:
-
-        def map_k(t: Field):
-            return t.py_ident, t.typed_key
-
-    else:
-
-        def map_k(t: Field):
-            return t.name, t.typed_key
-
-    return map_value(
-        value,
-        type,
-        map_v=map_rekey_enum,
-        map_k=map_k,
-        is_output=is_output,
-        ignore_array=ignore_array,
-    )
 
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
@@ -804,12 +736,12 @@ def get_flat_mapper_by_type(type: TypeBase) -> TypeMapper:
     """
     # strip to only relevant flags for mapping
     stripped_flags = type.flags & TypeFlag.IsSecret
-    exact_signature = TypeSignature(type.tag, type.hint, stripped_flags)
+    exact_signature = TypeSignature(type.effective_tag, type.effective_hint, stripped_flags)
     mapping = type_mappers.get(exact_signature)
     if mapping is not None:
         return mapping
     # no exact match, try generic without hint
-    stripped_signature = TypeSignature(type.tag, None, stripped_flags)
+    stripped_signature = TypeSignature(type.effective_tag, None, stripped_flags)
     mapping = type_mappers.get(stripped_signature)
     if mapping is not None:
         return mapping
@@ -938,10 +870,10 @@ class EnumMapper(TypeMapper):
         return type
 
     def to_py_value(self, type: TypeBase, value: Any) -> Any:
-        return map_unkey_enum(value, type)
+        return type[value].name
 
     def from_py_value(self, type: TypeBase, value: Any) -> Any:
-        return map_rekey_enum(value, type)
+        return type[value].key
 
 
 class FileMapper(TypeMapper):
@@ -1029,13 +961,7 @@ class StructTypeMapper(TypeMapper):
         return type
 
     def to_py_value(self, type: TypeBase, value: Any) -> Any:
-        if not isinstance(type, Type):
-            # may be a simple type node
-            if isinstance(type.reference, Type):
-                type = type.reference
-            else:
-                raise ValueError(f"struct type is not an instance: {type}")
-        return type(**value)
+        return DotDict(value)
 
     def from_py_value(self, type: TypeBase, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
@@ -1161,6 +1087,42 @@ def strip_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
         return None
     mapping = get_flat_mapper_by_type(type)
     return mapping.from_py_value(type, value)
+
+
+def instantiate_py_value(
+    value: Any,
+    type: HasType,
+    ignore_array: bool = False,
+    ignore_outer_map: bool = False,
+    is_output: bool = None,
+):
+    return map_value(
+        value=value,
+        type=type,
+        map_k=lambda f: (f.typed_key, f.py_ident),
+        map_v=instantiate_py_value_flat,
+        ignore_array=ignore_array,
+        ignore_outer_map=ignore_outer_map,
+        is_output=is_output,
+    )
+
+
+def strip_py_value(
+    value: Any,
+    type: HasType,
+    ignore_array: bool = False,
+    ignore_outer_map: bool = False,
+    is_output: bool = None,
+):
+    return map_value(
+        value=value,
+        type=type,
+        map_k=lambda f: (f.py_ident, f.typed_key),
+        map_v=strip_py_value_flat,
+        ignore_array=ignore_array,
+        ignore_outer_map=ignore_outer_map,
+        is_output=is_output,
+    )
 
 
 # type tags

@@ -134,6 +134,11 @@ def sentry_capture_if_enabled(e: Exception) -> bool:
 class DotDict(dict):
     """Access dictionary keys as attributes."""
 
+    def __init__(self, **kwargs):
+        super().__init__()
+        for key, value in kwargs.items():
+            self[key] = value
+
     def __getattr__(self, name):
         try:
             return self[name]

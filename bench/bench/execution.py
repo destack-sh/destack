@@ -74,6 +74,10 @@ IGNORED_PACKAGE_PREFIXES = [
 IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in IGNORED_PACKAGE_PREFIXES]
 
 
+# TODO @Architecture: PyFrame/RunError should also be symbolx lib types
+#  (maybe Execution too? Though that will be available in another way)
+
+
 @dataclass(slots=True)
 class PyFrameData:
     filename: str

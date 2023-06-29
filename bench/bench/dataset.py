@@ -15,13 +15,7 @@ from bench.bench.const import DatasetBackend, DatasetViewLayout, TypeFlag, TypeT
 from bench.bench.core import HasCrud, HasSession, ModuleNode, Scope, Session, Statement, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
-from bench.bench.type import (
-    Field,
-    HasType,
-    instantiate_py_value_flat,
-    map_value,
-    strip_py_value_flat,
-)
+from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import required_field
@@ -61,13 +55,8 @@ class Record(ModuleNode, HasSession, HasCrud):
             self.value = self._raw_value()
             self._instantiated = False
         # proxy
-        self.value = map_value(
-            value=self.value,
-            type=self.parent,
-            map_k=lambda f: (f.typed_key, f.py_ident),
-            map_v=instantiate_py_value_flat,
-            ignore_outer_map=True,
-            ignore_array=True,
+        self.value = instantiate_py_value(
+            self.value, self.parent, ignore_array=True, ignore_outer_map=True
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
@@ -77,14 +66,7 @@ class Record(ModuleNode, HasSession, HasCrud):
             return self.value
         else:
             value = unproxy_value(self.value)
-            return map_value(
-                value=value,
-                type=self.parent,
-                map_k=lambda f: (f.py_ident, f.typed_key),
-                map_v=strip_py_value_flat,
-                ignore_outer_map=True,
-                ignore_array=True,
-            )
+            return strip_py_value(value, self.parent, ignore_array=True, ignore_outer_map=True)
 
     def _onread(self, key: Optional[str]):
         pass
@@ -336,19 +318,24 @@ class SearchResult:
         elif ret is not None:
             raise TypeError(f"map function returned {ret!r} instead of None or dict")
 
-    def _map_batch_ret(self, records: list[Record], ret: list[Any]) -> None:
+    def _map_batch_ret(self, records: list[Record], ret: list[Any] | dict[str, list[Any]]) -> None:
         if len(ret) != len(records):
             raise TypeError(
                 f"batch map function returned {len(ret)} records instead of {len(records)}"
             )
-        for record, ret in zip(records, ret):
-            if isinstance(ret, dict):
-                for key, value in ret.items():
-                    record[key] = value
-            elif isinstance(ret, Record):
-                pass  # already tracked
-            elif ret is not None:
-                raise TypeError(f"batch map function returned {ret!r} instead of None or dict")
+        if isinstance(ret, list):
+            for record, ret in zip(records, ret):
+                if isinstance(ret, dict):
+                    for key, value in ret.items():
+                        record[key] = value
+                elif isinstance(ret, Record):
+                    pass  # already tracked
+                elif ret is not None:
+                    raise TypeError(f"batch map function returned {ret!r} instead of None or dict")
+        elif isinstance(ret, dict):
+            raise NotImplementedError
+        else:
+            raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
 
 
 @node(tracked=["description", "value"])
@@ -383,12 +370,8 @@ class Value(Statement, HasType, IsExpectable):
             self.value = self._raw_value()
             self._instantiated = False
         # proxy
-        self.value = map_value(
-            value=self.value,
-            type=self,
-            map_k=lambda f: (f.typed_key, f.py_ident),
-            map_v=instantiate_py_value_flat,
-            ignore_outer_map=True,
+        self.value = instantiate_py_value(
+            self.value, self, ignore_array=True, ignore_outer_map=True
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
@@ -397,13 +380,7 @@ class Value(Statement, HasType, IsExpectable):
         if not self._instantiated:
             return self.value
         else:
-            return map_value(
-                value=self.value,
-                type=self,
-                map_k=lambda f: (f.py_ident, f.typed_key),
-                map_v=strip_py_value_flat,
-                ignore_outer_map=True,
-            )
+            return strip_py_value(self.value, self, ignore_array=True, ignore_outer_map=True)
 
     def __getattr__(self, item):
         if item in self._PROPERTIES:
