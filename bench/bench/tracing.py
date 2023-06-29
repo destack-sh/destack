@@ -419,9 +419,10 @@ class TypeCheckingTracer(Tracer):
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
-            if key not in dataset:
+            field_ = dataset.get_field(key)
+            if field_ is None:
                 raise ValueError(f"{key} does not exist on {dataset.type}")
-            check_type(record.value.get(key), dataset[key])
+            check_type(record.value.get(key), field_)
         else:
             check_type(record.value, dataset, ignore_array=True)
 

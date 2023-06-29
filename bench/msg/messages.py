@@ -342,7 +342,7 @@ class ReqRunInferencePayload:
 
 @payload(NMessageType.REPLY_RUN_INFERENCE)
 class RepRunInferencePayload:
-    output: Optional[typing.Any] = None
+    outputs: Optional[typing.Any] = None
     timeout: bool = False
 
 

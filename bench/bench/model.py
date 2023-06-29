@@ -17,7 +17,7 @@ from bench.bench.core import Scope, Statement, node
 from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
-from bench.utils.utils import get_from_env
+from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
     pass
@@ -35,14 +35,14 @@ class Model(Statement, HasType):
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
     _remote: bool = False
-    _endpoint: typing.Optional[typing.Callable] = None
+    _endpoint_impl: typing.Optional[typing.Callable] = None
     _key: typing.Optional[str] = None
 
     def _clear(self) -> None:
         HasType._clear(self)
         self._key = None
         self._remote = True
-        self._endpoint = None
+        self._endpoint_impl = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -57,7 +57,7 @@ class Model(Statement, HasType):
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
 
         # try to read from cache if enabled
-        if self.session.cache_inferences and cache is not False:
+        if cache is not False and self.session.cache_inferences:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await redis.get(cache_key)
             if cached_inference is not None:
@@ -74,8 +74,8 @@ class Model(Statement, HasType):
                     log.warning("inference.cache.error", e=e, excinfo=e)
                     # ignore and continue, will be overwritten
 
-        # request remote inference if needed
         if self._remote:
+            # request remotely proxied inference if needed (key not available locally)
             from bench.msg.core import NMessage, request
             from bench.msg.messages import (
                 NMessageType,
@@ -83,39 +83,54 @@ class Model(Statement, HasType):
                 ReqRunInferencePayload,
             )
 
+            self.session.tracer.inference_enter(self, inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
-            rep: NMessage[RepRunInferencePayload] = await request(
-                NMessageType.REQUEST_RUN_INFERENCE,
-                ReqRunInferencePayload(model_path=self.path, inputs=inputs, timeout=timeout),
-                RepRunInferencePayload,
-                timeout=timeout + 1,  # for network
-            )
-            if rep.p.outputs is None:
-                raise RuntimeError("remote inference failed")
-            return rep.p.outputs
+            try:
+                req = ReqRunInferencePayload(
+                    model_path=self.path,
+                    inputs=(strip_py_value(inputs, self, is_output=False)),
+                    timeout=timeout,
+                )
+                rep: NMessage[RepRunInferencePayload] = await request(
+                    NMessageType.REQUEST_RUN_INFERENCE,
+                    req,
+                    RepRunInferencePayload,
+                    timeout=timeout + 2,
+                )
+                if rep.p.outputs is None:
+                    raise RuntimeError(f"remote {self} failed")
+                outputs = instantiate_py_value(rep.p.outputs, self, is_output=True)
+                self.session.tracer.inference_exit(self, inputs, outputs)
+                return DotDict(outputs)
+            except (ValueError, RuntimeError, TypeError) as e:
+                self.session.tracer.inference_exception(self, inputs, e)
+                raise
         else:
             # otherwise run inference through endpoint :LibImplementation
-            if self._endpoint is None:
-                from bench.bench import libs
-
-                # get actual model implementation from libs  :LibImplementation
-                # (this is a stop gap until we fully support model statements, then it's just like Code)
-                actual_model_impl = libs.lookup_model_impl(self.path)
-                if actual_model_impl is None:
-                    raise ValueError(f"cannot find {self} in libs")
-                self._endpoint = functools.partial(actual_model_impl, self=self)
             try:
                 self.session.tracer.inference_enter(self, inputs)
                 timeout = timeout if timeout is not None else self.session.inference_timeout
-                result = await asyncio.wait_for(
+                outputs = await asyncio.wait_for(
                     asyncio.shield(self._inference(inputs, cache_key, log)), timeout
                 )
-                self.session.tracer.inference_exit(self, inputs, result)
-                return result
-            except Exception as exception:
-                self.session.tracer.inference_exception(self, inputs, exception)
-                log.debug("inference.exception", exc_info=True)
+                self.session.tracer.inference_exit(self, inputs, outputs)
+                return outputs
+            except Exception as e:
+                self.session.tracer.inference_exception(self, inputs, e)
                 raise
+
+    @property
+    def _endpoint(self):
+        if self._endpoint_impl is None:
+            from bench.bench import libs
+
+            # get actual model implementation from libs  :LibImplementation
+            # (this is a stop gap until we fully support model statements, then it's just like Code)
+            actual_model_impl = libs.lookup_model_impl(self.path)
+            if actual_model_impl is None:
+                raise ValueError(f"cannot find {self} in libs")
+            self._endpoint_impl = functools.partial(actual_model_impl, self=self)
+        return self._endpoint_impl
 
     async def _inference(
         self,
@@ -184,5 +199,5 @@ class Inference:
 def get_execution_cache_key(runnable_path: str, inputs: Any):
     inputs_bytes = msgpack.packb(inputs, use_bin_type=True)
     input_hash = hashlib.sha256(inputs_bytes).hexdigest()
-    cache_key = f"run.{runnable_path}.{input_hash}"
+    cache_key = f"run:{runnable_path}.{input_hash}"
     return cache_key

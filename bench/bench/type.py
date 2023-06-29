@@ -237,25 +237,14 @@ class TypeBase(abc.ABC):
     def outputs(self) -> list["TypeBase"]:
         return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
-    def __getitem__(self, item: str) -> "TypeBase":
-        node = first(
-            (
-                child
-                for child in self.fields
-                if child.name == item or child.py_ident == item or child.key == item
-            ),
-            None,
-        )
-        if node is None:
-            raise KeyError(item)
-        return node
+    def get_field(self, name_or_key: str) -> Optional["Field"]:
+        for field_ in self.fields:
+            if field_.name == name_or_key or field_.key == name_or_key:
+                return field_
+        return None
 
-    def __contains__(self, item):
-        return any(
-            child
-            for child in self.fields
-            if child.name == item or child.py_ident == item or child.key == item
-        )
+    def has_field(self, name_or_key: str) -> bool:
+        return self.get_field(name_or_key) is not None
 
     def walk_type(self, path: list["TypeBase"] | None = None, include_references: bool = False):
         if path is None:
@@ -569,6 +558,13 @@ def check_type(
                     on_invalid=on_invalid,
                     ignore_array=True,
                 )
+    elif (
+        expected.flags & TypeFlag.IsArrayable and not ignore_array and isinstance(value, Collection)
+    ):
+        for item in value:
+            check_type(
+                item, expected, eager_error=eager_error, on_invalid=on_invalid, ignore_array=True
+            )
     elif expected.flags & TypeFlag.IsSecret:
         _check(isinstance(value, Secret), "expected secret")
     elif expected.tag == TypeTag.STRING:
@@ -642,8 +638,18 @@ def map_value(
     map_k = map_k or _map_k_noop
     # communicate via yield/send
     if type.flags & TypeFlag.IsArray and not ignore_array:
-        if not isinstance(value, Collection):
+        if not isinstance(value, Collection) or isinstance(value, str):
             return value  # type error, ignore here
+        return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+    elif type.flags & TypeFlag.IsArrayable and not ignore_array:
+        if not isinstance(value, Collection) or isinstance(value, str):
+            return value
+        if (
+            type.effective_tag == TypeTag.VECTOR
+            and isinstance(value, list)
+            and (not value or not isinstance(value[0], float))
+        ):
+            return value
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.effective_tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)
@@ -1067,11 +1073,16 @@ def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = F
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
     mapping = get_flat_mapper_by_type(type)
     try:
-        if type.flags & TypeFlag.IsArray and not ignore_array:
+        if type.flags & TypeFlag.IsArrayable:  # keep as is
+            if not isinstance(value, list):
+                return mapping.to_py_value(type, value)
+            else:
+                return [mapping.to_py_value(type, v) for v in value]
+        elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
             return [mapping.to_py_value(type, v) for v in value]
-        else:
+        else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
             return mapping.to_py_value(type, value)

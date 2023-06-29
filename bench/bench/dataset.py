@@ -76,19 +76,20 @@ class Record(ModuleNode, HasSession, HasCrud):
         self.session.tracer.dataset_update(self.parent, self, key)
 
     def __getitem__(self, item: str):
-        try:
-            return self.value[item]
-        except KeyError:
-            raise KeyError(f"{self} has no field '{item}' (available: {list(self.value.keys())})")
+        val = self.value.get(item)
+        if val is not None or self.parent.has_field(item):
+            return val
+        else:
+            raise KeyError(f"{self} has no field '{item}' (available: {list(self.parent.fields)})")
 
     def __setitem__(self, key, value):
         self.value[key] = value
 
     def __getattr__(self, item):
-        try:
-            return self.value[item]
-        except KeyError:
-            raise KeyError(f"{self} has no field '{item}' (available: {list(self.value.keys())})")
+        if item in self._PROPERTIES:
+            return super().__getattr__(item)
+        else:
+            return self[item]
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
@@ -185,6 +186,12 @@ class Dataset(Statement, HasType, IsExpectable):
         self.session.tracer.dataset_search(self, query, sort)
         return SearchResult(self, query, sort, limit)
 
+    def __getitem__(self, item: slice):
+        if isinstance(item, slice):
+            return self.search(limit=item.stop)
+        else:
+            raise TypeError(f"index into {self} must be slice (not {type(item)})")
+
     def __len__(self):
         return len(self.search(limit=0))
 
@@ -252,8 +259,11 @@ class SearchResult:
         from bench.bench import wire
 
         after = None
-        while True:
-            rep = self.dataset.session.async_to_sync(self._do_search)(after=after)
+        remaining_limit = self.limit
+        while remaining_limit is None or remaining_limit > 0:
+            rep = self.dataset.session.async_to_sync(self._do_search)(
+                after=after, limit=remaining_limit
+            )
             if len(rep.payload.records) == 0:
                 break
             for record_data in rep.payload.records:
@@ -262,14 +272,17 @@ class SearchResult:
                 record.instantiate_in(self.dataset.session)
                 yield record
             after = rep.payload.last_sort_key
+            if remaining_limit is not None:
+                remaining_limit -= len(rep.payload.records)
 
     async def __aiter__(self) -> typing.AsyncIterator[Record]:
         """Iterates over the records of the search result (batched)."""
         from bench.bench import wire
 
         after = None
-        while True:
-            rep = await self._do_search(after=after)
+        remaining_limit = self.limit
+        while remaining_limit is None or remaining_limit > 0:
+            rep = await self._do_search(after=after, limit=remaining_limit)
             if len(rep.payload.records) == 0:
                 break
             for record_data in rep.payload.records:
@@ -280,6 +293,9 @@ class SearchResult:
             after = rep.payload.after
 
     def __len__(self) -> int:
+        return self.count()
+
+    def count(self):
         if self._total is not None:
             return self._total
         rep = self.dataset.session.async_to_sync(self._do_search)(limit=0, count=True)
@@ -291,9 +307,11 @@ class SearchResult:
         for record in self:
             if batch_size is None:
                 self._map_single_ret(record, func(record))
-            elif len(batch) >= batch_size:
-                self._map_batch_ret(batch, func(batch))
-                batch = []
+            else:
+                batch.append(record)
+                if len(batch) >= batch_size:
+                    self._map_batch_ret(batch, func(batch))
+                    batch = []
         if batch_size is not None and batch:
             self._map_batch_ret(batch, func(batch))
 
@@ -303,9 +321,11 @@ class SearchResult:
         async for record in self:
             if batch_size is None:
                 self._map_single_ret(record, await func(record))
-            elif len(batch) >= batch_size:
-                self._map_batch_ret(batch, await func(batch))
-                batch = []
+            else:
+                batch.append(record)
+                if len(batch) >= batch_size:
+                    self._map_batch_ret(batch, await func(batch))
+                    batch = []
         if batch_size is not None and batch:
             self._map_batch_ret(batch, await func(batch))
 
@@ -319,11 +339,11 @@ class SearchResult:
             raise TypeError(f"map function returned {ret!r} instead of None or dict")
 
     def _map_batch_ret(self, records: list[Record], ret: list[Any] | dict[str, list[Any]]) -> None:
-        if len(ret) != len(records):
-            raise TypeError(
-                f"batch map function returned {len(ret)} records instead of {len(records)}"
-            )
         if isinstance(ret, list):
+            if len(ret) != len(records):
+                raise TypeError(
+                    f"batch map function returned {len(ret)} records instead of {len(records)}"
+                )
             for record, ret in zip(records, ret):
                 if isinstance(ret, dict):
                     for key, value in ret.items():
@@ -333,7 +353,9 @@ class SearchResult:
                 elif ret is not None:
                     raise TypeError(f"batch map function returned {ret!r} instead of None or dict")
         elif isinstance(ret, dict):
-            raise NotImplementedError
+            for i, record in enumerate(records):
+                for key, value in ret.items():
+                    record[key] = value[i]
         else:
             raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
 
@@ -387,8 +409,10 @@ class Value(Statement, HasType, IsExpectable):
             return self.__dict__[item]
         elif item in self.value:
             return self.value[item]
+        elif self.has_field(item):
+            return None
         else:
-            raise AttributeError(f"{self} has no field {item} (available: {self.keys()})")
+            raise AttributeError(f"{self} has no field {item} (available: {self.keys})")
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
