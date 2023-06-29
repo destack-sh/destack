@@ -285,8 +285,8 @@ class LanguageServer:
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
-        module_name, localized_path = parse_absolute_statement_reference(msg.p.model_fqn)
-        log = logger.bind(model=msg.p.model_fqn, msg=msg)
+        module_name, localized_path = parse_absolute_statement_reference(msg.p.model_path)
+        log = logger.bind(model=msg.p.model_path, msg=msg)
         log.debug("inference.run")
         try:
             module = DEFAULT_MODULES[module_name]

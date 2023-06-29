@@ -196,6 +196,11 @@ class SessionTracer(Tracer):
             tracer.inference_cached(model, inputs, outputs)
 
 
+# can't track inferences right now because models are not associated
+# with actual Bench libraries (unsynced/unstable ids and all), see BE-126
+TRACK_INFERENCES = False
+
+
 class ExecutionTracer(Tracer):
     """
     A worker-side tracer that records code and model executions.
@@ -321,14 +326,16 @@ class ExecutionTracer(Tracer):
         frame = self._create_frame(runnable=model)
         frame.inputs = model.rekey(inputs, is_output=False)
         self.stacktrace.append(frame)
-        self.track(frame)
+        if TRACK_INFERENCES:
+            self.track(frame)
         logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_exit(self, model: Model, inputs: dict[str, Any], outputs: dict[str, Any]):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = model.rekey(outputs, is_output=True)
-        self.track(frame)
+        if TRACK_INFERENCES:
+            self.track(frame)
         logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_cached(self, model: Model, inputs, inference: Inference):
@@ -340,14 +347,16 @@ class ExecutionTracer(Tracer):
         frame.inputs = model.rekey(inputs, is_output=False)
         frame.outputs = inference.outputs
         self._update_cached_info()
-        self.track(frame)
+        if TRACK_INFERENCES:
+            self.track(frame)
         logger.debug("trace.inference.cached", frame=frame, stackdepth=len(self.stacktrace))
 
     def inference_exception(self, model: Model, inputs, exception: Exception):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
-        self.track(frame)
+        if TRACK_INFERENCES:
+            self.track(frame)
         logger.debug("trace.inference.exception", frame=frame, stackdepth=len(self.stacktrace))
 
 

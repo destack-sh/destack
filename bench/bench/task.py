@@ -54,14 +54,12 @@ class Task(Statement, HasType, HasExpectations):
         for input_t, input in zip(self.inputs, args):
             inputs[input_t.name] = input
         # shortcut for built-in tasks with fixed implementations
-        if self.fqn == "symbolx.lib.builtins.embed":
-            from bench.bench.libs import openai_lib
-
-            ada = openai_lib.lookup("openai.lib.text.ada", statement_t=Model)
+        if self.path == "symbolx.lib.builtins.embed":
+            ada = self.session.module.lookup("openai.lib.text.ada", statement_t=Model)
             if ada is None:
                 raise RuntimeError("openai.lib.text.ada not found")
-            return await ada(**inputs, retries=retries, cache=cache, timeout=timeout)
-        elif self.fqn == "symbolx.lib.builtins.transcribe":
+            return await ada(**inputs, cache=cache, timeout=timeout)
+        elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
             raise NotImplementedError  # nocheckin

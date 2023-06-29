@@ -335,7 +335,7 @@ class RepReadSecretPayload:
 
 @payload(NMessageType.REQUEST_RUN_INFERENCE)
 class ReqRunInferencePayload:
-    model_fqn: str
+    model_path: str
     inputs: typing.Any
     timeout: int
 

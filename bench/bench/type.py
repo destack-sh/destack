@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import structlog
 from more_itertools import first
 
-from bench.bench.const import RemoteObjectStatus, StatementType, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
 from bench.bench.core import (
     HasCrud,
     HasSession,
@@ -293,7 +293,7 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase):
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
 
     def __str__(self):
-        name_str = f"{self.name} " if self.name else ""
+        name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
         return f"{name_str}{self.tag}"
 
     def __repr__(self):
@@ -927,6 +927,8 @@ class EnumMapper(TypeMapper):
 
     def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
         assert issubclass(py_type, enum.StrEnum)
+        if py_type in type_map:
+            return type_map[py_type]
         type = Type(name=py_type.__name__, tag=TypeTag.ENUM)
         type_map[py_type] = type
         for py_member in py_type.__members__.values():
@@ -1009,6 +1011,8 @@ class StructTypeMapper(TypeMapper):
         return dataclasses.is_dataclass(py_type) or typing.is_typeddict(py_type)
 
     def from_py_type(self, py_type: type, type_map: dict[str, Any]) -> Type:
+        if py_type in type_map:
+            return type_map[py_type]
         type = Type(name=py_type.__name__, tag=TypeTag.STRUCT)
         type_map[py_type] = type
         if dataclasses.is_dataclass(py_type):
@@ -1050,8 +1054,8 @@ class FunctionTypeMapper(TypeMapper):
         return inspect.isfunction(py_type)
 
     def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
-        from bench.bench import wire
-
+        if py_type in type_map:
+            return type_map[py_type]
         type = Type(name=py_type.__name__, tag=TypeTag.FUNCTION)
         type_map[py_type] = type
         signature = inspect.signature(py_type)
@@ -1071,9 +1075,11 @@ class FunctionTypeMapper(TypeMapper):
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
         for field_ in output.fields:
-            field_ = wire.unpack_node_flat(wire.pack_node_flat(field_), parent=type, session=None)
-            field_.flags |= TypeFlag.IsOutput
-            type.fields.append(field_)
+            field_copy = field_.copy()
+            field_copy.reference = field_.reference
+            field_copy.parent = type
+            field_copy.flags |= TypeFlag.IsOutput
+            type.fields.append(field_copy)
 
         type._assign_oks()
         return type
@@ -1117,6 +1123,8 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
         type = first((t for k, t in type_map.items() if k.__name__ == py_type), None)
         if type is None:
             raise ValueError(f"unknown type name: {py_type}")
+    elif py_type in type_map:
+        type = type_map[py_type]
     else:
         type = type_from_py_type(py_type, name, type_map)
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM):

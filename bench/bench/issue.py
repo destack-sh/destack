@@ -100,6 +100,12 @@ class Issue:
         else:
             self.id = kwargs.pop("id")
 
+    def __str__(self):
+        return f"{self.subject} {self.kind}: {self.type} {self.message}"
+
+    def __repr__(self):
+        return f"<Issue {self}>"
+
     @property
     def parent_id(self) -> UUID | None:
         return self.subject.id if self.subject is not None else None

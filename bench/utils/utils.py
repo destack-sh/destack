@@ -2,6 +2,7 @@ import enum
 import inspect
 import os
 import re
+import sys
 import textwrap
 from dataclasses import field
 from typing import Any, Callable, Optional
@@ -91,22 +92,23 @@ def to_pyidentifier(name: str, type: IdentifierType) -> str:
         IdentifierType.PATH,
     ):
         # snake_case, turn non-alphanumeric characters into underscores
+        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         name = _strip_alpha_num(name)
         return name.lower()
     elif type == IdentifierType.TYPE:
         # CamelCase, ignore non-alphanumeric characters and capitalize the next character
         name = re.sub(r"[^a-zA-Z0-9]", " ", name)
-        name = "".join(word.capitalize() for word in name.split(" "))
-        return name
+        # split on existing uppercase characters and spaces
+        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
+        return _strip_alpha_num(name).title().replace(" ", "")
     elif type == IdentifierType.CONSTANT:
         # ALL_CAPS, turn non-alphanumeric characters into underscores
+        name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         name = _strip_alpha_num(name)
         return name.upper()
 
 
 def _strip_alpha_num(name: str) -> str:
-    # replace non-alphanumeric characters with underscores
-    name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
     # remove leading underscores
     name = re.sub(r"^_+", "", name)
     # remove trailing underscores
@@ -140,3 +142,13 @@ class DotDict(dict):
 
     def __setattr__(self, name, value):
         self[name] = value
+
+
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
+DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
+TEST: bool = (
+    "test" in sys.argv
+    or "pytest" in sys.argv[0]
+    or get_from_env("TEST", False, type_cast=str_to_bool)
+)
+LOCAL = os.environ.get("LOCAL_ENV", "local") == "local"

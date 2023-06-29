@@ -16,6 +16,7 @@ from bench.bench.core import (
     StatementPath,
 )
 from bench.bench.issue import BenchError, IssueType
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 
 def test_extract_code_references():
@@ -146,18 +147,29 @@ def test_recursive_union_fail():
     assert e.value.issue.type == IssueType.CIRCULAR_UNION
 
 
+def test_pyident():
+    assert to_pyidentifier("MyStructIsCool", IdentifierType.TYPE) == "MyStructIsCool"
+    assert to_pyidentifier("-test-ificate", IdentifierType.TYPE) == "TestIficate"
+    assert to_pyidentifier("A Name", IdentifierType.VARIABLE) == "a_name"
+    assert to_pyidentifier("A Name", IdentifierType.TYPE) == "AName"
+    assert to_pyidentifier("my constant (2)", IdentifierType.CONSTANT) == "MY_CONSTANT_2"
+
+
 def test_nested_resolve():
     module = Module(name="test.lib")
     file = module.create_file("test-file")
+    struct = Type(name="MyStruct", tag=TypeTag.STRUCT)
     task = Task(name="Organize goats")
     dataset = Dataset(name="dataset")
     code = Code(name="load")
     dataset.append_child(code)
-    file.append(task, dataset)
+    file.append(struct, task, dataset)
     module.index()
     module.interp()
 
     # absolute with module name
+    assert module.lookup("test.lib.test-file.MyStruct") == struct
+    assert module.lookup("test.lib.test_file.MyStruct", LookupBy.PyIdent) == struct
     assert module.lookup("test.lib.test-file.Organize goats") == task
     assert module.lookup("test.lib.test_file.organize_goats", LookupBy.PyIdent) == task
     assert module.lookup("test.lib.test-file.dataset") == dataset
@@ -172,6 +184,7 @@ def test_nested_resolve():
     assert code.lookup("organize_goats", LookupBy.PyIdent) == task
 
     # self
+    assert module.lookup(struct.path, LookupBy.PyIdent) == struct
     assert module.lookup(task.path, LookupBy.PyIdent) == task
     assert module.lookup(dataset.path, LookupBy.PyIdent) == dataset
     assert module.lookup(code.path, LookupBy.PyIdent) == code
