@@ -181,16 +181,26 @@ class Dataset(Statement, HasType, IsExpectable):
 
     def search(
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
-    ) -> SearchResult:
+    ) -> Search:
         """Searches this dataset remotely."""
-        self.session.tracer.dataset_search(self, query, sort)
-        return SearchResult(self, query, sort, limit)
+        return Search(self, query, sort, limit)
 
     def __getitem__(self, item: slice):
         if isinstance(item, slice):
             return self.search(limit=item.stop)
         else:
             raise TypeError(f"index into {self} must be slice (not {type(item)})")
+
+    def filter(self, query: Query) -> Search:
+        return self.search(query=query)
+
+    def sort(self, sort: list[Sort] | Sort) -> Search:
+        if isinstance(sort, Sort):
+            sort = [sort]
+        return self.search(sort=sort)
+
+    def limit(self, limit: int) -> Search:
+        return self.search(limit=limit)
 
     def __len__(self):
         return len(self.search(limit=0))
@@ -212,7 +222,9 @@ BatchAmapFunction = typing.Callable[
 ]
 
 
-class SearchResult:
+class Search:
+    """A search over a dataset."""
+
     def __init__(self, dataset: Dataset, query: Query, sort: list[Sort], limit: Optional[int]):
         self.dataset = dataset
         self.query = query
@@ -226,6 +238,17 @@ class SearchResult:
 
     def __repr__(self):
         return f"<SearchResult {self}>"
+
+    def filter(self, query: Query) -> Search:
+        return Search(self.dataset, query.filter(query), self.sort, self.limit)
+
+    def sort(self, sort: list[Sort] | Sort) -> Search:
+        if isinstance(sort, Sort):
+            sort = [sort]
+        return Search(self.dataset, self.query, sort, self.limit)
+
+    def limit(self, limit: int) -> Search:
+        return Search(self.dataset, self.query, self.sort, limit)
 
     async def _do_search(
         self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False

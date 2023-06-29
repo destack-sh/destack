@@ -29,6 +29,7 @@ from bench.bench.core import (
 )
 from bench.bench.expect import HasExpectations
 from bench.bench.issue import IssueType
+from bench.bench.query import FieldQueryOps
 from bench.bench.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus
@@ -269,7 +270,7 @@ def new_field_key() -> str:
 
 
 @node(tracked=["name", "description", "tag", "hint", "flags", "metadata"])
-class Field(ModuleNode, HasCrud, HasSession, TypeBase):
+class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     parent: Statement | None = None
     name: Optional[str] = None
     tag: TypeTag = required_field()
@@ -392,11 +393,6 @@ class HasType(TypeBase, StatementBase):
             to._assign_oks()
         return new_fields
 
-    @property
-    def type(self) -> TypeBase:
-        """For clarity when explicitly referring to the type of a symbol"""
-        return self
-
     def _assign_oks(self):
         oks = generate_n_keys_between(None, None, len(self.fields))
         for ok, field_ in zip(oks, self.fields):
@@ -405,6 +401,15 @@ class HasType(TypeBase, StatementBase):
             elif field_.parent is not self:
                 raise ValueError(f"{field_} is already attached to {field_.parent}")
             field_.order_key = ok
+
+    def __getattr__(self, item):
+        if item in self._PROPERTIES:  # defined for all module node classes
+            return super().__getattr__(item)
+        else:
+            field_ = self.get_field(item)
+            if field_ is not None:
+                return field_
+        raise AttributeError(f"{self} has no attribute {item}")
 
     @staticmethod
     def _resolve_unions(type: "Type", path: list[TypeBase]) -> None:

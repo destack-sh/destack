@@ -71,9 +71,6 @@ class Tracer:
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
         pass
 
-    def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
-        pass
-
     def remote_object_read(self, object: RemoteObject):
         pass
 
