@@ -216,10 +216,13 @@ class OpenAITextEmbeddingResponse:
 @_model(_openai_text, "ada", "text-embedding-ada-002")
 class OpenAITextEmbeddingModel(Model):
     async def _impl(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
+        was_list = isinstance(text, list)
+        if not was_list:
+            text = [text]
         rep = await openai.Embedding.acreate(
             input=text, model=self.external_name, api_key=self._key
         )
-        if text is not None:
+        if not was_list:
             vector = rep["data"][0]["embedding"]
         else:
             vector = [d["embedding"] for d in rep["data"]]

@@ -224,6 +224,8 @@ mypy-extensions==1.0.0
     # via typing-inspect
 nats-py==2.2.0
     # via -r requirements.in
+numpy==1.25.0
+    # via -r requirements.in
 oauthlib==3.2.2
     # via
     #   requests-oauthlib

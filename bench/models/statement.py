@@ -60,12 +60,8 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     )
 
     def __str__(self):
-        output_str = "output" if self.flags & TypeFlag.IsOutput else ""
-        array_str = "array" if self.flags & TypeFlag.IsArray else ""
-        nullable_str = "nullable" if self.flags & TypeFlag.IsNullable else ""
-        unioned_str = "unioned" if self.flags & TypeFlag.IsUnionWith else ""
-        flags_str = ", ".join([f for f in [output_str, array_str, nullable_str, unioned_str] if f])
-        flags_str = f" ({flags_str})" if flags_str else ""
+        flag_str = " ".join(flag.name.lower() for flag in TypeFlag if self.flags & flag)
+        flags_str = f" ({flag_str})" if flag_str else ""
         name_str = f"{self.name} " if self.name else ""
         return f"{self.statement} {name_str}{self.tag}{flags_str}"
 

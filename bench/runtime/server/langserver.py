@@ -15,7 +15,9 @@ from bench import models
 from bench.bench import HasType, Issue, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
+from bench.bench.model import get_execution_cache_key
 from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.type import instantiate_py_value, strip_py_value
 from bench.bench.wire import ExecutionFrameData, ModuleTree
 from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES
@@ -289,15 +291,26 @@ class LanguageServer:
         log = logger.bind(model=msg.p.model_path, msg=msg)
         log.debug("inference.run")
         try:
+            # remotely proxied inference if the worker doesn't have the required model api key
+            # we call the underlying model implementation directly (the worker does the tracing)
+            # :LibImplementation
             module = DEFAULT_MODULES[module_name]
             model = module.lookup(localized_path)
-            output = await model(**msg.p.inputs, timeout=msg.p.timeout)
+            cache_key = get_execution_cache_key(model.path, msg.p.inputs)
+            inputs = instantiate_py_value(msg.p.inputs, model, is_output=False)
+            output = await asyncio.wait_for(
+                asyncio.shield(model._inference(inputs, cache_key, log)), msg.p.timeout
+            )
             timeout = False
         except Exception as e:
             log.error("inference.exception", exc_info=True, sentry=sentry_capture_if_enabled(e))
             output = None
+            model = None
             timeout = isinstance(e, asyncio.TimeoutError)
-        await msg.reply(RepRunInferencePayload(output=output, timeout=timeout))
+        outputs = (
+            strip_py_value(output, model, is_output=True, ignore_outer_map=True) if output else None
+        )
+        await msg.reply(RepRunInferencePayload(outputs=outputs, timeout=timeout))
 
     @message_handler
     async def request_langserver(self, msg: NMessage[ReqLangserverPayload]):
@@ -510,14 +523,14 @@ class LanguageWorker:
         # resolved fields
         if old_module is None:
             interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
-        for symbol in new_module._statements_by_id.values():
-            if not isinstance(symbol, HasType):
+        for statement in new_module._statements_by_id.values():
+            old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
+            if not isinstance(statement, HasType) or not isinstance(old_statement, HasType):
                 continue
-            old_symbol = old_module._statements_by_id.get(symbol.id) if old_module else None
-            if old_symbol is None or old_symbol.resolved_fields != symbol.resolved_fields:
+            if old_statement is None or old_statement.resolved_fields != statement.resolved_fields:
                 if old_module is not None:
-                    interp_mut.truncate(symbol, MOT.RESOLVED_FIELD)
-                for resolved in symbol.resolved_fields:
+                    interp_mut.truncate(statement, MOT.RESOLVED_FIELD)
+                for resolved in statement.resolved_fields:
                     if isinstance(resolved, ResolvedField):
                         interp_mut.create(resolved)
         # issues
