@@ -11,11 +11,13 @@ from bench.bench.dataset import Dataset, DatasetView, Record, Value
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.issue import Issue, IssueType
 from bench.bench.model import Model
+from bench.bench.query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.remote import RemoteObject, Secret
 from bench.bench.task import Task
 from bench.bench.type import Field, HasType, ResolvedField, Type, TypeBase, TypeStorageFormat
 
 __all__ = [
+    "Aggregation",
     "Blank",
     "Code",
     "Dataset",
@@ -31,11 +33,17 @@ __all__ = [
     "IssueType",
     "Model",
     "Module",
+    "Q",
+    "Query",
+    "QueryOp",
     "Record",
     "RemoteObject",
     "ResolvedField",
     "Scope",
     "Secret",
+    "Sort",
+    "SortMode",
+    "SortOrder",
     "Statement",
     "Statement",
     "Task",

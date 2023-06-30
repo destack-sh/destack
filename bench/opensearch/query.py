@@ -5,10 +5,12 @@ from bench.bench.query import (
     ComparisonQuery,
     CompoundQuery,
     ExistenceQuery,
-    KnnQuery,
     Query,
     QueryOp,
     Sort,
+    SortMode,
+    SortOrder,
+    VectorQuery,
 )
 
 
@@ -82,9 +84,9 @@ class ExistenceQueryCompiler(Compiler):
             raise RuntimeError(f"unexpected query: {query}")
 
 
-@compiler(KnnQuery)
-class KnnQueryCompiler(Compiler):
-    def compile(self, query: KnnQuery) -> dict[str, Any]:
+@compiler(VectorQuery)
+class VectorQueryCompiler(Compiler):
+    def compile(self, query: VectorQuery) -> dict[str, Any]:
         if query.approximate:
             return {"knn": {query.key: {"vector": query.value}}}
         else:
@@ -93,10 +95,22 @@ class KnnQueryCompiler(Compiler):
 
 @compiler(Sort)
 class SortCompiler(Compiler):
+    SORT_ORDERS = {
+        SortOrder.ASCENDING: "asc",
+        SortOrder.DESCENDING: "desc",
+    }
+    SORT_MODES = {
+        SortMode.MIN: "min",
+        SortMode.MAX: "max",
+        SortMode.AVERAGE: "avg",
+        SortMode.MEDIAN: "median",
+        SortMode.SUM: "sum",
+    }
+
     def compile(self, sort: Sort) -> dict[str, Any]:
-        props = {"order": sort.order.value}
+        props = {"order": self.SORT_ORDERS[sort.order]}
         if sort.mode:
-            props["mode"] = sort.mode.value
+            props["mode"] = self.SORT_MODES[sort.mode]
         return {sort.key: props}
 
 

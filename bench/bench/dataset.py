@@ -227,28 +227,28 @@ class Search:
 
     def __init__(self, dataset: Dataset, query: Query, sort: list[Sort], limit: Optional[int]):
         self.dataset = dataset
-        self.query = query
-        self.sort = sort
-        self.limit = limit
+        self._query = query
+        self._sort = sort
+        self._limit = limit
         # cache
         self._total: Optional[int] = None
 
     def __str__(self):
-        return f"{self.dataset} {self.query or '<no query>'} {self.sort or '<no sort>'} limit={self.limit or '<no limit>'}"
+        return f"{self.dataset} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
 
     def __repr__(self):
-        return f"<SearchResult {self}>"
+        return f"<Search {self}>"
 
     def filter(self, query: Query) -> Search:
-        return Search(self.dataset, query.filter(query), self.sort, self.limit)
+        return Search(self.dataset, query.filter(query), self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> Search:
         if isinstance(sort, Sort):
             sort = [sort]
-        return Search(self.dataset, self.query, sort, self.limit)
+        return Search(self.dataset, self._query, sort, self._limit)
 
     def limit(self, limit: int) -> Search:
-        return Search(self.dataset, self.query, self.sort, limit)
+        return Search(self.dataset, self._query, self._sort, limit)
 
     async def _do_search(
         self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
@@ -261,15 +261,17 @@ class Search:
             ReqSearchDatasetPayload,
         )
 
-        batch_limit = min(SEARCH_RESULT_BATCH_SIZE, limit or self.limit or SEARCH_RESULT_BATCH_SIZE)
+        batch_limit = min(
+            SEARCH_RESULT_BATCH_SIZE, limit or self._limit or SEARCH_RESULT_BATCH_SIZE
+        )
         rep: NMessage[RepSearchDatasetPayload] = await request(
             NMessageType.REQUEST_SEARCH_DATASET,
             ReqSearchDatasetPayload(
                 module_id=self.dataset.module.id,
                 statement_id=self.dataset.id,
                 backend_id=self.dataset.backend_id,
-                query=self.query,
-                sort=self.sort,
+                query=self._query,
+                sort=self._sort,
                 after=after,
                 limit=batch_limit,
                 count=count,
@@ -288,7 +290,7 @@ class Search:
         from bench.bench import wire
 
         after = None
-        remaining_limit = self.limit
+        remaining_limit = self._limit
         while remaining_limit is None or remaining_limit > 0:
             rep = self.dataset.session.async_to_sync(self._do_search)(
                 after=after, limit=remaining_limit
@@ -322,7 +324,7 @@ class Search:
         from bench.bench import wire
 
         after = None
-        remaining_limit = self.limit
+        remaining_limit = self._limit
         while remaining_limit is None or remaining_limit > 0:
             rep = await self._do_search(after=after, limit=remaining_limit)
             if len(rep.payload.records) == 0:
@@ -350,6 +352,7 @@ class Search:
             return self._total
         rep = self.dataset.session.async_to_sync(self._do_search)(limit=0, count=True)
         self._total = rep.payload.total
+        return self._total
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given function."""
@@ -422,6 +425,7 @@ class Value(Statement, HasType, IsExpectable):
         HasType._clear(self)
         if self._instantiated:
             self.value = self._raw_value()
+            self._instantiated = False
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)

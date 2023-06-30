@@ -303,6 +303,10 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
             return f"{self.key}-{self.storage_format.value}"
 
     @property
+    def source_key(self) -> str:
+        return "value." + self.typed_key
+
+    @property
     def resolved_fields(self) -> list["Field"]:
         if isinstance(self.reference, Type):
             return self.reference.fields

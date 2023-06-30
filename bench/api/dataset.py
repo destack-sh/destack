@@ -272,7 +272,7 @@ AggregationOp = gql.enum(query.AggregationOp)
 @gql.input
 class DatasetSort:
     key: str
-    order: SortOrder = SortOrder.ASC
+    order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
 
     def to_dsl(self) -> query.Sort:

@@ -9,7 +9,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
-import { humanizeNumber, useNow } from "@/composables/useNow";
+import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql, useFragment } from "@/gql";
 import {
@@ -235,6 +235,7 @@ const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
 const {
   loading: recordsLoading,
   result: recordsFetchedResult,
+  error: recordsError,
   refetch,
   fetchMore,
 } = useQuery(SEARCH_QUERY, toValueRef(searchQueryVariables), {
@@ -248,7 +249,9 @@ const recordsFetched = computed(
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node) ?? []
 );
-const loading = computed(() => recordsFetchedResult.value == null || recordsLoading.value);
+const loading = computed(
+  () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
+);
 
 const recordsInView = computed(
   () =>
@@ -825,7 +828,7 @@ defineExpose({
       class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
     >
       <span class="">{{ context.allFields.value.find((f) => sort.key.includes(f.key))?.name }}</span>
-      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Asc ? "↑" : "↓" }}</span>
+      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
       <!-- Clear button -->
       <button @click="removeSort(sort)">
         <XMarkIcon class="h-3 w-3 text-gray-400" />
@@ -1014,6 +1017,15 @@ defineExpose({
         </div>
       </div>
       <!-- Bottom actions -->
+      <!-- Failed to load -->
+      <button
+        v-if="!loading && recordsError != null"
+        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] bg-red-100 px-1 py-1 text-red-500 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        :style="{ height: minRowHeight + 'px' }"
+        @click.stop="refetch()"
+      >
+        <XCircleIcon class="h-4 w-4" /> <span class="font-bold">Failed to load</span>: {{ recordsError.message }}
+      </button>
       <!-- Load more/loading -->
       <button
         v-if="pageInfo?.hasNextPage"

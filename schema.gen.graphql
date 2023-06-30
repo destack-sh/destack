@@ -195,7 +195,7 @@ input DatasetQuery {
 
 input DatasetSort {
   key: String!
-  order: SortOrder! = ASC
+  order: SortOrder! = ASCENDING
   mode: SortMode = null
 }
 
@@ -1545,14 +1545,14 @@ input SecretUpdateInput {
 enum SortMode {
   MAX
   MIN
-  AVG
+  AVERAGE
   SUM
   MEDIAN
 }
 
 enum SortOrder {
-  ASC
-  DESC
+  ASCENDING
+  DESCENDING
 }
 
 type Statement implements CrudModel & ModuleNode & Node {

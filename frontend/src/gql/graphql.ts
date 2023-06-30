@@ -1832,7 +1832,7 @@ export type SecretUpdateInput = {
 };
 
 export enum SortMode {
-  Avg = "AVG",
+  Average = "AVERAGE",
   Max = "MAX",
   Median = "MEDIAN",
   Min = "MIN",
@@ -1840,8 +1840,8 @@ export enum SortMode {
 }
 
 export enum SortOrder {
-  Asc = "ASC",
-  Desc = "DESC",
+  Ascending = "ASCENDING",
+  Descending = "DESCENDING",
 }
 
 export type Statement = CrudModel &

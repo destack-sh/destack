@@ -7,6 +7,8 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
+from bench.bench.query import SubfieldType
+
 
 class FieldType(enum.StrEnum):
     """
@@ -103,7 +105,7 @@ class Field:
     """
 
     type: FT
-    fields: dict[FieldType, "Field"] = None
+    fields: dict[SubfieldType, "Field"] = None
     properties: dict[str, "Field"] = None
     meta: dict[str, str] = None
     index: bool = None  # default: true
@@ -358,7 +360,24 @@ if typing.TYPE_CHECKING:
     document = dataclasses.dataclass  # noqa
 
 
+class Tokenizer(enum.StrEnum):
+    # built in
+    STANDARD = "standard"
+    LETTER = "letter"
+    LOWERCASE = "lowercase"
+    WHITESPACE = "whitespace"
+    UAX_URL_EMAIL = "uax_url_email"
+    CLASSIC = "classic"
+    THAI = "thai"
+    # custom
+    CHAR = "char"
+
+
+CUSTOM_TOKENIZERS = {Tokenizer.CHAR: {"type": "char_group", "tokenize_on_chars": []}}
+
+
 class Analyzer(enum.StrEnum):
+    # built in
     STANDARD = "standard"
     SIMPLE = "simple"
     WHITESPACE = "whitespace"
@@ -367,10 +386,15 @@ class Analyzer(enum.StrEnum):
     PATTERN = "pattern"
     LANGUAGE = "language"
     FINGERPRINT = "fingerprint"
+    # custom
     HTML = "html"
+    CHAR_COUNT = "char_count"
 
 
-ANALYZERS = {Analyzer.HTML: {"tokenizer": "standard", "char_filter": ["html_strip"]}}
+CUSTOM_ANALYZERS = {
+    Analyzer.HTML: {"tokenizer": "standard", "char_filter": ["html_strip"]},
+    Analyzer.CHAR_COUNT: {"tokenizer": Tokenizer.CHAR},
+}
 
 
 class IndexType(enum.StrEnum):
