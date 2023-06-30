@@ -373,7 +373,13 @@ class Tokenizer(enum.StrEnum):
     CHAR = "char"
 
 
-CUSTOM_TOKENIZERS = {Tokenizer.CHAR: {"type": "char_group", "tokenize_on_chars": []}}
+CUSTOM_TOKENIZERS = {
+    # TODO @Performance: character length by tokenizing each character seems pretty inefficient
+    #  (even though this isn't actually stored or indexed directly, just the count)
+    # Maybe this should just be a user-side scripted field, but we don't have those yet.
+    # Would also be nice later for quantized vector fields.
+    Tokenizer.CHAR: {"type": "char_group", "tokenize_on_chars": [], "max_token_length": 1}
+}
 
 
 class Analyzer(enum.StrEnum):
@@ -393,7 +399,9 @@ class Analyzer(enum.StrEnum):
 
 CUSTOM_ANALYZERS = {
     Analyzer.HTML: {"tokenizer": "standard", "char_filter": ["html_strip"]},
-    Analyzer.CHAR_COUNT: {"tokenizer": Tokenizer.CHAR},
+    Analyzer.CHAR_COUNT: {
+        "tokenizer": Tokenizer.CHAR,
+    },
 }
 
 

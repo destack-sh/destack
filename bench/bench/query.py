@@ -444,10 +444,14 @@ class FieldQueryOps:
         _check_supports_subfield(self, SubfieldType.token_count)
         return self._subfield("token_count", TypeTag.NUMBER, TypeHint.INTEGER)
 
+    word_count = token_count  # for convenience
+
     @property
     def char_count(self) -> Subfield:
         _check_supports_subfield(self, SubfieldType.char_count)
         return self._subfield("char_count", TypeTag.NUMBER, TypeHint.INTEGER)
+
+    length = char_count  # for convenience
 
 
 @dataclass
