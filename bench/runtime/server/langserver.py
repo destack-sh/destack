@@ -11,12 +11,13 @@ import structlog
 from asgiref.sync import sync_to_async
 from django.db.models import Q
 
-from bench import models
+from bench import bench, models
 from bench.bench import HasType, Issue, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.model import get_execution_cache_key
 from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.query import QueryOp
 from bench.bench.type import instantiate_py_value, strip_py_value
 from bench.bench.wire import ExecutionFrameData, ModuleTree
 from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
@@ -53,6 +54,7 @@ from bench.msg.messages import (
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
+from bench.opensearch.query import compile_to_os
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -211,21 +213,23 @@ class LanguageServer:
     async def search_dataset(self, msg: NMessage[ReqSearchDatasetPayload]) -> None:
         logger.debug("dataset.search", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
-        # TODO @Broken: don't ignore source query/sort/aggregations
         project_version = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        base_filter = [
-            {"term": {"dataset_id": msg.p.backend_id}},
-            {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
-        ]
-        query = {
-            "bool": {"filter": base_filter},
-        }
-        sort = msg.p.sort or [{"_id": "asc"}]
+        combined_query = bench.Q(
+            bench.QueryOp.AND,
+            queries=[
+                bench.Q(QueryOp.EQUALS, key="dataset_id", value=msg.p.backend_id),
+                ~bench.Q(QueryOp.EXISTS, key="deleted_at"),
+            ],
+        )
+        if msg.p.query is not None:
+            combined_query &= msg.p.query
+        compiled_query = compile_to_os(combined_query)
+        compiled_sort = compile_to_os(msg.p.sort) if msg.p.sort else [{"_id": "asc"}]
         effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
         search = {
             "size": effective_limit,
-            "query": query,
-            "sort": sort,
+            "query": compiled_query,
+            "sort": compiled_sort,
             "track_total_hits": msg.p.count,
             "version": True,
         }
@@ -518,9 +522,10 @@ class LanguageWorker:
 
         # check for any interp changes
         interp_mut = ModuleMutator(new_source)
+
+        # resolved fields
         # prune existing interp data from mut tree to track changes
         interp_mut.tree.prune(wire.ResolvedFieldData)
-        # resolved fields
         if old_module is None:
             interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
         for statement in new_module._statements_by_id.values():

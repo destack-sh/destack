@@ -12,30 +12,38 @@ from bench.bench.const import TypeHint, TypeTag
 #
 
 
+class SubfieldType(enum.StrEnum):
+    # :QuerySubfields
+    key = "key"
+    starts_with = "starts_with"
+    token_count = "token_count"
+    char_count = "char_count"
+
+
 class QueryOp(enum.StrEnum):
     # logical
-    NOT = "not"
-    AND = "and"
-    OR = "or"
+    NOT = "NOT"
+    AND = "AND"
+    OR = "OR"
     # comparison
-    EQUALS = "eq"
-    NOT_EQUALS = "neq"
-    GREATER_THAN = "gt"
-    GREATER_THAN_OR_EQUALS = "gte"
-    LESS_THAN = "lt"
-    LESS_THAN_OR_EQUALS = "lte"
+    EQUALS = "EQUALS"
+    NOT_EQUALS = "NOT_EQUALS"
+    GREATER_THAN = "GREATER_THAN"
+    GREATER_THAN_OR_EQUALS = "GREATER_THAN_OR_EQUALS"
+    LESS_THAN = "LESS_THAN"
+    LESS_THAN_OR_EQUALS = "LESS_THAN_OR_EQUALS"
     # string comparison
-    MATCHES = "matches"
-    STARTS_WITH = "starts_with"
+    MATCHES = "MATCHES"
+    STARTS_WITH = "STARTS_WITH"
     # existence
-    EXISTS = "exists"
-    DOES_NOT_EXIST = "does_not_exist"
+    EXISTS = "EXISTS"
+    DOES_NOT_EXIST = "DOES_NOT_EXIST"
     # xy
-    INTERSECTS = "intersects"
-    DISJOINT = "disjoint"
-    WITHIN = "within"
+    INTERSECTS = "INTERSECTS"
+    DISJOINT = "DISJOINT"
+    WITHIN = "WITHIN"
     # knn
-    NEAR = "near"
+    NEAR = "NEAR"
 
 
 _QUERIES: dict[QueryOp, type[Query]] = {}
@@ -71,6 +79,12 @@ class Query:
 
     def filter(self, other):
         return Q(QueryOp.AND, queries=[self, other])
+
+    @staticmethod
+    def cls_from_attrs(d: dict[str, Any]) -> type[Query]:  # see :WireFormat
+        op = QueryOp(d["op"])
+        cls = _QUERIES[op]
+        return cls
 
 
 @query(QueryOp.NOT, QueryOp.AND, QueryOp.OR)
@@ -127,8 +141,8 @@ class ExistenceQuery(Query):
             return Q(QueryOp.EXISTS, key=self.key)
 
 
-@query(QueryOp.NEAR)
-class KnnQuery(Query):
+@query()
+class VectorQuery(Query):
     key: str
     value: list[float]
     approximate: bool = True
@@ -163,28 +177,29 @@ class MetricAggregation(Aggregation):
 
 
 class SortOrder(enum.StrEnum):
-    ASC = "asc"
-    DESC = "desc"
+    ASCENDING = "ASCENDING"
+    DESCENDING = "DESCENDING"
 
 
 class SortMode(enum.StrEnum):
-    MAX = "max"
-    MIN = "min"
-    AVG = "avg"
-    SUM = "sum"
-    MEDIAN = "median"
+    MAX = "MAX"
+    MIN = "MIN"
+    AVERAGE = "AVERAGE"
+    SUM = "SUM"
+    MEDIAN = "MEDIAN"
 
 
 @dataclass
 class Sort:
     key: str
-    order: SortOrder = SortOrder.ASC
+    order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
 
 
+# TODO @Robustness @UX: check which query ops are actually available for the field
 class FieldQueryOps:
     name: Optional[str]
-    typed_key: Optional[str]
+    source_key: Optional[str]
     tag: TypeTag
     hint: Optional[TypeHint]
     metadata: dict[str, Any]
@@ -193,9 +208,11 @@ class FieldQueryOps:
         from bench.bench.type import Field
 
         if isinstance(value, Field):
-            if value.tag == TypeTag.ENUM:
+            if value.tag == TypeTag.LITERAL:  # for enum members
                 value = value.key
             else:
+                # prevent confusion since this doesn't translate to a valid query
+                # we could make it evaluate to actual comparison but that's even more confusing
                 raise TypeError(f"cannot compare a field to a non-literal field: {self} == {value}")
         return value
 
@@ -205,46 +222,46 @@ class FieldQueryOps:
         value = self._strip_value(value)
         if value is None:
             return self.not_exists()
-        return Q(QueryOp.EQUALS, self.typed_key, value)
+        return Q(QueryOp.EQUALS, self.source_key, value)
 
     def __eq__(self, other):
         return self.equals(other)
 
     def not_equal(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.NOT_EQUALS, self.typed_key, value)
+        return Q(QueryOp.NOT_EQUALS, self.source_key, value)
 
     def __ne__(self, other):
         return self.not_equal(other)
 
     def in_(self, *values: list[Any]) -> Query:
         values = [self._strip_value(value) for value in values]
-        return Q(QueryOp.EQUALS, self.typed_key, values)
+        return Q(QueryOp.EQUALS, self.source_key, values)
 
     def greater_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN, self.typed_key, value)
+        return Q(QueryOp.GREATER_THAN, self.source_key, value)
 
     def __gt__(self, other):
         return self.greater_than(other)
 
     def greater_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self.typed_key, value)
+        return Q(QueryOp.GREATER_THAN_OR_EQUALS, self.source_key, value)
 
     def __ge__(self, other):
         return self.greater_than_or_equals(other)
 
     def less_than(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN, self.typed_key, value)
+        return Q(QueryOp.LESS_THAN, self.source_key, value)
 
     def __lt__(self, other):
         return self.less_than(other)
 
     def less_than_or_equals(self, value: Any) -> Query:
         value = self._strip_value(value)
-        return Q(QueryOp.LESS_THAN_OR_EQUALS, self.typed_key, value)
+        return Q(QueryOp.LESS_THAN_OR_EQUALS, self.source_key, value)
 
     def __le__(self, other):
         return self.less_than_or_equals(other)
@@ -252,26 +269,81 @@ class FieldQueryOps:
     # string comparison
 
     def matches(self, value: str) -> Query:
-        return Q(QueryOp.MATCHES, self.typed_key, value)
+        return Q(QueryOp.MATCHES, self.source_key, value)
 
     def contains(self, value: str) -> Query:
-        return Q(QueryOp.MATCHES, self.typed_key, value)
+        return Q(QueryOp.MATCHES, self.source_key, value)
 
     def starts_with(self, value: str) -> Query:
-        return Q(QueryOp.STARTS_WITH, self.typed_key, value)
+        return Q(QueryOp.STARTS_WITH, self.source_key, value)
 
     # existence
 
     def exists(self) -> Query:
-        return Q(QueryOp.EXISTS, self.typed_key)
+        return Q(QueryOp.EXISTS, self.source_key)
 
     def not_exists(self) -> Query:
-        return Q(QueryOp.DOES_NOT_EXIST, self.typed_key)
+        return Q(QueryOp.DOES_NOT_EXIST, self.source_key)
+
+    # xy
+
+    # (not yet)
+
+    # knn
+
+    def near(self, value: list[float], approximate: bool = True) -> Query:
+        return Q(QueryOp.NEAR, self.source_key, value, approximate=approximate)
 
     # sort
 
     def asc(self) -> Sort:
-        return Sort(self.typed_key, SortOrder.ASC)
+        return Sort(self.source_key, SortOrder.ASCENDING)
 
     def desc(self) -> Sort:
-        return Sort(self.typed_key, SortOrder.DESC)
+        return Sort(self.source_key, SortOrder.DESCENDING)
+
+    # subfields and properties
+    # we could probably auto generate these.... maybe when we get to checking available ops
+
+    def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
+        return Subfield(
+            parent=self,
+            name=name,
+            tag=tag,
+            hint=hint,
+            source_key=self.source_key + "." + name,
+        )
+
+    @property
+    def name(self) -> Subfield:
+        return self._subfield("name", TypeTag.STRING, TypeHint.NAME)
+
+    @property
+    def content_length(self) -> Subfield:
+        return self._subfield("content_length", TypeTag.NUMBER, TypeHint.INTEGER)
+
+    @property
+    def content_type(self) -> Subfield:
+        return self._subfield("content_type", TypeTag.STRING, TypeHint.KEY)
+
+    @property
+    def status(self) -> Subfield:
+        return self._subfield("status", TypeTag.STRING, TypeHint.KEY)
+
+    @property
+    def token_count(self) -> Subfield:
+        return self._subfield("token_count", TypeTag.NUMBER, TypeHint.INTEGER)
+
+    @property
+    def char_count(self) -> Subfield:
+        return self._subfield("char_count", TypeTag.NUMBER, TypeHint.INTEGER)
+
+
+@dataclass
+class Subfield(FieldQueryOps):
+    parent: FieldQueryOps
+    name: str
+    source_key: str
+    tag: TypeTag
+    hint: Optional[TypeHint]
+    metadata: dict[str, Any] = None

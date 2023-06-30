@@ -6,6 +6,7 @@ import bench.bench.type
 import bench.opensearch.core as os
 from bench.bench import TypeHint, TypeTag
 from bench.bench.const import TypeFlag
+from bench.bench.query import SubfieldType
 from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
@@ -106,17 +107,23 @@ class VectorFieldMapper(FieldMapper):
 register_mapper(
     os.Field(
         os.FT.TEXT,
-        fields={os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD)},
+        # :QuerySubfields
+        fields={
+            SubfieldType.token_count: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD),
+            SubfieldType.char_count: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.CHAR_COUNT),
+        },
     ),
     tags=[TypeTag.STRING],
 )
 register_mapper(
     os.Field(
         os.FT.TEXT,
+        # :QuerySubfields
         fields={
-            os.FT.KEYWORD: os.Field(os.FT.KEYWORD),
-            os.FT.SEARCH_AS_YOU_TYPE: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
-            os.FT.TOKEN_COUNT: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD),
+            SubfieldType.key: os.Field(os.FT.KEYWORD),
+            SubfieldType.starts_with: os.Field(os.FT.SEARCH_AS_YOU_TYPE),
+            SubfieldType.token_count: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.STANDARD),
+            SubfieldType.char_count: os.Field(os.FT.TOKEN_COUNT, analyzer=os.Analyzer.CHAR_COUNT),
         },
         copy_to="name",  # :RecordNameField
     ),

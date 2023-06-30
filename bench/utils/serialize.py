@@ -80,8 +80,10 @@ def from_dict(
     elif dataclasses.is_dataclass(cls):
         if not isinstance(data, dict):
             raise TypeError(f"expected dict, got {type(data)} in {data}")
-        fields = _prepare_dataclass_fields(cls)
+        if hasattr(cls, "cls_from_attrs"):
+            cls = cls.cls_from_attrs(data)  # hack until :WireFormat
         # first pass: create object while skipping not required fields
+        fields = _prepare_dataclass_fields(cls)
         if hasattr(cls, "decode_some_attrs"):
             deserialized = cls.decode_some_attrs(data)  # hack until :WireFormat
         else:

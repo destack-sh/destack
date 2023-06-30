@@ -31,11 +31,5 @@ function onDrop(files: File[] | any) {
       class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-200 transition duration-150"
       :class="[isOverDropZone && !bench.readonly ? 'opacity-100' : 'opacity-0']"
     />
-    <div v-if="!bench.readonly" class="justify-left relative flex align-top opacity-0 group-hover:opacity-100">
-      <!-- too noisy -->
-      <!-- <span class="rounded-sm bg-white p-0.5 px-2 text-gray-500 hover:bg-orange-100">
-        <PlusIcon class="h-4 w-4" aria-hidden="true" />
-      </span> -->
-    </div>
   </button>
 </template>

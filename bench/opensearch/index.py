@@ -76,7 +76,10 @@ def _create_index(
 ) -> None:
     fields = {**DEFAULT_FIELDS, **_collect_fields(documents)}
     mappings = {field_name: field.to_dict() for field_name, field in fields.items()}
-    analyzers = {analyzer.value: definition for analyzer, definition in os.ANALYZERS.items()}
+    tokenizers = {
+        tokenizer.value: definition for tokenizer, definition in os.CUSTOM_TOKENIZERS.items()
+    }
+    analyzers = {analyzer.value: definition for analyzer, definition in os.CUSTOM_ANALYZERS.items()}
     logger.info(
         "os.create_index",
         index_name=index_name,
@@ -89,7 +92,7 @@ def _create_index(
         body={
             "settings": {
                 "index": {"number_of_shards": shards, "number_of_replicas": replicas, "knn": True},
-                "analysis": {"analyzer": analyzers},
+                "analysis": {"tokenizer": tokenizers, "analyzer": analyzers},
                 "mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}},
             },
             "mappings": {"dynamic": "strict", "properties": mappings},

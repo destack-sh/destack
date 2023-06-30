@@ -328,7 +328,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: [],
     enabled: computed(() => file.value != null && navigatingFile.value),
     apply: () => {
-      const roots = statementsByParentId.value[""];
+      const roots = statementsByParentId.value[file.value?.file.id];
       const firstRootKey = roots?.[0]?.orderKey ?? INTEGER_ZERO;
       const newStatement = _insertOptimisticBlank(null, generateKeyBetween(null, firstRootKey));
       editor.value?.editElement(newStatement as StatementHeader);
@@ -340,7 +340,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: [],
     enabled: computed(() => file.value != null && navigatingFile.value),
     apply: () => {
-      const roots = statementsByParentId.value[""];
+      const roots = statementsByParentId.value[file.value?.file.id];
       const lastRootKey = roots?.slice(-1)[0].orderKey ?? INTEGER_ZERO;
       const newStatement = _insertOptimisticBlank(null, generateKeyBetween(lastRootKey, null));
       editor.value?.editElement(newStatement as StatementHeader);
