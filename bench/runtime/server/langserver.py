@@ -468,6 +468,10 @@ class LanguageWorker:
         return ModuleMutator(self.module)
 
     async def on_module_changed(self, mutations: list[ModuleMutation]):
+        is_semantic = any(m.type.semantic for m in mutations)
+        if not is_semantic:
+            # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
+            return
         mutator = ModuleMutator(self.source, mutations)
         new_source = mutator.to_module()
         await self.do_interp(new_source)

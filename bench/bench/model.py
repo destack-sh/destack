@@ -53,8 +53,10 @@ class Model(Statement, HasType):
         self._remote = self._key is None
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
-        cache_key = get_execution_cache_key(self.path, inputs)
+        inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
+        cache_key = get_execution_cache_key(self.path, inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
+        log.debug("inference.enter.pre")
 
         # try to read from cache if enabled
         if cache is not False and self.session.cache_inferences:
@@ -69,7 +71,7 @@ class Model(Statement, HasType):
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     self.session.tracer.inference_cached(self, inputs, inference)
                     check_type(outputs, self, is_output=True)
-                    return outputs
+                    return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
                     log.warning("inference.cache.error", e=e, excinfo=e)
                     # ignore and continue, will be overwritten
@@ -88,7 +90,7 @@ class Model(Statement, HasType):
             try:
                 req = ReqRunInferencePayload(
                     model_path=self.path,
-                    inputs=(strip_py_value(inputs, self, is_output=False)),
+                    inputs=(inputs_raw),
                     timeout=timeout,
                 )
                 rep: NMessage[RepRunInferencePayload] = await request(
@@ -157,7 +159,11 @@ class Model(Statement, HasType):
                 outputs=strip_py_value(output, self, is_output=True, ignore_outer_map=True),
             )
             await redis.set(cache_key, inference.to_json_bytes(), ex=INFERENCE_CACHE_EXPIRY)
-        log.debug("inference.exit", ret=describe_type(output), write_to_cache=write_to_cache)
+        log.debug(
+            "inference.exit",
+            ret=describe_type(output),
+            write_to_cache_key=cache_key if write_to_cache else None,
+        )
         return output
 
     async def _impl(self, **kwargs) -> Any:

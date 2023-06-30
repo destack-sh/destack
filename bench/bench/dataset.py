@@ -212,7 +212,7 @@ class Dataset(Statement, HasType, IsExpectable):
         return aiter(self.search())
 
 
-SEARCH_RESULT_BATCH_SIZE = 100
+SEARCH_RESULT_BATCH_SIZE = 400
 
 MapFunction = typing.Callable[[Record], typing.Union[Record, dict]]
 BatchMapFunction = typing.Callable[[list[Record]], list[typing.Union[Record, dict]]]

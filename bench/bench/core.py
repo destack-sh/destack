@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import contextvars
 import enum
 import re
@@ -779,7 +780,7 @@ class SessionBase(abc.ABC):
         raise NotImplementedError
 
 
-SESSION_MUTATION_FLUSH_WATERMARK = 200
+SESSION_MUTATION_FLUSH_WATERMARK = 500
 
 
 class Session:
@@ -822,6 +823,7 @@ class Session:
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+        self._pending_flushes: list[tuple[int, typing.Awaitable[bool]]] = []
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -884,14 +886,7 @@ class Session:
         active_session.set(self)
         logger.debug("session.open", session=self)
 
-    async def aflush(self):
-        """Flushes all module mutations."""
-        if not self.mutator.mutations:
-            return
-        if self.mode == SessionMode.READ_ONLY:
-            raise RuntimeError(f"cannot mutate read-only session {self}")
-        logger.debug("session.flush", session=self, mutator=self.mutator)
-        mutations = self.mutator.bundle().compact()
+    async def _do_flush(self, mutations: list["ModuleMutation"]) -> bool:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.write(mutations)
         if not success:
@@ -902,28 +897,50 @@ class Session:
             raise RuntimeError(
                 f"failed to write {len(self.mutator.mutations)} mutations {mutations_str}"
             )
-        logger.debug("session.flush.done", session=self)
+        logger.debug("session.flush.done", session=self, mutator=self.mutator)
+
+    async def aflush(self, optimistic: bool = False):
+        """
+        Flushes all module mutations.
+        If optimistic, this will return before the flush is complete (but will wait on close).
+        """
+        if not self.mutator.mutations:
+            return
+        if self.mode == SessionMode.READ_ONLY:
+            raise RuntimeError(f"cannot mutate read-only session {self}")
+        logger.debug("session.flush", session=self, mutator=self.mutator, optimistic=optimistic)
+        mutations = self.mutator.bundle().compact()
         self.mutator.reset()
+        flush = self._do_flush(mutations)
+        if optimistic:
+            self._pending_flushes.append((len(mutations), asyncio.create_task(flush)))
+        else:
+            await flush
 
-    def flush(self):
-        async_to_sync(self.aflush)()
+    def flush(self, optimistic: bool = False):
+        async_to_sync(self.aflush)(optimistic=optimistic)
 
-    async def aclose(self, flush: bool = True):
+    async def aclose(self):
         """Closes the session, flushing any mutations and preventing further execution/mutation."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = datetime.now()
-        if flush:
-            await self.aflush()
+        await self.aflush(optimistic=True)
+        # await all pending flushes
+        pending_mutations_count = sum(count for count, _ in self._pending_flushes)
+        logger.debug(
+            "session.close.pending", session=self, pending_mutations_count=pending_mutations_count
+        )
+        await asyncio.gather(*(task for _, task in self._pending_flushes))
         active_session.set(None)
         logger.debug("session.close", session=self)
 
-    def close(self, flush: bool = True):
-        async_to_sync(self.aclose)(flush=flush)
+    def close(self):
+        async_to_sync(self.aclose)()
 
     def _on_mutated(self, mutator: "ModuleMutator", mutation: "ModuleMutation"):
         if len(self.mutator.mutations) > SESSION_MUTATION_FLUSH_WATERMARK:
-            self.flush()
+            self.flush(optimistic=True)
 
     async def __aenter__(self):
         self.open()
