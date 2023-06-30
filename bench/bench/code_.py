@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import ast
-import asyncio
 import itertools
 import textwrap
 import typing
@@ -14,6 +13,7 @@ from more_itertools import first, last
 from bench.bench.const import TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.expect import IsExpectable
+from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.type import HasType
 from bench.utils.func import describe_type
 from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
@@ -58,7 +58,7 @@ class Code(Statement, HasType, IsExpectable):
 
         # parse and resolve code references
         input_idents = {input.py_ident for input in self.inputs}
-        self._parse = parse_code(self.code)
+        self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._references = {}
         for key, reference in self._parse.references.items():
@@ -156,7 +156,130 @@ AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., Any]
 
 
-def parse_code(code: str | None) -> "CodeParse":
+def instantiate_callable(
+    code: Code, session: Session
+) -> tuple[CodeTransformation, Callable[..., Any]]:
+    """Instantiates code into a Python callable in the context of the session."""
+
+    context = {**code._references}
+    if not code._parse.is_async:
+        # replace any async functions with sync versions
+        for key, symbol in context.items():
+            from bench.bench import Task
+
+            if isinstance(symbol, (Code, Task)) and symbol._is_async:
+                context[key] = symbol.to_sync()
+
+    dynamic_context = {
+        "session": session,
+        "context": {symbol.name: symbol for symbol in context.values()},  # by name
+        **context,  # inlined
+        "random": Random(code.id.hex.encode()),
+    }
+
+    if code.language == "python":
+        python_code = code.code or "pass"
+        locals = {**STATIC_BUILTINS, **dynamic_context}
+    else:
+        raise ValueError(f"unexpected code language: {code}")
+
+    # stub fake lines
+    python_code_lines = python_code.splitlines()
+    for i in code._parse.fake_line_numbers:
+        python_code_lines[i] = "pass # " + python_code_lines[i]
+    python_code = "\n".join(python_code_lines)
+
+    # create python function from python code
+    input_keys = [i.name for i in code.inputs]
+    func_name = f"{to_pyidentifier(code.name, IdentifierType.METHOD)}_{code.id.hex[:6]}"
+    async_str = "async " if code._parse.is_async else ""
+    func_params = ", ".join(to_pyidentifier(key, IdentifierType.VARIABLE) for key in input_keys)
+    indented_code = textwrap.indent(python_code, " " * 4)
+    try:
+        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
+        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
+    except SyntaxError as e:
+        # raise error in code when called for proper reporting
+        raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {e.args[1][3]!r})"
+        indented_raise = textwrap.indent(raise_str, " " * 4)
+        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
+        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
+
+    transform = CodeTransformation(
+        original_code=code.code,
+        transformed_code=method_str,
+        start_offset=1,  # for method signature
+        method_name=func_name,
+    )
+    return transform, callable
+
+
+STATIC_BUILTINS: dict[str, Any] = {
+    # primitive types
+    "string": str,
+    "text": str,
+    "number": float,
+    "boolean": bool,
+    # querying
+    "Q": Q,
+    "Query": Query,
+    "QueryOp": QueryOp,
+    "Sort": Sort,
+    "SortOrder": SortOrder,
+    "SortMode": SortMode,
+    # functional builtins
+    "first": first,
+    "last": last,
+    "chain": itertools.chain,
+}
+DYNAMIC_BUILTINS: set[str] = {"session", "random"}
+ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
+
+
+def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
+    # remember the globals we started with, do not modify originals
+    if not ALLOW_UNTRUSTED_CODE:
+        raise RuntimeError("untrusted code execution is disabled")
+    globals_local = {**globals}
+    globals_local_keys_initial = {*globals_local.keys()}
+    exec(code, globals_local)
+    new_globals = {
+        k: v
+        for k, v in globals_local.items()
+        if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
+    }
+    return new_globals
+
+
+async def run(
+    code: Code,
+    arguments: dict[str, Any] | None,
+    session: "Session",
+    is_trusted: bool = False,
+) -> Any:
+    from bench.bench.execution import RunError, RunErrorKind
+
+    if not is_trusted and not ALLOW_UNTRUSTED_CODE:
+        raise RunError(RunErrorKind.UNTRUSTED, code)
+    # transform keys to valid python identifiers
+    arguments = {
+        to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
+    }
+    try:
+        # set current session
+        session.open()
+        if not code._is_async:
+            code = code.to_async()
+        ret = await code(**arguments)
+        await session.aclose()
+        return ret
+    except Exception as e:
+        raise RunError(
+            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), statement_id=code.id
+        ) from e
+
+
+def _parse_code(code: str | None) -> "CodeParse":
     """
     Extracts references and other info for Bench from the Python code.
     TODO @Architecture @Cleanup: remove manual code parsing, integrate into LSP/Jedi stuff
@@ -256,7 +379,7 @@ def parse_code(code: str | None) -> "CodeParse":
             if (
                 node.id not in self.local_variables
                 and node.id not in self.imports
-                and node.id not in PYTHON_BUILTINS
+                and node.id not in _PYTHON_BUILTINS
                 and node.id not in STATIC_BUILTINS
                 and node.id not in DYNAMIC_BUILTINS
             ):
@@ -346,7 +469,7 @@ def parse_code(code: str | None) -> "CodeParse":
     )
 
 
-PYTHON_BUILTINS = {
+_PYTHON_BUILTINS = {
     "abs",
     "aiter",
     "all",
@@ -434,123 +557,3 @@ PYTHON_BUILTINS = {
     "Ellipsis",
     "__import__",
 }
-
-
-def instantiate_callable(
-    code: Code, session: Session
-) -> tuple[CodeTransformation, Callable[..., Any]]:
-    """Instantiates code into a Python callable in the context of the session."""
-
-    context = {**code._references}
-    if not code._parse.is_async:
-        # replace any async functions with sync versions
-        for key, symbol in context.items():
-            from bench.bench import Task
-
-            if isinstance(symbol, (Code, Task)) and symbol._is_async:
-                context[key] = symbol.to_sync()
-
-    dynamic_context = {
-        "session": session,
-        "context": {symbol.name: symbol for symbol in context.values()},  # by name
-        **context,  # inlined
-        "random": Random(code.id.hex.encode()),
-    }
-
-    if code.language == "python":
-        python_code = code.code or "pass"
-        locals = {**STATIC_BUILTINS, **dynamic_context}
-    else:
-        raise ValueError(f"unexpected code language: {code}")
-
-    # stub fake lines
-    python_code_lines = python_code.splitlines()
-    for i in code._parse.fake_line_numbers:
-        python_code_lines[i] = "pass # " + python_code_lines[i]
-    python_code = "\n".join(python_code_lines)
-
-    # create python function from python code
-    input_keys = [i.name for i in code.inputs]
-    func_name = f"{to_pyidentifier(code.name, IdentifierType.METHOD)}_{code.id.hex[:6]}"
-    async_str = "async " if code._parse.is_async else ""
-    func_params = ", ".join(to_pyidentifier(key, IdentifierType.VARIABLE) for key in input_keys)
-    indented_code = textwrap.indent(python_code, " " * 4)
-    try:
-        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
-        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
-    except SyntaxError as e:
-        # raise error in code when called for proper reporting
-        raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {e.args[1][3]!r})"
-        indented_raise = textwrap.indent(raise_str, " " * 4)
-        method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
-        callable = do_execute_arbitrary_code(method_str, locals)[func_name]
-
-    transform = CodeTransformation(
-        original_code=code.code,
-        transformed_code=method_str,
-        start_offset=1,  # for method signature
-        method_name=func_name,
-    )
-    return transform, callable
-
-
-STATIC_BUILTINS: dict[str, Any] = {
-    # primitive type builtins
-    "string": str,
-    "text": str,
-    "number": float,
-    "boolean": bool,
-    # library builtins
-    "asyncio": asyncio,
-    # functional builtins
-    "itertools": itertools,
-    "more_itertools": itertools,
-    "first": first,
-    "last": last,
-    "chain": itertools.chain,
-}
-DYNAMIC_BUILTINS: set[str] = {"session", "random"}
-ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
-
-
-def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
-    # remember the globals we started with, do not modify originals
-    if not ALLOW_UNTRUSTED_CODE:
-        raise RuntimeError("untrusted code execution is disabled")
-    globals_local = {**globals}
-    globals_local_keys_initial = {*globals_local.keys()}
-    exec(code, globals_local)
-    new_globals = {
-        k: v
-        for k, v in globals_local.items()
-        if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
-    }
-    return new_globals
-
-
-async def run(
-    code: Code,
-    arguments: dict[str, Any] | None,
-    session: "Session",
-    is_trusted: bool = False,
-) -> Any:
-    from bench.bench.execution import RunError, RunErrorKind
-
-    if not is_trusted and not ALLOW_UNTRUSTED_CODE:
-        raise RunError(RunErrorKind.UNTRUSTED, code)
-    # transform keys to valid python identifiers
-    arguments = {
-        to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
-    }
-    try:
-        # set current session
-        session.open()
-        if not code._is_async:
-            code = code.to_async()
-        ret = await code(**arguments)
-        await session.aclose()
-        return ret
-    except Exception as e:
-        raise RunError(
-            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), statement_id=code.id
-        ) from e

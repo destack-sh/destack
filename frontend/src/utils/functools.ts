@@ -101,3 +101,7 @@ export function randomHexString(length = 6): string {
     .toString(16)
     .substring(2, length + 2);
 }
+
+export function getUUIDFromGlobalID(globalId: string): string {
+  return atob(globalId).split(":")[1];
+}

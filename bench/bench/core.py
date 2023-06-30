@@ -641,7 +641,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     @property
     def py_ident(self) -> str:
-        return to_pyidentifier(self.name, IdentifierType.VARIABLE)
+        return to_pyidentifier(self.name or "", IdentifierType.VARIABLE)
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -895,7 +895,13 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.write(mutations)
         if not success:
-            raise RuntimeError(f"failed to write mutations {self.mutator.mutations}")
+            if len(self.mutator.mutations) > 20:
+                mutations_str = f"{self.mutator.mutations[:10]} ... {self.mutator.mutations[-10:]}"
+            else:
+                mutations_str = self.mutator.mutations
+            raise RuntimeError(
+                f"failed to write {len(self.mutator.mutations)} mutations {mutations_str}"
+            )
         logger.debug("session.flush.done", session=self)
         self.mutator.reset()
 

@@ -104,14 +104,21 @@ def _create_index(
         if not upsert:
             raise IndexError(f"failed to create index {index_name}: {result}")
         logger.info("os.create_index.upsert", index_name=index_name)
+        # close index
+        os_client.indices.close(index=index_name)
         # update mutable settings
         os_client.indices.put_settings(
             index=index_name,
-            body={"mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}}},
+            body={
+                "analysis": {"tokenizer": tokenizers, "analyzer": analyzers},
+                "mapping": {"total_fields": {"limit": BENCH_MAPPING_TOTAL_FIELDS_LIMIT}},
+            },
         )
         os_client.indices.put_mapping(
             index=index_name, body={"dynamic": "strict", "properties": mappings}
         )
+        # reopen index
+        os_client.indices.open(index=index_name)
 
 
 def create_global_index(name: str = None, upsert: bool = False) -> None:
@@ -150,7 +157,7 @@ def write_mutations_to_os(
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
-    All regular DB mutations come this way (records are stored only in OS).
+    All regular DB mutations come this way (records values are stored in OS only).
     """
     global_index = IndexType.GLOBAL.get_index_name()
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
@@ -173,7 +180,9 @@ def write_mutations_to_os(
                 mutations=len(mutations),
                 operations=len(ops),
             )
-            os_client.bulk(ops, refresh="wait_for" if wait else False)
+            ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
+            if ret.get("errors"):
+                raise RuntimeError(f"failed to write mutations to OpenSearch: {ret['items'][:5]}")
 
         if field_mappings_dirty[0]:  # if needed, must happen before any other mutations
             update_dynamic_field_mappings(project_v)
@@ -235,18 +244,18 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     value_mappings = {}
     inputs_mappings = {}
     outputs_mappings = {}
-    for symbol in module._statements_by_id.values():
-        if symbol.errors:
+    for statement in module._statements_by_id.values():
+        if not isinstance(statement, lang.HasType) or statement.resolved_fields is None:
             continue  # ignore symbols with issues
-        elif isinstance(symbol, lang.Dataset):
+        elif isinstance(statement, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
-            for field in symbol.resolved_fields:
+            for field in statement.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field).to_dict()
-        elif isinstance(symbol, (lang.Task, lang.Code)):
+        elif isinstance(statement, (lang.Task, lang.Code)):
             # inputs into Execution.inputs, outputs into Execution.outputs
-            for field in symbol.inputs:
+            for field in statement.inputs:
                 inputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
-            for field in symbol.outputs:
+            for field in statement.outputs:
                 outputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
 
     logger.info(

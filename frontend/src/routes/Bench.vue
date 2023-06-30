@@ -70,6 +70,7 @@ import {
   type Ref,
 } from "vue";
 import { useRouter } from "vue-router";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 
 const props = defineProps<{
   owner: string;
@@ -476,8 +477,13 @@ onBeforeUnmount(() => {
           <span v-else class="truncate p-1 text-sm font-bold">
             {{ props.project }}
           </span>
-          <!-- Branch info -->
-          <!-- not yet -->
+          <div
+            v-if="bench.debug && bench.projectId && bench.projectVersionId"
+            class="left-18 absolute top-7 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
+          >
+            <span class="select-all">{{ getUUIDFromGlobalID(bench.projectId) }}</span> /
+            <span class="select-all">{{ getUUIDFromGlobalID(bench.projectVersionId) }}</span>
+          </div>
           <!-- Version info (if not at head) -->
           <FadeTransition>
             <div

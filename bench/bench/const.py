@@ -109,6 +109,27 @@ class TypeFlag(enum.IntFlag):
     IsArrayable = 2**6
 
 
+class TypeStorageFormat(enum.StrEnum):
+    """
+    The fundamental form of a field/type.
+    Since we're using OpenSearch for our user data backend, this
+    needs to be compatible with OpenSearch's field types.
+    However, be mindful of other future storage backends.
+    :TypeStorageFormat
+    """
+
+    STRING = "str"
+    DOUBLE = "f64"
+    LONG = "s64"
+    VECTOR = "vec"
+    BINARY = "bin"
+    BOOLEAN = "bool"
+    DATE = "date"
+    KEYWORD = "key"
+    OBJECT = "obj"
+    RELATION = "rel"
+
+
 class RemoteObjectStatus(enum.StrEnum):
     PREPARED = "prepared"
     UPLOADING = "uploading"
