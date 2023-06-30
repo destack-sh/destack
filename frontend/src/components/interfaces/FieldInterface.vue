@@ -138,19 +138,19 @@ const actions: Ref<TypeAction[]> = computed(() => {
     });
     if (props.isView) {
       // TODO @UX: support filter and sort via subfields if available (and default to it if native sort is unavailable)
-      const canSort = NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat.value);
+      const canSort = storageFormat.value != null && NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat.value);
       actions.push({
         groupId: "query",
         label: "Sort ascending",
         icon: ArrowUpIcon,
-        action: () => emit("sort", SortOrder.Asc),
+        action: () => emit("sort", SortOrder.Ascending),
         disabled: !canSort,
       });
       actions.push({
         groupId: "query",
         label: "Sort descending",
         icon: ArrowDownIcon,
-        action: () => emit("sort", SortOrder.Desc),
+        action: () => emit("sort", SortOrder.Descending),
         disabled: !canSort,
       });
       actions.push({
