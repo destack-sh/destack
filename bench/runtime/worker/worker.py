@@ -59,7 +59,7 @@ logger = structlog.get_logger(__name__)
 
 
 def create_wrapped_task(coro, task_id: str = None):
-    asyncio.create_task(wrap_task(coro, task_id))
+    return asyncio.create_task(wrap_task(coro, task_id))
 
 
 @dataclass(repr=False, slots=True)
@@ -114,19 +114,24 @@ class ModuleWorker:
         self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
     async def do_write(self, mutations: list[ModuleMutation]) -> bool:
-        self.log.debug("module.write")
-        new_source = ModuleMutator(self.module, mutations).to_module()
-        # interp and write in parallel
-        self.source = new_source
+        # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
+        is_semantic = any(m.type.semantic for m in mutations)
+        self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
+
+        # interp
+        if is_semantic:
+            new_source = ModuleMutator(self.module, mutations).to_module()
+            self.source = new_source
+            self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
+
         req = ReqWriteModulePayload(
             module_id=self.module_id,
             mutations=mutations,
             client=self.master.client,
             wait=False,
         )
-        self.module, rep = await asyncio.gather(
-            sync_to_async(Module.interp_from)(new_source, session=None),
-            request(NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload),
+        rep: NMessage[RepWriteModulePayload] = await request(
+            NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload
         )
         return rep.p.success
 
@@ -344,6 +349,10 @@ class SandboxedWorker:
             # ignore if we don't have a worker for this module
             return
         if not msg.p.has_origin(self.client.id):
+            is_semantic = any(m.type.semantic for m in msg.p.mutations)
+            if not is_semantic:
+                # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
+                return
             worker = await self._get_ready_worker(msg.p.module_id)
             await worker.do_interp_on_change(msg.p.mutations)
 

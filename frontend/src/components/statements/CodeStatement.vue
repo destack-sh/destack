@@ -7,7 +7,7 @@ import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { EXECUTION_TERMINAL_STATES, useExecutions } from "@/state/executions";
+import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/executions";
 import { newExecutionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -22,6 +22,7 @@ import {
   ArrowDownRightIcon,
   ArrowUpRightIcon,
 } from "@heroicons/vue/24/outline";
+import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -204,9 +205,10 @@ defineExpose({
     </div>
     <!-- Meta info & controls -->
     <div
-      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      class="group/info flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || executionActive ? '' : 'opacity-0'"
     >
+      <!-- Execution time -->
       <span
         :class="[
           lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
@@ -215,6 +217,23 @@ defineExpose({
       >
         {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
       </span>
+      <!-- Cache info -->
+      <span v-if="lastExecution != null && isMostlyCached(lastExecution as any)" class="relative mr-0.5 py-1">
+        <BoltIcon class="h-3 w-3 text-orange-500" />
+        <span
+          v-if="lastExecution.duration != null && lastExecution.cachedDuration != null"
+          class="invisible absolute -right-10 z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/info:visible"
+        >
+          Cached
+          {{ now.getTimeFromNowString(lastExecution.cachedGeneratedAt) }} ago<br />
+          <template v-if="getCachedPercentage(lastExecution) > 0">
+            Saved {{ getCachedPercentage(lastExecution).toFixed() }}% (~{{
+              formatDurationSeconds((lastExecution.cachedDuration - lastExecution.duration) * 1000)
+            }})
+          </template>
+        </span>
+      </span>
+      <!-- Age -->
       <span
         :class="[
           lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',

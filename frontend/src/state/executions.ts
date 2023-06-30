@@ -191,3 +191,15 @@ function _useModuleExecutions() {
 }
 
 export const useModuleExecutions = createSharedComposable(_useModuleExecutions);
+
+export function isMostlyCached(execution: { duration?: number; cachedDuration?: number }) {
+  return (
+    execution.duration != null &&
+    execution.cachedDuration != null &&
+    execution.cachedDuration > execution.duration * 0.8
+  );
+}
+
+export function getCachedPercentage(execution: { duration?: number | null; cachedDuration?: number | null }) {
+  return 100 - ((execution.duration ?? 0) * 100) / (execution.cachedDuration ?? 0);
+}

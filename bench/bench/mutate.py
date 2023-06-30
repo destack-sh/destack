@@ -112,6 +112,10 @@ class ModuleMutationType(enum.StrEnum):
     def simple(self) -> bool:
         return self in SIMPLE_MUTATIONS
 
+    @property
+    def semantic(self) -> bool:
+        return self not in NON_SEMANTIC_MUTATIONS
+
 
 class ModuleMutationKind(enum.StrEnum):
     CREATE = "CREATE"
@@ -150,6 +154,21 @@ SIMPLE_MUTATIONS = {
     ModuleMutationType.CREATE_ISSUE,
     ModuleMutationType.TRUNCATE_RESOLVED_FIELDS,
     ModuleMutationType.CREATE_RESOLVED_FIELD,
+}
+
+NON_SEMANTIC_MUTATIONS = {
+    # Bumps
+    ModuleMutationType.BUMP_FILE,
+    ModuleMutationType.BUMP_STATEMENT,
+    # Records
+    ModuleMutationType.TRUNCATE_RECORDS,
+    ModuleMutationType.CREATE_RECORD,
+    ModuleMutationType.UPDATE_RECORD,
+    ModuleMutationType.DELETE_RECORD,
+    # Value
+    ModuleMutationType.UPDATE_SYMBOL_VALUE,
+    # Text
+    ModuleMutationType.UPDATE_STATEMENT_TEXT,
 }
 
 MMT = ModuleMutationType

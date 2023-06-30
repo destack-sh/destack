@@ -560,20 +560,20 @@ def check_type(
             )
     elif expected.flags & TypeFlag.IsSecret:
         _check(isinstance(value, Secret), "expected secret")
-    elif expected.tag == TypeTag.STRING:
+    elif expected.effective_tag == TypeTag.STRING:
         _check(isinstance(value, str), "expected string")
-    elif expected.tag == TypeTag.NUMBER:
+    elif expected.effective_tag == TypeTag.NUMBER:
         _check(isinstance(value, (int, float)), "expected number")
-    elif expected.tag == TypeTag.BOOLEAN:
+    elif expected.effective_tag == TypeTag.BOOLEAN:
         _check(isinstance(value, bool), "expected boolean")
-    elif expected.tag == TypeTag.VECTOR:
+    elif expected.effective_tag == TypeTag.VECTOR:
         _check(isinstance(value, Collection), "expected vector")
         if value:
             _check(isinstance(value[0], float), "expected vector of numbers")
-    elif expected.tag == TypeTag.ENUM:
+    elif expected.effective_tag == TypeTag.ENUM:
         # assumes literal/value enums
         _check(any(member.name == value for member in expected.fields), "expected enum member")
-    elif expected.tag == TypeTag.STRUCT or expected.tag == TypeTag.FUNCTION:
+    elif expected.effective_tag == TypeTag.STRUCT or expected.effective_tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
         if _check(isinstance(value, Mapping), "expected struct"):
@@ -586,9 +586,9 @@ def check_type(
                     _check(bool(f.flags & TypeFlag.IsNullable), "expected non-nullable value")
                 else:
                     check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
-    elif expected.tag in (TypeTag.FILE,):
+    elif expected.effective_tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
-    elif expected.tag == TypeTag.UNION:
+    elif expected.effective_tag == TypeTag.UNION:
         for option in expected.fields:
             try:
                 check_type(value, option)
@@ -596,12 +596,10 @@ def check_type(
             except TypeError:
                 pass
         _check(False, "expected one of the union types")
-    elif expected.tag == TypeTag.NULL:
+    elif expected.effective_tag == TypeTag.NULL:
         _check(value is None, "expected null")
-    elif expected.tag == TypeTag.ANY:
+    elif expected.effective_tag == TypeTag.ANY:
         pass
-    elif expected.tag == TypeTag.LITERAL:
-        _check(value == expected.value, "expected literal")
     else:
         raise RuntimeError(f"unexpected type {expected.tag}")
 

@@ -255,29 +255,29 @@ def fabricate_value(type: TypeBase, skip_array: bool = False, is_output: bool = 
         return [fabricate_value(type, skip_array=True)]
     if SAMPLE_BY_TYPE_HINT.get(type.hint) is not None:
         return SAMPLE_BY_TYPE_HINT[type.hint]
-    elif type.tag == TypeTag.STRING:
+    elif type.effective_tag == TypeTag.STRING:
         return "lorem ipsum"
-    elif type.tag == TypeTag.NUMBER:
+    elif type.effective_tag == TypeTag.NUMBER:
         return 42
-    elif type.tag == TypeTag.BOOLEAN:
+    elif type.effective_tag == TypeTag.BOOLEAN:
         return False
-    elif type.tag == TypeTag.ENUM:
+    elif type.effective_tag == TypeTag.ENUM:
         if len(type.fields) == 0:
             return None
         return type.fields[0].name
-    elif type.tag == TypeTag.STRUCT or type.tag == TypeTag.FUNCTION:
+    elif type.effective_tag == TypeTag.STRUCT or type.effective_tag == TypeTag.FUNCTION:
         return {
             subtype.name: fabricate_value(subtype)
             for subtype in type.fields
             if is_output is None or bool(subtype.flags & TypeFlag.IsOutput) == is_output
         }
-    elif type.tag == TypeTag.UNION:
+    elif type.effective_tag == TypeTag.UNION:
         return fabricate_value(type.fields[0])
-    elif type.tag == TypeTag.NULL:
+    elif type.effective_tag == TypeTag.NULL:
         return None
-    elif type.tag == TypeTag.LITERAL:
+    elif type.effective_tag == TypeTag.LITERAL:
         return type.name  # assumes enum string literals
-    elif type.tag == TypeTag.ANY:
+    elif type.effective_tag == TypeTag.ANY:
         return 42  # not sure what to do here
     else:
         raise RuntimeError(f"unexpected type {type.tag}")

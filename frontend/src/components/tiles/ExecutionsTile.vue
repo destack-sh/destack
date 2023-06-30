@@ -5,7 +5,7 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
-import { useExecutions } from "@/state/executions";
+import { useExecutions, isMostlyCached, getCachedPercentage } from "@/state/executions";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
   BoltIcon,
@@ -85,14 +85,6 @@ function isExpanded(executionId: string) {
   return expandedExecutionId.value == executionId;
 }
 
-function isMostlyCached(execution: { duration?: number; cachedDuration?: number }) {
-  return (
-    execution.duration != null &&
-    execution.cachedDuration != null &&
-    execution.cachedDuration > execution.duration * 0.8
-  );
-}
-
 function getStatusIcon(status: ExecutionStatus) {
   if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running) {
     return BusySpinnerIcon;
@@ -130,10 +122,6 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
       [ExecutionTriggerType.Scheduled]: "scheduled",
     }[execution.triggerType] ?? "by a ghost"
   );
-}
-
-function getCachedPercentage(execution: { duration?: number | null; cachedDuration?: number | null }) {
-  return 100 - ((execution.duration ?? 0) * 100) / (execution.cachedDuration ?? 0);
 }
 </script>
 <template>
@@ -191,7 +179,7 @@ function getCachedPercentage(execution: { duration?: number | null; cachedDurati
                     ? formatDurationSeconds(execution.duration * 1000)
                     : now.getTimeFromNowString(execution.startedAt)
                 }}
-                <!-- Cached info -->
+                <!-- Cached info :CacheInfo -->
                 <span v-if="isMostlyCached(execution as any)" class="relative px-0.5 py-1">
                   <BoltIcon class="h-3 w-3 text-orange-500" />
                   <span
