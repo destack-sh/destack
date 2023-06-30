@@ -1,20 +1,24 @@
 import enum
 from dataclasses import replace
 from datetime import datetime
-from typing import Any, Generic, Optional, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
-
-from django.db.models import Model
 
 import bench.opensearch.core as os
 from bench import models
 from bench.bench import StatementType, wire
+from bench.bench.query import SubfieldType
+
+if TYPE_CHECKING:
+    from django.db.models import Model
+else:
+    Model = object
 
 NAME_FIELD = os.Field(
     os.FT.TEXT,
     fields={
-        os.FieldType.SEARCH_AS_YOU_TYPE: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
-        os.FieldType.KEYWORD: os.Field(os.FieldType.KEYWORD),
+        SubfieldType.starts_with: os.Field(os.FieldType.SEARCH_AS_YOU_TYPE),
+        SubfieldType.key: os.Field(os.FieldType.KEYWORD),
     },
 )
 HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)

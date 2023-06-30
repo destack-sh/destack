@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import structlog
 from more_itertools import first
 
-from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeStorageFormat, TypeTag
 from bench.bench.core import (
     HasCrud,
     HasSession,
@@ -133,29 +133,6 @@ TYPE_TAG_BY_TYPE_HINT = {
     TypeHint.AUDIO: TypeTag.FILE,
 }
 
-
-class TypeStorageFormat(enum.StrEnum):
-    """
-    The fundamental form of a field/type.
-    Since we're using OpenSearch for our user data backend, this
-    needs to be compatible with OpenSearch's field types.
-    However, be mindful of other future storage backends.
-    :TypeStorageFormat
-    TODO @Architecture: consider consolidating type storage/tage/hint somehow
-    """
-
-    STRING = "str"
-    DOUBLE = "f64"
-    LONG = "s64"
-    VECTOR = "vec"
-    BINARY = "bin"
-    BOOLEAN = "bool"
-    DATE = "date"
-    KEYWORD = "key"
-    OBJECT = "obj"
-    RELATION = "rel"
-
-
 STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.STRING: TypeStorageFormat.STRING,
     TypeTag.JSON: TypeStorageFormat.OBJECT,
@@ -247,17 +224,17 @@ class TypeBase(abc.ABC):
     def has_field(self, name_or_key: str) -> bool:
         return self.get_field(name_or_key) is not None
 
-    def walk_type(self, path: list["TypeBase"] | None = None, include_references: bool = False):
+    def walk_type(self, path: list["UUID"] | None = None, include_references: bool = False):
         if path is None:
-            path = [self]
+            path = [self.id]
         else:
-            path = path + [self]
+            path = path + [self.id]
         yield self
         if include_references and self.reference:
             yield from self.reference.walk_type(path, include_references=include_references)
         if self.fields:
             for child in self.fields:
-                if child in path:
+                if child.id in path:
                     continue  # break cycles (allowed, but we don't want to traverse them)
                 yield from child.walk_type(path, include_references=include_references)
 
@@ -288,6 +265,9 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
 
     def __repr__(self):
         return f"<Field {self}>"
+
+    def __eq__(self, other):
+        return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
 
     @property
     def dimensions(self) -> int:

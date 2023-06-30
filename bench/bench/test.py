@@ -5,7 +5,7 @@ from uuid import UUID
 import pytest
 
 from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
-from bench.bench.code_ import parse_code
+from bench.bench.code_ import _parse_code
 from bench.bench.const import TypeFlag
 from bench.bench.core import (
     LookupBy,
@@ -20,7 +20,7 @@ from bench.utils.utils import IdentifierType, to_pyidentifier
 
 
 def test_extract_code_references():
-    analysis = parse_code(
+    analysis = _parse_code(
         """
 import asyncio
 await asyncio.sleep("ban")
@@ -39,7 +39,7 @@ my_lambda = lambda x: (p * 2 for p in x)
 
 
 def test_extract_code_references_shadowed():
-    analysis = parse_code(
+    analysis = _parse_code(
         """
 import os
 test.env = str(list(os.environ.keys()))
@@ -63,7 +63,7 @@ test.files = ",".join(file_paths[:50])
 
 
 def test_extract_code_references_imported():
-    analysis = parse_code(
+    analysis = _parse_code(
         """
 from x.symbolx.lib.nlp import EntityType
 from x.notion.sdk import Client as NotionClient
