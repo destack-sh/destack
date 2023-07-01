@@ -1,11 +1,9 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import ModifierCell from "@/components/statements/ModifierCell.vue";
 import SelectTypeInterface from "@/components/statements/ProtoStatementTypeCell.vue";
 import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
-import { useCurrentModule } from "@/state/module";
 import { useKeyModifier } from "@vueuse/core";
 import { useEditorContext, type StatementHeader } from "@/state/bench";
 
@@ -28,15 +26,6 @@ const gapRef: Ref<InstanceType<typeof SelectTypeInterface> | null> = ref(null);
 
 const altKeyState = useKeyModifier("Alt");
 const editor = useEditorContext();
-const module = useCurrentModule();
-
-function deleteModifierOrAbove() {
-  if (context.statement.value.modifier != null) {
-    context.setModifier(null);
-  } else {
-    context.tryDeleteLeft();
-  }
-}
 
 function openInEditor() {
   editor.editor.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
@@ -53,28 +42,13 @@ defineExpose({
 </script>
 <template>
   <div class="relative flex w-fit flex-row whitespace-nowrap">
-    <!-- Start trap -->
-    <EditableSpan
-      :model-value="''"
-      ref="startRef"
-      v-if="context.statement.value.modifier != null"
-      @navigate-up="context.navigateUp"
-      @navigate-down="emit('navigateDown')"
-      @navigate-right="gapRef?.focus()"
-      @delete-left="context.tryDeleteLeft"
-      @enter="context.insertAbove"
-      @escape="context.escape"
-      :readonly="context.readonly.value"
-    />
-    <!-- Modifier -->
-    <ModifierCell v-if="context.statement.value.modifier" class="mr-1.5" />
     <SelectTypeInterface
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="emit('navigateDown')"
       @navigate-left="startRef?.focus()"
       @navigate-right="nameRef?.focus()"
-      @delete-left="deleteModifierOrAbove"
+      @delete-left="context.tryDeleteLeft"
       @enter="context.insertAbove"
       @escape="context.escape"
     />

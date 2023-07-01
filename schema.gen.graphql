@@ -271,13 +271,6 @@ enum ExecutionTriggerType {
   SCHEDULED
 }
 
-"""A modifier to a Bench statement."""
-enum ExpectationModifier {
-  LIKE
-  UNLIKE
-  CHECK
-}
-
 type Field implements CrudModel & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -605,7 +598,6 @@ type Mutation {
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
-  updateSymbolModifier(input: StatementSetExpectationModifierInput!): StatementOperationInfo!
   updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
   updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
   updateSymbolValue(input: SymbolUpdateValueInput!): StatementOperationInfo!
@@ -1575,7 +1567,6 @@ type Statement implements CrudModel & ModuleNode & Node {
   orderKey: String!
   text: String
   dataset: Dataset
-  modifier: String
   rootTypeTag: TypeTag
   rootTypeFlags: Int
   fields(filters: FieldFilter): [Field!]!
@@ -1634,7 +1625,6 @@ input StatementCreateInput {
   type: StatementType!
   parentId: GlobalID = null
   commented: Boolean = null
-  modifier: ExpectationModifier = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
@@ -1680,11 +1670,6 @@ input StatementRestoreInput {
   id: GlobalID!
 }
 
-input StatementSetExpectationModifierInput {
-  id: GlobalID!
-  modifier: ExpectationModifier
-}
-
 input StatementSoftDeleteInput {
   id: GlobalID!
 }
@@ -1709,7 +1694,6 @@ input StatementUpdateInput {
   orderKey: String = null
   type: StatementType = null
   commented: Boolean = null
-  modifier: ExpectationModifier = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null

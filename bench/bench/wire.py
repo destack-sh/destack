@@ -15,7 +15,6 @@ from bench.bench import StatementType
 from bench.bench.const import (
     DatasetBackend,
     ExecutionTriggerType,
-    ExpectationModifier,
     RemoteObjectStatus,
     TypeFlag,
     TypeHint,
@@ -676,7 +675,6 @@ class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
 @dataclass
 class TaskData(StatementData):
     description: Optional[str]
-    modifier: Optional[ExpectationModifier]
 
 
 @node_packer(MOT.STATEMENT, TaskData, lang.Task)
@@ -693,7 +691,6 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
         return TaskData(
             **statement_data.__dict__,
             description=symbol.description,
-            modifier=symbol.modifier,
         )
 
     def unpack(
@@ -703,7 +700,6 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
         return lang.Task(
             **statement.__dict__,
             description=symbol.description,
-            modifier=symbol.modifier,
             fields=[],
         )
 
@@ -715,7 +711,6 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
 @dataclass
 class ExpectationData(StatementData):
     description: Optional[str]
-    modifier: Optional[ExpectationModifier]
     reference_id: Optional[UUID]
 
 
@@ -727,7 +722,6 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
         statement_data = super().pack(symbol)
         return ExpectationData(
             **statement_data.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             reference_id=symbol.reference.id
             if isinstance(symbol.reference, lang.Statement)
@@ -743,7 +737,6 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
         statement = super().unpack(symbol, parent, session)
         return lang.Expectation(
             **statement.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             reference=symbol.reference_id,
         )
@@ -755,7 +748,6 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
 
 @dataclass
 class CodeData(StatementData):
-    modifier: Optional[ExpectationModifier]
     language: Optional[str]
     code: Optional[str]
 
@@ -773,7 +765,6 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         statement_data = super().pack(symbol)
         return CodeData(
             **statement_data.__dict__,
-            modifier=symbol.modifier,
             language=symbol.language,
             code=symbol.code,
         )
@@ -784,7 +775,6 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         statement = super().unpack(symbol, parent, session)
         return lang.Code(
             **statement.__dict__,
-            modifier=symbol.modifier,
             fields=[],
             language=symbol.language,
             code=symbol.code,
@@ -828,7 +818,6 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
 class ValueData(StatementData):
     description: Optional[str]
     value: Optional[typing.Any]
-    modifier: Optional[ExpectationModifier]
 
 
 @node_packer(MOT.STATEMENT, ValueData, lang.Value)
@@ -844,7 +833,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
         statement_data = super().pack(symbol)
         return ValueData(
             **statement_data.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             value=symbol._raw_value(),
         )
@@ -855,7 +843,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
         statement = super().unpack(symbol, parent, session)
         return lang.Value(
             **statement.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             value=symbol.value,
             _instantiated=False,
@@ -869,7 +856,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 @dataclass
 class DatasetData(StatementData):
     description: Optional[str]
-    modifier: Optional[ExpectationModifier]
     versioned: bool
     backend: DatasetBackend
     backend_id: str
@@ -888,7 +874,6 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
         statement_data = super().pack(symbol)
         return DatasetData(
             **statement_data.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             versioned=symbol.versioned,
             backend=symbol.backend,
@@ -901,7 +886,6 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
         statement = super().unpack(symbol, parent, session)
         return lang.Dataset(
             **statement.__dict__,
-            modifier=symbol.modifier,
             description=symbol.description,
             versioned=symbol.versioned,
             fields=[],

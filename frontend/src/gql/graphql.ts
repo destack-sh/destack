@@ -283,13 +283,6 @@ export enum ExecutionTriggerType {
   Ui = "UI",
 }
 
-/** A modifier to a Bench statement. */
-export enum ExpectationModifier {
-  Check = "CHECK",
-  Like = "LIKE",
-  Unlike = "UNLIKE",
-}
-
 export type Field = CrudModel &
   ModuleNode &
   Node & {
@@ -659,7 +652,6 @@ export type Mutation = {
   updateStatementText: StatementOperationInfo;
   updateSymbolCode: StatementOperationInfo;
   updateSymbolDescription: StatementOperationInfo;
-  updateSymbolModifier: StatementOperationInfo;
   updateSymbolValue: StatementOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
@@ -939,10 +931,6 @@ export type MutationUpdateSymbolCodeArgs = {
 
 export type MutationUpdateSymbolDescriptionArgs = {
   input: SymbolUpdateDescriptionInput;
-};
-
-export type MutationUpdateSymbolModifierArgs = {
-  input: StatementSetExpectationModifierInput;
 };
 
 export type MutationUpdateSymbolValueArgs = {
@@ -1864,7 +1852,6 @@ export type Statement = CrudModel &
     lang?: Maybe<Scalars["String"]>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
-    modifier?: Maybe<Scalars["String"]>;
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     parent?: Maybe<ModuleNode>;
@@ -1939,7 +1926,6 @@ export type StatementCreateInput = {
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
   lang?: InputMaybe<Scalars["String"]>;
-  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
@@ -1985,11 +1971,6 @@ export type StatementRestoreInput = {
   id: Scalars["GlobalID"];
 };
 
-export type StatementSetExpectationModifierInput = {
-  id: Scalars["GlobalID"];
-  modifier?: InputMaybe<ExpectationModifier>;
-};
-
 export type StatementSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
@@ -2015,7 +1996,6 @@ export type StatementUpdateInput = {
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
   lang?: InputMaybe<Scalars["String"]>;
-  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey?: InputMaybe<Scalars["String"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
@@ -3203,7 +3183,6 @@ export type StatementHeaderFragment = {
   id: any;
   type: StatementType;
   revision: number;
-  modifier?: string | null;
   name?: string | null;
   commented: boolean;
   orderKey: string;
@@ -3248,7 +3227,6 @@ export type StatementContentFragment = {
   revision: number;
   name?: string | null;
   commented: boolean;
-  modifier?: string | null;
   orderKey: string;
   text?: string | null;
   lang?: string | null;
@@ -3319,7 +3297,6 @@ export type InterpStatementFragment = {
   id: any;
   type: StatementType;
   name?: string | null;
-  modifier?: string | null;
   revision: number;
   orderKey: string;
   rootTypeTag?: TypeTag | null;
@@ -3877,7 +3854,6 @@ export type CreateStatementMutationVariables = Exact<{
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
   type: StatementType;
-  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
@@ -3902,7 +3878,6 @@ export type CreateStatementMutation = {
         revision: number;
         name?: string | null;
         commented: boolean;
-        modifier?: string | null;
         orderKey: string;
         lang?: string | null;
         code?: string | null;
@@ -3934,7 +3909,6 @@ export type UpdateStatementMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   orderKey: Scalars["String"];
   type: StatementType;
-  modifier?: InputMaybe<ExpectationModifier>;
   name?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
@@ -3958,7 +3932,6 @@ export type UpdateStatementMutation = {
         revision: number;
         updatedAt: any;
         name?: string | null;
-        modifier?: string | null;
         orderKey: string;
         lang?: string | null;
         code?: string | null;
@@ -3995,20 +3968,6 @@ export type MorphStatementMutation = {
         rootTypeFlags?: number | null;
         lang?: string | null;
       };
-};
-
-export type UpdateExpectationModifierMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  modifier?: InputMaybe<ExpectationModifier>;
-}>;
-
-export type UpdateExpectationModifierMutation = {
-  __typename?: "Mutation";
-  updateSymbolModifier:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "Statement"; id: any; modifier?: string | null; revision: number };
 };
 
 export type MoveStatementMutationVariables = Exact<{
@@ -5165,7 +5124,6 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
-          { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
@@ -5315,7 +5273,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "commented" } },
-          { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
             kind: "Field",
@@ -5531,7 +5488,6 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "modifier" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           {
             kind: "Field",
@@ -10569,11 +10525,6 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10658,11 +10609,6 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "modifier" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
@@ -10724,7 +10670,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "commented" } },
-                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
                         kind: "Field",
@@ -10864,11 +10809,6 @@ export const UpdateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10938,11 +10878,6 @@ export const UpdateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "modifier" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
@@ -10999,7 +10934,6 @@ export const UpdateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       { kind: "Field", name: { kind: "Name", value: "lang" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
@@ -11136,77 +11070,6 @@ export const MorphStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MorphStatementMutation, MorphStatementMutationVariables>;
-export const UpdateExpectationModifierDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "updateExpectationModifier" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "ExpectationModifier" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "updateSymbolModifier" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "modifier" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "modifier" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "modifier" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<UpdateExpectationModifierMutation, UpdateExpectationModifierMutationVariables>;
 export const MoveStatementDocument = {
   kind: "Document",
   definitions: [

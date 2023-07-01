@@ -417,7 +417,6 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
         return wire.TaskData(
             **statement_data.__dict__,
             description=statement.description,
-            modifier=statement.modifier,
         )
 
     def unpack(
@@ -425,7 +424,6 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.modifier = data.modifier
         return statement
 
 
@@ -435,7 +433,6 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
         statement_data = super().pack(statement)
         return wire.ExpectationData(
             **statement_data.__dict__,
-            modifier=statement.modifier,
             description=statement.description,
             reference_id=statement.reference_id,
         )
@@ -444,7 +441,6 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
         self, data: wire.ExpectationData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
-        statement.modifier = data.modifier
         statement.description = data.description
         statement.reference_id = data.reference_id
         return parent
@@ -459,7 +455,6 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
         statement_data = super().pack(statement)
         return wire.CodeData(
             **statement_data.__dict__,
-            modifier=statement.modifier,
             language=statement.lang,
             code=statement.code,
         )
@@ -468,7 +463,6 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
         self, data: wire.CodeData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
-        statement.modifier = data.modifier
         statement.lang = data.language
         statement.code = data.code
         return statement
@@ -503,7 +497,6 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
         return wire.ValueData(
             **statement_data.__dict__,
             description=statement.description,
-            modifier=statement.modifier,
             value=statement.value or {},
         )
 
@@ -512,7 +505,6 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.modifier = data.modifier
         statement.value = data.value
         return statement
 
@@ -527,7 +519,6 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return wire.DatasetData(
             **statement_data.__dict__,
             description=statement.description,
-            modifier=statement.modifier,
             versioned=statement.dataset.versioned,
             backend=DatasetBackend(statement.dataset.backend),
             backend_id=statement.dataset.backend_id,
@@ -538,7 +529,6 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
     ) -> list[models.Statement | models.Dataset]:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.modifier = data.modifier
         statement.dataset = models.Dataset(
             id=uuid5(statement.id, "dataset"),
             versioned=data.versioned,

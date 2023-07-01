@@ -30,7 +30,6 @@ if TYPE_CHECKING:
 log = structlog.get_logger(__name__)
 
 StatementType = gql.enum(const.StatementType)
-ExpectationModifier = gql.enum(const.ExpectationModifier)
 
 
 @gql.django.filter(models.Field)
@@ -77,7 +76,6 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     text: auto
     # symbol contents
     dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
-    modifier: auto
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     fields: list[Field] = gql.django.field(filters=FieldFilter)
@@ -112,7 +110,6 @@ class StatementCreateInput:
     type: StatementType
     parent_id: Optional[GlobalID] = None
     commented: Optional[bool] = None
-    modifier: Optional[ExpectationModifier] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -131,7 +128,6 @@ class StatementUpdateInput(gql.NodeInput):
     order_key: Optional[str] = None
     type: Optional[StatementType] = None
     commented: Optional[bool] = None
-    modifier: Optional[ExpectationModifier] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -154,11 +150,6 @@ class StatementMorphInput(gql.NodeInput):
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
     lang: Optional[str] = None
-
-
-@gql.input
-class StatementSetExpectationModifierInput(gql.NodeInput):
-    modifier: Optional[ExpectationModifier]
 
 
 @gql.django.partial(models.Statement)
@@ -283,7 +274,6 @@ class StatementMutation:
             parent_statement=parent_statement,
             order_key=input.order_key,
             commented=input.commented,
-            modifier=input.modifier,
             root_type_tag=input.root_type_tag,
             root_type_flags=input.root_type_flags,
             description=input.description,
@@ -577,14 +567,6 @@ class FieldRestoreInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
-    @tracked_db_mutation(MMT.UPDATE_SYMBOL_MODIFIER)
-    def update_symbol_modifier(
-        self, input: StatementSetExpectationModifierInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.modifier = input.modifier
-        return statement
-
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
     def update_symbol_description(
         self, input: SymbolUpdateDescriptionInput
