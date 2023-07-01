@@ -910,6 +910,8 @@ export abstract class NavigableEditor extends Editor {
 export class FileEditor extends NavigableEditor {
   type = "file" as const;
   fileId: string;
+  foldedStatementContentIds?: string[] = [];
+  foldedStatementTreeIds?: string[] = [];
 
   constructor(file: { id: string; name: string }) {
     super("file", file.id + "-" + randomHexString(), file.name, file.name, null);
@@ -918,6 +920,19 @@ export class FileEditor extends NavigableEditor {
 
   resetId(): void {
     this.id = this.fileId + "-" + randomHexString();
+  }
+
+  isStatementContentFolded(statement: Pick<StatementHeader, "id">): boolean {
+    return this.foldedStatementContentIds?.includes(statement.id) ?? false;
+  }
+
+  toggleStatementContentFolded(statement: Pick<StatementHeader, "id">): void {
+    if (this.isStatementContentFolded(statement)) {
+      this.foldedStatementContentIds = this.foldedStatementContentIds?.filter((id) => id != statement.id);
+    } else {
+      this.foldedStatementContentIds = this.foldedStatementContentIds ?? [];
+      this.foldedStatementContentIds.push(statement.id);
+    }
   }
 
   updatePath(fileHeader: { id: string; name?: string | null }, module: ModuleIndex) {

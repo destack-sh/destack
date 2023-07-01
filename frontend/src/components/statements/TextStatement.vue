@@ -3,6 +3,8 @@ import TiptapEditor from "@/components/basic/TiptapEditor.vue";
 import { useStatementContext } from "@/state/statement";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
+const props = defineProps<{ folded?: boolean }>();
+
 const context = useStatementContext();
 const editorRef = ref<InstanceType<typeof TiptapEditor> | null>(null);
 const content: Ref<string> = ref(context.statement.value.code ?? "");

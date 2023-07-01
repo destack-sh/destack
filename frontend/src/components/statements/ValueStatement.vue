@@ -10,6 +10,7 @@ import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
+const props = defineProps<{ folded?: boolean }>();
 const context = useStatementContext();
 const ops = useOperations();
 
@@ -56,7 +57,7 @@ const actions = computed(() => {
 context.setCustomActions(actions);
 
 function focus(position: "first" | "last" = "first") {
-  if (position == "first") {
+  if (position == "first" || props.folded) {
     declarationRef.value?.focus();
   } else {
     if (addFieldRef.value != null) {
@@ -94,8 +95,13 @@ defineExpose({
 <template>
   <div>
     <div class="flex flex-row justify-between">
-      <div>
+      <div class="flex flex-row">
         <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+        <!-- Folded info -->
+        <!-- Folded info -->
+        <div v-if="folded" class="ml-1 text-gray-400">
+          <span>{{ context.allFields.value.length }} fields</span>
+        </div>
       </div>
       <div
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
@@ -110,6 +116,7 @@ defineExpose({
       </div>
     </div>
     <StructInterface
+      v-if="!folded"
       ref="gridRef"
       class="-mx-1 w-full table-fixed"
       :fields="context.allFields.value"
@@ -124,7 +131,7 @@ defineExpose({
       :active="context.focused.value"
       debounced
     />
-    <div class="mb-1">
+    <div v-if="!folded" class="mb-1">
       <!-- Add a field -->
       <button
         v-if="!context.readonly.value"

@@ -193,7 +193,9 @@ def instantiate_callable(
     input_keys = [i.name for i in code.inputs]
     func_name = f"{to_pyidentifier(code.name, IdentifierType.METHOD)}_{code.id.hex[:6]}"
     async_str = "async " if code._parse.is_async else ""
-    func_params = ", ".join(to_pyidentifier(key, IdentifierType.VARIABLE) for key in input_keys)
+    func_params = ", ".join(
+        to_pyidentifier(key, IdentifierType.VARIABLE) + "=None" for key in input_keys
+    )
     indented_code = textwrap.indent(python_code, " " * 4)
     try:
         method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
