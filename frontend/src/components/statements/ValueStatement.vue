@@ -11,6 +11,7 @@ import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon } from "@heroicons/vue/2
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
 const context = useStatementContext();
 const ops = useOperations();
 
@@ -95,13 +96,12 @@ defineExpose({
 <template>
   <div>
     <div class="flex flex-row justify-between">
-      <div class="flex flex-row">
+      <div class="flex flex-row items-baseline">
         <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
         <!-- Folded info -->
-        <!-- Folded info -->
-        <div v-if="folded" class="ml-1 text-gray-400">
+        <button v-if="folded" class="ml-1 px-0.5 text-gray-400 hover:bg-gray-100" @click="$emit('toggleFold')">
           <span>{{ context.allFields.value.length }} fields</span>
-        </div>
+        </button>
       </div>
       <div
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
