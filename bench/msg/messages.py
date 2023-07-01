@@ -296,11 +296,12 @@ class ReqSearchDatasetPayload:
 
 @payload(NMessageType.REPLY_SEARCH_DATASET)
 class RepSearchDatasetPayload:
-    records: list[RecordData]
+    records: Optional[list[RecordData]]
     total: int
     limit: int
     first_sort_key: Optional[list[typing.Any]] = None
     last_sort_key: Optional[list[typing.Any]] = None
+    error: Optional[str] = None
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)

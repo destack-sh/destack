@@ -14,6 +14,8 @@ import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
+
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -195,9 +197,9 @@ defineExpose({
         @navigate-up="context.navigateUp"
       />
       <!-- Folded info -->
-      <div v-if="folded" class="ml-1 text-gray-400">
+      <button v-if="folded" class="ml-1 rounded-sm px-0.5 text-gray-400 hover:bg-gray-100" @click="emit('toggleFold')">
         <span>{{ fieldsLength }} {{ isEnum ? "options" : "fields" }}</span>
-      </div>
+      </button>
     </div>
     <div class="flex flex-row">
       <InlineActions

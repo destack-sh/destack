@@ -15,6 +15,7 @@ defineProps<{
   isTyped: boolean;
   folded?: boolean;
 }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const bench = useBenchState();
 const editor = useEditorContext();
@@ -107,10 +108,14 @@ defineExpose({
         @navigate-right="typeRef?.focus"
       />
       <!-- Folded info -->
-      <div v-if="folded" class="ml-1 flex flex-row gap-1 text-gray-400">
+      <button
+        v-if="folded"
+        class="ml-1 flex flex-row gap-1 rounded-sm text-gray-400 hover:bg-gray-100"
+        @click="$emit('toggleFold')"
+      >
         <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
         <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
-      </div>
+      </button>
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"

@@ -235,27 +235,37 @@ class LanguageServer:
         }
         if msg.p.after:
             search["search_after"] = msg.p.after
-        results = os_client.search(
-            index=IndexType.BENCH.get_index_name(project_id=project_version.project_id), body=search
-        )
 
-        record_packer = mirror.get_node_packer(mirror.Record)
-        records: list[wire.RecordData] = []
-        for r in results["hits"]["hits"]:
-            doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
-            record = record_packer.pack(doc)
-            records.append(record)
-        first_sort_key = results["hits"]["hits"][0]["sort"] if records else None
-        last_sort_key = results["hits"]["hits"][-1]["sort"] if records else None
-        total = results["hits"]["total"]["value"] if msg.p.count else None
+        try:
+            results = os_client.search(
+                index=IndexType.BENCH.get_index_name(project_id=project_version.project_id),
+                body=search,
+            )
+            record_packer = mirror.get_node_packer(mirror.Record)
+            records: list[wire.RecordData] = []
+            for r in results["hits"]["hits"]:
+                doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
+                record = record_packer.pack(doc)
+                records.append(record)
+            rep = RepSearchDatasetPayload(
+                records=records,
+                total=(results["hits"]["total"]["value"] if msg.p.count else None),
+                limit=effective_limit,
+                first_sort_key=(results["hits"]["hits"][0]["sort"] if records else None),
+                last_sort_key=(results["hits"]["hits"][-1]["sort"] if records else None),
+            )
+        except Exception as e:
+            sentry_capture_if_enabled(e)
+            logger.error("dataset.search.failed", msg=msg, exc_info=True)
+            rep = RepSearchDatasetPayload(
+                records=None,
+                total=-1,
+                limit=effective_limit,
+                first_sort_key=None,
+                last_sort_key=None,
+                error=str(e),
+            )
 
-        rep = RepSearchDatasetPayload(
-            records=records,
-            total=total,
-            limit=effective_limit,
-            first_sort_key=first_sort_key,
-            last_sort_key=last_sort_key,
-        )
         await msg.reply(rep)
 
     @message_handler

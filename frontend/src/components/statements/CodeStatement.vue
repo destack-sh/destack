@@ -26,6 +26,7 @@ import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -208,11 +209,15 @@ defineExpose({
         @navigate-down="monacoRef?.focus ?? context.navigateDown"
       />
       <!-- Folded info -->
-      <div v-if="folded" class="ml-1 flex flex-row gap-1 text-gray-400">
+      <button
+        v-if="folded"
+        class="ml-1 flex flex-row gap-1 rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+        @click="emit('toggleFold')"
+      >
         <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
         <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
         <span>{{ numCodeLines }} lines</span>
-      </div>
+      </button>
     </div>
     <!-- Meta info & controls -->
     <div

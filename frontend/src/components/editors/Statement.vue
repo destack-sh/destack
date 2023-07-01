@@ -516,7 +516,13 @@ defineExpose({
         }"
       >
         <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
-        <component ref="statementRef" :is="rootCell.component" :folded="isContentFolded" v-bind="rootCell.props" />
+        <component
+          ref="statementRef"
+          :is="rootCell.component"
+          v-bind="rootCell.props"
+          :folded="isContentFolded"
+          @toggle-fold="toggleContentFold"
+        />
       </div>
       <!-- Gutter indicators on the right margin -->
       <div

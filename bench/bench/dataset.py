@@ -278,6 +278,8 @@ class Search:
             ),
             reply_t=RepSearchDatasetPayload,
         )
+        if rep.p.error:
+            raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
         return rep
 
     def __iter__(self) -> typing.Iterator[Record]:

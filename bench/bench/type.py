@@ -301,6 +301,14 @@ class ResolvedField(Field):
     field: Field = required_field()
 
 
+class _FieldAccessor:
+    def __init__(self, type: "HasType"):
+        self.type = type
+
+    def __getattr__(self, item: str):
+        return self.type.get_field(item)
+
+
 @node
 class HasType(TypeBase, StatementBase):
     """A symbol that has (but is not) a type"""
@@ -394,6 +402,10 @@ class HasType(TypeBase, StatementBase):
             if field_ is not None:
                 return field_
         raise AttributeError(f"{self} has no attribute {item}")
+
+    @property
+    def t(self):
+        return _FieldAccessor(self)
 
     @staticmethod
     def _resolve_unions(type: "Type", path: list[TypeBase]) -> None:

@@ -65,6 +65,7 @@ import { TypeTag } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
 
 const props = defineProps<{ folded?: boolean }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -747,9 +748,14 @@ defineExpose({
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
-      <span class="ml-1 text-gray-400">
-        {{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }} records
-      </span>
+      <button
+        class="ml-1 flex flex-row gap-1 text-gray-400"
+        :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
+        @click="$emit('toggleFold')"
+      >
+        <span v-if="folded">{{ context.allFields.value.length }} fields</span>
+        <span>{{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }} records</span>
+      </button>
     </div>
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
     <div
