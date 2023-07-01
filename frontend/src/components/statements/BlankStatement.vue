@@ -5,7 +5,7 @@ import { StatementType } from "@/gql/graphql";
 import { useStatementContext } from "@/state/statement";
 import { ref, type Ref } from "vue";
 
-defineProps<{ showDots?: boolean }>();
+defineProps<{ showDots?: boolean; folded?: boolean }>();
 
 const context = useStatementContext();
 

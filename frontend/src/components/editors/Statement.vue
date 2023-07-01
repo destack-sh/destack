@@ -1,10 +1,8 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import BlankStatement from "@/components/statements/BlankStatement.vue";
 import CodeStatement from "@/components/statements/CodeStatement.vue";
 import DatasetStatement from "@/components/statements/DatasetStatement.vue";
-import DeclarationCell from "@/components/statements/DeclarationCell.vue";
 import TaskStatement from "@/components/statements/TaskStatement.vue";
 import TextStatement from "@/components/statements/TextStatement.vue";
 import TypeStatement from "@/components/statements/TypeStatement.vue";
@@ -13,7 +11,7 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, useEditorContext, type StatementAction, type StatementHeader } from "@/state/bench";
+import { useBenchState, useEditorContext, type StatementAction, type StatementHeader, FileEditor } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
@@ -22,6 +20,8 @@ import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
+  ChevronDownIcon,
+  ChevronRightIcon,
   EllipsisVerticalIcon,
   PencilIcon,
   PlusIcon,
@@ -61,7 +61,18 @@ const isCommented = computed(() => statement.value?.commented || ancestors.value
 const isCommentish = computed(
   () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
 );
+const canContentFold = computed(
+  () => statement.value.type != StatementType.Blank && statement.value.type != StatementType.Text
+);
+const isContentFolded = computed(
+  () => !props.standalone && (editor.editor.value as FileEditor).isStatementContentFolded(statement.value)
+);
 const lineNumber = computed(() => (nav?.value?.statementPositions[statement.value.id] ?? -2) + 1);
+
+function toggleContentFold() {
+  if (props.standalone) return;
+  (editor.editor.value as FileEditor).toggleStatementContentFolded(statement.value);
+}
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
@@ -330,7 +341,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
   if (canOpenInStandaloneEditor.value) {
     actions.push({
-      groupId: "general",
+      groupId: "nav",
       label: "Open",
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
@@ -338,9 +349,16 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
         nav?.value?.editor.bench.openStatement(statement.value, { focus: true });
       },
     });
+    actions.push({
+      groupId: "nav",
+      label: isContentFolded.value ? "Expand" : "Fold",
+      icon: isContentFolded.value ? ChevronDownIcon : ChevronRightIcon,
+      disabled: !canContentFold.value,
+      action: () => toggleContentFold(),
+    });
   }
   actions.push({
-    groupId: "general",
+    groupId: "edit",
     label: "Rename",
     icon: PencilIcon,
     action: () => {
@@ -351,13 +369,13 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   if (!props.standalone) {
     // doesn't work in standalone editor because it needs file context right now
     actions.push({
-      groupId: "general",
+      groupId: "edit",
       label: "Duplicate",
       icon: Square2StackIcon,
       action: () => magic.duplicate(),
     });
     actions.push({
-      groupId: "general",
+      groupId: "edit",
       label: "Delete",
       icon: TrashIcon,
       action: () => magic.delete(),
@@ -420,7 +438,7 @@ defineExpose({
     >
       <!-- Left gutter -->
       <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-      <div class="absolute -left-1 top-0.5 z-[5]">
+      <div class="absolute -left-1 top-0.5">
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
@@ -462,6 +480,15 @@ defineExpose({
             >
               <PlusIcon class="h-4 w-4" />
             </button>
+            <!-- Fold / unfold content -->
+            <button
+              v-if="!standalone && canContentFold"
+              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+              :class="isActive ? 'opacity-100' : 'opacity-0'"
+              @click="toggleContentFold"
+            >
+              <component :is="isContentFolded ? ChevronRightIcon : ChevronDownIcon" class="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -489,14 +516,7 @@ defineExpose({
         }"
       >
         <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
-        <component
-          v-if="rootCell.component == DeclarationCell"
-          :is="rootCell.component"
-          ref="statementRef"
-          @navigate-up="magic.moveFocusUp"
-          @navigate-down="magic.moveFocusDown"
-        />
-        <component v-else ref="statementRef" :is="rootCell.component" v-bind="rootCell.props" />
+        <component ref="statementRef" :is="rootCell.component" :folded="isContentFolded" v-bind="rootCell.props" />
       </div>
       <!-- Gutter indicators on the right margin -->
       <div
@@ -539,7 +559,6 @@ defineExpose({
       <template v-if="inRootCellFocused">r*</template>
       <template v-if="isCommented">#</template>
       <span class="lowercase">
-        {{ statement.modifier }}
         {{ statement.type }}
         <template v-if="statement.type">{{ statement.type }}:</template>
       </span>

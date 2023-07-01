@@ -64,6 +64,8 @@ import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
 
+const props = defineProps<{ folded?: boolean }>();
+
 const context = useStatementContext();
 const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 15;
@@ -432,7 +434,9 @@ onStartTyping((e) => {
 });
 
 function focusDescriptionFromTop() {
-  if (description.value?.length > 0 || addingDescription.value) {
+  if (props.folded) {
+    context.navigateDown();
+  } else if (description.value?.length > 0 || addingDescription.value) {
     descriptionRef.value?.focus();
   } else {
     focusFirst();
@@ -716,7 +720,7 @@ const recordActions: RecordAction[] = [
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    if (position == "first") {
+    if (position == "first" || props.folded) {
       declarationRef.value?.focus();
     } else {
       (loadMoreRef.value ?? addRecordRef.value)?.focus();
@@ -743,9 +747,8 @@ defineExpose({
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
-      <!-- Only display total count if we know it (auto-set to -1 once we get sync events) -->
       <span class="ml-1 text-gray-400">
-        {{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }}
+        {{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }} records
       </span>
     </div>
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
@@ -799,6 +802,7 @@ defineExpose({
   </div>
   <!-- Description -->
   <EditableSpan
+    v-if="!folded"
     ref="descriptionRef"
     :class="addingDescription ? '' : 'h-0'"
     v-model="description"
@@ -810,7 +814,7 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="description.length == 0 && !context.readonly.value && addingDescription"
+    v-if="!folded && description.length == 0 && !context.readonly.value && addingDescription"
     @click="descriptionRef?.focus()"
     class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
@@ -818,7 +822,7 @@ defineExpose({
   </button>
   <!-- Sorts/filters -->
   <div
-    v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
+    v-if="(!folded && (properties.sorts ?? []).length > 0) || properties.query != null"
     class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
   >
     <!-- Sorts pill -->
@@ -838,6 +842,7 @@ defineExpose({
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div
+    v-if="!folded"
     ref="gridRef"
     class="overflow-x-auto"
     :style="{

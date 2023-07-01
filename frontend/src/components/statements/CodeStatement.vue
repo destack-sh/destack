@@ -8,7 +8,7 @@ import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/executions";
-import { newExecutionId } from "@/state/module";
+import { TypeFlag, newExecutionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
@@ -24,6 +24,8 @@ import {
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
+
+const props = defineProps<{ folded?: boolean }>();
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -50,6 +52,10 @@ const executions = useExecutions(
   },
   { root: true, limit: 3, live: true }
 );
+
+const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
+const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
+const numCodeLines = computed(() => code.value.split("\n").length);
 
 const lastExecutionLocal: Ref<Execution | null> = ref(null); // triggered in this client session
 const lastExecutionLocalId: Ref<string | null> = ref(null); // same but optimistic id
@@ -177,7 +183,7 @@ async function cancel() {
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    if (position == "first") {
+    if (position == "first" || props.folded) {
       declarationRef.value?.focus();
     } else {
       monacoRef.value?.focus(true);
@@ -195,13 +201,18 @@ defineExpose({
 <template>
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
-    <div>
+    <div class="flex flex-row">
       <DeclarationCell
         ref="declarationRef"
         class="inline-flex"
-        @navigate-down="monacoRef?.focus"
-        @navigate-right="typeRef?.focus"
+        @navigate-down="monacoRef?.focus ?? context.navigateDown"
       />
+      <!-- Folded info -->
+      <div v-if="folded" class="ml-1 flex flex-row gap-1 text-gray-400">
+        <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
+        <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
+        <span>{{ numCodeLines }} lines</span>
+      </div>
     </div>
     <!-- Meta info & controls -->
     <div
@@ -246,7 +257,7 @@ defineExpose({
     </div>
   </div>
   <FunctionTypeCell
-    v-if="hasTypes || addingTypes"
+    v-if="(hasTypes || addingTypes) && !folded"
     ref="typeRef"
     class="-mt-1"
     @navigate-up="context.navigateUp"
@@ -257,6 +268,7 @@ defineExpose({
   <!-- Code -->
   <!-- TODO @UX: figure out nicer styling for code -->
   <MonacoEditor
+    v-if="!folded"
     ref="monacoRef"
     :hide-line-numbers="false"
     :lineNumberOffset="0"
@@ -276,7 +288,7 @@ defineExpose({
   />
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
-    v-if="showTraceback"
+    v-if="showTraceback && !folded"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
     :key="lastExecution?.id"

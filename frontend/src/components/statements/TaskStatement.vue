@@ -4,6 +4,7 @@ import DeclarationCell from "@/components/statements/DeclarationCell.vue";
 import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
 import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
+import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { PencilSquareIcon, RocketLaunchIcon, ArrowDownRightIcon, ArrowUpRightIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -12,12 +13,15 @@ import { computed, nextTick, ref, type Ref } from "vue";
 // which are implicitly typed only for now
 defineProps<{
   isTyped: boolean;
+  folded?: boolean;
 }>();
 
 const bench = useBenchState();
 const editor = useEditorContext();
 const context = useStatementContext();
 
+const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
+const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(
@@ -102,6 +106,11 @@ defineExpose({
         @navigate-down="addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')"
         @navigate-right="typeRef?.focus"
       />
+      <!-- Folded info -->
+      <div v-if="folded" class="ml-1 flex flex-row gap-1 text-gray-400">
+        <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
+        <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
+      </div>
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
@@ -109,8 +118,8 @@ defineExpose({
       :extraActions="extraActions"
     />
   </div>
-  <!-- Description -->
-  <div>
+  <!-- Content -->
+  <div v-if="!folded">
     <EditableSpan
       ref="descriptionRef"
       :class="showDescription ? '' : 'h-0'"

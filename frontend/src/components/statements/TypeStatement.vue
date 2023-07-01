@@ -7,13 +7,13 @@ import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.v
 import { useNavigationGrid } from "@/composables/useGrid";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
-import { TypeFlag } from "@/state/module";
 import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
 import { PencilSquareIcon, PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
-import { computed, nextTick, ref, ssrContextKey, type Ref } from "vue";
+import { computed, nextTick, ref, type Ref } from "vue";
 
+const props = defineProps<{ folded?: boolean }>();
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -108,7 +108,9 @@ function writeType(fieldId: string, newType: Field) {
 }
 
 function focusDescriptionFromTop() {
-  if (description.value?.length > 0 || addingDescription.value) {
+  if (props.folded) {
+    context.navigateDown();
+  } else if (description.value?.length > 0 || addingDescription.value) {
     descriptionRef.value?.focus();
   } else {
     focusFirstIfExists();
@@ -174,7 +176,7 @@ context.setCustomActions(extraActions);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") =>
-    position == "first" ? declarationRef.value?.focus() : addFieldRef.value?.focus(),
+    position == "first" || props.folded ? declarationRef.value?.focus() : addFieldRef.value?.focus(),
   blur: () => {
     declarationRef.value?.blur();
     descriptionRef.value?.blur();
@@ -192,6 +194,10 @@ defineExpose({
         @navigate-down="focusDescriptionFromTop"
         @navigate-up="context.navigateUp"
       />
+      <!-- Folded info -->
+      <div v-if="folded" class="ml-1 text-gray-400">
+        <span>{{ fieldsLength }} {{ isEnum ? "options" : "fields" }}</span>
+      </div>
     </div>
     <div class="flex flex-row">
       <InlineActions
@@ -225,7 +231,7 @@ defineExpose({
     Add description
   </button>
   <!-- Fields (enum options or struct fields) -->
-  <div v-if="fieldsLength > 0" class="my-0.5 flex w-full flex-col">
+  <div v-if="fieldsLength > 0 && !folded" class="my-0.5 flex w-full flex-col">
     <FieldInterface
       v-for="field of context.selfFields.value"
       :key="field.id"
@@ -251,7 +257,7 @@ defineExpose({
   <div class="mb-1">
     <!-- Add a field -->
     <button
-      v-show="!context.readonly.value"
+      v-show="!context.readonly.value && !folded"
       tabindex="-1"
       ref="addFieldRef"
       class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
