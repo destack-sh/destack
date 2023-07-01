@@ -128,7 +128,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     id
     type
     revision
-    modifier
     name
     commented
     orderKey
@@ -186,7 +185,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     revision
     name
     commented
-    modifier
     orderKey
     parent {
       ... on Statement {
@@ -287,7 +285,6 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     id
     type
     name
-    modifier
     revision
     file {
       id

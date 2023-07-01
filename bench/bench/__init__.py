@@ -1,11 +1,5 @@
 from bench.bench.code_ import Code
-from bench.bench.const import (
-    DatasetViewLayout,
-    ExpectationModifier,
-    StatementType,
-    TypeHint,
-    TypeTag,
-)
+from bench.bench.const import DatasetViewLayout, StatementType, TypeHint, TypeTag
 from bench.bench.core import Blank, File, Module, Scope, Statement, Text
 from bench.bench.dataset import Dataset, DatasetView, Record, Value
 from bench.bench.expect import Expectation, HasExpectations
@@ -24,7 +18,6 @@ __all__ = [
     "DatasetView",
     "DatasetViewLayout",
     "Expectation",
-    "ExpectationModifier",
     "Field",
     "File",
     "HasExpectations",
@@ -45,7 +38,7 @@ __all__ = [
     "SortMode",
     "SortOrder",
     "Statement",
-    "Statement",
+    "StatementType",
     "Task",
     "Text",
     "Type",

@@ -11,7 +11,7 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.bench import ExpectationModifier, StatementType, TypeHint, TypeTag, wire
+from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, TypeFlag
 from bench.bench.dataset import new_dataset_backend_id
 from bench.bench.type import FIELD_KEY_LENGTH, new_field_key
@@ -212,9 +212,6 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     order_key = models.CharField(max_length=64)  # in file/parent
 
     # symbol
-    modifier = models.CharField(
-        max_length=32, choices=get_choices(ExpectationModifier), null=True, blank=True
-    )
     reference = models.ForeignKey(
         "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="references+"
     )
@@ -235,8 +232,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")
 
     def __str__(self):
-        modifier_str = f" {self.modifier}" if self.modifier else ""
-        return f"{self.path}{modifier_str} {self.type} {self.name}"
+        return f"{self.path} {self.type} {self.name}"
 
     def create_symbol_if_needed(self):
         # TODO @Cleanup @Architecture: create symbol if needed shouldn't be needed

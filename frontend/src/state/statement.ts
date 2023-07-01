@@ -1,6 +1,5 @@
 import { useFragment, type FragmentType } from "@/gql";
 import {
-  ExpectationModifier,
   StatementType,
   TypeHint,
   TypeTag,
@@ -164,10 +163,6 @@ export function useStatementContext() {
       }
     );
     closeTransaction(tx);
-  }
-
-  async function setModifier(modifier: ExpectationModifier | null) {
-    await ops.statement.modify(null, statement.value.id, statement.value.modifier ?? null, modifier);
   }
 
   async function setStatementType(type: StatementType) {
@@ -420,7 +415,6 @@ export function useStatementContext() {
     morphToBlank,
     morphToComment,
     morpthToSymbol,
-    setModifier,
     setStatementType,
     setStatementTypeEnum,
     syncText,

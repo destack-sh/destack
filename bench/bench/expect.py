@@ -3,7 +3,6 @@ from __future__ import annotations
 from dataclasses import field
 from typing import Optional, Self, Union
 
-from bench.bench.const import ExpectationModifier
 from bench.bench.core import Scope, Statement, StatementBase, StatementReference, node
 from bench.bench.issue import IssueType
 
@@ -14,7 +13,7 @@ Expectable = Union["Expectation", "Task", "Dataset", "Code"]  # noqa: F821
 class IsExpectable:
     """Symbols that can define expectations"""
 
-    modifier: Optional[ExpectationModifier] = None
+    pass
 
 
 @node

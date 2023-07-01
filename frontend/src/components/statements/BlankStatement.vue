@@ -1,6 +1,4 @@
 <script lang="ts" setup>
-import EditableSpan from "@/components/basic/EditableSpan.vue";
-import ModifierCell from "@/components/statements/ModifierCell.vue";
 import ProtoStatementTypeCell from "@/components/statements/ProtoStatementTypeCell.vue";
 import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { StatementType } from "@/gql/graphql";
@@ -11,16 +9,7 @@ defineProps<{ showDots?: boolean }>();
 
 const context = useStatementContext();
 
-const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const gapRef: Ref<InstanceType<typeof ProtoStatementTypeCell> | null> = ref(null);
-
-function deleteModifierOrAbove() {
-  if (context.statement.value.modifier != null) {
-    context.setModifier(null);
-  } else {
-    context.tryDeleteLeft();
-  }
-}
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -32,7 +21,6 @@ defineExpose({
     }
   },
   blur: () => {
-    startRef.value?.blur();
     gapRef.value?.blur();
   },
   loading: ref(false),
@@ -41,27 +29,12 @@ defineExpose({
 <template>
   <!-- TODO @Cleanup: compress/simplify navigation across cells (proto, definition, ..) -->
   <span class="flex flex-row outline-none">
-    <EditableSpan
-      :model-value="''"
-      ref="startRef"
-      class=""
-      v-if="context.statement.value.modifier != null"
-      @navigate-up="context.navigateUp"
-      @navigate-down="context.navigateDown"
-      @navigate-right="gapRef?.focus"
-      @delete-left="context.tryDeleteLeft"
-      @enter="context.insertAbove"
-      @escape="context.escape"
-      :readonly="context.readonly.value"
-    />
-    <ModifierCell v-if="context.statement.value.modifier != null" />
     <ProtoStatementTypeCell
       class=""
       ref="gapRef"
       @navigate-up="context.navigateUp"
       @navigate-down="context.navigateDown"
-      @delete-left="deleteModifierOrAbove"
-      @navigate-left="startRef?.focus"
+      @delete-left="context.tryDeleteLeft"
       @enter="context.insertAbove"
       @escape="context.escape"
     />
@@ -71,7 +44,6 @@ defineExpose({
       v-if="
         showDots &&
         context.statement.value.type == StatementType.Blank &&
-        context.statement.value.modifier == null &&
         gapRef?.content?.length == 0 &&
         context.focused.value
       "

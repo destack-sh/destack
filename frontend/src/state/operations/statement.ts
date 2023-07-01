@@ -14,8 +14,6 @@ import {
   type RenameStatementMutation,
   type RestoreStatementMutation,
   type SoftDeleteStatementMutation,
-  type ExpectationModifier,
-  type UpdateExpectationModifierMutation,
   type UpdateStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
@@ -63,7 +61,6 @@ export function useStatementOps() {
         $parentId: GlobalID
         $orderKey: String!
         $type: StatementType!
-        $modifier: ExpectationModifier
         $name: String
         $lang: String
         $code: String
@@ -81,7 +78,6 @@ export function useStatementOps() {
             parentId: $parentId
             orderKey: $orderKey
             type: $type
-            modifier: $modifier
             name: $name
             lang: $lang
             code: $code
@@ -100,7 +96,6 @@ export function useStatementOps() {
             revision
             name
             commented
-            modifier
             orderKey
             file {
               id
@@ -154,7 +149,6 @@ export function useStatementOps() {
         parentId: string | null;
         orderKey: string;
         type: StatementType;
-        modifier: ExpectationModifier | null;
         name: string | null;
         lang: string | null;
         code: string | null;
@@ -181,7 +175,6 @@ export function useStatementOps() {
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
             type: vars.type,
-            modifier: vars.modifier,
             name: vars.name,
             description: vars.description,
             value: vars.value,
@@ -244,7 +237,6 @@ export function useStatementOps() {
           parentId: parentId ?? null,
           orderKey,
           type: StatementType.Blank,
-          modifier: null,
           name: null,
           lang: null,
           code: null,
@@ -289,7 +281,6 @@ export function useStatementOps() {
           parentId: input.parentId ?? null,
           orderKey: input.orderKey,
           type: input.type,
-          modifier: null,
           name: input.name ?? null,
           lang: null,
           code: null,
@@ -317,7 +308,6 @@ export function useStatementOps() {
         $id: GlobalID!
         $orderKey: String!
         $type: StatementType!
-        $modifier: ExpectationModifier
         $name: String
         $lang: String
         $code: String
@@ -332,7 +322,6 @@ export function useStatementOps() {
             id: $id
             orderKey: $orderKey
             type: $type
-            modifier: $modifier
             name: $name
             lang: $lang
             code: $code
@@ -350,7 +339,6 @@ export function useStatementOps() {
             revision
             updatedAt
             name
-            modifier
             orderKey
             # symbol contents
             lang
@@ -372,7 +360,6 @@ export function useStatementOps() {
         parentId: string | null;
         orderKey: string;
         type: StatementType;
-        modifier: ExpectationModifier | null;
         name: string | null;
         lang: string | null;
         code: string | null;
@@ -392,7 +379,6 @@ export function useStatementOps() {
             // default new fields (all! fields in StatementContent fragment)
             updatedAt: new Date().toISOString(),
             type: vars.type,
-            modifier: vars.modifier,
             name: vars.name,
             description: vars.description,
             value: vars.value,
@@ -491,51 +477,6 @@ export function useStatementOps() {
       },
       undo: async () => {
         return await morphStatementMut({ id, ...oldStatement });
-      },
-    });
-  }
-
-  const { mutate: updateExpectationModifier } = registry.useMutation(
-    ModuleMutationType.UpdateSymbolModifier,
-    graphql(/* GraphQL */ `
-      mutation updateExpectationModifier($id: GlobalID!, $modifier: ExpectationModifier) {
-        updateSymbolModifier(input: { id: $id, modifier: $modifier }) {
-          ... on Statement {
-            id
-            modifier
-            revision
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string; modifier: ExpectationModifier | null }) =>
-        ({
-          updateSymbolModifier: {
-            __typename: "Statement",
-            id: vars.id,
-            modifier: vars.modifier,
-            revision: PENDING_REVISION,
-          },
-        } as UpdateExpectationModifierMutation),
-    }
-  );
-
-  async function modify(
-    tx: Transaction | null,
-    id: string,
-    oldModifier: ExpectationModifier | null,
-    newModifier: ExpectationModifier | null
-  ) {
-    await ops.perform({
-      tx,
-      type: "statement.modify",
-      do: async () => {
-        return await updateExpectationModifier({ id: id, modifier: newModifier });
-      },
-      undo: async () => {
-        return await updateExpectationModifier({ id: id, modifier: oldModifier });
       },
     });
   }
@@ -1059,7 +1000,6 @@ export function useStatementOps() {
     create: createBlank,
     createDefinition: create,
     morph,
-    modify,
     move,
     batchMove,
     batchPaste,

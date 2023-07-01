@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import TiptapEditor from "@/components/basic/TiptapEditor.vue";
-import { StatementType } from "@/gql/graphql";
 import { useStatementContext } from "@/state/statement";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 

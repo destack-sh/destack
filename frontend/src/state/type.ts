@@ -1,4 +1,4 @@
-import { ExpectationModifier, StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
 
@@ -24,13 +24,6 @@ export const SUPPORTED_STATEMENT_TYPES = [
   StatementType.Task,
 ];
 export const STATEMENT_TYPE_BY_KEYWORD: Partial<Record<string, StatementType>> = reverseRecord(STATEMENT_TYPE_KEYWORD);
-export const MODIFIER_KEYWORD: Record<ExpectationModifier, string> = {
-  [ExpectationModifier.Like]: "like",
-  [ExpectationModifier.Unlike]: "unlike",
-  [ExpectationModifier.Check]: "check",
-};
-export const SUPPORTED_MODIFIERS = [ExpectationModifier.Like, ExpectationModifier.Unlike, ExpectationModifier.Check];
-export const MODIFIER_BY_KEYWORD: Record<string, ExpectationModifier> = reverseRecord(MODIFIER_KEYWORD);
 
 export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",

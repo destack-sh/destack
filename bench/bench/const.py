@@ -32,14 +32,6 @@ class DatasetViewLayout(enum.StrEnum):
     TABLE = "table"
 
 
-class ExpectationModifier(enum.StrEnum):
-    """A modifier to a Bench statement."""
-
-    LIKE = "like"
-    UNLIKE = "unlike"
-    CHECK = "check"
-
-
 class TypeTag(enum.StrEnum):
     """The Bench primitive type of a field/type."""
 
