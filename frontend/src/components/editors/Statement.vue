@@ -136,6 +136,7 @@ const rootCell: Ref<Cell> = computed(() => {
   }
 
   // default to blank cell
+  // TODO @UX: blank statement should just be text statement with slash command support
   return {
     component: BlankStatement,
     props: { showDots: true },
