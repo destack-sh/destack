@@ -240,7 +240,7 @@ class Search:
         return f"<Search {self}>"
 
     def filter(self, query: Query) -> Search:
-        return Search(self.dataset, query.filter(query), self._sort, self._limit)
+        return Search(self.dataset, self._query.filter(query), self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> Search:
         if isinstance(sort, Sort):

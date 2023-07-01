@@ -185,7 +185,10 @@ def get_client_origin_from_info(info: Info) -> ClientOrigin:
         raise TypeError(f"unexpected request type: {request}")
     client_id = scope["session"]["client_id"]
     # get nonce from list of headers
-    client_nonce = first((v for k, v in scope["headers"] if k.lower() == "x-client-nonce"), None)
+    client_nonce = first(
+        (v.decode() for k, v in scope["headers"] if k.decode().lower() == "x-client-nonce"), None
+    )
+    client_nonce = UUID(client_nonce) if client_nonce else None
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
 
