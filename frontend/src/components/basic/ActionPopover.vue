@@ -137,15 +137,17 @@ defineExpose({
             :disabled="action.disabled || action.active"
             v-slot="{ active }"
             @click.prevent.stop="doActionIfOpen(action), close()"
+            :class="[
+              i > 0 && filteredActions[i - 1].groupId != action.groupId
+                ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-1'
+                : '',
+            ]"
           >
             <button
               class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"
               :class="[
                 active ? 'bg-orange-100' : '',
                 action.disabled || action.active ? 'cursor-not-allowed opacity-50' : '',
-                i > 0 && filteredActions[i - 1].groupId != action.groupId
-                  ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-2'
-                  : '',
               ]"
             >
               <component :is="action.icon" class="h-4 w-4" />

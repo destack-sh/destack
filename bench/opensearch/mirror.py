@@ -448,6 +448,7 @@ class Execution(os.Document):
 @document(DocumentType.LOG_ENTRY)
 class LogEntry(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
+    worker_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     execution_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)

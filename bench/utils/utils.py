@@ -148,6 +148,21 @@ class DotDict(dict):
         return cls(**d)
 
 
+class DotDictList(list):
+    """
+    Access a list of dictionaries as a list of DotDicts.
+    Attribute and item access (with string) are column slices.
+    """
+
+    def __getitem__(self, item):
+        if isinstance(item, str):
+            return [row[item] for row in self]
+        return super().__getitem__(item)
+
+    def __getattr__(self, name):
+        return [row[name] for row in self]
+
+
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
 DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 TEST: bool = (

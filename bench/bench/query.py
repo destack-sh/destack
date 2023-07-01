@@ -216,29 +216,29 @@ class Sort:
     mode: Optional[SortMode] = None
 
 
-class UnsupportedQueryError(Exception):
+class UnsupportedSearchError(Exception):
     def __init__(self, field: "Field", thing: Any):
-        super().__init__(f"{field} does not support {thing}")
+        super().__init__(f"{repr(field)} does not support {thing}")
 
 
 def _check_supports_query(field: "Field", op: QueryOp):
     if op not in field.supported_query_ops:
-        raise UnsupportedQueryError(field, op)
+        raise UnsupportedSearchError(field, op)
 
 
 def _check_supports_sort(field: "Field"):
     if not field.can_sort:
-        raise UnsupportedQueryError(field, "sort")
+        raise UnsupportedSearchError(field, "sort")
 
 
 def _check_supports_subfield(field: "Field", subfield: SubfieldType):
     if subfield not in field.supported_subfields:
-        raise UnsupportedQueryError(field, subfield)
+        raise UnsupportedSearchError(field, subfield)
 
 
 def _check_has_tag(field: "Field", tag: TypeTag):
     if field.effective_tag != tag:
-        raise UnsupportedQueryError(field, tag)
+        raise UnsupportedSearchError(field, tag)
 
 
 def _check_support(op: QueryOp = None, sort: bool = False, subfield: SubfieldType = None):
@@ -288,7 +288,7 @@ class FieldQueryOps:
         format_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self.storage_format, _EMPTY_SET)
         hint_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self.hint, _EMPTY_SET)
         tag_ops = _SUPPORTED_QUERY_OPS_BY_TYPE.get(self.effective_tag, _EMPTY_SET)
-        return format_ops | hint_ops | tag_ops
+        return _BASE_QUERY_OPS | format_ops | hint_ops | tag_ops
 
     def _strip_value(self, value: Any) -> Any:
         from bench.bench.type import Field
