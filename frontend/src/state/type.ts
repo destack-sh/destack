@@ -194,3 +194,31 @@ export function unkey(fields: Field[], value: Record<string, any>): Record<strin
   }
   return mapped;
 }
+
+export enum SubfieldType {
+  key = "key",
+  starts_with = "starts_with",
+  token_count = "token_count",
+  char_count = "char_count",
+}
+
+export function getMainSubfield(field: Pick<Field, "hint" | "tag">): SubfieldType | null {
+  if (field.hint == TypeHint.Name) {
+    return SubfieldType.key;
+  } else if (field.tag == TypeTag.String) {
+    return SubfieldType.char_count;
+  }
+  return null;
+}
+
+export function canSort(
+  field: Pick<Field, "tag" | "hint" | "flags">,
+  options?: { excludeSubfields?: boolean }
+): boolean {
+  const storageFormat = getStorageFormat(field.tag, field.hint, field.flags);
+  if (storageFormat == null) return false;
+  if (NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat)) return true;
+  if (options?.excludeSubfields) return false;
+  const subfield = getMainSubfield(field);
+  return subfield != null;
+}

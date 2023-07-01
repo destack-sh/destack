@@ -18,7 +18,7 @@ from bench.bench.query import Query, Sort
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type
 from bench.utils.proxy import proxy_value, unproxy_value
-from bench.utils.utils import required_field
+from bench.utils.utils import DotDictList, required_field
 
 logger = structlog.get_logger(__name__)
 
@@ -297,16 +297,17 @@ class Search:
             )
             if len(rep.payload.records) == 0:
                 break
-            records = []
+            records = DotDictList() if batched else None
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
                 record.instantiate_in(self.dataset.session)
-                records.append(record)
+                if batched:
+                    records.append(record)
+                else:
+                    yield record
             if batched:
                 yield records
-            else:
-                yield from records
             after = rep.payload.last_sort_key
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.records)
@@ -329,7 +330,7 @@ class Search:
             rep = await self._do_search(after=after, limit=remaining_limit)
             if len(rep.payload.records) == 0:
                 break
-            records = []
+            records = DotDictList() if batched else None
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
@@ -356,7 +357,7 @@ class Search:
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given function."""
-        batch: list[Record] = []
+        batch: DotDictList[Record] = DotDictList() if batch_size is not None else None
         for record in self:
             if batch_size is None:
                 self._map_single_ret(record, func(record))
@@ -364,7 +365,7 @@ class Search:
                 batch.append(record)
                 if len(batch) >= batch_size:
                     self._map_batch_ret(batch, func(batch))
-                    batch = []
+                    batch = DotDictList()
         if batch_size is not None and batch:
             self._map_batch_ret(batch, func(batch))
 

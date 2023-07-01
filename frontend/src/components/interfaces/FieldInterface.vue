@@ -19,7 +19,7 @@ import {
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { SortOrder } from "@/gql/graphql";
-import { NATIVELY_SORTABLE_STORAGE_FORMATS, TypeStorageFormat, getStorageFormat } from "@/state/type";
+import { canSort } from "@/state/type";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -58,7 +58,6 @@ const description: Ref<string> = ref(props.modelValue?.description ?? "");
 const editing = ref(false);
 const editingType = ref(false);
 const hasDescription = computed(() => description.value.trim().length > 0);
-const storageFormat = computed(() => getStorageFormat(value.value.tag, value.value.hint, value.value.flags));
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -138,20 +137,19 @@ const actions: Ref<TypeAction[]> = computed(() => {
     });
     if (props.isView) {
       // TODO @UX: support filter and sort via subfields if available (and default to it if native sort is unavailable)
-      const canSort = storageFormat.value != null && NATIVELY_SORTABLE_STORAGE_FORMATS.includes(storageFormat.value);
       actions.push({
         groupId: "query",
         label: "Sort ascending",
         icon: ArrowUpIcon,
         action: () => emit("sort", SortOrder.Ascending),
-        disabled: !canSort,
+        disabled: !canSort(value.value),
       });
       actions.push({
         groupId: "query",
         label: "Sort descending",
         icon: ArrowDownIcon,
         action: () => emit("sort", SortOrder.Descending),
-        disabled: !canSort,
+        disabled: !canSort(value.value),
       });
       actions.push({
         groupId: "query",

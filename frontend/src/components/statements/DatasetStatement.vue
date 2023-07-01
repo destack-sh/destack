@@ -57,7 +57,7 @@ import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, us
 import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { INTEGER_ZERO } from "@/utils/fractional";
-import { TypeStorageFormat, getStorageFormat } from "@/state/type";
+import { TypeStorageFormat, getStorageFormat, SubfieldType, canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
@@ -136,7 +136,7 @@ function getInlineQuery() {
       (f) =>
         ({
           op: QueryOp.StartsWith,
-          key: "value." + module.getTypedKey(f),
+          key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
           value: properties.inlineQuery,
         } as DatasetQuery)
     ),
@@ -169,8 +169,8 @@ watch(
 );
 
 function addSort(field: Field, order: SortOrder) {
-  const key = "value." + module.getTypedKey(field);
-  if (key == null) throw new Error("field has no typed key: " + field.key);
+  const subkey = canSort(field, { excludeSubfields: true }) ? "" : "." + getMainSubfield(field);
+  const key = "value." + module.getTypedKey(field) + subkey;
   if (properties.sorts == null) properties.sorts = [];
   // replace or append sort
   const oldIndex = properties.sorts.findIndex((s) => s.key == key);
