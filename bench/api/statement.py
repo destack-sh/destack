@@ -69,7 +69,6 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     parent: Optional["ModuleNode"]
     type: StatementType
     name: auto
-    commented: auto
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
@@ -88,18 +87,6 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)
 
 
-#
-# Project contents: statements (in files)
-# :ProjectContentSync
-#
-# For synchronizing statements, to edit a statement:
-#  1. Check that the containing project version is not committed
-#  2. Increment 'revision' on the statement
-#  [.. actual update ..]
-#  3. Send pub message
-#
-
-
 @gql.input
 class StatementCreateInput:
     """Creates a full statement"""
@@ -109,7 +96,6 @@ class StatementCreateInput:
     order_key: str
     type: StatementType
     parent_id: Optional[GlobalID] = None
-    commented: Optional[bool] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -127,7 +113,6 @@ class StatementUpdateInput(gql.NodeInput):
     id: GlobalID
     order_key: Optional[str] = None
     type: Optional[StatementType] = None
-    commented: Optional[bool] = None
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
     root_type_flags: Optional[int] = None
@@ -174,11 +159,6 @@ class StatementRestoreInput(gql.NodeInput):
     pass
 
 
-@gql.input
-class StatementCommentedInput(gql.NodeInput):
-    commented: bool
-
-
 # batch operations
 
 
@@ -196,21 +176,6 @@ class StatementBatchRestoreInput(BatchMutationInput):
 
     def unbatch(self) -> list[StatementRestoreInput]:
         return [StatementRestoreInput(id=id) for id in self.ids]
-
-
-@gql.input
-class StatementBatchCommentedInput(BatchMutationInput):
-    ids: list[GlobalID]
-    commented: bool
-
-    def unbatch(self) -> list[StatementCommentedInput]:
-        return [
-            StatementCommentedInput(
-                id=id,
-                commented=self.commented,
-            )
-            for id in self.ids
-        ]
 
 
 @gql.input
@@ -273,7 +238,6 @@ class StatementMutation:
             name=input.name,
             parent_statement=parent_statement,
             order_key=input.order_key,
-            commented=input.commented,
             root_type_tag=input.root_type_tag,
             root_type_flags=input.root_type_flags,
             description=input.description,
@@ -323,12 +287,6 @@ class StatementMutation:
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
-    @tracked_db_mutation(MMT.COMMENT_STATEMENT, atomic=True)
-    def comment_statement(self, input: StatementCommentedInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.set_commented(input.commented)
-        return statement
-
     @tracked_db_mutation(MMT.MOVE_STATEMENT, atomic=True)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
@@ -376,17 +334,6 @@ class StatementMutation:
             deleted_at=None
         )
         statements.update(deleted_at=None)
-        return StatementBatch(statements=list(statements))
-
-    @tracked_db_mutation(MMT.COMMENT_STATEMENT, atomic=True, batch=True, register=False)
-    def batch_comment_statement(
-        self, input: StatementBatchCommentedInput
-    ) -> StatementBatch | OperationInfo:
-        statement_ids = [UUID(i.node_id) for i in input.ids]
-        statements = models.Statement.objects.filter(id__in=statement_ids)
-        models.Statement.objects.get_descendants(statement_ids, deleted_at=None).update(
-            commented=input.commented
-        )
         return StatementBatch(statements=list(statements))
 
     @tracked_db_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)

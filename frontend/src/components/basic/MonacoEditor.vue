@@ -9,7 +9,6 @@ const props = defineProps<{
   language: "json" | "jsonl" | "csv" | "python" | "markdown" | "btl";
   focused: boolean;
   readonly?: boolean;
-  commented?: boolean;
   lineNumberOffset: number;
   lineNumberShiftPx?: number;
   hideLineNumbers?: boolean;
@@ -101,7 +100,6 @@ function initMonaco(monaco: Monaco) {
       { token: "identifier.python", foreground: "#000000" },
       // make comments italic
       { token: "comment", fontStyle: "italic" },
-      // TODO @UX: make builtin functions orange and bold
       // (the below doesn't work because the token type isn't defined yet)
       { token: "bench-builtin-function", foreground: "#d97706", fontStyle: "bold" },
     ],

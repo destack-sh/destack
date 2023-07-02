@@ -255,6 +255,7 @@ const recordsFetched = computed(
 const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
+const totalCount = computed(() => recordsFetchedResult?.value?.searchDataset.totalCount ?? 0);
 
 const recordsInView = computed(
   () =>
@@ -651,13 +652,19 @@ const position = useMouseInElement(gridRef);
 
 // actions
 
+function unfoldIfFolded() {
+  if (props.folded) emit("toggleFold");
+}
+
 const extraActions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Search",
     icon: MagnifyingGlassIcon,
     action: () => {
-      /* open search inline? */
+      unfoldIfFolded();
+      properties.inlineQuery = "";
+      nextTick(() => searchRef.value?.focus());
     },
     hideInline: true,
   });
@@ -674,6 +681,7 @@ const extraActions = computed(() => {
     icon: PencilSquareIcon,
     disabled: showDescription.value,
     action: () => {
+      unfoldIfFolded();
       addingDescription.value = true;
       nextTick(() => descriptionRef.value?.focus());
     },
@@ -681,18 +689,27 @@ const extraActions = computed(() => {
   actions.push({
     label: "Add record",
     icon: PlusIcon,
-    action: () => insertRecordAtEnd(),
+    action: () => {
+      unfoldIfFolded();
+      insertRecordAtEnd();
+    },
   });
   actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
-    action: () => createFieldRef.value?.show(),
+    action: () => {
+      unfoldIfFolded();
+      createFieldRef.value?.show();
+    },
     hideInline: true,
   });
   actions.push({
     label: "Include type",
     icon: CubeTransparentIcon,
-    action: () => createUnionField(),
+    action: () => {
+      unfoldIfFolded();
+      createUnionField();
+    },
     hideInline: true,
   });
   actions.push({
@@ -740,30 +757,37 @@ defineExpose({
 </script>
 <template>
   <!-- Declaration -->
-  <div class="flex flex-row justify-between">
-    <div class="flex flex-row items-baseline">
+  <div class="flex max-w-full flex-row justify-between gap-2">
+    <div class="flex max-w-full flex-row items-baseline">
       <TypedDeclarationCell
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
+      <!-- TODO @UX: folded statement content info does not truncate correctly (across all relevant statements)  -->
       <button
-        class="ml-1 flex flex-row gap-1 text-gray-400"
+        class="ml-1 flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
         :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
         @click="$emit('toggleFold')"
       >
-        <span v-if="folded">{{ context.allFields.value.length }} fields</span>
-        <span>{{ humanizeNumber(recordsFetchedResult?.searchDataset.totalCount ?? 0) }} records</span>
+        <span>{{ humanizeNumber(totalCount) }} {{ totalCount == 1 ? "record" : "records" }}</span>
+        <!-- folded info -->
+        <template v-if="folded">
+          •
+          <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
+        </template>
       </button>
     </div>
+    <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
     <div
-      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      class="flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || properties.inlineQuery != null ? '' : 'opacity-0'"
     >
       <!-- Quick inline search -->
       <button
+        v-if="!folded"
         tabindex="-1"
         class="h-full rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-800"
         @click="() => toggleInlineSearch()"
@@ -773,6 +797,7 @@ defineExpose({
       <div
         v-if="properties.inlineQuery != null"
         class="relative -mb-0.5 h-full w-40 transition-transform duration-150"
+        :class="folded ? 'hidden' : ''"
         @click="searchRef?.focus"
       >
         <EditableSpan

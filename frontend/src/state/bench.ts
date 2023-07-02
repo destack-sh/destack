@@ -43,7 +43,7 @@ export type FileHeader = Pick<
 >;
 export type StatementHeader = Pick<
   Statement,
-  "__typename" | "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "commented" | "parent"
+  "__typename" | "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "parent"
 >;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";

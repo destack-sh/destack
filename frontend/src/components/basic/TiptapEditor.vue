@@ -64,7 +64,7 @@ function onKeyDown(event: KeyboardEvent) {
 
 const appearance = useAppearance();
 function getEditorClass(): string {
-  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-700 w-full"];
+  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-500 w-full"];
   if (appearance.fontMono) {
     classes.push("font-mono");
   }

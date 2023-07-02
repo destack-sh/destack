@@ -57,8 +57,6 @@ def tracked_db_mutation(
      and assumes that all things belong to the same project (only checks committed for one).
 
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
-
-    :ProjectContentSync
     """
 
     directives = directives or []

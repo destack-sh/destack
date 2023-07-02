@@ -6,7 +6,6 @@ import {
   type BatchDeleteStatementsMutation,
   type BatchMoveStatementMutation,
   type BatchRestoreStatementsMutation,
-  type CommentStatementMutation,
   type CreateStatementMutation,
   type DeleteStatementMutation,
   type MorphStatementMutation,
@@ -69,7 +68,6 @@ export function useStatementOps() {
         $value: JSON
         $rootTypeTag: TypeTag
         $rootTypeFlags: Int
-        $commented: Boolean
       ) {
         createStatement(
           input: {
@@ -86,7 +84,6 @@ export function useStatementOps() {
             value: $value
             rootTypeTag: $rootTypeTag
             rootTypeFlags: $rootTypeFlags
-            commented: $commented
           }
         ) {
           ... on Statement {
@@ -95,7 +92,6 @@ export function useStatementOps() {
             type
             revision
             name
-            commented
             orderKey
             file {
               id
@@ -157,7 +153,6 @@ export function useStatementOps() {
         value: any | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
-        commented: boolean;
       }) =>
         ({
           __typename: "Mutation",
@@ -184,7 +179,6 @@ export function useStatementOps() {
             rootTypeFlags: vars.rootTypeFlags,
             fields: [],
             lang: vars.lang,
-            commented: vars.commented,
             // interp
             resolvedFields: [],
             issues: [],
@@ -245,7 +239,6 @@ export function useStatementOps() {
           description: null,
           rootTypeTag: null,
           rootTypeFlags: null,
-          commented: false,
         });
       },
       undo: async () => {
@@ -289,7 +282,6 @@ export function useStatementOps() {
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
-          commented: false,
         });
       },
       undo: async () => {
@@ -949,52 +941,6 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: commentStatementMut } = registry.useMutation(
-    ModuleMutationType.CommentStatement,
-    // TODO @UX: uncommenting nested statements feels janky
-    graphql(/* GraphQL */ `
-      mutation commentStatement($id: GlobalID!, $commented: Boolean!) {
-        commentStatement(input: { id: $id, commented: $commented }) {
-          ... on Statement {
-            id
-            commented
-            revision
-            descendants {
-              id
-              commented
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string; commented: boolean }) =>
-        ({
-          commentStatement: {
-            __typename: "Statement",
-            id: vars.id,
-            commented: vars.commented,
-            revision: 0,
-            descendants: [], // unknown
-          },
-        } as CommentStatementMutation),
-    }
-  );
-
-  async function comment(tx: Transaction | null, id: string, commented: boolean) {
-    await ops.perform({
-      tx,
-      type: "statement.comment",
-      do: async () => {
-        return await commentStatementMut({ id: id, commented: commented });
-      },
-      undo: async () => {
-        return await commentStatementMut({ id: id, commented: !commented });
-      },
-    });
-  }
-
   return {
     registry,
     create: createBlank,
@@ -1003,7 +949,6 @@ export function useStatementOps() {
     move,
     batchMove,
     batchPaste,
-    comment,
     rename,
     delete: delete_,
     softDelete: softDelete,

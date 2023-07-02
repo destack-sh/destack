@@ -521,7 +521,6 @@ enum ModuleMutationType {
   SOFT_DELETE_STATEMENT
   RESTORE_STATEMENT
   MORPH_STATEMENT
-  COMMENT_STATEMENT
   MOVE_STATEMENT
   RENAME_STATEMENT
   UPDATE_STATEMENT_TEXT
@@ -590,11 +589,9 @@ type Mutation {
   softDeleteStatement(input: StatementSoftDeleteInput!): StatementOperationInfo!
   restoreStatement(input: StatementRestoreInput!): StatementOperationInfo!
   deleteStatement(input: StatementDeleteInput!): StatementOperationInfo!
-  commentStatement(input: StatementCommentedInput!): StatementOperationInfo!
   moveStatement(input: StatementMoveInput!): StatementOperationInfo!
   batchSoftDeleteStatement(input: StatementBatchSoftDeleteInput!): StatementBatchOperationInfo!
   batchRestoreStatement(input: StatementBatchRestoreInput!): StatementBatchOperationInfo!
-  batchCommentStatement(input: StatementBatchCommentedInput!): StatementBatchOperationInfo!
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
@@ -1561,7 +1558,6 @@ type Statement implements CrudModel & ModuleNode & Node {
   file: File!
   type: StatementType!
   name: String
-  commented: Boolean!
   children: [Statement!]!
   descendants: [Statement!]!
   orderKey: String!
@@ -1580,11 +1576,6 @@ type Statement implements CrudModel & ModuleNode & Node {
 
 type StatementBatch {
   statements: [Statement!]!
-}
-
-input StatementBatchCommentedInput {
-  ids: [GlobalID!]!
-  commented: Boolean!
 }
 
 input StatementBatchMoveInput {
@@ -1612,11 +1603,6 @@ input StatementBatchSoftDeleteInput {
   ids: [GlobalID!]!
 }
 
-input StatementCommentedInput {
-  id: GlobalID!
-  commented: Boolean!
-}
-
 """Creates a full statement"""
 input StatementCreateInput {
   id: GlobalID = null
@@ -1624,7 +1610,6 @@ input StatementCreateInput {
   orderKey: String!
   type: StatementType!
   parentId: GlobalID = null
-  commented: Boolean = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null
@@ -1693,7 +1678,6 @@ input StatementUpdateInput {
   id: GlobalID!
   orderKey: String = null
   type: StatementType = null
-  commented: Boolean = null
   name: String = null
   rootTypeTag: TypeTag = null
   rootTypeFlags: Int = null

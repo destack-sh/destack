@@ -40,18 +40,28 @@ function writeValue(value: any) {
   ops.symbol.updateValue(null, context.statement.value.id, context.statement.value.value, value);
 }
 
+function unfoldIfFolded() {
+  if (props.folded) emit("toggleFold");
+}
+
 const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Extend type",
     icon: CubeTransparentIcon,
-    action: () => createUnionField(),
+    action: () => {
+      unfoldIfFolded();
+      createUnionField();
+    },
     hideInline: true,
   });
   actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
-    action: () => createFieldRef.value?.show(),
+    action: () => {
+      unfoldIfFolded();
+      createFieldRef.value?.show();
+    },
   });
   return actions;
 });
@@ -95,12 +105,16 @@ defineExpose({
 </script>
 <template>
   <div>
-    <div class="flex flex-row justify-between">
+    <div class="flex max-w-full flex-row justify-between">
       <div class="flex flex-row items-baseline">
         <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
         <!-- Folded info -->
-        <button v-if="folded" class="ml-1 px-0.5 text-gray-400 hover:bg-gray-100" @click="$emit('toggleFold')">
-          <span>{{ context.allFields.value.length }} fields</span>
+        <button
+          v-if="folded"
+          class="ml-1 flex max-w-full flex-row gap-1.5 truncate px-0.5 text-gray-400 hover:bg-gray-100"
+          @click="$emit('toggleFold')"
+        >
+          <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
         </button>
       </div>
       <div

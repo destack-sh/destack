@@ -385,23 +385,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
-  // toggle comment statement
-  const toggleCommented = provideGlobalAction({
-    id: "statement.toggleCommentCurrent",
-    label: "Comment current statement",
-    shortcuts: ["t", "shift+t"],
-    enabled: computed(
-      () =>
-        cur.value?.statement != null &&
-        navigatingFile.value &&
-        cur.value?.statement.type != StatementType.Blank &&
-        cur.value?.statement.type != StatementType.Comment
-    ),
-    apply: async () => {
-      await ops.statement.comment(null, cur.value?.statement?.id, !cur.value?.statement?.commented);
-    },
-  });
-
   // cut/copy/paste/duplicate
   // TODO @Cleanup: use custom mime type for copied statements
   //  Getting DOMException when trying, likely because the new clipboard API doesn't allow this yet.
@@ -496,7 +479,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     insertEnd,
     insertAbove,
     insertBelow,
-    toggleCommented,
     copy,
     cut,
     paste,

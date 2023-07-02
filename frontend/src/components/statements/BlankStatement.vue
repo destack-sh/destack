@@ -27,7 +27,6 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- TODO @Cleanup: compress/simplify navigation across cells (proto, definition, ..) -->
   <span class="flex flex-row outline-none">
     <ProtoStatementTypeCell
       class=""

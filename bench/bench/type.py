@@ -443,11 +443,7 @@ class HasType(TypeBase, StatementBase):
                     or existing.hint != child.hint
                 ):
                     # TODO @Robustness: check union type compatibility properly/deeply
-                    type._on_issue(
-                        type=IssueType.MISMATCHED_UNION,
-                        subject=type,
-                        path="->".join(str(n) for n in path),
-                    )
+                    type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
                     continue
                 resolved = ResolvedField(
                     id=uuid.uuid5(child.id, type.id.hex),

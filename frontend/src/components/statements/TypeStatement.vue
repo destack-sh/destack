@@ -147,6 +147,10 @@ function gridNavigateDown() {
   addFieldRef.value?.focus();
 }
 
+function unfoldIfFolded() {
+  if (props.folded) emit("toggleFold");
+}
+
 const extraActions = computed(() => {
   const actions: StatementAction[] = [
     {
@@ -154,6 +158,7 @@ const extraActions = computed(() => {
       icon: PencilSquareIcon,
       disabled: showDescription.value,
       action: () => {
+        unfoldIfFolded();
         addingDescription.value = true;
         nextTick(() => descriptionRef.value?.focus());
       },
@@ -162,13 +167,13 @@ const extraActions = computed(() => {
   actions.push({
     label: "Add " + (isEnum.value ? "option" : "field"),
     icon: SquaresPlusIcon,
-    action: () => (isEnum.value ? createOption() : createFieldRef.value?.show()),
+    action: () => (unfoldIfFolded(), isEnum.value ? createOption() : createFieldRef.value?.show()),
   });
   if (!isEnum.value) {
     actions.push({
       label: "Extend type",
       icon: CubeTransparentIcon,
-      action: () => createUnionField(),
+      action: () => (unfoldIfFolded(), createUnionField()),
       hideInline: true,
     });
   }
@@ -197,8 +202,12 @@ defineExpose({
         @navigate-up="context.navigateUp"
       />
       <!-- Folded info -->
-      <button v-if="folded" class="ml-1 rounded-sm px-0.5 text-gray-400 hover:bg-gray-100" @click="emit('toggleFold')">
-        <span>{{ fieldsLength }} {{ isEnum ? "options" : "fields" }}</span>
+      <button
+        v-if="folded"
+        class="ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+        @click="emit('toggleFold')"
+      >
+        <span v-for="field in context.selfFields.value" :key="field.id">{{ field.name }}</span>
       </button>
     </div>
     <div class="flex flex-row">
