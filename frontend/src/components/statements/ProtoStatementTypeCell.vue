@@ -32,11 +32,16 @@ const MAX_KEYWORD_LENGTH = [...Object.keys(STATEMENT_TYPE_BY_KEYWORD)].reduce(
   0
 );
 
-// parse content changes :ParseStatementInput
+// open/close commanding and auto-convert to text on anything else
 watch(content, (newContent) => {
-  if (newContent == "/") {
+  if (newContent.trim() == "") {
+    commanding.value = false;
+  } else if (newContent == "/") {
     openCommandSelection();
     return;
+  } else if (!commanding.value) {
+    context.morphToComment(newContent);
+    emit("morphed");
   }
 });
 

@@ -21,6 +21,8 @@ import {
   StopIcon,
   ArrowDownRightIcon,
   ArrowUpRightIcon,
+  ArrowRightIcon,
+  ArrowLongRightIcon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
@@ -81,12 +83,18 @@ const executionActive = computed(
     ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
     (lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status))
 );
+
+function unfoldIfFolded() {
+  if (props.folded) emit("toggleFold");
+}
+
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
       label: "Add input",
       icon: ArrowDownRightIcon,
       action: () => {
+        unfoldIfFolded();
         addingTypes.value = true;
         nextTick(() => typeRef.value?.createInput());
       },
@@ -96,6 +104,7 @@ const extraActions = computed(() => {
       label: "Add output",
       icon: ArrowUpRightIcon,
       action: () => {
+        unfoldIfFolded();
         addingTypes.value = true;
         nextTick(() => typeRef.value?.createOutput());
       },
@@ -211,17 +220,19 @@ defineExpose({
       <!-- Folded info -->
       <button
         v-if="folded"
-        class="ml-1 flex flex-row gap-1 rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+        class="t ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
         @click="emit('toggleFold')"
       >
-        <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
-        <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
         <span>{{ numCodeLines }} lines</span>
+        <template v-if="inputs.length + outputs.length > 0">•</template>
+        <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
+        <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
+        <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
       </button>
     </div>
     <!-- Meta info & controls -->
     <div
-      class="group/info flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      class="group/info flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || executionActive ? '' : 'opacity-0'"
     >
       <!-- Execution time -->

@@ -15,7 +15,7 @@ context.syncText(
 
 function focus(position: "first" | "last" = "first") {
   // focus the end of the content if we just updated it, which puts it in pending state
-  // (likely due to a morph to comment where we want to keep editing smoothly)
+  // (likely due to a morph to blank where we want to keep editing smoothly)
   const focusEnd = context.statement.value.revision < 0 || position == "last";
   // not sure why we need both, but acquiring focus doesn't always succeed otherwise
   editorRef.value?.focus(focusEnd);

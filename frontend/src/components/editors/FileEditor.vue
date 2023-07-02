@@ -206,6 +206,7 @@ function goToContent() {
 }
 
 // actions
+const duplicating = ref(false);
 const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() => [
   {
     label: "Rename",
@@ -219,12 +220,19 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   {
     label: "Duplicate",
     icon: DocumentDuplicateIcon,
+    active: duplicating.value,
+    disabled: duplicating.value,
     action: async () => {
       if (fileHeader.value == null) return;
+      duplicating.value = true;
       const targetId = newFileId();
-      const ret = await ops.file.paste(null, fileHeader.value?.id, targetId, module.id.value, null);
-      if (ret?.data?.pasteFile.__typename == "File") {
-        bench.focusFile({ id: targetId, name: fileHeader.value?.name ?? "" });
+      try {
+        const ret = await ops.file.paste(null, fileHeader.value?.id, targetId, module.id.value, null);
+        if (ret?.data?.pasteFile.__typename == "File") {
+          bench.focusFile({ id: targetId, name: fileHeader.value?.name ?? "" });
+        }
+      } finally {
+        duplicating.value = false;
       }
     },
   },

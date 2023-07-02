@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { useAppearance } from "@/state/appearance";
 import type { Action } from "@/state/bench";
@@ -60,7 +61,11 @@ defineExpose({
           @click="action.action(thing)"
           :disabled="action.disabled"
         >
-          <component :is="action.icon" class="h-5 w-5" />
+          <component
+            :is="action.active ? BusySpinnerIcon : action.icon"
+            class="h-5 w-5"
+            :class="action.active ? 'animate-spin' : ''"
+          />
         </button>
       </span>
     </span>

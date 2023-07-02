@@ -92,9 +92,7 @@ def map_mutation_from_api(
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
 
-    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT) or (
-        type == MMT.COMMENT_STATEMENT and not thing.commented
-    ):
+    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT):
         packed = packer.pack_node(thing)
         file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
         internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(
@@ -105,8 +103,6 @@ def map_mutation_from_api(
         )
         return internal.mutations, api_mutations
     else:
-        if type == MMT.COMMENT_STATEMENT:  # comment -> delete internally
-            type = MMT.DELETE_STATEMENT
         # map everything else to a simple internal mutation (CUD_X)
         internal_type = MMT(type.kind + "_" + api_mutation.mot)
         internal_mutation = ModuleMutation(
@@ -151,9 +147,6 @@ def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutat
 
 # extra fields in API mutations that are not in internal module data
 _EXTRA_FIELDS_BY_SCOPE = {
-    MOT.STATEMENT: {
-        "commented": False,
-    },
     MOT.FILE: {
         "parent_id": None,
         "directory": False,

@@ -763,10 +763,6 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
     def root_statements(self) -> models.QuerySet["Statement"]:
         return self.statements.filter(parent=None)
 
-    @property
-    def active_root_statements(self):
-        return self.root_statements.filter(deleted_at__isnull=True, commented=False)
-
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)

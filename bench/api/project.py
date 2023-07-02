@@ -422,18 +422,6 @@ class ProjectVersionMutation:
         )
 
 
-#
-# Project contents: files
-# :ProjectContentSync
-
-# For synchronizing file contents, to edit a file:
-#  1. Check that the containing project version is not committed
-#  2. Increment 'revision' on the file
-#  [.. actual update ..]
-#  3. Send pub message
-#
-
-
 @gql.input
 class FileCreateInput:
     id: Optional[GlobalID] = None

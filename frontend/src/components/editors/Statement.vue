@@ -56,11 +56,6 @@ const isActive = computed(() => props.standalone || nav?.value?.editor.activeSta
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.editor.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.editor.editing));
 const isSelected = computed(() => nav?.value?.editor.isSelected(statement.value));
-const isComment = computed(() => statement.value?.type == StatementType.Text);
-const isCommented = computed(() => statement.value?.commented || ancestors.value.find((s) => s.commented));
-const isCommentish = computed(
-  () => isComment.value || isCommented.value || statement.value.type == StatementType.Blank
-);
 const canContentFold = computed(
   () => statement.value.type != StatementType.Blank && statement.value.type != StatementType.Text
 );
@@ -413,7 +408,7 @@ defineExpose({
 <template>
   <!-- Statement wrapper -->
   <div
-    class="group/statement relative w-full"
+    class="group/statement relative w-full max-w-full"
     :style="editor.editor.value.contentMarginXAsPaddingX"
     @click="onClickContainer"
   >
@@ -423,11 +418,8 @@ defineExpose({
       @dragstart.stop="onDragStart"
       class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
       :class="{
-        'focus:bg-orange-100': !isCommentish,
-        'focus:bg-gray-100': isCommentish,
-        'bg-orange-100': !isCommentish && ((isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver),
-        'bg-gray-100': isCommentish && ((isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver),
-        'text-gray-700': isCommented,
+        'focus:bg-orange-100': true,
+        'bg-orange-100': (isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver,
         ...appearance.baseClass,
       }"
       :style="{
@@ -458,12 +450,8 @@ defineExpose({
                 :class="{
                   'opacity-0 group-hover/statement:opacity-100': !isActive && !open && !bench.showLineNumbers,
                   'opacity-100': isActive && !bench.showLineNumbers,
-                  'text-orange-200 hover:bg-orange-100 group-hover/statement:font-bold group-hover/statement:text-orange-500':
-                    !isCommentish,
-                  'text-gray-200 hover:bg-gray-100  group-hover/statement:font-bold group-hover/statement:text-gray-500':
-                    isCommentish,
-                  'text-orange-500': (dragOver || open || isActive) && !isCommentish,
-                  'text-gray-500': (dragOver || open || isActive) && isCommentish,
+                  'text-orange-200 hover:bg-orange-100 group-hover/statement:font-bold group-hover/statement:text-orange-500': true,
+                  'text-orange-500': dragOver || open || isActive,
                   ...appearance.baseClass,
                 }"
               >
@@ -492,8 +480,6 @@ defineExpose({
           </div>
         </div>
       </div>
-      <!-- Commented overlay (TODO @UX: commented overlay is ugly) -->
-      <div v-if="isCommented" class="absolute inset-0 z-[8] bg-gray-100 opacity-25" />
       <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
       <div
         v-if="!readonly"
@@ -509,7 +495,7 @@ defineExpose({
       <!-- :StatementPadding -->
       <div
         ref="innerWrapperRef"
-        class="relative px-2 py-1"
+        class="relative max-w-full px-2 py-1"
         :class="{
           'text-sm': bench.textSmall,
           'text-md': !bench.textSmall,
@@ -563,7 +549,6 @@ defineExpose({
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inRootCellFocused">r*</template>
-      <template v-if="isCommented">#</template>
       <span class="lowercase">
         {{ statement.type }}
         <template v-if="statement.type">{{ statement.type }}:</template>

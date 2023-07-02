@@ -38,7 +38,7 @@ _ISSUE_MESSAGES = {
     IssueType.MISSING_REFERENCE.value: "missing reference at {path}",
     IssueType.CIRCULAR_ANCESTRY.value: "circular ancestry via {path}",
     IssueType.CIRCULAR_UNION.value: "circular union via {path}",
-    IssueType.MISMATCHED_UNION.value: "mismatched union at {node} vs {other}",
+    IssueType.MISMATCHED_UNION.value: "mismatched union at {subject} vs {other}",
     # warnings
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
 }
@@ -92,6 +92,8 @@ class Issue:
             self.scope = InterpScope.STATEMENT
             self.subject = subject
 
+        if "subject" in type.description:
+            kwargs["subject"] = self.subject
         self.message = type.description.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[type]
         # generate id if not provided

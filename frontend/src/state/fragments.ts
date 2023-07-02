@@ -129,7 +129,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     type
     revision
     name
-    commented
     orderKey
     parent {
       ... on File {
@@ -184,7 +183,6 @@ export const StatementContentType = graphql(/* GraphQL */ `
     type
     revision
     name
-    commented
     orderKey
     parent {
       ... on Statement {

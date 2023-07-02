@@ -203,7 +203,6 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
-    commented = models.BooleanField(default=False)
 
     parent_statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
@@ -274,11 +273,6 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
         # restore descendants (that were deleted at the same time)
         self.descendants.filter(deleted_at=self.deleted_at).update(deleted_at=None)
         self.deleted_at = None
-
-    def set_commented(self, commented: bool):
-        """Sets the commented flag on this statement and all descendants."""
-        self.commented = commented
-        self.descendants.update(commented=commented)
 
     objects: StatementManager = StatementManager()
 

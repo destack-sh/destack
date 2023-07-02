@@ -89,7 +89,7 @@ class PackMultiFilter:
 
 DEFAULT_PACK_FILTERS = [
     (models.File, lambda qs: qs.filter(deleted_at__isnull=True)),
-    (models.Statement, lambda qs: qs.filter(deleted_at__isnull=True, commented=False)),
+    (models.Statement, lambda qs: qs.filter(deleted_at__isnull=True)),
     (models.Field, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)

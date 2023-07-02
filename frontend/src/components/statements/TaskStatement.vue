@@ -6,15 +6,17 @@ import InlineActions from "@/components/statements/InlineActionsCell.vue";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
-import { PencilSquareIcon, RocketLaunchIcon, ArrowDownRightIcon, ArrowUpRightIcon } from "@heroicons/vue/24/outline";
+import {
+  PencilSquareIcon,
+  RocketLaunchIcon,
+  ArrowDownRightIcon,
+  ArrowUpRightIcon,
+  ArrowRightIcon,
+  ArrowLongRightIcon,
+} from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
-// all tasks are typed, but we currently re-use TaskDefinitionCell for expectations
-// which are implicitly typed only for now
-defineProps<{
-  isTyped: boolean;
-  folded?: boolean;
-}>();
+const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const bench = useBenchState();
@@ -40,6 +42,10 @@ function run() {
   bench.openRun(context.statement.value, { group: nextGroup, focus: true });
 }
 
+function unfoldIfFolded() {
+  if (props.folded) emit("toggleFold");
+}
+
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
@@ -47,6 +53,7 @@ const extraActions = computed(() => {
       icon: PencilSquareIcon,
       disabled: showDescription.value,
       action: () => {
+        unfoldIfFolded();
         addingDescription.value = true;
         nextTick(() => descriptionRef.value?.focus());
       },
@@ -55,7 +62,7 @@ const extraActions = computed(() => {
       label: "Add input",
       icon: ArrowDownRightIcon,
       action: () => {
-        nextTick(() => typeRef.value?.createInput());
+        nextTick(() => (unfoldIfFolded(), typeRef.value?.createInput()));
       },
       hideInline: true,
     },
@@ -63,7 +70,7 @@ const extraActions = computed(() => {
       label: "Add output",
       icon: ArrowUpRightIcon,
       action: () => {
-        nextTick(() => typeRef.value?.createOutput());
+        nextTick(() => (unfoldIfFolded(), typeRef.value?.createOutput()));
       },
       hideInline: true,
     },
@@ -110,11 +117,12 @@ defineExpose({
       <!-- Folded info -->
       <button
         v-if="folded"
-        class="ml-1 flex flex-row gap-1 rounded-sm text-gray-400 hover:bg-gray-100"
+        class="ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm text-gray-400 hover:bg-gray-100"
         @click="$emit('toggleFold')"
       >
-        <span v-if="inputs.length > 0">{{ inputs.length }} inputs</span>
-        <span v-if="outputs.length > 0">{{ outputs.length }} outputs</span>
+        <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
+        <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
+        <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
       </button>
     </div>
     <InlineActions

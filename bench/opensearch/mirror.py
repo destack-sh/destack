@@ -453,6 +453,7 @@ class LogEntry(os.Document):
     execution_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
+    stream: str = os.field(os.FT.KEYWORD)
     level: str = os.field(os.FT.KEYWORD)
     logger: str = os.field(os.FT.KEYWORD)
     message: str = os.field(os.FT.TEXT)

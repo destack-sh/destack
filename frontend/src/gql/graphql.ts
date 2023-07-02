@@ -523,7 +523,6 @@ export type ModuleMutation = {
 export enum ModuleMutationType {
   BumpFile = "BUMP_FILE",
   BumpStatement = "BUMP_STATEMENT",
-  CommentStatement = "COMMENT_STATEMENT",
   CreateField = "CREATE_FIELD",
   CreateFile = "CREATE_FILE",
   CreateIssue = "CREATE_ISSUE",
@@ -581,7 +580,6 @@ export type ModuleNode = {
 export type Mutation = {
   __typename?: "Mutation";
   acceptOrganizationInvite: UserOperationInfo;
-  batchCommentStatement: StatementBatchOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
   batchPasteStatement: StatementBatchOperationInfo;
   batchRestoreRecord: RecordBatchOperationInfo;
@@ -591,7 +589,6 @@ export type Mutation = {
   cancelOrganizationInvite: OrganizationOperationInfo;
   cancelRun: CancelRunPayloadOperationInfo;
   closeClient?: Maybe<ClientOperationInfo>;
-  commentStatement: StatementOperationInfo;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
   createAccessToken: AccessTokenCreatePayloadOperationInfo;
@@ -661,10 +658,6 @@ export type MutationAcceptOrganizationInviteArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type MutationBatchCommentStatementArgs = {
-  input: StatementBatchCommentedInput;
-};
-
 export type MutationBatchMoveStatementArgs = {
   input: StatementBatchMoveInput;
 };
@@ -695,10 +688,6 @@ export type MutationCancelOrganizationInviteArgs = {
 
 export type MutationCancelRunArgs = {
   input: CancelRunInput;
-};
-
-export type MutationCommentStatementArgs = {
-  input: StatementCommentedInput;
 };
 
 export type MutationCommitArgs = {
@@ -1838,7 +1827,6 @@ export type Statement = CrudModel &
     __typename?: "Statement";
     children: Array<Statement>;
     code?: Maybe<Scalars["String"]>;
-    commented: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     dataset?: Maybe<Dataset>;
@@ -1883,11 +1871,6 @@ export type StatementBatch = {
   statements: Array<Statement>;
 };
 
-export type StatementBatchCommentedInput = {
-  commented: Scalars["Boolean"];
-  ids: Array<Scalars["GlobalID"]>;
-};
-
 export type StatementBatchMoveInput = {
   fileId: Scalars["GlobalID"];
   ids: Array<Scalars["GlobalID"]>;
@@ -1913,15 +1896,9 @@ export type StatementBatchSoftDeleteInput = {
   ids: Array<Scalars["GlobalID"]>;
 };
 
-export type StatementCommentedInput = {
-  commented: Scalars["Boolean"];
-  id: Scalars["GlobalID"];
-};
-
 /** Creates a full statement */
 export type StatementCreateInput = {
   code?: InputMaybe<Scalars["String"]>;
-  commented?: InputMaybe<Scalars["Boolean"]>;
   description?: InputMaybe<Scalars["String"]>;
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
@@ -1992,7 +1969,6 @@ export enum StatementType {
 /** Updates a statement */
 export type StatementUpdateInput = {
   code?: InputMaybe<Scalars["String"]>;
-  commented?: InputMaybe<Scalars["Boolean"]>;
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
   lang?: InputMaybe<Scalars["String"]>;
@@ -3184,7 +3160,6 @@ export type StatementHeaderFragment = {
   type: StatementType;
   revision: number;
   name?: string | null;
-  commented: boolean;
   orderKey: string;
   createdAt: any;
   updatedAt: any;
@@ -3226,7 +3201,6 @@ export type StatementContentFragment = {
   type: StatementType;
   revision: number;
   name?: string | null;
-  commented: boolean;
   orderKey: string;
   text?: string | null;
   lang?: string | null;
@@ -3862,7 +3836,6 @@ export type CreateStatementMutationVariables = Exact<{
   value?: InputMaybe<Scalars["JSON"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
-  commented?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type CreateStatementMutation = {
@@ -3877,7 +3850,6 @@ export type CreateStatementMutation = {
         type: StatementType;
         revision: number;
         name?: string | null;
-        commented: boolean;
         orderKey: string;
         lang?: string | null;
         code?: string | null;
@@ -4140,26 +4112,6 @@ export type BatchPasteStatementMutation = {
             " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment };
           }
         >;
-      };
-};
-
-export type CommentStatementMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-  commented: Scalars["Boolean"];
-}>;
-
-export type CommentStatementMutation = {
-  __typename?: "Mutation";
-  commentStatement:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | {
-        __typename?: "Statement";
-        id: any;
-        commented: boolean;
-        revision: number;
-        descendants: Array<{ __typename?: "Statement"; id: any; commented: boolean }>;
       };
 };
 
@@ -5125,7 +5077,6 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
             kind: "Field",
@@ -5272,7 +5223,6 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "commented" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
             kind: "Field",
@@ -10563,11 +10513,6 @@ export const CreateStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "commented" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -10647,11 +10592,6 @@ export const CreateStatementDocument = {
                       name: { kind: "Name", value: "rootTypeFlags" },
                       value: { kind: "Variable", name: { kind: "Name", value: "rootTypeFlags" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "commented" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "commented" } },
-                    },
                   ],
                 },
               },
@@ -10669,7 +10609,6 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
-                      { kind: "Field", name: { kind: "Name", value: "commented" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
                         kind: "Field",
@@ -11895,88 +11834,6 @@ export const BatchPasteStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
-export const CommentStatementDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "commentStatement" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "commented" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "commentStatement" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "commented" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "commented" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "commented" } },
-                      { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "descendants" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "commented" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<CommentStatementMutation, CommentStatementMutationVariables>;
 export const UpdateSymbolDescriptionDocument = {
   kind: "Document",
   definitions: [
