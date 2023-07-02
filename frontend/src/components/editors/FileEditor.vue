@@ -42,7 +42,7 @@ const { result: file, loading: fileLoading } = useQuery(
         statements(filters: { isVisible: true }) {
           ...StatementContent
         }
-        issues {
+        issues(filters: { scope: FILE }) {
           ...IssueContent
         }
       }
