@@ -24,7 +24,7 @@ export function useFileOps() {
 
   // for the annoying redundancy see :BE-114
 
-  // TODO @Broken @UX: optimistic create file & paste file does not work correctly (causes reload)
+  // TODO @Broken @UX: optimistic create file & paste file does not work optimistically (causes reload)
   const { mutate: createFileMut } = registry.useMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
@@ -54,11 +54,11 @@ export function useFileOps() {
             # :InterpFile :InterpStatement
             statements(filters: { isVisible: true }) {
               ...StatementContent
-              issues {
+              issues(filters: { scope: STATEMENT }) {
                 ...IssueContent
               }
             }
-            issues {
+            issues(filters: { scope: FILE }) {
               ...IssueContent
             }
           }
@@ -97,7 +97,7 @@ export function useFileOps() {
             updatedAt: new Date().toISOString(),
             deletedAt: null,
             createdBy: null,
-            lastEditedAt: null,
+            lastEditedAt: new Date().toISOString(),
             lastEditedBy: null,
           },
         } as CreateFileMutation),

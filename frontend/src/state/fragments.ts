@@ -207,7 +207,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     resolvedFields {
       ...FieldContent
     }
-    issues {
+    issues(filters: { scope: STATEMENT }) {
       ...IssueContent
     }
     createdAt

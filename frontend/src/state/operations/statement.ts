@@ -119,7 +119,7 @@ export function useStatementOps() {
             resolvedFields {
               id
             }
-            issues {
+            issues(filters: { scope: STATEMENT }) {
               id
             }
             # crud
@@ -139,7 +139,7 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: {
+      optimisticResponse: function (vars: {
         id: string;
         fileId: string;
         parentId: string | null;
@@ -153,8 +153,8 @@ export function useStatementOps() {
         value: any | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
-      }) =>
-        ({
+      }) {
+        const dat = {
           __typename: "Mutation",
           createStatement: {
             __typename: "Statement",
@@ -165,7 +165,7 @@ export function useStatementOps() {
             },
             parent:
               vars.parentId == null || atob(vars.parentId).startsWith("File:")
-                ? { __typename: "File", id: vars.parentId }
+                ? { __typename: "File", id: vars.fileId }
                 : { __typename: "Statement", id: vars.parentId },
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
@@ -187,10 +187,13 @@ export function useStatementOps() {
             updatedAt: new Date().toISOString(),
             deletedAt: null,
             createdBy: null,
-            lastEditedAt: null,
+            lastEditedAt: new Date().toISOString(),
             lastEditedBy: null,
           },
-        } as CreateStatementMutation),
+        };
+        console.log(dat);
+        return dat as CreateStatementMutation;
+      },
       update(cache, { data }) {
         if (data?.createStatement.__typename != "Statement") {
           return; // error
