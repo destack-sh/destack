@@ -245,7 +245,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     inputs_mappings = {}
     outputs_mappings = {}
     for statement in module._statements_by_id.values():
-        if not isinstance(statement, lang.HasType) or statement.resolved_fields is None:
+        if not isinstance(statement, lang.HasType) or statement.errors:
             continue  # ignore symbols with issues
         elif isinstance(statement, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)

@@ -51,6 +51,8 @@ import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
   XMarkIcon,
+  Bars2Icon,
+  Bars3Icon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -678,7 +680,7 @@ const extraActions = computed(() => {
   }
   actions.push({
     label: "Add description",
-    icon: PencilSquareIcon,
+    icon: Bars3Icon,
     disabled: showDescription.value,
     action: () => {
       unfoldIfFolded();
@@ -968,7 +970,7 @@ defineExpose({
         class="group/record relative flex flex-row self-start border-b border-orange-900 border-opacity-[12%] align-top"
       >
         <!-- Record actions -->
-        <div class="absolute -left-1 mt-1">
+        <div class="absolute -left-0.5 mt-1">
           <div class="relative">
             <div class="absolute right-0 flex flex-row-reverse items-baseline gap-0.5">
               <!-- Standard actions -->
