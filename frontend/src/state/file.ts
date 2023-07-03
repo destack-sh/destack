@@ -86,7 +86,7 @@ export function provideFileState(file: Ref<FileState | null>) {
     return result;
   });
 
-  // TODO @Cleanup: use module.orderStatements here (like in SymbolExplorer)
+  // TODO @Cleanup: use module.orderStatements here (like in StatementExplorer)
   const positionedStatements = computed(() => orderStatements(file.value?.statementsUnordered ?? []));
   const statements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
   const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));

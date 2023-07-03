@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import FileExplorer from "@/components/views/FileExplorer.vue";
-import SymbolExplorer from "@/components/views/SymbolExplorer.vue";
+import StatementExplorer from "@/components/views/StatementExplorer.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
@@ -9,6 +9,7 @@ import { useFocusWithin } from "@vueuse/core";
 import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useBenchState } from "@/state/bench";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{ focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
@@ -49,7 +50,7 @@ const panels: Ref<Panel[]> = computed(() => {
   if (bench.focusedFileId != null) {
     panels.push({
       title: "Outline",
-      count: symbolExplorer.value?.count,
+      count: statementExplorer.value?.count,
       actions: [],
     } as Panel);
   }
@@ -58,7 +59,7 @@ const panels: Ref<Panel[]> = computed(() => {
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const fileExplorer: Ref<InstanceType<typeof FileExplorer> | undefined> = ref(undefined);
-const symbolExplorer: Ref<InstanceType<typeof SymbolExplorer> | undefined> = ref(undefined);
+const statementExplorer: Ref<InstanceType<typeof StatementExplorer> | undefined> = ref(undefined);
 
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 
@@ -81,7 +82,7 @@ watch(
       }
     } else {
       fileExplorer.value?.blur();
-      symbolExplorer.value?.blur();
+      statementExplorer.value?.blur();
     }
   },
   { immediate: true }
@@ -120,21 +121,23 @@ watch(
         </div>
         <!-- Panel content -->
         <div class="min-h-0 overflow-y-auto">
-          <FileExplorer
-            :ref="(ref) => (fileExplorer = ref as any)"
-            v-if="panel.title == 'Files'"
-            :focused="props.focused"
-            @navigate-down="symbolExplorer?.focus('first')"
-            @navigate-up="symbolExplorer?.focus('last')"
-          />
-          <SymbolExplorer
-            :ref="(ref) => (symbolExplorer = ref as any)"
-            v-else-if="panel.title == 'Outline' && !module.loading.value"
-            :focused="props.focused"
-            @navigate-up="fileExplorer?.focus('last')"
-            @navigate-down="fileExplorer?.focus('first')"
-          />
-          <!-- <span v-else class="text-red-500">panic!</span> -->
+          <FadeTransition mode="out-in">
+            <FileExplorer
+              :ref="(ref) => (fileExplorer = ref as any)"
+              v-if="panel.title == 'Files'"
+              :focused="props.focused"
+              @navigate-down="statementExplorer?.focus('first')"
+              @navigate-up="statementExplorer?.focus('last')"
+            />
+            <StatementExplorer
+              :ref="(ref) => (statementExplorer = ref as any)"
+              v-else-if="panel.title == 'Outline' && !module.loading.value"
+              :focused="props.focused"
+              @navigate-up="fileExplorer?.focus('last')"
+              @navigate-down="fileExplorer?.focus('first')"
+            />
+            <!-- <span v-else class="text-red-500">panic!</span> -->
+          </FadeTransition>
         </div>
       </div>
     </div>

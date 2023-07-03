@@ -14,7 +14,7 @@ from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.execution import Execution, ExecutionTriggerType
-from bench.api.utils import asafe_mutation, to_uuid, get_user_from_info
+from bench.api.utils import asafe_mutation, get_user_from_info, to_uuid
 from bench.bench.core import SessionTracingLevel
 from bench.models import packer
 from bench.msg import messages
@@ -48,11 +48,11 @@ class LangserverWakePayload:
 class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
-    build_id: Optional[GlobalID] = None
     execution_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
     trace: int = SessionTracingLevel.ALL
     block: bool = True
+    keyed: bool = False
     timeout_seconds: Optional[int] = None
 
 
@@ -63,7 +63,6 @@ ModuleRunErrorType = gql.enum(messages.RunErrorType)
 class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
-    default_build_id: Optional[GlobalID]
     success: bool
     execution_id: Optional[GlobalID]
     execution: Optional[Execution]
@@ -109,13 +108,13 @@ class RuntimeMutation:
             module_id=project_version_id,
             runnable=to_uuid(input.runnable_id),
             runnable_type=None,
-            default_build_id=to_uuid(input.build_id),
             arguments=input.arguments,
             block=input.block,
             tracing_level=input.trace,
             trigger_type=ExecutionTriggerType.UI,
             trigger_id=user.id,
             execution_id=to_uuid(input.execution_id),
+            keyed=input.keyed,
         )
         try:
             rep: NMessage[RepRunPayload] = await request(
@@ -138,7 +137,6 @@ class RuntimeMutation:
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
-            default_build_id=input.build_id,
             success=success,
             execution=execution,
             execution_id=rep.p.execution_id,

@@ -1759,8 +1759,8 @@ export type RunError = {
 export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
   executionId?: InputMaybe<Scalars["GlobalID"]>;
+  keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
@@ -1769,7 +1769,6 @@ export type RunInput = {
 
 export type RunState = {
   __typename?: "RunState";
-  defaultBuildId?: Maybe<Scalars["GlobalID"]>;
   execution?: Maybe<Execution>;
   executionId?: Maybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -3704,9 +3703,9 @@ export type WakeLangserverMutation = {
 export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
-  buildId?: InputMaybe<Scalars["GlobalID"]>;
   executionId?: InputMaybe<Scalars["GlobalID"]>;
   arguments?: InputMaybe<Scalars["JSON"]>;
+  keyed?: InputMaybe<Scalars["Boolean"]>;
   block?: InputMaybe<Scalars["Boolean"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 }>;
@@ -10060,11 +10059,6 @@ export const RunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -10072,6 +10066,11 @@ export const RunDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
         },
         {
           kind: "VariableDefinition",
@@ -10109,11 +10108,6 @@ export const RunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "buildId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "buildId" } },
-                    },
-                    {
-                      kind: "ObjectField",
                       name: { kind: "Name", value: "executionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
                     },
@@ -10121,6 +10115,11 @@ export const RunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "arguments" },
                       value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "keyed" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
                     },
                     {
                       kind: "ObjectField",

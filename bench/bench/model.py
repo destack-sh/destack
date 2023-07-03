@@ -29,7 +29,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class Model(Statement, HasType):
+class Model(HasType, Statement):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION

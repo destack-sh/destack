@@ -17,6 +17,7 @@ import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import {
+  AdjustmentsHorizontalIcon,
   CircleStackIcon,
   CodeBracketSquareIcon,
   PlayCircleIcon,
@@ -25,7 +26,6 @@ import {
   ServerStackIcon,
   SparklesIcon,
   TableCellsIcon,
-  WrenchIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -555,7 +555,7 @@ const icons: Partial<Record<StatementType, any>> = {
   [StatementType.Dataset]: CircleStackIcon,
   [StatementType.Code]: CodeBracketSquareIcon,
   [StatementType.Model]: ServerStackIcon,
-  [StatementType.Expectation]: WrenchIcon,
+  [StatementType.Expectation]: AdjustmentsHorizontalIcon,
   [StatementType.Block]: QueueListIcon,
 };
 export function getStatementIcon(type: StatementType, rootTypeTag?: TypeTag | null) {

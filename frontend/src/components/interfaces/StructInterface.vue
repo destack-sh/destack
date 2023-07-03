@@ -12,6 +12,7 @@ type StructAppearance = {
   minRowHeight?: number;
   maxRowHeight?: number;
   rowPadding?: number;
+  fullInputs?: boolean;
 };
 
 const DEFAULT_APPEARANCE = {
@@ -133,7 +134,6 @@ defineExpose({
         />
       </td>
       <td class="w-full">
-        <!-- main record should always exist but just in case? -->
         <ValueInterface
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="readField(field)"
@@ -143,6 +143,7 @@ defineExpose({
           :active="active ?? false"
           :debounced="debounced"
           :supports-drop="false"
+          :full="appearance.fullInputs"
           @delete-self="deleteField(field.key as string)"
           @navigate-up="grid.navigateUp(field.id, 'value')"
           @navigate-down="grid.navigateDown(field.id, 'value')"

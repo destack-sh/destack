@@ -686,7 +686,10 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if item in self._PROPERTIES:
             return super().__getattribute__(item)
         else:
-            return self._scopes_by_name.get(item)
+            scope = self._scopes_by_name.get(item)
+            if scope is not None:
+                return scope
+        raise AttributeError(f"{self} has no attribute {item}")
 
     def _index(self):
         self._clear()
@@ -718,6 +721,7 @@ class StatementBase(abc.ABC):
 
     parent: Statement | File
     session: "Session"
+    _scopes_by_name: dict[str, Scope] | None
 
     def _clear(self) -> None:
         raise NotImplementedError

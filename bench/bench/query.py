@@ -161,7 +161,7 @@ class ExistenceQuery(Query):
             return Q(QueryOp.EXISTS, key=self.key)
 
 
-@query()
+@query(QueryOp.NEAR)
 class VectorQuery(Query):
     key: str
     value: list[float]

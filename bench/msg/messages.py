@@ -195,9 +195,9 @@ class ReqRunPayload:
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
-    default_build_id: Optional[UUID]
     arguments: dict[str, typing.Any]
     block: bool
+    keyed: bool
     tracing_level: int
     trigger_type: ExecutionTriggerType
     trigger_id: Optional[UUID]

@@ -13,7 +13,6 @@ import { FieldType } from "@/state/fragments";
 import { newExecutionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
-import { unkey } from "@/state/type";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -80,14 +79,11 @@ watch(path, () => {
 async function run() {
   if (statement.value == null) return;
   editor.value.lastExecutionId = newExecutionId();
-  const unkeyedArguments = unkey(inputFields.value, editor.value.arguments);
   running.value = true;
-  const ret = await ops.runtime.run(
-    editor.value.statementId,
-    undefined,
-    editor.value.lastExecutionId,
-    unkeyedArguments
-  );
+  const ret = await ops.runtime.run(editor.value.statementId, editor.value.lastExecutionId, editor.value.arguments, {
+    block: true,
+    keyed: true,
+  });
   running.value = false;
   if (ret?.data?.run?.__typename == "RunState") {
     if (!ret?.data?.run?.success) {
@@ -241,7 +237,13 @@ defineExpose({
       <template v-else>
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
-          <StructTile v-if="inputFields.length > 0" v-model="editor.arguments" :fields="inputFields" class="" />
+          <StructTile
+            v-if="inputFields.length > 0"
+            v-model="editor.arguments"
+            :fields="inputFields"
+            full-inputs
+            class=""
+          />
           <div v-else class="flex h-full w-full flex-col items-center justify-center">
             <span class="text-sm text-gray-400">No input</span>
           </div>

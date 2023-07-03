@@ -407,6 +407,12 @@ class TypeCheckingTracer(Tracer):
     def code_exit(self, code: Runnable, args, kwargs, result):
         check_type(result, code, is_output=True)
 
+    def inference_enter(self, model: Model, inputs):
+        check_type(inputs, model, is_output=False)
+
+    def inference_exit(self, model: Model, inputs, outputs):
+        check_type(outputs, model, is_output=True)
+
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         check_type(value.value, value)
 
