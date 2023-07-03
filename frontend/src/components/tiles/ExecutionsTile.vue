@@ -158,7 +158,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
             <span
-              class="transtion flex max-w-full flex-row items-center font-extrabold"
+              class="transtion flex max-w-full flex-row items-center font-bold"
               :class="getStatusColor(execution.status)"
             >
               <!-- Status -->

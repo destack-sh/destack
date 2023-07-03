@@ -127,6 +127,9 @@ class ModuleNode(abc.ABC):
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id
 
+    def __hash__(self):
+        return hash(self.id)
+
     @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
@@ -557,7 +560,9 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             walk_dfs(statement)
 
         if len(sorted_statements) != len(self.statements):
-            raise RuntimeError(f"invalid statement order: {sorted_statements} != {self.statements}")
+            raise RuntimeError(
+                f"invalid statement order: {len(sorted_statements)} != {len(self.statements)}"
+            )
         self.statements = sorted_statements
 
     def _assign_oks(self):
@@ -616,7 +621,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             self.parent = self.file
 
     def __str__(self):
-        return f"{self.path} '{self.name or '<anon>'}'"
+        return f"{self.path} '{self.name}'" if self.name else self.path
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"

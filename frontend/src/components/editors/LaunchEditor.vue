@@ -207,7 +207,7 @@ defineExpose({
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
         <div class="flex flex-col">
-          <h1 class="text-3xl font-extrabold text-gray-900">{{ statement?.name ?? "" }}&nbsp;</h1>
+          <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "" }}&nbsp;</h1>
           <h3 class="text-sm text-gray-700">{{ statement?.file?.path }}</h3>
         </div>
         <!-- Run button -->

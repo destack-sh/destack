@@ -28,7 +28,7 @@ function focusIssue(issue: IssueContentFragment) {
         height: appearance.editorHeaderHeight + 'px',
       }"
     >
-      <span class="text-xs font-extrabold tracking-wide text-gray-500">Issues</span>
+      <span class="text-xs font-semibold tracking-wide text-gray-500">Issues</span>
       <div v-if="module.loading.value">
         <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
       </div>

@@ -31,7 +31,7 @@ defineExpose({
         <!-- Note the :EditableSyncDance on the name update -->
         <EditableSpan
           ref="nameRef"
-          class="text-3xl font-extrabold text-gray-900"
+          class="text-3xl font-bold text-gray-900"
           :class="appearance.baseClassUnsized"
           suppress-shortcuts
           :readonly="readonly"
@@ -42,7 +42,7 @@ defineExpose({
           @keydown.down.prevent.stop="() => emit('navigateDown')"
         />
         <span
-          class="cursor-text select-none text-3xl font-extrabold text-gray-400"
+          class="cursor-text select-none text-3xl font-bold text-gray-400"
           v-if="modelValue?.trim().length == 0"
           @click="nameRef?.focus()"
         >

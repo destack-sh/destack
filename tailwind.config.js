@@ -4,7 +4,7 @@ module.exports = {
   content: ["./frontend/index.html", "./frontend/src/**/*.{vue,js,ts,jsx,tsx}"],
   theme: {
     fontFamily: {
-      sans: ["IBM Plex Sans", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+      sans: ["ui-sans-serif", "-apple-system", "BlinkMacSystemFont", "Segoe UI", "Helvetica", "Arial", "sans-serif"],
       serif: ["IBM Plex Serif", "Georgia", "Cambria", "Times New Roman", "Times", "serif"],
       mono: ["Droid Sans Mono", "monospace"],
     },

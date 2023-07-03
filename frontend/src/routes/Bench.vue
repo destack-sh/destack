@@ -622,7 +622,7 @@ onBeforeUnmount(() => {
               <!-- Tooltip -->
               <span
                 v-if="view.id != activeView.id || !bench.showViewContent"
-                class="pointer-events-none absolute left-full top-3 z-30 rounded-sm bg-white px-1 text-sm opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
+                class="pointer-events-none absolute left-full top-3 z-30 rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
               >
                 {{ view.label }}
               </span>
@@ -640,7 +640,7 @@ onBeforeUnmount(() => {
                 <!-- Tooltip -->
                 <span
                   v-if="!open"
-                  class="pointer-events-none absolute left-full top-3 z-10 whitespace-nowrap rounded-sm bg-white px-1 text-sm opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition-opacity duration-75 group-hover:opacity-100"
+                  class="pointer-events-none absolute left-full top-3 z-10 whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition-opacity duration-75 group-hover:opacity-100"
                 >
                   {{ popover.label }}
                 </span>

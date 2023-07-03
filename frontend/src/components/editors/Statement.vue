@@ -461,7 +461,7 @@ defineExpose({
                 <DragHandleIcon class="mt-1 h-3 w-3" />
                 <!-- Label -->
                 <span
-                  class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                  class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
                 >
                   <strong>Click</strong> for actions
                   <br />
@@ -479,7 +479,7 @@ defineExpose({
               <PlusIcon class="h-4 w-4" />
               <!-- Label -->
               <span
-                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
               >
                 <strong>Click</strong> to insert below
                 <br />
@@ -494,8 +494,9 @@ defineExpose({
               @click="(e) => toggleContentFold(e.altKey)"
             >
               <component :is="isContentFolded ? ChevronRightIcon : ChevronDownIcon" class="h-4 w-4" />
+              <!-- Label (yeah these should be refactored) -->
               <span
-                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
               >
                 <strong>Click</strong> to {{ isContentFolded ? "expand" : "fold" }}
                 <br />
