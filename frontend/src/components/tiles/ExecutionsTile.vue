@@ -157,10 +157,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           <!-- Metadata -->
           <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
-            <span
-              class="transtion flex max-w-full flex-row items-center font-bold"
-              :class="getStatusColor(execution.status)"
-            >
+            <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(execution.status)">
               <!-- Status -->
               <component
                 :is="getStatusIcon(execution.status)"
@@ -171,7 +168,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
                     : '',
                 ]"
               />
-              <span class="ml-1 max-w-full truncate font-bold">{{ symbol?.name }}</span>
+              <span class="ml-1 max-w-full truncate font-semibold">{{ symbol?.name }}</span>
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
                 {{

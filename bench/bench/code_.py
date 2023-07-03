@@ -35,7 +35,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(Statement, HasType, IsExpectable):
+class Code(HasType, IsExpectable, Statement):
     tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
     code: Optional[str] = None

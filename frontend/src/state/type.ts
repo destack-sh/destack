@@ -177,17 +177,6 @@ export const TYPENAME_SENTINEL = "__typename"; // :TypeSentinel
 export const REMOTE_OBJECT_TYPENAME = "RemoteObject";
 export const SECRET_TYPENAME = "Secret";
 
-export function unkey(fields: Field[], value: Record<string, any>): Record<string, any> {
-  // TODO @Broken: unkey doesn't work with nested types, should probably be in module
-  const mapped: Record<string, any> = {};
-  for (const field of fields) {
-    if (field.key in value && field.name != null) {
-      mapped[field.name] = value[field.key];
-    }
-  }
-  return mapped;
-}
-
 export enum SubfieldType {
   key = "key",
   starts_with = "starts_with",

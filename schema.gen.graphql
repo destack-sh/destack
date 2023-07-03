@@ -1484,18 +1484,17 @@ type RunError {
 input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
-  buildId: GlobalID = null
   executionId: GlobalID = null
   arguments: JSON = null
   trace: Int! = 7
   block: Boolean! = true
+  keyed: Boolean! = false
   timeoutSeconds: Int = null
 }
 
 type RunState {
   projectVersionId: GlobalID!
   runnableId: GlobalID
-  defaultBuildId: GlobalID
   success: Boolean!
   executionId: GlobalID
   execution: Execution

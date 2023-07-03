@@ -402,10 +402,12 @@ class HasType(TypeBase, StatementBase):
     def __getattr__(self, item):
         if item in self._PROPERTIES:  # defined for all module node classes
             return super().__getattr__(item)
-        else:
-            field_ = self.get_field(item)
-            if field_ is not None:
-                return field_
+        field_ = self.get_field(item)
+        if field_ is not None:
+            return field_
+        statement = self._scopes_by_name.get(item)
+        if statement is not None:
+            return statement
         raise AttributeError(f"{self} has no attribute {item}")
 
     @property
@@ -461,7 +463,7 @@ class HasType(TypeBase, StatementBase):
 
 
 @node
-class Type(Statement, HasType, HasExpectations):
+class Type(HasType, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
@@ -565,7 +567,9 @@ def check_type(
                     ignore_array=True,
                 )
     elif (
-        expected.flags & TypeFlag.IsArrayable and not ignore_array and isinstance(value, Collection)
+        expected.flags & TypeFlag.IsArrayable
+        and not ignore_array
+        and not _is_arrayable_single(expected, value)
     ):
         for item in value:
             check_type(
@@ -620,18 +624,30 @@ def check_type(
         on_invalid(value, expected, suberrors=_suberrors)
 
 
-def _map_v_noop(v, t):
-    return v
+def _map_v_noop(value: Any, *args, **kwargs):
+    return value
 
 
-def _map_k_noop(t):
-    return t.name, t.name
+def _map_k_noop(field: Field):
+    return field.name, field.name
+
+
+def _is_arrayable_single(type: Field, value: Any) -> bool:
+    return (
+        not isinstance(value, Collection)
+        or isinstance(value, str)
+        or (
+            type.effective_tag == TypeTag.VECTOR
+            and isinstance(value, list)
+            and (not value or isinstance(value[0], float))
+        )
+    )
 
 
 def map_value(
     value: Any,
     type: TypeBase,
-    map_v: Callable[[Any, TypeBase, bool], Any] = None,
+    map_v: Callable[[Any, Field, bool], Any] = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
     is_output: bool = None,
     ignore_array: bool = False,
@@ -646,13 +662,7 @@ def map_value(
             return value  # type error, ignore here
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
-        if not isinstance(value, Collection) or isinstance(value, str):
-            return value
-        if (
-            type.effective_tag == TypeTag.VECTOR
-            and isinstance(value, list)
-            and (not value or not isinstance(value[0], float))
-        ):
+        if _is_arrayable_single(type, value):
             return value
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.effective_tag in PRIMITIVE_TYPES:

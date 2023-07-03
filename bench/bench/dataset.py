@@ -122,7 +122,7 @@ class DatasetViewField(ModuleNode):
 
 
 @node(tracked=["description", "versioned"])
-class Dataset(Statement, HasType, IsExpectable):
+class Dataset(HasType, IsExpectable, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
@@ -350,6 +350,20 @@ class Search:
     def __len__(self) -> int:
         return self.count()
 
+    async def afirst(self) -> Optional[Record]:
+        """Returns the first record of the search result."""
+        async for record in self.limit(1):
+            return record
+        return None
+
+    def first(self) -> Optional[Record]:
+        """Returns the first record of the search result."""
+        return self.dataset.session.async_to_sync(self.afirst)()
+
+    def tolist(self) -> list[Record]:
+        """Returns the search result as a list."""
+        return list(self)
+
     def count(self):
         if self._total is not None:
             return self._total
@@ -417,7 +431,7 @@ class Search:
 
 
 @node(tracked=["description", "value"])
-class Value(Statement, HasType, IsExpectable):
+class Value(HasType, IsExpectable, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero

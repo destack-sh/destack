@@ -39,7 +39,7 @@ const now = useTimeFromNow();
         backgroundColor: getClientColor(client.id),
       }"
     >
-      <span class="text-sm font-bold text-gray-900">
+      <span class="text-sm text-gray-900">
         {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
       </span>
       <!-- Profile info popover -->
@@ -47,13 +47,13 @@ const now = useTimeFromNow();
         class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover:visible"
       >
         <div class="flex flex-row items-baseline justify-between">
-          <span class="font-bold text-gray-900">
+          <span class="text-gray-900">
             {{ client.user.username }}
           </span>
         </div>
         <p class="text-xs text-gray-500">{{ client.user.name }}</p>
         <!-- TODO @Broken @UX: show clients file/statement again (name is no longer part of client data) -->
-        <p class="mt-2 flex flex-col font-bold text-gray-900">
+        <p class="mt-2 flex flex-col text-gray-900">
           <span
             >{{ client.project?.name }}
             <span v-if="client.file?.name" class="ml-0"> / {{ client.file?.name }}</span>

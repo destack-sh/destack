@@ -20,6 +20,7 @@ from bench.bench.core import (
 )
 from bench.bench.execution import ExecutionFrame, RunError
 from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.type import map_value
 from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import (
     NMessage,
@@ -140,6 +141,7 @@ class ModuleWorker:
         *,
         runnable: str | UUID,
         arguments: dict[str, Any],
+        keyed: bool,
         execution_id: Optional[UUID],
         tracing_level: SessionTracingLevel,
         trigger_type: ExecutionTriggerType,
@@ -176,6 +178,8 @@ class ModuleWorker:
             self.log.exception("module.run.instantiate.failed", exc_info=e)
             return RunErrorType.INVALID_RUNCONFIG
 
+        if keyed:  # unkey
+            arguments = map_value(arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident))
         job = RunJob(id=root_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
         session.tracer.queue_enter(runnable, arguments, queue_position=self.queue.qsize())
@@ -366,6 +370,7 @@ class SandboxedWorker:
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
+            keyed=msg.p.keyed,
         )
         if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepRunPayload(error=run_job))

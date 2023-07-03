@@ -34,9 +34,9 @@ export function useRuntimeOps() {
       mutation run(
         $projectVersionId: GlobalID!
         $runnableId: GlobalID
-        $buildId: GlobalID
         $executionId: GlobalID
         $arguments: JSON
+        $keyed: Boolean
         $block: Boolean
         $timeoutSeconds: Int
       ) {
@@ -44,9 +44,9 @@ export function useRuntimeOps() {
           input: {
             projectVersionId: $projectVersionId
             runnableId: $runnableId
-            buildId: $buildId
             executionId: $executionId
             arguments: $arguments
+            keyed: $keyed
             block: $block
             timeoutSeconds: $timeoutSeconds
           }
@@ -87,10 +87,9 @@ export function useRuntimeOps() {
 
   async function run(
     runnableId: string,
-    buildId?: string,
     executionId?: string,
     arguments_?: Record<string, any>,
-    options?: { block?: boolean; timeoutSeconds?: number }
+    options?: { block?: boolean; keyed?: boolean; timeoutSeconds?: number }
   ) {
     return await ops.perform({
       type: "runtime.run",
@@ -100,9 +99,9 @@ export function useRuntimeOps() {
         return await runMut({
           projectVersionId: bench.projectVersionId,
           runnableId,
-          buildId,
           executionId,
           arguments: arguments_,
+          keyed: options?.keyed,
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,
         });

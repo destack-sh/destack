@@ -20,7 +20,7 @@ const props = defineProps<{
         <span>
           <a class="underline underline-offset-4">{{ frame.filename }}:{{ frame.lineno }}</a> {{ frame.name }}
         </span>
-        <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-bold' : ''"> > {{ frame.line }} </span>
+        <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-semibold' : ''"> > {{ frame.line }} </span>
         <!-- Locals -->
         <span
           v-if="Object.keys(frame.locals).length > 0"

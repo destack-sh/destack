@@ -26,7 +26,7 @@ from bench.utils.utils import DotDict
 
 
 @node(tracked=["description"])
-class Task(Statement, HasType, HasExpectations):
+class Task(HasType, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     _is_async: bool = True
@@ -48,6 +48,7 @@ class Task(Statement, HasType, HasExpectations):
         retries: int = None,
         cache: bool = None,
         timeout: float = None,
+        batch: list[dict] = None,
         **kwargs,
     ):
         inputs = {**kwargs}
@@ -131,64 +132,9 @@ class IncapableError(TaskError):
         super().__init__(TaskErrorType.INCAPABLE, message, path)
 
 
-async def do_task(self: Task, model: Model | str = None, retries: int = None, **kwargs):
-    # get candidate task implementations
-    if model is not None:
-        if isinstance(model, str):
-            model = self.module.lookup(model, statement_t=Model)
-        models = [model]
-    else:
-        models = self.session.default_models
-    candidates = []
-    for model in models:
-        cache_key = (self.id, model.id)
-        if cache_key not in self._cached_implementations:
-            implementation = build_task_implementation(self, model, self.session)
-            self._cached_implementations[cache_key] = implementation
-        candidates.append(self._cached_implementations[cache_key])
-    # TODO @Broken: sort/filter implementations with some smartness
-    impl_idx = self._last_good_impl_idx
-    retries = retries if retries is not None else self.session.inference_retries
-    remaining_retries = retries
+def _parse_string_output(output: str, type: Type):
+    """Parse json output from a string."""
 
-    # actually run the task
-    self.session.tracer.code_enter(self, args, kwargs)
-    semantic_errors = []
-    while remaining_retries >= 0:
-        remaining_retries -= 1
-        impl = candidates[impl_idx]
-        log = self.session.logger.bind(task=self, retries=remaining_retries, implementation=impl)
-        try:
-            ret = await impl(*args, **kwargs, cache=cache, timeout=timeout)
-            self._last_good_impl_idx = impl_idx
-            self.session.tracer.code_exit(self, args, kwargs, ret)
-            return ret
-        except TaskError as e:
-            semantic_errors.append(e)
-            log.warning("task.failed", exc_info=e)
-            if len(semantic_errors) <= self.session.inference_retries / len(candidates):
-                # retry with error info a few times
-                candidates[impl_idx] = impl.copy().emit(XConsiderError(e))
-            else:
-                # fail over
-                impl_idx = (impl_idx + 1) % len(candidates)
-                semantic_errors = []
-        except TimeoutError as e:
-            # fail over
-            self.session.logger.warning("task.failed", exc_info=e)
-            impl_idx = (impl_idx + 1) % len(candidates)
-
-    # give up
-    errors_repr = "\n".join(str(e) for e in semantic_errors) if semantic_errors else "<timeout>"
-    e = RuntimeError(f"{self} failed after {retries} retries: {errors_repr}")
-    self.session.tracer.code_exception(self, args, kwargs, e)
-    if semantic_errors:
-        raise e from semantic_errors[-1]
-    else:
-        raise e
-
-
-def parse_string_output(output: str, type: Type):
     # escape/try to parse the output if needed (handles trivial model confusions)
     value = output.strip()
     if not value.startswith("{"):
