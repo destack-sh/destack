@@ -88,7 +88,8 @@ class ModuleTree:
             descendants = self.get_descendants(node.id, recursive=True)
             for descendant in descendants:
                 self.nodes.pop(descendant.id)
-                self.children.pop(descendant.id)
+                if descendant.id in self.children:
+                    self.children.pop(descendant.id)
         if node.id in self.nodes:
             self.nodes.pop(node.id)
         if node.id in self.children:
@@ -183,7 +184,7 @@ class ModuleTree:
                 if child.id not in self.children:
                     continue
                 descendants.extend(self.get_descendants(child.id, t, recursive=True))
-        return children
+        return descendants
 
     def get_ancestor(
         self, node_id: UUID, t: NodeT | NodeDataT | None = None

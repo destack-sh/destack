@@ -24,6 +24,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   PencilIcon,
+  PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   TrashIcon,
@@ -359,7 +360,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   actions.push({
     groupId: "edit",
     label: "Rename",
-    icon: PencilIcon,
+    icon: PencilSquareIcon,
     action: () => {
       nav?.value?.editor.editElement(statement.value);
       nextTick(() => statementRef.value?.focus());

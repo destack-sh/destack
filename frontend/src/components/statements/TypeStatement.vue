@@ -9,7 +9,7 @@ import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
-import { PencilSquareIcon, PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, PencilSquareIcon, PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -155,7 +155,7 @@ const extraActions = computed(() => {
   const actions: StatementAction[] = [
     {
       label: "Add description",
-      icon: PencilSquareIcon,
+      icon: Bars3Icon,
       disabled: showDescription.value,
       action: () => {
         unfoldIfFolded();

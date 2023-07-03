@@ -12,6 +12,7 @@ import {
   ArrowUpRightIcon,
   ArrowLongRightIcon,
   WindowIcon,
+  Bars3Icon,
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -49,7 +50,7 @@ const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
       label: "Add description",
-      icon: PencilSquareIcon,
+      icon: Bars3Icon,
       disabled: showDescription.value,
       action: () => {
         unfoldIfFolded();

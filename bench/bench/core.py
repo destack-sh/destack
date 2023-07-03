@@ -389,7 +389,8 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             return dependency.lookup(localized_path, statement_t=statement_t, by=by)
 
     def __str__(self):
-        return f"{self.name} ({self.status.name}, {len(self.files)} files)"
+        issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
+        return f"{self.name} ({self.status.name}, {len(self.files)} files{issues_str})"
 
     def __repr__(self):
         return f"<Module {str(self)}>"
@@ -506,7 +507,6 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         super().__post_init__()
         if self.parent is None:
             self.parent = self.module
-        self._sort()
 
     def __str__(self):
         return f"{self.path} '{self.name}' ({len(self.statements)} statements)"
@@ -540,8 +540,20 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 descendant.file = self
                 self.statements.append(descendant)
 
-    def _sort(self):
-        """Sorts the files statements in-place according to parent & order keys."""
+    def _assign_oks(self):
+        for statements in self.statements_by_parent_id.values():
+            oks = generate_n_keys_between(None, None, len(statements))
+            for ok, statement in zip(oks, statements):
+                statement.order_key = ok
+
+    def _clear(self):
+        """Resets this scope and all child scopes."""
+        super()._clear()
+        for statement in self.statements:
+            statement._clear()
+
+    def _index(self):
+        """Indexes all statements in this file into the scope."""
         # per parent (incl. root = None) sort by order key
         sorted_statements = []
         self.statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
@@ -560,30 +572,12 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             walk_dfs(statement)
 
         if len(sorted_statements) != len(self.statements):
-            raise RuntimeError(
-                f"invalid statement order: {len(sorted_statements)} != {len(self.statements)}"
-            )
+            raise RuntimeError(f"invalid order: {len(sorted_statements)} != {len(self.statements)}")
         self.statements = sorted_statements
 
-    def _assign_oks(self):
-        for statements in self.statements_by_parent_id.values():
-            oks = generate_n_keys_between(None, None, len(statements))
-            for ok, statement in zip(oks, statements):
-                statement.order_key = ok
-
-    def _clear(self):
-        """Resets this scope and all child scopes."""
-        super()._clear()
-        for statement in self.statements:
-            statement._clear()
-
-    def _index(self):
-        """Indexes all statements in this file into the scope."""
-        self._sort()
         for statement in self.statements:
             statement._index()
-            is_root = statement.parent == self
-            self._add_statement(statement, by_name=is_root)
+            self._add_statement(statement, by_name=True)
 
     def _interp(self):
         for statement in self.statements:
@@ -687,6 +681,12 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     @property
     def b(self) -> _BlockAccessor:
         return _BlockAccessor(self)
+
+    def __getattr__(self, item):
+        if item in self._PROPERTIES:
+            return super().__getattribute__(item)
+        else:
+            return self._scopes_by_name.get(item)
 
     def _index(self):
         self._clear()

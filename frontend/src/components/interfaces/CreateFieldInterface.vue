@@ -35,7 +35,7 @@ defineExpose({
       class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="popoverPin.pinned.value ? '' : ''"
     >
-      <h5 class="text-left text-sm font-bold text-gray-900">{{ title }}</h5>
+      <h5 class="text-left text-sm font-semibold text-gray-900">{{ title }}</h5>
       <SelectTypeInterface class="mt-2" hide-flags @update:model-value="hide(), emit('select', $event)" />
     </div>
   </div>

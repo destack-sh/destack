@@ -15,6 +15,18 @@ context.syncText(
   computed(() => editorRef.value?.focused)
 );
 
+function countWordsInHtml(html: string): number {
+  // Remove HTML tags and special characters
+  const cleanText = html.replace(/<[^>]*>/g, "").replace(/&[^;]+;/g, "");
+
+  // Split the text into words and filter out empty strings
+  const words = cleanText.split(/\s+/).filter((word) => word !== "");
+
+  // Return the count of words
+  return words.length;
+}
+const numWords = computed(() => countWordsInHtml(content.value));
+
 function focus(position: "first" | "last" = "first") {
   // focus the end of the content if we just updated it, which puts it in pending state
   // (likely due to a morph to blank where we want to keep editing smoothly)
@@ -39,10 +51,11 @@ defineExpose({
 <template>
   <button
     v-if="folded"
-    class="ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+    class="ml-1 flex max-w-full flex-row items-center gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
     @click="emit('toggleFold')"
   >
     <EllipsisHorizontalIcon class="h-4 w-4" />
+    <span v-if="numWords > 0">{{ numWords }} {{ numWords == 1 ? "word" : "words" }}</span>
   </button>
   <TiptapEditor
     v-else
