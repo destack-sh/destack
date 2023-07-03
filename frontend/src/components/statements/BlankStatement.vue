@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import ProtoStatementTypeCell from "@/components/statements/ProtoStatementTypeCell.vue";
-import StatementTypeCell from "@/components/statements/StatementTypeCell.vue";
 import { StatementType } from "@/gql/graphql";
 import { useStatementContext } from "@/state/statement";
+import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { ref, type Ref } from "vue";
 
 defineProps<{ showDots?: boolean; folded?: boolean }>();
@@ -27,7 +27,7 @@ defineExpose({
 });
 </script>
 <template>
-  <span class="flex flex-row outline-none">
+  <span class="flex flex-row items-center outline-none">
     <ProtoStatementTypeCell
       class=""
       ref="gapRef"
@@ -37,7 +37,6 @@ defineExpose({
       @enter="context.insertAbove"
       @escape="context.escape"
     />
-    <StatementTypeCell v-if="context.statement.value.type" />
     <!-- Empty dots / prompt -->
     <div
       v-if="
@@ -46,9 +45,9 @@ defineExpose({
         gapRef?.content?.length == 0 &&
         context.focused.value
       "
-      class="h-full w-full select-none group-hover:opacity-100"
+      class="h-full w-full select-none items-center group-hover:opacity-100"
     >
-      <span class="text-gray-400" v-if="!context.editing.value">...</span>
+      <span class="text-gray-400" v-if="!context.editing.value"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
       <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
     </div>
   </span>

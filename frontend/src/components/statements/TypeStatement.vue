@@ -226,6 +226,7 @@ defineExpose({
   <!-- Description -->
   <EditableSpan
     ref="descriptionRef"
+    v-if="!folded"
     :class="addingDescription ? '' : 'h-0'"
     v-model="description"
     :readonly="context.readonly.value"
@@ -235,7 +236,7 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="description.length == 0 && !context.readonly.value && addingDescription"
+    v-if="!folded && description.length == 0 && !context.readonly.value && addingDescription"
     @click="descriptionRef?.focus()"
     class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >

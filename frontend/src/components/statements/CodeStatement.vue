@@ -17,12 +17,11 @@ import {
   ChevronDoubleUpIcon,
   NoSymbolIcon,
   PlayIcon,
-  RocketLaunchIcon,
   StopIcon,
   ArrowDownRightIcon,
   ArrowUpRightIcon,
-  ArrowRightIcon,
   ArrowLongRightIcon,
+  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
@@ -119,7 +118,7 @@ const extraActions = computed(() => {
     },
     {
       label: "Launch",
-      icon: RocketLaunchIcon,
+      icon: WindowIcon,
       action: () => {
         const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
         bench.openRun(context.statement.value, { group: nextGroup, focus: true });
@@ -215,7 +214,7 @@ defineExpose({
       <DeclarationCell
         ref="declarationRef"
         class="inline-flex"
-        @navigate-down="monacoRef?.focus ?? context.navigateDown"
+        @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
       <!-- Folded info -->
       <button

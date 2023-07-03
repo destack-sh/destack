@@ -8,11 +8,10 @@ import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
   PencilSquareIcon,
-  RocketLaunchIcon,
   ArrowDownRightIcon,
   ArrowUpRightIcon,
-  ArrowRightIcon,
   ArrowLongRightIcon,
+  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -76,7 +75,7 @@ const extraActions = computed(() => {
     },
     {
       label: "Launch",
-      icon: RocketLaunchIcon,
+      icon: WindowIcon,
       action: run,
     },
   ];

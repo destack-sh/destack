@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
+import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import BlankStatement from "@/components/statements/BlankStatement.vue";
 import CodeStatement from "@/components/statements/CodeStatement.vue";
 import DatasetStatement from "@/components/statements/DatasetStatement.vue";
@@ -22,7 +23,6 @@ import {
   ArrowsPointingOutIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  EllipsisVerticalIcon,
   PencilIcon,
   PlusIcon,
   Square2StackIcon,
@@ -56,17 +56,22 @@ const isActive = computed(() => props.standalone || nav?.value?.editor.activeSta
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.editor.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.editor.editing));
 const isSelected = computed(() => nav?.value?.editor.isSelected(statement.value));
-const canContentFold = computed(
-  () => statement.value.type != StatementType.Blank && statement.value.type != StatementType.Text
-);
+const canContentFold = computed(() => statement.value.type != StatementType.Blank);
 const isContentFolded = computed(
   () => !props.standalone && (editor.editor.value as FileEditor).isStatementContentFolded(statement.value)
 );
 const lineNumber = computed(() => (nav?.value?.statementPositions[statement.value.id] ?? -2) + 1);
 
-function toggleContentFold() {
+function toggleContentFold(descendants?: boolean) {
   if (props.standalone) return;
-  (editor.editor.value as FileEditor).toggleStatementContentFolded(statement.value);
+  if (descendants) {
+    (editor.editor.value as FileEditor).setStatementContentsFolded(
+      module.getDescendantsOf(statement.value),
+      !isContentFolded.value
+    );
+  } else {
+    (editor.editor.value as FileEditor).toggleStatementContentFolded(statement.value);
+  }
 }
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
@@ -94,7 +99,6 @@ const context = {
   standalone: toRef(props, "standalone"),
   depth: toRef(props, "depth"),
   xOffset: contentOffsetX,
-  lineNumberBase: lineNumber,
   statement,
   reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
   file,
@@ -349,7 +353,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       label: isContentFolded.value ? "Expand" : "Fold",
       icon: isContentFolded.value ? ChevronDownIcon : ChevronRightIcon,
       disabled: !canContentFold.value,
-      action: () => toggleContentFold(),
+      action: () => toggleContentFold(false),
     });
   }
   actions.push({
@@ -392,7 +396,7 @@ function showActionsPopover() {
 }
 
 // runtime
-const localIssues = module.localErrorsOf(statement);
+const localIssues = module.localIssuesOf(statement);
 const hasLocalIssues = computed(() => (localIssues.value?.length ?? 0) > 0);
 
 defineExpose({
@@ -430,7 +434,7 @@ defineExpose({
     >
       <!-- Left gutter -->
       <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-      <div class="absolute -left-1 top-0.5">
+      <div class="absolute top-0.5">
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Monaco-like line number and drag handle -->
@@ -446,36 +450,57 @@ defineExpose({
               @click.stop
             >
               <span
-                class="cursor-grab select-none text-right not-italic transition duration-150"
+                class="group cursor-grab select-none text-right not-italic transition duration-150"
                 :class="{
-                  'opacity-0 group-hover/statement:opacity-100': !isActive && !open && !bench.showLineNumbers,
-                  'opacity-100': isActive && !bench.showLineNumbers,
-                  'text-orange-200 hover:bg-orange-100 group-hover/statement:font-bold group-hover/statement:text-orange-500': true,
-                  'text-orange-500': dragOver || open || isActive,
+                  'opacity-0 group-hover/statement:opacity-100': !isActive && !open,
+                  'opacity-100': isActive,
+                  'text-gray-400 hover:bg-orange-100 hover:text-gray-700': true,
                   ...appearance.baseClass,
                 }"
               >
-                <template v-if="lineNumber > 0">{{ lineNumber }}</template>
-                <EllipsisVerticalIcon v-else class="mt-0.5 h-4 w-4" />
+                <DragHandleIcon class="mt-1 h-3 w-3" />
+                <!-- Label -->
+                <span
+                  class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                >
+                  <strong>Click</strong> for actions
+                  <br />
+                  <strong>Drag</strong> to move
+                </span>
               </span>
             </ActionPopover>
             <!-- Add statement below button -->
             <button
               v-if="!standalone && !bench.readonly && !props.readonly"
-              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+              class="group rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isActive ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
             >
               <PlusIcon class="h-4 w-4" />
+              <!-- Label -->
+              <span
+                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+              >
+                <strong>Click</strong> to insert below
+                <br />
+                <strong>Option-click</strong> for above
+              </span>
             </button>
             <!-- Fold / unfold content -->
             <button
               v-if="!standalone && canContentFold"
-              class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
+              class="group rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isActive ? 'opacity-100' : 'opacity-0'"
-              @click="toggleContentFold"
+              @click="(e) => toggleContentFold(e.altKey)"
             >
               <component :is="isContentFolded ? ChevronRightIcon : ChevronDownIcon" class="h-4 w-4" />
+              <span
+                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+              >
+                <strong>Click</strong> to {{ isContentFolded ? "expand" : "fold" }}
+                <br />
+                <strong>Option-click</strong> for all
+              </span>
             </button>
           </div>
         </div>
