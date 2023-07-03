@@ -124,7 +124,7 @@ function focusColumn(kind: "input" | "output", rowIdx: number, columnIdx: number
 }
 
 defineExpose({
-  focus: (position: "first" | "last") => {
+  focus: (position: "first" | "last" = "first") => {
     if (position == "first") {
       focus("first", "input");
     } else if (addInputRef.value != null) {

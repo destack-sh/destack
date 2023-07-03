@@ -1,9 +1,11 @@
 <script lang="ts" setup>
 import TiptapEditor from "@/components/basic/TiptapEditor.vue";
 import { useStatementContext } from "@/state/statement";
+import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
+const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
 const editorRef = ref<InstanceType<typeof TiptapEditor> | null>(null);
@@ -35,7 +37,15 @@ defineExpose({
 });
 </script>
 <template>
+  <button
+    v-if="folded"
+    class="ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+    @click="emit('toggleFold')"
+  >
+    <EllipsisHorizontalIcon class="h-4 w-4" />
+  </button>
   <TiptapEditor
+    v-else
     ref="editorRef"
     :model-value="content || ''"
     @update:model-value="content = $event"

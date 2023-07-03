@@ -10,16 +10,16 @@ import {
 import { useActions } from "@/state/actions";
 import type { StatementAction } from "@/state/bench";
 import { FieldType, FileHeaderType, StatementContentType } from "@/state/fragments";
-import { getSymbolSubtype, TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, getSymbolSubtype, useCurrentModule } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
-import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { syncProperty } from "@/utils/sync";
 import {
-  ChevronDoubleDownIcon,
   CircleStackIcon,
   CodeBracketSquareIcon,
+  PlayCircleIcon,
   QueueListIcon,
   RectangleGroupIcon,
   ServerStackIcon,
@@ -35,7 +35,6 @@ export const STATEMENT_CONTEXT = "__statementContext__" as const;
 export type StatementContext = {
   depth: Ref<number>;
   xOffset: Ref<number>;
-  lineNumberBase: Ref<number>;
   readonly: Ref<boolean>;
   active: Ref<boolean>;
   focused: Ref<boolean>;
@@ -563,7 +562,7 @@ export function getStatementIcon(type: StatementType, rootTypeTag?: TypeTag | nu
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIcon;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return ChevronDoubleDownIcon;
+    return PlayCircleIcon;
   } else {
     return icons[type];
   }

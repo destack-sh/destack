@@ -302,6 +302,8 @@ class ResolvedField(Field):
 
 
 class _FieldAccessor:
+    """Access the fields of a type as attributes."""
+
     def __init__(self, type: "HasType"):
         self.type = type
 

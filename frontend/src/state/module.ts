@@ -35,6 +35,7 @@ export type ModuleIndex = {
   path: string;
   statementsById: Record<string, InterpStatement>;
   statementsByFileId: Record<string, InterpStatement[]>;
+  statementsByParentId: Record<string, InterpStatement[]>;
   filesById: Record<string, InterpFile>;
 };
 
@@ -97,6 +98,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (module.value?.projectVersion == null) return null;
     const statementsById: Record<string, InterpStatement> = {};
     const statementsByFileId: Record<string, InterpStatement[]> = {};
+    const statementsByParentId: Record<string, InterpStatement[]> = {};
     const filesById: Record<string, InterpFile> = {};
 
     for (const fileEdge of module.value.projectVersion.files.edges) {
@@ -106,6 +108,10 @@ function _useModule(projectVersionId: Ref<string | null>) {
       for (const statement of fileEdge.node.statements.map((s) => useFragment(InterpStatementType, s))) {
         if (statement.deletedAt != null) continue;
         statementsById[statement.id] = statement;
+        if (statementsByParentId[statement.parent?.id] == null) {
+          statementsByParentId[statement.parent?.id] = [];
+        }
+        statementsByParentId[statement.parent?.id].push(statement);
       }
       statementsByFileId[fileEdge.node.id] = fileEdge.node.statements
         .map((s) => useFragment(InterpStatementType, s))
@@ -117,6 +123,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       path: module.value.projectVersion.project.path,
       statementsById: statementsById,
       statementsByFileId: statementsByFileId,
+      statementsByParentId: statementsByParentId,
       filesById: filesById,
     } as ModuleIndex;
   });
@@ -238,6 +245,20 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return statements;
   }
 
+  function getDescendantsOf(statementId: { id: string }) {
+    const statement = idx.value?.statementsById[statementId.id];
+    if (statement == null) return [];
+    const descendants: InterpStatement[] = [];
+    const walkDfs = (statement: InterpStatement) => {
+      descendants.push(statement);
+      for (const child of idx.value?.statementsByParentId[statement.id] ?? []) {
+        walkDfs(child);
+      }
+    };
+    walkDfs(statement);
+    return descendants;
+  }
+
   function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "reference" | "metadata">) {
     // TODO @Performance: cache getTypedKey (esp. when without references & metadata)
     let tag = field.tag;
@@ -273,8 +294,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
     statementOf,
     relativePath,
     getTypedKey,
-    localErrorsOf: localIssuesOf,
+    localIssuesOf,
     statementsLike,
+    getDescendantsOf,
   };
 }
 

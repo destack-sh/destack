@@ -585,6 +585,16 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             statement._interp(statement)
 
 
+class _BlockAccessor:
+    """Access the nested statements of a block as attributes."""
+
+    def __init__(self, block: "Statement"):
+        self.block = block
+
+    def __getattr__(self, name: str) -> Optional["Statement"]:
+        return self.block._scopes_by_name.get(name)
+
+
 @node(tracked=["name"])
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A Bench statement."""
@@ -669,6 +679,10 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             for child in self.children:
                 yield from child.walk_descendants()
 
+    @property
+    def b(self) -> _BlockAccessor:
+        return _BlockAccessor(self)
+
     def _index(self):
         self._clear()
         self.children = self.file.statements_by_parent_id.get(self.id, [])
@@ -710,21 +724,6 @@ class StatementBase(abc.ABC):
         raise NotImplementedError
 
     _on_issue: IssueHandler
-
-
-@node(tracked=[])
-class Blank(Statement):
-    """A blank statement."""
-
-    type: StatementType = StatementType.BLANK
-
-
-@node(tracked=["text"])
-class Text(Statement):
-    """A comment that's not semantic/interpreted by default."""
-
-    type: StatementType = StatementType.TEXT
-    text: str | None = None
 
 
 class ModuleOp(enum.StrEnum):
@@ -962,3 +961,28 @@ class Session:
                 session.close()
 
         return SyncSession()
+
+
+# common statements
+
+
+@node(tracked=[])
+class Blank(Statement):
+    """A blank statement."""
+
+    type: StatementType = StatementType.BLANK
+
+
+@node(tracked=["text"])
+class Text(Statement):
+    """A comment that's not semantic/interpreted by default."""
+
+    type: StatementType = StatementType.TEXT
+    text: str | None = None
+
+
+@node(tracked=[])
+class Block(Statement):
+    """A named block of statements."""
+
+    type: StatementType = StatementType.BLOCK

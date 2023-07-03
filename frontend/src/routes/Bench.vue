@@ -318,7 +318,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
 });
 
 // show notification if disconnected/reconnected
-const connectionLost = ref(false);
+const disconnected = ref(false);
 const wasEverConnected = ref(false);
 watch(
   () => [WS_CONNECTED.value],
@@ -326,16 +326,16 @@ watch(
     if (WS_CONNECTED.value) {
       wasEverConnected.value = true;
     }
-    if (!WS_CONNECTED.value && !connectionLost.value && wasEverConnected.value) {
+    if (!WS_CONNECTED.value && !disconnected.value && wasEverConnected.value) {
       notifications.show({
         type: "runtime.disconnected",
         kind: "warning",
         message: "Disconnected",
         description: "Bench has disconnected.",
       });
-      connectionLost.value = true;
-    } else if (WS_CONNECTED.value && connectionLost.value) {
-      connectionLost.value = false;
+      disconnected.value = true;
+    } else if (WS_CONNECTED.value && disconnected.value) {
+      disconnected.value = false;
       notifications.show({
         type: "runtime.reconnected",
         kind: "success",

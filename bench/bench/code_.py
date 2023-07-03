@@ -175,6 +175,7 @@ def instantiate_callable(
         "context": {symbol.name: symbol for symbol in context.values()},  # by name
         **context,  # inlined
         "random": Random(code.id.hex.encode()),
+        "self": code,
     }
 
     if code.language == "python":
@@ -234,7 +235,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "last": last,
     "chain": itertools.chain,
 }
-DYNAMIC_BUILTINS: set[str] = {"session", "random"}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "random"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 

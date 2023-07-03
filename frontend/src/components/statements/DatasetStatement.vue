@@ -789,7 +789,7 @@ defineExpose({
       <button
         v-if="!folded"
         tabindex="-1"
-        class="h-full rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-800"
+        class="h-full rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
         @click="() => toggleInlineSearch()"
       >
         <MagnifyingGlassIcon class="h-4 w-4" />
@@ -816,7 +816,7 @@ defineExpose({
         <button
           tabindex="-1"
           v-if="(properties.inlineQuery ?? '').trim() != ''"
-          class="absolute right-0 top-0 h-full rounded-sm p-0.5 text-gray-500 transition duration-150 hover:bg-orange-100 hover:text-gray-800"
+          class="absolute right-0 top-0 h-full rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
           @click="() => (properties.inlineQuery = undefined)"
         >
           <XCircleIcon class="h-4 w-4" />
@@ -980,7 +980,7 @@ defineExpose({
                 :actions="recordActions"
               >
                 <DragHandleIcon
-                  class="h-4 w-4 text-gray-400 hover:text-gray-700"
+                  class="h-3 w-3 text-gray-400 hover:text-gray-700"
                   :class="[
                     open
                       ? ''

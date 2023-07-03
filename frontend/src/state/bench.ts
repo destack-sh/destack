@@ -226,7 +226,6 @@ export const useBenchState = defineStore("bench", {
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
       showGenerated: true,
-      showLineNumbers: false,
       showEditorGroupHeader: false,
       showGlobalHeader: true,
       showViewSelection: true,
@@ -932,6 +931,16 @@ export class FileEditor extends NavigableEditor {
     } else {
       this.foldedStatementContentIds = this.foldedStatementContentIds ?? [];
       this.foldedStatementContentIds.push(statement.id);
+    }
+  }
+
+  setStatementContentsFolded(statements: Pick<StatementHeader, "id">[], folded: boolean): void {
+    if (folded) {
+      this.foldedStatementContentIds = [this.foldedStatementContentIds ?? [], ...statements.map((s) => s.id)];
+    } else {
+      this.foldedStatementContentIds = this.foldedStatementContentIds?.filter(
+        (id) => !statements.find((s) => s.id == id)
+      );
     }
   }
 

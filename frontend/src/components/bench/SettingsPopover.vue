@@ -1,24 +1,10 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
-import {
-  CONTENT_MARGIN_X_NARROW,
-  CONTENT_MARGIN_X_WIDE,
-  CONTENT_WIDTH_NARROW,
-  CONTENT_WIDTH_WIDE,
-  useAppearance,
-} from "@/state/appearance";
+import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { Popover, PopoverPanel } from "@headlessui/vue";
-import {
-  ArrowsPointingOutIcon,
-  Bars3BottomLeftIcon,
-  HashtagIcon,
-  MapIcon,
-  MoonIcon,
-  WindowIcon,
-} from "@heroicons/vue/24/outline";
-import { computed } from "vue";
+import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, MapIcon, MoonIcon, WindowIcon } from "@heroicons/vue/24/outline";
 
 const appearance = useAppearance();
 const bench = useBenchState();
@@ -87,14 +73,6 @@ const fontOptions = [
             <span class="text-sm text-gray-900">Wide content</span>
           </span>
           <Switch v-model="appearance.contentWide" />
-        </div>
-        <!-- Line numbers -->
-        <div class="flex flex-row items-center justify-between px-2">
-          <span class="flex flex-row items-center gap-2">
-            <HashtagIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Line numbers</span>
-          </span>
-          <Switch v-model="bench.showLineNumbers" />
         </div>
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">

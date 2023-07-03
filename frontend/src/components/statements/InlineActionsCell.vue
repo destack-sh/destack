@@ -36,7 +36,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
     <button
       v-for="action in inlineActions.filter((action) => !action.hideInline && !action.disabled)"
       :key="action.label"
-      class="group relative p-0.5 text-gray-500 hover:text-gray-800"
+      class="group relative p-0.5 text-gray-400 hover:text-gray-700"
       :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
       @click.prevent.stop="action.action(context.statement.value as StatementHeader)"
       :disabled="action.disabled || action.active"
@@ -47,7 +47,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
       <!-- Label -->
       <span
         v-if="!action.active"
-        class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 text-gray-900 opacity-0 transition duration-150 group-hover:opacity-100"
+        class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
       >
         {{ action.label }}
       </span>
