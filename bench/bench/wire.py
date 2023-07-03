@@ -4,7 +4,7 @@ import abc
 import re
 import traceback
 import typing
-from collections import OrderedDict, defaultdict, deque
+from collections import OrderedDict, deque
 from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any, ClassVar, Optional
@@ -45,7 +45,7 @@ class ModuleTree:
 
     def __init__(self, nodes: list[NodeT | NodeDataT] = None):
         self.nodes: dict[UUID, NodeT] = {}
-        self.children: dict[UUID, list[UUID]] = defaultdict(list)
+        self.children: dict[UUID, list[UUID]] = {}
         for node in nodes or []:
             self.add(node)
 
@@ -68,6 +68,8 @@ class ModuleTree:
             raise ValueError(f"node {node} (id={node.id}) already exists in {self}: {existing}")
         self.nodes[node.id] = node
         if node.parent_id is not None:
+            if node.parent_id not in self.children:
+                self.children[node.parent_id] = []
             self.children[node.parent_id].append(node.id)
 
     def replace(self, node: NodeT | NodeDataT):
@@ -76,6 +78,8 @@ class ModuleTree:
         if old_node is not None and old_node.parent_id is not None:
             self.children[old_node.parent_id].remove(node.id)
         self.nodes[node.id] = node
+        if node.parent_id not in self.children:
+            self.children[node.parent_id] = []
         self.children[node.parent_id].append(node.id)
 
     def remove(self, node: NodeT | NodeDataT, recursive: bool = True):
@@ -130,7 +134,7 @@ class ModuleTree:
             current_node = queue.popleft()
             num_traversed += 1
             yield current_node
-            for child_id in self.children[current_node.id]:
+            for child_id in self.children.get(current_node.id, []):
                 queue.append(self.nodes[child_id])
         if roots == self.roots and num_traversed != len(self.nodes):
             raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
@@ -146,7 +150,7 @@ class ModuleTree:
             for _ in range(len(queue)):
                 current_node = queue.popleft()
                 level.append(current_node)
-                for child_id in self.children[current_node.id]:
+                for child_id in self.children.get(current_node.id, []):
                     queue.append(self.nodes[child_id])
             num_traversed += len(level)
             yield level
@@ -170,12 +174,15 @@ class ModuleTree:
         """Finds all children (or descendants) of the given type"""
         children = [
             self.nodes[child_id]
-            for child_id in self.children[parent_id]
+            for child_id in self.children.get(parent_id, [])
             if t is None or isinstance(self.nodes[child_id], t)
         ]
+        descendants = children[:]
         if recursive:
             for child in children:
-                children.extend(self.get_descendants(child.id, t, recursive=True))
+                if child.id not in self.children:
+                    continue
+                descendants.extend(self.get_descendants(child.id, t, recursive=True))
         return children
 
     def get_ancestor(

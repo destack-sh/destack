@@ -43,7 +43,7 @@ const userNavigation = computed(() => [
         <div
           class="rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-300 px-2 py-1 group-hover:bg-orange-400"
         >
-          <span class="text-sm font-bold text-gray-900">
+          <span class="text-sm text-gray-900">
             {{ auth.me.value?.username.slice(0, 2).toLocaleUpperCase() }}
           </span>
         </div>

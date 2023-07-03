@@ -327,6 +327,9 @@ class HasType(TypeBase, StatementBase):
         self.resolved_fields = None
 
     def _interp(self, scope: Scope) -> None:
+        # sort fields by order key
+        self.fields.sort(key=lambda f: f.order_key)
+
         # resolve references
         for n in self.walk_type():
             if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Statement):

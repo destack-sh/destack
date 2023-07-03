@@ -347,7 +347,7 @@ const statementAddAreaPositionX = computed(() => {
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
-        class="flex-1 pb-72"
+        class="flex-1 pb-96"
         :style="statementAddAreaPositionX"
         position="end"
         @click="bench.readonly || insertOrFocusStatementEnd()"

@@ -99,7 +99,7 @@ watch(
             height: appearance.editorHeaderHeight + 'px',
           }"
         >
-          <span class="select-none text-xs font-extrabold tracking-wide text-gray-500">
+          <span class="select-none text-xs font-semibold tracking-wide text-gray-500">
             {{ panel.title }}
           </span>
           <!-- Panel actions -->
