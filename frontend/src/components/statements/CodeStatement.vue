@@ -274,7 +274,7 @@ defineExpose({
   <FunctionTypeCell
     v-if="(hasTypes || addingTypes) && !folded"
     ref="typeRef"
-    class="-mt-1"
+    class="mb-2"
     @navigate-up="context.navigateUp"
     @navigate-down="monacoRef?.focus"
     @navigate-right="monacoRef?.focus"

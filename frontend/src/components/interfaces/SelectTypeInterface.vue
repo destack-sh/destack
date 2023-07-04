@@ -13,7 +13,7 @@ import uFuzzy from "@leeoniya/ufuzzy";
 const props = defineProps<{
   modelValue?: Field;
   inlined?: boolean;
-  structrefOnly?: boolean;
+  structrefOnly?: boolean /* crutch until we have proper filtering */;
   hideFlags?: boolean;
 }>();
 

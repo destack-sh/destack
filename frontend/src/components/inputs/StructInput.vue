@@ -46,12 +46,7 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
 
 const fields = computed(() => {
-  return (
-    runtimeType.value?.fields
-      .slice()
-      .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1))
-      .map((f) => module.runtimeTypeOf(f)) ?? []
-  );
+  return runtimeType.value?.fields.slice().sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? [];
 });
 const titleField: Ref<Field | undefined> = computed(() => {
   // get first name or string field

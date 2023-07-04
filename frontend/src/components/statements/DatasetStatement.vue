@@ -510,6 +510,7 @@ function duplicateField(fieldId: string) {
 
 function updateFieldType(key: string, changed: Field) {
   // we use key instead of id here because of the module.runtimeTypeOf hack (has different id, see above)
+  // note: this was changed, not sure if it's still needed
   const old = context.fields.value.find((n) => n.key == key);
   if (old == null) return;
   context.updateField(old, { ...changed, id: old.id });
@@ -1017,7 +1018,7 @@ defineExpose({
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
             :model-value="record.value?.[module.getTypedKey(field) as string]"
             @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
-            :type="field"
+            :type="module.effectiveTypeOf(field)"
             :readonly="context.readonly.value"
             :active="context.editing.value || context.focused.value"
             :wrap="

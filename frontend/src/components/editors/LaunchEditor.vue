@@ -37,17 +37,10 @@ const module = useCurrentModule();
 const statement = computed(() => module.statementOf(props.editor.editor.value.statementId));
 const inputFields = computed(
   () =>
-    statement.value?.fields
-      ?.map((f) => useFragment(FieldType, f))
-      .filter((t) => !(t.flags & TypeFlag.IsOutput))
-      .map((t) => module.runtimeTypeOf(t)) ?? []
+    statement.value?.fields?.map((f) => useFragment(FieldType, f)).filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []
 );
 const outputFields = computed(
-  () =>
-    statement.value?.fields
-      ?.map((f) => useFragment(FieldType, f))
-      .filter((t) => t.flags & TypeFlag.IsOutput)
-      .map((t) => module.runtimeTypeOf(t)) ?? []
+  () => statement.value?.fields?.map((f) => useFragment(FieldType, f)).filter((t) => t.flags & TypeFlag.IsOutput) ?? []
 );
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [];
