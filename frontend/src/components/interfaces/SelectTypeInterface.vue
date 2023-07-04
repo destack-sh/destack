@@ -251,7 +251,7 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+      class="w-full min-w-[280px] rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
       :class="{
         'font-mono': appearance.fontMono,
         'text-sm placeholder:text-sm': appearance.textSmall,

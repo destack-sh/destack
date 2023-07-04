@@ -1,3 +1,4 @@
+import dataclasses
 import enum
 import typing
 from typing import Any, Optional
@@ -9,6 +10,7 @@ from bench.bench.core import LookupBy, Module, Statement, parse_absolute_stateme
 from bench.bench.model import Model
 from bench.bench.reflect import _model_impls, _symbolx_reflect, x_enum, x_model, x_struct, x_task
 from bench.bench.remote import RemoteObject
+from bench.bench.task import TaskRunner
 from bench.bench.type import Key, Vector
 from bench.utils.utils import UnreachableError
 
@@ -124,7 +126,7 @@ class OpenAIChatCompletionModel(Model):
     ) -> OpenAIChatCompletion:
         response = await openai.ChatCompletion.acreate(
             model=self.external_name,
-            messages=[asdict(m) for m in messages],
+            messages=[dataclasses.asdict(m) for m in messages],
             temperature=settings.temperature,
             max_tokens=settings.max_tokens,
             top_p=settings.top_p,
@@ -173,6 +175,10 @@ class OpenAITextEmbeddingModel(Model):
                 total_tokens=rep["usage"]["total_tokens"],
             ),
         )
+
+
+class OpenAITaskRunner(TaskRunner):
+    pass
 
 
 @x_struct("AudioTranscriptionResponse", file=_openai_text)

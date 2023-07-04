@@ -12,7 +12,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.bench.const import DatasetBackend, DatasetViewLayout, TypeFlag, TypeTag
+from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
 from bench.bench.core import HasCrud, HasSession, ModuleNode, Scope, Session, Statement, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
@@ -124,6 +124,7 @@ class DatasetViewField(ModuleNode):
 
 @node(tracked=["description", "versioned"])
 class Dataset(HasType, IsExpectable, Statement):
+    type: StatementType = StatementType.DATASET
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
@@ -455,6 +456,7 @@ class Search:
 
 @node(tracked=["description", "value"])
 class Value(HasType, IsExpectable, Statement):
+    type: StatementType = StatementType.VALUE
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero

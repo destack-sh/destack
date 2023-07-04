@@ -778,19 +778,6 @@ defineExpose({
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
-      <!-- TODO @UX: folded statement content info does not truncate correctly (across all relevant statements)  -->
-      <button
-        class="ml-1 flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
-        :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
-        @click="$emit('toggleFold')"
-      >
-        <span>{{ humanizeNumber(totalCount) }} {{ totalCount == 1 ? "record" : "records" }}</span>
-        <!-- folded info -->
-        <template v-if="folded">
-          •
-          <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
-        </template>
-      </button>
     </div>
     <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
@@ -800,7 +787,6 @@ defineExpose({
     >
       <!-- Quick inline search -->
       <button
-        v-if="!folded"
         tabindex="-1"
         class="mb-0.5 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
         @click="() => toggleInlineSearch()"
@@ -810,7 +796,6 @@ defineExpose({
       <div
         v-if="properties.inlineQuery != null"
         class="relative h-full w-40 transition-transform duration-150"
-        :class="folded ? 'hidden' : ''"
         @click="searchRef?.focus"
       >
         <EditableSpan
@@ -845,6 +830,21 @@ defineExpose({
       />
     </div>
   </div>
+  <!-- Folded info -->
+  <!-- TODO @UX: folded statement content info does not truncate correctly (across all relevant statements)  -->
+  <button
+    v-if="folded"
+    class="flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
+    :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
+    @click="$emit('toggleFold')"
+  >
+    <span>{{ humanizeNumber(totalCount) }} {{ totalCount == 1 ? "record" : "records" }}</span>
+    <!-- folded info -->
+    <template v-if="folded">
+      •
+      <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
+    </template>
+  </button>
   <!-- Description -->
   <EditableSpan
     v-if="!folded"

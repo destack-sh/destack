@@ -7,7 +7,7 @@ from typing import Any
 import pytz
 import structlog
 
-from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel
+from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel, StatementType
 from bench.bench.execution import ExecutionFrame
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
@@ -30,9 +30,8 @@ if typing.TYPE_CHECKING:
         Task,
         Value,
     )
-    from bench.bench.model import Inference
 
-    Runnable = Code | Task
+    Runnable = Code | Task | Model
 
 logger = structlog.get_logger(__name__)
 
@@ -82,28 +81,21 @@ class Tracer:
 
     # execution
 
-    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
+    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
         pass
 
-    def code_enter(self, code: Runnable, args, kwargs):
+    def run_enter(self, statement: Runnable, inputs):
         pass
 
-    def code_exit(self, code: Runnable, args, kwargs, result):
+    def run_exit(self, statement: Runnable, inputs, result):
         pass
 
-    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
+    def run_cached(
+        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+    ):
         pass
 
-    def inference_enter(self, model: Model, inputs):
-        pass
-
-    def inference_exit(self, model: Model, inputs, outputs):
-        pass
-
-    def inference_exception(self, model: Model, inputs, exception: Exception):
-        pass
-
-    def inference_cached(self, model: Model, inputs, outputs):
+    def run_exception(self, statement: Runnable, inputs, exception: Exception):
         pass
 
 
@@ -152,50 +144,36 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.dataset_update(dataset, record, key)
 
-    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
+    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
         for tracer in self.tracers:
-            tracer.queue_enter(code, inputs, queue_position)
+            tracer.run_queue(statement, inputs, queue_position)
 
-    def code_enter(self, code: Runnable, args, kwargs):
+    def run_enter(self, statement: Runnable, inputs):
         for tracer in self.tracers:
-            tracer.code_enter(code, args, kwargs)
+            tracer.run_enter(statement, inputs)
 
-    def code_exit(self, code: Runnable, args, kwargs, result):
+    def run_exit(self, statement: Runnable, inputs, result):
         for tracer in reversed(self.tracers):
-            tracer.code_exit(code, args, kwargs, result)
+            tracer.run_exit(statement, inputs, result)
 
-    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
+    def run_exception(self, statement: Runnable, inputs, exception: Exception):
         for tracer in reversed(self.tracers):
             try:
-                tracer.code_exception(code, args, kwargs, exception)
+                tracer.run_exception(statement, inputs, exception)
             except Exception:
-                # internal error in tracer, very bad
-                logger.exception("trace.code.exception", exc_info=True, tracer=tracer)
+                # internal error in tracer, very not good
+                logger.exception("trace.run.exception", exc_info=True, tracer=tracer)
 
-    def inference_enter(self, model: Model, inputs):
-        for tracer in self.tracers:
-            tracer.inference_enter(model, inputs)
-
-    def inference_exit(self, model: Model, inputs, outputs):
+    def run_cached(
+        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+    ):
         for tracer in reversed(self.tracers):
-            tracer.inference_exit(model, inputs, outputs)
-
-    def inference_exception(self, model: Model, inputs, exception: Exception):
-        for tracer in reversed(self.tracers):
-            try:
-                tracer.inference_exception(model, inputs, exception)
-            except Exception:
-                # internal error in tracer, very bad
-                logger.exception("trace.inference.exception", exc_info=True, tracer=tracer)
-
-    def inference_cached(self, model: Model, inputs, outputs):
-        for tracer in reversed(self.tracers):
-            tracer.inference_cached(model, inputs, outputs)
+            tracer.run_cached(statement, inputs, result, generated_at, duration)
 
 
 # can't track inferences right now because models are not associated
 # with actual Bench libraries (unsynced/unstable ids and all), see BE-126
-TRACK_INFERENCES = False
+TRACK_MODELS = False
 
 
 class ExecutionTracer(Tracer):
@@ -221,8 +199,8 @@ class ExecutionTracer(Tracer):
             return self.stacktrace[-1]
         return None
 
-    def track(self, frame):
-        if self.publish:
+    def track(self, frame: ExecutionFrame):
+        if self.publish and not (frame.runnable.type == StatementType.MODEL and not TRACK_MODELS):
             from bench.msg.core import publish_soon
             from bench.msg.messages import ExecutionChangedPayload, NMessageType
 
@@ -282,79 +260,50 @@ class ExecutionTracer(Tracer):
             parent.children.append(frame)
         return frame
 
-    def queue_enter(self, code: Runnable, inputs: dict[str, Any], queue_position: int):
+    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
         # don't trace this because it's not part of the stacktrace
         frame = self._create_frame(
-            runnable=code,
-            inputs=strip_py_value(inputs, code, is_output=False),
+            runnable=statement,
+            inputs=strip_py_value(inputs, statement, is_output=False),
             trace=False,
             queue_position=queue_position,
         )
         self.track(frame)
         logger.debug("trace.queue", frame=frame)
 
-    def code_enter(self, code: Runnable, args, kwargs):
-        # map args into kwargs
-        inputs = {**kwargs}
-        for input_t, input in zip(code.inputs, args):
-            inputs[input_t.name] = input
+    def run_enter(self, statement: Runnable, inputs):
         frame = self._create_frame(
-            runnable=code, inputs=strip_py_value(inputs, code, is_output=False)
+            runnable=statement, inputs=strip_py_value(inputs, statement, is_output=False)
         )
         self.stacktrace.append(frame)
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
-        logger.debug("trace.code.enter", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exit(self, code: Runnable, args, kwargs, result):
+    def run_exit(self, statement: Runnable, inputs, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = strip_py_value(result, code, is_output=True)
+        frame.outputs = strip_py_value(result, statement, is_output=True)
         self.track(frame)
-        logger.debug("trace.code.exit", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.run.exit", frame=frame, stackdepth=len(self.stacktrace))
 
-    def code_exception(self, code: Runnable, args, kwargs, exception: Exception):
+    def run_exception(self, statement: Runnable, inputs, exception: Exception):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
         self.track(frame)
-        logger.debug("trace.code.exception", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.run.exception", frame=frame, stackdepth=len(self.stacktrace))
 
-    def inference_enter(self, model: Model, inputs: dict[str, Any]):
-        frame = self._create_frame(runnable=model)
-        frame.inputs = strip_py_value(inputs, model, is_output=False)
-        self.stacktrace.append(frame)
-        if TRACK_INFERENCES:
-            self.track(frame)
-        logger.debug("trace.inference.enter", frame=frame, stackdepth=len(self.stacktrace))
-
-    def inference_exit(self, model: Model, inputs: dict[str, Any], outputs: dict[str, Any]):
-        frame = self.pop_stacktrace()
+    def run_cached(
+        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+    ):
+        frame = self._create_frame(runnable=statement, trace=True)
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = strip_py_value(outputs, model, is_output=True)
-        if TRACK_INFERENCES:
-            self.track(frame)
-        logger.debug("trace.inference.exit", frame=frame, stackdepth=len(self.stacktrace))
-
-    def inference_cached(self, model: Model, inputs, inference: Inference):
-        # track a complete frame, don't add to stacktrace
-        frame = self._create_frame(runnable=model, trace=True)
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.cached_generated_at = inference.generated_at
-        frame.cached_duration = inference.duration
-        frame.inputs = inference.inputs
-        frame.outputs = inference.outputs
+        frame.cached_generated_at = generated_at
+        frame.cached_duration = duration
+        frame.inputs = inputs
+        frame.outputs = result
         self._update_cached_info()
-        if TRACK_INFERENCES:
-            self.track(frame)
-        logger.debug("trace.inference.cached", frame=frame, stackdepth=len(self.stacktrace))
-
-    def inference_exception(self, model: Model, inputs, exception: Exception):
-        frame = self.pop_stacktrace()
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.error = exception
-        if TRACK_INFERENCES:
-            self.track(frame)
-        logger.debug("trace.inference.exception", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.run.cached", frame=frame, stackdepth=len(self.stacktrace))
 
 
 class MutationTracer(Tracer):
@@ -398,20 +347,11 @@ class MutationTracer(Tracer):
 class TypeCheckingTracer(Tracer):
     """Validates types (except in inference, which is always checked in the task implementation)."""
 
-    def code_enter(self, code: Runnable, args, kwargs):
-        combined_kwargs = {**kwargs}
-        for input_t, input in zip(code.inputs, args):
-            combined_kwargs[input_t.name] = input
-        check_type(combined_kwargs, code, is_output=False)
+    def run_enter(self, statement: Runnable, inputs):
+        check_type(inputs, statement, is_output=False)
 
-    def code_exit(self, code: Runnable, args, kwargs, result):
-        check_type(result, code, is_output=True)
-
-    def inference_enter(self, model: Model, inputs):
-        check_type(inputs, model, is_output=False)
-
-    def inference_exit(self, model: Model, inputs, outputs):
-        check_type(outputs, model, is_output=True)
+    def run_exit(self, statement: Runnable, inputs, result):
+        check_type(result, statement, is_output=True)
 
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         check_type(value.value, value)

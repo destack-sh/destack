@@ -15,10 +15,10 @@ from bench import bench, models
 from bench.bench import HasType, Issue, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
-from bench.bench.model import get_execution_cache_key
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.query import QueryOp
 from bench.bench.type import instantiate_py_value, strip_py_value
+from bench.bench.utils import get_execution_cache_key
 from bench.bench.wire import ExecutionFrameData, ModuleTree
 from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
 from bench.models.execution import PENDING_EXECUTION_STATUSES

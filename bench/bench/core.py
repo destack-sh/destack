@@ -602,7 +602,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     parent: Union["Statement", File] = None
     children: list["Statement"] | None = None
     order_key: str | None = None
-    type: StatementType = StatementType.BLANK
+    type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
     issues: list[Issue] | None = None
     id: UUID = field(default_factory=uuid.uuid4)
@@ -741,6 +741,7 @@ class ModuleOp(enum.StrEnum):
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
+    RUN = "run"
 
 
 class SessionMode(enum.StrEnum):
@@ -816,7 +817,6 @@ class Session:
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
             module.lookup("openai.lib.text.gpt3"),
-            module.lookup("anthropic.lib.text.claude-instant"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout

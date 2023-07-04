@@ -216,18 +216,6 @@ defineExpose({
         class="inline-flex"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
-      <!-- Folded info -->
-      <button
-        v-if="folded"
-        class="t ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
-        @click="emit('toggleFold')"
-      >
-        <span>{{ numCodeLines }} lines</span>
-        <template v-if="inputs.length + outputs.length > 0">•</template>
-        <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
-        <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
-        <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
-      </button>
     </div>
     <!-- Meta info & controls -->
     <div
@@ -271,6 +259,19 @@ defineExpose({
       <InlineActions :extraActions="extraActions" />
     </div>
   </div>
+  <!-- Folded info -->
+  <button
+    v-if="folded"
+    class="-mx-0.5 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+    @click="emit('toggleFold')"
+  >
+    <span>{{ numCodeLines }} {{ numCodeLines == 1 ? "line" : "lines" }}</span>
+    <template v-if="inputs.length + outputs.length > 0">•</template>
+    <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
+    <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
+    <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
+  </button>
+  <!-- Type -->
   <FunctionType
     v-if="(hasTypes || addingTypes) && !folded"
     ref="typeRef"

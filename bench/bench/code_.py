@@ -10,12 +10,11 @@ from typing import Any, Callable, Optional
 
 from more_itertools import first, last
 
-from bench.bench.const import TypeTag
+from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.type import HasType
-from bench.utils.func import describe_type
 from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
 
 
@@ -36,8 +35,9 @@ class CodeParse:
 
 @node(tracked=["language", "code"])
 class Code(HasType, IsExpectable, Statement):
-    tag: TypeTag = TypeTag.FUNCTION
     language: str = "python"
+    tag: TypeTag = TypeTag.FUNCTION
+    type: StatementType = StatementType.CODE
     code: Optional[str] = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
@@ -82,32 +82,26 @@ class Code(HasType, IsExpectable, Statement):
 
     async def __call_async__(self, *args, **kwargs):
         self._prep_callable()
-        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
+        inputs = self._inputs_from_args(args, kwargs)
         try:
-            self.session.tracer.code_enter(self, args, kwargs)
-            log.debug("code.enter")
+            self.session.tracer.run_enter(self, inputs)
             result = await self._callable(*args, **kwargs)
-            self.session.tracer.code_exit(self, args, kwargs, result)
-            log.debug("code.exit")
+            self.session.tracer.run_exit(self, inputs, result)
             return result
         except Exception as exception:
-            self.session.tracer.code_exception(self, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
+            self.session.tracer.run_exception(self, inputs, exception)
             raise
 
     def __call_sync__(self, *args, **kwargs):
         self._prep_callable()
-        log = self.session.logger.bind(code=self, args=len(args), kwargs=describe_type(kwargs))
+        inputs = self._inputs_from_args(args, kwargs)
         try:
-            self.session.tracer.code_enter(self, args, kwargs)
-            log.debug("code.enter")
+            self.session.tracer.run_enter(self, inputs)
             result = self._callable(*args, **kwargs)
-            self.session.tracer.code_exit(self, args, kwargs, result)
-            log.debug("code.exit")
+            self.session.tracer.run_exit(self, inputs, result)
             return result
         except Exception as exception:
-            self.session.tracer.code_exception(self, args, kwargs, exception)
-            log.debug("code.exception", excinfo=True)
+            self.session.tracer.run_exception(self, inputs, exception)
             raise
 
     def to_sync(self) -> "Code":

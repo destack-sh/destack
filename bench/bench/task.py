@@ -5,12 +5,12 @@ import enum
 import json
 import re
 import typing
-import uuid
+from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import Optional, Self
 
 from bench.bench import Code
-from bench.bench.const import TypeFlag, TypeHint, TypeTag
+from bench.bench.const import StatementType, TypeFlag, TypeHint, TypeTag
 from bench.bench.core import Scope, Statement, node
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
@@ -22,20 +22,40 @@ from bench.bench.type import (
     instantiate_py_value_flat,
     map_value,
 )
-from bench.utils.utils import DotDict
+from bench.utils.utils import DotDict, DotDictList
+
+
+class TaskErrorType(enum.StrEnum):
+    INCAPABLE = "incapable"
+    TIMEOUT = "timeout"
+    INVALID_FORMAT = "invalid_format"
+    INVALID_TYPE = "invalid_type"
+    UNKNOWN = "unknown"
+
+
+class TaskError(ValueError):
+    def __init__(self, type: TaskErrorType, message: str = None, path: str = None):
+        super().__init__(message)
+        self.type = type
+        self.path = path
+
+
+class IncapableError(TaskError):
+    def __init__(self, message: str = None, path: str = None):
+        super().__init__(TaskErrorType.INCAPABLE, message, path)
 
 
 @node(tracked=["description"])
 class Task(HasType, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
+    type: StatementType = StatementType.TASK
     _is_async: bool = True
 
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
         HasExpectations._clear(self)
-        self._implementations = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -51,19 +71,71 @@ class Task(HasType, HasExpectations, Statement):
         batch: list[dict] = None,
         **kwargs,
     ):
-        inputs = {**kwargs}
-        for input_t, input in zip(self.inputs, args):
-            inputs[input_t.name] = input
-        # shortcut for built-in tasks with fixed implementations
-        if self.path == "symbolx.lib.builtins.embed":
-            ada = self.session.module.lookup("openai.lib.text.ada", statement_t=Model)
-            if ada is None:
-                raise RuntimeError("openai.lib.text.ada not found")
-            return await ada(**inputs, cache=cache, timeout=timeout)
-        elif self.path == "symbolx.lib.builtins.transcribe":
-            raise NotImplementedError
-        else:
-            raise NotImplementedError  # nocheckin
+        # map/batch inputs
+        inputs = self._inputs_from_args(args, kwargs)
+        is_batched = batch is not None
+        if is_batched and not isinstance(batch, DotDictList):
+            batch = DotDictList(batch)
+
+        try:
+            self.session.tracer.run_enter(self, inputs)
+
+            if inputs and is_batched:
+                raise ValueError("cannot specify both inputs and batch")
+
+            # get models
+            model = model or self.session.default_models
+            if isinstance(model, str):
+                model = self.session.module.lookup(model, statement_t=Model)
+            elif isinstance(model, list):
+                model = [
+                    self.session.module.lookup(m, statement_t=Model)
+                    for m in model
+                    if isinstance(m, str)
+                ]
+            if isinstance(model, Model):
+                model = [model]
+
+            # shortcut for built-in tasks with fixed implementations
+            if self.path == "symbolx.lib.builtins.embed":
+                ada = self.session.module.lookup("openai.lib.text.ada", statement_t=Model)
+                if ada is None:
+                    raise RuntimeError("openai.lib.text.ada not found")
+                if is_batched:
+                    ret = await ada(text=batch.text, cache=cache, timeout=timeout)
+                else:
+                    ret = await ada(**inputs, cache=cache, timeout=timeout)
+            elif self.path == "symbolx.lib.builtins.transcribe":
+                raise NotImplementedError
+            else:
+                if not model:
+                    raise RuntimeError(f"{self} has no default models and none were specified")
+                from bench.bench.libs import OpenAITaskRunner
+
+                compiler = OpenAITaskRunner(model[0], self, inputs, is_batched)
+                for child in self.children:
+                    if isinstance(child, (Code, Task, Model)):
+                        compiler.add_function(child)
+                    elif isinstance(child, Expectation):
+                        compiler.add_expectation(child)
+
+                intermediate_ret = await compiler.run()
+                while not isinstance(intermediate_ret, TaskOutputResult):
+                    if isinstance(intermediate_ret, TaskOutputFunction):
+                        inner_ret = await intermediate_ret.function(**intermediate_ret.inputs)
+                        compiler.add_result(
+                            intermediate_ret.function, intermediate_ret.inputs, inner_ret
+                        )
+                    else:
+                        raise RuntimeError(f"{self} got unexpected intermediate {intermediate_ret}")
+                    intermediate_ret = await compiler.run()
+                ret = intermediate_ret.value
+
+            self.session.tracer.run_exit(self, inputs, ret)
+            return ret
+        except Exception as e:
+            self.session.tracer.run_exception(self, inputs, e)
+            raise
 
     def to_sync(self) -> "Self":
         if self._is_async:
@@ -95,14 +167,40 @@ class TaskProxy:
         return cls(task, is_async=False)
 
 
-class TaskCompiler(abc.ABC):
-    def set_type(self, type: Type) -> None:
-        pass
+class TaskResultType(enum.StrEnum):
+    FUNCTION = "function"
+    RETURN = "return"
+
+
+@dataclass
+class TaskOutputFunction:
+    function: Task | Code | Model
+    inputs: dict | list[dict]
+    type: TaskResultType = TaskResultType.FUNCTION
+
+
+@dataclass
+class TaskOutputResult:
+    value: typing.Any
+    type: TaskResultType = TaskResultType.RETURN
+
+
+class TaskRunner(abc.ABC):
+    def __init__(
+        self, main_model: Model, type: HasType, inputs: dict | list[dict], is_batched: bool
+    ):
+        self.main_model = main_model
+        self.type = type
+        self.inputs = inputs
+        self.is_batched = is_batched
 
     def add_step(self, step: Task) -> None:
         pass
 
-    def add_tool(self, tool: Task | Code | Model) -> None:
+    def add_function(self, tool: Task | Code | Model) -> None:
+        pass
+
+    def add_result(self, tool: Task | Code | Model, inputs: dict, result: dict) -> None:
         pass
 
     def add_expectation(self, expectation: Expectation) -> None:
@@ -111,25 +209,9 @@ class TaskCompiler(abc.ABC):
     def add_error(self, error: TaskError) -> None:
         pass
 
-
-class TaskErrorType(enum.StrEnum):
-    INCAPABLE = "incapable"
-    TIMEOUT = "timeout"
-    INVALID_FORMAT = "invalid_format"
-    INVALID_TYPE = "invalid_type"
-    UNKNOWN = "unknown"
-
-
-class TaskError(ValueError):
-    def __init__(self, type: TaskErrorType, message: str = None, path: str = None):
-        super().__init__(message)
-        self.type = type
-        self.path = path
-
-
-class IncapableError(TaskError):
-    def __init__(self, message: str = None, path: str = None):
-        super().__init__(TaskErrorType.INCAPABLE, message, path)
+    async def run(self) -> TaskOutputFunction | TaskOutputResult:
+        """Runs the compiled task and returns the result"""
+        raise NotImplementedError
 
 
 def _parse_string_output(output: str, type: Type):
@@ -182,7 +264,7 @@ def _parse_string_output(output: str, type: Type):
 
 
 SAMPLE_BY_TYPE_HINT = {
-    TypeHint.UUID: str(uuid.uuid4()),
+    TypeHint.UUID: "123e4567-e89b-12d3-a456-426614174000",
     TypeHint.NAME: "Max Mustermann",
     TypeHint.EMAIL: "florian@symbolx.com",
     TypeHint.PHONE: "+49 123 456 789",

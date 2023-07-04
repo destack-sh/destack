@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import hashlib
 import os
 import typing
 from dataclasses import dataclass
@@ -13,8 +12,10 @@ import msgpack
 import pytz
 import structlog
 
+from bench.bench.const import StatementType
 from bench.bench.core import Scope, Statement, node
 from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
+from bench.bench.utils import get_execution_cache_key
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -33,6 +34,7 @@ class Model(HasType, Statement):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
+    type: StatementType = StatementType.MODEL
     _is_async: bool = True
     _remote: bool = False
     _endpoint_impl: typing.Optional[typing.Callable] = None
@@ -69,7 +71,7 @@ class Model(HasType, Statement):
                         inference.outputs, self, ignore_outer_map=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
-                    self.session.tracer.inference_cached(self, inputs, inference)
+                    self.session.tracer.run_cached(self, inputs, inference)
                     check_type(outputs, self, is_output=True)
                     return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
@@ -85,7 +87,7 @@ class Model(HasType, Statement):
                 ReqRunInferencePayload,
             )
 
-            self.session.tracer.inference_enter(self, inputs)
+            self.session.tracer.run_enter(self, inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
                 req = ReqRunInferencePayload(
@@ -102,23 +104,23 @@ class Model(HasType, Statement):
                 if rep.p.outputs is None:
                     raise RuntimeError(f"remote {self} failed")
                 outputs = instantiate_py_value(rep.p.outputs, self, is_output=True)
-                self.session.tracer.inference_exit(self, inputs, outputs)
+                self.session.tracer.run_exit(self, inputs, outputs)
                 return DotDict(outputs)
             except (ValueError, RuntimeError, TypeError) as e:
-                self.session.tracer.inference_exception(self, inputs, e)
+                self.session.tracer.run_exception(self, inputs, e)
                 raise
         else:
             # otherwise run inference through endpoint :LibImplementation
             try:
-                self.session.tracer.inference_enter(self, inputs)
+                self.session.tracer.run_enter(self, inputs)
                 timeout = timeout if timeout is not None else self.session.inference_timeout
                 outputs = await asyncio.wait_for(
                     asyncio.shield(self._inference(inputs, cache_key, log)), timeout
                 )
-                self.session.tracer.inference_exit(self, inputs, outputs)
+                self.session.tracer.run_exit(self, inputs, outputs)
                 return outputs
             except Exception as e:
-                self.session.tracer.inference_exception(self, inputs, e)
+                self.session.tracer.run_exception(self, inputs, e)
                 raise
 
     @property
@@ -200,10 +202,3 @@ class Inference:
             inputs=data["inputs"],
             outputs=data["output"],
         )
-
-
-def get_execution_cache_key(runnable_path: str, inputs: Any):
-    inputs_bytes = msgpack.packb(inputs, use_bin_type=True)
-    input_hash = hashlib.sha256(inputs_bytes).hexdigest()
-    cache_key = f"run:{runnable_path}.{input_hash}"
-    return cache_key
