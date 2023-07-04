@@ -219,16 +219,13 @@ defineExpose({
         preview
         v-bind="appearanceAttrs"
       />
-      <!-- Not found (mainly for dev mode (hopefully)) -->
+      <!-- Not found -->
       <div v-else-if="IS_DEBUG" class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
         {{ type.tag }} ({{ type.hint }})
         <template v-if="type.flags & TypeFlag.IsSecret">(secret)</template>
         <template v-if="type.flags & TypeFlag.IsArray">(array)</template>
       </div>
-      <div v-else>
-        <!-- damn it -->
-        &nbsp;
-      </div>
+      <div v-else class="h-full w-full text-center text-red-600">??? &nbsp;</div>
     </div>
     <!-- Editable popover -->
     <!-- Popover position is pinned with fixed, see above -->
