@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import DeclarationCell from "@/components/statements/DeclarationCell.vue";
-import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
-import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
+import FunctionType from "@/components/statements/FunctionType.vue";
+import InlineActions from "@/components/statements/StatementActions.vue";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
@@ -34,8 +34,8 @@ context.syncDescription(
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
-const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
-const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 
 function run() {
   const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
@@ -107,8 +107,8 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row items-baseline">
-      <DeclarationCell
+    <div class="flex flex-row">
+      <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
         @navigate-down="addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')"
@@ -152,7 +152,7 @@ defineExpose({
       Add description
     </button>
     <!-- Inline type -->
-    <FunctionTypeCell
+    <FunctionType
       v-if="isTyped && (context.fields.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
       @navigate-up="showDescription ? descriptionRef?.focus() : declarationRef?.focus()"

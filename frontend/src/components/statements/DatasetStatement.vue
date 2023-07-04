@@ -6,8 +6,8 @@ import { getInterface } from "@/components/inputs";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import InlineActions from "@/components/statements/InlineActionsCell.vue";
-import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import StatementActions from "@/components/statements/StatementActions.vue";
+import TypedDeclarationCell from "@/components/statements/TypedStatementDeclaration.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
@@ -795,21 +795,21 @@ defineExpose({
     <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
     <div
-      class="flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      class="flex flex-shrink-0 flex-row gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || properties.inlineQuery != null ? '' : 'opacity-0'"
     >
       <!-- Quick inline search -->
       <button
         v-if="!folded"
         tabindex="-1"
-        class="h-full rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+        class="mb-0.5 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
         @click="() => toggleInlineSearch()"
       >
         <MagnifyingGlassIcon class="h-4 w-4" />
       </button>
       <div
         v-if="properties.inlineQuery != null"
-        class="relative -mb-0.5 h-full w-40 transition-transform duration-150"
+        class="relative h-full w-40 transition-transform duration-150"
         :class="folded ? 'hidden' : ''"
         @click="searchRef?.focus"
       >
@@ -820,7 +820,7 @@ defineExpose({
           :readonly="false"
           @update:model-value="(v) => (properties.inlineQuery = v)"
           @keydown.escape.exact.prevent="toggleInlineSearch"
-          class="h-full overflow-hidden whitespace-nowrap"
+          class="overflow-hidden whitespace-nowrap"
           placeholder
         />
         <!-- Placeholder -->
@@ -836,7 +836,8 @@ defineExpose({
         </button>
       </div>
       <!-- Other actions -->
-      <InlineActions :extraActions="extraActions" />
+      <!-- not entirely sure why we need the margin hack here and above... -->
+      <StatementActions class="-mt-0.5" :extraActions="extraActions" />
       <CreateFieldInterface
         ref="createFieldRef"
         :title="'New field on ' + context.statement.value.name"

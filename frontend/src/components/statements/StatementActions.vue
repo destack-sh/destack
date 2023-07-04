@@ -31,7 +31,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
 });
 </script>
 <template>
-  <span class="flex flex-row items-center gap-1 p-0.5">
+  <span class="flex flex-row gap-1 p-0.5">
     <slot name="before" />
     <button
       v-for="action in inlineActions.filter((action) => !action.hideInline && !action.disabled)"

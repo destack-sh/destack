@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
-import InlineActionsCell from "@/components/statements/InlineActionsCell.vue";
-import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import StatementActions from "@/components/statements/StatementActions.vue";
+import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
@@ -15,7 +15,7 @@ const emit = defineEmits<{ (e: "toggleFold"): void }>();
 const context = useStatementContext();
 const ops = useOperations();
 
-const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -107,7 +107,11 @@ defineExpose({
   <div>
     <div class="flex max-w-full flex-row justify-between">
       <div class="flex flex-row items-baseline">
-        <TypedDeclarationCell ref="declarationRef" @navigate-up="context.navigateUp" @navigate-down="gridRef?.focus" />
+        <TypedStatementDeclaration
+          ref="declarationRef"
+          @navigate-up="context.navigateUp"
+          @navigate-down="gridRef?.focus"
+        />
         <!-- Folded info -->
         <button
           v-if="folded"
@@ -121,7 +125,7 @@ defineExpose({
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
         :class="context.focused.value ? '' : 'opacity-0'"
       >
-        <InlineActionsCell :extra-actions="actions" />
+        <StatementActions :extra-actions="actions" />
         <CreateFieldInterface
           ref="createFieldRef"
           :title="'New field on ' + context.statement.value.name"

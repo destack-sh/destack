@@ -60,7 +60,6 @@ const canContentFold = computed(() => statement.value.type != StatementType.Blan
 const isContentFolded = computed(
   () => !props.standalone && (editor.editor.value as FileEditor).isStatementContentFolded(statement.value)
 );
-const lineNumber = computed(() => (nav?.value?.statementPositions[statement.value.id] ?? -2) + 1);
 
 function toggleContentFold(descendants?: boolean) {
   if (props.standalone) return;
@@ -106,13 +105,14 @@ const context = {
   customActions: ref([]),
 } as StatementContext;
 provide(STATEMENT_CONTEXT, context);
-// manage cells
-type Cell = {
+
+// manage interfaces
+type StatementInterface = {
   component: Component;
   props?: any;
 };
 
-const rootCell: Ref<Cell> = computed(() => {
+const statementInterface: Ref<StatementInterface> = computed(() => {
   if (statement.value.type == StatementType.Text) {
     return {
       component: TextStatement,
@@ -145,8 +145,7 @@ const rootCell: Ref<Cell> = computed(() => {
     };
   }
 
-  // default to blank cell
-  // TODO @UX: blank statement should just be text statement with slash command support
+  // default to blank statement
   return {
     component: BlankStatement,
     props: { showDots: true },
@@ -158,7 +157,7 @@ const innerWrapperRef = ref<HTMLElement | null>(null);
 const statementRef = ref<InstanceType<typeof BlankStatement>>();
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
-const { focused: inRootCellFocused } = useFocusWithin(innerWrapperRef);
+const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 // scroll into view when becoming active
 whenever(isActive, () => {
@@ -177,7 +176,7 @@ whenever(isActive, () => {
   }
 });
 
-// focus root cell if editing in editor but not in container
+// focus statement interface if editing in editor but not in container
 whenever(
   isEditing,
   () => {
@@ -189,9 +188,9 @@ whenever(
   { immediate: true }
 );
 
-// refocus if root cell changed and we're editing
+// refocus if statement interface changed and we're editing
 watch(
-  () => rootCell.value.component,
+  () => statementInterface.value.component,
   (oldComponent, newComponent) => {
     if (isEditing.value && oldComponent !== newComponent) {
       nextTick(() => statementRef.value?.focus());
@@ -200,11 +199,11 @@ watch(
   { deep: false }
 );
 
-// blur root cell if focused in container but no longer editing or focused
+// blur statement interface if focused in container but no longer editing or focused
 watch(
-  () => [isEditing.value, inRootCellFocused.value],
+  () => [isEditing.value, inStatementFocused.value],
   () => {
-    if (!isEditing.value && inRootCellFocused.value) {
+    if (!isEditing.value && inStatementFocused.value) {
       statementRef.value?.blur();
     }
   }
@@ -220,14 +219,14 @@ onClickOutside(containerRef, (e) => {
     !shiftKeyState.value &&
     editor.container.value?.parentNode?.contains(e.target as Node)
   ) {
-    // we don't blur the root cell here because the focus is already elsewhere
+    // we don't blur the statement interface here because the focus is already elsewhere
     nav?.value?.editor.blurElement(statement.value);
   }
 });
 
 // if anything inside the container becomes focused (except the container), enable editing mode
 // (unless alt is pressed) :AltKeyEditing
-whenever(inRootCellFocused, () => {
+whenever(inStatementFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
@@ -517,7 +516,7 @@ defineExpose({
         class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
         :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
-      <!-- Main cell -->
+      <!-- Statement interface -->
       <!-- :StatementPadding -->
       <div
         ref="innerWrapperRef"
@@ -527,11 +526,10 @@ defineExpose({
           'text-md': !bench.textSmall,
         }"
       >
-        <!-- Most cells handle these events themselves, this is for raw DeclarationCells -->
         <component
           ref="statementRef"
-          :is="rootCell.component"
-          v-bind="rootCell.props"
+          :is="statementInterface.component"
+          v-bind="statementInterface.props"
           :folded="isContentFolded"
           @toggle-fold="toggleContentFold"
         />
@@ -574,7 +572,7 @@ defineExpose({
       <template v-if="isEditing">e</template>
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
-      <template v-if="inRootCellFocused">r*</template>
+      <template v-if="inStatementFocused">r*</template>
       <span class="lowercase">
         {{ statement.type }}
         <template v-if="statement.type">{{ statement.type }}:</template>
