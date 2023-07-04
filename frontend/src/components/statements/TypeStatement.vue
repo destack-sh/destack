@@ -1,8 +1,8 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
-import InlineActions from "@/components/statements/InlineActionsCell.vue";
-import TypedDeclarationCell from "@/components/statements/TypedDeclarationCell.vue";
+import InlineActions from "@/components/statements/StatementActions.vue";
+import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { TypeTag } from "@/gql/graphql";
@@ -17,7 +17,7 @@ const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
-const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(
@@ -195,8 +195,8 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row items-baseline">
-      <TypedDeclarationCell
+    <div class="flex flex-row">
+      <TypedStatementDeclaration
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
         @navigate-up="context.navigateUp"

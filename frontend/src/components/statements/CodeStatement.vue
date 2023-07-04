@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import DeclarationCell from "@/components/statements/DeclarationCell.vue";
-import FunctionTypeCell from "@/components/statements/FunctionTypeCell.vue";
-import InlineActions from "@/components/statements/InlineActionsCell.vue";
+import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
+import FunctionType from "@/components/statements/FunctionType.vue";
+import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
@@ -64,8 +64,8 @@ const lastExecutionLocalId: Ref<string | null> = ref(null); // same but optimist
 const lastExecution = computed(() => lastExecutionLocal.value ?? executions.executions.value[0]);
 const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecution.value?.id ?? null);
 
-const declarationRef: Ref<InstanceType<typeof DeclarationCell> | null> = ref(null);
-const typeRef: Ref<InstanceType<typeof FunctionTypeCell> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
+const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const hideOutput = ref(false);
@@ -210,8 +210,8 @@ defineExpose({
 <template>
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
-    <div class="flex flex-row">
-      <DeclarationCell
+    <div class="flex flex-row items-baseline">
+      <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
@@ -271,7 +271,7 @@ defineExpose({
       <InlineActions :extraActions="extraActions" />
     </div>
   </div>
-  <FunctionTypeCell
+  <FunctionType
     v-if="(hasTypes || addingTypes) && !folded"
     ref="typeRef"
     class="mb-2"
