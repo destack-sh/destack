@@ -86,6 +86,7 @@ context.syncDescription(
   computed(() => descriptionRef.value?.focused)
 );
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
+const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -414,12 +415,21 @@ watch(
 );
 
 const gridBounding = useElementBounding(gridRef);
+const innerGridBounding = useElementBounding(innerGridRef);
 const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
-const isPartiallyOccluded = computed(() => {
+const hasFloatingHeader = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
   const editorTop = editor.pos.value.top + appearance.editorHeaderHeight;
   return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
+});
+const gridOverhangLeft = computed(() => {
+  // how much the grid overhangs the left of the editor
+  return Math.max(editor.pos.value.left - innerGridBounding.left.value, 0);
+});
+const gridOverhangRight = computed(() => {
+  // how much the grid overhangs the right of the editor
+  return Math.max(innerGridBounding.right.value - (editor.pos.value.left + editor.size.value.width), 0);
 });
 
 // navigation
@@ -859,7 +869,7 @@ defineExpose({
     v-if="(!folded && (properties.sorts ?? []).length > 0) || properties.query != null"
     class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
   >
-    <!-- Sorts pill -->
+    <!-- Sort pills -->
     <span
       v-for="sort in properties.sorts ?? []"
       :key="sort.key"
@@ -872,6 +882,8 @@ defineExpose({
         <XMarkIcon class="h-3 w-3 text-gray-400" />
       </button>
     </span>
+    <!-- Filter pills (if simple) -->
+    <!-- (soon) -->
   </div>
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
@@ -887,7 +899,8 @@ defineExpose({
       'max-width': editor.size.value.width + 'px',
     }"
   >
-    <div class="-mx-1 flex min-w-fit flex-col">
+    <!-- Inner grid -->
+    <div ref="innerGridRef" class="-mx-1 flex min-w-fit flex-col">
       <!-- Header placeholder -->
       <div
         :style="{
@@ -897,16 +910,17 @@ defineExpose({
       ></div>
       <!-- Header (with types) -->
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
-      <!-- nocheckin: header pokes out of containing editor view (because it's fixed) -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
-        :class="(context.focused.value && !context.editing.value) || !isPartiallyOccluded ? '' : 'bg-white'"
+        :class="(context.focused.value && !context.editing.value) || !hasFloatingHeader ? '' : 'bg-white'"
         :style="{
-          position: !isPartiallyOccluded ? 'absolute' : 'fixed',
-          left: !isPartiallyOccluded
-            ? -gridScrollOffsetX + 4 + 'px'
-            : -gridScrollOffsetX + editor.pos.value.left + gridOffsetX + 'px',
-          top: !isPartiallyOccluded ? undefined : editor.pos.value.top + appearance.editorHeaderHeight + 'px',
+          position: hasFloatingHeader ? 'fixed' : 'absolute',
+          left: hasFloatingHeader
+            ? -gridScrollOffsetX + 4 + editor.pos.value.left + gridOffsetX + 'px'
+            : -gridScrollOffsetX + 4 + 'px',
+          top: hasFloatingHeader ? editor.pos.value.top + appearance.editorHeaderHeight + 'px' : undefined,
+          /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
+          clipPath: hasFloatingHeader ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
         }"
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
@@ -937,6 +951,7 @@ defineExpose({
             />
           </div>
         </div>
+        <!-- Properties column (add + settings) -->
         <div
           v-if="showPropertiesColumn"
           :style="{
