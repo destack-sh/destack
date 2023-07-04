@@ -111,19 +111,11 @@ defineExpose({
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
-        @navigate-down="addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')"
+        @navigate-down="
+          folded ? context.navigateDown() : addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')
+        "
         @navigate-right="typeRef?.focus"
       />
-      <!-- Folded info -->
-      <button
-        v-if="folded"
-        class="ml-1 flex max-w-full flex-row gap-1.5 truncate rounded-sm text-gray-400 hover:bg-gray-100"
-        @click="$emit('toggleFold')"
-      >
-        <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
-        <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
-        <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
-      </button>
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
@@ -131,6 +123,16 @@ defineExpose({
       :extraActions="extraActions"
     />
   </div>
+  <!-- Folded info -->
+  <button
+    v-if="folded"
+    class="-mx-0.5 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
+    @click="$emit('toggleFold')"
+  >
+    <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
+    <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />
+    <span v-for="output in outputs" :key="output.id">{{ output.name }}</span>
+  </button>
   <!-- Content -->
   <div v-if="!folded">
     <EditableSpan

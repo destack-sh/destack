@@ -182,7 +182,7 @@ class ModuleWorker:
             arguments = map_value(arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident))
         job = RunJob(id=root_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
-        session.tracer.queue_enter(runnable, arguments, queue_position=self.queue.qsize())
+        session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
         return job
 
     async def do_run(self, job: RunJob, timeout: float) -> Optional[RunErrorType]:

@@ -15,7 +15,14 @@ from uuid import UUID, uuid4
 import structlog
 from more_itertools import first
 
-from bench.bench.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeStorageFormat, TypeTag
+from bench.bench.const import (
+    RemoteObjectStatus,
+    StatementType,
+    TypeFlag,
+    TypeHint,
+    TypeStorageFormat,
+    TypeTag,
+)
 from bench.bench.core import (
     HasCrud,
     HasSession,
@@ -317,6 +324,7 @@ class _FieldAccessor:
 class HasType(TypeBase, StatementBase):
     """A symbol that has (but is not) a type"""
 
+    type: StatementType = StatementType.TYPE
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     flags: TypeFlag = TypeFlag.Zero
@@ -378,6 +386,12 @@ class HasType(TypeBase, StatementBase):
             self.fields.append(field_)
         self._reinterp()
         return self
+
+    def _inputs_from_args(self, args, kwargs) -> dict:
+        inputs = {**kwargs}
+        for input_t, input in zip(self.inputs, args):
+            inputs[input_t.name] = input
+        return inputs
 
     def _copy_fields(self, to: Optional["HasType"] = None) -> list[Field]:
         """Copies the fields of this type to a new parent"""

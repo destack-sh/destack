@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import field
 from typing import Optional, Self, Union
 
+from bench.bench.const import StatementType
 from bench.bench.core import Scope, Statement, StatementBase, StatementReference, node
 from bench.bench.issue import IssueType
 
@@ -55,6 +56,7 @@ class HasExpectations(StatementBase, IsExpectable):
 
 @node(tracked=["reference", "description"])
 class Expectation(Statement, HasExpectations):
+    type: StatementType = StatementType.EXPECTATION
     reference: StatementReference | Statement | None = None
     description: Optional[str] = None
 

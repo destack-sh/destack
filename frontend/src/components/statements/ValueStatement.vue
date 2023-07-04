@@ -112,14 +112,6 @@ defineExpose({
           @navigate-up="context.navigateUp"
           @navigate-down="gridRef?.focus"
         />
-        <!-- Folded info -->
-        <button
-          v-if="folded"
-          class="ml-1 flex max-w-full flex-row gap-1.5 truncate px-0.5 text-gray-400 hover:bg-gray-100"
-          @click="$emit('toggleFold')"
-        >
-          <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
-        </button>
       </div>
       <div
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
@@ -133,6 +125,15 @@ defineExpose({
         />
       </div>
     </div>
+    <!-- Folded info -->
+    <button
+      v-if="folded"
+      class="-mx-0.5 flex max-w-full flex-row gap-1.5 truncate px-0.5 text-gray-400 hover:bg-gray-100"
+      @click="$emit('toggleFold')"
+    >
+      <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
+    </button>
+    <!-- Value -->
     <StructInterface
       v-if="!folded"
       ref="gridRef"
