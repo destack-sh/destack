@@ -243,7 +243,7 @@ defineExpose({
     Add description
   </button>
   <!-- Fields (enum options or struct fields) -->
-  <div v-if="fieldsLength > 0 && !folded" class="my-0.5 flex w-full flex-col">
+  <div v-if="fieldsLength > 0 && !folded" class="mb-0.5 flex w-full flex-col">
     <FieldInterface
       v-for="field of context.selfFields.value"
       :key="field.id"

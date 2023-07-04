@@ -138,7 +138,7 @@ defineExpose({
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="readField(field)"
           @update:model-value="(val) => writeField(field, val)"
-          :type="field"
+          :type="module.effectiveTypeOf(field)"
           :readonly="readonly ?? false"
           :active="active ?? false"
           :debounced="debounced"

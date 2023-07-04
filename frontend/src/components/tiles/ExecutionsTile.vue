@@ -49,12 +49,8 @@ const { executions, totalCount, loading } = useExecutions(
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
 const symbol = computed(() => module.statementOf(props.runnableId));
-const inputFields = computed(
-  () => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)).map((t) => module.runtimeTypeOf(t)) ?? []
-);
-const outputFields = computed(
-  () => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput).map((t) => module.runtimeTypeOf(t)) ?? []
-);
+const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
+const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const expandedExecutionId = ref<string | null>(null);
 
 // navigation
@@ -213,7 +209,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
             <ValueInterface
               v-for="field in previewFields"
               :key="field.id"
-              :type="field"
+              :type="module.effectiveTypeOf(field)"
               readonly
               active
               :model-value="execution.inputs?.[module.getTypedKey(field) as string] ?? execution.outputs?.[module.getTypedKey(field) as string]"

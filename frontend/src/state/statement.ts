@@ -263,19 +263,12 @@ export function useStatementContext() {
         .filter((n) => n.deletedAt == null)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
   );
-  const selfFields = computed(
-    () =>
-      fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)).map((n) => module.runtimeTypeOf(n as Field)) ?? []
-  );
+  const selfFields = computed(() => fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)) ?? []);
   const baseTypes = computed(
     () => fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
   );
   const inheritedFields = computed(() => {
-    return (
-      resolvedFields.value
-        ?.filter((n) => !selfFields.value.find((f) => f.key == n.key))
-        .map((n) => module.runtimeTypeOf(n as Field) as Field) ?? []
-    );
+    return resolvedFields.value?.filter((n) => !selfFields.value.find((f) => f.key == n.key)) ?? [];
   });
   const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
   const fieldsByName = computed(() => {
@@ -349,7 +342,7 @@ export function useStatementContext() {
     const orderKey = generateKeyBetween(field?.orderKey ?? null, selfFields.value?.[fieldIdx + 1]?.orderKey ?? null);
     // "name" => "name 2", "name 2" => "name 3", etc.
     const newName =
-      field.name?.replace(/(\d+)?$/, (_, num) => (parseInt(num ?? "1") + 1).toString()) ?? field.name + " 2";
+      field.name?.search(/\d+$/) != -1 ? field.name?.replace(/\d+$/, (n) => String(Number(n) + 1)) : field.name + " 2";
     const newFieldNode = {
       ...field,
       id: newFieldId(),

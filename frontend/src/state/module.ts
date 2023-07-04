@@ -149,17 +149,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   // utils
 
-  function runtimeTypeOf(field: Field): Field {
-    if (field.tag != TypeTag.TypeReference) {
-      return field;
-    } else {
-      // impute reference type (not sure if this is a good place to do this)
-      const reference = statementOf(field.reference?.id);
-      if (reference == null) return field;
-      return { ...field, tag: reference.rootTypeTag as TypeTag };
-    }
-  }
-
   function fileOf(statement: { id: string }) {
     return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
   }
@@ -276,6 +265,16 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
+  function effectiveTypeOf(field: Field): Field {
+    if (field.tag == TypeTag.TypeReference) {
+      const reference = statementOf(field.reference?.id);
+      if (reference == null) return field;
+      return { ...field, tag: reference.rootTypeTag as TypeTag };
+    } else {
+      return field;
+    }
+  }
+
   return {
     loading: computed(() => loading.value || projectVersionId.value == null),
     module,
@@ -287,13 +286,13 @@ function _useModule(projectVersionId: Ref<string | null>) {
     dependencies,
     dependenciesIndex,
     // utils
-    runtimeTypeOf,
     fileOf,
     pathOf,
     contextOf,
     statementOf,
     relativePath,
     getTypedKey,
+    effectiveTypeOf,
     localIssuesOf,
     statementsLike,
     getDescendantsOf,
