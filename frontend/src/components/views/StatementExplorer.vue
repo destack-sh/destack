@@ -44,13 +44,13 @@ const statementsGrid = useNavigationGrid<"name", HTMLElement>(
 
 function focusStatement(statement: InterpStatement) {
   const focusedViewId = bench.focusedViewId;
-  nav.focusSymbol(statement);
+  nav.focusStatement(statement);
   bench.focusView(focusedViewId as ViewId); // keep focused view
-  nextTick(() => nav.focusSymbol(statement));
+  nextTick(() => nav.focusStatement(statement));
 }
 
 function focusStatementAndGoThere(statement: InterpStatement) {
-  nav.focusSymbol(statement);
+  nav.focusStatement(statement);
 }
 
 function focus(target: "first" | "last" = "first") {

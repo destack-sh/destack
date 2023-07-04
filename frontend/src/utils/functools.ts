@@ -105,3 +105,11 @@ export function randomHexString(length = 6): string {
 export function getUUIDFromGlobalID(globalId: string): string {
   return atob(globalId).split(":")[1];
 }
+
+export function getFieldNameFromTypeName(name: string): string | undefined {
+  // turn something like MyType123 into my type 123, ignorning non alphanum characters
+  return name
+    .replace(/[^a-zA-Z0-9]/g, " ")
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .toLowerCase();
+}

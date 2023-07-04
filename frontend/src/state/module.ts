@@ -376,7 +376,7 @@ export function useNavigation() {
     bench.focusFile(file_);
   }
 
-  return { focusSymbol, focusFile };
+  return { focusStatement: focusSymbol, focusFile };
 }
 
 export function newExecutionId(): string {

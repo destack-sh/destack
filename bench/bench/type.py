@@ -260,8 +260,10 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
 
     def __str__(self):
+        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
+        flags_str = f" ({flag_str})" if flag_str else ""
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
-        return f"{name_str}{self.tag}"
+        return f"{name_str}{self.tag}{flags_str}"
 
     def __repr__(self):
         return f"<Field {self}>"
@@ -335,15 +337,15 @@ class HasType(TypeBase, StatementBase):
             if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Statement):
                 continue  # nothing to resolve
             if n.reference is None:
-                symbol = None
+                statement = None
             else:
-                symbol = scope.lookup(n.reference, statement_t=Type)
-            if not isinstance(symbol, TypeBase):
+                statement = scope.lookup(n.reference, statement_t=Type)
+            if not isinstance(statement, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"
                 )
                 continue
-            n.reference = symbol
+            n.reference = statement
 
         # expand unions (recursively)
         Type._resolve_unions(self, [])

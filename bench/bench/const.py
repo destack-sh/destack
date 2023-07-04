@@ -100,6 +100,10 @@ class TypeFlag(enum.IntFlag):
     IsStoreOnly = 2**5
     IsArrayable = 2**6
 
+    @property
+    def short_name(self) -> str:
+        return self.name.replace("Is", "")
+
 
 class TypeStorageFormat(enum.StrEnum):
     """

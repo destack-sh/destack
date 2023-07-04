@@ -15,6 +15,7 @@ import { closeTransaction, openTransaction, useOperations } from "@/state/operat
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
+import { getFieldNameFromTypeName } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import {
   AdjustmentsHorizontalIcon,
@@ -308,7 +309,10 @@ export function useStatementContext() {
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
     );
-    const name: string = TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? "field";
+    const nameFromReference =
+      template.reference?.name != null ? getFieldNameFromTypeName(template.reference?.name) : undefined;
+    const name: string =
+      TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
     const field = makeField({
       name: name.toLowerCase(),
       tag: template.tag,

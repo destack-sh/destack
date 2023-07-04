@@ -312,7 +312,7 @@ defineExpose({
               >
                 <!-- Name, tag, description -->
                 <div class="pt-0.5">
-                  <p class="flex flex-row items-start gap-0.5 text-xs font-bold">
+                  <p class="flex flex-row items-start gap-0.5 text-xs font-semibold">
                     <!-- Version link -->
                     <router-link
                       :to="{

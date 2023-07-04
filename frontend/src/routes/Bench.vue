@@ -53,7 +53,6 @@ import {
   LockClosedIcon,
   MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
-  XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useElementSize, useTitle } from "@vueuse/core";
@@ -71,6 +70,7 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
+import { XCircleIcon } from "@heroicons/vue/24/solid";
 
 const props = defineProps<{
   owner: string;
@@ -521,39 +521,7 @@ onBeforeUnmount(() => {
             <!-- <button>fork</button> -->
           </div>
         </div>
-        <!-- Status -->
-        <div v-if="versionLoaded" class="ml-2 flex items-center">
-          <!-- Operations status -->
-          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
-            <svg
-              viewBox="0 0 10 10"
-              class="h-1 w-1"
-              :class="{
-                'text-orange-600': !hasStaleInflightStateOps,
-                'animate-spin text-gray-400': hasStaleInflightStateOps,
-              }"
-            >
-              <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
-            </svg>
-            <span class="text-sm text-gray-500">saving</span>
-          </span>
-          <!-- Runtime status -->
-          <span class="flex items-center gap-1 p-1 transition-all">
-            <svg
-              viewBox="0 0 10 10"
-              class="h-1 w-1"
-              :class="{ 'text-orange-600': WS_CONNECTED, 'text-gray-400': !WS_CONNECTED }"
-            >
-              <rect width="10" height="10" rx="1" ry="1" fill="currentColor" />
-            </svg>
-            <Transition appear>
-              <span class="text-sm text-gray-500" v-show="!WS_CONNECTED">
-                {{ WS_CONNECTED ? "connected" : "connecting" }}
-              </span>
-            </Transition>
-          </span>
-        </div>
-        <!-- Comments/notes, issues/warnings/lints, errors -->
+        <!-- Comments, issues -->
         <div class="ml-2 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
           <FadeTransition>
             <!-- Errors -->
@@ -562,10 +530,25 @@ onBeforeUnmount(() => {
               v-if="module.issues.value?.length || 0 > 0"
               @click="openIssues.apply"
             >
-              <XCircleIcon class="h-5 w-5 text-red-700" />
-              <span class="text-sm text-gray-700">{{ module.issues.value?.length }}</span>
+              <XCircleIcon class="h-5 w-5 text-red-600" />
+              <span class="text-sm font-semibold text-gray-700">{{ module.issues.value?.length }}</span>
             </button>
           </FadeTransition>
+        </div>
+        <!-- Status -->
+        <div v-if="versionLoaded" class="ml-2 flex items-center">
+          <!-- Operations status -->
+          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
+            <span class="text-sm text-gray-500">saving</span>
+          </span>
+          <!-- Runtime status -->
+          <span class="flex items-center gap-1">
+            <Transition appear>
+              <span class="text-sm text-gray-500" v-show="!WS_CONNECTED">
+                {{ WS_CONNECTED ? "connected" : "connecting" }}
+              </span>
+            </Transition>
+          </span>
         </div>
       </template>
 

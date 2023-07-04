@@ -17,7 +17,7 @@ import {
   ArrowsPointingOutIcon,
   ChevronRightIcon,
   CodeBracketIcon,
-  RocketLaunchIcon,
+  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -38,7 +38,7 @@ const auth = useAuth();
 const editorIcons: Record<EditorType, any> = {
   file: CodeBracketIcon,
   statement: CodeBracketIcon,
-  launch: RocketLaunchIcon,
+  launch: WindowIcon,
 };
 const icon = computed(() => editorIcons[editor.editor.value.type]);
 </script>
