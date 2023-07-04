@@ -249,6 +249,7 @@ DEFAULT_MODULES: dict[str, Module] = {
     "openai.lib": openai_lib,
     "anthropic.lib": anthropic_lib,
 }
+DEFAULT_MODULES_IDS = {module.id for module in DEFAULT_MODULES.values()}
 
 # interp/index them
 for name, module in DEFAULT_MODULES.items():
