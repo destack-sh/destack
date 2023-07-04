@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import random
 import string
 import typing
@@ -360,9 +361,31 @@ class Search:
         """Returns the first record of the search result."""
         return self.dataset.session.async_to_sync(self.afirst)()
 
+    async def atolist(self) -> list[Record]:
+        """Returns the search result as a list."""
+        return [record async for record in self]
+
     def tolist(self) -> list[Record]:
         """Returns the search result as a list."""
         return list(self)
+
+    async def avalues(self, field: str) -> list[Any]:
+        """Returns the values of the given field for all records."""
+        return [getattr(record, field) async for record in self]
+
+    def values(self, field: str) -> list[Any]:
+        """Returns the values of the given field for all records."""
+        return [getattr(record, field) for record in self]
+
+    async def avalues_map(self, func: AmapFunction | MapFunction) -> list[Any]:
+        is_async = inspect.iscoroutinefunction(func)
+        if is_async:
+            return [await func(record) async for record in self]
+        else:
+            return [func(record) async for record in self]
+
+    def values_map(self, func: MapFunction) -> list[Any]:
+        return [func(record) for record in self]
 
     def count(self):
         if self._total is not None:

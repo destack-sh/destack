@@ -23,7 +23,7 @@ from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
-from bench.opensearch.query import compile_to_os
+from bench.opensearch.query import CompilationInfo, compile_to_os
 
 
 @gql.django.type(models.Dataset)
@@ -320,10 +320,11 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         )
         if query is not None:
             combined_query &= query.to_dsl()
-        compiled_query = compile_to_os(combined_query)
-        compiled_sort = compile_to_os([s.to_dsl() for s in sort]) if sort else None
-        sort = compiled_sort or [{"order_key": "asc"}, {"_id": "asc"}]
         effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
+        compilation = CompilationInfo(root_limit=effective_limit)
+        compiled_query = compile_to_os(compilation, combined_query)
+        compiled_sort = compile_to_os(compilation, [s.to_dsl() for s in sort]) if sort else None
+        sort = compiled_sort or [{"order_key": "asc"}, {"_id": "asc"}]
         search = {
             "size": effective_limit + 1,  # +1 to determine if there is a next page
             "query": compiled_query,

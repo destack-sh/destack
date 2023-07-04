@@ -896,7 +896,7 @@ defineExpose({
       ></div>
       <!-- Header (with types) -->
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
-      <!-- TODO @Broken: header pokes out of containing editor view (because it's fixed) -->
+      <!-- nocheckin: header pokes out of containing editor view (because it's fixed) -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
         :class="(context.focused.value && !context.editing.value) || !isPartiallyOccluded ? '' : 'bg-white'"

@@ -2,9 +2,10 @@
 import type { IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { FaceSmileIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { FaceSmileIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { XCircleIcon } from "@heroicons/vue/24/solid";
 
 const appearance = useAppearance();
 const module = useCurrentModule();
@@ -13,7 +14,7 @@ const issues = computed(() => module.issues.value);
 
 function focusIssue(issue: IssueContentFragment) {
   if (issue.statement != null) {
-    nav.focusSymbol(issue.statement);
+    nav.focusStatement(issue.statement);
   } else if (issue.file != null) {
     nav.focusFile(issue.file);
   }

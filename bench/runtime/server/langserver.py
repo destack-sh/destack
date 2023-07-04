@@ -54,7 +54,7 @@ from bench.msg.messages import (
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
-from bench.opensearch.query import compile_to_os
+from bench.opensearch.query import CompilationInfo, compile_to_os
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -223,9 +223,10 @@ class LanguageServer:
         )
         if msg.p.query is not None:
             combined_query &= msg.p.query
-        compiled_query = compile_to_os(combined_query)
-        compiled_sort = compile_to_os(msg.p.sort) if msg.p.sort else [{"_id": "asc"}]
         effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
+        compilation = CompilationInfo(root_limit=effective_limit)
+        compiled_query = compile_to_os(compilation, combined_query)
+        compiled_sort = compile_to_os(compilation, msg.p.sort) if msg.p.sort else [{"_id": "asc"}]
         search = {
             "size": effective_limit,
             "query": compiled_query,

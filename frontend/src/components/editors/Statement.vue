@@ -23,13 +23,12 @@ import {
   ArrowsPointingOutIcon,
   ChevronDownIcon,
   ChevronRightIcon,
-  PencilIcon,
   PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   TrashIcon,
-  XCircleIcon,
 } from "@heroicons/vue/24/outline";
+import { XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
@@ -397,8 +396,8 @@ function showActionsPopover() {
 }
 
 // runtime
-const localIssues = module.localIssuesOf(statement);
-const hasLocalIssues = computed(() => (localIssues.value?.length ?? 0) > 0);
+const issues = module.localIssuesOf(statement);
+const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -480,7 +479,7 @@ defineExpose({
               <PlusIcon class="h-4 w-4" />
               <!-- Label -->
               <span
-                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
               >
                 <strong>Click</strong> to insert below
                 <br />
@@ -497,7 +496,7 @@ defineExpose({
               <component :is="isContentFolded ? ChevronRightIcon : ChevronDownIcon" class="h-4 w-4" />
               <!-- Label (yeah these should be refactored) -->
               <span
-                class="pointer-events-none absolute -left-7 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-1 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
               >
                 <strong>Click</strong> to {{ isContentFolded ? "expand" : "fold" }}
                 <br />
@@ -549,19 +548,19 @@ defineExpose({
         <div class="group/issues">
           <!-- Errors -->
           <button
-            v-if="hasLocalIssues"
-            class="flex rounded-sm font-bold text-red-700 underline-offset-4 hover:bg-red-100 hover:text-red-900"
+            v-if="hasIssues"
+            class="flex rounded-sm font-bold text-red-600 underline-offset-4 hover:bg-red-100 hover:text-red-800"
             @click="actions.apply('bench.view.openIssues')"
           >
             <XCircleIcon class="h-5 w-5" />
           </button>
           <!-- Preview on hover -->
           <div
-            v-if="hasLocalIssues"
+            v-if="hasIssues"
             class="invisible absolute right-0 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
           >
-            <span v-for="error in localIssues" :key="error.id" class="text-red-700">
-              {{ error.message }}
+            <span v-for="issue in issues" :key="issue.id" class="text-xs text-red-600">
+              {{ issue.message }}
             </span>
           </div>
         </div>

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TypeHint, TypeTag, type Field, StatementType } from "@/gql/graphql";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
 import { getStatementIcon } from "@/state/statement";
 import { renderBuiltinType } from "@/state/type";
 import {
@@ -30,6 +30,7 @@ import {
   StarIcon,
   VideoCameraIcon,
 } from "@heroicons/vue/24/outline";
+import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -50,6 +51,8 @@ const resolvedReference = computed(() => {
     return module.statementOf(props.type.reference.id);
   }
 });
+const nav = useNavigation();
+const altState = useKeyModifier("Alt");
 
 const resolvedTag = computed(() => resolvedReference.value?.rootTypeTag ?? props.type.tag);
 
@@ -115,9 +118,21 @@ const icon = computed(() => {
     <span v-if="!icon || (showTypeName && type.reference == null)">{{
       renderBuiltinType(resolvedTag, type.hint ?? null)
     }}</span>
-    <span v-if="(resolvedTag == TypeTag.TypeReference || type.reference) && !hideReference">{{
-      resolvedReference?.name ?? "???"
-    }}</span>
+    <span
+      v-if="(resolvedTag == TypeTag.TypeReference || type.reference) && !hideReference"
+      :class="altState ? 'decoration-gray-500 underline-offset-4 hover:underline' : ''"
+      @click="
+        (e) => {
+          if (altState && resolvedReference != null) {
+            e.stopPropagation();
+            e.preventDefault();
+            nav.focusStatement(resolvedReference);
+          }
+        }
+      "
+    >
+      {{ resolvedReference?.name ?? "???" }}
+    </span>
     <!-- Not optional flag ("underline") -->
     <!-- TODO @UX: improve required type look (underline is a bit clumsy) -->
     <!-- This is also used in select type flag menu -->

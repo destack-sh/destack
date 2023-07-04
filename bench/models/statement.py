@@ -60,7 +60,7 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     )
 
     def __str__(self):
-        flag_str = " ".join(flag.name.lower() for flag in TypeFlag if self.flags & flag)
+        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
         flags_str = f" ({flag_str})" if flag_str else ""
         name_str = f"{self.name} " if self.name else ""
         return f"{self.statement} {name_str}{self.tag}{flags_str}"
