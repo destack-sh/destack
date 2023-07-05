@@ -145,6 +145,7 @@ defineExpose({
           :debounced="debounced"
           :supports-drop="false"
           :full="fullInputs ?? false"
+          wrap
           @delete-self="deleteField(field.key as string)"
           @navigate-up="grid.navigateUp(field.id, 'value')"
           @navigate-down="grid.navigateDown(field.id, 'value')"
