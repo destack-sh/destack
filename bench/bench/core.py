@@ -2,7 +2,9 @@ import abc
 import asyncio
 import contextvars
 import enum
+import random
 import re
+import string
 import typing
 import uuid
 from collections import defaultdict
@@ -39,6 +41,7 @@ class ModuleObjectType(enum.StrEnum):
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
     DATASET_VIEW_FIELD = "DATASET_VIEW_FIELD"
+    TAGGING = "TAGGING"
     # interp
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
@@ -240,6 +243,7 @@ class Scope:
     parent: Optional["Scope"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
     _statements_by_id: dict[UUID, "Statement"] = field(default_factory=dict)
+    _tags_by_key: dict[str, "Tag"] = field(default_factory=dict)
     _names_by_py_ident: dict[str, str] = field(default_factory=dict)
 
     @cached_property
@@ -316,8 +320,11 @@ class Scope:
                 self._names_by_py_ident[statement.py_ident] = statement.name
 
         self._statements_by_id.update(statement._statements_by_id)
+        self._tags_by_key.update(statement._tags_by_key)
         if isinstance(statement, Statement):
             self._statements_by_id[statement.id] = statement
+        if isinstance(statement, Tag):
+            self._tags_by_key[statement.key] = statement
 
     def _add_file(self, file: "File", by_name: bool) -> None:
         if file.name is not None and by_name:
@@ -330,9 +337,10 @@ class Scope:
 
     def _clear(self):
         """Resets this scope and all child scopes."""
-        self._scopes_by_name.clear()
-        self._statements_by_id.clear()
-        self._names_by_py_ident.clear()
+        self._scopes_by_name = {}
+        self._statements_by_id = {}
+        self._tags_by_key = {}
+        self._names_by_py_ident = {}
         for scope in self._scopes_by_name.values():
             scope._clear()
 
@@ -754,6 +762,63 @@ class StatementBase(abc.ABC):
         raise NotImplementedError
 
     _on_issue: IssueHandler
+
+
+#
+# Tagging
+#
+
+TAG_KEY_LENGTH = 8
+
+
+def new_tag_key() -> str:
+    """Gets a random alphabetic key as a persistent key for a type node."""
+    # (upper and lower case letters only)
+    # :TagKeys
+    return "".join(random.choices(string.ascii_letters, k=TAG_KEY_LENGTH))
+
+
+@node(tracked=["name"])
+class Tag(Statement, HasType):
+    """A tag statement."""
+
+    name: str = None
+    key: str = field(default_factory=new_tag_key)
+    type: StatementType = StatementType.TAG
+
+
+@node(tracked=[])
+class Tagging(ModuleNode):
+    """An association between a tag and a statement (with optional metadata)."""
+
+    key: str = required_field()
+    parent: Statement | None = None
+    metadata: dict[str, typing.Any] | None = None
+    # interp
+    _tag: Tag | None = None
+
+
+class HasTags(StatementBase):
+    tags: list[Tagging] | None = None
+
+    def set_tag(self, key: str | Tag | Tagging, value: str = None) -> None:
+        """Tags this statement with the given key and value."""
+        raise NotImplementedError
+
+    tag = set_tag
+
+    def clear_tag(self, key: str | Tag | Tagging) -> None:
+        """Clears the tag with the given key."""
+        raise NotImplementedError
+
+    def clear_tags(self) -> None:
+        """Clears all tags."""
+        raise NotImplementedError
+
+
+#
+# Sessions
+#
 
 
 class ModuleOp(enum.StrEnum):

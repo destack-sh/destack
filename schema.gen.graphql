@@ -1660,6 +1660,7 @@ input StatementSoftDeleteInput {
 
 """The type of Bench statement."""
 enum StatementType {
+  TAG
   TEXT
   BLANK
   TYPE

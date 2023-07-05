@@ -10,6 +10,7 @@ import enum
 class StatementType(enum.StrEnum):
     """The type of Bench statement."""
 
+    TAG = "tag"
     TEXT = "text"
     BLANK = "blank"
     TYPE = "type"
