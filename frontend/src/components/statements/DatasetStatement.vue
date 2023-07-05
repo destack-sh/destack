@@ -987,7 +987,7 @@ defineExpose({
         <!-- Record actions -->
         <div class="absolute -left-0.5 mt-1">
           <div class="relative">
-            <div class="absolute right-0 flex flex-row-reverse items-baseline gap-0.5">
+            <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
               <!-- Standard actions -->
               <ActionPopover
                 v-if="!context.readonly.value"
@@ -996,14 +996,16 @@ defineExpose({
                 :thing="record"
                 :actions="recordActions"
               >
-                <DragHandleIcon
-                  class="h-3 w-3 text-gray-400 hover:text-gray-700"
+                <div
+                  class="p-0.5 text-gray-400 hover:text-gray-700"
                   :class="[
                     open
                       ? ''
                       : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
                   ]"
-                />
+                >
+                  <DragHandleIcon class="h-4 w-4" />
+                </div>
               </ActionPopover>
               <!-- Insert record -->
               <button

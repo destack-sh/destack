@@ -137,6 +137,7 @@ class Task(HasType, HasExpectations, Statement):
                 compiler.add_expectation(child)
         for type in self.walk_type(include_references=False):
             pass  # nocheckin add all type instruction
+        # nocheckin: add code and dataset instructions
 
         # run
         runner = TaskRunner(self, max_steps=10, max_function_calls=3, max_errors=3)

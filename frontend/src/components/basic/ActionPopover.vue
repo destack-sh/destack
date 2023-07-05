@@ -77,7 +77,7 @@ defineExpose({
   <Popover as="div" class="relative" v-slot="{ close, open }">
     <!-- Button proxy so we can handle drag events -->
     <button
-      class="z-20 rounded-sm p-0.5 text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+      class="z-20 block rounded-sm text-gray-900 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
       :class="[open ? 'bg-orange-100' : '']"
       @click="
         emit('click', $event), popoverButtonRef?.$el.click(), (closed = false), $nextTick(() => inputRef?.$el.focus())
@@ -85,9 +85,7 @@ defineExpose({
       @mousedown="emit('mousedown', $event)"
       @mouseup="emit('mouseup', $event)"
     >
-      <slot :close="close" :open="open">
-        <EllipsisVerticalIcon class="h-4 w-4" />
-      </slot>
+      <slot :close="close" :open="open"><EllipsisVerticalIcon class="h-4 w-4" /></slot>
     </button>
     <PopoverButton ref="popoverButtonRef" class="hidden" />
     <!-- Prevent scroll and capture click outside -->

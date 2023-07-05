@@ -433,10 +433,10 @@ defineExpose({
     >
       <!-- Left gutter -->
       <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-      <div class="absolute top-0.5">
+      <div class="absolute top-1">
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
-            <!-- Monaco-like line number and drag handle -->
+            <!-- Actions / drag handle -->
             <ActionPopover
               ref="actionPopoverRef"
               anchor="right"
@@ -448,8 +448,8 @@ defineExpose({
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
               @click.stop
             >
-              <span
-                class="group cursor-grab select-none text-right not-italic transition duration-150"
+              <div
+                class="group cursor-grab p-0.5 transition duration-150"
                 :class="{
                   'opacity-0 group-hover/statement:opacity-100': !isActive && !open,
                   'opacity-100': isActive,
@@ -457,7 +457,7 @@ defineExpose({
                   ...appearance.baseClass,
                 }"
               >
-                <DragHandleIcon class="mt-1 h-3 w-3" />
+                <DragHandleIcon class="h-4 w-4" />
                 <!-- Label -->
                 <span
                   class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
@@ -466,7 +466,7 @@ defineExpose({
                   <br />
                   <strong>Drag</strong> to move
                 </span>
-              </span>
+              </div>
             </ActionPopover>
             <!-- Add statement below button -->
             <button
