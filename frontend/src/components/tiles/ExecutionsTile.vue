@@ -203,7 +203,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
             class="relative flex w-full flex-row justify-normal gap-x-3 overflow-hidden"
             :style="{
               width: previewWidth + 'px',
-              height: headerHeight - paddingY * 2 - 4 + 'px',
+              maxWidth: previewWidth + 'px',
             }"
           >
             <ValueInterface
@@ -212,11 +212,13 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
               :type="module.effectiveTypeOf(field)"
               readonly
               active
+              wrap
               :model-value="execution.inputs?.[module.getTypedKey(field) as string] ?? execution.outputs?.[module.getTypedKey(field) as string]"
-              class=""
+              class="overflow-hidden"
               :style="{
                 // 12 = gap-x-3
                 width: previewWidth / previewFields.length - (12 * previewFields.length - 1) + 'px',
+                height: headerHeight - 24 + 'px',
               }"
             />
             <!-- fade to white towards bottom -->
