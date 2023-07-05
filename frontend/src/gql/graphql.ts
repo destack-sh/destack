@@ -1959,6 +1959,7 @@ export enum StatementType {
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",
+  Tag = "TAG",
   Task = "TASK",
   Text = "TEXT",
   Type = "TYPE",
