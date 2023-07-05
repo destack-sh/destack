@@ -20,6 +20,7 @@ from asgiref.sync import async_to_sync, sync_to_async
 from bench.bench.const import ExecutionTriggerType, StatementType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.utils.fractional import generate_n_keys_between
+from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -704,7 +705,12 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             scope = self._scopes_by_name.get(item)
             if scope is not None:
                 return scope
-        raise AttributeError(f"{self} has no attribute {item}")
+        candidates = {
+            **{s: s for s in self._PROPERTIES},
+            **{s.name: s for s in self._scopes_by_name.values()},
+        }
+        did_you_mean = did_you_mean_str(candidates, item)
+        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean}")
 
     def _index(self):
         self._clear()

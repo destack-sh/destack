@@ -50,6 +50,7 @@ import {
   ChevronDoubleUpIcon,
   XMarkIcon,
   Bars3Icon,
+  XCircleIcon as XCircleIconOutline,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -62,7 +63,7 @@ import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
-import { XCircleIcon } from "@heroicons/vue/24/solid";
+import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -815,7 +816,7 @@ defineExpose({
           class="absolute right-0 top-0 h-full rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
           @click="() => (properties.inlineQuery = undefined)"
         >
-          <XCircleIcon class="h-4 w-4" />
+          <XCircleIconOutline class="h-4 w-4" />
         </button>
       </div>
       <!-- Other actions -->
@@ -987,7 +988,7 @@ defineExpose({
         <!-- Record actions -->
         <div class="absolute -left-0.5 mt-1">
           <div class="relative">
-            <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
+            <div class="absolute right-0.5 flex flex-row-reverse items-center gap-0.5">
               <!-- Standard actions -->
               <ActionPopover
                 v-if="!context.readonly.value"
@@ -1079,7 +1080,7 @@ defineExpose({
         :style="{ minHeight: minRowHeight + 'px' }"
         @click.stop="refetch()"
       >
-        <XCircleIcon class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
+        <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
         {{ recordsError.message }}
       </button>
       <!-- Load more/loading -->

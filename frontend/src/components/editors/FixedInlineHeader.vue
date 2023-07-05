@@ -52,7 +52,9 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
     <div class="flex flex-row items-center">
       <!-- editor actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="editor.actions.value" :groups="editor.actionGroups?.value">
-        <component :is="icon" class="-mb-[3px] h-4 w-4 text-gray-700" />
+        <div class="p-0.5">
+          <component :is="icon" class="h-4 w-4 text-gray-700" />
+        </div>
       </ActionPopover>
       <!-- editor path -->
       <ActionPopover anchor="left" :thing="thing" :actions="actions" class="ml-1">

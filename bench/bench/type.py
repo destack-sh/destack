@@ -39,7 +39,7 @@ from bench.bench.issue import IssueType
 from bench.bench.query import FieldQueryOps
 from bench.bench.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
-from bench.utils.func import dict_minus
+from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -193,7 +193,10 @@ class TypeBase(abc.ABC):
 
     @property
     def py_ident(self):
-        return to_pyidentifier(self.name, IdentifierType.FIELD)
+        if self.tag == TypeTag.LITERAL:
+            return to_pyidentifier(self.name, IdentifierType.CONSTANT)
+        else:
+            return to_pyidentifier(self.name, IdentifierType.FIELD)
 
     @property
     def effective_type(self) -> Union["TypeBase", "HasType"]:
@@ -222,14 +225,14 @@ class TypeBase(abc.ABC):
     def outputs(self) -> list["TypeBase"]:
         return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
-    def get_field(self, some_key: str) -> Optional["Field"]:
+    def get_field(self, some_id: str) -> Optional["Field"]:
         for field_ in self.resolved_fields or self.fields:
-            if field_.py_ident == some_key or field_.name == some_key or field_.key == some_key:
+            if field_.py_ident == some_id or field_.name == some_id or field_.key == some_id:
                 return field_
         return None
 
-    def has_field(self, name_or_key: str) -> bool:
-        return self.get_field(name_or_key) is not None
+    def has_field(self, some_id: str) -> bool:
+        return self.get_field(some_id) is not None
 
     def walk_type(self, path: list["UUID"] | None = None, include_references: bool = False):
         if path is None:
@@ -424,7 +427,13 @@ class HasType(TypeBase, StatementBase):
         statement = self._scopes_by_name.get(item)
         if statement is not None:
             return statement
-        raise AttributeError(f"{self} has no attribute {item}")
+        candidates = {
+            **{s: s for s in self._PROPERTIES},
+            **{f.py_ident: f for f in self.fields},
+            **{s.py_ident: s for s in self._scopes_by_name.values()},
+        }
+        did_you_mean = did_you_mean_str(candidates, item)
+        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
     @property
     def t(self):
