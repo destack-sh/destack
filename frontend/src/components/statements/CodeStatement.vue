@@ -165,7 +165,7 @@ async function run() {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is exact same as in editor
-    const ret = await ops.runtime.run(context.statement.value.id, undefined, lastExecutionLocalId.value);
+    const ret = await ops.runtime.run(context.statement.value.id, lastExecutionLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",

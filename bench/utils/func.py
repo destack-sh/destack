@@ -120,3 +120,52 @@ def describe_type(obj: Any) -> str:
         return ", ".join(type(value).__name__ for value in obj)
     else:
         return type(obj).__name__
+
+
+def levenshtein_distance(s1: str, s2: str) -> int:
+    """
+    Calculates the Levenshtein distance between two strings.
+    """
+    if len(s1) < len(s2):
+        return levenshtein_distance(s2, s1)
+
+    if len(s2) == 0:
+        return len(s1)
+
+    previous_row = range(len(s2) + 1)
+    for i, c1 in enumerate(s1):
+        current_row = [i + 1]
+        for j, c2 in enumerate(s2):
+            insertions = previous_row[j + 1] + 1
+            deletions = current_row[j] + 1
+            substitutions = previous_row[j] + (c1 != c2)
+            current_row.append(min(insertions, deletions, substitutions))
+        previous_row = current_row
+
+    return previous_row[-1]
+
+
+def get_similar_strings(candidates: dict[str, Any], needle: str) -> dict[str, Any]:
+    """
+    Returns a list of strings that are similar to the needle.
+    Used for 'did you mean' suggestions.
+    """
+    needle = needle.lower()
+    distances = [(s, levenshtein_distance(needle, s.lower())) for s in candidates.keys()]
+    similar_strings = [
+        string
+        for string, distance in distances
+        if distance <= len(needle) * 0.6 or needle in string
+    ]
+    return {string: candidates[string] for string in similar_strings}
+
+
+def did_you_mean_str(candidates: dict[str, Any], needle: str) -> str:
+    """
+    Returns a string with a 'did you mean' suggestion.
+    """
+    similar_candidates = get_similar_strings(candidates, needle)
+    if similar_candidates:
+        similar_candidates_strs = [f"{k} {repr(v)}" for k, v in similar_candidates.items()]
+        return f"did you mean: {', '.join(similar_candidates_strs)}  of {len(candidates)}?"
+    return f"nothing similar in {len(candidates)} candidates"
