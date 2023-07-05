@@ -60,6 +60,7 @@ def x_task(name: str, *, file: File):
 
 
 _model_impls: dict[str, typing.Callable] = {}
+_model_compilers: dict[str, typing.Callable] = {}
 
 
 def x_model(name: str, *, external_name: str, file: File):
@@ -67,10 +68,11 @@ def x_model(name: str, *, external_name: str, file: File):
         from bench.bench.model import Model
 
         model = Model(name=name, external_name=external_name)
-        model_type = type_from_py_type(cls._impl, name=None)
+        model_type = type_from_py_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
         file.append(model)
-        _model_impls[model.path] = cls._impl
+        _model_impls[model.path] = cls._endpoint
+        _model_compilers[model.path] = cls._compiler
         return cls
 
     return decorator

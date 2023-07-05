@@ -10,18 +10,11 @@ from json import JSONDecodeError
 from typing import Optional, Self
 
 from bench.bench import Code
-from bench.bench.const import StatementType, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import Scope, Statement, node
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
-from bench.bench.type import (
-    HasType,
-    Type,
-    TypeBase,
-    check_type,
-    instantiate_py_value_flat,
-    map_value,
-)
+from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
 from bench.utils.utils import DotDict, DotDictList
 
 
@@ -75,11 +68,11 @@ class Task(HasType, HasExpectations, Statement):
         inputs = self._inputs_from_args(args, kwargs)
         is_batched = batch is not None
         if is_batched and not isinstance(batch, DotDictList):
-            batch = DotDictList(batch)
+            inputs = DotDictList(batch)
+            del batch
 
         try:
             self.session.tracer.run_enter(self, inputs)
-
             if inputs and is_batched:
                 raise ValueError("cannot specify both inputs and batch")
 
@@ -89,9 +82,8 @@ class Task(HasType, HasExpectations, Statement):
                 model = self.session.module.lookup(model, statement_t=Model)
             elif isinstance(model, list):
                 model = [
-                    self.session.module.lookup(m, statement_t=Model)
+                    self.session.module.lookup(m, statement_t=Model) if isinstance(m, str) else m
                     for m in model
-                    if isinstance(m, str)
                 ]
             if isinstance(model, Model):
                 model = [model]
@@ -102,7 +94,7 @@ class Task(HasType, HasExpectations, Statement):
                 if ada is None:
                     raise RuntimeError("openai.lib.text.ada not found")
                 if is_batched:
-                    ret = await ada(text=batch.text, cache=cache, timeout=timeout)
+                    ret = await ada(text=inputs["text"], cache=cache, timeout=timeout)
                 else:
                     ret = await ada(**inputs, cache=cache, timeout=timeout)
             elif self.path == "symbolx.lib.builtins.transcribe":
@@ -110,16 +102,18 @@ class Task(HasType, HasExpectations, Statement):
             else:
                 if not model:
                     raise RuntimeError(f"{self} has no default models and none were specified")
-                from bench.bench.libs import OpenAITaskRunner
-
-                compiler = OpenAITaskRunner(model[0], self, inputs, is_batched)
+                # TODO @Robustness: rotate models (on failure?)
+                model = model[0]
+                compiler = model.compile(self, inputs, is_batched)
                 for child in self.children:
                     if isinstance(child, (Code, Task, Model)):
                         compiler.add_function(child)
                     elif isinstance(child, Expectation):
                         compiler.add_expectation(child)
+                for type in self.walk_type(include_references=False):
+                    pass  # nocheckin add all type instruction
 
-                intermediate_ret = await compiler.run()
+                intermediate_ret = await compiler.run(model)
                 while not isinstance(intermediate_ret, TaskOutputResult):
                     if isinstance(intermediate_ret, TaskOutputFunction):
                         inner_ret = await intermediate_ret.function(**intermediate_ret.inputs)
@@ -128,13 +122,13 @@ class Task(HasType, HasExpectations, Statement):
                         )
                     else:
                         raise RuntimeError(f"{self} got unexpected intermediate {intermediate_ret}")
-                    intermediate_ret = await compiler.run()
+                    intermediate_ret = await compiler.run(model)
                 ret = intermediate_ret.value
 
-            self.session.tracer.run_exit(self, inputs, ret)
+            self.session.tracer.run_exit(self, ret)
             return ret
         except Exception as e:
-            self.session.tracer.run_exception(self, inputs, e)
+            self.session.tracer.run_exception(self, e)
             raise
 
     def to_sync(self) -> "Self":
@@ -185,31 +179,33 @@ class TaskOutputResult:
     type: TaskResultType = TaskResultType.RETURN
 
 
-class TaskRunner(abc.ABC):
-    def __init__(
-        self, main_model: Model, type: HasType, inputs: dict | list[dict], is_batched: bool
-    ):
-        self.main_model = main_model
-        self.type = type
+class TaskCompiler(abc.ABC):
+    def __init__(self, task: Task, inputs: dict | list[dict], is_batched: bool):
+        self.task = task
         self.inputs = inputs
         self.is_batched = is_batched
+        self.steps: list[Task] = []
+        self.functions: dict[str, Task | Code | Model] = {}
+        self.results: list[tuple[Task | Code | Model, dict, dict]] = []
+        self.expectations: list[Expectation] = []
+        self.errors: list[TaskError] = []
 
     def add_step(self, step: Task) -> None:
-        pass
+        self.steps.append(step)
 
-    def add_function(self, tool: Task | Code | Model) -> None:
-        pass
+    def add_function(self, function: Task | Code | Model) -> None:
+        self.functions[function.name] = function
 
-    def add_result(self, tool: Task | Code | Model, inputs: dict, result: dict) -> None:
-        pass
+    def add_result(self, function: Task | Code | Model, inputs: dict, result: dict) -> None:
+        self.results.append((function, inputs, result))
 
     def add_expectation(self, expectation: Expectation) -> None:
-        pass
+        self.expectations.append(expectation)
 
     def add_error(self, error: TaskError) -> None:
-        pass
+        self.errors.append(error)
 
-    async def run(self) -> TaskOutputFunction | TaskOutputResult:
+    async def run(self, model: Model) -> TaskOutputFunction | TaskOutputResult:
         """Runs the compiled task and returns the result"""
         raise NotImplementedError
 
@@ -261,51 +257,3 @@ def _parse_string_output(output: str, type: Type):
         raise TaskError(
             type=error_type, message=f"output is invalid for {type}: {e}", path=None
         ) from e
-
-
-SAMPLE_BY_TYPE_HINT = {
-    TypeHint.UUID: "123e4567-e89b-12d3-a456-426614174000",
-    TypeHint.NAME: "Max Mustermann",
-    TypeHint.EMAIL: "florian@symbolx.com",
-    TypeHint.PHONE: "+49 123 456 789",
-    TypeHint.URL: "https://symbolx.com",
-    TypeHint.KEY: "sk_test_1234567890",
-    TypeHint.DATE: "2023-01-01",
-    TypeHint.DATETIME: "2023-01-01T10:30:45",
-    TypeHint.TIME: "02:08:00",
-    TypeHint.RATING: 3,
-}
-
-
-def fabricate_value(type: TypeBase, skip_array: bool = False, is_output: bool = None) -> typing.Any:
-    """Synthesizes a value of the given type with fake fields."""
-    if type.flags & TypeFlag.IsArray and not skip_array:
-        return [fabricate_value(type, skip_array=True)]
-    if SAMPLE_BY_TYPE_HINT.get(type.hint) is not None:
-        return SAMPLE_BY_TYPE_HINT[type.hint]
-    elif type.effective_tag == TypeTag.STRING:
-        return "lorem ipsum"
-    elif type.effective_tag == TypeTag.NUMBER:
-        return 42
-    elif type.effective_tag == TypeTag.BOOLEAN:
-        return False
-    elif type.effective_tag == TypeTag.ENUM:
-        if len(type.fields) == 0:
-            return None
-        return type.fields[0].name
-    elif type.effective_tag == TypeTag.STRUCT or type.effective_tag == TypeTag.FUNCTION:
-        return {
-            subtype.name: fabricate_value(subtype)
-            for subtype in type.fields
-            if is_output is None or bool(subtype.flags & TypeFlag.IsOutput) == is_output
-        }
-    elif type.effective_tag == TypeTag.UNION:
-        return fabricate_value(type.fields[0])
-    elif type.effective_tag == TypeTag.NULL:
-        return None
-    elif type.effective_tag == TypeTag.LITERAL:
-        return type.name  # assumes enum string literals
-    elif type.effective_tag == TypeTag.ANY:
-        return 42  # not sure what to do here
-    else:
-        raise RuntimeError(f"unexpected type {type.tag}")

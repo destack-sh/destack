@@ -456,6 +456,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
         return wire.CodeData(
             **statement_data.__dict__,
             language=statement.lang,
+            description=statement.description,
             code=statement.code,
         )
 
@@ -464,6 +465,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.lang = data.language
+        statement.description = data.description
         statement.code = data.code
         return statement
 
@@ -477,6 +479,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
             id=statement.id,
             parent_id=statement.id,
             external_name=statement.external_name,
+            description=statement.description,
         )
 
     def unpack(
@@ -484,6 +487,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.external_name = data.external_name
+        statement.description = data.description
         return statement
 
 

@@ -48,9 +48,9 @@ const { executions, totalCount, loading } = useExecutions(
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
 const executionRefs = useElementRefs<HTMLDivElement>();
-const symbol = computed(() => module.statementOf(props.runnableId));
-const inputFields = computed(() => symbol.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => symbol.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const statement = computed(() => module.statementOf(props.runnableId));
+const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
+const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const expandedExecutionId = ref<string | null>(null);
 
 // navigation
@@ -164,7 +164,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
                     : '',
                 ]"
               />
-              <span class="ml-1 max-w-full truncate font-semibold">{{ symbol?.name }}</span>
+              <span class="ml-1 max-w-full truncate font-semibold">{{ statement?.name }}</span>
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
                 {{

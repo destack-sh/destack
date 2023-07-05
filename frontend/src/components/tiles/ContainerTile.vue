@@ -2,8 +2,8 @@
 import { computed } from "vue";
 
 const props = defineProps<{
-  label?: string;
-  subLabel?: string;
+  label?: string | null;
+  subLabel?: string | null;
   labelPosition?: "top" | "above";
 }>();
 const labelPosition = computed(() => props.labelPosition ?? "above");

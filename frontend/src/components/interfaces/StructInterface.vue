@@ -12,7 +12,6 @@ type StructAppearance = {
   minRowHeight?: number;
   maxRowHeight?: number;
   rowPadding?: number;
-  fullInputs?: boolean;
 };
 
 const DEFAULT_APPEARANCE = {
@@ -26,8 +25,10 @@ const props = defineProps<{
   fields: Field[];
   modelValue: Record<string, any>;
   readonly?: boolean;
+  readonlyType?: boolean;
   active?: boolean;
   debounced?: boolean;
+  fullInputs?: boolean;
   appearance?: StructAppearance;
 }>();
 
@@ -116,7 +117,7 @@ defineExpose({
         <FieldInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
-          :readonly="readonly ?? false"
+          :readonly="(readonly ?? false) || (readonlyType ?? false)"
           orientation="vertical"
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :model-value="field"
@@ -143,7 +144,7 @@ defineExpose({
           :active="active ?? false"
           :debounced="debounced"
           :supports-drop="false"
-          :full="appearance.fullInputs"
+          :full="fullInputs ?? false"
           @delete-self="deleteField(field.key as string)"
           @navigate-up="grid.navigateUp(field.id, 'value')"
           @navigate-down="grid.navigateDown(field.id, 'value')"

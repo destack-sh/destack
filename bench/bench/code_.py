@@ -35,9 +35,10 @@ class CodeParse:
 
 @node(tracked=["language", "code"])
 class Code(HasType, IsExpectable, Statement):
-    language: str = "python"
+    language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
+    description: Optional[str] = None
     code: Optional[str] = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
@@ -86,10 +87,10 @@ class Code(HasType, IsExpectable, Statement):
         try:
             self.session.tracer.run_enter(self, inputs)
             result = await self._callable(*args, **kwargs)
-            self.session.tracer.run_exit(self, inputs, result)
+            self.session.tracer.run_exit(self, result)
             return result
         except Exception as exception:
-            self.session.tracer.run_exception(self, inputs, exception)
+            self.session.tracer.run_exception(self, exception)
             raise
 
     def __call_sync__(self, *args, **kwargs):
@@ -98,10 +99,10 @@ class Code(HasType, IsExpectable, Statement):
         try:
             self.session.tracer.run_enter(self, inputs)
             result = self._callable(*args, **kwargs)
-            self.session.tracer.run_exit(self, inputs, result)
+            self.session.tracer.run_exit(self, result)
             return result
         except Exception as exception:
-            self.session.tracer.run_exception(self, inputs, exception)
+            self.session.tracer.run_exception(self, exception)
             raise
 
     def to_sync(self) -> "Code":
