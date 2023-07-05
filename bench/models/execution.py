@@ -61,6 +61,7 @@ class Execution(UUIDTModel):
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
     terminated_at = models.DateTimeField(null=True, blank=True)
+    # TODO @Cleanup @Architecture: cached info belongs in metadata
     cached_generated_at = models.DateTimeField(null=True, blank=True)
     cached_duration = models.FloatField(null=True, blank=True)
     root = models.ForeignKey(

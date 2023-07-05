@@ -138,7 +138,7 @@ const icon = computed(() => {
     <!-- This is also used in select type flag menu -->
     <!-- <span
       class="absolute -bottom-0.5 h-0.5 w-full bg-gray-300"
-      v-if="!(type.flags & TypeFlag.IsNullable) && !(type.flags & TypeFlag.IsArray) && !hideFlags"
+      v-if="!(type.flags & TypeFlag.IsOptional) && !(type.flags & TypeFlag.IsArray) && !hideFlags"
     /> -->
     <!-- Flags -->
     <ListBulletIcon v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="-ml-1 h-4 w-4" />
