@@ -116,7 +116,7 @@ class Code(HasType, IsExpectable, Statement):
         return CodeProxy.to_async(self)
 
 
-class CodeProxy:
+class CodeProxy:  # :SyncProxy
     """
     A simple proxy for Code to enable to_sync/to_async while keeping the original Code object.
     """

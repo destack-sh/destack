@@ -185,7 +185,7 @@ class TypeBase(abc.ABC):
     reference: Union[None, StatementReference, "HasType"]
     source: Optional[Statement]
 
-    @cached_property
+    @property
     def storage_format(self) -> TypeStorageFormat:
         if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Type):
             return self.reference.storage_format
@@ -284,7 +284,7 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
             raise ValueError(f"{self} does not have dimensions")
         return (self.metadata or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
 
-    @cached_property
+    @property
     def typed_key(self) -> str:
         if self.storage_format == TypeStorageFormat.VECTOR:
             return f"{self.key}-{self.storage_format.value}{self.dimensions}"
@@ -472,7 +472,7 @@ class HasType(TypeBase, StatementBase):
                     id=uuid.uuid5(child.id, type.id.hex),
                     parent=type,
                     field=child,
-                    **dict_minus(child.__dict__, ("id", "field", "parent")),
+                    **dict_minus(child.__dict__, ("id", "field", "parent", "py_type")),
                 )
                 resolved_fields.append(resolved)
         type.resolved_fields = resolved_fields

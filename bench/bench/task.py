@@ -4,10 +4,8 @@ import abc
 import enum
 import json
 import re
-import typing
-from dataclasses import dataclass
 from json import JSONDecodeError
-from typing import Optional, Self
+from typing import Collection, Optional, Self
 
 from bench.bench import Code
 from bench.bench.const import StatementType, TypeTag
@@ -23,6 +21,7 @@ class TaskErrorType(enum.StrEnum):
     TIMEOUT = "timeout"
     INVALID_FORMAT = "invalid_format"
     INVALID_TYPE = "invalid_type"
+    EXCEEDED_LIMIT = "exceeded_limit"
     UNKNOWN = "unknown"
 
 
@@ -32,10 +31,26 @@ class TaskError(ValueError):
         self.type = type
         self.path = path
 
+    @staticmethod
+    def from_exception(e: Exception, path: str = None) -> TaskError:
+        if isinstance(e, TaskError):
+            return e
+        elif isinstance(e, ValueError):
+            return TaskError(TaskErrorType.INVALID_FORMAT, str(e), path)
+        elif isinstance(e, TypeError):
+            return TaskError(TaskErrorType.INVALID_TYPE, str(e), path)
+        else:
+            return TaskError(TaskErrorType.UNKNOWN, str(e), path)
+
 
 class IncapableError(TaskError):
     def __init__(self, message: str = None, path: str = None):
         super().__init__(TaskErrorType.INCAPABLE, message, path)
+
+
+class LimitExceededError(TaskError):
+    def __init__(self, message: str = None, path: str = None):
+        super().__init__(TaskErrorType.EXCEEDED_LIMIT, message, path)
 
 
 @node(tracked=["description"])
@@ -103,33 +118,35 @@ class Task(HasType, HasExpectations, Statement):
                 if not model:
                     raise RuntimeError(f"{self} has no default models and none were specified")
                 # TODO @Robustness: rotate models (on failure?)
-                model = model[0]
-                compiler = model.compile(self, inputs, is_batched)
-                for child in self.children:
-                    if isinstance(child, (Code, Task, Model)):
-                        compiler.add_function(child)
-                    elif isinstance(child, Expectation):
-                        compiler.add_expectation(child)
-                for type in self.walk_type(include_references=False):
-                    pass  # nocheckin add all type instruction
-
-                intermediate_ret = await compiler.run(model)
-                while not isinstance(intermediate_ret, TaskOutputResult):
-                    if isinstance(intermediate_ret, TaskOutputFunction):
-                        inner_ret = await intermediate_ret.function(**intermediate_ret.inputs)
-                        compiler.add_result(
-                            intermediate_ret.function, intermediate_ret.inputs, inner_ret
-                        )
-                    else:
-                        raise RuntimeError(f"{self} got unexpected intermediate {intermediate_ret}")
-                    intermediate_ret = await compiler.run(model)
-                ret = intermediate_ret.value
-
+                ret = await self._run_task_block(model[0], inputs, is_batched)
             self.session.tracer.run_exit(self, ret)
             return ret
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
+
+    async def _run_task_block(self, model: Model, inputs: dict, is_batched: bool):
+        """Runs a single contiguous 'block' of a task on a single model."""
+
+        # compile
+        compiler = model.compile(self, inputs, is_batched)
+        for child in self.children:
+            if isinstance(child, (Code, Task, Model)):
+                compiler.add_function(child)
+            elif isinstance(child, Expectation):
+                compiler.add_expectation(child)
+        for type in self.walk_type(include_references=False):
+            pass  # nocheckin add all type instruction
+
+        # run
+        runner = TaskRunner(self, max_steps=10, max_function_calls=3, max_errors=3)
+        ret = await compiler.run(model, runner)
+        if isinstance(ret, TaskError):
+            raise ret
+        return ret
+
+    def to_async(self) -> "Self":
+        return self
 
     def to_sync(self) -> "Self":
         if self._is_async:
@@ -137,7 +154,7 @@ class Task(HasType, HasExpectations, Statement):
         return self
 
 
-class TaskProxy:
+class TaskProxy:  # :SyncProxy
     """A simple proxy for Task to enable to_sync/to_async while keeping the original Task object."""
 
     def __init__(self, task: Task, is_async: bool):
@@ -156,27 +173,46 @@ class TaskProxy:
     def __getattr__(self, name):
         return getattr(self._task, name)
 
+    def to_async(self) -> Task:
+        return self.task
+
     @classmethod
     def to_sync(cls, task: Task) -> "TaskProxy":
         return cls(task, is_async=False)
 
 
-class TaskResultType(enum.StrEnum):
-    FUNCTION = "function"
-    RETURN = "return"
+class TaskRunner(abc.ABC):
+    def __init__(self, task: Task, max_steps: int, max_function_calls: int, max_errors: int):
+        self.task = task
+        self.max_steps = max_steps
+        self.max_function_calls = max_function_calls
+        self.max_errors = max_errors
+        self.num_steps = 0
+        self.num_function_calls = 0
+        self.num_errors = 0
 
+    async def step(self):
+        self.num_steps += 1
+        if self.num_steps > self.max_steps:
+            raise LimitExceededError("max steps exceeded")
 
-@dataclass
-class TaskOutputFunction:
-    function: Task | Code | Model
-    inputs: dict | list[dict]
-    type: TaskResultType = TaskResultType.FUNCTION
+    async def error(self, error: TaskError):
+        self.num_errors += 1
+        if self.num_errors > self.max_errors:
+            raise LimitExceededError("max errors exceeded")
 
+    @property
+    def can_call_another_function(self) -> bool:
+        return self.num_function_calls < self.max_function_calls
 
-@dataclass
-class TaskOutputResult:
-    value: typing.Any
-    type: TaskResultType = TaskResultType.RETURN
+    async def call_function(self, function: Task | Code | Model, inputs: dict) -> dict | TaskError:
+        try:
+            self.num_function_calls += 1
+            if self.num_function_calls > self.max_function_calls:
+                raise LimitExceededError("max function calls exceeded")
+            return await function.to_async()(**inputs)
+        except (IncapableError, ValueError, TypeError) as e:
+            return TaskError.from_exception(e)
 
 
 class TaskCompiler(abc.ABC):
@@ -185,27 +221,23 @@ class TaskCompiler(abc.ABC):
         self.inputs = inputs
         self.is_batched = is_batched
         self.steps: list[Task] = []
-        self.functions: dict[str, Task | Code | Model] = {}
-        self.results: list[tuple[Task | Code | Model, dict, dict]] = []
+        self.functions_by_py_ident: dict[str, Task | Code | Model] = {}
         self.expectations: list[Expectation] = []
-        self.errors: list[TaskError] = []
+
+    @property
+    def functions(self) -> Collection[Task | Code | Model]:
+        return self.functions_by_py_ident.values()
 
     def add_step(self, step: Task) -> None:
         self.steps.append(step)
 
     def add_function(self, function: Task | Code | Model) -> None:
-        self.functions[function.name] = function
-
-    def add_result(self, function: Task | Code | Model, inputs: dict, result: dict) -> None:
-        self.results.append((function, inputs, result))
+        self.functions_by_py_ident[function.py_ident] = function
 
     def add_expectation(self, expectation: Expectation) -> None:
         self.expectations.append(expectation)
 
-    def add_error(self, error: TaskError) -> None:
-        self.errors.append(error)
-
-    async def run(self, model: Model) -> TaskOutputFunction | TaskOutputResult:
+    async def run(self, model: Model, runner: TaskRunner) -> dict | TaskError:
         """Runs the compiled task and returns the result"""
         raise NotImplementedError
 

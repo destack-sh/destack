@@ -20,7 +20,7 @@ from bench.bench.core import (
 )
 from bench.bench.execution import ExecutionFrame, RunError
 from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.type import map_value
+from bench.bench.type import instantiate_py_value_flat, map_value
 from bench.bench.wire import ExecutionFrameData
 from bench.msg.core import (
     NMessage,
@@ -179,7 +179,9 @@ class ModuleWorker:
             return RunErrorType.INVALID_RUNCONFIG
 
         if keyed:  # unkey
-            arguments = map_value(arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident))
+            arguments = map_value(
+                arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident), is_output=False
+            )
         job = RunJob(id=root_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
         session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
@@ -196,7 +198,8 @@ class ModuleWorker:
             # TODO @Architecture @Robustness: handle module instantiation & session linking better
             #  esp. with contexts, dependencies, parallelism, etc.
             job.session.module.instantiate_in(job.session)
-            task = asyncio.create_task(run(job.runnable, job.arguments, job.session))
+            arguments = map_value(job.arguments, job.runnable, map_v=instantiate_py_value_flat)
+            task = asyncio.create_task(run(job.runnable, arguments, job.session))
             self.pending_runs[job.id] = task
             await asyncio.wait_for(task, timeout=timeout)
             return None

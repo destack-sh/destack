@@ -1,9 +1,9 @@
 import enum
+import json
 import typing
 from typing import Any, Optional
 
 import anthropic
-from more_itertools import first
 import openai
 
 from bench.bench.code_ import Code
@@ -24,10 +24,11 @@ from bench.bench.task import (
     IncapableError,
     Task,
     TaskCompiler,
-    TaskOutputFunction,
-    TaskOutputResult,
+    TaskError,
+    TaskErrorType,
+    TaskRunner,
 )
-from bench.bench.type import Key, TypeBase, Vector, map_value, strip_py_value_flat
+from bench.bench.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
 symbolx_lib = Module(name="symbolx.lib")
@@ -73,35 +74,6 @@ class OpenAIChatRole(enum.StrEnum):
     assistant = "assistant"
     user = "user"
     function = "function"
-
-
-@x_struct("OpenAIChatMessage", file=_openai_chat)
-class OpenAIChatMessage:
-    role: OpenAIChatRole
-    content: str
-    name: Optional[str] = None
-    function_call: Optional[str] = None
-
-    def to_dict(self) -> dict[str, Any]:
-        return dict(
-            role=self.role,
-            content=self.content,
-            name=self.name,
-            function_call=self.function_call,
-        )
-
-
-@x_struct("OpenAIChatCompletionSettings", file=_openai_chat)
-class OpenAIChatCompletionSettings:
-    temperature: Optional[float]
-    max_tokens: Optional[int] = None
-    top_p: Optional[float] = None
-    stop: Optional[str] = None
-    logit_bias: Optional[dict[str, float]] = None
-    frequence_penalty: Optional[float] = None
-    presence_penalty: Optional[float] = None
-    function_call: Optional[str] = None
-    user: Optional[str] = None
 
 
 @x_enum("OpenAIFunctionParameterType", file=_openai_chat)
@@ -159,6 +131,45 @@ class OpenAIFunctionCall:
     name: Key
     arguments: dict[str, Any]
 
+    def to_dict(self) -> dict[str, Any]:  # :ToDict
+        return dict(
+            name=self.name,
+            arguments=json.dumps(self.arguments),
+        )
+
+
+@x_struct("OpenAIChatMessage", file=_openai_chat)
+class OpenAIChatMessage:
+    role: OpenAIChatRole
+    content: Optional[str] = None
+    name: Optional[str] = None
+    function_call: Optional[OpenAIFunctionCall] = None
+
+    def to_dict(self) -> dict[str, Any]:
+        function_call = (
+            OpenAIFunctionCall.to_dict(self.function_call) if self.function_call else None
+        )
+        # can't use omit_empty like usual here because content is always required, but name isn't?
+        d = dict(role=self.role, content=self.content)
+        if self.name is not None:
+            d["name"] = self.name
+        if function_call is not None:
+            d["function_call"] = function_call
+        return d
+
+
+@x_struct("OpenAIChatCompletionSettings", file=_openai_chat)
+class OpenAIChatCompletionSettings:
+    temperature: Optional[float]
+    max_tokens: Optional[int] = None
+    top_p: Optional[float] = None
+    stop: Optional[str] = None
+    logit_bias: Optional[dict[str, float]] = None
+    frequence_penalty: Optional[float] = None
+    presence_penalty: Optional[float] = None
+    function_call: Optional[str] = None
+    user: Optional[str] = None
+
 
 @x_struct("OpenAITokenUsage", file=_openai_text)
 class OpenAITokenUsage:
@@ -169,8 +180,7 @@ class OpenAITokenUsage:
 
 @x_struct("OpenAIChatCompletion", file=_openai_chat)
 class OpenAIChatCompletion:
-    text: Optional[str]
-    function_call: Optional[OpenAIFunctionCall]
+    message: OpenAIChatMessage
     usage: OpenAITokenUsage
 
 
@@ -184,7 +194,7 @@ class OpenAIChatCompletionModel(Model):
         settings: OpenAIChatCompletionSettings,
     ) -> OpenAIChatCompletion:
         settings_raw = omit_empty(settings.to_dict())
-        messages_raw = [omit_empty(OpenAIChatMessage.to_dict(m)) for m in messages]
+        messages_raw = [(OpenAIChatMessage.to_dict(m)) for m in messages]
         functions_raw = [omit_empty(OpenAIFunction.to_dict(f)) for f in functions]
         response = await openai.ChatCompletion.acreate(
             model=self.external_name,
@@ -193,14 +203,20 @@ class OpenAIChatCompletionModel(Model):
             **settings_raw,
             api_key=self.key,
         )
-        response_message = response["choices"][0]["message"]
-        text = response_message.get("text")
-        function_call = response_message.get("function_call")
+        message = response["choices"][0]["message"]
+        if "function_call" in message:
+            function_call = OpenAIFunctionCall(
+                name=message["function_call"]["name"],
+                arguments=json.loads(message["function_call"]["arguments"]),
+            )
+        else:
+            function_call = None
         return OpenAIChatCompletion(
-            text=text,
-            function_call=OpenAIFunctionCall(
-                name=function_call["name"],
-                arguments=function_call["arguments"],
+            message=OpenAIChatMessage(
+                role=message["role"],
+                content=message["content"],
+                name=message.get("name"),
+                function_call=function_call,
             ),
             usage=OpenAITokenUsage(
                 prompt_tokens=response["usage"]["prompt_tokens"],
@@ -222,7 +238,8 @@ class OpenAIChatCompiler(TaskCompiler):
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
-        description="Error if the task is impossible or unreasonable given the instructions",
+        description="Error if the task is impossible or unreasonable given the instructions."
+        " If possible, call 'terminate' with the relevant error info instead.",
         parameters=OpenAIFunctionParameter(
             name=None,  # not needed for root object
             type=OpenAIFunctionParameterType.object,
@@ -254,7 +271,7 @@ class OpenAIChatCompiler(TaskCompiler):
     def _compile_terminate_function(self) -> OpenAIFunction:
         return OpenAIFunction(
             name="terminate",
-            description="Complete the task with the answer (if any).",
+            description="Complete the task with an answer (if any).",
             parameters=self._compile_type(self.task, is_output=True),
         )
 
@@ -312,7 +329,28 @@ class OpenAIChatCompiler(TaskCompiler):
         else:
             raise IncapableError(f"unsupported type {type}")
 
-    async def run(self, model: OpenAIChatCompletionModel) -> TaskOutputFunction | TaskOutputResult:
+    def _compile_error(self, error: TaskError) -> OpenAIChatMessage:
+        return OpenAIChatMessage(
+            role=OpenAIChatRole.system,
+            content=f"Avoid previous error: {error}",
+        )
+
+    def _compile_function_result(
+        self, function: Code | Task | Model, result: dict | TaskError
+    ) -> OpenAIChatMessage:
+        if isinstance(result, TaskError):
+            return OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"Avoid Previous error: {result}",
+            )
+        else:
+            return OpenAIChatMessage(
+                role=OpenAIChatRole.function,
+                name=function.py_ident,
+                content=json.dumps(map_value(result, function, map_v=strip_py_value_flat)),
+            )
+
+    async def run(self, model: OpenAIChatCompletionModel, runner: TaskRunner) -> dict:
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
@@ -330,7 +368,7 @@ class OpenAIChatCompiler(TaskCompiler):
             ),
         ]
         functions: list[OpenAIFunction] = [
-            *(self._compile_function(function) for function in self.functions.values()),
+            *(self._compile_function(function) for function in self.functions),
             # include function to terminate with a result for overall task
             self._compile_terminate_function(),
             self.PANIC_FUNCTION,
@@ -346,27 +384,46 @@ class OpenAIChatCompiler(TaskCompiler):
             function_call="auto",
             user=None,
         )
+        errors: list[TaskError] = []
 
-        completion: OpenAIChatCompletion = await model(
-            messages=messages, functions=functions, settings=settings
-        )
-        if completion.function_call is None:
-            raise IncapableError("no function call returned")
-        if completion.function_call == "panic":
-            raise IncapableError(completion.text)
-        elif completion.function_call == "terminate":
-            return TaskOutputResult(result=completion.function_call.arguments)
-        else:  # actual function call
-            function = first(
-                (f for f in self.functions.values() if f.py_ident == completion.function_call.name),
-                None,
+        async def _error(error: TaskError):
+            await runner.error(error)
+            errors.append(error)
+            messages.append(self._compile_error(error))
+            return error
+
+        while True:
+            await runner.step()
+            if not runner.can_call_another_function or not self.functions:  # force terminate
+                settings.function_call = "terminate"
+            completion: OpenAIChatCompletion = await model(
+                messages=messages, functions=functions, settings=settings
             )
-            if function is None:
-                raise IncapableError(f"unknown function {completion.function_call.name}")
-            return TaskOutputFunction(
-                function=function,
-                inputs=completion.function_call.arguments,
-            )
+            m = completion.message
+            messages.append(m)
+            if m.function_call is None:
+                await _error(TaskError(TaskErrorType.INVALID_FORMAT, "no function call"))
+            elif m.function_call.name == "panic":
+                raise await _error(
+                    TaskError(TaskErrorType.INCAPABLE, m.function_call.arguments["reason"])
+                )
+            elif m.function_call.name == "terminate":
+                try:
+                    check_type(m.function_call.arguments, self.task, is_output=True)
+                    return m.function_call.arguments
+                except TaskError as e:
+                    await _error(e)
+            elif m.function_call.name not in self.functions_by_py_ident:
+                await _error(
+                    TaskError(
+                        TaskErrorType.INVALID_FORMAT,
+                        f"unknown function {m.function_call.name}",
+                    )
+                )
+            else:
+                function = self.functions_by_py_ident[m.function_call.name]
+                ret = await runner.call_function(function, m.function_call.arguments)
+                messages.append(self._compile_function_result(function, ret))
 
 
 @x_struct("OpenAITextEmbeddingResponse", file=_openai_text)
