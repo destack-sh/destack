@@ -43,7 +43,7 @@ const props = defineProps<{
   readonly: boolean;
   active: boolean;
   debounced?: boolean;
-  full?: boolean;
+  full?: boolean /* TODO @UX: support full inline rendering of value interface */;
   supportsDrop?: boolean;
   wrap?: boolean;
 }>();
@@ -190,7 +190,6 @@ defineExpose({
   >
     <!-- Preview -->
     <div
-      v-if="!full"
       ref="previewButtonRef"
       class="mousetrap-no-tab scroll-hidden relative inline-block w-full text-left outline-none"
       :class="[readonly ? '' : 'cursor-pointer']"
@@ -230,7 +229,7 @@ defineExpose({
     <!-- Editable popover -->
     <!-- Popover position is pinned with fixed, see above -->
     <div
-      v-if="(full || editing || editableRef?.pending) && valueInterface"
+      v-if="(editing || editableRef?.pending) && valueInterface"
       ref="editablePopoverRef"
       class="z-50 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="editablePin.pinned.value ? '' : 'absolute -left-1 -top-1 min-h-full min-w-full'"

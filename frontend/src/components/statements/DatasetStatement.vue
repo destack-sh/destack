@@ -42,16 +42,13 @@ import {
   CubeTransparentIcon,
   EllipsisHorizontalIcon,
   MagnifyingGlassIcon,
-  PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   SquaresPlusIcon,
-  XCircleIcon,
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
   XMarkIcon,
-  Bars2Icon,
   Bars3Icon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
@@ -65,6 +62,7 @@ import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
+import { XCircleIcon } from "@heroicons/vue/24/solid";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -1075,7 +1073,7 @@ defineExpose({
       <!-- Failed to load -->
       <button
         v-if="!loading && recordsError != null"
-        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] bg-red-100 px-1 py-1 text-red-500 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-red-500 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ minHeight: minRowHeight + 'px' }"
         @click.stop="refetch()"
       >

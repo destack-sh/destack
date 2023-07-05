@@ -97,6 +97,10 @@ else:
         def decorate(cls):
             cls = dataclass(cls, repr=False, eq=False)
             cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]
+            # add @property methods to _PROPERTIES
+            for name, attr in cls.__dict__.items():
+                if isinstance(attr, property):
+                    cls._PROPERTIES.append(name)
             # check that all tracked properties are actually properties
             for prop in tracked or []:
                 if prop not in cls._PROPERTIES:
@@ -350,6 +354,13 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     committed: bool = False
     status: ModuleStatus = ModuleStatus.Raw
 
+    def __str__(self):
+        issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
+        return f"{self.name} ({self.status.name}, {len(self.files)} files{issues_str})"
+
+    def __repr__(self):
+        return f"<Module {str(self)}>"
+
     @property
     def attached(self) -> bool:
         return True  # root is always "attached"
@@ -388,12 +399,16 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 return None
             return dependency.lookup(localized_path, statement_t=statement_t, by=by)
 
-    def __str__(self):
-        issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
-        return f"{self.name} ({self.status.name}, {len(self.files)} files{issues_str})"
-
-    def __repr__(self):
-        return f"<Module {str(self)}>"
+    def lookup_or_error(
+        self,
+        path: Union["StatementPath", UUID, str],
+        by: LookupBy = LookupBy.Name,
+        statement_t: typing.Type[StatementT] | None = None,
+    ) -> StatementT:
+        result = self.lookup(path, by=by, statement_t=statement_t)
+        if result is None:
+            raise LookupError(f"{path} not found in {self}")
+        return result
 
     def create_file(self, name: str) -> "File":
         if name in self._scopes_by_name:
@@ -816,7 +831,7 @@ class Session:
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
-            module.lookup("openai.lib.text.gpt3"),
+            module.lookup_or_error("openai.lib.chat.gpt3"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout

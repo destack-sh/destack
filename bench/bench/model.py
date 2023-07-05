@@ -21,7 +21,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
-    pass
+    from bench.bench.task import Task, TaskCompiler
 
 logger = structlog.get_logger(__name__)
 
@@ -38,6 +38,7 @@ class Model(HasType, Statement):
     _is_async: bool = True
     _remote: bool = False
     _endpoint_impl: typing.Optional[typing.Callable] = None
+    _compiler_impl: typing.Optional[typing.Callable] = None
     _key: typing.Optional[str] = None
 
     def _clear(self) -> None:
@@ -45,6 +46,7 @@ class Model(HasType, Statement):
         self._key = None
         self._remote = True
         self._endpoint_impl = None
+        self._compiler_impl = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -104,10 +106,10 @@ class Model(HasType, Statement):
                 if rep.p.outputs is None:
                     raise RuntimeError(f"remote {self} failed")
                 outputs = instantiate_py_value(rep.p.outputs, self, is_output=True)
-                self.session.tracer.run_exit(self, inputs, outputs)
+                self.session.tracer.run_exit(self, outputs)
                 return DotDict(outputs)
             except (ValueError, RuntimeError, TypeError) as e:
-                self.session.tracer.run_exception(self, inputs, e)
+                self.session.tracer.run_exception(self, e)
                 raise
         else:
             # otherwise run inference through endpoint :LibImplementation
@@ -117,24 +119,11 @@ class Model(HasType, Statement):
                 outputs = await asyncio.wait_for(
                     asyncio.shield(self._inference(inputs, cache_key, log)), timeout
                 )
-                self.session.tracer.run_exit(self, inputs, outputs)
+                self.session.tracer.run_exit(self, outputs)
                 return outputs
             except Exception as e:
-                self.session.tracer.run_exception(self, inputs, e)
+                self.session.tracer.run_exception(self, e)
                 raise
-
-    @property
-    def _endpoint(self):
-        if self._endpoint_impl is None:
-            from bench.bench import libs
-
-            # get actual model implementation from libs  :LibImplementation
-            # (this is a stop gap until we fully support model statements, then it's just like Code)
-            actual_model_impl = libs.lookup_model_impl(self.path)
-            if actual_model_impl is None:
-                raise ValueError(f"cannot find {self} in libs")
-            self._endpoint_impl = functools.partial(actual_model_impl, self=self)
-        return self._endpoint_impl
 
     async def _inference(
         self,
@@ -149,7 +138,7 @@ class Model(HasType, Statement):
         """
         started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         log.debug("inference.enter")
-        output = await self._endpoint(**inputs)
+        output = await self._endpoint_resolved(**inputs)
         now = datetime.utcnow().replace(tzinfo=pytz.utc)
         duration = (now - started_at).total_seconds()
         if write_to_cache:
@@ -168,8 +157,39 @@ class Model(HasType, Statement):
         )
         return output
 
-    async def _impl(self, **kwargs) -> Any:
+    @property
+    def _endpoint_resolved(self):
+        if self._endpoint_impl is None:
+            from bench.bench import libs
+
+            # get actual model implementation from libs  :LibImplementation
+            # (this is a stop gap until we fully support model statements, then it's just like Code)
+            actual_model_impl = libs.lookup_model_impl(self.path)
+            if actual_model_impl is None:
+                raise ValueError(f"cannot find {self} in libs")
+            self._endpoint_impl = functools.partial(actual_model_impl, self=self)
+        return self._endpoint_impl
+
+    async def _endpoint(self, **kwargs) -> Any:
         raise NotImplementedError  # fake stub for :LibImplementation of model
+
+    @property
+    def _compiler_resolved(self):
+        if self._compiler_impl is None:
+            from bench.bench import libs
+
+            # get actual model implementation from libs  :LibCompiler (see above)
+            actual_model_compiler = libs.lookup_model_compiler(self.path)
+            if actual_model_compiler is None:
+                raise ValueError(f"cannot find {self} in libs")
+            self._compiler_impl = actual_model_compiler
+        return self._compiler_impl
+
+    def _compiler(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
+        raise NotImplementedError  # stub for :LibCompiler of model compiler
+
+    def compile(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
+        return self._compiler_resolved(self, task, inputs, is_batched)
 
     def to_sync(self):
         raise NotImplementedError

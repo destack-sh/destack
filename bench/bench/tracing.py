@@ -88,7 +88,7 @@ class Tracer:
     def run_enter(self, statement: Runnable, inputs):
         pass
 
-    def run_exit(self, statement: Runnable, inputs, result):
+    def run_exit(self, statement: Runnable, result):
         pass
 
     def run_cached(
@@ -96,7 +96,7 @@ class Tracer:
     ):
         pass
 
-    def run_exception(self, statement: Runnable, inputs, exception: Exception):
+    def run_exception(self, statement: Runnable, exception: Exception):
         pass
 
 
@@ -153,14 +153,14 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.run_enter(statement, inputs)
 
-    def run_exit(self, statement: Runnable, inputs, result):
+    def run_exit(self, statement: Runnable, result):
         for tracer in reversed(self.tracers):
-            tracer.run_exit(statement, inputs, result)
+            tracer.run_exit(statement, result)
 
-    def run_exception(self, statement: Runnable, inputs, exception: Exception):
+    def run_exception(self, statement: Runnable, exception: Exception):
         for tracer in reversed(self.tracers):
             try:
-                tracer.run_exception(statement, inputs, exception)
+                tracer.run_exception(statement, exception)
             except Exception:
                 # internal error in tracer, very not good
                 logger.exception("trace.run.exception", exc_info=True, tracer=tracer)
@@ -282,14 +282,14 @@ class ExecutionTracer(Tracer):
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def run_exit(self, statement: Runnable, inputs, result):
+    def run_exit(self, statement: Runnable, result):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = strip_py_value(result, statement, is_output=True)
         self.track(frame)
         logger.debug("trace.run.exit", frame=frame, stackdepth=len(self.stacktrace))
 
-    def run_exception(self, statement: Runnable, inputs, exception: Exception):
+    def run_exception(self, statement: Runnable, exception: Exception):
         frame = self.pop_stacktrace()
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
@@ -353,7 +353,7 @@ class TypeCheckingTracer(Tracer):
     def run_enter(self, statement: Runnable, inputs):
         check_type(inputs, statement, is_output=False)
 
-    def run_exit(self, statement: Runnable, inputs, result):
+    def run_exit(self, statement: Runnable, result):
         check_type(result, statement, is_output=True)
 
     def value_update(self, value: Value, key: typing.Optional[str] = None):

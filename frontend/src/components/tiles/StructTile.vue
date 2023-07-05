@@ -6,6 +6,7 @@ const props = defineProps<{
   fields: Field[];
   modelValue: Record<string, any>;
   readonly?: boolean;
+  readonlyType?: boolean;
   fullInputs?: boolean;
   active?: boolean;
 }>();
@@ -22,6 +23,7 @@ const emit = defineEmits<{
     :fields="props.fields"
     :model-value="props.modelValue"
     :readonly="props.readonly ?? false"
+    :readonlyType="props.readonlyType ?? false"
     :active="props.active ?? false"
     :fullInputs="props.fullInputs ?? false"
     @update:modelValue="emit('update:modelValue', $event)"

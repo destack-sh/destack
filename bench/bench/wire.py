@@ -757,6 +757,7 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
 @dataclass
 class CodeData(StatementData):
     language: Optional[str]
+    description: Optional[str]
     code: Optional[str]
 
 
@@ -774,6 +775,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         return CodeData(
             **statement_data.__dict__,
             language=symbol.language,
+            description=symbol.description,
             code=symbol.code,
         )
 
@@ -785,6 +787,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
             **statement.__dict__,
             fields=[],
             language=symbol.language,
+            description=symbol.description,
             code=symbol.code,
         )
 
@@ -796,6 +799,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
 @dataclass
 class ModelData(StatementData):
     external_name: Optional[str]
+    description: Optional[str]
 
 
 @node_packer(MOT.STATEMENT, ModelData, lang.Model)
@@ -809,13 +813,19 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
 
     def pack(self, symbol: lang.Model) -> "ModelData":
         statement_data = super().pack(symbol)
-        return ModelData(**statement_data.__dict__, external_name=symbol.external_name)
+        return ModelData(
+            **statement_data.__dict__,
+            external_name=symbol.external_name,
+            description=symbol.description,
+        )
 
     def unpack(
         self, symbol: ModelData, parent: lang.File | lang.Statement, session: Optional[Session]
     ) -> lang.Model:
         statement = super().unpack(symbol, parent, session)
-        return lang.Model(**statement.__dict__, external_name=symbol.external_name)
+        return lang.Model(
+            **statement.__dict__, external_name=symbol.external_name, description=symbol.description
+        )
 
     def unwalk(self, symbol: lang.Value, tree: ModuleTree):
         super().unwalk(symbol, tree)

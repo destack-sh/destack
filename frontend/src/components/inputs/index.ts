@@ -19,6 +19,7 @@ export type ValueInterface = {
   minWidth?: number;
   grow?: number;
   inline?: boolean;
+  inlineable?: boolean;
 };
 
 export const interfaces: Record<string, ValueInterface> = {};
@@ -100,6 +101,7 @@ registerInterface("string", {
   debounceMs: 1000,
   minWidth: 200,
   grow: 1.0,
+  inlineable: true,
 });
 registerInterface("string.short", {
   hints: [TypeHint.Name, TypeHint.Uuid, TypeHint.Email, TypeHint.Url, TypeHint.Key],
@@ -107,6 +109,7 @@ registerInterface("string.short", {
   debounceMs: 1000,
   minWidth: 200,
   grow: 0.5,
+  inlineable: true,
 });
 registerInterface("secret", {
   tags: [TypeTag.String, TypeTag.Number],
@@ -114,6 +117,7 @@ registerInterface("secret", {
   isSecret: true,
   minWidth: 200,
   grow: 0.5,
+  inlineable: true,
 });
 // number
 registerInterface("number", {
@@ -122,6 +126,7 @@ registerInterface("number", {
   debounceMs: 1000,
   minWidth: 150,
   grow: 0.5,
+  inlineable: true,
 });
 registerInterface("number.rating", {
   hints: [TypeHint.Rating],
@@ -164,6 +169,7 @@ registerInterface("struct", {
   supportsList: true,
   minWidth: 200,
   grow: 1.0,
+  inlineable: true,
 });
 // file
 registerInterface("file", {
@@ -173,6 +179,7 @@ registerInterface("file", {
   supportsList: true,
   minWidth: 200,
   grow: 1.0,
+  inlineable: true,
 });
 // vector
 registerInterface("vector", {
