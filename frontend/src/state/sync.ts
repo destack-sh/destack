@@ -204,7 +204,7 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
           // apply manually
           syncedOps.applyRawMutation(mutation);
         }
-        // nocheckin: cascade mutation into relevant bumps
+        // TODO @Broken: cascade mutation into relevant bumps
         const key = getMutationKey(mutation);
         for (const listener of mutationListeners[key] ?? []) {
           listener(mutation);

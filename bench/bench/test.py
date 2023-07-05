@@ -110,7 +110,7 @@ def test_type_union_with():
             .add_field(
                 Field(
                     name="refresh_token",
-                    flags=TypeFlag.IsNullable,
+                    flags=TypeFlag.IsOptional,
                     tag=TypeTag.STRING,
                 )
             )

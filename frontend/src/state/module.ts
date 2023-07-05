@@ -22,7 +22,7 @@ export enum TypeFlag { // :TypeFlags
   Zero = 0,
   IsOutput = 1 << 0,
   IsArray = 1 << 1,
-  IsNullable = 1 << 2,
+  IsOptional = 1 << 2,
   IsUnionWith = 1 << 3,
   IsSecret = 1 << 4,
   IsStoreOnly = 1 << 5,

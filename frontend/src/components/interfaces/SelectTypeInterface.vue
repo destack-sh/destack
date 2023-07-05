@@ -30,9 +30,9 @@ const module = useCurrentModule();
 
 function getDefaultFlags(t: TypeHint | TypeTag): number {
   if (t == TypeHint.Secret) {
-    return TypeFlag.IsSecret | TypeFlag.IsNullable;
+    return TypeFlag.IsSecret | TypeFlag.IsOptional;
   } else {
-    return TypeFlag.IsNullable;
+    return TypeFlag.IsOptional;
   }
 }
 
@@ -128,7 +128,7 @@ type FlagButton = {
 };
 const flagButtons: FlagButton[] = [
   {
-    flag: TypeFlag.IsNullable,
+    flag: TypeFlag.IsOptional,
     invert: true,
     label: "required",
     setIcon: ExclamationCircleIcon,
@@ -159,11 +159,11 @@ const LISTABLE_HINTS = [
 ];
 const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
 function isFlagSupported(type: Field, flag: TypeFlag) {
-  if (flag == TypeFlag.IsNullable) {
+  if (flag == TypeFlag.IsOptional) {
     return !isFlagSet(TypeFlag.IsArray) && !NONNULL_TAGS.includes(type.tag);
   } else if (flag == TypeFlag.IsArray) {
     return (
-      isFlagSet(TypeFlag.IsNullable) &&
+      isFlagSet(TypeFlag.IsOptional) &&
       !isFlagSet(TypeFlag.IsSecret) &&
       ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
     );
@@ -233,7 +233,7 @@ defineExpose({
         :class="[
           isFlagSet(flagButton.flag) !== flagButton.invert ? 'font-bold text-orange-600' : '',
           isFlagSupported(value, flagButton.flag) ? 'text-gray-600' : 'cursor-not-allowed text-gray-400',
-          isFlagSet(flagButton.flag) !== flagButton.invert && flagButton.flag == TypeFlag.IsNullable
+          isFlagSet(flagButton.flag) !== flagButton.invert && flagButton.flag == TypeFlag.IsOptional
             ? 'underline underline-offset-4'
             : '',
         ]"

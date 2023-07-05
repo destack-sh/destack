@@ -143,6 +143,9 @@ class DotDict(dict):
     def __setattr__(self, name, value):
         self[name] = value
 
+    def to_dict(self):  # :ToDict
+        return self
+
     @classmethod
     def from_dict(cls, d):
         return cls(**d)
@@ -161,6 +164,15 @@ class DotDictList(list):
 
     def __getattr__(self, name):
         return [row[name] for row in self]
+
+
+def omit_empty(obj):
+    if isinstance(obj, dict):
+        return {k: omit_empty(v) for k, v in obj.items() if v is not None}
+    elif isinstance(obj, list):
+        return [omit_empty(v) for v in obj if v is not None]
+    else:
+        return obj
 
 
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")

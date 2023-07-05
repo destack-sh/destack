@@ -609,14 +609,18 @@ def check_type(
     elif expected.effective_tag == TypeTag.STRUCT or expected.effective_tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
-        if _check(isinstance(value, Mapping), "expected struct"):
+        if _check(isinstance(value, Mapping) or dataclasses.is_dataclass(value), "expected struct"):
+            is_dataclass = dataclasses.is_dataclass(value)  # used for model internals
             for f in expected.resolved_fields or expected.fields:
                 if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                     continue
                 alt_name = to_pyidentifier(f.name, IdentifierType.VARIABLE)
-                subvalue = value.get(f.name, value.get(alt_name))
+                if is_dataclass:
+                    subvalue = getattr(value, f.py_ident, getattr(value, alt_name))
+                else:
+                    subvalue = value.get(f.name, value.get(alt_name))
                 if subvalue is None:
-                    _check(bool(f.flags & TypeFlag.IsNullable), "expected non-nullable value")
+                    _check(bool(f.flags & TypeFlag.IsOptional), "expected required value")
                 else:
                     check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
     elif expected.effective_tag in (TypeTag.FILE,):
@@ -631,7 +635,7 @@ def check_type(
         _check(False, "expected one of the union types")
     elif expected.effective_tag == TypeTag.NULL:
         _check(value is None, "expected null")
-    elif expected.effective_tag == TypeTag.ANY:
+    elif expected.effective_tag in (TypeTag.ANY, TypeTag.JSON):
         pass
     else:
         raise RuntimeError(f"unexpected type {expected.tag}")
@@ -699,8 +703,9 @@ def map_value(
             continue
         source_k, target_k = map_k(subtype)
         if source_k not in value:
-            continue  # ignore missing keys
-        target_value = map_value(value[source_k], subtype, map_v, map_k)
+            target_value = None
+        else:
+            target_value = map_value(value[source_k], subtype, map_v, map_k)
         mapped[target_k] = target_value
     if not ignore_outer_map:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
@@ -791,13 +796,22 @@ def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFla
     Gets the most appropriate mapping for the given Python type.
     (flat because we "ignore" list and optional types (inside the mapper)).
     """
+    py_type, flags = _strip_py_type(py_type)
+    # get mapping
+    for mapping in type_mappers.values():
+        if mapping.maps_py_type(py_type):
+            return mapping, py_type, flags
+    raise LookupError(f"no mapping found for {py_type} ({flags}, type={type(py_type)})")
+
+
+def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
     flags = TypeFlag.Zero
     # strip optional
     if typing.get_origin(py_type) is typing.Union:
         args = typing.get_args(py_type)
         if len(args) == 2 and args[1] == type(None):  # noqa: E721
             py_type = args[0]
-            flags |= TypeFlag.IsNullable
+            flags |= TypeFlag.IsOptional
         # convert x | list[x] as isarrayable
         elif len(args) == 2 and typing.get_origin(args[1]) is list:
             if args[0] != typing.get_args(args[1])[0]:
@@ -810,12 +824,7 @@ def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFla
     if typing.get_origin(py_type) is list:
         py_type = typing.get_args(py_type)[0]
         flags |= TypeFlag.IsArray
-
-    # get mapping
-    for mapping in type_mappers.values():
-        if mapping.maps_py_type(py_type):
-            return mapping, py_type, flags
-    raise LookupError(f"no mapping found for {py_type} ({flags}, type={type(py_type)})")
+    return py_type, flags
 
 
 @dataclass(repr=False, slots=True)
@@ -1084,22 +1093,23 @@ def type_from_py_type(
 
 
 def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
-    if isinstance(py_type, str):
+    stripped, flags = _strip_py_type(py_type)
+    if isinstance(stripped, str):
         # lookup by name in type_map
-        type = first((t for k, t in type_map.items() if k.__name__ == py_type), None)
+        type = first((t for k, t in type_map.items() if k.__name__ == stripped), None)
         if type is None:
-            raise ValueError(f"unknown type name: {py_type}")
-    elif py_type in type_map:
-        type = type_map[py_type]
+            raise ValueError(f"unknown type name: {stripped}")
+    elif stripped in type_map:
+        type = type_map[stripped]
     else:
         type = type_from_py_type(py_type, name, type_map)
-    if type.tag in (TypeTag.STRUCT, TypeTag.ENUM):
+    if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
+        # TODO @Broken: only use name as key for stdlib types?
+        # (others should be mapped with :LibImplementation)
         # turn into reference
-        return Field(
-            name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=type.flags
-        )
+        return Field(name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
     else:
-        return Field(name=name, key=name, tag=type.tag, hint=type.hint, flags=type.flags)
+        return Field(name=name, key=name, tag=type.tag, hint=type.hint, flags=flags)
 
 
 def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:

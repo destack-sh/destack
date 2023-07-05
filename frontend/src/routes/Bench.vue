@@ -702,6 +702,9 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </main>
+      <div v-if="!versionLoaded" class="flex w-full flex-1 flex-col items-center justify-center">
+        <BusySpinnerIcon class="h-8 w-8 animate-spin" />
+      </div>
     </div>
     <GenericNotFound v-if="!projectLoading && !projectLoaded" class="pb-12" />
     <NotificationArea />

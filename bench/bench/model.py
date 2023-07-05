@@ -94,7 +94,7 @@ class Model(HasType, Statement):
             try:
                 req = ReqRunInferencePayload(
                     model_path=self.path,
-                    inputs=(inputs_raw),
+                    inputs=inputs_raw,
                     timeout=timeout,
                 )
                 rep: NMessage[RepRunInferencePayload] = await request(
