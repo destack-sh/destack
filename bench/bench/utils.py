@@ -1,9 +1,21 @@
+import abc
 import hashlib
 import typing
-from typing import Any
+from typing import Any, Self
 from uuid import UUID
 
 import msgpack
+
+
+class Function(abc.ABC):
+    def __call__(self, *args, **kwargs):
+        raise NotImplementedError
+
+    def to_sync(self) -> "Self":
+        raise NotImplementedError
+
+    def to_async(self) -> "Self":
+        raise NotImplementedError
 
 
 def get_execution_cache_key(

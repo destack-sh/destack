@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from json import JSONDecodeError
 from logging import Logger
-from typing import Any
+from typing import Any, Self
 
 import msgpack
 import pytz
@@ -73,7 +73,9 @@ class Model(HasType, Statement):
                         inference.outputs, self, ignore_outer_map=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
-                    self.session.tracer.run_cached(self, inputs, inference)
+                    self.session.tracer.run_cached(
+                        self, inputs, inference, inference.generated_at, inference.duration
+                    )
                     check_type(outputs, self, is_output=True)
                     return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
@@ -191,8 +193,40 @@ class Model(HasType, Statement):
     def compile(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
         return self._compiler_resolved(self, task, inputs, is_batched)
 
-    def to_sync(self):
-        raise NotImplementedError
+    def to_async(self) -> "Self":
+        return self
+
+    def to_sync(self) -> "Self":
+        if self._is_async:
+            return ModelProxy.to_sync(self)
+        return self
+
+
+class ModelProxy:  # :SyncProxy
+    """A simple proxy for Model to enable to_sync/to_async while keeping the original Model object."""
+
+    def __init__(self, model: Model, is_async: bool):
+        self._model = model
+        self._is_async = is_async
+        self._task_callable_sync = None
+
+    def __call__(self, *args, **kwargs):
+        if self._is_async:
+            return self._model(*args, **kwargs)
+        else:
+            if self._task_callable_sync is None:
+                self._task_callable_sync = self._model.session.async_to_sync(self._model.__call__)
+            return self._task_callable_sync(*args, **kwargs)
+
+    def __getattr__(self, item):
+        return getattr(self._model, item)
+
+    def to_async(self):
+        return self._model
+
+    @classmethod
+    def to_sync(cls, model: Model):
+        return cls(model, is_async=False)
 
 
 @dataclass(slots=True)
