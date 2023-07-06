@@ -22,6 +22,8 @@ import {
   type UpdateFieldMutation,
   type Field,
   type UpdateSymbolValueMutation,
+  type TaggingUpdateInput,
+  type Tagging,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -33,6 +35,35 @@ export function useSymbolContentOps() {
 
   // symbol content mutations
   // (for the annoying redundancy see :BE-114)
+
+  const { mutate: updateStatementReferenceMut } = registry.useMutation(
+    ModuleMutationType.UpdateStatementReference,
+    graphql(/* GraphQL */ `
+      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {
+        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
+          ... on Statement {
+            id
+            revision
+            reference {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; referenceId: string | null }) =>
+        ({
+          updateStatementReference: {
+            __typename: "Statement",
+            id: vars.id,
+            revision: PENDING_REVISION,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+          },
+        } as UpdateStatementReferenceMutation),
+    }
+  );
 
   const { mutate: updateSymbolDescriptionMut } = registry.useMutation(
     ModuleMutationType.UpdateSymbolDescription,
@@ -616,14 +647,14 @@ export function useSymbolContentOps() {
         if (createStatementField?.__typename != "Field") {
           return; // error
         }
-        // extend Statement.fields with (ref to) new type node
+        // extend Statement.fields with (ref to) new field
         cache.modify({
           id: cache.identify(createStatementField.statement),
           fields: {
             fields(existingFields = []) {
               const newRef = cache.identify(createStatementField);
               return [
-                ...existingFields.filter((t: any) => t.__ref != newRef), // remove old type node if exists
+                ...existingFields.filter((t: any) => t.__ref != newRef), // remove old field if exists
                 { __ref: newRef },
               ];
             },
@@ -917,6 +948,275 @@ export function useSymbolContentOps() {
     });
   }
 
+  const { mutate: createTaggingMut } = registry.useMutation(
+    ModuleMutationType.CreateTagging,
+    graphql(/* GraphQL */ `
+      mutation createTagging(
+        $id: GlobalID!
+        $statementId: GlobalID!
+        $key: String!
+        $referenceId: GlobalID!
+        $metadata: JSON
+      ) {
+        createTagging(
+          input: { id: $id, statementId: $statementId, key: $key, referenceId: $referenceId, metadata: $metadata }
+        ) {
+          ... on Tagging {
+            id
+            key
+            parent {
+              id
+            }
+            statement {
+              id
+            }
+            reference {
+              id
+            }
+            metadata
+            # crud
+            createdAt
+            updatedAt
+            deletedAt
+            createdBy {
+              id
+            }
+            lastEditedAt
+            lastEditedBy {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        statementId: string;
+        key: string;
+        referenceId: string | null;
+        metadata: any;
+      }) =>
+        ({
+          __typename: "Mutation",
+          createTagging: {
+            __typename: "Tagging",
+            id: vars.id,
+            statement: {
+              __typename: "Statement",
+              id: vars.statementId,
+            },
+            parent: {
+              __typename: "Statement",
+              id: vars.statementId,
+            },
+            key: vars.key,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            metadata: vars.metadata ?? null,
+            // crud
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            createdBy: null,
+            lastEditedAt: null,
+            lastEditedBy: null,
+          },
+        } as any),
+      update(cache, { data }) {
+        const createTagging = data?.createTagging;
+        if (createTagging?.__typename != "Tagging") {
+          return; // error
+        }
+        // extend Statement.tags with (ref to) new tag
+        cache.modify({
+          id: cache.identify(createTagging.statement),
+          fields: {
+            tags(existingTags = []) {
+              const newRef = cache.identify(createTagging);
+              return [
+                ...existingTags.filter((t: any) => t.__ref != newRef), // remove old tag if exists
+                { __ref: newRef },
+              ];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
+  );
+
+  const { mutate: deleteTaggingMut } = registry.useMutation(
+    ModuleMutationType.DeleteTagging,
+    graphql(/* GraphQL */ `
+      mutation deleteTagging($id: GlobalID!) {
+        deleteTagging(input: { id: $id }) {
+          ... on Tagging {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          deleteTagging: {
+            __typename: "Tagging",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as any),
+    }
+  );
+
+  const { mutate: softDeleteTaggingMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteTagging,
+    graphql(/* GraphQL */ `
+      mutation softDeleteTagging($id: GlobalID!) {
+        softDeleteTagging(input: { id: $id }) {
+          ... on Tagging {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          softDeleteTagging: {
+            __typename: "Tagging",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as any),
+    }
+  );
+
+  const { mutate: restoreTaggingMut } = registry.useMutation(
+    ModuleMutationType.RestoreTagging,
+    graphql(/* GraphQL */ `
+      mutation restoreTagging($id: GlobalID!) {
+        restoreTagging(input: { id: $id }) {
+          ... on Tagging {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          restoreTagging: {
+            __typename: "Tagging",
+            id: vars.id,
+            deletedAt: null,
+          },
+        } as any),
+    }
+  );
+
+  async function createTagging(
+    tx: Transaction | null,
+    statementId: string,
+    tagging: Pick<Tagging, "id" | "key" | "reference" | "metadata">
+  ) {
+    await ops.perform({
+      tx,
+      type: "symbol.createTagging",
+      do: async () => {
+        return await createTaggingMut({
+          id: tagging.id,
+          statementId: statementId,
+          key: tagging.key,
+          referenceId: tagging.reference?.id ?? null,
+          metadata: tagging.metadata ?? null,
+        });
+      },
+      undo: async () => {
+        return await softDeleteTaggingMut({ id: tagging.id });
+      },
+      redo: async () => {
+        return await restoreTaggingMut({ id: tagging.id });
+      },
+    });
+  }
+
+  async function deleteTagging(tx: Transaction | null, statementId: string, tagging: Pick<Tagging, "id">) {
+    await ops.perform({
+      tx,
+      type: "symbol.deleteTagging",
+      do: async () => {
+        return await deleteTaggingMut({ id: tagging.id });
+      },
+    });
+  }
+
+  async function softDeleteTagging(tx: Transaction | null, statementId: string, tagging: Pick<Tagging, "id">) {
+    await ops.perform({
+      tx,
+      type: "symbol.softDeleteTagging",
+      do: async () => {
+        return await softDeleteTaggingMut({ id: tagging.id });
+      },
+      undo: async () => {
+        return await restoreTaggingMut({ id: tagging.id });
+      },
+    });
+  }
+
+  const { mutate: updateTaggingMut } = registry.useMutation(
+    ModuleMutationType.UpdateTagging,
+    graphql(/* GraphQL */ `
+      mutation updateTagging($id: GlobalID!, $metadata: JSON) {
+        updateTagging(input: { id: $id, metadata: $metadata }) {
+          ... on Tagging {
+            id
+            updatedAt
+            revision
+            metadata
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; key: string; referenceId: string | null; metadata: any }) =>
+        ({
+          updateTagging: {
+            __typename: "Tagging",
+            id: vars.id,
+            updatedAt: new Date().toISOString(),
+            revision: PENDING_REVISION,
+            metadata: vars.metadata ?? null,
+          },
+        } as any),
+    }
+  );
+
+  async function updateTaggingMetadata(
+    tx: Transaction | null,
+    statementId: string,
+    oldTagging: Pick<Tagging, "id" | "metadata">,
+    newTagging: Pick<Tagging, "id" | "metadata">
+  ) {
+    await ops.perform({
+      tx,
+      type: "symbol.updateTaggingMetadata",
+      do: async () => {
+        return await updateTaggingMut(newTagging);
+      },
+      undo: async () => {
+        return await updateTaggingMut(oldTagging);
+      },
+    });
+  }
+
   return {
     registry,
     updateSymbolDescription,
@@ -934,5 +1234,9 @@ export function useSymbolContentOps() {
     moveField,
     deleteField,
     softDeleteField,
+    createTagging,
+    updateTaggingMetadata,
+    deleteTagging,
+    softDeleteTagging,
   };
 }

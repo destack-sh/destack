@@ -524,6 +524,7 @@ enum ModuleMutationType {
   MOVE_STATEMENT
   RENAME_STATEMENT
   UPDATE_STATEMENT_TEXT
+  UPDATE_STATEMENT_REFERENCE
   UPDATE_SYMBOL_DESCRIPTION
   UPDATE_SYMBOL_CODE
   UPDATE_SYMBOL_MODIFIER
@@ -604,6 +605,7 @@ type Mutation {
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
+  updateStatementReference(input: StatementUpdateReferenceInput!): StatementOperationInfo!
   updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
   updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
   updateSymbolValue(input: SymbolUpdateValueInput!): StatementOperationInfo!
@@ -1711,6 +1713,11 @@ input StatementUpdateInput {
   value: JSON = null
 }
 
+input StatementUpdateReferenceInput {
+  id: GlobalID!
+  referenceId: GlobalID = null
+}
+
 input StatementUpdateTextInput {
   id: GlobalID!
   text: String = null
@@ -1753,6 +1760,7 @@ type Tagging implements CrudModel & ModuleNode & Node {
   lastEditedBy: User
   parent: Statement!
   revision: Int!
+  statement: Statement!
   reference: Statement!
   key: String!
   metadata: JSON

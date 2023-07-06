@@ -60,6 +60,7 @@ TypeHint = gql.enum(bench.bench.const.TypeHint)
 @gql.django.type(models.Tagging)
 class Tagging(CrudModel, ModuleNode, Revisioned, gql.Node):
     parent: "Statement" = gql.django.field(field_name="statement")
+    statement: "Statement"
     reference: "Statement"
     key: auto
     metadata: auto
@@ -456,13 +457,13 @@ class StatementMutation:
 
 
 @gql.input
-class StatementTextInput(gql.NodeInput):
-    text: str
+class SymbolUpdateDescriptionInput(gql.NodeInput):
+    description: str
 
 
 @gql.input
-class SymbolUpdateDescriptionInput(gql.NodeInput):
-    description: str
+class StatementUpdateReferenceInput(gql.NodeInput):
+    reference_id: Optional[GlobalID] = None
 
 
 @gql.input
@@ -571,6 +572,14 @@ class FieldRestoreInput(gql.NodeInput):
 @gql.type
 class SymbolMutation:
     # TODO @Cleanup @Architecture: 'normalize' statement mutations alongside Statement
+    @tracked_db_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
+    def update_statement_reference(
+        self, input: StatementUpdateReferenceInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.reference_id = input.reference_id
+        return statement
+
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
     def update_symbol_description(
         self, input: SymbolUpdateDescriptionInput

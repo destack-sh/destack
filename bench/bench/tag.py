@@ -66,7 +66,9 @@ class HasTags(StatementBase):
 
     def _interp(self, scope: Scope) -> None:
         for tagging in self.tags:
-            tagging.reference = scope._root_scope._tags_by_key.get(tagging.key)
+            if tagging.reference_id is None:
+                continue
+            tagging.reference = scope._root_scope._statements_by_id.get(tagging.reference_id)
             if tagging.reference is None:
                 # is that an error? not sure
                 continue

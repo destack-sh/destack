@@ -25,7 +25,6 @@ from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.bench.mutate import ModuleMutation, ModuleMutator
-    from bench.bench.tag import Tag
     from bench.bench.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -242,7 +241,6 @@ class Scope:
     parent: Optional["Scope"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
     _statements_by_id: dict[UUID, "Statement"] = field(default_factory=dict)
-    _tags_by_key: dict[str, "Tag"] = field(default_factory=dict)
     _names_by_py_ident: dict[str, str] = field(default_factory=dict)
 
     @cached_property
@@ -319,11 +317,8 @@ class Scope:
                 self._names_by_py_ident[statement.py_ident] = statement.name
 
         self._statements_by_id.update(statement._statements_by_id)
-        self._tags_by_key.update(statement._tags_by_key)
         if isinstance(statement, Statement):
             self._statements_by_id[statement.id] = statement
-            if statement.type == StatementType.TAG:
-                self._tags_by_key[statement.key] = statement
 
     def _add_file(self, file: "File", by_name: bool) -> None:
         if file.name is not None and by_name:
@@ -338,7 +333,6 @@ class Scope:
         """Resets this scope and all child scopes."""
         self._scopes_by_name = {}
         self._statements_by_id = {}
-        self._tags_by_key = {}
         self._names_by_py_ident = {}
         for scope in self._scopes_by_name.values():
             scope._clear()
