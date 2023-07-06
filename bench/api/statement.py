@@ -32,6 +32,16 @@ log = structlog.get_logger(__name__)
 StatementType = gql.enum(const.StatementType)
 
 
+@gql.django.filter(models.Tagging)
+class TaggingFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
 @gql.django.filter(models.Field)
 class FieldFilter:
     is_visible: Optional[bool] = True
@@ -45,6 +55,14 @@ class FieldFilter:
 TypeStorageFormat = gql.enum(bench.bench.type.TypeStorageFormat)
 TypeTag = gql.enum(bench.bench.const.TypeTag)
 TypeHint = gql.enum(bench.bench.const.TypeHint)
+
+
+@gql.django.type(models.Tagging)
+class Tagging(CrudModel, ModuleNode, Revisioned, gql.Node):
+    parent: "Statement" = gql.django.field(field_name="statement")
+    reference: "Statement"
+    key: auto
+    metadata: auto
 
 
 @gql.django.type(models.Field)
@@ -69,6 +87,7 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     parent: Optional["ModuleNode"]
     type: StatementType
     name: auto
+    key: auto
     children: list["Statement"]
     descendants: list["Statement"]
     order_key: auto
@@ -77,6 +96,7 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
+    tags: list[Tagging] = gql.django.field(filters=TaggingFilter)
     fields: list[Field] = gql.django.field(filters=FieldFilter)
     lang: auto
     code: auto

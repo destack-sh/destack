@@ -17,6 +17,7 @@ from bench.bench.reflect import (
     x_enum,
     x_model,
     x_struct,
+    x_tag,
     x_task,
 )
 from bench.bench.remote import RemoteObject
@@ -34,6 +35,21 @@ from bench.utils.utils import UnreachableError, omit_empty
 symbolx_lib = Module(name="symbolx.lib")
 _symbolx_builtins = symbolx_lib.create_file("builtins")
 symbolx_lib.add_file(_symbolx_reflect)
+
+
+@x_tag("tool", key="x.tool", file=_symbolx_builtins)
+class Tool:
+    pass
+
+
+@x_tag("step", key="x.step", file=_symbolx_builtins)
+class Step:
+    pass
+
+
+@x_tag("cache", key="x.cache", file=_symbolx_builtins)
+class Cache:
+    pass
 
 
 @x_struct("EmbeddingOutput", file=_symbolx_builtins)
@@ -238,8 +254,8 @@ class OpenAIChatCompiler(TaskCompiler):
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
-        description="Error if the task is impossible or unreasonable given the instructions."
-        " If possible, call 'terminate' with the relevant error info instead.",
+        description="Error if no reasonable termination is possible given the instructions."
+        " Strongly prefer calling 'terminate' with the relevant error info instead.",
         parameters=OpenAIFunctionParameter(
             name=None,  # not needed for root object
             type=OpenAIFunctionParameterType.object,

@@ -392,6 +392,7 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         statement_data = super().pack(statement)
         return wire.TypeData(
             **statement_data.__dict__,
+            key=statement.key,
             description=statement.description,
             tag=TypeTag(statement.root_type_tag),
             flags=TypeFlag(statement.root_type_flags or 0),
@@ -401,9 +402,32 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         self, data: wire.TypeData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
+        statement.key = data.key
         statement.description = data.description
         statement.root_type_tag = data.tag.value
         statement.root_type_flags = data.flags
+        return statement
+
+
+@node_packer(MOT.STATEMENT, wire.TagData, models.Statement, StatementType.TAG)
+class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+
+    def pack(self, statement: models.Statement) -> wire.TagData:
+        statement_data = super().pack(statement)
+        return wire.TagData(
+            **statement_data.__dict__,
+            description=statement.description,
+            key=statement.key,
+        )
+
+    def unpack(
+        self, data: wire.TagData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        statement = super().unpack(data, parent)
+        statement.description = data.description
+        statement.key = data.key
         return statement
 
 
@@ -576,6 +600,32 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
             hint=data.hint.value if data.hint else None,
             description=data.description,
             flags=data.flags,
+            reference_id=data.reference_id,
+            metadata=data.metadata,
+        )
+
+
+@node_packer(MOT.TAGGING, wire.TaggingData, models.Tagging)
+class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
+    def pack(self, node: models.Tagging) -> wire.TaggingData:
+        return wire.TaggingData(
+            id=node.id,
+            parent_id=node.statement_id,
+            key=node.key,
+            reference_id=node.reference_id,
+            metadata=node.metadata,
+            revision=node.revision,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
+            last_edited_at=node.last_edited_at,
+            last_changed_at=node.last_changed_at,
+        )
+
+    def unpack(self, data: wire.TaggingData, parent: models.Statement) -> models.Tagging:
+        return models.Tagging(
+            id=data.id,
+            statement_id=data.parent_id,
+            key=data.key,
             reference_id=data.reference_id,
             metadata=data.metadata,
         )

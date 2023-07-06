@@ -1,10 +1,17 @@
 import functools
 import typing
 from dataclasses import dataclass
+from uuid import UUID, uuid5
 
 from bench.bench.const import TypeTag
 from bench.bench.core import File
 from bench.bench.type import instantiate_py_value, strip_py_value, type_from_py_type
+
+UUID_ZERO = UUID("00000000-0000-0000-0000-000000000000")
+
+
+def _stable_id(path: str) -> UUID:
+    return uuid5(UUID_ZERO, path)
 
 
 def x_enum(name: str, *, file: File):
@@ -12,13 +19,14 @@ def x_enum(name: str, *, file: File):
 
     def decorator(cls):
         # check that names and values are equal
-        for name, value in cls.__members__.items():
-            if name != value.name:
-                raise ValueError(f"name must equal value in {cls}: {name} != {value.name}")
+        for n, value in cls.__members__.items():
+            if n != value.name:
+                raise ValueError(f"name must equal value in {cls}: {n} != {value.name}")
         bench_type = type_from_py_type(cls, name=name)
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
         file.append(bench_type)
+        bench_type.id = _stable_id(bench_type.path)
         return cls
 
     return decorator
@@ -34,6 +42,7 @@ def x_struct(name: str, *, file: File):
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
         file.append(bench_type)
+        bench_type.id = _stable_id(bench_type.path)
 
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
         cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
@@ -54,7 +63,24 @@ def x_task(name: str, *, file: File):
         task_type = type_from_py_type(fn, name=None)
         task.fields = task_type._copy_fields(to=task)
         file.append(task)
+        task.id = _stable_id(task.path)
         return task
+
+    return decorator
+
+
+def x_tag(name: str, key: str, *, file: File):
+    def decorator(cls):
+        from bench.bench.tag import Tag
+
+        # also turn tag into dataclass, it's basically a struct
+        cls = dataclass(cls)
+        tag = Tag(name=name, key=key)
+        tag_type = type_from_py_type(cls, name=None)
+        tag.fields = tag_type._copy_fields(to=tag)
+        file.append(tag)
+        tag.id = _stable_id(tag.path)
+        return cls
 
     return decorator
 
@@ -71,6 +97,8 @@ def x_model(name: str, *, external_name: str, file: File):
         model_type = type_from_py_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
         file.append(model)
+        model.id = _stable_id(model.path)
+
         _model_impls[model.path] = cls._endpoint
         _model_compilers[model.path] = cls._compiler
         return cls

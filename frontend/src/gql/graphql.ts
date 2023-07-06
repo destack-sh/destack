@@ -1836,6 +1836,7 @@ export type Statement = CrudModel &
     file: File;
     id: Scalars["GlobalID"];
     issues?: Maybe<Array<Issue>>;
+    key?: Maybe<Scalars["String"]>;
     lang?: Maybe<Scalars["String"]>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
@@ -1847,6 +1848,7 @@ export type Statement = CrudModel &
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
     rootTypeTag?: Maybe<TypeTag>;
+    tags: Array<Tagging>;
     text?: Maybe<Scalars["String"]>;
     type: StatementType;
     updatedAt: Scalars["DateTime"];
@@ -1863,6 +1865,10 @@ export type StatementIssuesArgs = {
 
 export type StatementResolvedFieldsArgs = {
   filters?: InputMaybe<FieldFilter>;
+};
+
+export type StatementTagsArgs = {
+  filters?: InputMaybe<TaggingFilter>;
 };
 
 export type StatementBatch = {
@@ -2035,6 +2041,28 @@ export type SystemInfo = {
   __typename?: "SystemInfo";
   gitCommit: Scalars["String"];
   version: Scalars["String"];
+};
+
+export type Tagging = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "Tagging";
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"];
+    key: Scalars["String"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    metadata?: Maybe<Scalars["JSON"]>;
+    parent: Statement;
+    reference: Statement;
+    revision: Scalars["Int"];
+    updatedAt: Scalars["DateTime"];
+  };
+
+export type TaggingFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
 /** Extra representation/semantics of a field/type. */
@@ -3092,12 +3120,24 @@ type CrudModelContent_Statement_Fragment = {
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "CrudModelContent_Statement_Fragment" };
 
+type CrudModelContent_Tagging_Fragment = {
+  __typename?: "Tagging";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_Tagging_Fragment" };
+
 export type CrudModelContentFragment =
   | CrudModelContent_Field_Fragment
   | CrudModelContent_File_Fragment
   | CrudModelContent_ProjectVersion_Fragment
   | CrudModelContent_Record_Fragment
-  | CrudModelContent_Statement_Fragment;
+  | CrudModelContent_Statement_Fragment
+  | CrudModelContent_Tagging_Fragment;
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -3148,7 +3188,8 @@ export type FileHeaderFragment = {
     | { __typename?: "Field" }
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
-    | { __typename?: "Statement" };
+    | { __typename?: "Statement" }
+    | { __typename?: "Tagging" };
   projectVersion: { __typename?: "ProjectVersion"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3170,6 +3211,7 @@ export type StatementHeaderFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging" }
     | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
@@ -3218,6 +3260,7 @@ export type StatementContentFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging" }
     | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
@@ -3262,7 +3305,8 @@ export type InterpFileFragment = {
     | { __typename?: "Field" }
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
-    | { __typename?: "Statement" };
+    | { __typename?: "Statement" }
+    | { __typename?: "Tagging" };
   issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
 } & { " $fragmentName"?: "InterpFileFragment" };
 
@@ -3285,6 +3329,7 @@ export type InterpStatementFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging" }
     | null;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
@@ -3868,6 +3913,7 @@ export type CreateStatementMutation = {
           | { __typename?: "File"; id: any }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
+          | { __typename?: "Tagging" }
           | null;
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
@@ -3966,6 +4012,7 @@ export type MoveStatementMutation = {
           | { __typename?: "File"; id: any }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
+          | { __typename?: "Tagging" }
           | null;
       };
 };
@@ -3996,6 +4043,7 @@ export type BatchMoveStatementMutation = {
             | { __typename?: "File"; id: any }
             | { __typename?: "ProjectVersion" }
             | { __typename?: "Statement"; id: any }
+            | { __typename?: "Tagging" }
             | null;
         }>;
       };

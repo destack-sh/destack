@@ -1557,6 +1557,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   file: File!
   type: StatementType!
   name: String
+  key: String
   children: [Statement!]!
   descendants: [Statement!]!
   orderKey: String!
@@ -1564,6 +1565,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   dataset: Dataset
   rootTypeTag: TypeTag
   rootTypeFlags: Int
+  tags(filters: TaggingFilter): [Tagging!]!
   fields(filters: FieldFilter): [Field!]!
   lang: String
   code: String
@@ -1718,6 +1720,25 @@ input SymbolUpdateValueInput {
 type SystemInfo {
   version: String!
   gitCommit: String!
+}
+
+type Tagging implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+  parent: Statement!
+  revision: Int!
+  reference: Statement!
+  key: String!
+  metadata: JSON
+}
+
+input TaggingFilter {
+  isVisible: Boolean = true
 }
 
 """Extra representation/semantics of a field/type."""

@@ -487,8 +487,12 @@ class HasType(TypeBase, StatementBase):
         type.resolved_fields = resolved_fields
 
 
+# avoid circular import because Tag is HasType but Type is HasTags
+from bench.bench.tag import HasTags  # noqa
+
+
 @node
-class Type(HasType, HasExpectations, Statement):
+class Type(HasType, HasTags, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
