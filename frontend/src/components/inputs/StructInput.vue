@@ -109,8 +109,8 @@ defineExpose({
       <!-- Struct icon -->
       <RectangleGroupIcon class="h-4 w-4 text-gray-700" />
       <!-- Struct title -->
-      <span v-if="struct[titleField?.key ?? ''] != undefined" class="min-w-[10px] text-gray-900">{{
-        struct[titleField?.key ?? ""]
+      <span v-if="struct[module.getTypedKey(titleField) ?? ''] != undefined" class="min-w-[10px] text-gray-900">{{
+        struct[module.getTypedKey(titleField) ?? ""]
       }}</span>
       <!-- default to type name if we don't have anything -->
       <span v-else class="text-gray-500 group-hover/struct:text-gray-700">{{ runtimeType?.name }}</span>

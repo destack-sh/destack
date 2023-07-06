@@ -35,6 +35,7 @@ const editorAppearance = computed(() => editor.editor.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
 
+// :EditorIcons
 const editorIcons: Record<EditorType, any> = {
   file: CodeBracketIcon,
   statement: CodeBracketIcon,

@@ -26,6 +26,8 @@ import {
   ArrowRightIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
+  CodeBracketIcon,
+  WindowIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient } from "@vue/apollo-composable";
@@ -702,7 +704,25 @@ export function provideEditorContext<T extends Editor>(
       top: elementBounding.top.value,
     })),
     actions: computed(() => {
-      const actions: EditorAction[] = [
+      const actions: EditorAction[] = [];
+
+      // open other editors in this group
+      editor.value.group?.editors.forEach((e) => {
+        if (e.id == editor.value.id) return;
+        actions.push({
+          groupId: "jump",
+          label: e.name,
+          icon: {
+            file: CodeBracketIcon,
+            statement: CodeBracketIcon,
+            launch: WindowIcon,
+          }[e.type],
+          action: () => editorState.focusEditor(e),
+        });
+      });
+
+      // close
+      const closeActions = [
         {
           groupId: "close",
           label: "Close",
@@ -723,6 +743,9 @@ export function provideEditorContext<T extends Editor>(
           action: () => editorState.closeEditorGroup(editor.value.group as EditorGroup),
         },
       ];
+      actions.push(...closeActions);
+
+      // view
       if (editor.value.effectiveWide) {
         actions.push({
           groupId: "view",
@@ -738,6 +761,9 @@ export function provideEditorContext<T extends Editor>(
           action: () => (editor.value.appearance.wide = true),
         });
       }
+
+      // move
+      // should clean this up
       if (editor.value.groupId == editorState.left.id) {
         actions.push({
           groupId: "move",

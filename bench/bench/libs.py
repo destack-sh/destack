@@ -47,8 +47,23 @@ class Step:
     pass
 
 
+@x_tag("consider", key="x.consider", file=_symbolx_builtins)
+class Consider:
+    pass
+
+
+@x_tag("check", key="x.check", file=_symbolx_builtins)
+class Check:
+    pass
+
+
+@x_tag("retry", key="x.retry", file=_symbolx_builtins)
+class Retry:  # like tenacity
+    pass
+
+
 @x_tag("cache", key="x.cache", file=_symbolx_builtins)
-class Cache:
+class Cache:  # like cachetools
     pass
 
 
