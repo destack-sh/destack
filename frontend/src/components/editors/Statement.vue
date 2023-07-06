@@ -2,8 +2,10 @@
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import BlankStatement from "@/components/statements/BlankStatement.vue";
+import BlockStatement from "@/components/statements/BlockStatement.vue";
 import CodeStatement from "@/components/statements/CodeStatement.vue";
 import DatasetStatement from "@/components/statements/DatasetStatement.vue";
+import ReferenceStatement from "@/components/statements/ReferenceStatement.vue";
 import TaskStatement from "@/components/statements/TaskStatement.vue";
 import TextStatement from "@/components/statements/TextStatement.vue";
 import TypeStatement from "@/components/statements/TypeStatement.vue";
@@ -149,6 +151,14 @@ const statementInterface: Ref<StatementInterface> = computed(() => {
   } else if (statement.value.type == StatementType.Value) {
     return {
       component: ValueStatement,
+    };
+  } else if (statement.value.type == StatementType.Block) {
+    return {
+      component: BlockStatement,
+    };
+  } else if (statement.value.type == StatementType.Reference) {
+    return {
+      component: ReferenceStatement,
     };
   }
 

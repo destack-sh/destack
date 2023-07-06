@@ -571,6 +571,7 @@ export enum ModuleMutationType {
   UpdateFile = "UPDATE_FILE",
   UpdateRecord = "UPDATE_RECORD",
   UpdateStatement = "UPDATE_STATEMENT",
+  UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
   UpdateStatementText = "UPDATE_STATEMENT_TEXT",
   UpdateSymbolCode = "UPDATE_SYMBOL_CODE",
   UpdateSymbolDescription = "UPDATE_SYMBOL_DESCRIPTION",
@@ -659,6 +660,7 @@ export type Mutation = {
   updateRecord: RecordOperationInfo;
   updateSecret: SecretOperationInfo;
   updateStatement: StatementOperationInfo;
+  updateStatementReference: StatementOperationInfo;
   updateStatementText: StatementOperationInfo;
   updateSymbolCode: StatementOperationInfo;
   updateSymbolDescription: StatementOperationInfo;
@@ -938,6 +940,10 @@ export type MutationUpdateSecretArgs = {
 
 export type MutationUpdateStatementArgs = {
   input: StatementUpdateInput;
+};
+
+export type MutationUpdateStatementReferenceArgs = {
+  input: StatementUpdateReferenceInput;
 };
 
 export type MutationUpdateStatementTextArgs = {
@@ -2028,6 +2034,11 @@ export type StatementUpdateInput = {
   value?: InputMaybe<Scalars["JSON"]>;
 };
 
+export type StatementUpdateReferenceInput = {
+  id: Scalars["GlobalID"];
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+};
+
 export type StatementUpdateTextInput = {
   id: Scalars["GlobalID"];
   text?: InputMaybe<Scalars["String"]>;
@@ -2099,6 +2110,7 @@ export type Tagging = CrudModel &
     parent: Statement;
     reference: Statement;
     revision: Scalars["Int"];
+    statement: Statement;
     updatedAt: Scalars["DateTime"];
   };
 
@@ -4251,6 +4263,20 @@ export type BatchPasteStatementMutation = {
       };
 };
 
+export type UpdateStatementReferenceMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  referenceId: Scalars["GlobalID"];
+}>;
+
+export type UpdateStatementReferenceMutation = {
+  __typename?: "Mutation";
+  updateStatementReference:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Statement"; id: any; revision: number; reference?: { __typename?: "Statement"; id: any } | null };
+};
+
 export type UpdateSymbolDescriptionMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   description: Scalars["String"];
@@ -4544,6 +4570,90 @@ export type MoveFieldMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
+};
+
+export type CreateTaggingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+  key: Scalars["String"];
+  referenceId: Scalars["GlobalID"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
+}>;
+
+export type CreateTaggingMutation = {
+  __typename?: "Mutation";
+  createTagging:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Tagging";
+        id: any;
+        key: string;
+        metadata?: any | null;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        lastEditedAt?: any | null;
+        parent: { __typename?: "Statement"; id: any };
+        statement: { __typename?: "Statement"; id: any };
+        reference: { __typename?: "Statement"; id: any };
+        createdBy?: { __typename?: "User"; id: any } | null;
+        lastEditedBy?: { __typename?: "User"; id: any } | null;
+      };
+};
+
+export type DeleteTaggingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type DeleteTaggingMutation = {
+  __typename?: "Mutation";
+  deleteTagging:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Tagging"; id: any; deletedAt?: any | null };
+};
+
+export type SoftDeleteTaggingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteTaggingMutation = {
+  __typename?: "Mutation";
+  softDeleteTagging:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Tagging"; id: any; deletedAt?: any | null };
+};
+
+export type RestoreTaggingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreTaggingMutation = {
+  __typename?: "Mutation";
+  restoreTagging:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Tagging"; id: any; deletedAt?: any | null };
+};
+
+export type UpdateTaggingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
+}>;
+
+export type UpdateTaggingMutation = {
+  __typename?: "Mutation";
+  updateTagging:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Tagging"; id: any; updatedAt: any; revision: number; metadata?: any | null };
 };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
@@ -12206,6 +12316,84 @@ export const BatchPasteStatementDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
+export const UpdateStatementReferenceDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateStatementReference" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateStatementReference" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateStatementReferenceMutation, UpdateStatementReferenceMutationVariables>;
 export const UpdateSymbolDescriptionDocument = {
   kind: "Document",
   definitions: [
@@ -13654,6 +13842,403 @@ export const MoveFieldDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<MoveFieldMutation, MoveFieldMutationVariables>;
+export const CreateTaggingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createTagging" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createTagging" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "key" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "key" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "referenceId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "metadata" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "statement" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "createdBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "lastEditedBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateTaggingMutation, CreateTaggingMutationVariables>;
+export const DeleteTaggingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteTagging" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteTagging" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<DeleteTaggingMutation, DeleteTaggingMutationVariables>;
+export const SoftDeleteTaggingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteTagging" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteTagging" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteTaggingMutation, SoftDeleteTaggingMutationVariables>;
+export const RestoreTaggingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreTagging" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreTagging" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreTaggingMutation, RestoreTaggingMutationVariables>;
+export const UpdateTaggingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateTagging" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateTagging" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "metadata" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateTaggingMutation, UpdateTaggingMutationVariables>;
 export const LogoutDocument = {
   kind: "Document",
   definitions: [

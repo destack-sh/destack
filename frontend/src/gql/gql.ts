@@ -183,6 +183,8 @@ const documents = {
     types.BatchRestoreStatementsDocument,
   "\n      mutation batchPasteStatement(\n        $sourceIds: [GlobalID!]!\n        $targetIds: [GlobalID!]!\n        $targetFileId: GlobalID!\n        $targetParentIds: [GlobalID]!\n        $targetOrderKeys: [String!]!\n      ) {\n        batchPasteStatement(\n          input: {\n            sourceIds: $sourceIds\n            targetIds: $targetIds\n            targetFileId: $targetFileId\n            targetParentIds: $targetParentIds\n            targetOrderKeys: $targetOrderKeys\n          }\n        ) {\n          ... on StatementBatch {\n            statements {\n              id\n              ...StatementContent\n              file {\n                id\n              }\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.BatchPasteStatementDocument,
+  "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdateStatementReferenceDocument,
   "\n      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {\n        updateSymbolDescription(input: { id: $id, description: $description }) {\n          ... on Statement {\n            id\n            description\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateSymbolDescriptionDocument,
   "\n      mutation updateSymbolCode($id: GlobalID!, $code: String) {\n        updateSymbolCode(input: { id: $id, code: $code }) {\n          ... on Statement {\n            id\n            code\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -217,6 +219,16 @@ const documents = {
     types.UpdateFieldDocument,
   "\n      mutation moveField($id: GlobalID!, $orderKey: String!) {\n        moveField(input: { id: $id, orderKey: $orderKey }) {\n          ... on Field {\n            id\n            orderKey\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.MoveFieldDocument,
+  "\n      mutation createTagging(\n        $id: GlobalID!\n        $statementId: GlobalID!\n        $key: String!\n        $referenceId: GlobalID!\n        $metadata: JSON\n      ) {\n        createTagging(\n          input: { id: $id, statementId: $statementId, key: $key, referenceId: $referenceId, metadata: $metadata }\n        ) {\n          ... on Tagging {\n            id\n            key\n            parent {\n              id\n            }\n            statement {\n              id\n            }\n            reference {\n              id\n            }\n            metadata\n            # crud\n            createdAt\n            updatedAt\n            deletedAt\n            createdBy {\n              id\n            }\n            lastEditedAt\n            lastEditedBy {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.CreateTaggingDocument,
+  "\n      mutation deleteTagging($id: GlobalID!) {\n        deleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.DeleteTaggingDocument,
+  "\n      mutation softDeleteTagging($id: GlobalID!) {\n        softDeleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.SoftDeleteTaggingDocument,
+  "\n      mutation restoreTagging($id: GlobalID!) {\n        restoreTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.RestoreTaggingDocument,
+  "\n      mutation updateTagging($id: GlobalID!, $metadata: JSON) {\n        updateTagging(input: { id: $id, metadata: $metadata }) {\n          ... on Tagging {\n            id\n            updatedAt\n            revision\n            metadata\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdateTaggingDocument,
   "\n      mutation logout {\n        logout {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.LogoutDocument,
   "\n      mutation completeSignup($input: UserCompleteSignupInput!) {\n        completeSignup(input: $input) {\n          ... on User {\n            id\n            username\n            slug\n            email\n            name\n            createdAt\n            updatedAt\n            completedSignup\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -767,6 +779,12 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {\n        updateSymbolDescription(input: { id: $id, description: $description }) {\n          ... on Statement {\n            id\n            description\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {\n        updateSymbolDescription(input: { id: $id, description: $description }) {\n          ... on Statement {\n            id\n            description\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
@@ -865,6 +883,36 @@ export function graphql(
 export function graphql(
   source: "\n      mutation moveField($id: GlobalID!, $orderKey: String!) {\n        moveField(input: { id: $id, orderKey: $orderKey }) {\n          ... on Field {\n            id\n            orderKey\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation moveField($id: GlobalID!, $orderKey: String!) {\n        moveField(input: { id: $id, orderKey: $orderKey }) {\n          ... on Field {\n            id\n            orderKey\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation createTagging(\n        $id: GlobalID!\n        $statementId: GlobalID!\n        $key: String!\n        $referenceId: GlobalID!\n        $metadata: JSON\n      ) {\n        createTagging(\n          input: { id: $id, statementId: $statementId, key: $key, referenceId: $referenceId, metadata: $metadata }\n        ) {\n          ... on Tagging {\n            id\n            key\n            parent {\n              id\n            }\n            statement {\n              id\n            }\n            reference {\n              id\n            }\n            metadata\n            # crud\n            createdAt\n            updatedAt\n            deletedAt\n            createdBy {\n              id\n            }\n            lastEditedAt\n            lastEditedBy {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation createTagging(\n        $id: GlobalID!\n        $statementId: GlobalID!\n        $key: String!\n        $referenceId: GlobalID!\n        $metadata: JSON\n      ) {\n        createTagging(\n          input: { id: $id, statementId: $statementId, key: $key, referenceId: $referenceId, metadata: $metadata }\n        ) {\n          ... on Tagging {\n            id\n            key\n            parent {\n              id\n            }\n            statement {\n              id\n            }\n            reference {\n              id\n            }\n            metadata\n            # crud\n            createdAt\n            updatedAt\n            deletedAt\n            createdBy {\n              id\n            }\n            lastEditedAt\n            lastEditedBy {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation deleteTagging($id: GlobalID!) {\n        deleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation deleteTagging($id: GlobalID!) {\n        deleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation softDeleteTagging($id: GlobalID!) {\n        softDeleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation softDeleteTagging($id: GlobalID!) {\n        softDeleteTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation restoreTagging($id: GlobalID!) {\n        restoreTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreTagging($id: GlobalID!) {\n        restoreTagging(input: { id: $id }) {\n          ... on Tagging {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updateTagging($id: GlobalID!, $metadata: JSON) {\n        updateTagging(input: { id: $id, metadata: $metadata }) {\n          ... on Tagging {\n            id\n            updatedAt\n            revision\n            metadata\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateTagging($id: GlobalID!, $metadata: JSON) {\n        updateTagging(input: { id: $id, metadata: $metadata }) {\n          ... on Tagging {\n            id\n            updatedAt\n            revision\n            metadata\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
