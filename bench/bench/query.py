@@ -66,6 +66,8 @@ class QueryOps:
     VECTOR = {QueryOp.NEAR}
 
 
+SCORED_QUERY_OPS = {QueryOp.MATCHES, *QueryOps.XY, *QueryOps.VECTOR}
+
 _QUERIES: dict[QueryOp, type[Query]] = {}
 
 
@@ -100,6 +102,10 @@ class Query:
     def filter(self, other):
         return Q(QueryOp.AND, queries=[self, other])
 
+    @property
+    def is_scored(self) -> bool:
+        return self.op in SCORED_QUERY_OPS
+
     @staticmethod
     def cls_from_attrs(d: dict[str, Any]) -> type[Query]:  # see :WireFormat
         op = QueryOp(d["op"])
@@ -110,6 +116,10 @@ class Query:
 @query(QueryOp.NOT, QueryOp.AND, QueryOp.OR)
 class CompoundQuery(Query):
     queries: list[Query]
+
+    @property
+    def is_scored(self) -> bool:
+        return any(q.is_scored for q in self.queries)
 
     def __invert__(self):
         if self.op == QueryOp.NOT:
@@ -214,6 +224,18 @@ class Sort:
     key: str
     order: SortOrder = SortOrder.ASCENDING
     mode: Optional[SortMode] = None
+
+
+def get_default_sort(query: "Query") -> list["Sort"]:
+    if query.is_scored:
+        return [Sort("_score", SortOrder.DESCENDING)]
+    else:
+        return [Sort("_id", SortOrder.ASCENDING)]
+
+
+#
+# Field query ops
+#
 
 
 class UnsupportedSearchError(Exception):

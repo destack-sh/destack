@@ -324,7 +324,7 @@ class Search:
                     yield record
             if batched:
                 yield records
-            after = rep.payload.last_sort_key
+            after = rep.payload.end_cursor
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.records)
 
@@ -357,7 +357,7 @@ class Search:
                     yield record
             if batched:
                 yield records
-            after = rep.payload.last_sort_key
+            after = rep.payload.end_cursor
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.records)
 
