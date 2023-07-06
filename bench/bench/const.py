@@ -20,6 +20,7 @@ class StatementType(enum.StrEnum):
     MODEL = "model"
     VALUE = "value"
     DATASET = "dataset"
+    REFERENCE = "reference"
     BLOCK = "block"
 
 

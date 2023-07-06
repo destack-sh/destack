@@ -116,7 +116,7 @@ def node_packer(
             )
         if (node_t, subtype) in _node_packers_by_node:
             raise ValueError(
-                f"packer for {node_t} already registered: {_node_packers_by_node[(node_t, subtype)]}"
+                f"packer for {(node_t, subtype)} already registered: {_node_packers_by_node[(node_t, subtype)]}"
             )
         packer = cls()
         _node_packers_by_data[data_t] = packer
@@ -383,10 +383,62 @@ class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
         return statement
 
 
+@node_packer(MOT.STATEMENT, wire.ReferenceData, models.Statement, StatementType.REFERENCE)
+class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
+
+    def pack(self, statement: models.Statement) -> wire.ReferenceData:
+        statement_data = super().pack(statement)
+        return wire.ReferenceData(
+            **statement_data.__dict__,
+            reference_id=statement.reference_id,
+        )
+
+    def unpack(
+        self, data: wire.FieldData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        statement = super().unpack(data, parent)
+        statement.reference_id = data.reference_id
+        return statement
+
+
+@node_packer(MOT.STATEMENT, wire.BlockData, models.Statement, StatementType.BLOCK)
+class BlockPacker(StatementPacker, NodePacker[wire.BlockData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
+
+    def pack(self, statement: models.Statement) -> wire.BlockData:
+        statement_data = super().pack(statement)
+        return wire.BlockData(
+            **statement_data.__dict__,
+            description=statement.description,
+        )
+
+    def unpack(
+        self, data: wire.BlockData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        statement = super().unpack(data, parent)
+        statement.description = data.description
+        return statement
+
+
 @node_packer(MOT.STATEMENT, wire.TypeData, models.Statement, StatementType.TYPE)
 class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.TypeData:
         statement_data = super().pack(statement)
@@ -412,7 +464,11 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
 @node_packer(MOT.STATEMENT, wire.TagData, models.Statement, StatementType.TAG)
 class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.TagData:
         statement_data = super().pack(statement)
@@ -434,7 +490,11 @@ class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
 @node_packer(MOT.STATEMENT, wire.TaskData, models.Statement, StatementType.TASK)
 class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.TaskData:
         statement_data = super().pack(statement)
@@ -473,7 +533,11 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
 @node_packer(MOT.STATEMENT, wire.CodeData, models.Statement, StatementType.CODE)
 class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.CodeData:
         statement_data = super().pack(statement)
@@ -518,7 +582,11 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
 @node_packer(MOT.STATEMENT, wire.ValueData, models.Statement, StatementType.VALUE)
 class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.ValueData:
         statement_data = super().pack(statement)
@@ -540,7 +608,11 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
 @node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement, StatementType.DATASET)
 class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
-        return [*super().walk(nodes, tree), models.Field.objects.filter(statement__in=nodes)]
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
 
     def pack(self, statement: models.Statement) -> wire.DatasetData:
         statement_data = super().pack(statement)

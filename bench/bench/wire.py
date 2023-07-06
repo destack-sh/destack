@@ -10,7 +10,6 @@ from datetime import datetime
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
-import bench.bench.basic
 from bench import bench as lang
 from bench.bench import StatementType
 from bench.bench.const import (
@@ -583,7 +582,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         parent: lang.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
-        cls = bench.bench.basic.Blank if statement.type == StatementType.BLANK else lang.Statement
+        cls = lang.Blank if statement.type == StatementType.BLANK else lang.Statement
         return cls(
             id=statement.id,
             parent=parent,
@@ -605,22 +604,22 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
 
 
 class BlankData(StatementData):
-    pass
+    pass  # it's blank
 
 
-@node_packer(MOT.STATEMENT, BlankData, bench.bench.basic.Blank)
-class BlankPacker(StatementPacker, NodePacker[BlankData, bench.bench.basic.Blank]):
+@node_packer(MOT.STATEMENT, BlankData, lang.Blank)
+class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
-    def pack(self, symbol: bench.bench.basic.Blank) -> "BlankData":
+    def pack(self, symbol: lang.Blank) -> "BlankData":
         statement_data = super().pack(symbol)
         return BlankData(**statement_data.__dict__)
 
     def unpack(
         self, statement: BlankData, parent: lang.Statement | lang.File, session: Optional[Session]
-    ) -> bench.bench.basic.Blank:
+    ) -> lang.Blank:
         statement = super().unpack(statement, parent, session)
-        return bench.bench.basic.Blank(**statement.__dict__)
+        return lang.Blank(**statement.__dict__)
 
 
 @dataclass
@@ -628,19 +627,74 @@ class TextData(StatementData):
     text: str
 
 
-@node_packer(MOT.STATEMENT, TextData, bench.bench.basic.Text)
-class TextPacker(StatementPacker, NodePacker[TextData, bench.bench.basic.Text]):
+@node_packer(MOT.STATEMENT, TextData, lang.Text)
+class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
-    def pack(self, symbol: bench.bench.basic.Text) -> "TextData":
+    def pack(self, symbol: lang.Text) -> "TextData":
         statement_data = super().pack(symbol)
         return TextData(**statement_data.__dict__, text=symbol.text)
 
     def unpack(
         self, symbol: TextData, parent: lang.Statement | lang.File, session: Optional[Session]
-    ) -> bench.bench.basic.Text:
+    ) -> lang.Text:
         statement = super().unpack(symbol, parent, session)
-        return bench.bench.basic.Text(**statement.__dict__, text=symbol.text)
+        return lang.Text(**statement.__dict__, text=symbol.text)
+
+
+@dataclass
+class ReferenceData(StatementData):
+    reference_id: Optional[UUID]
+
+
+@node_packer(MOT.STATEMENT, ReferenceData, lang.Reference)
+class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]):
+    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+
+    def walk(self, statement: lang.Reference, tree: PackContext):
+        tree.visit_all(statement.tags)
+
+    def pack(self, symbol: lang.Reference) -> "ReferenceData":
+        statement_data = super().pack(symbol)
+        return ReferenceData(**statement_data.__dict__, reference_id=symbol.reference_id)
+
+    def unpack(
+        self,
+        symbol: ReferenceData,
+        parent: lang.Statement | lang.File,
+        session: Optional[Session],
+    ) -> lang.Reference:
+        statement = super().unpack(symbol, parent, session)
+        return lang.Reference(**statement.__dict__, reference=symbol.reference_id)
+
+    def unwalk(self, statement: lang.Reference, tree: ModuleTree):
+        statement.tags = tree.get_descendants(statement.id, lang.Tag)
+
+
+@dataclass
+class BlockData(StatementData):
+    description: Optional[str]
+
+
+@node_packer(MOT.STATEMENT, BlockData, lang.Block)
+class BlockPacker(StatementPacker, NodePacker[BlockData, lang.Block]):
+    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+
+    def walk(self, statement: lang.Block, tree: PackContext):
+        tree.visit_all(statement.tags)
+
+    def pack(self, symbol: lang.Block) -> "BlockData":
+        statement_data = super().pack(symbol)
+        return BlockData(**statement_data.__dict__, description=symbol.description)
+
+    def unpack(
+        self, symbol: BlockData, parent: lang.Statement | lang.File, session: Optional[Session]
+    ) -> lang.Block:
+        statement = super().unpack(symbol, parent, session)
+        return lang.Block(**statement.__dict__, description=symbol.description)
+
+    def unwalk(self, statement: lang.Block, tree: ModuleTree):
+        statement.tags = tree.get_descendants(statement.id, lang.Tag)
 
 
 @dataclass

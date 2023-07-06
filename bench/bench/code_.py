@@ -190,7 +190,7 @@ def instantiate_callable(
 
     # create python function from python code
     input_keys = [i.name for i in code.inputs]
-    func_name = to_pyidentifier(code.name, IdentifierType.METHOD)
+    func_name = code.py_ident or "_anon"
     async_str = "async " if code._parse.is_async else ""
     func_params = ", ".join(
         to_pyidentifier(key, IdentifierType.VARIABLE) + "=None" for key in input_keys

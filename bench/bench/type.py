@@ -192,8 +192,10 @@ class TypeBase(abc.ABC):
         return get_storage_format(self.tag, self.hint, self.flags)
 
     @property
-    def py_ident(self):
-        if self.tag == TypeTag.LITERAL:
+    def py_ident(self) -> Optional[str]:
+        if self.name is None:
+            return None
+        elif self.tag == TypeTag.LITERAL:
             return to_pyidentifier(self.name, IdentifierType.CONSTANT)
         else:
             return to_pyidentifier(self.name, IdentifierType.FIELD)

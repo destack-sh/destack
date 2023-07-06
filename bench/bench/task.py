@@ -133,7 +133,7 @@ class Task(HasType, HasTags, HasExpectations, Statement):
 
         # compile
         compiler = model.compile(self, inputs, is_batched)
-        for child in self.children:
+        for child in self.resolved_children:
             if isinstance(child, (Code, Task, Model)):
                 compiler.add_function(child)
             elif isinstance(child, Expectation):

@@ -1,4 +1,4 @@
-from bench.bench.basic import Blank, Text
+from bench.bench.basic import Blank, Block, Reference, Text
 from bench.bench.code_ import Code
 from bench.bench.const import DatasetViewLayout, StatementType, TypeHint, TypeTag
 from bench.bench.core import File, Module, Scope, Statement
@@ -15,6 +15,7 @@ from bench.bench.type import Field, HasType, ResolvedField, Type, TypeBase, Type
 __all__ = [
     "Aggregation",
     "Blank",
+    "Block",
     "Code",
     "Dataset",
     "DatasetView",
@@ -33,6 +34,7 @@ __all__ = [
     "Query",
     "QueryOp",
     "Record",
+    "Reference",
     "RemoteObject",
     "ResolvedField",
     "Scope",

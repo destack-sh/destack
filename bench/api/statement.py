@@ -93,6 +93,7 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     order_key: auto
     text: auto
     # symbol contents
+    reference: Optional["Statement"]
     dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
@@ -121,6 +122,8 @@ class StatementCreateInput:
     root_type_flags: Optional[int] = None
     description: Optional[str] = None
     lang: Optional[str] = None
+    key: Optional[str] = None
+    reference_id: Optional[GlobalID] = None
     text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
@@ -138,6 +141,8 @@ class StatementUpdateInput(gql.NodeInput):
     root_type_flags: Optional[int] = None
     description: Optional[str] = None
     lang: Optional[str] = None
+    key: Optional[str] = None
+    reference_id: Optional[GlobalID] = None
     text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
@@ -261,6 +266,8 @@ class StatementMutation:
             root_type_tag=input.root_type_tag,
             root_type_flags=input.root_type_flags,
             description=input.description,
+            key=input.key,
+            reference_id=input.reference_id.node_id if input.reference_id else None,
             lang=input.lang,
             code=input.code,
             text=input.text,
@@ -474,6 +481,35 @@ class SymbolUpdateValueInput(gql.NodeInput):
 
 
 @gql.input
+class TaggingCreateInput:
+    id: GlobalID
+    statement_id: GlobalID
+    key: str
+    reference_id: GlobalID
+    metadata: Optional[JSON] = None
+
+
+@gql.input
+class TaggingUpdateInput(gql.NodeInput):
+    metadata: Optional[JSON] = None
+
+
+@gql.input
+class TaggingDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class TaggingSoftDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class TaggingRestoreInput(gql.NodeInput):
+    pass
+
+
+@gql.input
 class FieldCreateInput:
     id: GlobalID
     key: str
@@ -534,6 +570,7 @@ class FieldRestoreInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
+    # TODO @Cleanup @Architecture: 'normalize' statement mutations alongside Statement
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
     def update_symbol_description(
         self, input: SymbolUpdateDescriptionInput
@@ -588,6 +625,41 @@ class SymbolMutation:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
         return field
+
+    @tracked_db_mutation(MMT.CREATE_TAGGING)
+    def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging(
+            id=UUID(input.id.node_id),
+            statement_id=UUID(input.statement_id.node_id),
+            key=input.key,
+            reference_id=UUID(input.reference_id.node_id),
+            metadata=input.metadata,
+        )
+        return tagging
+
+    @tracked_db_mutation(MMT.UPDATE_TAGGING)
+    def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.metadata = input.metadata
+        return tagging
+
+    @tracked_db_mutation(MMT.DELETE_TAGGING)
+    def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.delete()
+        return tagging
+
+    @tracked_db_mutation(MMT.SOFT_DELETE_TAGGING)
+    def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.soft_delete()
+        return tagging
+
+    @tracked_db_mutation(MMT.RESTORE_TAGGING)
+    def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.restore()
+        return tagging
 
     @tracked_db_mutation(MMT.UPDATE_FIELD_DESCRIPTION)
     def update_field_description(self, input: FieldUpdateDescriptionInput) -> Field | OperationInfo:

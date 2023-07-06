@@ -529,16 +529,19 @@ export enum ModuleMutationType {
   CreateRecord = "CREATE_RECORD",
   CreateResolvedField = "CREATE_RESOLVED_FIELD",
   CreateStatement = "CREATE_STATEMENT",
+  CreateTagging = "CREATE_TAGGING",
   DeleteField = "DELETE_FIELD",
   DeleteFile = "DELETE_FILE",
   DeleteIssue = "DELETE_ISSUE",
   DeleteRecord = "DELETE_RECORD",
   DeleteStatement = "DELETE_STATEMENT",
+  DeleteTagging = "DELETE_TAGGING",
   MorphStatement = "MORPH_STATEMENT",
   MoveField = "MOVE_FIELD",
   MoveFile = "MOVE_FILE",
   MoveRecord = "MOVE_RECORD",
   MoveStatement = "MOVE_STATEMENT",
+  MoveTagging = "MOVE_TAGGING",
   PasteFile = "PASTE_FILE",
   PasteStatement = "PASTE_STATEMENT",
   RenameField = "RENAME_FIELD",
@@ -548,18 +551,22 @@ export enum ModuleMutationType {
   RestoreFile = "RESTORE_FILE",
   RestoreRecord = "RESTORE_RECORD",
   RestoreStatement = "RESTORE_STATEMENT",
+  RestoreTagging = "RESTORE_TAGGING",
   SoftDeleteField = "SOFT_DELETE_FIELD",
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  SoftDeleteTagging = "SOFT_DELETE_TAGGING",
   TruncateFields = "TRUNCATE_FIELDS",
   TruncateFiles = "TRUNCATE_FILES",
   TruncateIssues = "TRUNCATE_ISSUES",
   TruncateRecords = "TRUNCATE_RECORDS",
   TruncateResolvedFields = "TRUNCATE_RESOLVED_FIELDS",
   TruncateStatements = "TRUNCATE_STATEMENTS",
+  TruncateTaggings = "TRUNCATE_TAGGINGS",
   UpdateField = "UPDATE_FIELD",
   UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
+  UpdateFieldMetadata = "UPDATE_FIELD_METADATA",
   UpdateFieldType = "UPDATE_FIELD_TYPE",
   UpdateFile = "UPDATE_FILE",
   UpdateRecord = "UPDATE_RECORD",
@@ -570,6 +577,8 @@ export enum ModuleMutationType {
   UpdateSymbolLanguage = "UPDATE_SYMBOL_LANGUAGE",
   UpdateSymbolModifier = "UPDATE_SYMBOL_MODIFIER",
   UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
+  UpdateTagging = "UPDATE_TAGGING",
+  UpdateTaggingMetadata = "UPDATE_TAGGING_METADATA",
 }
 
 export type ModuleNode = {
@@ -600,12 +609,14 @@ export type Mutation = {
   createRecord: RecordOperationInfo;
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
+  createTagging: TaggingOperationInfo;
   deleteField: FieldOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
   deleteRecord: RecordOperationInfo;
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
+  deleteTagging: TaggingOperationInfo;
   langserverWake: LangserverWakePayloadOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
@@ -625,6 +636,7 @@ export type Mutation = {
   restoreRecord: RecordOperationInfo;
   restoreStatement: StatementOperationInfo;
   restoreStatementField: FieldOperationInfo;
+  restoreTagging: TaggingOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
@@ -632,6 +644,7 @@ export type Mutation = {
   softDeleteFile: FileOperationInfo;
   softDeleteRecord: RecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
+  softDeleteTagging: TaggingOperationInfo;
   updateField: FieldOperationInfo;
   updateFieldDescription: FieldOperationInfo;
   updateFieldName: FieldOperationInfo;
@@ -650,6 +663,7 @@ export type Mutation = {
   updateSymbolCode: StatementOperationInfo;
   updateSymbolDescription: StatementOperationInfo;
   updateSymbolValue: StatementOperationInfo;
+  updateTagging: TaggingOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
 };
@@ -734,6 +748,10 @@ export type MutationCreateStatementArgs = {
   input: StatementCreateInput;
 };
 
+export type MutationCreateTaggingArgs = {
+  input: TaggingCreateInput;
+};
+
 export type MutationDeleteFieldArgs = {
   input: FieldDeleteInput;
 };
@@ -756,6 +774,10 @@ export type MutationDeleteSecretArgs = {
 
 export type MutationDeleteStatementArgs = {
   input: StatementDeleteInput;
+};
+
+export type MutationDeleteTaggingArgs = {
+  input: TaggingDeleteInput;
 };
 
 export type MutationLangserverWakeArgs = {
@@ -830,6 +852,10 @@ export type MutationRestoreStatementFieldArgs = {
   input: FieldRestoreInput;
 };
 
+export type MutationRestoreTaggingArgs = {
+  input: TaggingRestoreInput;
+};
+
 export type MutationRevokeAccessTokenArgs = {
   id: Scalars["GlobalID"];
 };
@@ -856,6 +882,10 @@ export type MutationSoftDeleteRecordArgs = {
 
 export type MutationSoftDeleteStatementArgs = {
   input: StatementSoftDeleteInput;
+};
+
+export type MutationSoftDeleteTaggingArgs = {
+  input: TaggingDeleteInput;
 };
 
 export type MutationUpdateFieldArgs = {
@@ -924,6 +954,10 @@ export type MutationUpdateSymbolDescriptionArgs = {
 
 export type MutationUpdateSymbolValueArgs = {
   input: SymbolUpdateValueInput;
+};
+
+export type MutationUpdateTaggingArgs = {
+  input: TaggingUpdateInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -1845,6 +1879,7 @@ export type Statement = CrudModel &
     orderKey: Scalars["String"];
     parent?: Maybe<ModuleNode>;
     projectVersion: ProjectVersion;
+    reference?: Maybe<Statement>;
     resolvedFields?: Maybe<Array<Field>>;
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
@@ -1908,10 +1943,12 @@ export type StatementCreateInput = {
   description?: InputMaybe<Scalars["String"]>;
   fileId: Scalars["GlobalID"];
   id?: InputMaybe<Scalars["GlobalID"]>;
+  key?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]>;
@@ -1966,6 +2003,7 @@ export enum StatementType {
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Model = "MODEL",
+  Reference = "REFERENCE",
   Tag = "TAG",
   Task = "TASK",
   Text = "TEXT",
@@ -1978,9 +2016,11 @@ export type StatementUpdateInput = {
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
+  key?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey?: InputMaybe<Scalars["String"]>;
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]>;
@@ -2062,8 +2102,31 @@ export type Tagging = CrudModel &
     updatedAt: Scalars["DateTime"];
   };
 
+export type TaggingCreateInput = {
+  id: Scalars["GlobalID"];
+  key: Scalars["String"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
+  referenceId: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+};
+
+export type TaggingDeleteInput = {
+  id: Scalars["GlobalID"];
+};
+
 export type TaggingFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export type TaggingOperationInfo = OperationInfo | Tagging;
+
+export type TaggingRestoreInput = {
+  id: Scalars["GlobalID"];
+};
+
+export type TaggingUpdateInput = {
+  id: Scalars["GlobalID"];
+  metadata?: InputMaybe<Scalars["JSON"]>;
 };
 
 /** Extra representation/semantics of a field/type. */
@@ -3239,6 +3302,21 @@ export type FieldContentFragment = {
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "FieldContentFragment" };
 
+export type TaggingContentFragment = {
+  __typename?: "Tagging";
+  id: any;
+  revision: number;
+  key: string;
+  metadata?: any | null;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  reference: { __typename?: "Statement"; id: any };
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "TaggingContentFragment" };
+
 export type StatementContentFragment = {
   __typename?: "Statement";
   id: any;
@@ -3246,6 +3324,7 @@ export type StatementContentFragment = {
   revision: number;
   name?: string | null;
   orderKey: string;
+  key?: string | null;
   text?: string | null;
   lang?: string | null;
   code?: string | null;
@@ -3264,6 +3343,7 @@ export type StatementContentFragment = {
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
     | null;
+  tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
     { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
@@ -3319,6 +3399,7 @@ export type InterpStatementFragment = {
   name?: string | null;
   revision: number;
   orderKey: string;
+  key?: string | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
   createdAt: any;
@@ -3333,6 +3414,7 @@ export type InterpStatementFragment = {
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
     | null;
+  tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
@@ -3876,6 +3958,7 @@ export type CreateStatementMutationVariables = Exact<{
   orderKey: Scalars["String"];
   type: StatementType;
   name?: InputMaybe<Scalars["String"]>;
+  key?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   code?: InputMaybe<Scalars["String"]>;
   text?: InputMaybe<Scalars["String"]>;
@@ -3898,6 +3981,7 @@ export type CreateStatementMutation = {
         revision: number;
         name?: string | null;
         orderKey: string;
+        key?: string | null;
         lang?: string | null;
         code?: string | null;
         text?: string | null;
@@ -3917,6 +4001,8 @@ export type CreateStatementMutation = {
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
           | null;
+        reference?: { __typename?: "Statement"; id: any } | null;
+        tags: Array<{ __typename?: "Tagging"; id: any }>;
         fields: Array<{ __typename?: "Field"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
@@ -5162,6 +5248,53 @@ export const StatementHeaderFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementHeaderFragment, unknown>;
+export const TaggingContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TaggingContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Tagging" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "reference" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TaggingContentFragment, unknown>;
 export const FieldContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5299,6 +5432,7 @@ export const StatementContentFragmentDoc = {
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "lang" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
@@ -5306,6 +5440,30 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "fields" },
@@ -5539,8 +5697,33 @@ export const InterpStatementFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+          { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "tags" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "fields" },
@@ -6015,6 +6198,7 @@ export const FileContentByIdDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
   ],
@@ -6076,6 +6260,7 @@ export const StatementContentByIdDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
   ],
@@ -8381,6 +8566,7 @@ export const ModuleDocument = {
     ...InterpFileFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleQuery, ModuleQueryVariables>;
@@ -9023,6 +9209,7 @@ export const CreateFileDocument = {
     },
     ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
@@ -9409,6 +9596,7 @@ export const PasteFileDocument = {
     ...FileHeaderFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
@@ -10604,6 +10792,11 @@ export const CreateStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "lang" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -10688,6 +10881,11 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "key" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "key" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "code" },
                       value: { kind: "Variable", name: { kind: "Name", value: "code" } },
                     },
@@ -10767,6 +10965,7 @@ export const CreateStatementDocument = {
                           ],
                         },
                       },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "lang" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
@@ -10774,6 +10973,38 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "reference" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "tags" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "fields" },
@@ -11969,6 +12200,7 @@ export const BatchPasteStatementDocument = {
       },
     },
     ...StatementContentFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,

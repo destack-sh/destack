@@ -164,6 +164,31 @@ export const FieldType = graphql(/* GraphQL */ `
       id
     }
     metadata
+    # crud
+    createdAt
+    updatedAt
+    deletedAt
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
+  }
+`);
+
+export const TaggingType = graphql(/* GraphQL */ `
+  fragment TaggingContent on Tagging {
+    # :TaggingContent
+    id
+    revision
+    key
+    reference {
+      id
+    }
+    metadata
+    # crud
     createdAt
     updatedAt
     deletedAt
@@ -193,6 +218,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
       }
     }
     # symbol contents
+    key
     text
     lang
     code
@@ -200,6 +226,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
     value
     rootTypeTag
     rootTypeFlags
+    tags(filters: { isVisible: true }) {
+      ...TaggingContent
+    }
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }
@@ -296,8 +325,12 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       }
     }
     orderKey
+    key
     rootTypeTag
     rootTypeFlags
+    tags(filters: { isVisible: true }) {
+      ...TaggingContent
+    }
     fields(filters: { isVisible: true }) {
       ...FieldContent
     }
