@@ -398,11 +398,13 @@ class HasType(TypeBase, StatementBase):
             inputs[input_t.name] = input
         return inputs
 
-    def _copy_fields(self, to: Optional["HasType"] = None) -> list[Field]:
+    def _copy_fields(self, to: Optional["HasType"] = None, reset_ids: bool = True) -> list[Field]:
         """Copies the fields of this type to a new parent"""
         new_fields = []
         for field_ in self.fields:
             new_field = field_.copy()
+            if reset_ids:
+                new_field.id = uuid4()
             new_field.reference = field_.reference  # keep exact reference
             new_field.parent = to
             new_fields.append(new_field)

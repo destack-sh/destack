@@ -869,6 +869,7 @@ class Session:
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
             module.lookup_or_error("openai.lib.chat.gpt3"),
+            module.lookup_or_error("openai.lib.chat.gpt4"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout

@@ -134,13 +134,6 @@ def sentry_capture_if_enabled(e: Exception) -> bool:
 class DotDict(dict):
     """Access dictionary keys as attributes."""
 
-    @property
-    def items(self):
-        if "items" in self:  # nocheckin: handle this in the to_dict call site instead
-            return self["items"]
-        else:
-            return super().items()
-
     def __getattr__(self, name):
         try:
             return self[name]
@@ -158,7 +151,7 @@ class DotDict(dict):
         return cls(**d)
 
 
-class DotDictList(list):
+class DotList(list):
     """
     Access a list of dictionaries as a list of DotDicts.
     Attribute and item access (with string) are column slices.

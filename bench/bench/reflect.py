@@ -60,10 +60,10 @@ def x_task(name: str, *, file: File):
         from bench.bench.task import Task
 
         task = Task(name=name)
-        task_type = type_from_py_type(fn, name=None)
-        task.fields = task_type._copy_fields(to=task)
         file.append(task)
         task.id = _stable_id(task.path)
+        task_type = type_from_py_type(fn, name=None)
+        task.fields = task_type._copy_fields(to=task)
         return task
 
     return decorator
@@ -76,10 +76,10 @@ def x_tag(name: str, key: str, *, file: File):
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
         tag = Tag(name=name, key=key)
-        tag_type = type_from_py_type(cls, name=None)
-        tag.fields = tag_type._copy_fields(to=tag)
         file.append(tag)
         tag.id = _stable_id(tag.path)
+        tag_type = type_from_py_type(cls, name=None)
+        tag.fields = tag_type._copy_fields(to=tag)
         return cls
 
     return decorator
@@ -94,10 +94,10 @@ def x_model(name: str, *, external_name: str, file: File):
         from bench.bench.model import Model
 
         model = Model(name=name, external_name=external_name)
+        model.id = _stable_id(model.path)
+        file.append(model)
         model_type = type_from_py_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
-        file.append(model)
-        model.id = _stable_id(model.path)
 
         _model_impls[model.path] = cls._endpoint
         _model_compilers[model.path] = cls._compiler
