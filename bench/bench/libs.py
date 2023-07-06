@@ -1,6 +1,7 @@
 import enum
 import json
 import typing
+from json import JSONDecodeError
 from typing import Any, Optional
 
 import anthropic
@@ -129,7 +130,12 @@ class JsonSchemaElement:
             if self.properties
             else None
         )
-        items = JsonSchemaElement.to_dict(self.items) if self.items else None
+        # 'self' may be a DotDict here because we don't really handle custom type instances yet
+        if isinstance(self, dict):
+            items = self.get("items")
+        else:
+            items = self.items
+        items = JsonSchemaElement.to_dict(items) if items else None
         return dict(
             name=self.name,
             type=self.type,
@@ -229,12 +235,12 @@ class OpenAIFunction:
 @x_struct("OpenAIFunctionCall", file=_openai_chat)
 class OpenAIFunctionCall:
     name: Key
-    arguments: dict[str, Any]
+    arguments: str
 
     def to_dict(self) -> dict[str, Any]:  # :ToDict
         return dict(
             name=self.name,
-            arguments=json.dumps(self.arguments),
+            arguments=self.arguments,
         )
 
 
@@ -307,8 +313,7 @@ class OpenAIChatCompletionModel(Model):
         if "function_call" in message:
             function_call = OpenAIFunctionCall(
                 name=message["function_call"]["name"],
-                # nocheckin: handle bad json, maybe parse further upstream?
-                arguments=json.loads(message["function_call"]["arguments"]),
+                arguments=message["function_call"]["arguments"],
             )
         else:
             function_call = None
@@ -443,16 +448,21 @@ class OpenAIChatCompiler(TaskCompiler):
             )
             m = completion.message
             messages.append(m)
-            if m.function_call is None:
+            if m.function_call is None:  # missing function call
                 await _error(TaskError(TaskErrorType.INVALID_FORMAT, "no function call"))
-            elif m.function_call.name == "panic":
-                raise await _error(
-                    TaskError(TaskErrorType.INCAPABLE, m.function_call.arguments["reason"])
-                )
+                continue
+            try:  # try to parse arguments (only json format check, no type check)
+                arguments = json.loads(m.function_call.arguments)
+            except JSONDecodeError as e:
+                await _error(TaskError(TaskErrorType.INVALID_FORMAT, str(e)))
+                continue
+            # handle valid function call
+            if m.function_call.name == "panic":
+                raise await _error(TaskError(TaskErrorType.INCAPABLE, arguments["reason"]))
             elif m.function_call.name == "terminate":
                 try:
-                    check_type(m.function_call.arguments, self.task, is_output=True)
-                    return m.function_call.arguments
+                    check_type(arguments, self.task, is_output=True)
+                    return arguments
                 except TaskError as e:
                     await _error(e)
             elif m.function_call.name not in self.functions_by_py_ident:
@@ -464,7 +474,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 )
             else:
                 function = self.functions_by_py_ident[m.function_call.name]
-                ret = await runner.call_function(function, m.function_call.arguments)
+                ret = await runner.call_function(function, arguments)
                 messages.append(self._compile_function_result(function, ret))
 
 

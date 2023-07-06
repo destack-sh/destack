@@ -14,7 +14,7 @@ from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
-from bench.utils.utils import DotDict, DotDictList
+from bench.utils.utils import DotDict, DotList
 
 
 class TaskErrorType(enum.StrEnum):
@@ -85,8 +85,8 @@ class Task(HasType, HasTags, HasExpectations, Statement):
         # map/batch inputs
         inputs = self._inputs_from_args(args, kwargs)
         is_batched = batch is not None
-        if is_batched and not isinstance(batch, DotDictList):
-            inputs = DotDictList(batch)
+        if is_batched and not isinstance(batch, DotList):
+            inputs = DotList(batch)
             del batch
 
         try:
