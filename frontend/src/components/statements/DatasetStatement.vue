@@ -56,7 +56,6 @@ import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { INTEGER_ZERO } from "@/utils/fractional";
 import { TypeStorageFormat, getStorageFormat, SubfieldType, canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
@@ -203,8 +202,9 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     $sort: [DatasetSort!]
     $after: String
     $limit: Int
+    $count: Boolean
   ) {
-    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit) {
+    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
       totalCount
       pageInfo {
         hasNextPage
@@ -235,6 +235,7 @@ const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
       query: inlineQuery.value,
       sort: sort.value,
       limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+      count: true,
     } as SearchDatasetQueryVariables)
 );
 const {
@@ -259,12 +260,7 @@ const loading = computed(
 );
 const totalCount = computed(() => recordsFetchedResult?.value?.searchDataset.totalCount ?? 0);
 
-const recordsInView = computed(
-  () =>
-    recordsFetched.value
-      .filter((n) => n.deletedAt == null)
-      .sort((a, b) => ((a.orderKey ?? INTEGER_ZERO) < (b.orderKey ?? INTEGER_ZERO) ? -1 : 1)) ?? []
-);
+const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
   pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.node : null
@@ -777,6 +773,9 @@ defineExpose({
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
+      <!-- Views (soon) -->
+      <!-- Count -->
+      <span v-if="!folded" class="ml-1 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
     </div>
     <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
@@ -830,10 +829,9 @@ defineExpose({
     </div>
   </div>
   <!-- Folded info -->
-  <!-- TODO @UX: folded statement content info does not truncate correctly (across all relevant statements)  -->
   <button
     v-if="folded"
-    class="flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
+    class="mt-0.5 flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
     :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
     @click="$emit('toggleFold')"
   >

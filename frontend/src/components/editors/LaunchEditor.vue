@@ -225,7 +225,7 @@ defineExpose({
         </div>
       </div>
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
-        <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-500" />
+        <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-white" />
       </div>
       <template v-else>
         <!-- Input -->
