@@ -2,9 +2,7 @@ import abc
 import asyncio
 import contextvars
 import enum
-import random
 import re
-import string
 import typing
 import uuid
 from collections import defaultdict
@@ -27,6 +25,7 @@ from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.bench.mutate import ModuleMutation, ModuleMutator
+    from bench.bench.tag import Tag
     from bench.bench.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -37,11 +36,11 @@ class ModuleObjectType(enum.StrEnum):
     MODULE = "MODULE"
     FILE = "FILE"
     STATEMENT = "STATEMENT"
+    TAGGING = "TAGGING"
     FIELD = "FIELD"
     RECORD = "RECORD"
     DATASET_VIEW = "DATASET_VIEW"
     DATASET_VIEW_FIELD = "DATASET_VIEW_FIELD"
-    TAGGING = "TAGGING"
     # interp
     ISSUE = "ISSUE"
     RESOLVED_FIELD = "RESOLVED_FIELD"
@@ -323,8 +322,8 @@ class Scope:
         self._tags_by_key.update(statement._tags_by_key)
         if isinstance(statement, Statement):
             self._statements_by_id[statement.id] = statement
-        if isinstance(statement, Tag):
-            self._tags_by_key[statement.key] = statement
+            if statement.type == StatementType.TAG:
+                self._tags_by_key[statement.key] = statement
 
     def _add_file(self, file: "File", by_name: bool) -> None:
         if file.name is not None and by_name:
@@ -765,58 +764,6 @@ class StatementBase(abc.ABC):
 
 
 #
-# Tagging
-#
-
-TAG_KEY_LENGTH = 8
-
-
-def new_tag_key() -> str:
-    """Gets a random alphabetic key as a persistent key for a type node."""
-    # (upper and lower case letters only)
-    # :TagKeys
-    return "".join(random.choices(string.ascii_letters, k=TAG_KEY_LENGTH))
-
-
-@node(tracked=["name"])
-class Tag(Statement, HasType):
-    """A tag statement."""
-
-    name: str = None
-    key: str = field(default_factory=new_tag_key)
-    type: StatementType = StatementType.TAG
-
-
-@node(tracked=[])
-class Tagging(ModuleNode):
-    """An association between a tag and a statement (with optional metadata)."""
-
-    key: str = required_field()
-    parent: Statement | None = None
-    metadata: dict[str, typing.Any] | None = None
-    # interp
-    _tag: Tag | None = None
-
-
-class HasTags(StatementBase):
-    tags: list[Tagging] | None = None
-
-    def set_tag(self, key: str | Tag | Tagging, value: str = None) -> None:
-        """Tags this statement with the given key and value."""
-        raise NotImplementedError
-
-    tag = set_tag
-
-    def clear_tag(self, key: str | Tag | Tagging) -> None:
-        """Clears the tag with the given key."""
-        raise NotImplementedError
-
-    def clear_tags(self) -> None:
-        """Clears all tags."""
-        raise NotImplementedError
-
-
-#
 # Sessions
 #
 
@@ -1056,28 +1003,3 @@ class Session:
                 session.close()
 
         return SyncSession()
-
-
-# common statements
-
-
-@node(tracked=[])
-class Blank(Statement):
-    """A blank statement."""
-
-    type: StatementType = StatementType.BLANK
-
-
-@node(tracked=["text"])
-class Text(Statement):
-    """A comment that's not semantic/interpreted by default."""
-
-    type: StatementType = StatementType.TEXT
-    text: str | None = None
-
-
-@node(tracked=[])
-class Block(Statement):
-    """A named block of statements."""
-
-    type: StatementType = StatementType.BLOCK

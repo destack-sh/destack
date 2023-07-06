@@ -14,6 +14,7 @@ from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
+from bench.bench.tag import HasTags
 from bench.bench.type import HasType
 from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
 
@@ -34,7 +35,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, IsExpectable, Statement):
+class Code(HasType, HasTags, IsExpectable, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
@@ -49,6 +50,7 @@ class Code(HasType, IsExpectable, Statement):
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
+        HasTags._clear(self)
         self._parse = None
         self._references = None
         self._transform = None
@@ -56,6 +58,7 @@ class Code(HasType, IsExpectable, Statement):
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+        HasTags._interp(self, scope)
 
         # parse and resolve code references
         input_idents = {input.py_ident for input in self.inputs}

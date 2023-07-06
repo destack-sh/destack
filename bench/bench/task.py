@@ -12,6 +12,7 @@ from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import Scope, Statement, node
 from bench.bench.expect import Expectation, HasExpectations
 from bench.bench.model import Model
+from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
 from bench.utils.utils import DotDict, DotDictList
 
@@ -27,7 +28,7 @@ class TaskErrorType(enum.StrEnum):
 
 class TaskError(ValueError):
     def __init__(self, type: TaskErrorType, message: str = None, path: str = None):
-        super().__init__(message)
+        super().__init__(f"{type.value}: {message}")
         self.type = type
         self.path = path
 
@@ -54,7 +55,7 @@ class LimitExceededError(TaskError):
 
 
 @node(tracked=["description"])
-class Task(HasType, HasExpectations, Statement):
+class Task(HasType, HasTags, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
@@ -63,10 +64,12 @@ class Task(HasType, HasExpectations, Statement):
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
+        HasTags._clear(self)
         HasExpectations._clear(self)
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+        HasTags._interp(self, scope)
         HasExpectations._interp(self, scope)
 
     async def __call__(

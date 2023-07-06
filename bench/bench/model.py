@@ -14,6 +14,7 @@ import structlog
 
 from bench.bench.const import StatementType
 from bench.bench.core import Scope, Statement, node
+from bench.bench.tag import HasTags
 from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
 from bench.bench.utils import get_execution_cache_key
 from bench.utils.cache import redis
@@ -30,7 +31,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class Model(HasType, Statement):
+class Model(HasType, HasTags, Statement):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
@@ -43,6 +44,7 @@ class Model(HasType, Statement):
 
     def _clear(self) -> None:
         HasType._clear(self)
+        HasTags._clear(self)
         self._key = None
         self._remote = True
         self._endpoint_impl = None
@@ -50,6 +52,7 @@ class Model(HasType, Statement):
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+        HasTags._interp(self, scope)
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:

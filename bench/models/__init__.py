@@ -20,7 +20,7 @@ from .project import (
     RefMappingKind,
 )
 from .secret import Secret
-from .statement import Field, Statement
+from .statement import Field, Statement, Tagging
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User
 from .utils import CrudModel
@@ -61,6 +61,7 @@ __all__ = [
     "Field",
     "Statement",
     "Secret",
+    "Tagging",
     "User",
     "Worker",
     "WorkerStatus",

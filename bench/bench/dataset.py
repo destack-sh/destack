@@ -16,6 +16,7 @@ from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, 
 from bench.bench.core import HasCrud, HasSession, ModuleNode, Scope, Session, Statement, node
 from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
+from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type
 from bench.utils.proxy import proxy_value, unproxy_value
@@ -123,7 +124,7 @@ class DatasetViewField(ModuleNode):
 
 
 @node(tracked=["description", "versioned"])
-class Dataset(HasType, IsExpectable, Statement):
+class Dataset(HasType, HasTags, IsExpectable, Statement):
     type: StatementType = StatementType.DATASET
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -134,11 +135,13 @@ class Dataset(HasType, IsExpectable, Statement):
     backend_id: str = field(default_factory=new_dataset_backend_id)
 
     def _clear(self) -> None:
-        Statement._clear(self)
         HasType._clear(self)
+        HasTags._clear(self)
+        Statement._clear(self)
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+        HasTags._interp(self, scope)
 
     @property
     def default_view(self) -> DatasetView:
@@ -455,7 +458,7 @@ class Search:
 
 
 @node(tracked=["description", "value"])
-class Value(HasType, IsExpectable, Statement):
+class Value(HasType, HasTags, IsExpectable, Statement):
     type: StatementType = StatementType.VALUE
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -465,12 +468,14 @@ class Value(HasType, IsExpectable, Statement):
 
     def _clear(self) -> None:
         HasType._clear(self)
+        HasTags._clear(self)
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+        HasTags._interp(self, scope)
 
     def _onread(self, key: str) -> None:
         pass
