@@ -1,3 +1,5 @@
+import base64
+import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Optional, Union
@@ -6,12 +8,14 @@ from bench.bench.query import (
     ComparisonQuery,
     CompoundQuery,
     ExistenceQuery,
+    Q,
     Query,
     QueryOp,
     Sort,
     SortMode,
     SortOrder,
     VectorQuery,
+    get_default_sort,
 )
 
 
@@ -145,3 +149,55 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
         return queries[0]
     else:
         return {"bool": {"must": queries}}
+
+
+def prepare_search(
+    backend_id: str,
+    limit: int,
+    count: bool,
+    after: Optional[str],
+    sort: Optional[list[Sort]],
+    query: Optional[Query],
+) -> dict:
+    combined_query = Q(
+        QueryOp.AND,
+        queries=[
+            Q(QueryOp.EQUALS, key="dataset_id", value=backend_id),
+            ~Q(QueryOp.EXISTS, key="deleted_at"),
+        ],
+    )
+    if query is not None:
+        combined_query &= query
+    compilation = CompilationInfo(root_limit=limit)
+    compiled_query = compile_to_os(compilation, combined_query)
+    compiled_sort = compile_to_os(compilation, sort or get_default_sort(combined_query))
+    search = {
+        "size": limit,
+        "query": compiled_query,
+        "sort": compiled_sort,
+        "track_total_hits": count,
+        "version": True,  # for revisions, until we have revisions in DB again
+    }
+    if after:
+        # cursor is base64 encoded json of search after if it exists,
+        # otherwise just from for relevance-scored search (opaque to client)
+        after = json.loads(base64.b64decode(after).decode())
+        if isinstance(after, list):
+            search["search_after"] = after
+        elif isinstance(after, int):
+            search["from"] = after
+        else:
+            raise ValueError("invalid cursor")
+    return search
+
+
+def encode_cursor(record: dict[str, Any], after: Optional[str], i: int) -> str:
+    # for relevance-scored search, cursor is from offset, so add i to it
+    # otherwise, cursor is search_after, so encode 'sort' from record
+    if "sort" in record:
+        return base64.b64encode(json.dumps(record["sort"]).encode()).decode("utf-8")
+    else:
+        after = json.loads(base64.b64decode(after).decode()) if after else 0
+        if not isinstance(after, int):
+            raise ValueError("invalid cursor")
+        return base64.b64encode(json.dumps(after + i).encode()).decode("utf-8")

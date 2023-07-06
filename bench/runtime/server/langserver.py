@@ -11,12 +11,11 @@ import structlog
 from asgiref.sync import sync_to_async
 from django.db.models import Q
 
-from bench import bench, models
+from bench import models
 from bench.bench import HasType, Issue, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.query import QueryOp
 from bench.bench.type import instantiate_py_value, strip_py_value
 from bench.bench.utils import get_execution_cache_key
 from bench.bench.wire import ExecutionFrameData, ModuleTree
@@ -54,7 +53,7 @@ from bench.msg.messages import (
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
-from bench.opensearch.query import CompilationInfo, compile_to_os
+from bench.opensearch.query import encode_cursor, prepare_search
 from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
@@ -214,30 +213,17 @@ class LanguageServer:
         logger.debug("dataset.search", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
         project_version = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        combined_query = bench.Q(
-            bench.QueryOp.AND,
-            queries=[
-                bench.Q(QueryOp.EQUALS, key="dataset_id", value=msg.p.backend_id),
-                ~bench.Q(QueryOp.EXISTS, key="deleted_at"),
-            ],
-        )
-        if msg.p.query is not None:
-            combined_query &= msg.p.query
         effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
-        compilation = CompilationInfo(root_limit=effective_limit)
-        compiled_query = compile_to_os(compilation, combined_query)
-        compiled_sort = compile_to_os(compilation, msg.p.sort) if msg.p.sort else [{"_id": "asc"}]
-        search = {
-            "size": effective_limit,
-            "query": compiled_query,
-            "sort": compiled_sort,
-            "track_total_hits": msg.p.count,
-            "version": True,
-        }
-        if msg.p.after:
-            search["search_after"] = msg.p.after
 
         try:
+            search = prepare_search(
+                backend_id=msg.p.backend_id,
+                limit=effective_limit,
+                count=msg.p.count,
+                after=msg.p.after,
+                sort=msg.p.sort,
+                query=msg.p.query,
+            )
             results = os_client.search(
                 index=IndexType.BENCH.get_index_name(project_id=project_version.project_id),
                 body=search,
@@ -248,12 +234,20 @@ class LanguageServer:
                 doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
                 record = record_packer.pack(doc)
                 records.append(record)
+            if records:
+                start_cursor = encode_cursor(results["hits"]["hits"][0], msg.p.after, i=0)
+                end_cursor = encode_cursor(
+                    results["hits"]["hits"][-1], msg.p.after, i=len(records) - 1
+                )
+            else:
+                start_cursor = None
+                end_cursor = None
             rep = RepSearchDatasetPayload(
                 records=records,
                 total=(results["hits"]["total"]["value"] if msg.p.count else None),
                 limit=effective_limit,
-                first_sort_key=(results["hits"]["hits"][0]["sort"] if records else None),
-                last_sort_key=(results["hits"]["hits"][-1]["sort"] if records else None),
+                start_cursor=start_cursor,
+                end_cursor=end_cursor,
             )
         except Exception as e:
             sentry_capture_if_enabled(e)
@@ -262,8 +256,8 @@ class LanguageServer:
                 records=None,
                 total=-1,
                 limit=effective_limit,
-                first_sort_key=None,
-                last_sort_key=None,
+                start_cursor=None,
+                end_cursor=None,
                 error=str(e),
             )
 

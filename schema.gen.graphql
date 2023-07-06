@@ -1207,6 +1207,7 @@ type Query {
     query: DatasetQuery = null
     sort: [DatasetSort!] = null
     limit: Int = null
+    count: Boolean = null
   ): RecordConnection!
   systemInfo: SystemInfo!
   me: User

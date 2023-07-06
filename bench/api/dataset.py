@@ -1,5 +1,3 @@
-import base64
-import json
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -23,7 +21,7 @@ from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
-from bench.opensearch.query import CompilationInfo, compile_to_os
+from bench.opensearch.query import encode_cursor, prepare_search
 
 
 @gql.django.type(models.Dataset)
@@ -306,35 +304,20 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         sort: Optional[list[DatasetSort]] = None,
         after: Optional[str] = None,
         limit: Optional[int] = None,
+        count: Optional[bool] = None,
     ) -> gql.Connection[Record]:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        # prepare search
-        combined_query = Q(
-            QueryOp.AND,
-            queries=[
-                Q(QueryOp.EQUALS, key="dataset_id", value=statement.dataset.backend_id),
-                ~Q(QueryOp.EXISTS, key="deleted_at"),
-            ],
-        )
-        if query is not None:
-            combined_query &= query.to_dsl()
         effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
-        compilation = CompilationInfo(root_limit=effective_limit)
-        compiled_query = compile_to_os(compilation, combined_query)
-        compiled_sort = compile_to_os(compilation, [s.to_dsl() for s in sort]) if sort else None
-        sort = compiled_sort or [{"order_key": "asc"}, {"_id": "asc"}]
-        search = {
-            "size": effective_limit + 1,  # +1 to determine if there is a next page
-            "query": compiled_query,
-            "sort": sort,
-            "track_total_hits": True,
-            "version": True,
-        }
-        if after is not None:
-            # cursor is base64 encoded json of search after (sort key) :RecordCursor
-            search["search_after"] = json.loads(base64.b64decode(after).decode())
+        search = prepare_search(
+            backend_id=statement.dataset.backend_id,
+            limit=effective_limit + 1,  # +1 to determine if there is a next page
+            count=count or False,
+            after=after,
+            sort=[s.to_dsl() for s in sort] if sort else None,
+            query=query.to_dsl() if query else None,
+        )
 
         # do the search
         results = os_client.search(
@@ -344,11 +327,10 @@ class DataQuery:  # avoid name conflict with DatasetQuery
 
         # transform results
         edges = []
-        for r in results["hits"]["hits"][0:effective_limit]:
+        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
             node = Record.from_os(doc)
-            # :RecordCursor
-            cursor = base64.b64encode(json.dumps(r["sort"]).encode()).decode("utf-8")
+            cursor = encode_cursor(r, after, i)
             edge = gql.relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
         page_info = gql.relay.PageInfo(
@@ -357,5 +339,5 @@ class DataQuery:  # avoid name conflict with DatasetQuery
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
-        total_count = results["hits"]["total"]["value"]
+        total_count = results["hits"]["total"]["value"] if count else None
         return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)

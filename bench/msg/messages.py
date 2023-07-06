@@ -289,7 +289,7 @@ class ReqSearchDatasetPayload:
     backend_id: str
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
-    after: Optional[list[typing.Any]] = None
+    after: Optional[str] = None
     limit: Optional[int] = None
     count: bool = False
 
@@ -299,8 +299,8 @@ class RepSearchDatasetPayload:
     records: Optional[list[RecordData]]
     total: int
     limit: int
-    first_sort_key: Optional[list[typing.Any]] = None
-    last_sort_key: Optional[list[typing.Any]] = None
+    start_cursor: Optional[str] = None
+    end_cursor: Optional[str] = None
     error: Optional[str] = None
 
 
