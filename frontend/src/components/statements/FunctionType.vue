@@ -188,7 +188,7 @@ defineExpose({
       </button>
     </div>
     <!-- Lil' arrow -->
-    <ArrowLongRightIcon class="mt-2 h-4 w-4 text-gray-700" />
+    <ArrowLongRightIcon class="mt-1 h-5 w-5 text-gray-700" />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication -->
     <div class="-mx-1 flex h-fit w-fit flex-1 flex-col gap-0.5">

@@ -496,9 +496,9 @@ class Type(HasType, HasTags, HasExpectations, Statement):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
+    key: str = field(default_factory=new_field_key)
     # not directly configurable for types
     hint = None
-    key = None
     reference = None
     _fields_by_ident: dict[str, Field] | None = None
     _fields_by_key: dict[str, Field] | None = None

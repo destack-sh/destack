@@ -18,7 +18,7 @@ from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
 from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
-from bench.utils.func import describe_type
+from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotDictList, required_field
 
@@ -39,7 +39,7 @@ class Record(ModuleNode, HasSession, HasCrud):
     _instantiated: bool = True
 
     def __str__(self):
-        return f"{self.parent}:{self.order_key or '<unordered>'} {describe_type(self.value)}"
+        return f"{self.parent.path}:{self.id} {describe_type(self.value)}"
 
     def __repr__(self):
         return f"<Record {self}>"
@@ -77,12 +77,21 @@ class Record(ModuleNode, HasSession, HasCrud):
         # TODO @Performance: writing an entire update on every change is obviously inefficient
         self.session.tracer.dataset_update(self.parent, self, key)
 
+    def __contains__(self, item: str):
+        return item in self.value
+
     def __getitem__(self, item: str):
         val = self.value.get(item)
         if val is not None or self.parent.has_field(item):
             return val
+        elif not isinstance(item, str):
+            raise TypeError(f"cannot index {repr(self)} with {type(item)}")
         else:
-            raise KeyError(f"{self} has no field '{item}' (available: {list(self.parent.fields)})")
+            candidates = {f.py_ident: f for f in self.parent.fields}
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise KeyError(
+                f"{self} has no field '{item}' ({did_you_mean}, available: {list(self.parent.fields)})"
+            )
 
     def __setitem__(self, key, value):
         self.value[key] = value
@@ -508,8 +517,17 @@ class Value(HasType, HasTags, IsExpectable, Statement):
             return self.value[item]
         elif self.has_field(item):
             return None
+        elif not isinstance(item, str):
+            raise TypeError(f"cannot index {self} with {type(item)}")
         else:
-            raise AttributeError(f"{self} has no field {item} (available: {self.fields})")
+            candidates = {
+                **{f: f for f in self._PROPERTIES},
+                **{f.py_ident: f for f in self.parent.fields},
+            }
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise AttributeError(
+                f"{self} has no field {item} ({did_you_mean}, available: {self.fields})"
+            )
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
