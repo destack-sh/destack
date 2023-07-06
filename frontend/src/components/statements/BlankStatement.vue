@@ -79,41 +79,41 @@ const commands = computed(() => {
     },
     {
       label: "type",
-      description: "Define a data structure.",
+      description: "A structure type with multiple fields.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
       ),
     },
     {
       label: "choice",
-      description: "Define a choice type.",
+      description: "A choice type with multiple options.",
       action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
     },
     {
       label: "value",
-      description: "Configure context and secrets.",
+      description: "A bit of configuration, secrets or flags.",
       action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
       label: "dataset",
-      description: "Provide examples, your data and knowledge.",
+      description: "Data big and tiny, fast however you need it.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Dataset, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),
     },
     {
       label: "code",
-      description: "Implement logic in Python.",
+      description: "Custom logic in Python.",
       action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
     },
     {
       label: "reference",
-      description: "Refer to another statement.",
+      description: "Reuse another statement.",
       action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
     },
     {
       label: "block",
-      description: "Group related statements.",
+      description: "A group of related statements.",
       action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
     },
   ];

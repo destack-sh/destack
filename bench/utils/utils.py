@@ -134,6 +134,13 @@ def sentry_capture_if_enabled(e: Exception) -> bool:
 class DotDict(dict):
     """Access dictionary keys as attributes."""
 
+    @property
+    def items(self):
+        if "items" in self:  # nocheckin: handle this in the to_dict call site instead
+            return self["items"]
+        else:
+            return super().items()
+
     def __getattr__(self, name):
         try:
             return self[name]
@@ -168,7 +175,8 @@ class DotDictList(list):
 
 def omit_empty(obj):
     if isinstance(obj, dict):
-        return {k: omit_empty(v) for k, v in obj.items() if v is not None}
+        # avoid calling items because we need to override items in DotDict for values with items
+        return {k: omit_empty(obj.get(k)) for k in obj.keys() if obj.get(k) is not None}
     elif isinstance(obj, list):
         return [omit_empty(v) for v in obj if v is not None]
     else:

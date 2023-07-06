@@ -58,7 +58,7 @@ class Check:
 
 
 @x_tag("retry", key="x.retry", file=_symbolx_builtins)
-class Retry:  # like tenacity
+class Retry:  # like tenacity but maybe with autoheal?
     pass
 
 
@@ -97,18 +97,13 @@ openai_lib = Module(name="openai.lib")
 _openai_chat = openai_lib.create_file("chat")
 _openai_text = openai_lib.create_file("text")
 _openai_audio = openai_lib.create_file("audio")
+_openai_utils = openai_lib.create_file("utils")
 
 
-@x_enum("OpenAIChatRole", file=_openai_chat)
-class OpenAIChatRole(enum.StrEnum):
-    system = "system"
-    assistant = "assistant"
-    user = "user"
-    function = "function"
-
-
-@x_enum("OpenAIFunctionParameterType", file=_openai_chat)
-class OpenAIFunctionParameterType(enum.StrEnum):
+# TODO @Broken: move json schema stuff into symbolx builtins
+#  (need to add a dependency on symbolx builtins)
+@x_enum("JsonSchemaElementType", file=_openai_utils)
+class JsonSchemaElementType(enum.StrEnum):
     string = "string"
     number = "number"
     boolean = "boolean"
@@ -117,43 +112,117 @@ class OpenAIFunctionParameterType(enum.StrEnum):
     null = "null"
 
 
-@x_struct("OpenAIFunctionParameter", file=_openai_chat)
-class OpenAIFunctionParameter:
+@x_struct("JsonSchemaElement", file=_openai_utils)
+class JsonSchemaElement:
     name: Optional[str]
-    type: OpenAIFunctionParameterType
+    type: JsonSchemaElementType
     description: Optional[str] = None
-    properties: Optional[list["OpenAIFunctionParameter"]] = None
+    properties: Optional[list["JsonSchemaElement"]] = None
+    items: Optional["JsonSchemaElement"] = None
     enum: Optional[list[str]] = None
     required: Optional[list[str]] = None
 
     def to_dict(self) -> dict[str, Any]:  # :ToDict
         # map properties to dict by name (Bench doesn't have a native map type yet)
         properties = (
-            {p.name: OpenAIFunctionParameter.to_dict(p) for p in self.properties}
+            {p.name: JsonSchemaElement.to_dict(p) for p in self.properties}
             if self.properties
             else None
         )
+        items = JsonSchemaElement.to_dict(self.items) if self.items else None
         return dict(
             name=self.name,
             type=self.type,
             description=self.description,
             properties=properties,
+            items=items,
             enum=self.enum,
             required=self.required,
         )
+
+
+PARAM_TYPE_BY_TAG = {
+    TypeTag.STRING: JsonSchemaElementType.string,
+    TypeTag.NUMBER: JsonSchemaElementType.number,
+    TypeTag.BOOLEAN: JsonSchemaElementType.boolean,
+}
+
+
+def _type_to_json_schema(
+    type: TypeBase, ignore_array: bool = False, is_output: bool = None
+) -> JsonSchemaElement:
+    """Convert a Bench type to a JSON schema element."""
+    if is_output is None:
+        fields = type.resolved_fields or type.fields
+    else:
+        fields = type.outputs if is_output else type.inputs
+    if type.flags & TypeFlag.IsArray and not ignore_array:
+        element_type = _type_to_json_schema(type, ignore_array=True)
+        element_type.name = None  # not needed for array element
+        return JsonSchemaElement(
+            name=type.py_ident,
+            type=JsonSchemaElementType.array,
+            description=type.description,
+            items=element_type,
+        )
+    elif type.flags & TypeFlag.IsArrayable:
+        raise NotImplementedError(f"unsupported type {type}: arrayable not yet supported")
+    elif type.effective_tag == TypeTag.FUNCTION:
+        return JsonSchemaElement(
+            name=None,
+            type=JsonSchemaElementType.object,
+            description=type.description,
+            properties=[_type_to_json_schema(field) for field in fields],
+            required=[
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
+            ],
+        )
+    elif type.effective_tag in TypeTag.STRUCT:
+        return JsonSchemaElement(
+            name=type.py_ident,
+            type=JsonSchemaElementType.object,
+            description=type.description,
+            properties=[_type_to_json_schema(field) for field in fields],
+            required=[
+                field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
+            ],
+        )
+    elif type.effective_tag == TypeTag.ENUM:
+        return JsonSchemaElement(
+            name=type.py_ident,
+            type=JsonSchemaElementType.string,
+            description=type.description,
+            enum=[value.name for value in fields],
+        )
+    elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
+        return JsonSchemaElement(
+            name=type.py_ident,
+            type=PARAM_TYPE_BY_TAG[type.effective_tag],
+            description=type.description,
+        )
+    else:
+        raise IncapableError(f"unsupported type {type}")
+
+
+@x_enum("OpenAIChatRole", file=_openai_utils)
+class OpenAIChatRole(enum.StrEnum):
+    system = "system"
+    assistant = "assistant"
+    user = "user"
+    function = "function"
 
 
 @x_struct("OpenAIFunction", file=_openai_chat)
 class OpenAIFunction:
     name: Key
     description: Optional[str]
-    parameters: "OpenAIFunctionParameter"
+    parameters: "JsonSchemaElement"
 
     def to_dict(self) -> dict[str, Any]:  # :ToDict
         return dict(
             name=self.name,
             description=self.description,
-            parameters=OpenAIFunctionParameter.to_dict(self.parameters),
+            parameters=JsonSchemaElement.to_dict(self.parameters),
         )
 
 
@@ -238,6 +307,7 @@ class OpenAIChatCompletionModel(Model):
         if "function_call" in message:
             function_call = OpenAIFunctionCall(
                 name=message["function_call"]["name"],
+                # nocheckin: handle bad json, maybe parse further upstream?
                 arguments=json.loads(message["function_call"]["arguments"]),
             )
         else:
@@ -271,13 +341,13 @@ class OpenAIChatCompiler(TaskCompiler):
         name="panic",
         description="Error if no reasonable termination is possible given the instructions."
         " Strongly prefer calling 'terminate' with the relevant error info instead.",
-        parameters=OpenAIFunctionParameter(
+        parameters=JsonSchemaElement(
             name=None,  # not needed for root object
-            type=OpenAIFunctionParameterType.object,
+            type=JsonSchemaElementType.object,
             properties=[
-                OpenAIFunctionParameter(
+                JsonSchemaElement(
                     name="reason",
-                    type=OpenAIFunctionParameterType.string,
+                    type=JsonSchemaElementType.string,
                     description="The reason of incapability",
                     properties=None,
                     enum=None,
@@ -286,79 +356,20 @@ class OpenAIChatCompiler(TaskCompiler):
             required=["reason"],
         ),
     )
-    PARAM_TYPE_BY_TAG = {
-        TypeTag.STRING: OpenAIFunctionParameterType.string,
-        TypeTag.NUMBER: OpenAIFunctionParameterType.number,
-        TypeTag.BOOLEAN: OpenAIFunctionParameterType.boolean,
-    }
 
     def _compile_function(self, function: Code | Task | Model) -> OpenAIFunction:
         return OpenAIFunction(
             name=function.py_ident,
             description=function.description,
-            parameters=self._compile_type(function, is_output=False),
+            parameters=_type_to_json_schema(function, is_output=False),
         )
 
     def _compile_terminate_function(self) -> OpenAIFunction:
         return OpenAIFunction(
             name="terminate",
             description="Complete the task with an answer (if any).",
-            parameters=self._compile_type(self.task, is_output=True),
+            parameters=_type_to_json_schema(self.task, is_output=True),
         )
-
-    def _compile_type(
-        self, type: TypeBase, ignore_array: bool = False, is_output: bool = None
-    ) -> OpenAIFunctionParameter:
-        if is_output is None:
-            fields = type.resolved_fields or type.fields
-        else:
-            fields = type.outputs if is_output else type.inputs
-        if type.flags & TypeFlag.IsArray and not ignore_array:
-            element_type = self._compile_type(type, ignore_array=True)
-            element_type.name = None  # not needed for array element
-            return OpenAIFunctionParameter(
-                name=type.py_ident,
-                type=OpenAIFunctionParameterType.array,
-                description=type.description,
-                properties=[element_type],
-            )
-        elif type.flags & TypeFlag.IsArrayable:
-            raise NotImplementedError(f"unsupported type {type}: arrayable not yet supported")
-        elif type.effective_tag == TypeTag.FUNCTION:
-            return OpenAIFunctionParameter(
-                name=None,
-                type=OpenAIFunctionParameterType.object,
-                description=type.description,
-                properties=[self._compile_type(field) for field in fields],
-                required=[
-                    field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
-                ],
-            )
-        elif type.effective_tag in TypeTag.STRUCT:
-            return OpenAIFunctionParameter(
-                name=type.py_ident,
-                type=OpenAIFunctionParameterType.object,
-                description=type.description,
-                properties=[self._compile_type(field) for field in fields],
-                required=[
-                    field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
-                ],
-            )
-        elif type.effective_tag == TypeTag.ENUM:
-            return OpenAIFunctionParameter(
-                name=type.py_ident,
-                type=OpenAIFunctionParameterType.string,
-                description=type.description,
-                enum=[value.name for value in fields],
-            )
-        elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
-            return OpenAIFunctionParameter(
-                name=type.py_ident,
-                type=self.PARAM_TYPE_BY_TAG[type.effective_tag],
-                description=type.description,
-            )
-        else:
-            raise IncapableError(f"unsupported type {type}")
 
     def _compile_error(self, error: TaskError) -> OpenAIChatMessage:
         return OpenAIChatMessage(

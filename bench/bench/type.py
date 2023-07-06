@@ -1114,6 +1114,13 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
         type = first((t for k, t in type_map.items() if k.__name__ == stripped), None)
         if type is None:
             raise ValueError(f"unknown type name: {stripped}")
+    elif isinstance(stripped, typing.ForwardRef):
+        # lookup by name in type_map
+        type = first(
+            (t for k, t in type_map.items() if k.__name__ == stripped.__forward_arg__), None
+        )
+        if type is None:
+            raise ValueError(f"unknown type name: {stripped}")
     elif stripped in type_map:
         type = type_map[stripped]
     else:
