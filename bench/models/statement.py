@@ -110,9 +110,15 @@ class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
     """
 
     tag = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+")
-    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="taggings")
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
     key = models.CharField(max_length=TAG_KEY_LENGTH, default=new_tag_key)
     metadata = models.JSONField(null=True, blank=True)
+
+    def soft_delete(self):
+        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+
+    def restore(self):
+        self.deleted_at = None
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -228,7 +234,8 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     order_key = models.CharField(max_length=64)  # in file/parent
 
-    # symbol
+    # symbol data
+    # TODO @Cleanup @Architecture: normalize statement data where reasonable
     reference = models.ForeignKey(
         "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="references+"
     )
@@ -242,7 +249,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
-    external_name = models.CharField(max_length=128, null=True, blank=True)  # for model
+    external_name = models.CharField(max_length=128, null=True, blank=True)
     dataset = models.OneToOneField("Dataset", on_delete=models.SET_NULL, null=True, blank=True)
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement

@@ -61,6 +61,7 @@ export function useStatementOps() {
         $orderKey: String!
         $type: StatementType!
         $name: String
+        $key: String
         $lang: String
         $code: String
         $text: String
@@ -78,6 +79,7 @@ export function useStatementOps() {
             type: $type
             name: $name
             lang: $lang
+            key: $key
             code: $code
             text: $text
             description: $description
@@ -105,6 +107,7 @@ export function useStatementOps() {
               }
             }
             # symbol contents
+            key
             lang
             code
             text
@@ -112,6 +115,12 @@ export function useStatementOps() {
             value
             rootTypeTag
             rootTypeFlags
+            reference {
+              id
+            }
+            tags(filters: { isVisible: true }) {
+              id
+            }
             fields(filters: { isVisible: true }) {
               id
             }
@@ -146,11 +155,13 @@ export function useStatementOps() {
         orderKey: string;
         type: StatementType;
         name: string | null;
+        key: string | null;
         lang: string | null;
         code: string | null;
         text: string | null;
         description: string | null;
         value: any | null;
+        referenceId: string | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
       }) {
@@ -169,14 +180,17 @@ export function useStatementOps() {
                 : { __typename: "Statement", id: vars.parentId },
             revision: PENDING_REVISION,
             orderKey: vars.orderKey,
+            key: vars.key,
             type: vars.type,
             name: vars.name,
             description: vars.description,
             value: vars.value,
             code: vars.code,
             text: vars.text,
+            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
+            tags: [],
             fields: [],
             lang: vars.lang,
             // interp
@@ -238,6 +252,8 @@ export function useStatementOps() {
           lang: null,
           code: null,
           text: null,
+          key: null,
+          referenceId: null,
           value: null,
           description: null,
           rootTypeTag: null,
@@ -262,6 +278,8 @@ export function useStatementOps() {
       parentId: string | undefined | null;
       orderKey: string;
       name?: string;
+      key?: string;
+      referenceId?: string;
       description?: string;
       rootTypeTag?: TypeTag;
       rootTypeFlags?: number;
@@ -282,6 +300,8 @@ export function useStatementOps() {
           code: null,
           text: null,
           value: null,
+          key: input.key ?? null,
+          referenceId: input.referenceId ?? null,
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
@@ -296,7 +316,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: updateStatementMut } = registry.useMutation(
+  /* not used in client, just for registration as a sync op */
+  registry.useMutation(
     ModuleMutationType.UpdateStatement,
     graphql(/* GraphQL */ `
       mutation updateStatement(
@@ -359,6 +380,7 @@ export function useStatementOps() {
         lang: string | null;
         code: string | null;
         text: string | null;
+        key: string | null;
         description: string | null;
         value: any | null;
         rootTypeTag: TypeTag | null;
@@ -378,6 +400,7 @@ export function useStatementOps() {
             description: vars.description,
             value: vars.value,
             code: vars.code,
+            key: vars.key,
             text: vars.text,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,

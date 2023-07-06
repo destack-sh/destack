@@ -433,7 +433,7 @@ class FieldQueryOps:
         return Sort(self.source_key, SortOrder.DESCENDING)
 
     # subfields and properties
-    # ... should probably put this elsewhere
+    # TODO @Cleanup: wrap sub properties into accessor for disambiguation (like with FieldAccessor)
 
     def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
         from bench.bench.type import get_storage_format

@@ -59,6 +59,7 @@ type Command = {
   action: () => void;
 };
 
+// TODO @UX: blank statement menu sucks
 const commands = computed(() => {
   const commands: Command[] = [
     {
@@ -104,6 +105,16 @@ const commands = computed(() => {
       label: "code",
       description: "Implement logic in Python.",
       action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
+    },
+    {
+      label: "reference",
+      description: "Refer to another statement.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
+    },
+    {
+      label: "block",
+      description: "Group related statements.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
     },
   ];
 

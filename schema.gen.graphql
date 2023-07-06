@@ -529,6 +529,14 @@ enum ModuleMutationType {
   UPDATE_SYMBOL_MODIFIER
   UPDATE_SYMBOL_LANGUAGE
   UPDATE_SYMBOL_VALUE
+  TRUNCATE_TAGGINGS
+  CREATE_TAGGING
+  UPDATE_TAGGING
+  DELETE_TAGGING
+  SOFT_DELETE_TAGGING
+  RESTORE_TAGGING
+  MOVE_TAGGING
+  UPDATE_TAGGING_METADATA
   TRUNCATE_FIELDS
   CREATE_FIELD
   UPDATE_FIELD
@@ -536,6 +544,7 @@ enum ModuleMutationType {
   RENAME_FIELD
   UPDATE_FIELD_DESCRIPTION
   UPDATE_FIELD_TYPE
+  UPDATE_FIELD_METADATA
   MOVE_FIELD
   SOFT_DELETE_FIELD
   RESTORE_FIELD
@@ -601,6 +610,11 @@ type Mutation {
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
+  createTagging(input: TaggingCreateInput!): TaggingOperationInfo!
+  updateTagging(input: TaggingUpdateInput!): TaggingOperationInfo!
+  deleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
+  softDeleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
+  restoreTagging(input: TaggingRestoreInput!): TaggingOperationInfo!
   updateFieldDescription(input: FieldUpdateDescriptionInput!): FieldOperationInfo!
   updateFieldType(input: FieldUpdateTypeInput!): FieldOperationInfo!
   moveField(input: FieldMoveInput!): FieldOperationInfo!
@@ -1563,6 +1577,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   descendants: [Statement!]!
   orderKey: String!
   text: String
+  reference: Statement
   dataset: Dataset
   rootTypeTag: TypeTag
   rootTypeFlags: Int
@@ -1617,6 +1632,8 @@ input StatementCreateInput {
   rootTypeFlags: Int = null
   description: String = null
   lang: String = null
+  key: String = null
+  referenceId: GlobalID = null
   text: String = null
   code: String = null
   value: JSON = null
@@ -1673,6 +1690,7 @@ enum StatementType {
   MODEL
   VALUE
   DATASET
+  REFERENCE
   BLOCK
 }
 
@@ -1686,6 +1704,8 @@ input StatementUpdateInput {
   rootTypeFlags: Int = null
   description: String = null
   lang: String = null
+  key: String = null
+  referenceId: GlobalID = null
   text: String = null
   code: String = null
   value: JSON = null
@@ -1738,8 +1758,31 @@ type Tagging implements CrudModel & ModuleNode & Node {
   metadata: JSON
 }
 
+input TaggingCreateInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  key: String!
+  referenceId: GlobalID!
+  metadata: JSON = null
+}
+
+input TaggingDeleteInput {
+  id: GlobalID!
+}
+
 input TaggingFilter {
   isVisible: Boolean = true
+}
+
+union TaggingOperationInfo = Tagging | OperationInfo
+
+input TaggingRestoreInput {
+  id: GlobalID!
+}
+
+input TaggingUpdateInput {
+  id: GlobalID!
+  metadata: JSON = null
 }
 
 """Extra representation/semantics of a field/type."""

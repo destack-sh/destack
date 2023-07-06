@@ -547,8 +547,11 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             return self.py_ident  # detached file
 
     @property
-    def py_ident(self) -> str:
-        return to_pyidentifier(self.name, IdentifierType.PATH)
+    def py_ident(self) -> Optional[str]:
+        if self.name is None:
+            return None
+        else:
+            return to_pyidentifier(self.name, IdentifierType.PATH)
 
     def append(self, *statements: "Statement"):
         """Appends the statements to this file."""
@@ -673,8 +676,11 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         return ".".join(reversed(ancestor_parts))
 
     @property
-    def py_ident(self) -> str:
-        return to_pyidentifier(self.name or "", IdentifierType.VARIABLE)
+    def py_ident(self) -> Optional[str]:
+        if self.name is None:
+            return None
+        else:
+            return to_pyidentifier(self.name, IdentifierType.VARIABLE)
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -700,6 +706,19 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.children is not None:
             for child in self.children:
                 yield from child.walk_descendants()
+
+    @property
+    def resolved_children(self) -> list["Statement"]:
+        """Children with inlined blocks and references (recursively, but not into descendants)."""
+        resolved_children = []
+        for statement in self.children or []:
+            if statement.type == StatementType.REFERENCE:
+                resolved_children.append(statement.reference)
+            elif statement.type == StatementType.BLOCK:
+                resolved_children.extend(statement.resolved_children)
+            else:
+                resolved_children.append(statement)
+        return resolved_children
 
     @property
     def b(self) -> _BlockAccessor:

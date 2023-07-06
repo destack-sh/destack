@@ -12,7 +12,14 @@ import { useFragment, type FragmentType } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, useEditorContext, type StatementAction, type StatementHeader, FileEditor } from "@/state/bench";
+import {
+  useBenchState,
+  useEditorContext,
+  type StatementAction,
+  type StatementHeader,
+  FileEditor,
+  type EditorGroup,
+} from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
@@ -345,6 +352,16 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       disabled: props.standalone,
       action: () => {
         nav?.value?.editor.bench.openStatement(statement.value, { focus: true });
+      },
+    });
+    actions.push({
+      groupId: "nav",
+      label: "Open Opposite",
+      icon: ArrowsPointingOutIcon,
+      disabled: props.standalone,
+      action: () => {
+        const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+        nav?.value?.editor.bench.openStatement(statement.value, { group: nextGroup, focus: true });
       },
     });
     actions.push({
