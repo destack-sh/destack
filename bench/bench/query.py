@@ -94,13 +94,16 @@ class Query:
         return Q(QueryOp.NOT, queries=[self])
 
     def __and__(self, other):
+        if not isinstance(other, Query):
+            raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
         return Q(QueryOp.AND, queries=[self, other])
 
     def __or__(self, other):
+        if not isinstance(other, Query):
+            raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
         return Q(QueryOp.OR, queries=[self, other])
 
-    def filter(self, other):
-        return Q(QueryOp.AND, queries=[self, other])
+    filter = __and__
 
     @property
     def is_scored(self) -> bool:
@@ -128,6 +131,8 @@ class CompoundQuery(Query):
             return super().__invert__()
 
     def __and__(self, other):
+        if not isinstance(other, Query):
+            raise TypeError(f"unsupported operand type(s) for &: {type(self)} and {type(other)}")
         if self.op == QueryOp.AND:
             if isinstance(other, CompoundQuery) and other.op == QueryOp.AND:
                 return Q(QueryOp.AND, queries=[*self.queries, *other.queries])
@@ -137,6 +142,8 @@ class CompoundQuery(Query):
             return super().__and__(other)
 
     def __or__(self, other):
+        if not isinstance(other, Query):
+            raise TypeError(f"unsupported operand type(s) for |: {type(self)} and {type(other)}")
         if self.op == QueryOp.OR:
             if isinstance(other, CompoundQuery) and other.op == QueryOp.OR:
                 return Q(QueryOp.OR, queries=[*self.queries, *other.queries])
@@ -426,7 +433,7 @@ class FieldQueryOps:
         return Sort(self.source_key, SortOrder.DESCENDING)
 
     # subfields and properties
-    # we could probably auto generate these.... maybe when we get to checking available ops
+    # ... should probably put this elsewhere
 
     def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
         from bench.bench.type import get_storage_format
@@ -440,6 +447,11 @@ class FieldQueryOps:
             source_key=self.source_key + "." + name,
             storage_format=storage_format,
         )
+
+    @property
+    def raw(self):
+        _check_has_tag(self, TypeTag.STRING)
+        return self._subfield(SubfieldType.key.name, TypeTag.STRING, TypeHint.KEY)
 
     @property
     def file_name(self) -> Subfield:

@@ -25,6 +25,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
+import { DateTime } from "luxon";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -41,7 +42,7 @@ const codeSync = context.syncCode(
   computed(() => monacoRef.value?.focused)
 );
 
-const now = useTimeFromNow();
+const now = useTimeFromNow(100);
 
 // TODO @Performance: load inline code executions more sensibly
 const bench = useBenchState();
@@ -156,6 +157,20 @@ async function run() {
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
     lastExecutionLocalId.value = newExecutionId();
+    // optimistically set last execution local
+    lastExecutionLocal.value = {
+      id: lastExecutionLocalId.value,
+      status: ExecutionStatus.Running,
+      startedAt: now.now.value.toString(),
+      createdAt: now.now.value.toString(),
+      updatedAt: now.now.value.toString(),
+      duration: null,
+      cachedDuration: null,
+      cachedGeneratedAt: null,
+      inputs: null,
+      outputs: null,
+      error: null,
+    } as Execution;
     cancelled.value = false;
     hideOutput.value = false;
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
@@ -224,12 +239,15 @@ defineExpose({
     >
       <!-- Execution time -->
       <span
-        :class="[
-          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
-          EXECUTION_TERMINAL_STATES.includes(lastExecution?.status) ? 'opacity-100' : 'opacity-0',
-        ]"
+        :class="[lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
+        v-if="lastExecution != null"
       >
-        {{ formatDurationSeconds((lastExecution?.duration ?? 0) * 1000) }}
+        {{
+          formatDurationSeconds(
+            (lastExecution?.duration ?? now.now.value.diff(DateTime.fromISO(lastExecution.startedAt)).as("seconds")) *
+              1000
+          )
+        }}
       </span>
       <!-- Cache info -->
       <span v-if="lastExecution != null && isMostlyCached(lastExecution as any)" class="relative mr-0.5 py-1">
@@ -266,6 +284,8 @@ defineExpose({
     @click="emit('toggleFold')"
   >
     <span>{{ numCodeLines }} {{ numCodeLines == 1 ? "line" : "lines" }}</span>
+    •
+    <span>Python</span>
     <template v-if="inputs.length + outputs.length > 0">•</template>
     <span v-for="input in inputs" :key="input.id">{{ input.name }}</span>
     <ArrowLongRightIcon v-if="outputs.length > 0" class="mt-0.5 h-4 w-4 text-gray-400" />

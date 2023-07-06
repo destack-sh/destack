@@ -2548,6 +2548,7 @@ export type SearchDatasetQueryVariables = Exact<{
   sort?: InputMaybe<Array<DatasetSort> | DatasetSort>;
   after?: InputMaybe<Scalars["String"]>;
   limit?: InputMaybe<Scalars["Int"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type SearchDatasetQuery = {
@@ -6822,6 +6823,11 @@ export const SearchDatasetDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "count" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -6854,6 +6860,11 @@ export const SearchDatasetDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "limit" },
                 value: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "count" },
+                value: { kind: "Variable", name: { kind: "Name", value: "count" } },
               },
             ],
             selectionSet: {

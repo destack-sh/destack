@@ -206,6 +206,8 @@ class Dataset(HasType, HasTags, IsExpectable, Statement):
             raise TypeError(f"index into {self} must be slice (not {type(item)})")
 
     def filter(self, query: Query) -> Search:
+        if not isinstance(query, Query):
+            raise TypeError(f"cannot filter by {type(query)}")
         return self.search(query=query)
 
     def sort(self, sort: list[Sort] | Sort) -> Search:
