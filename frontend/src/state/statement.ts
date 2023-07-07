@@ -19,6 +19,7 @@ import { getFieldNameFromTypeName } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import {
   AdjustmentsHorizontalIcon,
+  ArrowUpRightIcon,
   CircleStackIcon,
   CodeBracketSquareIcon,
   PlayCircleIcon,
@@ -27,6 +28,7 @@ import {
   ServerStackIcon,
   SparklesIcon,
   TableCellsIcon,
+  TagIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -551,6 +553,7 @@ export function getEnumColor(type: { key: string }) {
 }
 
 const icons: Partial<Record<StatementType, any>> = {
+  [StatementType.Tag]: TagIcon,
   [StatementType.Task]: SparklesIcon,
   [StatementType.Value]: TableCellsIcon,
   [StatementType.Dataset]: CircleStackIcon,
@@ -558,6 +561,7 @@ const icons: Partial<Record<StatementType, any>> = {
   [StatementType.Model]: ServerStackIcon,
   [StatementType.Expectation]: AdjustmentsHorizontalIcon,
   [StatementType.Block]: QueueListIcon,
+  [StatementType.Reference]: ArrowUpRightIcon,
 };
 export function getStatementIcon(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {

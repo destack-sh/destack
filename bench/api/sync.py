@@ -278,6 +278,8 @@ def track_mutation_for_analytics(
         }
     elif "RECORD" in type.value:
         properties = {"record_id": things[0].id, "order_key": things[0].order_key}
+    elif "TAGGING" in type.value:
+        properties = {"tagging_id": things[0].id, "statement_id": things[0].statement_id}
     else:
         properties = {}
         logger.warning("unknown_project_mutation", type=type)

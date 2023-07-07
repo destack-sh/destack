@@ -65,7 +65,12 @@ const isActive = computed(() => props.standalone || nav?.value?.editor.activeSta
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.editor.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.editor.editing));
 const isSelected = computed(() => nav?.value?.editor.isSelected(statement.value));
-const canContentFold = computed(() => statement.value.type != StatementType.Blank);
+const canContentFold = computed(
+  () =>
+    statement.value.type != StatementType.Blank &&
+    statement.value.type != StatementType.Reference &&
+    statement.value.type != StatementType.Block
+);
 const isContentFolded = computed(
   () => !props.standalone && (editor.editor.value as FileEditor).isStatementContentFolded(statement.value)
 );

@@ -3343,6 +3343,7 @@ export type StatementContentFragment = {
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
     | null;
+  reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   resolvedFields?: Array<
@@ -5546,6 +5547,14 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "reference" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },

@@ -228,6 +228,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
     value
     rootTypeTag
     rootTypeFlags
+    reference {
+      id
+    }
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }

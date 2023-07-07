@@ -1,16 +1,24 @@
 <script lang="ts" setup>
 import StatementActions from "@/components/statements/StatementActions.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
-import { useStatementOps } from "@/state/operations/statement";
-import { getStatementIcon, useStatementContext } from "@/state/statement";
-import { computed } from "vue";
+import StatementTags from "@/components/statements/StatementTags.vue";
+import { useStatementContext } from "@/state/statement";
+import { ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
+const declarationRef = ref<InstanceType<typeof StatementDeclaration> | null>(null);
+const tagsRef = ref<InstanceType<typeof StatementTags> | null>(null);
 const context = useStatementContext();
-const ops = useStatementOps();
-const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
+
+function focus(position: "first" | "last" = "first") {
+  declarationRef.value?.focus();
+}
+
+function blur() {
+  declarationRef.value?.blur();
+}
 
 defineExpose({
   focus,
@@ -20,10 +28,12 @@ defineExpose({
 <template>
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
-    <div class="flex flex-row items-baseline">
-      <StatementDeclaration />
+    <div class="flex flex-row">
+      <StatementDeclaration ref="declarationRef" />
+      <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Controls -->
     <StatementActions />
   </div>
+  <!-- Description and stuff.. soon -->
 </template>

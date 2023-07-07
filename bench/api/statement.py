@@ -577,7 +577,7 @@ class SymbolMutation:
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.reference_id = input.reference_id
+        statement.reference_id = input.reference_id.node_id if input.reference_id else None
         return statement
 
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)

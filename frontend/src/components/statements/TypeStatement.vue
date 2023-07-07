@@ -9,15 +9,17 @@ import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { makeField, useStatementContext, type Field } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
-import { Bars3Icon, PencilSquareIcon, PlusIcon, SquaresPlusIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
+import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
+const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(
@@ -154,6 +156,14 @@ function unfoldIfFolded() {
 const extraActions = computed(() => {
   const actions: StatementAction[] = [
     {
+      label: "Add tag",
+      icon: TagIcon,
+      action: () => {
+        unfoldIfFolded();
+        tagsRef.value?.open();
+      },
+    },
+    {
       label: "Add description",
       icon: Bars3Icon,
       disabled: showDescription.value,
@@ -201,6 +211,7 @@ defineExpose({
         @navigate-down="focusDescriptionFromTop"
         @navigate-up="context.navigateUp"
       />
+      <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <div class="flex flex-row">
       <InlineActions
