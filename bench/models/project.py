@@ -30,11 +30,6 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ProjectType(models.TextChoices):
-    EXECUTABLE = "executable", "Executable"
-    LIBRARY = "library", "Library"
-
-
 class ProjectVisibility(models.TextChoices):
     PUBLIC = "public", "Public"
     SOURCE_PRIVATE = "source_private", "Source Private"
@@ -48,10 +43,10 @@ class ProjectManager(models.Manager["Project"]):
         owner: User | Organization,
         name: str,
         slug: str,
-        type: ProjectType = ProjectType.EXECUTABLE,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
         create_os_index: bool = True,
+        head_version_id: Optional[UUID] = None,
     ):
         if owner.__class__.__name__ == "Organization":
             user = None
@@ -64,24 +59,13 @@ class ProjectManager(models.Manager["Project"]):
             user=user,
             name=name,
             slug=slug,
-            type=type,
             visibility=visibility,
         )
-        project.head = ProjectVersion.objects.create(project=project)
+        project.head = ProjectVersion.objects.create(id=head_version_id, project=project)
         project.save()
         if create_onboarding_files:
-            try:
-                docs_v = Project.objects.get_by_slug("symbolx", "docs").head
-                # :GettingStarted
-                if not docs_v.files.filter(name="Getting Started").exists():
-                    raise ValueError(f"{docs_v} is missing Getting Started file")
-                ProjectVersion.objects.copy_files(
-                    docs_v,
-                    project.head,
-                    docs_v.files.filter(name="Getting Started"),
-                )
-            except (ValueError, Project.DoesNotExist):
-                logger.warning("project.create.failed_onboarding", exc_info=True)
+            # TODO @Broken: re-implement create onboarding files
+            pass
         if create_os_index:
             create_project_os_index(project)
         return project
@@ -105,9 +89,6 @@ class Project(UUIDModel, CrudModel):
     All versions are available in 'versions' and may not be linear (also like in Git).
     """
 
-    type = models.CharField(
-        max_length=32, choices=ProjectType.choices, default=ProjectType.EXECUTABLE
-    )
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])

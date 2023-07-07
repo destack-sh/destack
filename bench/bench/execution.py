@@ -74,7 +74,7 @@ IGNORED_PACKAGE_PREFIXES = [
 IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in IGNORED_PACKAGE_PREFIXES]
 
 
-@reflect_struct("PyFrame")
+@reflect_struct("RunCodeFrame", "The frame of code that was executed for a traceback")
 class ExecutionCodeFrame:
     filename: str
     lineno: int
@@ -140,7 +140,7 @@ class ExecutionCodeFrame:
         return cleaned_stack
 
 
-@reflect_enum("RunErrorType")
+@reflect_enum("RunErrorType", "Error type of a run")
 class RunErrorKind(enum.StrEnum):
     INTERNAL = "INTERNAL"
     PARSE = "PARSE"
@@ -149,7 +149,7 @@ class RunErrorKind(enum.StrEnum):
     UNTRUSTED = "UNTRUSTED"
 
 
-@reflect_struct("RunError")
+@reflect_struct("RunError", "An error while running a statement")
 class RunError(Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
@@ -160,7 +160,7 @@ class RunError(Exception):  # can this really be a subclass of Exception?
     traceback: list[ExecutionCodeFrame] = None
 
 
-@reflect_struct("LogEntry")
+@reflect_struct("LogEntry", "A single log entry from a run")
 class LogEntry:
     module_id: UUID
     created_at: datetime

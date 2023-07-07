@@ -85,7 +85,6 @@ class FileFilter:
 
 
 ProjectVisibility = gql.enum(models.ProjectVisibility)
-ProjectType = gql.enum(models.ProjectType)
 
 
 @gql.type
@@ -108,7 +107,6 @@ REF_TYPE_TO_TYPE_NAME = {
 class Project(gql.Node):
     name: auto
     slug: auto
-    type: ProjectType
     visibility: ProjectVisibility
     path: auto
     description: auto
@@ -236,7 +234,6 @@ class ProjectCreateInput:
     name: str
     slug: str
     visibility: ProjectVisibility
-    type: ProjectType = ProjectType.EXECUTABLE
 
 
 @gql.input
@@ -261,7 +258,6 @@ class ProjectMutation:
             owner=owner,
             name=input.name,
             slug=input.slug,
-            type=input.type,
             visibility=input.visibility,
             create_onboarding_files=True,
         )

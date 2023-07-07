@@ -12,7 +12,6 @@ from more_itertools import first, last
 
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
-from bench.bench.expect import IsExpectable
 from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType
@@ -35,7 +34,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, HasTags, IsExpectable, Statement):
+class Code(HasType, HasTags, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE

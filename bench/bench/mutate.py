@@ -6,7 +6,7 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass, replace
 from functools import cached_property
-from typing import Any, Callable, Optional, Union
+from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
 from bench.bench import StatementType
@@ -21,6 +21,7 @@ from bench.bench.wire import (
     IssueData,
     ModelData,
     ModuleData,
+    ModuleTree,
     ModuleTreeData,
     NodeData,
     RecordData,
@@ -126,6 +127,10 @@ class ModuleMutationType(enum.StrEnum):
     @property
     def semantic(self) -> bool:
         return self not in NON_SEMANTIC_MUTATIONS
+
+    @staticmethod
+    def from_mot(mmk: "ModuleMutationKind", mot: "ModuleObjectType") -> "ModuleMutationType":
+        return ModuleMutationType(f"{mmk.value}_{mot.value}")
 
 
 class ModuleMutationKind(enum.StrEnum):
@@ -355,18 +360,25 @@ class ModuleMutator:
 
     def __init__(
         self,
-        module: Union[Module, "ModuleTreeData", UUID],
+        module: Union[Module, "ModuleTree", "ModuleTreeData", UUID],
         mutations: list[ModuleMutation] = None,
         hooks: list[ModuleMutationHook] = None,
+        module_data: "ModuleData" = None,  # ModuleTree doesn't have an id
         # default file and statement id
         file_id: UUID = None,
         statement_id: UUID = None,
     ):
         from bench.bench import wire
 
-        if isinstance(module, Module):
-            module = wire.pack_module(module)
-        if isinstance(module, wire.ModuleTreeData):
+        if isinstance(module, wire.ModuleTree):
+            self.module = wire.ModuleTreeData(
+                nodes=list(module.nodes.values()), module=module_data, **module_data.__dict__
+            )
+            self.module_id = self.module.id
+            self.tree = module
+        elif isinstance(module, (wire.ModuleTreeData, Module)):
+            if isinstance(module, Module):
+                module = wire.pack_module(module)
             self.module = module
             self.module_id = module.id
             self.tree = wire.ModuleTree(module.nodes)
@@ -569,25 +581,55 @@ class MutationBundle:
         reduced = list(reversed(reduced_inverse))
         return reduced
 
-    def batch(self) -> list[tuple[MMT, list[ModuleMutation]]]:
+    def batched_apply(
+        self, module: ModuleTree, module_data: ModuleData
+    ) -> Iterator[tuple[MMT, list[ModuleMutation]]]:
         """
-        Batch consecutive mutations by type in order of appearance.
+        Batch consecutive mutations by type in order of appearance
+         AND concurrently apply them to the given module tree.
         (there may be multiple batches of the same type).
         """
 
-        batches: list[tuple[MMT, list[ModuleMutation]]] = []
+        mutator = ModuleMutator(module, module_data=module_data)
         current_batch: list[ModuleMutation] = []
         current_type: MMT | None = None
 
         for mutation in self.mutations:
             if mutation.type != current_type:
                 if current_type is not None:
-                    batches.append((current_type, current_batch))
+                    yield current_type, current_batch
                 current_type = mutation.type
                 current_batch = []
             current_batch.append(mutation)
+            mutator.apply(mutation)
 
         if current_batch:
-            batches.append((current_type, current_batch))
+            yield current_type, current_batch
 
-        return batches
+
+def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list[ModuleMutation]:
+    mutator = ModuleMutator(old_module)
+    old_tree = ModuleTree(old_module.nodes)
+    new_tree = ModuleTree(new_module.nodes)
+
+    for node in new_tree.walk_bfs():
+        if node.mot == ModuleObjectType.MODULE:
+            continue  # ignore module itself
+        if node.id not in old_module.nodes:
+            mutator.create(node)
+        else:
+            old_node = old_module.nodes[node.id]
+            if node != old_node:
+                mutator.update(node)
+    for node in old_tree.walk_bfs():
+        if node.mot == ModuleObjectType.MODULE:
+            continue
+        if node.id not in new_module.nodes:
+            mutator.delete(node)
+    # sort into create -> update -> delete order
+    mutations = [
+        *(m for m in mutator.mutations if m.type.kind == MMK.CREATE),
+        *(m for m in mutator.mutations if m.type.kind == MMK.UPDATE),
+        *(m for m in mutator.mutations if m.type.kind == MMK.DELETE),
+    ]
+    return mutations

@@ -15,7 +15,7 @@ from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, TypeFlag
 from bench.bench.dataset import new_dataset_backend_id
 from bench.bench.tag import TAG_KEY_LENGTH, new_tag_key
-from bench.bench.type import FIELD_KEY_LENGTH, new_field_key
+from bench.bench.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,
@@ -49,7 +49,7 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
-    key = models.CharField(max_length=FIELD_KEY_LENGTH, default=new_field_key)
+    key = models.CharField(max_length=48, default=new_field_key)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = models.CharField(max_length=20, choices=get_choices(TypeTag))
     hint = models.CharField(max_length=20, choices=get_choices(TypeHint), null=True, blank=True)
@@ -240,7 +240,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
         "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="references+"
     )
     description = models.TextField(null=True, blank=True)
-    key = models.CharField(max_length=16, null=True, blank=True)
+    key = models.CharField(max_length=48, null=True, blank=True)
     root_type_tag = models.CharField(
         max_length=32, choices=get_choices(TypeTag), null=True, blank=True
     )

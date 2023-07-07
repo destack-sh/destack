@@ -23,8 +23,8 @@ from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
 from bench.bench.core import InterpScope, ModuleObjectType
 from bench.bench.execution import RunError
 from bench.bench.issue import IssueKind, IssueType
-from bench.bench.mutate import MMK, ModuleMutation, MutationBundle
-from bench.bench.wire import ModuleTree
+from bench.bench.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
+from bench.bench.wire import ModuleTree, ModuleTreeData
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -936,16 +936,17 @@ def write_mutations(
     wait_for_os: bool,
 ):
     """
-    Writes a series of module mutations to the database.
+    Writes a series of module mutations to the database AND mutates the given module.
     Currently only interp and record mutations are supported.
     """
     from bench.opensearch.index import write_mutations_to_os
 
     mut = MutationBundle(mutations)
+    module_data = pack_node_flat(project_v)
 
-    for mmt, batch in mut.batch():
+    for mmt, batch in mut.batched_apply(module, module_data):
         if mmt.mot == MOT.RECORD:
-            continue  # stored in OpenSearch only (see below)
+            continue  # stored in OpenSearch only (for now) (see below)
         elif mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
@@ -962,7 +963,6 @@ def write_mutations(
             # (first assemble ancestor models - no queries, just unpacking)
             nodes = unpack_nodes(project_v, module, [m.data for m in batch])
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
-            # note: this probably doesn't work yet fully, just a placeholder until we need it proper
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:
@@ -977,3 +977,22 @@ def write_mutations(
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
     write_mutations_to_os(project_v, mut.mutations, wait_for_os)
+
+
+@transaction.atomic(savepoint=False)
+def upsert_module(
+    project_v: models.ProjectVersion,
+    new_module: ModuleTreeData,
+    prune_existing: bool = False,
+) -> list[ModuleMutation]:
+    """
+    Upserts a module tree into the database.
+    """
+
+    old_module = pack_module(project_v)
+    diff_mutations = diff_modules(old_module, new_module)
+    if not prune_existing:
+        diff_mutations = [m for m in diff_mutations if m.type.kind != MMK.DELETE]
+
+    write_mutations(project_v, ModuleTree(old_module.nodes), diff_mutations, wait_for_os=True)
+    return diff_mutations

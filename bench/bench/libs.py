@@ -15,6 +15,7 @@ from bench.bench.reflect import (
     _model_compilers,
     _model_impls,
     _symbolx_reflect,
+    _versioned_id,
     x_enum,
     x_model,
     x_struct,
@@ -33,77 +34,73 @@ from bench.bench.task import (
 from bench.bench.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
-symbolx_lib = Module(name="symbolx.lib")
+symbolx_lib = Module(name="symbolx.lib", id=_versioned_id("symbolx.lib"))
 _symbolx_builtins = symbolx_lib.create_file("builtins")
+_symbolx_utils = symbolx_lib.create_file("utils")
 symbolx_lib.add_file(_symbolx_reflect)
 
 
-@x_tag("tool", key="x.tool", file=_symbolx_builtins)
+@x_tag("tool", "Mark as a tool", key="x.tool", file=_symbolx_builtins)
 class Tool:
     pass
 
 
-@x_tag("step", key="x.step", file=_symbolx_builtins)
+@x_tag("step", "Mark as a required step", key="x.tool", file=_symbolx_builtins)
 class Step:
     pass
 
 
-@x_tag("consider", key="x.consider", file=_symbolx_builtins)
+@x_tag("consider", "Mark as something to consider", key="x.consider", file=_symbolx_builtins)
 class Consider:
     pass
 
 
-@x_tag("check", key="x.check", file=_symbolx_builtins)
+@x_tag("check", "Mark as a mandatory check", key="x.check", file=_symbolx_builtins)
 class Check:
     pass
 
 
-@x_tag("retry", key="x.retry", file=_symbolx_builtins)
+@x_tag("retry", "Auto-retry runs", key="x.retry", file=_symbolx_builtins)
 class Retry:  # like tenacity but maybe with autoheal?
     pass
 
 
-@x_tag("cache", key="x.cache", file=_symbolx_builtins)
+@x_tag("cache", "Auto-cache runs", key="x.cache", file=_symbolx_builtins)
 class Cache:  # like cachetools
     pass
 
 
-@x_struct("EmbeddingOutput", file=_symbolx_builtins)
+@x_tag(
+    "confirm",
+    "Prompt for confirmation before running a statement",
+    key="x.confirm",
+    file=_symbolx_builtins,
+)
+class Confirm:
+    pass
+
+
+@x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
 
 
-@x_task("embed", file=_symbolx_builtins)
+@x_task("embed", "Embed any text into a vector", file=_symbolx_builtins)
 def embed(text: typing.Union[str, list[str]]) -> EmbeddingOutput:
     raise UnreachableError()  # stub
 
 
-@x_struct("TranscriptionOutput", file=_symbolx_builtins)
+@x_struct("TranscriptionOutput", "Transcription output", file=_symbolx_builtins)
 class TranscriptionOutput:
     text: str
 
 
-@x_task("transcribe", file=_symbolx_builtins)
+@x_task("transcribe", "Transcribe any audio to text", file=_symbolx_builtins)
 def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
 
-# Note that beyond the symbolx standard lib, all other libs should later
-# be defined and update in Bench itself. That may also happen via code or some other
-# automatic mechanism, it just shouldn't be here.
-# The model implementations should be just like Code implementations,
-# so we don't need to hot-swap in 'impl' when calling. :LibImplementation
-
-openai_lib = Module(name="openai.lib")
-_openai_chat = openai_lib.create_file("chat")
-_openai_text = openai_lib.create_file("text")
-_openai_audio = openai_lib.create_file("audio")
-_openai_utils = openai_lib.create_file("utils")
-
-
-# TODO @Broken: move json schema stuff into symbolx builtins
-#  (need to add a dependency on symbolx builtins)
-@x_enum("JsonSchemaElementType", file=_openai_utils)
+@x_enum("JsonSchemaElementType", "The type of a JSON Schema element", file=_symbolx_utils)
 class JsonSchemaElementType(enum.StrEnum):
     string = "string"
     number = "number"
@@ -113,7 +110,7 @@ class JsonSchemaElementType(enum.StrEnum):
     null = "null"
 
 
-@x_struct("JsonSchemaElement", file=_openai_utils)
+@x_struct("JsonSchemaElement", "A JSON schema element (may be nested)", file=_symbolx_utils)
 class JsonSchemaElement:
     name: Optional[str]
     type: JsonSchemaElementType
@@ -210,7 +207,21 @@ def _type_to_json_schema(
         raise IncapableError(f"unsupported type {type}")
 
 
-@x_enum("OpenAIChatRole", file=_openai_utils)
+# Note that beyond the symbolx standard lib, all other libs should later
+# be defined and update in Bench itself. That may also happen via code or some other
+# automatic mechanism, it just shouldn't be here.
+# The model implementations should be just like Code implementations,
+# so we don't need to hot-swap in 'impl' when calling. :LibImplementation
+
+openai_lib = Module(name="openai.lib", id=_versioned_id("openai.lib"))
+openai_lib.add_dependency(symbolx_lib)
+_openai_chat = openai_lib.create_file("chat")
+_openai_text = openai_lib.create_file("text")
+_openai_audio = openai_lib.create_file("audio")
+_openai_utils = openai_lib.create_file("utils")
+
+
+@x_enum("OpenAIChatRole", "Message role in OpenAI chat models", file=_openai_utils)
 class OpenAIChatRole(enum.StrEnum):
     system = "system"
     assistant = "assistant"
@@ -218,7 +229,7 @@ class OpenAIChatRole(enum.StrEnum):
     function = "function"
 
 
-@x_struct("OpenAIFunction", file=_openai_chat)
+@x_struct("OpenAIFunction", "Function in OpenAI chat models", file=_openai_chat)
 class OpenAIFunction:
     name: Key
     description: Optional[str]
@@ -232,7 +243,7 @@ class OpenAIFunction:
         )
 
 
-@x_struct("OpenAIFunctionCall", file=_openai_chat)
+@x_struct("OpenAIFunctionCall", "Requested function call in OpenAI chat models", file=_openai_chat)
 class OpenAIFunctionCall:
     name: Key
     arguments: str
@@ -244,7 +255,7 @@ class OpenAIFunctionCall:
         )
 
 
-@x_struct("OpenAIChatMessage", file=_openai_chat)
+@x_struct("OpenAIChatMessage", "An individual message in OpenAI chat models", file=_openai_chat)
 class OpenAIChatMessage:
     role: OpenAIChatRole
     content: Optional[str] = None
@@ -264,8 +275,8 @@ class OpenAIChatMessage:
         return d
 
 
-@x_struct("OpenAIChatCompletionSettings", file=_openai_chat)
-class OpenAIChatCompletionSettings:
+@x_struct("OpenAIChatSettings", "Inference settings for OpenAI chat models", file=_openai_chat)
+class OpenAIChatSettings:
     temperature: Optional[float]
     max_tokens: Optional[int] = None
     top_p: Optional[float] = None
@@ -277,27 +288,49 @@ class OpenAIChatCompletionSettings:
     user: Optional[str] = None
 
 
-@x_struct("OpenAITokenUsage", file=_openai_text)
+@x_struct("OpenAITokenUsage", "Reported token usage for OpenAI text models", file=_openai_text)
 class OpenAITokenUsage:
     prompt_tokens: int
     completion_tokens: Optional[int]
     total_tokens: int
 
 
-@x_struct("OpenAIChatCompletion", file=_openai_chat)
+@x_struct("OpenAIChatCompletion", "Completion from OpenAI chat models", file=_openai_chat)
 class OpenAIChatCompletion:
     message: OpenAIChatMessage
     usage: OpenAITokenUsage
 
 
-@x_model("gpt3", external_name="gpt-3.5-turbo", file=_openai_chat)
-@x_model("gpt4", external_name="gpt-4", file=_openai_chat)
+@x_model(
+    "gpt3",
+    "OpenAI's instruct-tuned 4k context GPT3.5 based chat model",
+    external_name="gpt-3.5-turbo",
+    file=_openai_chat,
+)
+@x_model(
+    "gpt3-16k",
+    "OpenAI's instruct-tuned 16k context GPT3.5 based chat model",
+    external_name="gpt-3.5-turbo-16k",
+    file=_openai_chat,
+)
+@x_model(
+    "gpt4",
+    "OpenAI's latest and largest 8k context GPT4 based chat model",
+    external_name="gpt-4",
+    file=_openai_chat,
+)
+@x_model(
+    "gpt4-32k",
+    "OpenAI's latest and largest 8k context GPT4 based chat model",
+    external_name="gpt-4-32k",
+    file=_openai_chat,
+)
 class OpenAIChatCompletionModel(Model):
     async def _endpoint(
         self,
         messages: list[OpenAIChatMessage],
         functions: list[OpenAIFunction],
-        settings: OpenAIChatCompletionSettings,
+        settings: OpenAIChatSettings,
     ) -> OpenAIChatCompletion:
         settings_raw = omit_empty(settings.to_dict())
         messages_raw = [(OpenAIChatMessage.to_dict(m)) for m in messages]
@@ -420,7 +453,7 @@ class OpenAIChatCompiler(TaskCompiler):
             self._compile_terminate_function(),
             self.PANIC_FUNCTION,
         ]
-        settings = OpenAIChatCompletionSettings(
+        settings = OpenAIChatSettings(
             temperature=0.8,
             max_tokens=None,
             top_p=None,
@@ -478,13 +511,20 @@ class OpenAIChatCompiler(TaskCompiler):
                 messages.append(self._compile_function_result(function, ret))
 
 
-@x_struct("OpenAITextEmbeddingResponse", file=_openai_text)
+@x_struct(
+    "OpenAITextEmbeddingResponse", "Response from OpenAI text embedding models", file=_openai_text
+)
 class OpenAITextEmbeddingResponse:
     vector: typing.Union[Vector, list[Vector]]
     usage: OpenAITokenUsage
 
 
-@x_model("ada", external_name="text-embedding-ada-002", file=_openai_text)
+@x_model(
+    "ada",
+    "OpenAI's latest 1536 dimensional text embedding model",
+    external_name="text-embedding-ada-002",
+    file=_openai_text,
+)
 class OpenAITextEmbeddingModel(Model):
     async def _endpoint(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
         is_batched = isinstance(text, list)
@@ -507,22 +547,29 @@ class OpenAITextEmbeddingModel(Model):
         )
 
 
-@x_struct("OpenAIAudioTranscriptionResponse", file=_openai_text)
+@x_struct("OpenAIAudioTranscriptionResponse", "Response ", file=_openai_text)
 class OpenAIAudioTranscriptionResponse:
     text: str
 
 
-@x_model("whisper", external_name="whisper", file=_openai_audio)
+@x_model(
+    "whisper",
+    "OpenAI's latest audio transcription model",
+    external_name="whisper",
+    file=_openai_audio,
+)
 class OpenAIAudioTranscriptionModel(Model):
     async def _endpoint(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
         raise NotImplementedError
 
 
-anthropic_lib = Module(name="anthropic.lib")
+anthropic_lib = Module(name="anthropic.lib", id=_versioned_id("anthropic.lib"))
 _anthropic_text = anthropic_lib.create_file("text")
 
 
-@x_struct("AnthropicTextCompletionSettings", file=_anthropic_text)
+@x_struct(
+    "AnthropicTextSettings", "Inference settings for Anthropic text models", file=_anthropic_text
+)
 class AnthropicTextCompletionSettings:
     temperature: float
     top_p: Optional[float]
@@ -531,16 +578,36 @@ class AnthropicTextCompletionSettings:
     stop_sequences: Optional[list[str]]
 
 
-@x_struct("AnthropicTextCompletion", file=_anthropic_text)
+@x_struct("AnthropicTextCompletion", "Completion from Anthropic text models", file=_anthropic_text)
 class AnthropicTextCompletion:
     completion: str
     stop_reason: str
 
 
-@x_model("claude-1", external_name="claude-1", file=_anthropic_text)
-@x_model("claude-1-100k", external_name="claude-1-100k", file=_anthropic_text)
-@x_model("claude-instant-1", external_name="claude-instant-1", file=_anthropic_text)
-@x_model("claude-instant-1-100k", external_name="claude-instant-1-100k", file=_anthropic_text)
+@x_model(
+    "claude-1",
+    "Anthropic's latest 9k context Claude based text model",
+    external_name="claude-1",
+    file=_anthropic_text,
+)
+@x_model(
+    "claude-1-100k",
+    "Anthropic's latest 100k context Claude based text model",
+    external_name="claude-1-100k",
+    file=_anthropic_text,
+)
+@x_model(
+    "claude-instant-1",
+    "Anthropic's faster 9k context Claude based text model",
+    external_name="claude-instant-1",
+    file=_anthropic_text,
+)
+@x_model(
+    "claude-instant-1-100k",
+    "Anthropic's faster 100k context Claude based text model",
+    external_name="claude-instant-1-100k",
+    file=_anthropic_text,
+)
 class AnthropicTextCompletionModel(Model):
     _client: anthropic.Client | None = None
 
@@ -575,7 +642,6 @@ DEFAULT_MODULES: dict[str, Module] = {
     "openai.lib": openai_lib,
     "anthropic.lib": anthropic_lib,
 }
-DEFAULT_MODULES_IDS = {module.id for module in DEFAULT_MODULES.values()}
 
 # interp/index them
 for name, module in DEFAULT_MODULES.items():

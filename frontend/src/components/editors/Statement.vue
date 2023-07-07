@@ -592,7 +592,7 @@ defineExpose({
       </div>
     </div>
     <!-- Debug info -->
-    <div v-if="bench.debug" class="absolute -right-1 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
+    <div v-if="bench.debug" class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">A</template>
       <template v-if="isFocused">F</template>
@@ -600,12 +600,11 @@ defineExpose({
       <template v-if="isSelected">S</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inStatementFocused">r*</template>
-      <span class="lowercase">
+      <span class="mx-1 lowercase">
         {{ statement.type }}
-        <template v-if="statement.type">{{ statement.type }}:</template>
       </span>
-      <template v-if="statement.name != null">{{ statement.name }}</template>
-      r:{{ statement.revision }} i:{{ statement.orderKey }} d:{{ depth }}
+      <span v-if="statement.name != null">'{{ statement.name }}'</span>
+      r:{{ statement.revision }} o:{{ statement.orderKey }} d:{{ depth }}
     </div>
   </div>
 </template>

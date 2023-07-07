@@ -432,6 +432,7 @@ class Execution(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: UUID = os.field(os.FT.KEYWORD)
+    runnable_type: str = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     updated_at: datetime = os.field(os.FT.DATE)
     started_at: Optional[datetime] = os.field(os.FT.DATE)

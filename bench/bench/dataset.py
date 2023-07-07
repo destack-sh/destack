@@ -14,7 +14,6 @@ from more_itertools import first
 
 from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
 from bench.bench.core import HasCrud, HasSession, ModuleNode, Scope, Session, Statement, node
-from bench.bench.expect import IsExpectable
 from bench.bench.query import Query, Sort
 from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
@@ -133,7 +132,7 @@ class DatasetViewField(ModuleNode):
 
 
 @node(tracked=["description", "versioned"])
-class Dataset(HasType, HasTags, IsExpectable, Statement):
+class Dataset(HasType, HasTags, Statement):
     type: StatementType = StatementType.DATASET
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -469,7 +468,7 @@ class Search:
 
 
 @node(tracked=["description", "value"])
-class Value(HasType, HasTags, IsExpectable, Statement):
+class Value(HasType, HasTags, Statement):
     type: StatementType = StatementType.VALUE
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT

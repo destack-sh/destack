@@ -3,7 +3,7 @@ from bench.bench.code_ import Code
 from bench.bench.const import DatasetViewLayout, StatementType, TypeHint, TypeTag
 from bench.bench.core import File, Module, Scope, Statement
 from bench.bench.dataset import Dataset, DatasetView, Record, Value
-from bench.bench.expect import Expectation, HasExpectations
+from bench.bench.expect import Expectation
 from bench.bench.issue import Issue, IssueType
 from bench.bench.model import Model
 from bench.bench.query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
@@ -23,7 +23,6 @@ __all__ = [
     "Expectation",
     "Field",
     "File",
-    "HasExpectations",
     "HasTags",
     "HasType",
     "Issue",

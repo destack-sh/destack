@@ -34,7 +34,6 @@ from bench.bench.core import (
     StatementReference,
     node,
 )
-from bench.bench.expect import HasExpectations
 from bench.bench.issue import IssueType
 from bench.bench.query import FieldQueryOps
 from bench.bench.remote import RemoteObject, Secret
@@ -251,10 +250,11 @@ class TypeBase(abc.ABC):
                 yield from child.walk_type(path, include_references=include_references)
 
 
-def new_field_key() -> str:
+def new_field_key(seed: str = None) -> str:
     """Gets a random alphabetic key as a persistent key for a type node."""
     # (upper and lower case letters only)
-    # :TypeNodeKeys
+    if seed:
+        random.seed(seed)
     return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
 
 
@@ -496,7 +496,7 @@ from bench.bench.tag import HasTags  # noqa
 
 
 @node
-class Type(HasType, HasTags, HasExpectations, Statement):
+class Type(HasType, HasTags, Statement):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
@@ -514,13 +514,11 @@ class Type(HasType, HasTags, HasExpectations, Statement):
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
-        HasExpectations._clear(self)
         self._fields_by_ident = None
         self._fields_by_key = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
-        HasExpectations._interp(self, scope)
         self._fields_by_ident = {}
         self._fields_by_key = {}
         for field_ in self.fields:
@@ -1128,7 +1126,7 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
     else:
         type = type_from_py_type(py_type, name, type_map)
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
-        # TODO @Broken: only use name as key for stdlib types?
+        # TODO @Broken: only use name as key for stdlib types? (not the other libs)
         # (others should be mapped with :LibImplementation)
         # turn into reference
         return Field(name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
