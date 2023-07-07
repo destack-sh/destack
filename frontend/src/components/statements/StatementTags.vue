@@ -1,11 +1,16 @@
 <script lang="ts" setup>
+import { StatementType } from "@/gql/graphql";
+import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 
-// hard-coded tags for now
-const TAGS = [{}];
-
 const context = useStatementContext();
+const module = useCurrentModule();
+
+const availableTags = module.statementsLike({
+  types: [StatementType.Tag],
+  includeDependencies: true,
+});
 </script>
 <template>
-  <div>tags!</div>
+  <div>tags! of {{ availableTags.length }}</div>
 </template>

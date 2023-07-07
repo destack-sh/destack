@@ -165,7 +165,7 @@ export function useStatementOps() {
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
       }) {
-        const dat = {
+        return {
           __typename: "Mutation",
           createStatement: {
             __typename: "Statement",
@@ -204,9 +204,7 @@ export function useStatementOps() {
             lastEditedAt: new Date().toISOString(),
             lastEditedBy: null,
           },
-        };
-        console.log(dat);
-        return dat as CreateStatementMutation;
+        } as CreateStatementMutation;
       },
       update(cache, { data }) {
         if (data?.createStatement.__typename != "Statement") {

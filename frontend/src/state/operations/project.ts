@@ -1,10 +1,5 @@
 import { graphql } from "@/gql";
-import type {
-  ProjectType,
-  ProjectVisibility,
-  UpdateProjectNameMutation,
-  UpdateProjectVisibilityMutation,
-} from "@/gql/graphql";
+import type { ProjectVisibility, UpdateProjectNameMutation, UpdateProjectVisibilityMutation } from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -27,11 +22,11 @@ export function useProjectOps() {
     }
   );
 
-  async function create(ownerId: string, name: string, slug: string, type: ProjectType, visibility: ProjectVisibility) {
+  async function create(ownerId: string, name: string, slug: string, visibility: ProjectVisibility) {
     return await ops.perform({
       type: "project.create",
       do: async () => {
-        return await createMut({ input: { ownerId, name, slug, type, visibility } });
+        return await createMut({ input: { ownerId, name, slug, visibility } });
       },
     });
   }

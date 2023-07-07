@@ -1287,7 +1287,6 @@ export type Project = Node & {
   owner: UserOrganization;
   path: Scalars["String"];
   slug: Scalars["String"];
-  type: ProjectType;
   updatedAt: Scalars["DateTime"];
   versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
@@ -1327,7 +1326,6 @@ export type ProjectCreateInput = {
   name: Scalars["String"];
   ownerId: Scalars["GlobalID"];
   slug: Scalars["String"];
-  type?: ProjectType;
   visibility: ProjectVisibility;
 };
 
@@ -1349,11 +1347,6 @@ export type ProjectMigrationInfo = {
 };
 
 export type ProjectOperationInfo = OperationInfo | Project;
-
-export enum ProjectType {
-  Executable = "EXECUTABLE",
-  Library = "LIBRARY",
-}
 
 export type ProjectUpdateNameInput = {
   id: Scalars["GlobalID"];
@@ -2749,7 +2742,6 @@ export type HomeBenchesQuery = {
           slug: string;
           path: string;
           createdAt: any;
-          type: ProjectType;
           visibility: ProjectVisibility;
           description?: string | null;
         };
@@ -2773,7 +2765,6 @@ export type HomeBenchesQuery = {
                 slug: string;
                 path: string;
                 createdAt: any;
-                type: ProjectType;
                 visibility: ProjectVisibility;
                 description?: string | null;
               };
@@ -2801,7 +2792,6 @@ export type FeaturedBenchesQuery = {
         slug: string;
         path: string;
         createdAt: any;
-        type: ProjectType;
         visibility: ProjectVisibility;
         description?: string | null;
       };
@@ -2837,7 +2827,6 @@ export type ProfileHomeQuery = {
               slug: string;
               path: string;
               createdAt: any;
-              type: ProjectType;
               visibility: ProjectVisibility;
               head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
             };
@@ -2867,7 +2856,6 @@ export type ProfileHomeQuery = {
               slug: string;
               path: string;
               createdAt: any;
-              type: ProjectType;
               visibility: ProjectVisibility;
               head: { __typename?: "ProjectVersion"; name?: string | null; createdAt: any };
             };
@@ -3236,7 +3224,6 @@ export type ProjectVersionHeaderFragment = {
 export type ProjectHeaderFragment = {
   __typename?: "Project";
   id: any;
-  type: ProjectType;
   visibility: ProjectVisibility;
   createdAt: any;
   updatedAt: any;
@@ -5181,7 +5168,6 @@ export const ProjectHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -7531,7 +7517,6 @@ export const HomeBenchesDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "slug" } },
                                   { kind: "Field", name: { kind: "Name", value: "path" } },
                                   { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "type" } },
                                   { kind: "Field", name: { kind: "Name", value: "visibility" } },
                                   { kind: "Field", name: { kind: "Name", value: "description" } },
                                 ],
@@ -7585,7 +7570,6 @@ export const HomeBenchesDocument = {
                                                     { kind: "Field", name: { kind: "Name", value: "slug" } },
                                                     { kind: "Field", name: { kind: "Name", value: "path" } },
                                                     { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                                    { kind: "Field", name: { kind: "Name", value: "type" } },
                                                     { kind: "Field", name: { kind: "Name", value: "visibility" } },
                                                     { kind: "Field", name: { kind: "Name", value: "description" } },
                                                   ],
@@ -7651,7 +7635,6 @@ export const FeaturedBenchesDocument = {
                             { kind: "Field", name: { kind: "Name", value: "slug" } },
                             { kind: "Field", name: { kind: "Name", value: "path" } },
                             { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "type" } },
                             { kind: "Field", name: { kind: "Name", value: "visibility" } },
                             { kind: "Field", name: { kind: "Name", value: "description" } },
                           ],
@@ -7737,7 +7720,6 @@ export const ProfileHomeDocument = {
                                         { kind: "Field", name: { kind: "Name", value: "slug" } },
                                         { kind: "Field", name: { kind: "Name", value: "path" } },
                                         { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                        { kind: "Field", name: { kind: "Name", value: "type" } },
                                         { kind: "Field", name: { kind: "Name", value: "visibility" } },
                                         { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                         {
@@ -7800,7 +7782,6 @@ export const ProfileHomeDocument = {
                                         { kind: "Field", name: { kind: "Name", value: "slug" } },
                                         { kind: "Field", name: { kind: "Name", value: "path" } },
                                         { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                                        { kind: "Field", name: { kind: "Name", value: "type" } },
                                         { kind: "Field", name: { kind: "Name", value: "visibility" } },
                                         { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                                         {

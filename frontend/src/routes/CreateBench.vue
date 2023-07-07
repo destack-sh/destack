@@ -7,7 +7,7 @@ import OwnerSelect from "@/components/basic/OwnerSelect.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { graphql } from "@/gql";
-import { ProjectType, ProjectVisibility } from "@/gql/graphql";
+import { ProjectVisibility } from "@/gql/graphql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -30,7 +30,6 @@ const name: Ref<string> = ref("x");
 const slug: Ref<string> = ref("x");
 const slugModified = ref(false);
 const visibility: Ref<ProjectVisibility> = ref(ProjectVisibility.Private);
-const type: Ref<ProjectType> = ref(ProjectType.Executable);
 
 const visibilities = computed(() => [
   {
@@ -102,13 +101,7 @@ const router = useRouter();
 const notifications = useNotifications();
 async function createProject() {
   creating.value = true;
-  const create = await ops.project.create(
-    owner.value?.id as string,
-    name.value,
-    slug.value,
-    type.value,
-    visibility.value
-  );
+  const create = await ops.project.create(owner.value?.id as string, name.value, slug.value, visibility.value);
   creating.value = false;
   if (create?.data?.createProject.__typename == "Project") {
     router.push(`/${owner.value?.slug}/${slug.value}`);

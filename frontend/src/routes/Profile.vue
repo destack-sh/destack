@@ -39,7 +39,6 @@ const { result: profileResult, loading } = useQuery(
                 slug
                 path
                 createdAt
-                type
                 visibility
                 createdAt
                 head {
@@ -67,7 +66,6 @@ const { result: profileResult, loading } = useQuery(
                 slug
                 path
                 createdAt
-                type
                 visibility
                 createdAt
                 head {

@@ -30,7 +30,6 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
               slug
               path
               createdAt
-              type
               visibility
               description
             }
@@ -48,7 +47,6 @@ const { result: myBenchesResult, loading: myBenchesLoading } = useQuery(
                     slug
                     path
                     createdAt
-                    type
                     visibility
                     description
                   }
@@ -74,7 +72,6 @@ const { result: communityBenchesResult, loading: communityBenchesLoading } = use
             slug
             path
             createdAt
-            type
             visibility
             description
           }
