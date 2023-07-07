@@ -352,6 +352,10 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             order_key=data.order_key,
             type=data.type.value,
             name=data.name,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            last_edited_at=data.last_edited_at,
+            last_changed_at=data.last_changed_at,
         )
 
 
@@ -971,7 +975,7 @@ def write_mutations(
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
-            else:
+            else:  # MMK.UPDATE
                 # can probably optimize this (e.g. group by updated properties)
                 for m, node in zip(batch, nodes):
                     node._state.adding = False  # ensure update

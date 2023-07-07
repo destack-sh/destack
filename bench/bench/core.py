@@ -610,7 +610,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
         for statement in self.statements:
             statement._index()
-            self._add_statement(statement, by_name=True)
+            self._add_statement(statement, by_name=statement.parent == self)
 
     def _interp(self):
         for statement in self.statements:
