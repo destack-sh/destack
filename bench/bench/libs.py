@@ -70,12 +70,7 @@ class Cache:  # like cachetools
     pass
 
 
-@x_tag(
-    "confirm",
-    "Prompt for confirmation before running a statement",
-    key="x.confirm",
-    file=_symbolx_builtins,
-)
+@x_tag("confirm", "Prompt for confirmation before running", key="x.confirm", file=_symbolx_builtins)
 class Confirm:
     pass
 

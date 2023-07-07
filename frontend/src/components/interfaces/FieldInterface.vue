@@ -311,7 +311,6 @@ defineExpose({
       :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
       @keydown.escape.exact.prevent.stop="close()"
     >
-      <span ref="popoverOpenRef" class="hidden" />
       <!-- Name & type -->
       <div class="flex max-w-full flex-row items-center justify-between gap-2">
         <!-- Name -->

@@ -86,7 +86,7 @@ def map_mutation_from_api(
     elif isinstance(thing, models.Statement):
         api_mutation.file_id = thing.file_id
         api_mutation.statement_id = thing.id
-    elif isinstance(thing, models.Field):
+    elif isinstance(thing, (models.Field, models.Tagging)):
         api_mutation.file_id = thing.statement.file_id
         api_mutation.statement_id = thing.statement_id
     else:

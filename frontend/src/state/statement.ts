@@ -9,7 +9,7 @@ import {
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { StatementAction } from "@/state/bench";
-import { FieldType, FileHeaderType, StatementContentType } from "@/state/fragments";
+import { FieldType, FileHeaderType, StatementContentType, TaggingType } from "@/state/fragments";
 import { TypeFlag, getSymbolSubtype, useCurrentModule } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
@@ -421,6 +421,10 @@ export function useStatementContext() {
     tryDeleteLeft,
     insertAbove,
     insertBelow,
+    // tagging
+    tags: computed(
+      () => statement.value.tags.map((t) => useFragment(TaggingType, t)).filter((t) => t.deletedAt == null) ?? []
+    ),
     // typing
     fields,
     fieldsByName,

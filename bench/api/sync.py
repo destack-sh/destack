@@ -178,7 +178,7 @@ def check_can_write_thing(info: Info, thing: MutableThing, check_auth: bool = Tr
         project_v = models.ProjectVersion.objects.only("committed_at").get(
             id=thing.project_version_id
         )
-    elif isinstance(thing, models.Field):
+    elif isinstance(thing, (models.Field, models.Tagging)):
         # TODO @Performance: fetching project_version for statement mutation is inefficient
         project_v = models.ProjectVersion.objects.only("committed_at").get(
             id=thing.statement.project_version_id
