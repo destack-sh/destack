@@ -284,6 +284,13 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
 
     @property
+    def path(self) -> str:
+        if self.parent is None:
+            return f"<detached>.{self.py_ident}"
+        else:
+            return f"{self.parent.path}.{self.py_ident}"
+
+    @property
     def dimensions(self) -> int:
         if self.tag != TypeTag.VECTOR:
             raise ValueError(f"{self} does not have dimensions")

@@ -114,6 +114,7 @@ DEFAULT_SORT = None
 
 @node(tracked=["name", "layout", "query", "sort", "order_key"])
 class DatasetView(ModuleNode, HasSession, HasCrud):
+    parent: Dataset = required_field()
     name: str = None
     layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
     query: Optional[Query] = None
@@ -121,8 +122,15 @@ class DatasetView(ModuleNode, HasSession, HasCrud):
     order_key: str = field(default_factory=uuid.uuid4)
     fields: Optional[list[DatasetViewField]] = None
 
+    def __str__(self):
+        return f"{self.parent.path}:{self.name} ({self.layout})"
 
-DEFAULT_VIEW = DatasetView()
+    def __repr__(self):
+        return f"<DatasetView {self}>"
+
+    @property
+    def path(self) -> str:
+        return f"{self.parent.path}.{self.name}"
 
 
 @node
@@ -150,10 +158,6 @@ class Dataset(HasType, HasTags, Statement):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
-
-    @property
-    def default_view(self) -> DatasetView:
-        return self.views[0] if self.views else DEFAULT_VIEW
 
     def view_by_name(self, name: str) -> DatasetView:
         view = first((view for view in self.views if view.name == name), None)

@@ -155,6 +155,10 @@ class ModuleNode(abc.ABC):
     def attached(self) -> bool:
         return self.parent is not None
 
+    @property
+    def path(self) -> str:
+        raise NotImplementedError
+
 
 @node
 class HasCrud(abc.ABC):
@@ -163,6 +167,9 @@ class HasCrud(abc.ABC):
     last_edited_at: datetime = field(default_factory=datetime.utcnow)
     last_changed_at: datetime = field(default_factory=datetime.utcnow)
     revision: int = 0
+
+
+CRUD_PROPERTIES = HasCrud._PROPERTIES
 
 
 @node
@@ -366,6 +373,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     @property
     def attached(self) -> bool:
         return True  # root is always "attached"
+
+    @property
+    def path(self) -> str:
+        return self.py_ident
 
     @property
     def py_ident(self) -> str:

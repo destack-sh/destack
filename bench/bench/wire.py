@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import abc
+import dataclasses
 import re
 import traceback
 import typing
@@ -20,7 +21,14 @@ from bench.bench.const import (
     TypeHint,
     TypeTag,
 )
-from bench.bench.core import MOT, InterpScope, ModuleNode, ModuleObjectType, Session
+from bench.bench.core import (
+    CRUD_PROPERTIES,
+    MOT,
+    InterpScope,
+    ModuleNode,
+    ModuleObjectType,
+    Session,
+)
 from bench.bench.execution import ExecutionCodeFrame, ExecutionFrame, RunError, RunErrorKind
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
@@ -397,6 +405,14 @@ class NodeData:
     @property
     def mot(self) -> ModuleObjectType:
         return MOT_BY_DATA_CLASS[type(self)]
+
+    def equals_ignoring_crud(self, other: "NodeData") -> bool:
+        for field in dataclasses.fields(self):
+            if field.name in CRUD_PROPERTIES:
+                continue
+            if getattr(self, field.name) != getattr(other, field.name):
+                return False
+        return True
 
 
 @dataclass

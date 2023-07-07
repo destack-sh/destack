@@ -34,7 +34,7 @@ from bench.bench.task import (
 from bench.bench.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
-symbolx_lib = Module(name="symbolx.lib", id=_versioned_id("symbolx.lib"))
+symbolx_lib = Module(name="symbolx.lib")
 _symbolx_builtins = symbolx_lib.create_file("builtins")
 _symbolx_utils = symbolx_lib.create_file("utils")
 symbolx_lib.add_file(_symbolx_reflect)
@@ -207,13 +207,13 @@ def _type_to_json_schema(
         raise IncapableError(f"unsupported type {type}")
 
 
-# Note that beyond the symbolx standard lib, all other libs should later
+# Note that apart from the symbolx standard lib, all other libs should later
 # be defined and update in Bench itself. That may also happen via code or some other
 # automatic mechanism, it just shouldn't be here.
 # The model implementations should be just like Code implementations,
 # so we don't need to hot-swap in 'impl' when calling. :LibImplementation
 
-openai_lib = Module(name="openai.lib", id=_versioned_id("openai.lib"))
+openai_lib = Module(name="openai.lib")
 openai_lib.add_dependency(symbolx_lib)
 _openai_chat = openai_lib.create_file("chat")
 _openai_text = openai_lib.create_file("text")
@@ -563,7 +563,7 @@ class OpenAIAudioTranscriptionModel(Model):
         raise NotImplementedError
 
 
-anthropic_lib = Module(name="anthropic.lib", id=_versioned_id("anthropic.lib"))
+anthropic_lib = Module(name="anthropic.lib")
 _anthropic_text = anthropic_lib.create_file("text")
 
 
@@ -646,6 +646,12 @@ DEFAULT_MODULES: dict[str, Module] = {
 # interp/index them
 for name, module in DEFAULT_MODULES.items():
     assert module.name == name
+    # assign stable versioned ids
+    module.index()  # need to index for walk
+    for node in module.walk():
+        node.id = _versioned_id(node.path)
+    module.clear()  # ids changed
+
     module.index()
     module.interp()
     if module.issues:

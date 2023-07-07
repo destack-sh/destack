@@ -336,8 +336,9 @@ class ModuleMutation:
         return self.type.mot
 
     def __str__(self):
+        data_str = f" {self.data}" if self.data else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
-        return f"{self.type} {self.revision}{properties_str}"
+        return f"{self.type} {self.revision}{data_str}{properties_str}"
 
     def __repr__(self):
         return f"<Mutation {self}>"
@@ -615,21 +616,21 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
     for node in new_tree.walk_bfs():
         if node.mot == ModuleObjectType.MODULE:
             continue  # ignore module itself
-        if node.id not in old_module.nodes:
+        if node.id not in old_tree.nodes:
             mutator.create(node)
         else:
-            old_node = old_module.nodes[node.id]
-            if node != old_node:
+            old_node = old_tree.nodes[node.id]
+            if not node.equals_ignoring_crud(old_node):
                 mutator.update(node)
     for node in old_tree.walk_bfs():
         if node.mot == ModuleObjectType.MODULE:
             continue
-        if node.id not in new_module.nodes:
+        if node.id not in new_tree.nodes:
             mutator.delete(node)
-    # sort into create -> update -> delete order
+    # sort into delete -> create -> update
     mutations = [
+        *(m for m in mutator.mutations if m.type.kind == MMK.DELETE),
         *(m for m in mutator.mutations if m.type.kind == MMK.CREATE),
         *(m for m in mutator.mutations if m.type.kind == MMK.UPDATE),
-        *(m for m in mutator.mutations if m.type.kind == MMK.DELETE),
     ]
     return mutations
