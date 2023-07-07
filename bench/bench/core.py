@@ -478,13 +478,15 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
         module_data = wire.pack_module(self)
         module_copy = wire.unpack_module(module_data, session=None)
+        for dependency in self.dependencies.values():
+            module_copy.add_dependency(dependency)  # also copy?
         if self.status >= ModuleStatus.Index:
             module_copy.index()
         if self.status >= ModuleStatus.Interp:
             module_copy.interp()
         if len(module_copy.issues or []) != len(self.issues or []):
             raise RuntimeError(
-                f"{self} copy expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}"
+                f"{self} copy expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}: {module_copy.issues}"
             )
         return module_copy
 

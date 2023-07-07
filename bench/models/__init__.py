@@ -10,15 +10,7 @@ from .organization import (
     OrganizationMembershipLevel,
 )
 from .owner import OwnerSlug
-from .project import (
-    File,
-    Project,
-    ProjectType,
-    ProjectVersion,
-    ProjectVisibility,
-    RefMapping,
-    RefMappingKind,
-)
+from .project import File, Project, ProjectVersion, ProjectVisibility, RefMapping, RefMappingKind
 from .secret import Secret
 from .statement import Field, Statement, Tagging
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
@@ -50,7 +42,6 @@ __all__ = [
     "OrganizationMembershipLevel",
     "OwnerSlug",
     "Project",
-    "ProjectType",
     "ProjectVersion",
     "ProjectVisibility",
     "RefMapping",

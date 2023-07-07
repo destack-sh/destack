@@ -9,7 +9,6 @@ import structlog
 
 from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel
 from bench.bench.execution import ExecutionFrame
-from bench.bench.libs import DEFAULT_MODULES_IDS
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
 from bench.bench.type import check_type, strip_py_value
@@ -172,11 +171,6 @@ class SessionTracer(Tracer):
             tracer.run_cached(statement, inputs, result, generated_at, duration)
 
 
-# can't track inferences right now because built-in models/tasks/etc. are not associated
-# with actual Bench libraries (unsynced/unstable ids and all), see BE-126
-TRACK_BUILTINS = False
-
-
 class ExecutionTracer(Tracer):
     """
     A worker-side tracer that records code and model executions.
@@ -201,9 +195,7 @@ class ExecutionTracer(Tracer):
         return None
 
     def track(self, frame: ExecutionFrame):
-        if self.publish and not (
-            frame.runnable.module.id in DEFAULT_MODULES_IDS and not TRACK_BUILTINS
-        ):
+        if self.publish:
             from bench.msg.core import publish_soon
             from bench.msg.messages import ExecutionChangedPayload, NMessageType
 

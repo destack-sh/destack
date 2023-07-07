@@ -18,10 +18,12 @@ from bench.utils.utils import required_field
 TAG_KEY_LENGTH = 8
 
 
-def new_tag_key() -> str:
+def new_tag_key(seed: str = None) -> str:
     """Gets a random alphabetic key as a persistent key for a type node."""
     # (upper and lower case letters only)
     # :TagKeys
+    if seed is not None:
+        random.seed(seed)
     return "".join(random.choices(string.ascii_letters, k=TAG_KEY_LENGTH))
 
 

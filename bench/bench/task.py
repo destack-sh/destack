@@ -7,10 +7,10 @@ import re
 from json import JSONDecodeError
 from typing import Collection, Optional, Self
 
-from bench.bench import Code
+from bench.bench.code_ import Code
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import Scope, Statement, node
-from bench.bench.expect import Expectation, HasExpectations
+from bench.bench.expect import Expectation
 from bench.bench.model import Model
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
@@ -55,7 +55,7 @@ class LimitExceededError(TaskError):
 
 
 @node(tracked=["description"])
-class Task(HasType, HasTags, HasExpectations, Statement):
+class Task(HasType, HasTags, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
@@ -65,12 +65,10 @@ class Task(HasType, HasTags, HasExpectations, Statement):
         Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
-        HasExpectations._clear(self)
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
-        HasExpectations._interp(self, scope)
 
     async def __call__(
         self,
@@ -143,6 +141,7 @@ class Task(HasType, HasTags, HasExpectations, Statement):
         # nocheckin: add code and dataset instructions
 
         # run
+        # should probably track task runner state in run metadata?
         runner = TaskRunner(self, max_steps=10, max_function_calls=3, max_errors=3)
         ret = await compiler.run(model, runner)
         if isinstance(ret, TaskError):

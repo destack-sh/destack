@@ -20,7 +20,7 @@ from bench.bench.const import (
     TypeHint,
     TypeTag,
 )
-from bench.bench.core import MOT, InterpScope, ModuleNode, Session
+from bench.bench.core import MOT, InterpScope, ModuleNode, ModuleObjectType, Session
 from bench.bench.execution import ExecutionCodeFrame, ExecutionFrame, RunError, RunErrorKind
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
@@ -393,6 +393,10 @@ def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
 class NodeData:
     id: UUID
     parent_id: Optional[UUID]
+
+    @property
+    def mot(self) -> ModuleObjectType:
+        return MOT_BY_DATA_CLASS[type(self)]
 
 
 @dataclass
