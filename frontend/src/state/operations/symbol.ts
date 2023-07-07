@@ -65,6 +65,24 @@ export function useSymbolContentOps() {
     }
   );
 
+  async function updateStatementReference(
+    tx: Transaction | null,
+    id: string,
+    oldReferenceId: string | null,
+    newReferenceId: string | null
+  ) {
+    await ops.perform({
+      tx,
+      type: "statement.updateReference",
+      do: async () => {
+        return await updateStatementReferenceMut({ id, referenceId: newReferenceId });
+      },
+      undo: async () => {
+        return await updateStatementReferenceMut({ id, referenceId: oldReferenceId });
+      },
+    });
+  }
+
   const { mutate: updateSymbolDescriptionMut } = registry.useMutation(
     ModuleMutationType.UpdateSymbolDescription,
     graphql(/* GraphQL */ `
@@ -1214,6 +1232,7 @@ export function useSymbolContentOps() {
 
   return {
     registry,
+    updateStatementReference,
     updateSymbolDescription,
     updateSymbolCode,
     updateStatementText,

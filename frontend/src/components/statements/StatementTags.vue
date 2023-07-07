@@ -3,11 +3,11 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { TagIcon, XMarkIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, TagIcon as TagIconOutline } from "@heroicons/vue/24/outline";
+import { TagIcon as TagIconSolid } from "@heroicons/vue/24/solid";
 import { computed, nextTick, ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import { useFocus } from "@vueuse/core";
 import { useOperations } from "@/state/operations";
 import type { Tagging } from "@/gql/graphql";
 import type { Statement } from "@/gql/graphql";
@@ -19,12 +19,11 @@ const appearance = useAppearance();
 const ops = useOperations();
 
 const addingTag = ref(false);
-const popoverRef = ref<InstanceType<typeof Combobox> | null>(null);
+const popoverRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof ComboboxInput> | null>(null);
-const inputRefFocused = useFocus(computed(() => inputRef.value?.$el));
 const query = ref("");
 const popoverPin = pinAbsoluteElement(
-  computed(() => popoverRef.value?.$el),
+  computed(() => popoverRef.value),
   { pos: true, width: true, keepInView: true }
 );
 
@@ -41,7 +40,7 @@ const filteredTags = computed(() => {
 
 function open() {
   addingTag.value = true;
-  nextTick(() => (inputRefFocused.focused.value = true));
+  nextTick(() => inputRef.value?.$el.focus());
 }
 
 function close() {
@@ -58,7 +57,7 @@ function createTagging(tag: Pick<Statement, "id" | "key" | "name">) {
 }
 
 function deleteTagging(tagging: Pick<Tagging, "id">) {
-  ops.symbol.softDeleteTagging(null, context.statement.value.id, tagging.id);
+  ops.symbol.softDeleteTagging(null, context.statement.value.id, tagging);
 }
 
 defineExpose({
@@ -67,80 +66,92 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="group relative flex flex-row gap-1.5">
+  <div class="group relative mb-1 flex flex-row gap-1.5">
+    <!-- TODO @Broken @Cleanup @UX: fix vertical positioning (see hack above) -->
     <!-- Existing tags -->
+    <!-- obviously deleting on click is bad UX and will be fixed when we have proper tag value menus -->
     <button
       v-for="tagging in context.tags.value"
       :key="tagging.id"
-      class="flex flex-row items-center rounded-xl border-orange-600 px-0.5 hover:bg-orange-100"
+      class="flex flex-row items-center rounded-xl bg-orange-50 px-1 ring-1 ring-orange-600 ring-opacity-30 hover:bg-orange-100 hover:ring-opacity-60"
+      @click="deleteTagging(tagging)"
     >
-      <TagIcon class="h-4 w-4 text-orange-600" />
-      <span class="ml-0.5 text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
+      <TagIconOutline class="h-4 w-4 text-orange-600" />
+      <span class="ml-0.5 font-semibold text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
     <button
       v-if="!context.readonly.value"
-      class="rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
-      :class="context.focused.value ? '' : 'opacity-0 transition-opacity group-hover:opacity-100'"
+      class="group/add flex flex-row items-center rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-orange-100 hover:text-gray-700 group-hover/add:ring-1"
+      :class="
+        context.focused.value
+          ? ''
+          : 'opacity-0 transition-opacity duration-150 group-hover/statement:opacity-100 group-hover:opacity-100'
+      "
       @click="open"
     >
-      <TagIcon class="h-4 w-4" />
+      <TagIconOutline class="h-4 w-4" />
+      <PlusIcon class="ml-1 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
     <!-- Add tag popover -->
-    <Combobox
+    <div
       v-if="addingTag"
       ref="popoverRef"
-      as="div"
       class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
-      @update:model-value="(t) => (createTagging(t), close())"
     >
-      <!-- Title -->
-      <h5 class="text-left text-sm font-semibold text-gray-900">
-        Add tag to {{ context.statement.value.name ?? "statement" }}
-      </h5>
-      <!-- Input -->
-      <ComboboxInput
-        as="input"
-        ref="inputRef"
-        class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
-        @change="query = $event.target.value"
-        @keydown.enter.prevent.stop="close"
-        @keydown.escape.prevent.stop="close"
-      >
-      </ComboboxInput>
-      <!-- Tag options -->
-      <ComboboxOptions
-        class="mt-1 max-h-48 overflow-auto"
-        static
-        :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
-      >
-        <ComboboxOption v-for="tag in filteredTags" :key="tag.id" :value="tag" v-slot="{ active, selected }">
-          <li
-            :class="[
-              'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
-              active ? 'bg-orange-100' : '',
-              selected ? 'text-orange-600' : '',
-            ]"
-          >
-            <!-- Tag path -->
-            <div class="flex items-baseline justify-between">
-              <span class="flex flex-row items-center">
-                <TagIcon class="h-4 w-4 text-orange-600" />
-                <span class="ml-1 font-semibold text-orange-600">{{ tag.name }}</span>
+      <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
+        <!-- Title -->
+        <h5 class="text-left text-sm font-semibold text-gray-900">
+          Add tag to {{ context.statement.value.name ?? "statement" }}
+        </h5>
+        <!-- Input -->
+        <ComboboxInput
+          as="input"
+          ref="inputRef"
+          class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+          @change="query = $event.target.value"
+          @keydown.enter.prevent.stop="close"
+          @keydown.escape.prevent.stop="close"
+        >
+        </ComboboxInput>
+        <!-- Tag options -->
+        <ComboboxOptions
+          class="mt-1 max-h-48 overflow-auto"
+          static
+          :class="{
+            'font-mono': appearance.fontMono,
+            'text-sm': appearance.textSmall,
+            'text-md': !appearance.textSmall,
+          }"
+        >
+          <ComboboxOption v-for="tag in filteredTags" :key="tag.id" :value="tag" v-slot="{ active, selected }">
+            <li
+              :class="[
+                'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
+                active ? 'bg-orange-100' : '',
+                selected ? 'text-orange-600' : '',
+              ]"
+            >
+              <!-- Tag path -->
+              <div class="flex items-baseline justify-between">
+                <span class="flex flex-row items-center">
+                  <TagIconOutline class="h-4 w-4 text-orange-600" />
+                  <span class="ml-1 font-semibold text-orange-600">{{ tag.name }}</span>
+                </span>
+                <!-- Source -->
+                <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">(builtin)</span>
+              </div>
+              <!-- Tag description -->
+              <span class="max-w-full truncate text-xs" :class="['', active ? 'text-gray-700' : 'text-gray-500']">
+                {{ tag.description }}
               </span>
-              <!-- Source -->
-              <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">(builtin)</span>
-            </div>
-            <!-- Tag description -->
-            <span class="text-xs" :class="['', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ tag.description }}
-            </span>
-          </li>
-        </ComboboxOption>
-      </ComboboxOptions>
-    </Combobox>
+            </li>
+          </ComboboxOption>
+        </ComboboxOptions>
+      </Combobox>
+    </div>
   </div>
 </template>

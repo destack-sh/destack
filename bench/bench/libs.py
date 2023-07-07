@@ -45,7 +45,7 @@ class Tool:
     pass
 
 
-@x_tag("step", "Mark as a required step", key="x.tool", file=_symbolx_builtins)
+@x_tag("step", "Mark as a required step", key="x.step", file=_symbolx_builtins)
 class Step:
     pass
 

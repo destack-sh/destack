@@ -51,6 +51,7 @@ import {
   XMarkIcon,
   Bars3Icon,
   XCircleIcon as XCircleIconOutline,
+  TagIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -63,6 +64,7 @@ import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
+import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -685,6 +687,14 @@ const extraActions = computed(() => {
     });
   }
   actions.push({
+    label: "Add tag",
+    icon: TagIcon,
+    action: () => {
+      unfoldIfFolded();
+      tagsRef.value?.open();
+    },
+  });
+  actions.push({
     label: "Add description",
     icon: Bars3Icon,
     disabled: showDescription.value,
@@ -766,7 +776,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex max-w-full flex-row justify-between gap-2">
-    <div class="flex max-w-full flex-row items-baseline">
+    <div class="flex max-w-full flex-row">
       <TypedDeclarationCell
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
@@ -776,6 +786,7 @@ defineExpose({
       <!-- Views (soon) -->
       <!-- Count -->
       <span v-if="!folded" class="ml-1 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
+      <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->

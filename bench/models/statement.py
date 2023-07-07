@@ -114,6 +114,10 @@ class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
     reference = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 
+    @property
+    def parent_id(self):
+        return self.statement_id
+
     def soft_delete(self):
         self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
 

@@ -7,7 +7,6 @@ import { useBenchState, useEditorContext, type EditorGroup, type StatementAction
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
-  PencilSquareIcon,
   ArrowDownRightIcon,
   ArrowUpRightIcon,
   ArrowLongRightIcon,
@@ -118,7 +117,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row items-center gap-1.5">
+    <div class="flex flex-row gap-1.5">
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"

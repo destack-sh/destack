@@ -2,12 +2,13 @@
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import StatementActions from "@/components/statements/StatementActions.vue";
+import StatementTags from "@/components/statements/StatementTags.vue";
 import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
-import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
@@ -16,6 +17,7 @@ const context = useStatementContext();
 const ops = useOperations();
 
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
+const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -54,6 +56,14 @@ const actions = computed(() => {
       createUnionField();
     },
     hideInline: true,
+  });
+  actions.push({
+    label: "Add tag",
+    icon: TagIcon,
+    action: () => {
+      unfoldIfFolded();
+      tagsRef.value?.open();
+    },
   });
   actions.push({
     label: "Add field",
@@ -106,12 +116,13 @@ defineExpose({
 <template>
   <div>
     <div class="flex max-w-full flex-row justify-between">
-      <div class="flex flex-row items-baseline">
+      <div class="flex flex-row">
         <TypedStatementDeclaration
           ref="declarationRef"
           @navigate-up="context.navigateUp"
           @navigate-down="gridRef?.focus"
         />
+        <StatementTags ref="tagsRef" class="ml-1.5" />
       </div>
       <div
         class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"

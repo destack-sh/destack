@@ -22,10 +22,12 @@ import {
   ArrowUpRightIcon,
   ArrowLongRightIcon,
   WindowIcon,
+  TagIcon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
 import { DateTime } from "luxon";
+import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -66,6 +68,7 @@ const lastExecution = computed(() => lastExecutionLocal.value ?? executions.exec
 const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecution.value?.id ?? null);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
+const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
@@ -90,6 +93,14 @@ function unfoldIfFolded() {
 
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
+    {
+      label: "Add tag",
+      icon: TagIcon,
+      action: () => {
+        unfoldIfFolded();
+        tagsRef.value?.open();
+      },
+    },
     {
       label: "Add input",
       icon: ArrowDownRightIcon,
@@ -225,12 +236,13 @@ defineExpose({
 <template>
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
-    <div class="flex flex-row items-baseline">
+    <div class="flex flex-row">
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
+      <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Meta info & controls -->
     <div

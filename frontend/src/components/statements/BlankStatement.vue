@@ -111,11 +111,11 @@ const commands = computed(() => {
       description: "Reuse another statement.",
       action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
     },
-    // { (soon)
-    //   label: "block",
-    //   description: "A group of related statements.",
-    //   action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
-    // },
+    {
+      label: "block",
+      description: "A group of related statements.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
+    },
   ];
 
   return commands;

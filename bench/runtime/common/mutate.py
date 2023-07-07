@@ -24,8 +24,9 @@ MutableThing = Union[
 _SCOPE_TO_TYPE_NAME = {
     MOT.FILE: "File",
     MOT.STATEMENT: "Statement",
-    MOT.FIELD: "TypeNode",
+    MOT.FIELD: "Field",
     MOT.RECORD: "Record",
+    MOT.TAGGING: "Tagging",
 }
 
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
