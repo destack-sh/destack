@@ -560,12 +560,17 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
 
 @node_packer(MOT.STATEMENT, wire.ModelData, models.Statement, StatementType.MODEL)
 class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+        ]
+
     def pack(self, statement: models.Statement) -> wire.ModelData:
         statement_data = super().pack(statement)
         return wire.ModelData(
             **statement_data.__dict__,
-            id=statement.id,
-            parent_id=statement.id,
             external_name=statement.external_name,
             description=statement.description,
         )
@@ -983,7 +988,7 @@ def write_mutations(
 def upsert_module(
     project_v: models.ProjectVersion,
     new_module: ModuleTreeData,
-    prune_existing: bool = False,
+    apply_deletes: bool = False,
 ) -> list[ModuleMutation]:
     """
     Upserts a module tree into the database.
@@ -991,7 +996,7 @@ def upsert_module(
 
     old_module = pack_module(project_v)
     diff_mutations = diff_modules(old_module, new_module)
-    if not prune_existing:
+    if not apply_deletes:
         diff_mutations = [m for m in diff_mutations if m.type.kind != MMK.DELETE]
 
     write_mutations(project_v, ModuleTree(old_module.nodes), diff_mutations, wait_for_os=True)

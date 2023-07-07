@@ -5,7 +5,7 @@ from uuid import UUID, uuid5
 
 from bench.bench.const import TypeTag
 from bench.bench.core import File
-from bench.bench.type import instantiate_py_value, strip_py_value, type_from_py_type
+from bench.bench.type import instantiate_py_value, new_field_key, strip_py_value, type_from_py_type
 
 _UUID_VERSION_KEY = UUID("00000000-0000-0000-0000-000000000000")
 
@@ -29,6 +29,7 @@ def x_enum(name: str, description: str, *, file: File):
             raise TypeError(f"expected enum, got {bench_type.tag}")
         file.append(bench_type)
         bench_type.id = _versioned_id(bench_type.path)
+        bench_type.key = new_field_key(bench_type.path)
         return cls
 
     return decorator
@@ -46,6 +47,7 @@ def x_struct(name: str, description: str, *, file: File):
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
         file.append(bench_type)
         bench_type.id = _versioned_id(bench_type.path)
+        bench_type.key = new_field_key(bench_type.path)
 
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
         cls.__setitem__ = lambda self, key, value: setattr(self, key, value)

@@ -47,8 +47,9 @@ def create_libs_if_not_exists():  # probably should put this elsewhere
             logger.info("bootstrap_organization", organization=org_slug)
 
 
-def _upsert_module(module_name: str):
-    logger.info("upsert_module", module=module_name)
+@transaction.atomic
+def _upsert_module(module_name: str, sanity_check: bool = True):
+    logger.info("lib.upsert", module=module_name)
     module = DEFAULT_MODULES[module_name]
     owner, name = module_name.split(".")
     try:
@@ -64,6 +65,13 @@ def _upsert_module(module_name: str):
         )
 
     new_module = wire.pack_module(module)
-    applied_mutations = upsert_module(project.head, new_module, prune_existing=False)
+    applied_mutations = upsert_module(project.head, new_module, apply_deletes=False)
     for mut in applied_mutations:
         logger.info("apply", mutation=mut)
+    logger.info("lib.upsert.done", module=module_name, mutations=len(applied_mutations))
+
+    if sanity_check:
+        # do it again and asset that no mutations are applied
+        new_module = wire.pack_module(module)
+        applied_mutations = upsert_module(project.head, new_module, apply_deletes=False)
+        assert len(applied_mutations) == 0, f"sanity check failed: {applied_mutations}"
