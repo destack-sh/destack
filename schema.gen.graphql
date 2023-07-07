@@ -983,7 +983,6 @@ type Project implements Node {
   id: GlobalID!
   name: String!
   slug: String!
-  type: ProjectType!
   visibility: ProjectVisibility!
   path: String!
   description: String
@@ -1031,7 +1030,6 @@ input ProjectCreateInput {
   name: String!
   slug: String!
   visibility: ProjectVisibility!
-  type: ProjectType! = EXECUTABLE
 }
 
 """An edge in a connection."""
@@ -1051,11 +1049,6 @@ type ProjectMigrationInfo {
 }
 
 union ProjectOperationInfo = Project | OperationInfo
-
-enum ProjectType {
-  EXECUTABLE
-  LIBRARY
-}
 
 input ProjectUpdateNameInput {
   id: GlobalID!

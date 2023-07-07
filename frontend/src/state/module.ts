@@ -39,10 +39,7 @@ export type ModuleIndex = {
   filesById: Record<string, InterpFile>;
 };
 
-// TODO @Performance: moduleRuntimeChanged should be partial updates :PartialModuleUpdates
-function _useModule(projectVersionId: Ref<string | null>) {
-  projectVersionId = toValueRef(projectVersionId);
-
+function _useModuleFlat(projectVersionId: Ref<string | null>) {
   const { result: module, loading } = useQuery(
     graphql(/* GraphQL */ `
       query module($projectVersionId: GlobalID!) {
@@ -72,27 +69,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
     () => ({ projectVersionId: projectVersionId.value }),
     () => ({ enabled: !!projectVersionId.value })
   );
-
-  // wake langserver if allowed
-  const woken = ref(false);
-  const ops = useOperations();
-  const auth = useAuth();
-  watch([module, WS_CONNECTED, () => auth.loggedIn.value], async () => {
-    if (!WS_CONNECTED.value) {
-      woken.value = false; // reset woken state
-    }
-    if (
-      WS_CONNECTED.value &&
-      !woken.value &&
-      projectVersionId.value != null &&
-      module.value != null &&
-      !module.value?.projectVersion?.committed &&
-      auth.loggedIn.value
-    ) {
-      woken.value = true;
-      await ops.runtime.wake(projectVersionId.value);
-    }
-  });
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
@@ -143,9 +119,26 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return issues.map((i) => useFragment(IssueContentType, i));
   });
 
-  // TODO @Broken: get dependencies
-  const dependencies = computed(() => []);
-  const dependenciesIndex: Ref<ModuleIndex[]> = computed(() => []);
+  return {
+    loading: computed(() => loading.value || projectVersionId.value == null),
+    module,
+    idx,
+    issues,
+  };
+}
+
+function _useModule(projectVersionId: Ref<string | null>) {
+  projectVersionId = toValueRef(projectVersionId);
+
+  const { loading, module, idx, issues } = _useModuleFlat(projectVersionId);
+
+  // TODO @Performance: cache symbolx lib (and other default module dependencies)
+  // TODO @Broken: don't hardcode symbolx.lib id
+  // (this is not that terrible since the project version id is static for now, see :LibImplementation)
+  const symbolxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"));
+  const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
+    [symbolxLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
+  );
 
   // utils
 
@@ -275,6 +268,27 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
+  // wake langserver if allowed
+  const wokeLangserver = ref(false);
+  const ops = useOperations();
+  const auth = useAuth();
+  watch([module, WS_CONNECTED, () => auth.loggedIn.value], async () => {
+    if (!WS_CONNECTED.value) {
+      wokeLangserver.value = false; // reset woken state
+    }
+    if (
+      WS_CONNECTED.value &&
+      !wokeLangserver.value &&
+      projectVersionId.value != null &&
+      module.value != null &&
+      !module.value?.projectVersion?.committed &&
+      auth.loggedIn.value
+    ) {
+      wokeLangserver.value = true;
+      await ops.runtime.wake(projectVersionId.value);
+    }
+  });
+
   return {
     loading: computed(() => loading.value || projectVersionId.value == null),
     module,
@@ -283,7 +297,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     path: computed(() => module.value?.projectVersion?.project.path),
     issues,
     idx,
-    dependencies,
+    symbolxLib,
     dependenciesIndex,
     // utils
     fileOf,

@@ -15,6 +15,7 @@ import {
   Bars3Icon,
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
+import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -116,6 +117,7 @@ defineExpose({
         "
         @navigate-right="typeRef?.focus"
       />
+      <StatementTags />
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"
