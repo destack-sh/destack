@@ -14,7 +14,7 @@ from django.db.models.expressions import RawSQL
 from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, TypeFlag
 from bench.bench.dataset import new_dataset_backend_id
-from bench.bench.tag import TAG_KEY_LENGTH, new_tag_key
+from bench.bench.tag import new_tag_key
 from bench.bench.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
@@ -109,9 +109,9 @@ class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
     An association between a tag and a statement.
     """
 
-    tag = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="+")
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
-    key = models.CharField(max_length=TAG_KEY_LENGTH, default=new_tag_key)
+    key = models.CharField(max_length=48, default=new_tag_key)
+    reference = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 
     def soft_delete(self):

@@ -13,6 +13,7 @@ import {
   ArrowLongRightIcon,
   WindowIcon,
   Bars3Icon,
+  TagIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
@@ -36,6 +37,7 @@ const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
+const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 
 function run() {
@@ -57,6 +59,14 @@ const extraActions = computed(() => {
         unfoldIfFolded();
         addingDescription.value = true;
         nextTick(() => descriptionRef.value?.focus());
+      },
+    },
+    {
+      label: "Add tag",
+      icon: TagIcon,
+      action: () => {
+        unfoldIfFolded();
+        nextTick(() => tagsRef.value?.open());
       },
     },
     {
@@ -108,7 +118,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row">
+    <div class="flex flex-row items-center gap-1.5">
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
@@ -117,7 +127,7 @@ defineExpose({
         "
         @navigate-right="typeRef?.focus"
       />
-      <StatementTags />
+      <StatementTags ref="tagsRef" />
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"

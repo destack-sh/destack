@@ -963,11 +963,9 @@ export function useSymbolContentOps() {
         ) {
           ... on Tagging {
             id
+            revision
             key
             parent {
-              id
-            }
-            statement {
               id
             }
             reference {
@@ -1003,15 +1001,12 @@ export function useSymbolContentOps() {
           createTagging: {
             __typename: "Tagging",
             id: vars.id,
-            statement: {
-              __typename: "Statement",
-              id: vars.statementId,
-            },
+            revision: PENDING_REVISION,
+            key: vars.key,
             parent: {
               __typename: "Statement",
               id: vars.statementId,
             },
-            key: vars.key,
             reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
             metadata: vars.metadata ?? null,
             // crud
@@ -1030,7 +1025,7 @@ export function useSymbolContentOps() {
         }
         // extend Statement.tags with (ref to) new tag
         cache.modify({
-          id: cache.identify(createTagging.statement),
+          id: cache.identify(createTagging.parent),
           fields: {
             tags(existingTags = []) {
               const newRef = cache.identify(createTagging);

@@ -2,9 +2,12 @@ import random
 import string
 import typing
 from dataclasses import field
+from uuid import UUID
 
 from bench.bench.const import TypeTag
 from bench.bench.core import (
+    HasCrud,
+    HasSession,
     ModuleNode,
     Scope,
     Statement,
@@ -28,7 +31,7 @@ def new_tag_key(seed: str = None) -> str:
 
 
 @node(tracked=[])
-class Tagging(ModuleNode):
+class Tagging(HasCrud, HasSession, ModuleNode):
     """An association between a tag and a statement (with optional metadata)."""
 
     reference: typing.Union["Tag", StatementReference] = required_field()
@@ -44,6 +47,13 @@ class Tagging(ModuleNode):
 
     def __repr__(self):
         return f"<Tagging {self}>"
+
+    @property
+    def reference_id(self) -> typing.Optional[UUID]:
+        if isinstance(self.reference, Tag):
+            return self.reference.id
+        else:
+            return self.reference
 
 
 @node

@@ -227,6 +227,18 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return statements;
   }
 
+  const tags = statementsLike({
+    types: [StatementType.Tag],
+    includeDependencies: true,
+  });
+  const tagsByKey = computed(() => {
+    const tagsByKey: Record<string, InterpStatement> = {};
+    for (const tag of tags.value) {
+      tagsByKey[tag.key as string] = tag;
+    }
+    return tagsByKey;
+  });
+
   function getDescendantsOf(statementId: { id: string }) {
     const statement = idx.value?.statementsById[statementId.id];
     if (statement == null) return [];
@@ -268,7 +280,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  // wake langserver if allowed
+  // wake langserver as needed & possible
   const wokeLangserver = ref(false);
   const ops = useOperations();
   const auth = useAuth();
@@ -309,6 +321,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     effectiveTypeOf,
     localIssuesOf,
     statementsLike,
+    tags,
+    tagsByKey,
     getDescendantsOf,
   };
 }

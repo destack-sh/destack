@@ -183,6 +183,9 @@ export const TaggingType = graphql(/* GraphQL */ `
     id
     revision
     key
+    parent {
+      id
+    }
     reference {
       id
     }
@@ -311,6 +314,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     id
     type
     name
+    description
     revision
     file {
       id

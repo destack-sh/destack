@@ -45,6 +45,12 @@ export function newRecordId(): string {
   return btoa(`Record:${nodeId}`);
 }
 
+export function newTaggingId(): string {
+  /* Generates a new tagging global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`Tagging:${nodeId}`);
+}
+
 export function useStatementOps() {
   const ops = useOperationsStore();
   const registry = new OpRegistry();

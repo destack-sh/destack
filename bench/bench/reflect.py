@@ -7,6 +7,8 @@ from bench.bench.const import TypeTag
 from bench.bench.core import File
 from bench.bench.type import instantiate_py_value, new_field_key, strip_py_value, type_from_py_type
 
+# changing this affects all downstream ids and requires a new version
+# also see :LibImplementation
 _UUID_VERSION_KEY = UUID("00000000-0000-0000-0000-000000000000")
 
 

@@ -3311,6 +3311,7 @@ export type TaggingContentFragment = {
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
+  parent: { __typename?: "Statement"; id: any };
   reference: { __typename?: "Statement"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3396,6 +3397,7 @@ export type InterpStatementFragment = {
   id: any;
   type: StatementType;
   name?: string | null;
+  description?: string | null;
   revision: number;
   orderKey: string;
   key?: string | null;
@@ -4576,6 +4578,7 @@ export type CreateTaggingMutation = {
     | {
         __typename?: "Tagging";
         id: any;
+        revision: number;
         key: string;
         metadata?: any | null;
         createdAt: any;
@@ -4583,7 +4586,6 @@ export type CreateTaggingMutation = {
         deletedAt?: any | null;
         lastEditedAt?: any | null;
         parent: { __typename?: "Statement"; id: any };
-        statement: { __typename?: "Statement"; id: any };
         reference: { __typename?: "Statement"; id: any };
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -5359,6 +5361,14 @@ export const TaggingContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "key" } },
           {
             kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
             name: { kind: "Name", value: "reference" },
             selectionSet: {
               kind: "SelectionSet",
@@ -5758,6 +5768,7 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           {
             kind: "Field",
@@ -13909,18 +13920,11 @@ export const CreateTaggingDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "parent" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "statement" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
