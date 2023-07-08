@@ -8,6 +8,7 @@ import { useRelativeDropZone } from "@/utils/drop";
 import { ArrowUpTrayIcon, DocumentArrowUpIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { useNotifications } from "@/state/notifications";
 
 const props = defineProps<{
   type: Field;
@@ -25,6 +26,7 @@ const isArray = computed(() => props.type.flags & TypeFlag.IsArray);
 const objects = useObjects();
 const bench = useBenchState();
 const ongoingUploads = ref(0);
+const notifications = useNotifications();
 
 const fileRefs = useElementRefs();
 const fileChooserRef = ref<HTMLInputElement | null>(null);
@@ -79,8 +81,18 @@ async function doUpload(file: File | null) {
 async function open(file: ObjectRecord) {
   if (file.status != RemoteObjectStatus.Available) return;
   // open file (in new tab)
-  const presignedGet = await objects.getPresignedGet(file.id);
-  window.open(presignedGet, "_blank");
+  try {
+    const presignedGet = await objects.getPresignedGet(file.id);
+    window.open(presignedGet, "_blank");
+  } catch (e) {
+    notifications.show({
+      kind: "error",
+      type: "object.open",
+      message: "Unable to open file",
+      description: "The file seems to be unavailable.",
+    });
+    console.error(e);
+  }
 }
 
 function remove(file: ObjectRecord) {

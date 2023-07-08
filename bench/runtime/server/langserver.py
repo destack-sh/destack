@@ -299,15 +299,23 @@ class LanguageServer:
         project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
         post_urls: list[str | None] = []
         for obj_data in msg.p.objects:
-            remote_object: models.RemoteObject = packer.unpack_data(obj_data)
-            if project_v.project.remote_objects.filter(
-                sha512=remote_object.sha512, status=models.RemoteObjectStatus.AVAILABLE
-            ).aexists():
-                obj_data.status = models.RemoteObjectStatus.AVAILABLE
-                post_urls.append(None)
+            model_object: models.RemoteObject = packer.unpack_data(obj_data)
+            model_object.project_id = project_v.project_id
+            existing_object = await project_v.project.remote_objects.filter(
+                sha512=model_object.sha512
+            ).afirst()
+            if existing_object is not None:
+                obj_data.id = existing_object.id
+                if existing_object.status == models.RemoteObjectStatus.AVAILABLE:
+                    obj_data.status = models.RemoteObjectStatus.AVAILABLE
+                    post_urls.append(None)
+                else:
+                    existing_object.generate_presigned_post()
+                    post_urls.append(existing_object.presigned_post)
             else:
-                remote_object.generate_presigned_post()
-                post_urls.append(remote_object.presigned_post)
+                model_object.generate_presigned_post()
+                post_urls.append(model_object.presigned_post)
+                await model_object.asave()  # create
         logger.debug("object.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
         await msg.reply(RepWriteObjectPayload(objects=msg.p.objects, post_urls=post_urls))
 
@@ -316,8 +324,11 @@ class LanguageServer:
         logger.debug("object.mark_uploaded", msg=msg)
         try:
             for obj_data in msg.p.objects:
-                remote_object: models.RemoteObject = packer.unpack_data(obj_data)
+                remote_object: models.RemoteObject = await models.RemoteObject.objects.aget(
+                    id=obj_data.id
+                )
                 remote_object.mark_available_if_exists_in_s3()
+                await remote_object.asave()
             success = True
         except ValidationError:
             logger.error("object.mark_uploaded.failed", msg=msg, exc_info=True)

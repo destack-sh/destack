@@ -51,7 +51,7 @@ class Record(ModuleNode, HasSession, HasCrud):
     def keys(self):
         return self.value.keys
 
-    def instantiate_in(self, session: "Session") -> None:
+    def activate_in(self, session: "Session") -> None:
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False
@@ -61,6 +61,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
+        super().activate_in(session)
 
     def _raw_value(self) -> dict:
         if not self._instantiated:
@@ -322,7 +323,7 @@ class Search:
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
-                record.instantiate_in(self.dataset.session)
+                record.activate_in(self.dataset.session)
                 if batched:
                     records.append(record)
                 else:
@@ -355,7 +356,7 @@ class Search:
             for record_data in rep.payload.records:
                 record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
                 record._instantiated = False
-                record.instantiate_in(self.dataset.session)
+                record.activate_in(self.dataset.session)
                 if batched:
                     records.append(record)
                 else:
@@ -483,9 +484,7 @@ class Value(HasType, HasTags, Statement):
     def _clear(self) -> None:
         HasType._clear(self)
         HasTags._clear(self)
-        if self._instantiated:
-            self.value = self._raw_value()
-            self._instantiated = False
+        self.deactivate()
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -497,8 +496,7 @@ class Value(HasType, HasTags, Statement):
     def _onwrite(self, key: str) -> None:
         self.session.tracer.value_update(self, key)
 
-    def instantiate_in(self, session: "Session") -> None:
-        super().instantiate_in(session)
+    def activate_in(self, session: "Session") -> None:
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False
@@ -508,6 +506,13 @@ class Value(HasType, HasTags, Statement):
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
+        super().activate_in(session)
+
+    def deactivate(self) -> None:
+        super().deactivate()
+        if self._instantiated:
+            self.value = self._raw_value()
+            self._instantiated = False
 
     def _raw_value(self) -> dict:
         if not self._instantiated:
@@ -535,7 +540,7 @@ class Value(HasType, HasTags, Statement):
             )
 
     def __setattr__(self, key, value):
-        if key in self._PROPERTIES:
+        if key in self._PROPERTIES and (not self._tracked or key in self._TRACKED):
             super().__setattr__(key, value)
         else:
             self.value[key] = value
