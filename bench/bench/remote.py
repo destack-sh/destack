@@ -88,7 +88,11 @@ class RemoteObject(HasSession):
         return self.read().decode().splitlines()
 
     async def _prep_upload(self) -> Optional[str]:
-        """Prepare to upload the object to the remote storage (or not if already exists)."""
+        """
+        Prepare to upload the object to the remote storage (or not if already exists).
+        Note that we perform a sleight of hand here: we change the id and status if the object
+        already exists under a different id in the object store.
+        """
         from bench.bench import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteObjectPayload
@@ -101,6 +105,7 @@ class RemoteObject(HasSession):
             reply_t=RepWriteObjectPayload,
         )
         remote_obj = rep.p.objects[0]
+        self.id = remote_obj.id
         if remote_obj.status == RemoteObjectStatus.AVAILABLE:
             # already uploaded
             self.status = RemoteObjectStatus.AVAILABLE
@@ -132,6 +137,8 @@ class RemoteObject(HasSession):
 
     def _do_upload(self, content: bytes) -> None:
         logger.debug("object.do_upload", object=self)
+
+        # prepare upload (skip if already uploaded)
         post_url = self.session.async_to_sync(RemoteObject._prep_upload)(self)
         if post_url is None:
             logger.debug("object.do_upload.skip", object=self)
@@ -139,38 +146,43 @@ class RemoteObject(HasSession):
         url_parts = urlparse(post_url)
         query_params = parse_qs(url_parts.query)
         form_data = {k: v[0] for k, v in query_params.items()}
-        form_data["file"] = content
         url_main = urlunparse((url_parts.scheme, url_parts.netloc, url_parts.path, "", "", ""))
-        response = requests.post(url_main, data=form_data)
+
+        # upload (and mark as uploaded in DB)
+        response = requests.post(url_main, data=form_data, files={"file": content})
         response.raise_for_status()
         self.session.async_to_sync(RemoteObject._mark_uploaded)(self)
         logger.debug("object.do_upload.done", object=self)
 
     @staticmethod
-    def from_url(url: str, session: "Session") -> "RemoteObject":
+    def from_url(url: str, session: "Session", name: str = None) -> "RemoteObject":
         """Upload a file to object storage."""
-        return RemoteObject.from_requests(requests.get(url), session)
+        return RemoteObject.from_requests(requests.get(url), session, name=name)
 
     @staticmethod
-    def from_requests(response: requests.Response, session: "Session") -> "RemoteObject":
+    def from_requests(
+        response: requests.Response, session: "Session", name: str = None
+    ) -> "RemoteObject":
         """Upload a file to object storage."""
         response.raise_for_status()
         obj = RemoteObject(
-            sha512=(hashlib.sha512(response.content).hexdigest()),
-            content_length=(response.headers["Content-Length"]),
-            content_type=(response.headers["Content-Type"]),
-            name=response.url,
+            sha512=hashlib.sha512(response.content).hexdigest(),
+            content_length=int(response.headers["Content-Length"]),
+            content_type=response.headers["Content-Type"],
+            name=name or response.url,
             _session=session,
         )
         obj._do_upload(response.content)
         return obj
 
     @staticmethod
-    def from_file(file: typing.BinaryIO) -> "RemoteObject":
+    def from_file(
+        file: typing.BinaryIO, name: str = None, content_type: str = None
+    ) -> "RemoteObject":
         """Upload a file to object storage."""
         content = file.read()
-        content_type = mimetypes.guess_type(file.name)[0]
-        return RemoteObject.from_content(file.name, content_type, content)
+        content_type = content_type or mimetypes.guess_type(file.name)[0]
+        return RemoteObject.from_content(name or file.name, content_type, content)
 
     @staticmethod
     def from_content(
@@ -180,8 +192,8 @@ class RemoteObject(HasSession):
         if isinstance(content, typing.BinaryIO):
             content = content.read()
         obj = RemoteObject(
-            sha512=(hashlib.sha512(content).hexdigest()),
-            content_length=(len(content)),
+            sha512=hashlib.sha512(content).hexdigest(),
+            content_length=len(content),
             content_type=content_type,
             name=name,
             _session=None,

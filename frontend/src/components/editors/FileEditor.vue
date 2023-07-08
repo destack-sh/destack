@@ -112,6 +112,18 @@ watchEffect(() => {
     }
     statementsLoaded.value = true;
     editor.value.stopEditingElement(); // reset editing element on load
+    if (editor.value.focused && editor.value.activeStatementId != null) {
+      // focus active statement
+      statementsComponents.value[editor.value.activeStatementId]?.focus();
+      // scroll into view
+      nextTick(() => {
+        statementsComponents.value[editor.value.activeStatementId as string].$el.parentNode?.scrollIntoView({
+          behavior: "instant",
+          block: "center",
+          inline: "center",
+        });
+      });
+    }
   }
 });
 

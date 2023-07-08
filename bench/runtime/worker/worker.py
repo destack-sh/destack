@@ -197,13 +197,14 @@ class ModuleWorker:
             )
             # TODO @Architecture @Robustness: handle module instantiation & session linking better
             #  esp. with contexts, dependencies, parallelism, etc.
-            job.session.module.instantiate_in(job.session)
+            job.session.module.activate_in(job.session)
             arguments = map_value(
                 job.arguments, job.runnable, map_v=instantiate_py_value_flat, is_output=False
             )
             task = asyncio.create_task(run(job.runnable, arguments, job.session))
             self.pending_runs[job.id] = task
             await asyncio.wait_for(task, timeout=timeout)
+            job.session.module.deactivate()
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)

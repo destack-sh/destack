@@ -4,7 +4,7 @@ import { useOperations } from "@/state/operations";
 import { REMOTE_OBJECT_TYPENAME } from "@/state/type";
 import { useApolloClient } from "@vue/apollo-composable";
 
-export const OBJECT_TYPETAGS = [TypeTag.File, TypeTag.Image, TypeTag.Audio, TypeTag.Video];
+export const OBJECT_TYPETAGS = [TypeTag.File];
 
 // :RemoteObjectType
 export type ObjectRecord = {
@@ -115,10 +115,10 @@ export function useObjects() {
       variables: { id: toRemoteObjectId(objectId) },
     });
     if (ret.data.remoteObject?.__typename != "RemoteObject") {
-      throw new Error("could not get remote object");
+      throw new Error("could not GET remote object");
     }
     if (ret.data.remoteObject.presignedGet == null) {
-      throw new Error("no presigned get on remote object");
+      throw new Error("no presigned GET on remote object");
     }
     return ret.data.remoteObject.presignedGet;
   }

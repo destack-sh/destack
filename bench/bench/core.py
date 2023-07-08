@@ -175,7 +175,8 @@ CRUD_PROPERTIES = HasCrud._PROPERTIES
 @node
 class HasSession(abc.ABC):
     id: UUID = field(default_factory=uuid.uuid4)
-    _session: "Session" = None
+    _session: Optional["Session"] = None
+    _tracked: bool = False
 
     def __post_init__(self):
         if self._session is None:
@@ -189,12 +190,20 @@ class HasSession(abc.ABC):
         if self._session is not None:
             self._session.remove(self)
 
-    def instantiate_in(self, session: "Session") -> None:
+    def activate_in(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
         if self._session is not None:
-            self._session.remove(self)
+            self.deactivate()
         self._session = session
         session.add(self, new=False)
+        self._tracked = True
+
+    def deactivate(self) -> None:
+        """'Deinstantiate' this object."""
+        if self._session is not None:
+            self._session.remove(self)
+        self._session = None
+        self._tracked = False
 
     @property
     def session(self) -> "Session":
@@ -447,7 +456,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.status != status:
             raise ValueError(f"need {self} to be {status.name}")
 
-    def instantiate_in(self, session: "Session"):
+    def activate_in(self, session: "Session"):
         if self._session is not None:
             self._session.remove(self)
         self._session = session
@@ -456,12 +465,19 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.interp()
         for n in self.walk():
             if n.id != self.id and isinstance(n, HasSession):
-                n.instantiate_in(session)
+                n.activate_in(session)
         for dependency in self.dependencies.values():
-            dependency.instantiate_in(session)
+            dependency.activate_in(session)
+
+    def deactivate(self) -> None:
+        self._session = None
+        for n in self.walk():
+            if n.id != self.id and isinstance(n, HasSession):
+                n.deactivate()
 
     def clear(self):
         super()._clear()
+        self._session = None
         for file in self.files:
             file._clear()
         self.status = ModuleStatus.Raw

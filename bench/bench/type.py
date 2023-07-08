@@ -224,10 +224,14 @@ class TypeBase(abc.ABC):
 
     @property
     def inputs(self) -> list["TypeBase"]:
+        if self.tag != TypeTag.FUNCTION:
+            return []
         return [child for child in self.fields if not child.flags & TypeFlag.IsOutput]
 
     @property
     def outputs(self) -> list["TypeBase"]:
+        if self.tag != TypeTag.FUNCTION:
+            return []
         return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
 
     def get_field(self, some_id: str) -> Optional["Field"]:
