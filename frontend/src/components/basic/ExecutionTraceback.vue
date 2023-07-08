@@ -23,7 +23,7 @@ const props = defineProps<{
         <span class="mx-2 mt-0.5" :class="i == 0 ? 'font-semibold' : ''"> > {{ frame.line }} </span>
         <!-- Locals -->
         <span
-          v-if="Object.keys(frame.locals).length > 0"
+          v-if="Object.keys(frame.locals ?? {}).length > 0"
           class="mx-2 mt-0.5 grid grid-cols-4 border border-red-600 p-2"
         >
           <template v-for="key in Object.keys(frame.locals)" :key="key">

@@ -45,6 +45,12 @@ class RemoteObject(HasSession):
     def __getitem__(self, item):
         return self.__dict__[item]
 
+    def _validate(self):
+        if self.content_length > REMOTE_OBJECT_MAX_SIZE:
+            raise ValueError(
+                f"{self} is too big ({self.content_length} > {REMOTE_OBJECT_MAX_SIZE} bytes)"
+            )
+
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
         from bench.bench import wire
@@ -172,6 +178,7 @@ class RemoteObject(HasSession):
             name=name or response.url,
             _session=session,
         )
+        obj._validate()
         obj._do_upload(response.content)
         return obj
 
@@ -198,6 +205,7 @@ class RemoteObject(HasSession):
             name=name,
             _session=None,
         )
+        obj._validate()
         obj._do_upload(content)
         return obj
 

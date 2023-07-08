@@ -60,6 +60,13 @@ class Tagging(HasCrud, HasSession, ModuleNode):
 class HasTags(StatementBase):
     tags: list[Tagging] = field(default_factory=list)
 
+    def _to_tag_key(self, key: typing.Union[str, "Tag", Tagging]) -> str:
+        if isinstance(key, Tagging):
+            key = key.key
+        elif isinstance(key, Tag):
+            key = key.key
+        return key
+
     def set_tag(self, key: typing.Union[str, "Tag", Tagging], value: str = None) -> None:
         """Tags this statement with the given key and value."""
         raise NotImplementedError
@@ -68,9 +75,18 @@ class HasTags(StatementBase):
         """Clears the tag with the given key."""
         raise NotImplementedError
 
-    def clear_tags(self) -> None:
-        """Clears all tags."""
-        raise NotImplementedError
+    def has_tag(self, key: typing.Union[str, "Tag", Tagging]) -> bool:
+        """Returns whether this statement has the given tag."""
+        key = self._to_tag_key(key)
+        return any(tagging.key == key for tagging in self.tags)
+
+    def get_tag(self, key: typing.Union[str, "Tag", Tagging]) -> Tagging:
+        """Returns the tag with the given key."""
+        key = self._to_tag_key(key)
+        for tagging in self.tags:
+            if tagging.key == key:
+                return tagging
+        raise KeyError(key)
 
     def _clear(self) -> None:
         for tagging in self.tags:
