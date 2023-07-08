@@ -76,10 +76,10 @@ class Model(HasType, HasTags, Statement):
                         inference.outputs, self, ignore_outer_map=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
+                    check_type(outputs, self, is_output=True)
                     self.session.tracer.run_cached(
                         self, inputs, inference, inference.generated_at, inference.duration
                     )
-                    check_type(outputs, self, is_output=True)
                     return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
                     log.warning("inference.cache.error", e=e, excinfo=e)

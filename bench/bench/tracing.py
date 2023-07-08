@@ -27,6 +27,7 @@ if typing.TYPE_CHECKING:
         RemoteObject,
         Secret,
         Statement,
+        Tagging,
         Task,
         Value,
     )
@@ -68,6 +69,14 @@ class Tracer:
         pass
 
     def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+        pass
+
+    # TODO @Broken: the below trace events aren't fired (or used) yet
+
+    def tagging_set(self, statement: Statement, tagging: Tagging):
+        pass
+
+    def tagging_clear(self, statement: Statement, tagging: Tagging):
         pass
 
     def remote_object_read(self, object: RemoteObject):
@@ -295,8 +304,9 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = generated_at
         frame.cached_duration = duration
-        frame.inputs = inputs
-        frame.outputs = result
+        frame.inputs = strip_py_value(inputs, statement, is_output=False)
+        frame.outputs = strip_py_value(result, statement, is_output=True)
+        self.track(frame)
         self._update_cached_info()
         logger.debug("trace.run.cached", frame=frame, stackdepth=len(self.stacktrace))
 

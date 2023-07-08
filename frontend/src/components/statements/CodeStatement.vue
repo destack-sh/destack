@@ -254,8 +254,8 @@ defineExpose({
     >
       <!-- Execution time -->
       <span
+        v-if="!hasTypes && lastExecution != null"
         :class="[lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
-        v-if="lastExecution != null"
       >
         {{
           formatDurationSeconds(
@@ -265,7 +265,10 @@ defineExpose({
         }}
       </span>
       <!-- Cache info -->
-      <span v-if="lastExecution != null && isMostlyCached(lastExecution as any)" class="relative mr-0.5 py-1">
+      <span
+        v-if="!hasTypes && lastExecution != null && isMostlyCached(lastExecution as any)"
+        class="relative mr-0.5 py-1"
+      >
         <BoltIcon class="h-3 w-3 text-orange-500" />
         <span
           v-if="lastExecution.duration != null && lastExecution.cachedDuration != null"
@@ -282,6 +285,7 @@ defineExpose({
       </span>
       <!-- Age -->
       <span
+        v-if="!hasTypes"
         :class="[
           lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
           lastExecution?.updatedAt ? 'opacity-100' : 'opacity-0',
@@ -339,7 +343,7 @@ defineExpose({
   />
   <!-- Last output/error (if any) -->
   <ExecutionTraceback
-    v-if="showTraceback && !folded"
+    v-if="!hasTypes && showTraceback && !folded"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
     :key="lastExecution?.id"

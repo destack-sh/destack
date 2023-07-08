@@ -1,22 +1,32 @@
 from __future__ import annotations
 
 import ast
+import hashlib
 import itertools
 import textwrap
 import typing
-from dataclasses import field
+from dataclasses import dataclass, field
+from datetime import datetime
+from functools import cached_property
+from json import JSONDecodeError
 from random import Random
 from typing import Any, Callable, Optional
 
+import msgpack
+import structlog
 from more_itertools import first, last
 
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.remote import RemoteObject, RemoteObjectStatus
-from bench.bench.tag import HasTags
-from bench.bench.type import HasType
-from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
+from bench.bench.tag import HasTags, Tag
+from bench.bench.type import HasType, check_type, instantiate_py_value, strip_py_value
+from bench.bench.utils import get_execution_cache_key
+from bench.utils.cache import redis, redis_sync
+from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
+
+logger = structlog.get_logger(__name__)
 
 
 @node
@@ -84,13 +94,47 @@ class Code(HasType, HasTags, Statement):
         else:
             return self.__call_sync__(*args, **kwargs)
 
+    @cached_property
+    def cached(self) -> bool:
+        from bench.bench.libs import symbolx_lib
+
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", statement_t=Tag))
+
+    @cached_property
+    def _code_hash(self) -> str:
+        return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
+
+    def _get_cached_output(self, inputs: dict, cached_run: bytes) -> Optional[dict]:
+        try:
+            run = CachedExecution.from_json_bytes(cached_run)
+            outputs = instantiate_py_value(run.outputs, self, ignore_outer_map=True, is_output=True)
+            check_type(outputs, self, is_output=True)
+            self.session.tracer.run_cached(self, inputs, outputs, run.generated_at, run.duration)
+            return DotDict(outputs)
+        except (ValueError, TypeError, JSONDecodeError) as e:
+            logger.exception("code.cache.error", e=e, excinfo=e)
+            # ignore, will be overwritten on success
+            return None
+
     async def __call_async__(self, *args, **kwargs):
         self._prep_callable()
         inputs = self._inputs_from_args(args, kwargs)
+        if self.cached:
+            inputs_raw = strip_py_value(inputs, self, is_output=False)
+            cache_key = get_execution_cache_key(self.id, inputs_raw, content_id=self._code_hash)
+            cached_run = await redis.get(cache_key)
+            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
+            if cached_output is not None:
+                return cached_output
+            started_at = datetime.now()
         try:
             self.session.tracer.run_enter(self, inputs)
             result = await self._callable(*args, **kwargs)
             self.session.tracer.run_exit(self, result)
+            if self.cached:
+                outputs_raw = strip_py_value(result, self, is_output=True)
+                run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
+                await redis.set(cache_key, run_bytes)
             return result
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
@@ -98,11 +142,25 @@ class Code(HasType, HasTags, Statement):
 
     def __call_sync__(self, *args, **kwargs):
         self._prep_callable()
+        # the duplication here is obvious and a bit unfortunate,
+        # but I can't think of a way to avoid it without complex and unnecessary intermediates
         inputs = self._inputs_from_args(args, kwargs)
+        if self.cached:
+            inputs_raw = strip_py_value(inputs, self, is_output=False)
+            cache_key = get_execution_cache_key(self.id, inputs_raw, content_id=self._code_hash)
+            cached_run = redis_sync.get(cache_key)
+            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
+            if cached_output is not None:
+                return cached_output
+            started_at = datetime.now()
         try:
             self.session.tracer.run_enter(self, inputs)
             result = self._callable(*args, **kwargs)
             self.session.tracer.run_exit(self, result)
+            if self.cached:
+                outputs_raw = strip_py_value(result, self, is_output=True)
+                run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
+                redis_sync.set(cache_key, run_bytes)
             return result
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
@@ -117,6 +175,46 @@ class Code(HasType, HasTags, Statement):
         if self._is_async:
             return self
         return CodeProxy.to_async(self)
+
+
+@dataclass(slots=True)
+class CachedExecution:
+    """A cached run of a code statement."""
+
+    generated_at: datetime
+    duration: float
+    inputs: dict[str, Any]
+    outputs: dict[str, Any]
+
+    @staticmethod
+    def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
+        now = datetime.now()
+        run = CachedExecution(
+            generated_at=now,
+            duration=(now - started_at).total_seconds(),
+            inputs=inputs,
+            outputs=outputs,
+        )
+        return run.to_json_bytes()
+
+    def to_json_bytes(self) -> bytes:
+        run_json = {
+            "generated_at": self.generated_at.isoformat(),
+            "duration": self.duration,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
+        }
+        return msgpack.packb(run_json, use_bin_type=True)
+
+    @staticmethod
+    def from_json_bytes(json_bytes: bytes) -> "CachedExecution":
+        run_json = msgpack.unpackb(json_bytes, raw=False)
+        return CachedExecution(
+            generated_at=datetime.fromisoformat(run_json["generated_at"]),
+            duration=run_json["duration"],
+            inputs=run_json["inputs"],
+            outputs=run_json["outputs"],
+        )
 
 
 class CodeProxy:  # :SyncProxy
