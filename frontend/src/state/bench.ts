@@ -69,6 +69,8 @@ export abstract class Editor {
   path: string;
   groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
   appearance: EditorAppearance = {};
+  lastFocusedAt: string | null = null;
+  lastActiveAt: string | null = null;
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
@@ -331,10 +333,18 @@ export const useBenchState = defineStore("bench", {
       group.editors = group.editors.filter((e) => e != editor);
       if (group.activeEditorId == editor.id) {
         // if active editor was removed, set first editor as active
-        group.activeEditorId = group.editors[0]?.id || null;
+        const nextToFocus = group.editors.sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
+        if (nextToFocus != null) {
+          group.activeEditorId = nextToFocus.id;
+          nextToFocus.lastActiveAt = new Date().toISOString();
+        }
+        group.activeEditorId = nextToFocus?.id || null;
         // if editor was focused, focus new active editor
         if (editor.id == this.focusedEditorId) {
           this.focusedEditorId = group.activeEditorId;
+          if (nextToFocus != null) {
+            nextToFocus.lastFocusedAt = new Date().toISOString();
+          }
         }
       }
       editor.groupId = null;
@@ -448,6 +458,9 @@ export const useBenchState = defineStore("bench", {
       }
       console.debug(`focus group ${group.id}`);
       this.focusedEditorId = group.activeEditorId;
+      if (this.focusedEditor != null) {
+        this.focusedEditor.lastFocusedAt = new Date().toISOString();
+      }
     },
 
     focusEditor(editor: Editor): void {
@@ -461,6 +474,8 @@ export const useBenchState = defineStore("bench", {
       this.editors.filter((e) => e.id != editor.id).forEach((e) => e.blur());
       this.focusedEditorId = editor.id;
       this.group(editor.groupId).activeEditorId = editor.id;
+      editor.lastFocusedAt = new Date().toISOString();
+      editor.lastActiveAt = new Date().toISOString();
     },
 
     focusFile(file: { id: string; name: string }, group?: EditorGroup): Editor {
