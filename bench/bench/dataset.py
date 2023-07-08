@@ -169,12 +169,17 @@ class Dataset(HasType, HasTags, Statement):
     def clear(self):
         self.session.tracer.dataset_clear(self)
 
-    def append(self, record: Record = None, **value):
+    def append(self, record: Record | dict = None, **value):
         """Appends a record to the dataset."""
         if record is not None:
             if value:
                 raise ValueError("cannot pass both record and data")
-            value = record.value
+            if isinstance(record, dict):
+                value = record
+            elif isinstance(record, Record):
+                value = record.value
+            else:
+                raise TypeError(f"cannot append {type(record)} to {self}")
         # TODO @UX: order records when inserted in code
         value = unproxy_value(value)  # remove source proxy if any
         record = Record(id=uuid.uuid4(), parent=self, value=value)
