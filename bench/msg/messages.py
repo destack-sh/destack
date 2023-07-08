@@ -60,6 +60,8 @@ class NMessageType(StrEnum):
     REPLY_READ_OBJECT = "object.read.rep"
     REQUEST_WRITE_OBJECT = "object.write"
     REPLY_WRITE_OBJECT = "object.write.rep"
+    REQUEST_MARK_UPLOADED_OBJECT = "object.mark_uploaded"
+    REPLY_MARK_UPLOADED_OBJECT = "object.mark_uploaded.rep"
     REQUEST_READ_SECRET = "secret.read"
     REPLY_READ_SECRET = "secret.read.rep"
     REQUEST_RUN_INFERENCE = "model.inference"
@@ -316,12 +318,24 @@ class RepReadObjectPayload:
 
 @payload(NMessageType.REQUEST_WRITE_OBJECT)
 class ReqWriteObjectPayload:
+    module_id: UUID
     objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.REPLY_WRITE_OBJECT)
 class RepWriteObjectPayload:
+    objects: list[RemoteObjectData]
     post_urls: list[typing.Union[str, None]]
+
+
+@payload(NMessageType.REQUEST_MARK_UPLOADED_OBJECT)
+class ReqMarkUploadedObjectPayload:
+    objects: list[RemoteObjectData]
+
+
+@payload(NMessageType.REPLY_MARK_UPLOADED_OBJECT)
+class RepMarkUploadedObjectPayload:
+    success: bool
 
 
 @payload(NMessageType.REQUEST_READ_SECRET)

@@ -53,7 +53,10 @@ const { result: versionsQuery, loading } = useQuery(
   `),
   () => ({
     projectId: props.project.id,
-  })
+  }),
+  {
+    enabled: computed(() => props.focused),
+  } as any
 );
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
 const versions = computed(() => {

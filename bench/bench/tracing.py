@@ -115,10 +115,10 @@ class SessionTracer(Tracer):
             publish=publish and session.ctx.tracing_level & SessionTracingLevel.EXECUTION,
         )
         self.tracers: list[Tracer] = [self.execution, PermissionCheckingTracer(session)]
-        if mutator:
-            self.tracers.append(MutationTracer(mutator))
         if validate:  # validation tracer must be last
             self.tracers.append(TypeCheckingTracer())
+        if mutator:
+            self.tracers.append(MutationTracer(mutator))
 
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         for tracer in self.tracers:

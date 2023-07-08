@@ -54,7 +54,11 @@ class TypeError(TypeError):
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
-        super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value}")
+        value_str = repr(value)
+        max_value_str_len = 400
+        if len(value_str) > max_value_str_len:
+            value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
+        super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value_str}")
         self.value = value
         self.expected = expected
         self.message = message
@@ -594,7 +598,9 @@ def check_type(
                 _on_invalid_collect(value, expected, message)
         return valid
 
-    if expected.flags & TypeFlag.IsArray and not ignore_array:
+    if expected.flags & TypeFlag.IsOptional and value is None:
+        return
+    elif expected.flags & TypeFlag.IsArray and not ignore_array:
         if _check(isinstance(value, Collection), "expected array"):
             for item in value:
                 check_type(

@@ -1,6 +1,5 @@
 from typing import Optional
 
-import botocore.exceptions
 import structlog
 from django.core.exceptions import ValidationError
 from strawberry.types import Info
@@ -11,11 +10,10 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.utils import safe_mutation
-from bench.models.object import REMOTE_OBJECT_MAX_SIZE, get_s3_client, is_allowed_content_type
-from bench.settings import PROJECT_BUCKET_NAME
+from bench.bench.remote import REMOTE_OBJECT_MAX_SIZE
+from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
-
 
 RemoteObjectStatus = gql.enum(models.RemoteObjectStatus)
 
@@ -90,20 +88,7 @@ class ObjectMutation:
         remote_object = models.RemoteObject.objects.get(id=input.id.node_id)
         check_can_write_project(info, remote_object.project)
         # check that object exists in s3
-        s3_client = get_s3_client()
-        try:
-            metadata = s3_client.head_object(
-                Bucket=PROJECT_BUCKET_NAME,
-                Key=str(remote_object.id),
-            )
-            if metadata["ContentLength"] != remote_object.content_length:
-                logger.warning(
-                    "object_content_length_mismatch", remote_object=remote_object, metadata=metadata
-                )
-        except botocore.exceptions.ClientError:
-            logger.warning("object_not_found", remote_object=remote_object)
-            raise ValidationError(f"object not found: {remote_object}")
-        remote_object.status = models.RemoteObjectStatus.AVAILABLE
+        remote_object.mark_available_if_exists_in_s3()
         remote_object.save()
         return remote_object
 

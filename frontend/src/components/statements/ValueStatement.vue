@@ -9,6 +9,7 @@ import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
+import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
@@ -21,6 +22,7 @@ const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
+const position = useMouseInElement(computed(() => gridRef.value?.$el));
 
 function createUnionField() {
   context.createUnionField();
@@ -111,6 +113,8 @@ defineExpose({
     declarationRef.value?.blur();
     gridRef.value?.blur?.();
   },
+  // prevent outer drag and drop while inside grid
+  innerDrag: computed(() => !position.isOutside.value),
 });
 </script>
 <template>

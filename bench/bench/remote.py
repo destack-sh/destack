@@ -1,17 +1,25 @@
-from __future__ import annotations
-
+import hashlib
+import mimetypes
 import typing
 import uuid
 from dataclasses import field
 from typing import Optional
+from urllib.parse import parse_qs, urlparse, urlunparse
 from uuid import UUID
 
 import aiohttp
+import requests
+import structlog
 from asgiref.sync import async_to_sync
 
 from bench.bench.const import RemoteObjectStatus
-from bench.bench.core import HasSession, node
+from bench.bench.core import HasSession, Session, node
 from bench.utils.utils import required_field
+
+logger = structlog.get_logger(__name__)
+
+REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
+REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
 @node
@@ -26,13 +34,13 @@ class RemoteObject(HasSession):
     content_length: int = required_field()
     content_type: str = required_field()
     name: str = required_field()
-    status: RemoteObjectStatus = required_field()
+    status: RemoteObjectStatus = RemoteObjectStatus.PREPARED
 
     def __str__(self):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<RemoteObject {self}>"
+        return f"<Object {self}>"
 
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -53,7 +61,7 @@ class RemoteObject(HasSession):
         )
         get_url = rep.p.get_urls[0]
         if get_url is None:
-            raise ValueError(f"unable to get {self}")
+            raise ValueError(f"unable to GET {self}")
         # download file from url
         async with aiohttp.ClientSession() as session:
             async with session.get(get_url) as response:
@@ -78,6 +86,108 @@ class RemoteObject(HasSession):
 
     def readlines(self) -> list[str]:
         return self.read().decode().splitlines()
+
+    async def _prep_upload(self) -> Optional[str]:
+        """Prepare to upload the object to the remote storage (or not if already exists)."""
+        from bench.bench import wire
+        from bench.msg.core import NMessage, request
+        from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteObjectPayload
+
+        logger.debug("object.prepare_upload", object=self)
+        # first get POST url to upload the object
+        rep: NMessage[RepWriteObjectPayload] = await request(
+            NMessageType.REQUEST_WRITE_OBJECT,
+            ReqWriteObjectPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
+            reply_t=RepWriteObjectPayload,
+        )
+        remote_obj = rep.p.objects[0]
+        if remote_obj.status == RemoteObjectStatus.AVAILABLE:
+            # already uploaded
+            self.status = RemoteObjectStatus.AVAILABLE
+            return None
+        else:
+            post_url = rep.p.post_urls[0]
+            self.status = RemoteObjectStatus.UPLOADING
+            return post_url
+
+    async def _mark_uploaded(self) -> None:
+        """Mark the object as uploaded to the remote storage."""
+        from bench.bench import wire
+        from bench.msg.core import NMessage, request
+        from bench.msg.messages import (
+            NMessageType,
+            RepMarkUploadedObjectPayload,
+            ReqMarkUploadedObjectPayload,
+        )
+
+        logger.debug("object.mark_uploaded", object=self)
+        rep: NMessage[RepMarkUploadedObjectPayload] = await request(
+            NMessageType.REQUEST_MARK_UPLOADED_OBJECT,
+            ReqMarkUploadedObjectPayload(objects=[wire.pack_data(self)]),
+            reply_t=RepMarkUploadedObjectPayload,
+        )
+        if not rep.p.success:
+            raise ValueError(f"unable to mark uploaded {self}")
+        self.status = RemoteObjectStatus.AVAILABLE
+
+    def _do_upload(self, content: bytes) -> None:
+        logger.debug("object.do_upload", object=self)
+        post_url = self.session.async_to_sync(RemoteObject._prep_upload)(self)
+        if post_url is None:
+            logger.debug("object.do_upload.skip", object=self)
+            return  # already uploaded
+        url_parts = urlparse(post_url)
+        query_params = parse_qs(url_parts.query)
+        form_data = {k: v[0] for k, v in query_params.items()}
+        form_data["file"] = content
+        url_main = urlunparse((url_parts.scheme, url_parts.netloc, url_parts.path, "", "", ""))
+        response = requests.post(url_main, data=form_data)
+        response.raise_for_status()
+        self.session.async_to_sync(RemoteObject._mark_uploaded)(self)
+        logger.debug("object.do_upload.done", object=self)
+
+    @staticmethod
+    def from_url(url: str, session: "Session") -> "RemoteObject":
+        """Upload a file to object storage."""
+        return RemoteObject.from_requests(requests.get(url), session)
+
+    @staticmethod
+    def from_requests(response: requests.Response, session: "Session") -> "RemoteObject":
+        """Upload a file to object storage."""
+        response.raise_for_status()
+        obj = RemoteObject(
+            sha512=(hashlib.sha512(response.content).hexdigest()),
+            content_length=(response.headers["Content-Length"]),
+            content_type=(response.headers["Content-Type"]),
+            name=response.url,
+            _session=session,
+        )
+        obj._do_upload(response.content)
+        return obj
+
+    @staticmethod
+    def from_file(file: typing.BinaryIO) -> "RemoteObject":
+        """Upload a file to object storage."""
+        content = file.read()
+        content_type = mimetypes.guess_type(file.name)[0]
+        return RemoteObject.from_content(file.name, content_type, content)
+
+    @staticmethod
+    def from_content(
+        name: str, content_type: str, content: bytes | typing.BinaryIO
+    ) -> "RemoteObject":
+        """Upload a file to object storage."""
+        if isinstance(content, typing.BinaryIO):
+            content = content.read()
+        obj = RemoteObject(
+            sha512=(hashlib.sha512(content).hexdigest()),
+            content_length=(len(content)),
+            content_type=content_type,
+            name=name,
+            _session=None,
+        )
+        obj._do_upload(content)
+        return obj
 
 
 SecretValueT = typing.TypeVar("SecretValueT")

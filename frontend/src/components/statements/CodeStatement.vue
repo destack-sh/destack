@@ -7,7 +7,7 @@ import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/executions";
+import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/sessions";
 import { TypeFlag, newExecutionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -23,6 +23,8 @@ import {
   ArrowLongRightIcon,
   WindowIcon,
   TagIcon,
+  EyeIcon,
+  EyeSlashIcon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
@@ -72,7 +74,7 @@ const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const hideOutput = ref(false);
+const hideOutput = ref(true);
 const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
@@ -100,6 +102,7 @@ const extraActions = computed(() => {
         unfoldIfFolded();
         tagsRef.value?.open();
       },
+      hideInline: true,
     },
     {
       label: "Add input",
@@ -145,9 +148,9 @@ const extraActions = computed(() => {
     });
   } else {
     inlineActions.push({
-      label: "Clear output",
+      label: hideOutput.value ? "Show output" : "Hide output",
       disabled: lastExecution.value == null,
-      icon: NoSymbolIcon,
+      icon: hideOutput.value ? EyeSlashIcon : EyeIcon,
       action: async () => {
         // TODO @Feature: clear execution for real?
         hideOutput.value = !hideOutput.value;
@@ -230,7 +233,7 @@ defineExpose({
     monacoRef.value?.blur();
   },
   run,
-  loading: computed(() => executions.loading.value),
+  loading: computed(() => false), // executions may be loading, but does not affect layout because output/state hidden by default
 });
 </script>
 <template>
@@ -358,3 +361,4 @@ defineExpose({
     </button>
   </ExecutionTraceback>
 </template>
+@/state/sessions
