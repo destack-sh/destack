@@ -127,6 +127,7 @@ watch(
         :depth="0"
         :ancestors="[]"
         standalone
+        :shown="statementComponentLoaded"
       />
     </div>
   </div>

@@ -48,6 +48,7 @@ const props = defineProps<{
   ancestors: FragmentType<typeof StatementContentType>[];
   readonly: boolean;
   standalone: boolean;
+  shown?: boolean;
 }>();
 const file = computed(() => useFragment(FileHeaderType, props.file));
 const statement = computed(() => useFragment(StatementContentType, props.statement));
@@ -199,12 +200,11 @@ whenever(isActive, () => {
 });
 
 // focus statement interface if editing in editor but not in container
-whenever(
-  isEditing,
+watch(
+  () => [isEditing.value, props.shown],
   () => {
-    if (isEditing.value && !inContainerFocused.value) {
+    if (isEditing.value && props.shown && !inContainerFocused.value) {
       statementRef.value?.focus();
-      nextTick(() => statementRef.value?.focus()); // required to focus if just loaded
     }
   },
   { immediate: true }
@@ -599,12 +599,12 @@ defineExpose({
     <!-- Debug info -->
     <div v-if="bench.debug" class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
-      <template v-if="isActive">A</template>
-      <template v-if="isFocused">F</template>
+      <template v-if="isActive">a</template>
+      <template v-if="isFocused">f</template>
       <template v-if="isEditing">e</template>
-      <template v-if="isSelected">S</template>
+      <template v-if="isSelected">s</template>
       <template v-if="inContainerFocused">*</template>
-      <template v-if="inStatementFocused">r*</template>
+      <template v-if="inStatementFocused">**</template>
       <span class="mx-1 lowercase">
         {{ statement.type }}
       </span>

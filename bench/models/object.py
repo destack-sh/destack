@@ -4,68 +4,17 @@ import urllib.parse
 from functools import cache
 from typing import Optional
 
+import botocore
 import structlog
+from django.core.exceptions import ValidationError
 from django.db import models
 
+from bench.bench.remote import REMOTE_OBJECT_HASH_LENGTH
 from bench.models.utils import UUIDModel
 from bench.settings import PROJECT_BUCKET_NAME
 
-REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
 REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
 REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
-REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
-DOCUMENT_CONTENT_TYPES = {
-    "text/plain",
-    "text/rtf",
-    "application/rtf",
-    "application/msword",
-    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    "application/vnd.ms-excel",
-    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-    "application/pdf",
-    "application/epub+zip",
-    "application/zip",
-    "application/x-7z-compressed",
-    "application/x-rar-compressed",
-    "application/x-tar",
-    "application/gzip",
-    "application/x-bzip2",
-    "application/x-yaml",
-    "application/json",
-    "application/xml",
-    "application/x-latex",
-    "application/vnd.oasis.opendocument.text",
-    "application/vnd.oasis.opendocument.spreadsheet",
-    "application/vnd.oasis.opendocument.presentation",
-}
-IMAGE_CONTENT_TYPES = {
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/bmp",
-    "image/webp",
-    "image/svg+xml",
-}
-AUDIO_CONTENT_TYPES = {
-    "audio/mpeg",
-    "audio/wav",
-    "audio/ogg",
-    "audio/aac",
-    "audio/flac",
-    "audio/mp4",
-}
-VIDEO_CONTENT_TYPES = {
-    "video/mp4",
-    "video/mpeg",
-    "video/quicktime",
-    "video/x-msvideo",
-    "video/x-flv",
-    "video/x-matroska",
-    "video/webm",
-}
-REMOTE_OBJECT_CONTENT_TYPES = {*DOCUMENT_CONTENT_TYPES}  # only support documents for now
 
 
 def is_allowed_content_type(content_type: str) -> bool:
@@ -124,6 +73,22 @@ class RemoteObject(UUIDModel):
             return self._presigned_get
         else:
             return None
+
+    def mark_available_if_exists_in_s3(self):
+        s3_client = get_s3_client()
+        try:
+            metadata = s3_client.head_object(
+                Bucket=PROJECT_BUCKET_NAME,
+                Key=str(self.id),
+            )
+            if metadata["ContentLength"] != self.content_length:
+                logger.warning(
+                    "object_content_length_mismatch", remote_object=self, metadata=metadata
+                )
+            self.status = RemoteObjectStatus.AVAILABLE
+        except botocore.exceptions.ClientError:
+            logger.warning("object_not_found", remote_object=self)
+            raise ValidationError(f"{self} not found in s3")
 
     def generate_presigned_post(self) -> str:
         if self.presigned_post is not None:

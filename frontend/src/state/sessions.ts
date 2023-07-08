@@ -60,6 +60,8 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
   }
 `);
 
+// TODO @Performance @Architecture: use single module session subscription for mutations, logs, sessions, executions, etc.
+//  also load runtime state (last execution, etc.) and stream live state (filtered, somehow) here for the entire module
 export function useExecutions(
   filter: {
     projectId: Ref<string>;

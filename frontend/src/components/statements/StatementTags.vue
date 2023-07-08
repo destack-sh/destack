@@ -77,7 +77,7 @@ defineExpose({
       @click="deleteTagging(tagging)"
     >
       <TagIconOutline class="h-4 w-4 text-orange-600" />
-      <span class="ml-0.5 font-semibold text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
+      <span class="ml-0.5 text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
     <button

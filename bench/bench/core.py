@@ -905,7 +905,7 @@ class Session:
     def sync_to_async(self, fn: Callable) -> Callable[..., typing.Awaitable]:
         return sync_to_async(fn, thread_sensitive=False, executor=self.executor)
 
-    def async_to_sync(self, fn: typing.Awaitable) -> Callable:
+    def async_to_sync(self, fn: typing.Awaitable | typing.Callable | typing.Coroutine) -> Callable:
         return async_to_sync(fn)
 
     @property

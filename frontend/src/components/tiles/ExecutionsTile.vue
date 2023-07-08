@@ -5,7 +5,7 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
-import { useExecutions, isMostlyCached, getCachedPercentage } from "@/state/executions";
+import { useExecutions, isMostlyCached, getCachedPercentage } from "@/state/sessions";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
   BoltIcon,
@@ -283,3 +283,4 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
   position: absolute;
 }
 </style>
+@/state/sessions

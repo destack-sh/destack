@@ -20,7 +20,6 @@ context.syncName(
   computed(() => nameRef.value?.focused)
 );
 const hasName = computed(() => name.value.trim().length > 0);
-const startRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
 
 const altKeyState = useKeyModifier("Alt");
@@ -30,10 +29,13 @@ function openInEditor() {
   editor.editor.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
 }
 
+function focus(position: "first" | "last" = "first") {
+  nameRef.value?.focus();
+}
+
 defineExpose({
-  focus: (position: "first" | "last" = "first") => nameRef.value?.focus(),
+  focus,
   blur: () => {
-    startRef.value?.blur();
     nameRef.value?.blur();
   },
 });

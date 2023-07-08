@@ -111,6 +111,7 @@ watchEffect(() => {
       }
     }
     statementsLoaded.value = true;
+    editor.value.stopEditingElement(); // reset editing element on load
   }
 });
 
@@ -342,6 +343,7 @@ const statementAddAreaPositionX = computed(() => {
           :depth="positioned.depth"
           :ancestors="positioned.ancestors.map((ancestorId) => context?.statementsById[ancestorId])"
           :standalone="false"
+          :shown="statementsLoaded"
           class="w-full"
         />
       </div>

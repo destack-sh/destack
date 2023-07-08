@@ -13,6 +13,7 @@ from more_itertools import first, last
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
+from bench.bench.remote import RemoteObject, RemoteObjectStatus
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType
 from bench.utils.utils import IdentifierType, get_from_env, to_pyidentifier
@@ -227,6 +228,9 @@ STATIC_BUILTINS: dict[str, Any] = {
     "Sort": Sort,
     "SortOrder": SortOrder,
     "SortMode": SortMode,
+    # remote
+    "Object": RemoteObject,
+    "ObjectSatus": RemoteObjectStatus,
     # functional builtins
     "first": first,
     "last": last,

@@ -334,6 +334,9 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     key
     rootTypeTag
     rootTypeFlags
+    reference {
+      id
+    }
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }

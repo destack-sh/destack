@@ -2,14 +2,7 @@
 import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
-import {
-  orderStatements,
-  useCurrentModule,
-  useNavigation,
-  type InterpStatement,
-  getSymbolSubtype,
-} from "@/state/module";
-import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
+import { orderStatements, useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
 import { getStatementIcon } from "@/state/statement";
 import { computed, nextTick } from "vue";
 
@@ -19,7 +12,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
 }>();
 
-const runtime = useCurrentModule();
+const module = useCurrentModule();
 const bench = useBenchState();
 const nav = useNavigation();
 
@@ -27,11 +20,24 @@ const orderedStatements = computed(() => {
   if (bench.focusedFileId == null) {
     return undefined;
   }
-  const statements = Object.values(runtime.idx.value?.statementsById ?? {}).filter(
+  const statements = Object.values(module.idx.value?.statementsById ?? {}).filter(
     (s) => s.file.id == bench.focusedFileId && s.type != StatementType.Blank && s.type != StatementType.Text
   );
   return orderStatements(statements);
 });
+
+function getStatementName(statement: {
+  id: string;
+  type: StatementType;
+  name?: string;
+  reference?: { id: string };
+}): string | undefined {
+  if (statement.type == StatementType.Reference) {
+    return module.statementOf(statement.reference?.id ?? "")?.name ?? (statement.reference == null ? "..." : "???");
+  } else {
+    return statement.name;
+  }
+}
 
 const statementsGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
@@ -94,7 +100,7 @@ defineExpose({
           class="mt-0.5 h-4 w-4"
         />
       </span>
-      <span class="">{{ ordered.statement.name }}</span>
+      <span class="">{{ getStatementName(ordered.statement) }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

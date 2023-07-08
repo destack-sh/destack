@@ -9,6 +9,7 @@ from uuid import UUID
 import pytz
 import structlog
 from asgiref.sync import sync_to_async
+from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from bench import models
@@ -33,6 +34,7 @@ from bench.msg.messages import (
     ModuleInternalChangedPayload,
     NMessageType,
     RepLangserverPayload,
+    RepMarkUploadedObjectPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
     RepReadSecretPayload,
@@ -40,7 +42,9 @@ from bench.msg.messages import (
     RepRunInferencePayload,
     RepSearchDatasetPayload,
     RepWriteModulePayload,
+    RepWriteObjectPayload,
     ReqLangserverPayload,
+    ReqMarkUploadedObjectPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
     ReqReadSecretPayload,
@@ -48,6 +52,7 @@ from bench.msg.messages import (
     ReqRunInferencePayload,
     ReqSearchDatasetPayload,
     ReqWriteModulePayload,
+    ReqWriteObjectPayload,
     WorkerHeartbeatPayload,
 )
 from bench.opensearch import mirror
@@ -134,6 +139,10 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
             await handle_reply(NMessageType.REQUEST_SEARCH_DATASET, self.search_dataset),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
+            await handle_reply(NMessageType.REQUEST_WRITE_OBJECT, self.write_object),
+            await handle_reply(
+                NMessageType.REQUEST_MARK_UPLOADED_OBJECT, self.mark_uploaded_object
+            ),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
@@ -282,6 +291,38 @@ class LanguageServer:
                 get_urls.append(model_obj.presigned_get)
         logger.debug("object.read.rep", msg=msg, get_urls=[url is not None for url in get_urls])
         await msg.reply(RepReadObjectPayload(get_urls=get_urls))
+
+    @message_handler
+    async def write_object(self, msg: NMessage[ReqWriteObjectPayload]) -> None:
+        logger.debug("object.write", msg=msg)
+        # TODO @Security: check if msg origin has write access to object
+        project_v = await ProjectVersion.objects.select_related("project").aget(id=msg.p.module_id)
+        post_urls: list[str | None] = []
+        for obj_data in msg.p.objects:
+            remote_object: models.RemoteObject = packer.unpack_data(obj_data)
+            if project_v.project.remote_objects.filter(
+                sha512=remote_object.sha512, status=models.RemoteObjectStatus.AVAILABLE
+            ).aexists():
+                obj_data.status = models.RemoteObjectStatus.AVAILABLE
+                post_urls.append(None)
+            else:
+                remote_object.generate_presigned_post()
+                post_urls.append(remote_object.presigned_post)
+        logger.debug("object.write.rep", msg=msg, post_urls=[url is not None for url in post_urls])
+        await msg.reply(RepWriteObjectPayload(objects=msg.p.objects, post_urls=post_urls))
+
+    @message_handler
+    async def mark_uploaded_object(self, msg: NMessage[ReqMarkUploadedObjectPayload]) -> None:
+        logger.debug("object.mark_uploaded", msg=msg)
+        try:
+            for obj_data in msg.p.objects:
+                remote_object: models.RemoteObject = packer.unpack_data(obj_data)
+                remote_object.mark_available_if_exists_in_s3()
+            success = True
+        except ValidationError:
+            logger.error("object.mark_uploaded.failed", msg=msg, exc_info=True)
+            success = False
+        await msg.reply(RepMarkUploadedObjectPayload(success=success))
 
     @message_handler
     async def read_secret(self, msg: NMessage[ReqReadSecretPayload]) -> None:
