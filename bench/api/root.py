@@ -17,7 +17,6 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.dataset import DataQuery, DatasetMutation
-from bench.api.execution import ExecutionQuery, ExecutionSubscription
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.object import ObjectMutation, RemoteObject
@@ -34,6 +33,7 @@ from bench.api.project import (
 from bench.api.runtime import RuntimeMutation
 from bench.api.secret import Secret, SecretMutation
 from bench.api.sentry import SentryPerformanceExtension
+from bench.api.session import SessionQuery, SessionSubscription
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
@@ -124,7 +124,7 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 
 @strawberry.type
-class Query(ExecutionQuery, ClientQuery, DataQuery):
+class Query(SessionQuery, ClientQuery, DataQuery):
     system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = gql.django.field(resolver=get_me)
     user: Optional[User] = gql.relay.node()
@@ -183,7 +183,7 @@ class Mutation(
 class Subscription(
     ClientSubscription,
     MultiplayerSubscription,
-    ExecutionSubscription,
+    SessionSubscription,
 ):
     pass
 

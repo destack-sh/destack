@@ -402,6 +402,13 @@ class FieldQueryOps:
     def starts_with(self, value: str) -> Query:
         return Q(QueryOp.STARTS_WITH, self.source_key, value)
 
+    @_check_support(op=QueryOp.STARTS_WITH)
+    def like(self, value: str) -> Query:
+        # combines matches and starts_with
+        return Q(QueryOp.STARTS_WITH, self.source_key, value) | Q(
+            QueryOp.MATCHES, self.source_key, value
+        )
+
     # existence
 
     @_check_support(op=QueryOp.EXISTS)
@@ -428,9 +435,13 @@ class FieldQueryOps:
     def asc(self) -> Sort:
         return Sort(self.source_key, SortOrder.ASCENDING)
 
+    ascending = asc
+
     @_check_support(sort=True)
     def desc(self) -> Sort:
         return Sort(self.source_key, SortOrder.DESCENDING)
+
+    descending = desc
 
     # subfields and properties
     # TODO @Cleanup: wrap sub properties into accessor for disambiguation (like with FieldAccessor)

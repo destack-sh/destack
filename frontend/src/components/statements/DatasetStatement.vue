@@ -79,6 +79,7 @@ const showDescription = computed(() => description.value.length > 0 || addingDes
 const appearance = useAppearance();
 const client = useApolloClient();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
+const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
 const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 context.syncDescription(

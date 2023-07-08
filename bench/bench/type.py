@@ -365,9 +365,8 @@ class HasType(TypeBase, StatementBase):
             if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Statement):
                 continue  # nothing to resolve
             if n.reference is None:
-                statement = None
-            else:
-                statement = scope.lookup(n.reference, statement_t=Type)
+                continue  # not set
+            statement = scope.lookup(n.reference, statement_t=Type)
             if not isinstance(statement, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"

@@ -78,11 +78,11 @@ class Model(HasType, HasTags, Statement):
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
                     self.session.tracer.run_cached(
-                        self, inputs, inference, inference.generated_at, inference.duration
+                        self, inputs, inference.outputs, inference.generated_at, inference.duration
                     )
                     return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
-                    log.warning("inference.cache.error", e=e, excinfo=e)
+                    log.warning("inference.cache.error", e=e, exc_info=e)
                     # ignore and continue, will be overwritten
 
         if self._remote:
