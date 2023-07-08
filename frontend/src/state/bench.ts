@@ -963,7 +963,7 @@ export class FileEditor extends NavigableEditor {
 
   setStatementContentsFolded(statements: Pick<StatementHeader, "id">[], folded: boolean): void {
     if (folded) {
-      this.foldedStatementContentIds = [this.foldedStatementContentIds ?? [], ...statements.map((s) => s.id)];
+      this.foldedStatementContentIds = [...(this.foldedStatementContentIds ?? []), ...statements.map((s) => s.id)];
     } else {
       this.foldedStatementContentIds = this.foldedStatementContentIds?.filter(
         (id) => !statements.find((s) => s.id == id)

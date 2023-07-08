@@ -33,7 +33,12 @@ defineExpose({
       <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Controls -->
-    <StatementActions />
+    <div
+      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
+    >
+      <StatementActions />
+    </div>
   </div>
   <!-- Description and stuff.. soon -->
 </template>

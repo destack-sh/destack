@@ -3,7 +3,6 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { STATEMENT_TYPE_BY_KEYWORD } from "@/state/type";
 import { TypeFlag } from "@/state/module";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";

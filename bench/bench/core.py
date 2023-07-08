@@ -14,6 +14,7 @@ from logging import Logger
 from typing import Callable, NamedTuple, Optional, Union
 from uuid import UUID, uuid4
 
+import pytz
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 
@@ -891,8 +892,8 @@ class Session:
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
-            module.lookup_or_error("openai.lib.chat.gpt3"),
             module.lookup_or_error("openai.lib.chat.gpt4"),
+            module.lookup_or_error("openai.lib.chat.gpt3"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
@@ -964,7 +965,7 @@ class Session:
         """Opens the session for execution and modification."""
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
-        self.opened_at = datetime.now()
+        self.opened_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         if active_session.get() is not None:
             raise RuntimeError(f"another session is active: {active_session.get()}")
         active_session.set(self)
@@ -1008,7 +1009,7 @@ class Session:
         """Closes the session, flushing any mutations and preventing further execution/mutation."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
-        self.closed_at = datetime.now()
+        self.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         await self.aflush(optimistic=True)
         # await all pending flushes
         pending_mutations_count = sum(count for count, _ in self._pending_flushes)

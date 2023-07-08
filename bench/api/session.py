@@ -136,7 +136,7 @@ async def _expand_filter(
 
 
 @gql.type
-class ExecutionQuery:
+class SessionQuery:
     @gql.django.connection(directives=[CanViewProject()])
     async def executions(
         self,
@@ -164,7 +164,7 @@ class ExecutionQuery:
 
 
 @gql.type
-class ExecutionSubscription:
+class SessionSubscription:
     @asafe_subscription
     async def executions_changed(
         self,

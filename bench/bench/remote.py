@@ -161,9 +161,12 @@ class RemoteObject(HasSession):
         logger.debug("object.do_upload.done", object=self)
 
     @staticmethod
-    def from_url(url: str, session: "Session", name: str = None) -> "RemoteObject":
+    def from_url(
+        url: str, session: "Session", name: str = None, timeout: int = None
+    ) -> "RemoteObject":
         """Upload a file to object storage."""
-        return RemoteObject.from_requests(requests.get(url), session, name=name)
+        response = requests.get(url, timeout=timeout)
+        return RemoteObject.from_requests(response, session, name=name)
 
     @staticmethod
     def from_requests(

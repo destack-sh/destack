@@ -371,7 +371,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     });
     actions.push({
       groupId: "nav",
-      label: "Open Opposite",
+      label: "Open on other side",
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
@@ -381,7 +381,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     });
     actions.push({
       groupId: "nav",
-      label: isContentFolded.value ? "Expand" : "Fold",
+      label: isContentFolded.value ? "Expand" : "Collapse",
       icon: isContentFolded.value ? ChevronDownIcon : ChevronRightIcon,
       disabled: !canContentFold.value,
       action: () => toggleContentFold(false),

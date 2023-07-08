@@ -13,7 +13,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_write_project
-from bench.api.execution import Execution, ExecutionTriggerType
+from bench.api.session import Execution, ExecutionTriggerType
 from bench.api.utils import asafe_mutation, get_user_from_info, to_uuid
 from bench.bench.core import SessionTracingLevel
 from bench.models import packer

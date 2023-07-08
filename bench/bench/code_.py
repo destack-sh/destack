@@ -13,6 +13,7 @@ from random import Random
 from typing import Any, Callable, Optional
 
 import msgpack
+import pytz
 import structlog
 from more_itertools import first, last
 
@@ -116,6 +117,14 @@ class Code(HasType, HasTags, Statement):
             # ignore, will be overwritten on success
             return None
 
+    def _to_result_dict(self, result: Any) -> dict:
+        if isinstance(result, DotDict):
+            return result
+        if result is None:
+            return DotDict()
+        else:
+            return DotDict(result)
+
     async def __call_async__(self, *args, **kwargs):
         self._prep_callable()
         inputs = self._inputs_from_args(args, kwargs)
@@ -126,7 +135,7 @@ class Code(HasType, HasTags, Statement):
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
-            started_at = datetime.now()
+            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         try:
             self.session.tracer.run_enter(self, inputs)
             result = await self._callable(*args, **kwargs)
@@ -135,7 +144,9 @@ class Code(HasType, HasTags, Statement):
                 outputs_raw = strip_py_value(result, self, is_output=True)
                 run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
                 await redis.set(cache_key, run_bytes)
-            return result
+            if not isinstance(result, DotDict):
+                result = DotDict(result)
+            return self._to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
             raise
@@ -152,7 +163,7 @@ class Code(HasType, HasTags, Statement):
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
-            started_at = datetime.now()
+            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         try:
             self.session.tracer.run_enter(self, inputs)
             result = self._callable(*args, **kwargs)
@@ -161,7 +172,7 @@ class Code(HasType, HasTags, Statement):
                 outputs_raw = strip_py_value(result, self, is_output=True)
                 run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
                 redis_sync.set(cache_key, run_bytes)
-            return result
+            return self._to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
             raise
@@ -188,7 +199,7 @@ class CachedExecution:
 
     @staticmethod
     def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
-        now = datetime.now()
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
         run = CachedExecution(
             generated_at=now,
             duration=(now - started_at).total_seconds(),
@@ -299,7 +310,8 @@ def instantiate_callable(
         callable = do_execute_arbitrary_code(method_str, locals)[func_name]
     except SyntaxError as e:
         # raise error in code when called for proper reporting
-        raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {e.args[1][3]!r})"
+        err_str = e.args[1][3] or str(e)
+        raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {err_str})"
         indented_raise = textwrap.indent(raise_str, " " * 4)
         method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
         callable = do_execute_arbitrary_code(method_str, locals)[func_name]

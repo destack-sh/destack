@@ -73,7 +73,7 @@ defineExpose({
     <button
       v-for="tagging in context.tags.value"
       :key="tagging.id"
-      class="flex flex-row items-center rounded-xl bg-orange-50 px-1 ring-1 ring-orange-600 ring-opacity-30 hover:bg-orange-100 hover:ring-opacity-60"
+      class="flex flex-row items-center rounded-xl px-1 ring-1 ring-orange-600 ring-opacity-30 hover:bg-orange-100 hover:ring-opacity-60"
       @click="deleteTagging(tagging)"
     >
       <TagIconOutline class="h-4 w-4 text-orange-600" />
@@ -115,6 +115,11 @@ defineExpose({
           @change="query = $event.target.value"
           @keydown.enter.prevent.stop="close"
           @keydown.escape.prevent.stop="close"
+          :class="{
+            'font-mono': appearance.fontMono,
+            'text-sm': appearance.textSmall,
+            'text-md': !appearance.textSmall,
+          }"
         >
         </ComboboxInput>
         <!-- Tag options -->

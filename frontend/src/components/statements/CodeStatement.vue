@@ -7,7 +7,7 @@ import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/sessions";
+import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/session";
 import { TypeFlag, newExecutionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -57,7 +57,7 @@ const executions = useExecutions(
     runnableIds: ref([context.statement.value.id]),
     includeAncestorVersions: ref(false),
   },
-  { root: true, limit: 3, live: true }
+  { root: false, limit: 3, live: true }
 );
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
@@ -155,6 +155,7 @@ const extraActions = computed(() => {
         // TODO @Feature: clear execution for real?
         hideOutput.value = !hideOutput.value;
       },
+      hideInline: props.folded,
     });
   }
 
@@ -365,4 +366,3 @@ defineExpose({
     </button>
   </ExecutionTraceback>
 </template>
-@/state/sessions

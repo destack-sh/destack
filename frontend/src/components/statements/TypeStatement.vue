@@ -219,11 +219,6 @@ defineExpose({
         :class="context.focused.value ? '' : 'opacity-0'"
         :extraActions="extraActions"
       />
-      <CreateFieldInterface
-        ref="createFieldRef"
-        :title="'New field on ' + context.statement.value.name"
-        @select="createNewField"
-      />
     </div>
   </div>
   <!-- Folded info -->
@@ -291,5 +286,11 @@ defineExpose({
     >
       <PlusIcon class="h-4 w-4" />{{ isEnum ? "Option" : "Field" }}
     </button>
+    <!-- Create popup right below button -->
+    <CreateFieldInterface
+      ref="createFieldRef"
+      :title="'New field on ' + context.statement.value.name"
+      @select="createNewField"
+    />
   </div>
 </template>

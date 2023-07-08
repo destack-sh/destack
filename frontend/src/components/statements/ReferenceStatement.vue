@@ -12,7 +12,7 @@ import { useOperations } from "@/state/operations";
 import type { Statement } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import { useKeyModifier } from "@vueuse/core";
+import { onStartTyping, useKeyModifier } from "@vueuse/core";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -23,7 +23,6 @@ const appearance = useAppearance();
 const nav = useNavigation();
 
 const altKeyState = useKeyModifier("Alt");
-const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
 const referenceRef = ref<HTMLButtonElement | null>(null);
 const tagsRef = ref<InstanceType<typeof StatementTags> | null>(null);
 const popoverRef = ref<HTMLDivElement | null>(null);
@@ -36,6 +35,17 @@ const popoverPin = pinAbsoluteElement(
 const selectingReference = ref(false);
 const query = ref("");
 const resolvedReference = computed(() => module.statementOf(context.statement.value.reference?.id));
+const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
+const referenceIcon = computed(() =>
+  resolvedReference.value == null
+    ? null
+    : getStatementIcon(resolvedReference.value?.type, resolvedReference.value?.rootTypeTag)
+);
+
+onStartTyping(() => {
+  if (selectingReference.value || !context.editing.value) return;
+  open();
+});
 
 function open() {
   selectingReference.value = true;
@@ -87,6 +97,7 @@ const actions = computed(() => {
   });
   return actions;
 });
+context.setCustomActions(actions);
 
 defineExpose({
   focus,
@@ -94,10 +105,11 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex flex-row justify-between">
+  <div class="relative flex flex-row justify-between">
     <!-- Declaration -->
     <div class="flex flex-row gap-1">
       <component :is="icon" class="mt-0.5 h-4 w-4 text-orange-600" />
+      <component v-if="referenceIcon" :is="referenceIcon" class="mt-0.5 h-4 w-4 text-orange-600" />
       <button
         ref="referenceRef"
         tabindex="-1"
@@ -113,68 +125,86 @@ defineExpose({
       <StatementTags ref="tagsRef" class="ml-0.5" />
     </div>
     <!-- Controls -->
-    <StatementActions :extra-actions="actions" />
-  </div>
-  <div
-    v-if="selectingReference"
-    ref="popoverRef"
-    class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-    :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
-  >
-    <Combobox as="div" @update:model-value="(r) => (setReference(r), close())">
-      <!-- Title -->
-      <h5 class="text-left text-sm font-semibold text-gray-900">
-        Add reference to {{ context.statement.value.name ?? "statement" }}
-      </h5>
-      <!-- Input -->
-      <ComboboxInput
-        as="input"
-        ref="inputRef"
-        class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
-        @change="query = $event.target.value"
-        @keydown.enter.prevent.stop="close"
-        @keydown.escape.prevent.stop="close"
+    <div
+      class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      :class="context.focused.value ? '' : 'opacity-0'"
+    >
+      <StatementActions :extra-actions="actions" />
+    </div>
+    <!-- Prevent scroll and capture click outside -->
+    <div
+      v-if="selectingReference"
+      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+      @click.stop="close()"
+    />
+    <div
+      v-if="selectingReference"
+      ref="popoverRef"
+      class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      :class="[popoverPin.pinned.value ? '' : 'absolute -top-9 left-5']"
+    >
+      <Combobox
+        as="div"
+        @update:model-value="(r) => (setReference(r), close())"
+        :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
       >
-      </ComboboxInput>
-      <!-- Reference options -->
-      <ComboboxOptions
-        class="mt-1 max-h-48 overflow-auto"
-        static
-        :class="{
-          'font-mono': appearance.fontMono,
-          'text-sm': appearance.textSmall,
-          'text-md': !appearance.textSmall,
-        }"
-      >
-        <ComboboxOption
-          v-for="reference in filteredReferences"
-          :key="reference.id"
-          :value="reference"
-          v-slot="{ active, selected }"
+        <!-- Title -->
+        <h5 class="text-left text-sm font-semibold text-gray-900">Set statement reference</h5>
+        <!-- Input -->
+        <ComboboxInput
+          as="input"
+          ref="inputRef"
+          class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+          @change="query = $event.target.value"
+          @keydown.enter.prevent.stop="close"
+          @keydown.escape.prevent.stop="close"
+          :class="{
+            'font-mono': appearance.fontMono,
+            'text-sm': appearance.textSmall,
+            'text-md': !appearance.textSmall,
+          }"
         >
-          <li
-            :class="[
-              'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
-              active ? 'bg-orange-100' : '',
-              selected ? 'text-orange-600' : '',
-            ]"
+        </ComboboxInput>
+        <!-- Reference options -->
+        <ComboboxOptions
+          class="mt-1 max-h-48 overflow-auto"
+          static
+          :class="{
+            'font-mono': appearance.fontMono,
+            'text-sm': appearance.textSmall,
+            'text-md': !appearance.textSmall,
+          }"
+        >
+          <ComboboxOption
+            v-for="reference in filteredReferences"
+            :key="reference.id"
+            :value="reference"
+            v-slot="{ active, selected }"
           >
-            <div class="flex items-baseline justify-between">
-              <span class="flex flex-row items-center">
-                <component
-                  :is="getStatementIcon(reference.type, reference.rootTypeTag)"
-                  class="h-4 w-4 text-orange-600"
-                />
-                <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>
-              </span>
-              <!-- Source -->
-              <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-                {{ module.pathOf(reference.file) }}
-              </span>
-            </div>
-          </li>
-        </ComboboxOption>
-      </ComboboxOptions>
-    </Combobox>
+            <li
+              :class="[
+                'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
+                active ? 'bg-orange-100' : '',
+                selected ? 'text-orange-600' : '',
+              ]"
+            >
+              <div class="flex items-baseline justify-between">
+                <span class="flex flex-row items-center">
+                  <component
+                    :is="getStatementIcon(reference.type, reference.rootTypeTag)"
+                    class="h-4 w-4 text-orange-600"
+                  />
+                  <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>
+                </span>
+                <!-- Source -->
+                <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
+                  {{ module.pathOf(reference.file) }}
+                </span>
+              </div>
+            </li>
+          </ComboboxOption>
+        </ComboboxOptions>
+      </Combobox>
+    </div>
   </div>
 </template>
