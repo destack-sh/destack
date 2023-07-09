@@ -31,7 +31,7 @@ const now = useTimeFromNow();
     <div
       v-for="client in filteredClients.slice(0, first)"
       :key="client.id"
-      class="group relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
+      class="group/popover relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
       :class="{
         'px-2.5 py-1': props.size === 'large',
         'px-1.5 py-[3px]': props.size === 'medium',
@@ -46,7 +46,7 @@ const now = useTimeFromNow();
       </span>
       <!-- Profile info popover -->
       <div
-        class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover:visible"
+        class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover/popover:visible"
       >
         <div class="flex flex-row items-baseline justify-between">
           <span class="text-gray-900">

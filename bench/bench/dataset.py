@@ -549,6 +549,23 @@ class Value(HasType, HasTags, Statement):
         else:
             self.value[key] = value
 
+    def __getitem__(self, item):
+        if item in self.value:
+            return self.value[item]
+        elif self.has_field(item):
+            return None
+        elif not isinstance(item, str):
+            raise TypeError(f"cannot index {self} with {type(item)}")
+        else:
+            candidates = {f.py_ident: f for f in self.parent.fields}
+            did_you_mean = did_you_mean_str(candidates, item)
+            raise AttributeError(
+                f"{self} has no field {item} ({did_you_mean}, available: {self.fields})"
+            )
+
+    def __iter__(self):
+        return iter(self.value)
+
 
 DATASET_BACKEND_KEY_LENGTH = 16
 MAX_VERSIONED_RECORDS_TOTAL = 64_000

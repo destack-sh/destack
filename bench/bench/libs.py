@@ -241,12 +241,14 @@ class OpenAIFunction:
 @x_struct("OpenAIFunctionCall", "Requested function call in OpenAI chat models", file=_openai_chat)
 class OpenAIFunctionCall:
     name: Key
-    arguments: str
+    arguments: Optional[dict[str, Any]] = None
 
     def to_dict(self) -> dict[str, Any]:  # :ToDict
-        return dict(
-            name=self.name,
-            arguments=self.arguments,
+        return omit_empty(
+            dict(
+                name=self.name,
+                arguments=self.arguments,
+            )
         )
 
 
@@ -279,6 +281,7 @@ class OpenAIChatSettings:
     logit_bias: Optional[dict[str, float]] = None
     frequence_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
+    # technically function call is a union of string and function call but we don't support that yet
     function_call: Optional[str] = None
     user: Optional[str] = None
 
@@ -469,8 +472,6 @@ class OpenAIChatCompiler(TaskCompiler):
 
         while True:
             await runner.step()
-            if not runner.can_call_another_function or not self.functions:  # force terminate
-                settings.function_call = "terminate"
             completion: OpenAIChatCompletion = await model(
                 messages=messages, functions=functions, settings=settings
             )
