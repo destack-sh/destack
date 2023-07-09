@@ -38,7 +38,7 @@ import {
   TrashIcon,
 } from "@heroicons/vue/24/outline";
 import { XCircleIcon } from "@heroicons/vue/24/solid";
-import { onClickOutside, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
+import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
@@ -176,6 +176,7 @@ const statementInterface: Ref<StatementInterface> = computed(() => {
 });
 
 const containerRef = ref<HTMLElement | null>(null);
+const containerBounding = useElementBounding(containerRef);
 const innerWrapperRef = ref<HTMLElement | null>(null);
 const statementRef = ref<InstanceType<typeof BlankStatement>>();
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
@@ -436,6 +437,7 @@ defineExpose({
   },
   blur: () => statementRef.value?.blur(),
   root: statementRef,
+  bounding: containerBounding,
   loading: computed(() => statementRef.value == null || (statementRef.value?.loading ?? false)),
   showActionsPopover,
 });

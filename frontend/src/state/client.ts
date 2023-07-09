@@ -274,6 +274,12 @@ export function useConnectedClients(
     () =>
       clientsResult.value?.clients.edges
         .map((edge: any) => useFragment(ClientContentType, edge.node))
+        .map((n) => ({
+          ...n,
+          // map ids to global ids - not sure where to do this
+          fileId: n.fileId != null ? btoa(`File:${n.fileId}`) : null,
+          statementId: n.statementId != null ? btoa(`Statement:${n.statementId}`) : n.statementId,
+        }))
         .sort((a, b) => (a.id < b.id ? -1 : 1)) ?? []
   );
 

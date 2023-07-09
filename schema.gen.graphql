@@ -104,9 +104,8 @@ type Client implements Node {
   user: User!
   project: Project
   projectVersion: ProjectVersion
-  fileId: GlobalID
-  statementId: GlobalID
-  fieldId: GlobalID
+  fileId: UUID
+  statementId: UUID
   path: String
   active: Boolean!
   present: Boolean!

@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { getClientColor, useCurrentClients } from "@/state/client";
+import { useCurrentModule } from "@/state/module";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -10,14 +11,15 @@ const props = defineProps<{
   first?: number;
 }>();
 const first = computed(() => props.first ?? 4);
+const module = useCurrentModule();
 
 const { activeClientsWithoutSelf: clients } = useCurrentClients();
 const filteredClients = computed(() =>
   clients.value.filter(
     (c) =>
       props.fileId == null ||
-      (c.file?.id == props.fileId && props.statementId == null) ||
-      c.statement?.id == props.statementId
+      (c.fileId == props.fileId && props.statementId == null) ||
+      c.statementId == props.statementId
   )
 );
 
@@ -32,7 +34,7 @@ const now = useTimeFromNow();
       class="group relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
       :class="{
         'px-2.5 py-1': props.size === 'large',
-        'px-1.5 py-0.5': props.size === 'medium',
+        'px-1.5 py-[3px]': props.size === 'medium',
         'px-1 py-0.5': props.size === 'small',
       }"
       :style="{
@@ -52,13 +54,13 @@ const now = useTimeFromNow();
           </span>
         </div>
         <p class="text-xs text-gray-500">{{ client.user.name }}</p>
-        <!-- TODO @Broken @UX: show clients file/statement again (name is no longer part of client data) -->
         <p class="mt-2 flex flex-col text-gray-900">
-          <span
-            >{{ client.project?.name }}
-            <span v-if="client.file?.name" class="ml-0"> / {{ client.file?.name }}</span>
+          <span v-if="module.idx.value?.filesById[client.fileId ?? '']?.name" class="ml-0">
+            {{ module.idx.value?.filesById[client.fileId ?? ""]?.name }}</span
+          >
+          <span v-if="module.statementOf(client.statementId ?? '')" class="ml-0">
+            > {{ module.statementOf(client.statementId ?? "")?.name }}
           </span>
-          <span v-if="client.statement?.name" class="ml-0"> > {{ client.statement?.name }} </span>
         </p>
         <p class="mt-2 flex flex-row justify-between text-xs text-gray-500">
           {{ now.getTimeFromNowLongString(client.lastSeenAt) }}

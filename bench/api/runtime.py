@@ -12,7 +12,7 @@ from strawberry_django_plus.types import OperationInfo
 
 from bench import bench as language
 from bench import models
-from bench.api.auth import check_can_write_project
+from bench.api.auth import check_can_write_project, check_can_read_project
 from bench.api.session import Execution, ExecutionTriggerType
 from bench.api.utils import asafe_mutation, get_user_from_info, to_uuid
 from bench.bench.core import SessionTracingLevel
@@ -88,7 +88,7 @@ class RuntimeMutation:
     ) -> LangserverWakePayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_can_write_project)(info, project_version)
+        await sync_to_async(check_can_read_project)(info, project_version)
         await request(
             NMessageType.REQUEST_LANGSERVER,
             ReqLangserverPayload(module_id=project_version_id),

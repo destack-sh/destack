@@ -119,7 +119,7 @@ function initMonaco(monaco: Monaco) {
     },
     readOnly: props.readonly,
     scrollBeyondLastLine: false,
-    lineDecorationsWidth: props.lineNumberShiftPx ?? 24,
+    lineDecorationsWidth: 8,
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
