@@ -113,7 +113,7 @@ defineExpose({
       :key="field.id"
       :class="[y < fields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
     >
-      <td class="w-1/3">
+      <td class="w-1/3 self-start">
         <FieldInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
