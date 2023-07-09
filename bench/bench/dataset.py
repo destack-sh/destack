@@ -544,7 +544,7 @@ class Value(HasType, HasTags, Statement):
             )
 
     def __setattr__(self, key, value):
-        if key in self._PROPERTIES and (not self._tracked or key in self._TRACKED):
+        if key in self._PROPERTIES:
             super().__setattr__(key, value)
         else:
             self.value[key] = value

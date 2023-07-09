@@ -201,10 +201,10 @@ class HasSession(abc.ABC):
 
     def deactivate(self) -> None:
         """'Deinstantiate' this object."""
+        self._tracked = False  # need to set this first as some statements may redirect set/get
         if self._session is not None:
             self._session.remove(self)
         self._session = None
-        self._tracked = False
 
     @property
     def session(self) -> "Session":
@@ -506,6 +506,8 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
         module_data = wire.pack_module(self)
         module_copy = wire.unpack_module(module_data, session=None)
+        for builtin in self.builtins:
+            module_copy.add_builtin(builtin)  # also copy?
         for dependency in self.dependencies.values():
             module_copy.add_dependency(dependency)  # also copy?
         if self.status >= ModuleStatus.Index:
@@ -986,13 +988,11 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.write(mutations)
         if not success:
-            if len(self.mutator.mutations) > 20:
-                mutations_str = f"{self.mutator.mutations[:10]} ... {self.mutator.mutations[-10:]}"
+            if len(mutations) > 20:
+                mutations_str = f"{mutations[:10]} ... {mutations[-10:]}"
             else:
-                mutations_str = self.mutator.mutations
-            raise RuntimeError(
-                f"failed to write {len(self.mutator.mutations)} mutations {mutations_str}"
-            )
+                mutations_str = str(mutations)
+            raise RuntimeError(f"failed to write {len(mutations)} mutations {mutations_str}")
         logger.debug("session.flush.done", session=self, mutator=self.mutator)
 
     async def aflush(self, optimistic: bool = False):
