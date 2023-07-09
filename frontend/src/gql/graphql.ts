@@ -112,15 +112,14 @@ export type Client = Node & {
   closedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
-  fieldId?: Maybe<Scalars["GlobalID"]>;
-  fileId?: Maybe<Scalars["GlobalID"]>;
+  fileId?: Maybe<Scalars["UUID"]>;
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
   path?: Maybe<Scalars["String"]>;
   present: Scalars["Boolean"];
   project?: Maybe<Project>;
   projectVersion?: Maybe<ProjectVersion>;
-  statementId?: Maybe<Scalars["GlobalID"]>;
+  statementId?: Maybe<Scalars["UUID"]>;
   type: ClientType;
   updatedAt: Scalars["DateTime"];
   user: User;

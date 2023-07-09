@@ -114,9 +114,8 @@ class Client(gql.relay.Node):
     user: Annotated["User", lazy(".user")]
     project: Optional[Annotated["Project", lazy(".project")]]
     project_version: Optional[Annotated["ProjectVersion", lazy(".project")]]
-    file_id: Optional[GlobalID]
-    statement_id: Optional[GlobalID]
-    field_id: Optional[GlobalID]
+    file_id: Optional[UUID]
+    statement_id: Optional[UUID]
     path: auto
     active: bool
     present: bool
@@ -400,5 +399,4 @@ class ClientSubscription:
             if project_version_id and client.project_version_id != project_version_id:
                 continue
             log.debug("clients.update", client=client.id)
-            # TODO @Performance: don't request relation info in clients (prevent DB lookup)
             yield client

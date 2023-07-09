@@ -180,7 +180,6 @@ class Dataset(HasType, HasTags, Statement):
                 value = record.value
             else:
                 raise TypeError(f"cannot append {type(record)} to {self}")
-        # TODO @UX: order records when inserted in code
         value = unproxy_value(value)  # remove source proxy if any
         record = Record(id=uuid.uuid4(), parent=self, value=value)
         self.session.tracer.dataset_append(self, record)

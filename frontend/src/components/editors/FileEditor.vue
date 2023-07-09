@@ -20,6 +20,7 @@ import { whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { newFileId } from "@/state/operations/file";
+import { useConnectedClients, useCurrentClients } from "@/state/client";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -287,6 +288,23 @@ const statementAddAreaPositionX = computed(() => {
     };
   }
 });
+
+// other clients
+const clients = useCurrentClients();
+const localClients = computed(() =>
+  clients.activeClientsWithoutSelf.value.filter((c) => c.fileId == fileHeader.value?.id && c.statementId != null)
+);
+
+function getStatementBounding(statementId: string): { left: number; top: number; right: number; bottom: number } {
+  const statement = statementsComponents.value[statementId];
+  if (statement == null) return { left: -100, top: -100, right: -100, bottom: -100 };
+  return {
+    left: statement.bounding.left.value,
+    top: statement.bounding.top.value,
+    right: statement.bounding.right.value,
+    bottom: statement.bounding.bottom.value,
+  };
+}
 </script>
 
 <template>
@@ -359,6 +377,8 @@ const statementAddAreaPositionX = computed(() => {
           class="w-full"
         />
       </div>
+      <!-- TODO @UX: client indicators next to statements -->
+      <!-- (these move smoothly as the other client moves but instantly as we scroll...) -->
       <!-- Add statement to end -->
       <StatementAddArea
         class="flex-1 pb-96"
