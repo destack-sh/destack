@@ -272,7 +272,7 @@ export function useStatementContext() {
   const inheritedFields = computed(() => {
     return resolvedFields.value?.filter((n) => !selfFields.value.find((f) => f.key == n.key)) ?? [];
   });
-  const allFields = computed(() => [...selfFields.value, ...inheritedFields.value]);
+  const allFields = computed(() => [...inheritedFields.value, ...selfFields.value]);
   const fieldsByName = computed(() => {
     const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
     for (const field of fields.value) {

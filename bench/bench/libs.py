@@ -7,6 +7,7 @@ from typing import Any, Optional
 import anthropic
 import openai
 
+from bench.bench import Expectation
 from bench.bench.code_ import Code
 from bench.bench.const import TypeFlag, TypeTag
 from bench.bench.core import LookupBy, Module, Statement, parse_absolute_statement_reference
@@ -407,6 +408,12 @@ class OpenAIChatCompiler(TaskCompiler):
             parameters=_type_to_json_schema(self.task, is_output=True),
         )
 
+    def _compile_expectation(self, expectation: Expectation) -> OpenAIChatMessage:
+        return OpenAIChatMessage(
+            role=OpenAIChatRole.system,
+            content=f"Expectation '{expectation.name}': {expectation.description}",
+        )
+
     def _compile_error(self, error: TaskError) -> OpenAIChatMessage:
         return OpenAIChatMessage(
             role=OpenAIChatRole.system,
@@ -436,6 +443,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 content=f"Your task is '{self.task.name}': {self.task.description}."
                 f"You will be given user inputs and you must call the most appropriate function.",
             ),
+            *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
                 content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_v=strip_py_value_flat)}",

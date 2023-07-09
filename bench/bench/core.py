@@ -651,6 +651,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     file: File | None = None
     parent: Union["Statement", File] = None
     children: list["Statement"] | None = None
+    resolved_children: list["Statement"] | None = None
     order_key: str | None = None
     type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
@@ -723,6 +724,27 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             self.children = [*statements]
         else:
             self.children.extend(statements)
+        self._resolve_children()
+
+    def _resolve_children(self):
+        resolved_children = []
+        for statement in self.children or []:
+            if statement.type == StatementType.REFERENCE:
+                if isinstance(statement.reference, Statement):
+                    resolved_children.append(statement.reference)
+            elif statement.type == StatementType.BLOCK:
+                resolved_children.extend(statement.resolved_children)
+            else:
+                resolved_children.append(statement)
+        self.resolved_children = resolved_children
+
+    def get_children_by_type(
+        self, *types: typing.Union[StatementType, typing.Type["Statement"]]
+    ) -> list["Statement"]:
+        if self.resolved_children is None:
+            raise RuntimeError(f"{self} is not indexed")
+        types = [t if isinstance(t, StatementType) else t.type for t in types]
+        return [s for s in self.resolved_children if s.type in types]
 
     def walk_descendants(self) -> typing.Iterator["Statement"]:
         """Yields all descendant statements in DFS order."""
@@ -730,19 +752,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.children is not None:
             for child in self.children:
                 yield from child.walk_descendants()
-
-    @property
-    def resolved_children(self) -> list["Statement"]:
-        """Children with inlined blocks and references (recursively, but not into descendants)."""
-        resolved_children = []
-        for statement in self.children or []:
-            if statement.type == StatementType.REFERENCE:
-                resolved_children.append(statement.reference)
-            elif statement.type == StatementType.BLOCK:
-                resolved_children.extend(statement.resolved_children)
-            else:
-                resolved_children.append(statement)
-        return resolved_children
 
     @property
     def b(self) -> _BlockAccessor:
@@ -765,6 +774,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def _index(self):
         self._clear()
         self.children = self.file.statements_by_parent_id.get(self.id, [])
+        self._resolve_children()
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
@@ -792,6 +802,7 @@ class StatementBase(abc.ABC):
 
     parent: Statement | File
     session: "Session"
+    resolved_children: list["Statement"]
     _scopes_by_name: dict[str, Scope] | None
 
     def _clear(self) -> None:

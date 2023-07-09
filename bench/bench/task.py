@@ -126,19 +126,22 @@ class Task(HasType, HasTags, Statement):
             self.session.tracer.run_exception(self, e)
             raise
 
-    async def _run_task_block(self, model: Model, inputs: dict, is_batched: bool):
+    async def _run_task_block(self, model: Model, inputs: dict, is_batched: bool) -> DotDict:
         """Runs a single contiguous 'block' of a task on a single model."""
 
         # compile
         compiler = model.compile(self, inputs, is_batched)
-        for child in self.resolved_children:
-            if isinstance(child, (Code, Task, Model)):
-                compiler.add_function(child)
-            elif isinstance(child, Expectation):
-                compiler.add_expectation(child)
-        for type in self.walk_type(include_references=False):
-            pass  # nocheckin add all type instruction
-        # nocheckin: add code and dataset instructions
+        for function in self.get_children_by_type(Code, Task, Model):
+            compiler.add_function(function)
+        for expectation in self.get_children_by_type(Expectation):
+            compiler.add_expectation(expectation)
+        for step in self.get_children_by_tag(self.module.lookup("symbolx.lib.builtins.step")):
+            if not isinstance(step, Task):
+                continue  # report issue?
+            compiler.add_step(step)
+
+        # TODO @Broken: add all type instruction
+        # TODO @Broken: add code and dataset instructions
 
         # run
         # should probably track task runner state in run metadata?
@@ -146,6 +149,8 @@ class Task(HasType, HasTags, Statement):
         ret = await compiler.run(model, runner)
         if isinstance(ret, TaskError):
             raise ret
+        elif not isinstance(ret, DotDict):
+            ret = DotDict(ret)
         return ret
 
     def to_async(self) -> "Self":
