@@ -90,18 +90,16 @@ class ModuleTree:
             self.children[node.parent_id] = []
         self.children[node.parent_id].append(node.id)
 
-    def remove(self, node: NodeT | NodeDataT, recursive: bool = True):
+    def remove(self, node: NodeT | NodeDataT):
         """Remove a node from the tree (incl. all descendants if recursive)"""
-        if recursive:
-            descendants = self.get_descendants(node.id, recursive=True)
-            for descendant in descendants:
+        descendants = self.get_descendants(node.id, recursive=True, include_self=True)
+        for descendant in descendants:
+            if descendant.id in self.nodes:
                 self.nodes.pop(descendant.id)
-                if descendant.id in self.children:
-                    self.children.pop(descendant.id)
-        if node.id in self.nodes:
-            self.nodes.pop(node.id)
-        if node.id in self.children:
-            self.children.pop(node.id)
+            if descendant.id in self.children:
+                self.children.pop(descendant.id)
+            if descendant.parent_id in self.children:
+                self.children[descendant.parent_id].remove(descendant.id)
 
     def truncate(
         self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
@@ -109,7 +107,10 @@ class ModuleTree:
         """Truncate descendants of a node"""
         descendants = self.get_descendants(node.id, t, recursive=recursive)
         for descendant in descendants:
-            self.children.pop(descendant.id)
+            if descendant.id in self.children:
+                self.children.pop(descendant.id)
+            if descendant.parent_id in self.children:
+                self.children[descendant.parent_id].remove(descendant.id)
             self.nodes.pop(descendant.id)
 
     def prune(self, t: NodeT | NodeDataT):
@@ -178,12 +179,16 @@ class ModuleTree:
         return children[0] if children else None
 
     def get_descendants(
-        self, parent_id: UUID, t: NodeT | NodeDataT | None = None, recursive: bool = False
+        self,
+        node_id: UUID,
+        t: NodeT | NodeDataT | None = None,
+        recursive: bool = False,
+        include_self: bool = False,
     ) -> list["NodeT | NodeDataT"]:
         """Finds all children (or descendants) of the given type"""
         children = [
             self.nodes[child_id]
-            for child_id in self.children.get(parent_id, [])
+            for child_id in self.children.get(node_id, [])
             if t is None or isinstance(self.nodes[child_id], t)
         ]
         descendants = children[:]
@@ -192,6 +197,8 @@ class ModuleTree:
                 if child.id not in self.children:
                     continue
                 descendants.extend(self.get_descendants(child.id, t, recursive=True))
+        if include_self and node_id in self.nodes:
+            descendants.append(self.nodes[node_id])
         return descendants
 
     def get_ancestor(
