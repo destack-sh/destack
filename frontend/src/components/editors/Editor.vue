@@ -21,13 +21,13 @@ const containerRef = ref<InstanceType<typeof FileEditorInterface> | null>(null);
 const containerEl = toRef(props, "containerEl");
 const focused = computed(() => bench.focusedEditorId == props.editor.id);
 
-useActiveScroll(containerEl);
+const scroll = useActiveScroll(containerEl);
 // auto focus on click
 useEventListener(containerEl, "click", () => {
   bench.focusEditor(props.editor);
 });
 
-const context = provideEditorContext(toRef(props, "editor"), containerRef, toRef(props, "containerEl"));
+const context = provideEditorContext(toRef(props, "editor"), containerRef, toRef(props, "containerEl"), scroll);
 
 onMounted(() => {
   props.editor.onMounted?.(context);
