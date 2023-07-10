@@ -5,7 +5,6 @@ from bench.bench.core import Scope, Statement, StatementReference, StatementType
 from bench.bench.issue import IssueType
 from bench.bench.tag import HasTags
 
-
 # common statements
 
 
@@ -57,3 +56,10 @@ class Block(Statement, HasTags):
 
     type: StatementType = StatementType.BLOCK
     description: str | None = None
+
+
+@node(tracked=["reference", "description"])
+class Expectation(Statement):  # not clear how this will evolve yet
+    type: StatementType = StatementType.EXPECTATION
+    reference: StatementReference | Statement | None = None
+    description: Optional[str] = None

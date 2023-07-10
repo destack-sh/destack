@@ -744,6 +744,7 @@ def map_value(
 
 
 TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
+OMITTED_SENTINEL = "__omitted"  # :OmittedSentinel
 REMOTE_OBJECT_TYPENAME = "RemoteObject"
 SECRET_TYPENAME = "Secret"
 TypeSignature = typing.NamedTuple(

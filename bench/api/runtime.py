@@ -13,7 +13,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
-from bench.api.session import Execution, ExecutionTriggerType
+from bench.api.session import Run, RunTriggerType
 from bench.api.utils import asafe_mutation, get_user_from_info, to_uuid
 from bench.bench.core import SessionTracingLevel
 from bench.models import packer
@@ -48,7 +48,7 @@ class LangserverWakePayload:
 class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
-    execution_id: Optional[GlobalID] = None
+    run_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
     trace: int = SessionTracingLevel.ALL
     block: bool = True
@@ -64,20 +64,20 @@ class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
     success: bool
-    execution_id: Optional[GlobalID]
-    execution: Optional[Execution]
+    run_id: Optional[GlobalID]
+    run: Optional[Run]
 
 
 @gql.input
 class CancelRunInput:
     project_version_id: GlobalID
-    execution_id: GlobalID
+    run_id: GlobalID
 
 
 @gql.type
 class CancelRunPayload:
     success: bool
-    execution: Optional[Execution]
+    run: Optional[Run]
 
 
 @gql.type
@@ -111,9 +111,9 @@ class RuntimeMutation:
             arguments=input.arguments,
             block=input.block,
             tracing_level=input.trace,
-            trigger_type=ExecutionTriggerType.UI,
+            trigger_type=RunTriggerType.UI,
             trigger_id=user.id,
-            execution_id=to_uuid(input.execution_id),
+            run_id=to_uuid(input.run_id),
             keyed=input.keyed,
         )
         try:
@@ -133,13 +133,13 @@ class RuntimeMutation:
             "run",
             {"project_version_id": str(project_version_id), "success": success, "error": error},
         )
-        execution = packer.unpack_data(rep.p.execution) if rep.p.execution else None
+        run = packer.unpack_data(rep.p.run) if rep.p.run else None
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             success=success,
-            execution=execution,
-            execution_id=rep.p.execution_id,
+            run=run,
+            run_id=rep.p.run_id,
         )
 
     @asafe_mutation
@@ -152,7 +152,7 @@ class RuntimeMutation:
         await sync_to_async(check_can_write_project)(info, project_version)
         cancel = ReqCancelRunPayload(
             module_id=project_version_id,
-            execution_id=to_uuid(input.execution_id),
+            run_id=to_uuid(input.run_id),
         )
         try:
             rep: NMessage[RepCancelRunPayload] = await request(
@@ -168,4 +168,4 @@ class RuntimeMutation:
             "cancel_run",
             {"project_version_id": str(project_version_id), "success": success},
         )
-        return CancelRunPayload(success=success, execution=None)
+        return CancelRunPayload(success=success, run=None)

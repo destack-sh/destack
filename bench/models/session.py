@@ -5,65 +5,40 @@ from typing import Optional
 from django.db import models
 from strawberry_django_plus import gql
 
-from bench.models.utils import UUIDTModel
+from bench.bench.session import RunStatus
+from bench.models.utils import UUIDTModel, get_choices
 
 
-class ExecutionStatus(models.TextChoices):
-    Created = "created"
-    Scheduled = "scheduled"
-    Queued = "queued"
-    Running = "running"
-    Aborting = "aborting"
-    # terminal statuses
-    Aborted = "aborted"
-    Failed = "failed"
-    Completed = "completed"
-
-
-TERMINAL_EXECUTION_STATUSES = {
-    ExecutionStatus.Aborted,
-    ExecutionStatus.Failed,
-    ExecutionStatus.Completed,
-}
-PENDING_EXECUTION_STATUSES = set(ExecutionStatus) - TERMINAL_EXECUTION_STATUSES
-
-
-class ExecutionTriggerType(models.TextChoices):
-    API = "rest"
+class RunTriggerType(models.TextChoices):
+    API = "api"
     UI = "ui"
-    REACTIVE = "reactive"
-    SCHEDULED = "scheduled"
 
 
-class Execution(UUIDTModel):
-    """
-    The execution of (nested) code.
-    """
-
-    # context
+class Session(UUIDTModel):
     project = models.ForeignKey("Project", on_delete=models.CASCADE)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
     tracing_level = models.IntegerField(default=0)
-    trigger_type = models.CharField(
-        max_length=32, choices=ExecutionTriggerType.choices, default=ExecutionTriggerType.API
-    )
+    trigger_type = models.CharField(max_length=32, choices=get_choices(RunTriggerType))
     user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
     access_token = models.ForeignKey(
         "AccessToken", null=True, blank=True, on_delete=models.SET_NULL
     )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    opened_at = models.DateTimeField(null=True, blank=True)
+    closed_at = models.DateTimeField(null=True, blank=True)
+    metadata = models.JSONField(null=True, blank=True)
 
-    # content
-    status = models.CharField(
-        max_length=32, choices=ExecutionStatus.choices, default=ExecutionStatus.Created
-    )
+
+class Run(UUIDTModel):
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
+    session = models.ForeignKey("Session", on_delete=models.CASCADE)
+    status = models.CharField(max_length=32, choices=get_choices(RunStatus))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     started_at = models.DateTimeField(null=True, blank=True)
     terminated_at = models.DateTimeField(null=True, blank=True)
-    # TODO @Cleanup @Architecture: cached info belongs in metadata
-    cached_generated_at = models.DateTimeField(null=True, blank=True)
-    cached_duration = models.FloatField(null=True, blank=True)
     root = models.ForeignKey(
         "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
     )
@@ -74,6 +49,9 @@ class Execution(UUIDTModel):
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
+    # TODO @Cleanup @Architecture: cached info belongs in metadata
+    cached_generated_at = models.DateTimeField(null=True, blank=True)
+    cached_duration = models.FloatField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 
     @gql.model_property(only=["started_at", "terminated_at"])
@@ -89,3 +67,6 @@ class Execution(UUIDTModel):
 
     class Meta:
         ordering = ["-created_at"]
+
+
+# LogEntry lives in OpenSearch only

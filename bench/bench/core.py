@@ -845,10 +845,10 @@ active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 
 class SessionTracingLevel(enum.IntFlag):
     NONE = 0
-    EXECUTION = 1
+    RUN = 1
     MUTATION = 2
     VALIDATION = 4
-    ALL = EXECUTION | MUTATION | VALIDATION
+    ALL = RUN | MUTATION | VALIDATION
 
 
 @dataclass(slots=True)
@@ -974,7 +974,7 @@ class Session:
         else:
             raise RuntimeError(f"unknown session mode {self.mode}")
 
-    def open(self):
+    async def aopen(self):
         """Opens the session for execution and modification."""
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
@@ -982,6 +982,7 @@ class Session:
         if active_session.get() is not None:
             raise RuntimeError(f"another session is active: {active_session.get()}")
         active_session.set(self)
+        await self.tracer.open()
         logger.debug("session.open", session=self)
 
     async def _do_flush(self, mutations: list["ModuleMutation"]) -> bool:
@@ -1029,6 +1030,7 @@ class Session:
         )
         await asyncio.gather(*(task for _, task in self._pending_flushes))
         active_session.set(None)
+        await self.tracer.close()
         logger.debug("session.close", session=self)
 
     def close(self):
@@ -1039,7 +1041,7 @@ class Session:
             self.flush(optimistic=True)
 
     async def __aenter__(self):
-        self.open()
+        await self.aopen()
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
@@ -1051,10 +1053,10 @@ class Session:
 
         class SyncSession:
             def __enter__(self):
-                session.open()
+                async_to_sync(session.aopen)()
                 return session
 
             def __exit__(self, exc_type, exc_value, traceback):
-                session.close()
+                async_to_sync(session.aclose)()
 
         return SyncSession()

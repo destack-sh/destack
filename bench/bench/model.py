@@ -16,7 +16,7 @@ from bench.bench.const import StatementType
 from bench.bench.core import Scope, Statement, node
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import get_execution_cache_key
+from bench.bench.utils import get_run_cache_key
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -61,7 +61,7 @@ class Model(HasType, HasTags, Statement):
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
         inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
-        cache_key = get_execution_cache_key(self.path, inputs_raw)
+        cache_key = get_run_cache_key(self.path, inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
         log.debug("inference.enter.pre")
 

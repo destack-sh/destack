@@ -1,13 +1,15 @@
 import abc
 import hashlib
-import typing
-from typing import Any, Self
+from typing import Any, Optional, Self
 from uuid import UUID
 
 import msgpack
 
 
-class Function(abc.ABC):
+class Runnable(abc.ABC):
+    logs: Any
+    runs: Any
+
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
 
@@ -18,9 +20,7 @@ class Function(abc.ABC):
         raise NotImplementedError
 
 
-def get_execution_cache_key(
-    runnable: UUID | str, inputs_raw: Any, content_id: typing.Optional[str] = None
-):
+def get_run_cache_key(runnable: UUID | str, inputs_raw: Any, content_id: Optional[str] = None):
     if isinstance(runnable, UUID):
         runnable = runnable.hex
     inputs_bytes = msgpack.packb(inputs_raw, use_bin_type=True)

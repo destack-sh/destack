@@ -18,10 +18,10 @@ from bench.bench.core import (
     SessionMode,
     SessionTracingLevel,
 )
-from bench.bench.execution import ExecutionFrame, RunError
 from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.session import Run, RunError
 from bench.bench.type import instantiate_py_value_flat, map_value
-from bench.bench.wire import ExecutionFrameData
+from bench.bench.wire import RunData
 from bench.msg.core import (
     NMessage,
     handle_reply,
@@ -70,7 +70,7 @@ class RunJob:
     runnable: Task | Code = None
     session: Session = None
     arguments: dict[str, Any] = None
-    execution: Optional[ExecutionFrame] = None
+    execution: Optional[Run] = None
     error: Optional[RunError] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
@@ -142,7 +142,7 @@ class ModuleWorker:
         runnable: str | UUID,
         arguments: dict[str, Any],
         keyed: bool,
-        execution_id: Optional[UUID],
+        run_id: Optional[UUID],
         tracing_level: SessionTracingLevel,
         trigger_type: ExecutionTriggerType,
         trigger_id: Optional[UUID],
@@ -155,7 +155,7 @@ class ModuleWorker:
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 
-        root_id = execution_id or UUIDT()
+        root_id = run_id or UUIDT()
         # instantiate
         try:
             session_ctx = SessionContext(
@@ -216,19 +216,19 @@ class ModuleWorker:
             if job.id in self.pending_runs:
                 del self.pending_runs[job.id]
 
-    async def cancel_run(self, execution_id: UUID) -> bool:
-        if execution_id in self.pending_runs:
-            self.pending_runs[execution_id].cancel()
+    async def cancel_run(self, run_id: UUID) -> bool:
+        if run_id in self.pending_runs:
+            self.pending_runs[run_id].cancel()
             return True
         # maybe check if it's in the queue?
         for job in self.queue._queue:
-            if job.id == execution_id:
+            if job.id == run_id:
                 job.cancelled = True
         # mark it as dead for everyone
         # (just in case it's still bugging around in some frontend)
         await publish(
             NMessageType.EXECUTION_MARKED_DEAD,
-            ExecutionMarkedDeadPayload(self.module_id, execution_id),
+            ExecutionMarkedDeadPayload(self.module_id, run_id),
         )
         return False
 
@@ -255,8 +255,8 @@ class ModuleWorker:
             try:
                 self.log.debug("run", job=job, timeout=self.timeout)
                 await self.do_run(job, self.timeout)
-                if job.session.tracer.execution.frames:
-                    job.execution = job.session.tracer.execution.frames[job.id]
+                if job.session.tracer.execution.executions:
+                    job.execution = job.session.tracer.execution.executions[job.id]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)
@@ -372,7 +372,7 @@ class SandboxedWorker:
         run_job = worker.queue_run(
             runnable=msg.p.runnable,
             arguments=msg.p.arguments,
-            execution_id=msg.p.execution_id,
+            run_id=msg.p.run_id,
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
@@ -384,18 +384,16 @@ class SandboxedWorker:
             if msg.p.block:
                 await run_job.terminated.wait()
             if run_job.execution is not None:  # may be cancelled
-                execution = ExecutionFrameData.from_frame(
-                    run_job.execution, session=run_job.session
-                )
+                execution = RunData.from_frame(run_job.execution, session=run_job.session)
             else:
                 execution = None
-            rep = RepRunPayload(error=run_job.error, execution=execution, execution_id=run_job.id)
+            rep = RepRunPayload(error=run_job.error, execution=execution, run_id=run_job.id)
             await msg.reply(rep)
 
     @message_handler
     async def request_cancel(self, msg: NMessage[ReqCancelRunPayload]):
         worker = await self._get_ready_worker(msg.p.module_id)
-        success = await worker.cancel_run(msg.p.execution_id)
+        success = await worker.cancel_run(msg.p.run_id)
         await msg.reply(RepCancelRunPayload(success=success))
 
     async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:

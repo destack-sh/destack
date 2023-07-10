@@ -13,14 +13,7 @@ from uuid import UUID
 
 from bench import bench as lang
 from bench.bench import StatementType
-from bench.bench.const import (
-    DatasetBackend,
-    ExecutionTriggerType,
-    RemoteObjectStatus,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-)
+from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
 from bench.bench.core import (
     CRUD_PROPERTIES,
     MOT,
@@ -29,9 +22,10 @@ from bench.bench.core import (
     ModuleObjectType,
     Session,
 )
-from bench.bench.execution import ExecutionCodeFrame, ExecutionFrame, RunError, RunErrorKind
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
+from bench.bench.session import Run, RunCodeFrame, RunError, RunErrorKind
+from bench.models import RunTriggerType
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
@@ -1460,13 +1454,24 @@ class SecretPacker(DataPacker[SecretData, lang.Secret]):
 
 
 @dataclass
-class ExecutionFrameData:
-    """Wire-able representation of an execution frame."""
-
+class SessionData:
     id: UUID
     module_id: UUID
+    worker_id: UUID
+    opened_at: Optional[datetime]
+    closed_at: Optional[datetime]
+    metadata: Optional[dict[str, Any]]
+    trigger_id: Optional[UUID]
+    trigger_type: RunTriggerType
+
+
+@dataclass
+class RunData:
+    id: UUID
+    module_id: UUID
+    worker_id: UUID
     runnable_id: UUID
-    root_id: Optional[UUID]
+    session_id: UUID
     parent_id: Optional[UUID]
     entered_at: datetime
     exited_at: Optional[datetime]
@@ -1476,15 +1481,9 @@ class ExecutionFrameData:
     outputs: Optional[Any]
     error: Optional[RunError]
     queue_position: Optional[int]
-    # additional context data not in ExecutionFrame
-    project_id: UUID
-    tracing_level: Optional[int]
-    worker_id: UUID
-    trigger_type: Optional[ExecutionTriggerType]
-    trigger_id: Optional[UUID]
 
     @staticmethod
-    def from_frame(frame: ExecutionFrame, *, session: "Session") -> ExecutionFrameData:
+    def from_frame(frame: Run, *, session: "Session") -> RunData:
         # this should also follow the packer pattern
         if frame.error:
             if frame.runnable is None:
@@ -1493,8 +1492,8 @@ class ExecutionFrameData:
                 traceback.walk_tb(frame.error.__traceback__), capture_locals=True
             )
             if isinstance(frame.runnable, lang.Code):
-                stack = ExecutionCodeFrame.from_stack(stack_summary)
-                stack = ExecutionCodeFrame.clean(stack, frame.runnable, session=session)
+                stack = RunCodeFrame.from_stack(stack_summary)
+                stack = RunCodeFrame.clean(stack, frame.runnable, session=session)
             else:
                 stack = []
             error_str = str(frame.error)
@@ -1509,23 +1508,19 @@ class ExecutionFrameData:
             )
         else:
             error_data = None
-        return ExecutionFrameData(
-            id=frame.id,
-            module_id=frame.module_id,
-            runnable_id=frame.runnable.id if frame.runnable else None,
-            root_id=frame.root.id if frame.root else None,
-            parent_id=frame.parent.id if frame.parent else None,
-            entered_at=frame.entered_at,
-            exited_at=frame.exited_at,
-            cached_generated_at=frame.cached_generated_at,
-            cached_duration=frame.cached_duration,
-            inputs=frame.inputs,
-            outputs=frame.outputs,
-            error=error_data,
-            queue_position=frame.queue_position,
-            project_id=session.ctx.project_id,
-            tracing_level=session.ctx.tracing_level,
-            worker_id=session.ctx.worker_id,
-            trigger_type=session.ctx.trigger_type,
-            trigger_id=session.ctx.trigger_id,
-        )
+        raise NotImplementedError  # nocheckin
+
+
+@dataclass
+class LogEntryData:
+    id: UUID
+    module_id: UUID
+    worker_id: UUID
+    created_at: datetime
+    level: str
+    logger: str
+    message: Optional[str]
+    session_id: Optional[UUID]
+    runnable_id: Optional[UUID]
+    run_id: Optional[UUID]
+    metadata: Optional[dict[str, Any]]

@@ -16,13 +16,34 @@ if TYPE_CHECKING:
     from bench.bench.task import Task
 
 
+@reflect_enum("RunStatus", "The status of a run")
+class RunStatus(enum.StrEnum):
+    Created = "Created"
+    Scheduled = "Scheduled"
+    Queued = "Queued"
+    Running = "Running"
+    Aborting = "Aborting"
+    # terminal statuses
+    Aborted = "Aborted"
+    Failed = "Failed"
+    Completed = "Completed"
+
+
+TERMINAL_RUN_STATUSES = {
+    RunStatus.Aborted,
+    RunStatus.Failed,
+    RunStatus.Completed,
+}
+PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
+
+
 @dataclass
-class ExecutionFrame:
+class Run:
     id: UUID
-    module_id: UUID
     runnable: Union["Code", "Model", "Task"]
-    root: Optional["ExecutionFrame"]
-    parent: Optional["ExecutionFrame"]
+    session: Session
+    root: Optional["Run"]
+    parent: Optional["Run"]
     entered_at: datetime
     exited_at: Optional[datetime]
     cached_generated_at: Optional[datetime]
@@ -31,7 +52,7 @@ class ExecutionFrame:
     outputs: Optional[dict[str, Any]]
     error: Optional[Exception]
     queue_position: Optional[int]
-    children: list["ExecutionFrame"] = field(default_factory=list)
+    children: list["Run"] = field(default_factory=list)
 
     @property
     def duration(self) -> float:
@@ -65,17 +86,17 @@ class ExecutionFrame:
         return f"<ExecutionFrame {self}>"
 
 
-IGNORED_PACKAGE_PREFIXES = [
+_IGNORED_PACKAGE_PREFIXES = [
     "bench.runtime",
     "bench.bench",
     "asgiref",
     "concurrent",
 ]
-IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in IGNORED_PACKAGE_PREFIXES]
+_IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACKAGE_PREFIXES]
 
 
 @reflect_struct("RunCodeFrame", "The frame of code that was executed for a traceback")
-class ExecutionCodeFrame:
+class RunCodeFrame:
     filename: str
     lineno: int
     name: str
@@ -83,9 +104,9 @@ class ExecutionCodeFrame:
     line: str = None
 
     @staticmethod
-    def from_stack(stack: traceback.StackSummary) -> list["ExecutionCodeFrame"]:
+    def from_stack(stack: traceback.StackSummary) -> list["RunCodeFrame"]:
         return [
-            ExecutionCodeFrame(
+            RunCodeFrame(
                 filename=frame.filename,
                 lineno=frame.lineno,
                 name=frame.name,
@@ -97,8 +118,8 @@ class ExecutionCodeFrame:
 
     @staticmethod
     def clean(
-        stack: list["ExecutionCodeFrame"], from_code: "Code", session: "Session"
-    ) -> list["ExecutionCodeFrame"]:
+        stack: list["RunCodeFrame"], from_code: "Code", session: "Session"
+    ) -> list["RunCodeFrame"]:
         from bench.bench.code_ import Code
 
         code_by_method: dict[str, Code] = {
@@ -111,7 +132,7 @@ class ExecutionCodeFrame:
         found_start = False
         cleaned_stack = []
         for frame in stack:
-            if any(prefix in frame.filename for prefix in IGNORED_PACKAGE_PATHS):
+            if any(prefix in frame.filename for prefix in _IGNORED_PACKAGE_PATHS):
                 continue  # skip support code
             if not found_start:
                 # impute bench source info into instantiated code callables
@@ -157,17 +178,18 @@ class RunError(Exception):  # can this really be a subclass of Exception?
     type: str
     message: Optional[str] = None
     statement_id: Optional[UUID] = None
-    traceback: list[ExecutionCodeFrame] = None
+    traceback: list[RunCodeFrame] = None
 
 
 @reflect_struct("LogEntry", "A single log entry from a run")
 class LogEntry:
     module_id: UUID
     created_at: datetime
-    level: str
-    logger: str
+    stream: str
+    level: Optional[str] = None
+    logger: Optional[str] = None
     session_id: Optional[UUID] = None
-    statement_id: Optional[UUID] = None
-    execution_id: Optional[UUID] = None
+    runnable_id: Optional[UUID] = None
+    run_id: Optional[UUID] = None
     message: Optional[str] = None
     metadata: dict[str, Any] = None

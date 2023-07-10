@@ -14,7 +14,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
 from bench.bench.core import SessionTracingLevel
-from bench.models import ExecutionTriggerType, Project, ProjectVersion
+from bench.models import Project, ProjectVersion, RunTriggerType
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg.core import request
 from bench.msg.messages import NMessageType, RepRunPayload, ReqRunPayload
@@ -33,7 +33,7 @@ class RunInputSerializer(serializers.Serializer):
 
 
 class RunOutputSerializer(serializers.Serializer):
-    execution_id = serializers.UUIDField()
+    run_id = serializers.UUIDField()
     outputs = serializers.JSONField(allow_null=True)
     success = serializers.BooleanField()
     error = serializers.JSONField(allow_null=True)
@@ -171,12 +171,12 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         arguments=data["inputs"],
         block=data["block"],
         tracing_level=data["trace"],
-        trigger_type=ExecutionTriggerType.API,
+        trigger_type=RunTriggerType.API,
         trigger_id=access.access_token_id,
     )
     rep = await request(NMessageType.REQUEST_RUN, run, RepRunPayload, timeout=60)
     outputs = dict(
-        execution_id=rep.p.execution_id,
+        run_id=rep.p.run_id,
         output=rep.p.outputs,
         success=not rep.p.error,
         error=dict(type=rep.p.error.value, details=rep.p.error_details) if rep.p.error else None,
