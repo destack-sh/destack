@@ -1,6 +1,7 @@
 <script lang="ts" setup>
+import UserAvatar from "@/components/basic/UserAvatar.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { getClientColor, useCurrentClients } from "@/state/client";
+import { useCurrentClients } from "@/state/client";
 import { useCurrentModule } from "@/state/module";
 import { computed } from "vue";
 
@@ -28,22 +29,8 @@ const now = useTimeFromNow();
 <template>
   <div class="flex flex-row items-baseline gap-1">
     <!-- :ProfilePreview -->
-    <div
-      v-for="client in filteredClients.slice(0, first)"
-      :key="client.id"
-      class="group/popover relative rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-100"
-      :class="{
-        'px-2.5 py-1': props.size === 'large',
-        'px-1.5 py-[3px]': props.size === 'medium',
-        'px-1 py-0.5': props.size === 'small',
-      }"
-      :style="{
-        backgroundColor: getClientColor(client.id),
-      }"
-    >
-      <span class="text-sm text-gray-900">
-        {{ client.user.username.slice(0, 2).toLocaleUpperCase() }}
-      </span>
+    <div v-for="client in filteredClients.slice(0, first)" :key="client.id" class="group/popover relative">
+      <UserAvatar :user="client.user" :clientId="client.id" :size="props.size" />
       <!-- Profile info popover -->
       <div
         class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover/popover:visible"

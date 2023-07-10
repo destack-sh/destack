@@ -696,6 +696,7 @@ export type EditorContext<T extends Editor> = {
   container: Ref<HTMLElement | null>;
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
+  scroll: Ref<{ x: number; y: number }>;
   actions: Ref<EditorAction[]>;
   actionGroups?: Ref<ActionGroup[]>;
 };
@@ -705,7 +706,8 @@ export const EDITOR_CONTEXT = "__editor__";
 export function provideEditorContext<T extends Editor>(
   editor: Ref<T>,
   component: Ref<any>,
-  container: Ref<HTMLElement | null>
+  container: Ref<HTMLElement | null>,
+  scroll: { x: Ref<number>; y: Ref<number> }
 ) {
   const editorState = useBenchState();
   const elementBounding = useElementBounding(container);
@@ -718,6 +720,7 @@ export function provideEditorContext<T extends Editor>(
       left: elementBounding.left.value,
       top: elementBounding.top.value,
     })),
+    scroll: computed(() => ({ x: scroll.x.value, y: scroll.y.value })),
     actions: computed(() => {
       const actions: EditorAction[] = [];
 

@@ -21,6 +21,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect 
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { newFileId } from "@/state/operations/file";
 import { useConnectedClients, useCurrentClients } from "@/state/client";
+import UserAvatar from "@/components/basic/UserAvatar.vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -295,14 +296,13 @@ const localClients = computed(() =>
   clients.activeClientsWithoutSelf.value.filter((c) => c.fileId == fileHeader.value?.id && c.statementId != null)
 );
 
-function getStatementBounding(statementId: string): { left: number; top: number; right: number; bottom: number } {
+function getStatementBounding(statementId: string): { top: number; right: number } {
   const statement = statementsComponents.value[statementId];
-  if (statement == null) return { left: -100, top: -100, right: -100, bottom: -100 };
+  if (statement == null) return { top: -100 };
+  const editor = props.editor;
   return {
-    left: statement.bounding.left.value,
-    top: statement.bounding.top.value,
-    right: statement.bounding.right.value,
-    bottom: statement.bounding.bottom.value,
+    right: Math.round((statement.bounding.right.value + editor.scroll.value.x - editor.pos.value.left) * 100) / 100,
+    top: Math.round((statement.bounding.top.value + editor.scroll.value.y - editor.pos.value.top) * 100) / 100,
   };
 }
 </script>
@@ -377,8 +377,6 @@ function getStatementBounding(statementId: string): { left: number; top: number;
           class="w-full"
         />
       </div>
-      <!-- TODO @UX: client indicators next to statements -->
-      <!-- (these move smoothly as the other client moves but instantly as we scroll...) -->
       <!-- Add statement to end -->
       <StatementAddArea
         class="flex-1 pb-96"
@@ -386,6 +384,19 @@ function getStatementBounding(statementId: string): { left: number; top: number;
         position="end"
         @click="bench.readonly || insertOrFocusStatementEnd()"
       />
+    </div>
+    <!-- TODO @UX: client indicators next to statements -->
+    <!-- (these move smoothly as the other client moves but instantly as we scroll...) -->
+    <div
+      v-for="client in localClients"
+      :key="client.id"
+      class="absolute transition-all duration-150"
+      :style="{
+        left: getStatementBounding(client.statementId).right + 32 + 'px',
+        top: getStatementBounding(client.statementId).top + 4 + 'px',
+      }"
+    >
+      <UserAvatar :client-id="client.id" :user="client.user" size="small" />
     </div>
   </div>
 </template>
