@@ -7,6 +7,7 @@ import CompleteSignup from "@/routes/CompleteSignup.vue";
 import Login from "@/routes/Login.vue";
 import Profile from "@/routes/Profile.vue";
 import Settings from "@/routes/Settings.vue";
+import WaitlistHold from "@/routes/WaitlistHold.vue";
 
 import qs from "qs";
 import { createRouter, createWebHistory, type RouteLocationNormalized } from "vue-router";
@@ -22,6 +23,7 @@ const routes = [
   { path: "/signup", name: "Signup", component: Signup, props: forwardQueryAndParams },
   { path: "/signup/complete", name: "CompleteSignup", component: CompleteSignup, props: forwardQueryAndParams },
   { path: "/login", name: "Login", component: Login, props: forwardQueryAndParams },
+  { path: "/anticipation-zone", name: "Waitlisted", component: WaitlistHold, props: forwardQueryAndParams },
   { path: "/new", name: "CreateBench", component: CreateBench, props: forwardQueryAndParams },
   {
     path: "/organizations/new",

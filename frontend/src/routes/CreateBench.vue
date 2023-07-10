@@ -8,7 +8,7 @@ import ProfileButton from "@/components/basic/ProfileButton.vue";
 import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { graphql } from "@/gql";
 import { ProjectVisibility } from "@/gql/graphql";
-import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
+import { useAuth, useRedirectIfNotLoggedIn, useRedirectIfWaitlisted } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
@@ -18,11 +18,13 @@ import { useTitle } from "@vueuse/core";
 import { computed, onMounted, ref, watchEffect, type Ref } from "vue";
 import { useRouter } from "vue-router";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import BenchIcon from "@/components/basic/BenchIcon.vue";
 
 const title = useTitle();
 title.value = "Create your Bench";
 
 useRedirectIfNotLoggedIn();
+useRedirectIfWaitlisted();
 
 const auth = useAuth();
 const owner: Ref<{ id: string; name: string; slug: string } | null> = ref(null);
@@ -125,12 +127,8 @@ async function createProject() {
       </template>
     </FatHeader>
     <div class="mx-auto mt-20 w-96 text-center lg:mt-32">
-      <div class="flex flex-row items-baseline justify-center gap-1">
-        <div class="font-mono text-2xl font-bold">
-          <span class="-mx-0.5 text-gray-900">[</span>
-          <span class="text-3xl text-orange-600">x</span>
-          <span class="-mx-0.5 text-gray-900">]</span>
-        </div>
+      <div class="flex flex-row items-baseline justify-center gap-2">
+        <BenchIcon class="h-4 w-4 text-orange-600" />
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-2 mt-4 text-5xl font-bold">Create your Bench</h1>
