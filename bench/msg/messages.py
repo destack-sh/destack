@@ -60,8 +60,12 @@ class NMessageType(StrEnum):
     REPLY_WRITE_MODULE = "module.write.rep"
     REQUEST_WRITE_SESSION = "session.write"
     REPLY_WRITE_SESSION = "session.write.rep"
-    REQUEST_SEARCH_DATASET = "module.dataset.search"
-    REPLY_SEARCH_DATASET = "module.dataset.search.rep"
+    REQUEST_SEARCH_RECORD = "module.search.record"
+    REPLY_SEARCH_RECORD = "module.search.record.rep"
+    REQUEST_SEARCH_RUN = "module.search.run"
+    REPLY_SEARCH_RUN = "module.search.run.rep"
+    REQUEST_SEARCH_LOG = "module.search.log"
+    REPLY_SEARCH_LOG = "module.search.log.rep"
     REQUEST_READ_OBJECT = "object.read"
     REPLY_READ_OBJECT = "object.read.rep"
     REQUEST_WRITE_OBJECT = "object.write"
@@ -89,7 +93,9 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
     NMessageType.REQUEST_MARK_UPLOADED_OBJECT: NMessageType.REPLY_MARK_UPLOADED_OBJECT,
-    NMessageType.REQUEST_SEARCH_DATASET: NMessageType.REPLY_SEARCH_DATASET,
+    NMessageType.REQUEST_SEARCH_RECORD: NMessageType.REPLY_SEARCH_RECORD,
+    NMessageType.REQUEST_SEARCH_RUN: NMessageType.REPLY_SEARCH_RUN,
+    NMessageType.REQUEST_SEARCH_LOG: NMessageType.REPLY_SEARCH_LOG,
     NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
     NMessageType.REQUEST_RUN_INFERENCE: NMessageType.REPLY_RUN_INFERENCE,
     NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
@@ -295,11 +301,8 @@ class RepWriteSessionPayload:
     success: bool
 
 
-@payload(NMessageType.REQUEST_SEARCH_DATASET)
-class ReqSearchDatasetPayload:
-    module_id: UUID
-    statement_id: UUID
-    backend_id: str
+@dataclass
+class ReqSearch(abc.ABC):
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     after: Optional[str] = None
@@ -307,14 +310,48 @@ class ReqSearchDatasetPayload:
     count: bool = False
 
 
-@payload(NMessageType.REPLY_SEARCH_DATASET)
-class RepSearchDatasetPayload:
+@dataclass
+class RepSearch(abc.ABC):
     records: Optional[list[RecordData]]
-    total: int
+    total: Optional[int]
     limit: int
     start_cursor: Optional[str] = None
     end_cursor: Optional[str] = None
     error: Optional[str] = None
+
+
+@payload(NMessageType.REQUEST_SEARCH_RECORD)
+class ReqSearchRecordPayload(ReqSearch):
+    module_id: UUID
+    statement_ids: Optional[list[UUID]] = None
+    backend_ids: Optional[list[UUID]] = None
+
+
+@payload(NMessageType.REPLY_SEARCH_RECORD)
+class RepSearchRecordPayload(RepSearch):
+    elements: Optional[list[RecordData]]
+
+
+@payload(NMessageType.REQUEST_SEARCH_RUN)
+class ReqSearchRunPayload(ReqSearch):
+    module_id: UUID
+    runnable_ids: Optional[list[UUID]] = None
+
+
+@payload(NMessageType.REPLY_SEARCH_RUN)
+class RepSearchRunPayload(RepSearch):
+    elements: Optional[list[RunData]]
+
+
+@payload(NMessageType.REQUEST_SEARCH_LOG)
+class ReqSearchLogPayload(ReqSearch):
+    module_id: UUID
+    runnable_ids: Optional[list[UUID]] = None
+
+
+@payload(NMessageType.REPLY_SEARCH_LOG)
+class RepSearchLogPayload(RepSearch):
+    elements: Optional[list[LogEntryData]]
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)

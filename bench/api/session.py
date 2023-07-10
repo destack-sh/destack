@@ -189,16 +189,24 @@ class SessionQuery:
 @gql.type
 class SessionSubscription:
     @asafe_subscription
-    async def executions_changed(
+    async def logs_changed(
         self,
         info: Info,
         project_id: GlobalID,
         project_version_id: Optional[GlobalID],
-        include_ancestor_versions: bool = False,
-        runnable_ids: list[GlobalID] | None = None,
-        root_id: Optional[GlobalID] = None,
-        root_id_null: bool = False,
-    ) -> AsyncGenerator[Run, None]:
+        session_id: Optional[GlobalID],
+        run_id: Optional[GlobalID],
+        statement_id: Optional[GlobalID],
+    ) -> AsyncGenerator[LogEntry, None]:
+        raise NotImplementedError
+
+    @asafe_subscription
+    async def sessions_changed(
+        self,
+        info: Info,
+        project_id: GlobalID,
+        project_version_id: Optional[GlobalID],
+    ) -> AsyncGenerator[Run | Session, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = get_user_from_info(info)

@@ -1,14 +1,26 @@
 import abc
 import hashlib
-from typing import Any, Optional, Self
+from typing import TYPE_CHECKING, Any, Optional, Self
 from uuid import UUID
 
 import msgpack
 
+if TYPE_CHECKING:
+    from bench.bench.session import LogSearch, RunSearch
+
 
 class Runnable(abc.ABC):
-    logs: Any
-    runs: Any
+    @property
+    def logs(self) -> "LogSearch":
+        from bench.bench.session import LogSearch
+
+        return LogSearch(self)
+
+    @property
+    def runs(self) -> "RunSearch":
+        from bench.bench.session import RunSearch
+
+        return RunSearch(self)
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError

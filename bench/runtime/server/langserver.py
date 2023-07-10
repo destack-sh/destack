@@ -19,7 +19,7 @@ from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.type import instantiate_py_value, strip_py_value
 from bench.bench.utils import get_run_cache_key
-from bench.bench.wire import ModuleTree, RunData
+from bench.bench.wire import ModuleTree, RunData, SessionData
 from bench.models import Project, ProjectVersion, Run, RunStatus, packer
 from bench.models.packer import write_mutations
 from bench.models.session import PENDING_RUN_STATUSES
@@ -38,7 +38,7 @@ from bench.msg.messages import (
     RepReadSecretPayload,
     RepRegisterWorkerPayload,
     RepRunInferencePayload,
-    RepSearchDatasetPayload,
+    RepSearchRecordPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
     ReqLangserverPayload,
@@ -48,7 +48,7 @@ from bench.msg.messages import (
     ReqReadSecretPayload,
     ReqRegisterWorkerPayload,
     ReqRunInferencePayload,
-    ReqSearchDatasetPayload,
+    ReqSearchRecordPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
@@ -139,7 +139,9 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
-            await handle_reply(NMessageType.REQUEST_SEARCH_DATASET, self.search_dataset),
+            await handle_reply(NMessageType.REQUEST_SEARCH_RECORD, self.search_dataset),
+            await handle_reply(NMessageType.REQUEST_SEARCH_RUN, self.search_run),
+            await handle_reply(NMessageType.REQUEST_SEARCH_LOG, self.search_log),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
             await handle_reply(NMessageType.REQUEST_WRITE_OBJECT, self.write_object),
             await handle_reply(
@@ -226,7 +228,7 @@ class LanguageServer:
         raise NotImplementedError
 
     @message_handler
-    async def search_dataset(self, msg: NMessage[ReqSearchDatasetPayload]) -> None:
+    async def search_dataset(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
         logger.debug("dataset.search", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
         project_version = await ProjectVersion.objects.aget(id=msg.p.module_id)
@@ -234,7 +236,9 @@ class LanguageServer:
 
         try:
             search = prepare_search(
-                backend_id=msg.p.backend_id,
+                type=mirror.DocumentType.RECORD,
+                project_version_id=str(project_version.id),
+                backend_ids=msg.p.backend_ids,
                 limit=effective_limit,
                 count=msg.p.count,
                 after=msg.p.after,
@@ -259,7 +263,7 @@ class LanguageServer:
             else:
                 start_cursor = None
                 end_cursor = None
-            rep = RepSearchDatasetPayload(
+            rep = RepSearchRecordPayload(
                 records=records,
                 total=(results["hits"]["total"]["value"] if msg.p.count else None),
                 limit=effective_limit,
@@ -269,7 +273,7 @@ class LanguageServer:
         except Exception as e:
             sentry_capture_if_enabled(e)
             logger.error("dataset.search.failed", msg=msg, exc_info=True)
-            rep = RepSearchDatasetPayload(
+            rep = RepSearchRecordPayload(
                 records=None,
                 total=-1,
                 limit=effective_limit,
@@ -386,16 +390,6 @@ class LanguageServer:
         logger.debug("langserver.wake", msg=msg)
         await self._get_ready_worker(msg.p.module_id)
         await msg.reply(RepLangserverPayload(module_id=msg.p.module_id))
-
-    @message_handler
-    async def execution_changed(self, msg: NMessage[SessionInternalChangedPayload]) -> None:
-        save_success = await sync_to_async(save_execution_frames)(msg.payload.executions)
-        if save_success:
-            # forward to API clients now that DB frames are saved
-            await publish(
-                NMessageType.SESSION_CHANGED,
-                SessionChangedPayload(module_id=msg.p.module_id, frames=msg.p.executions),
-            )
 
     @message_handler
     async def execution_marked_dead(self, msg: NMessage[ExecutionMarkedDeadPayload]) -> None:
@@ -641,14 +635,14 @@ class LanguageWorker:
         self.ready.set()
 
 
-def save_execution_frames(frames: list[RunData]) -> bool:
+def save_session(session: SessionData, runs: list[RunData]) -> bool:
     model_executions: list[Run] = []
     seen_ids = set()  # dedup by id, keep last (assumes chronological order)
-    for frame in reversed(frames):
-        if frame.id in seen_ids:
+    for run in reversed(runs):
+        if run.id in seen_ids:
             continue
-        seen_ids.add(frame.id)
-        execution = packer.unpack_data(frame)
+        seen_ids.add(run.id)
+        execution = packer.unpack_data(run)
         model_executions.append(execution)
 
     try:
