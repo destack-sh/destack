@@ -7,10 +7,10 @@ import re
 from json import JSONDecodeError
 from typing import Collection, Optional, Self
 
+from bench.bench.basic import Expectation
 from bench.bench.code_ import Code
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import Scope, Statement, node
-from bench.bench.expect import Expectation
 from bench.bench.model import Model
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value

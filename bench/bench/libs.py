@@ -7,7 +7,7 @@ from typing import Any, Optional
 import anthropic
 import openai
 
-from bench.bench import Expectation
+from bench.bench.basic import Expectation
 from bench.bench.code_ import Code
 from bench.bench.const import TypeFlag, TypeTag
 from bench.bench.core import LookupBy, Module, Statement, parse_absolute_statement_reference

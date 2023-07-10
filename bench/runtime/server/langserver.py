@@ -18,18 +18,16 @@ from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statem
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.type import instantiate_py_value, strip_py_value
-from bench.bench.utils import get_execution_cache_key
-from bench.bench.wire import ExecutionFrameData, ModuleTree
-from bench.models import Execution, ExecutionStatus, Project, ProjectVersion, packer
-from bench.models.execution import PENDING_EXECUTION_STATUSES
+from bench.bench.utils import get_run_cache_key
+from bench.bench.wire import ModuleTree, RunData
+from bench.models import Project, ProjectVersion, Run, RunStatus, packer
 from bench.models.packer import write_mutations
+from bench.models.session import PENDING_RUN_STATUSES
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     ClientOrigin,
-    ExecutionChangedPayload,
     ExecutionMarkedDeadPayload,
-    ExecutionSavedPayload,
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
@@ -53,6 +51,9 @@ from bench.msg.messages import (
     ReqSearchDatasetPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
+    ReqWriteSessionPayload,
+    SessionChangedPayload,
+    SessionInternalChangedPayload,
     WorkerHeartbeatPayload,
 )
 from bench.opensearch import mirror
@@ -136,6 +137,7 @@ class LanguageServer:
             await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
             await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
+            await handle_reply(NMessageType.REQUEST_WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
             await handle_reply(NMessageType.REQUEST_SEARCH_DATASET, self.search_dataset),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
@@ -145,7 +147,9 @@ class LanguageServer:
             ),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
-            await subscribe(f"{NMessageType.EXECUTION_CHANGED}.*", cb=self.execution_changed),
+            await subscribe(
+                f"{NMessageType.SESSION_INTERNAL_CHANGED}.*", cb=self.execution_changed
+            ),
             await subscribe(
                 f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
             ),
@@ -216,6 +220,10 @@ class LanguageServer:
             logger.error("write_module.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
+
+    @message_handler
+    async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
+        raise NotImplementedError
 
     @message_handler
     async def search_dataset(self, msg: NMessage[ReqSearchDatasetPayload]) -> None:
@@ -357,7 +365,7 @@ class LanguageServer:
             # :LibImplementation
             module = DEFAULT_MODULES[module_name]
             model = module.lookup(localized_path)
-            cache_key = get_execution_cache_key(model.path, msg.p.inputs)
+            cache_key = get_run_cache_key(model.path, msg.p.inputs)
             inputs = instantiate_py_value(msg.p.inputs, model, is_output=False)
             output = await asyncio.wait_for(
                 asyncio.shield(model._inference(inputs, cache_key, log)), msg.p.timeout
@@ -380,31 +388,29 @@ class LanguageServer:
         await msg.reply(RepLangserverPayload(module_id=msg.p.module_id))
 
     @message_handler
-    async def execution_changed(self, msg: NMessage[ExecutionChangedPayload]) -> None:
-        save_success = await sync_to_async(save_execution_frames)(msg.payload.frames)
+    async def execution_changed(self, msg: NMessage[SessionInternalChangedPayload]) -> None:
+        save_success = await sync_to_async(save_execution_frames)(msg.payload.executions)
         if save_success:
             # forward to API clients now that DB frames are saved
             await publish(
-                NMessageType.EXECUTION_SAVED,
-                ExecutionSavedPayload(module_id=msg.p.module_id, frames=msg.p.frames),
+                NMessageType.SESSION_CHANGED,
+                SessionChangedPayload(module_id=msg.p.module_id, frames=msg.p.executions),
             )
 
     @message_handler
     async def execution_marked_dead(self, msg: NMessage[ExecutionMarkedDeadPayload]) -> None:
-        execution = await models.Execution.objects.filter(id=msg.p.execution_id).afirst()
+        execution = await models.Run.objects.filter(id=msg.p.run_id).afirst()
         if execution is None:
-            logger.warning(
-                "execution_marked_dead.not_found", msg=msg, execution_id=msg.p.execution_id
-            )
+            logger.warning("execution_marked_dead.not_found", msg=msg, run_id=msg.p.run_id)
             return
         if execution.terminated_at is not None:
             return
-        execution.status = models.ExecutionStatus.Aborted
+        execution.status = models.RunStatus.Aborted
         execution.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         await execution.asave()
         await publish(
-            NMessageType.EXECUTION_SAVED,
-            ExecutionSavedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(execution)]),
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(execution)]),
         )
 
     @message_handler
@@ -450,9 +456,9 @@ class LanguageServer:
             if dead_workers:
                 # mark all relevant jobs and executions as failed
                 dead_ids = [worker.id for worker in dead_workers]
-                await Execution.objects.filter(
-                    status__in=PENDING_EXECUTION_STATUSES, worker_id__in=dead_ids
-                ).aupdate(status=ExecutionStatus.Failed)
+                await Run.objects.filter(
+                    status__in=PENDING_RUN_STATUSES, worker_id__in=dead_ids
+                ).aupdate(status=RunStatus.Failed)
                 for worker in dead_workers:
                     worker.status = models.WorkerStatus.TERMINATED
                     worker.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
@@ -466,10 +472,10 @@ class LanguageServer:
             start_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
                 seconds=timeout_seconds
             )
-            await Execution.objects.filter(
-                status__in=PENDING_EXECUTION_STATUSES,
+            await Run.objects.filter(
+                status__in=PENDING_RUN_STATUSES,
                 started_at__lt=start_cutoff,
-            ).aupdate(status=ExecutionStatus.Failed)
+            ).aupdate(status=RunStatus.Failed)
             await asyncio.sleep(interval_seconds)
 
     async def stop(self):
@@ -635,8 +641,8 @@ class LanguageWorker:
         self.ready.set()
 
 
-def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
-    model_executions: list[Execution] = []
+def save_execution_frames(frames: list[RunData]) -> bool:
+    model_executions: list[Run] = []
     seen_ids = set()  # dedup by id, keep last (assumes chronological order)
     for frame in reversed(frames):
         if frame.id in seen_ids:
@@ -647,7 +653,7 @@ def save_execution_frames(frames: list[ExecutionFrameData]) -> bool:
 
     try:
         # upsert frames
-        Execution.objects.bulk_create(
+        Run.objects.bulk_create(
             model_executions,
             update_conflicts=True,
             unique_fields=["id"],

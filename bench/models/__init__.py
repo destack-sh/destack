@@ -1,5 +1,4 @@
 from .dataset import Dataset
-from .execution import Execution, ExecutionStatus, ExecutionTriggerType
 from .interp import InterpScope, Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -12,6 +11,7 @@ from .organization import (
 from .owner import OwnerSlug
 from .project import File, Project, ProjectVersion, ProjectVisibility, RefMapping, RefMappingKind
 from .secret import Secret
+from .session import Run, RunStatus, RunTriggerType, Session
 from .statement import Field, Statement, Tagging
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
@@ -26,9 +26,9 @@ __all__ = [
     "ClientType",
     "CrudModel",
     "Dataset",
-    "Execution",
-    "ExecutionStatus",
-    "ExecutionTriggerType",
+    "Run",
+    "RunStatus",
+    "RunTriggerType",
     "Issue",
     "IssueKind",
     "InterpScope",
@@ -50,6 +50,7 @@ __all__ = [
     "RemoteObjectStatus",
     "ResolvedField",
     "Field",
+    "Session",
     "Statement",
     "Secret",
     "Tagging",

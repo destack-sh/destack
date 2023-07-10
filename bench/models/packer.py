@@ -21,9 +21,9 @@ from bench import models
 from bench.bench import StatementType, TypeHint, TypeTag, wire
 from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
 from bench.bench.core import InterpScope, ModuleObjectType
-from bench.bench.execution import RunError
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
+from bench.bench.session import RunError
 from bench.bench.wire import ModuleTree, ModuleTreeData
 
 MOT = ModuleObjectType
@@ -872,10 +872,10 @@ class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
         )
 
 
-@data_packer(wire.ExecutionFrameData, models.Execution)
-class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]):
-    def pack(self, model: models.Execution) -> wire.ExecutionFrameData:
-        return wire.ExecutionFrameData(
+@data_packer(wire.RunData, models.Run)
+class RunPacker(DataPacker[wire.RunData, models.Run]):
+    def pack(self, model: models.Run) -> wire.RunData:
+        return wire.RunData(
             id=model.id,
             project_id=model.project_id,
             module_id=model.project_version_id,
@@ -890,29 +890,24 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
             inputs=model.inputs,
             outputs=model.outputs,
             error=RunError.instantiate_from(model.error) if model.error else None,
-            # additional context
-            tracing_level=model.tracing_level,
-            worker_id=model.worker_id,
-            trigger_type=model.trigger_type,
-            trigger_id=model.user_id or model.access_token_id,
         )
 
-    def unpack(self, data: wire.ExecutionFrameData) -> models.Execution:
+    def unpack(self, data: wire.RunData) -> models.Run:
         if data.error:
-            status = models.ExecutionStatus.Failed
+            status = models.RunStatus.Failed
         elif data.exited_at:
-            status = models.ExecutionStatus.Completed
+            status = models.RunStatus.Completed
         elif data.queue_position:
-            status = models.ExecutionStatus.Queued
+            status = models.RunStatus.Queued
         else:
-            status = models.ExecutionStatus.Running
+            status = models.RunStatus.Running
         # additional context
-        user_id = data.trigger_id if data.trigger_type == models.ExecutionTriggerType.UI else None
+        user_id = data.trigger_id if data.trigger_type == models.RunTriggerType.UI else None
         access_token_id = (
-            data.trigger_id if data.trigger_type == models.ExecutionTriggerType.API else None
+            data.trigger_id if data.trigger_type == models.RunTriggerType.API else None
         )
         error = data.error.strip() if data.error else None
-        return models.Execution(
+        return models.Run(
             id=data.id,
             project_id=data.project_id,
             project_version_id=data.module_id,
@@ -929,12 +924,6 @@ class ExecutionFramePacker(DataPacker[wire.ExecutionFrameData, models.Execution]
             inputs=data.inputs,
             outputs=data.outputs,
             error=error,
-            # additional context
-            tracing_level=data.tracing_level,
-            worker_id=data.worker_id,
-            trigger_type=data.trigger_type,
-            user_id=user_id,
-            access_token_id=access_token_id,
         )
 
 

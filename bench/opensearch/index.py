@@ -118,7 +118,7 @@ def _create_index(
             index=index_name, body={"dynamic": "strict", "properties": mappings}
         )
         # reopen index
-        os_client.indices.open(index=index_name)
+        os_client.indices.aopen(index=index_name)
 
 
 def create_global_index(name: str = None, upsert: bool = False) -> None:

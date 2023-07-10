@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
@@ -14,10 +15,9 @@ from bench import models
 from bench.api.auth import CanViewProject, check_can_view_project_by_id
 from bench.api.statement import Statement
 from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid, to_uuids
-from bench.bench import execution
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import ExecutionSavedPayload, NMessageType
+from bench.msg.messages import NMessageType, SessionChangedPayload
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
@@ -26,8 +26,8 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-ExecutionStatus = gql.enum(models.ExecutionStatus)
-ExecutionTriggerType = gql.enum(models.ExecutionTriggerType)
+RunStatus = gql.enum(models.RunStatus)
+RunTriggerType = gql.enum(models.RunTriggerType)
 
 
 @gql.type
@@ -39,7 +39,7 @@ class PyFrame:
     locals: Optional[JSON] = None
 
     @staticmethod
-    def from_data(data: execution.ExecutionCodeFrame) -> "PyFrame":
+    def from_data(data: run.RunCodeFrame) -> "PyFrame":
         return PyFrame(
             filename=data.filename,
             lineno=data.lineno,
@@ -75,16 +75,29 @@ class RunError:
         )
 
 
-def get_error_nice(root: "Execution") -> Optional[RunError]:
+def get_error_nice(root: "Run") -> Optional[RunError]:
     if root.error:
         return RunError.from_dict(data=root.error)
     else:
         return None
 
 
-@gql.django.type(models.Execution)
-class Execution(gql.Node):
+@gql.django.type(models.Session)
+class Session(gql.Node):
     project: Annotated["Project", lazy(".project")]
+    created_at: auto
+    updated_at: auto
+    opened_at: auto
+    closed_at: auto
+    metadata: Optional[JSON]
+    # trigger
+    trigger_type: RunTriggerType
+    user: Optional[Annotated["User", lazy(".user")]]
+    access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+
+
+@gql.django.type(models.Run)
+class Run(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     created_at: auto
     updated_at: auto
@@ -93,20 +106,30 @@ class Execution(gql.Node):
     cached_generated_at: auto
     cached_duration: auto
     duration: auto
-    status: ExecutionStatus
+    status: RunStatus
     inputs: auto
     outputs: auto
     error: auto
     error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
     metadata: auto
-    root: Optional["Execution"]
-    parent: Optional["Execution"]
-    descendants: list["Execution"]
+    root: Optional["Run"]
+    parent: Optional["Run"]
+    descendants: list["Run"]
     runnable: Optional["Statement"]
-    # trigger
-    trigger_type: ExecutionTriggerType
-    user: Optional[Annotated["User", lazy(".user")]]
-    access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+
+
+@gql.type
+class LogEntry:
+    module_id: GlobalID
+    created_at: datetime
+    stream: str
+    level: Optional[str]
+    logger: Optional[str]
+    message: Optional[str]
+    session_id: Optional[GlobalID]
+    statement_id: Optional[GlobalID]
+    run_id: Optional[GlobalID]
+    metadata: Optional[JSON]
 
 
 async def _expand_filter(
@@ -145,19 +168,19 @@ class SessionQuery:
         include_ancestor_versions: bool = False,
         runnable_ids: list[GlobalID] | None = None,
         root_id_null: bool = False,
-    ) -> Iterable[Execution]:
-        qs = models.Execution.objects.all()
+    ) -> Iterable[Run]:
+        qs = models.Run.objects.all()
         # :ExecutionsFilter
         project_version_id = to_uuid(project_version_id)
         runnable_ids = to_uuids(runnable_ids)
-        expanded_symbol_ids, project_version_ids = await _expand_filter(
+        expanded_runnable_ids, project_version_ids = await _expand_filter(
             project_version_id, include_ancestor_versions, runnable_ids
         )
         qs = qs.filter(project_id=project_id.node_id)
         if project_version_ids:
             qs = qs.filter(project_version_id__in=project_version_ids)
         if runnable_ids:
-            qs = qs.filter(runnable_id__in=expanded_symbol_ids)
+            qs = qs.filter(runnable_id__in=expanded_runnable_ids)
         if root_id_null:
             qs = qs.filter(root_id__isnull=True)
         return qs
@@ -175,7 +198,7 @@ class SessionSubscription:
         runnable_ids: list[GlobalID] | None = None,
         root_id: Optional[GlobalID] = None,
         root_id_null: bool = False,
-    ) -> AsyncGenerator[Execution, None]:
+    ) -> AsyncGenerator[Run, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = get_user_from_info(info)
@@ -197,7 +220,7 @@ class SessionSubscription:
 
         log.info("executions.subscribe")
         executions_sub = await subscribe(
-            f"{NMessageType.EXECUTION_SAVED}.{project_version_id}", payload_t=ExecutionSavedPayload
+            f"{NMessageType.SESSION_CHANGED}.{project_version_id}", payload_t=SessionChangedPayload
         )
 
         # :ExecutionsFilter
@@ -208,8 +231,8 @@ class SessionSubscription:
         )
         log.debug("executions.listen")
         while True:
-            msg: NMessage[ExecutionSavedPayload] = await executions_sub.next_msg()
-            for frame_data in msg.payload.frames:
+            msg: NMessage[SessionChangedPayload] = await executions_sub.next_msg()
+            for frame_data in msg.payload.executions:
                 # :ExecutionsFilter
                 other_runnable = (
                     frame_data.runnable_id is not None

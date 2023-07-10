@@ -22,9 +22,9 @@ from nats.aio.subscription import Subscription
 from bench.msg.messages import (
     REGISTERED_MESSAGE_PAYLOADS,
     REPLY_BY_REQUEST_TYPE,
-    ExecutionChangedPayload,
-    ExecutionSavedPayload,
     NMessageType,
+    SessionChangedPayload,
+    SessionInternalChangedPayload,
     to_topic,
 )
 from bench.utils.serialize import from_dict, to_dict
@@ -276,7 +276,7 @@ _soon_queue_batch_lock: asyncio.Lock | None = None
 def get_batch_key(message: NMessage) -> str | None:
     if isinstance(
         message.payload,
-        (ExecutionChangedPayload, ExecutionSavedPayload),
+        (SessionInternalChangedPayload, SessionChangedPayload),
     ):
         return f"{message.type.value}:{message.p.module_id}"
     else:

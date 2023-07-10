@@ -1,18 +1,20 @@
 from __future__ import annotations
 
+import asyncio
+import sys
 import typing
+from contextvars import ContextVar
 from datetime import datetime
 from typing import Any
 
 import pytz
 import structlog
 
-from bench.bench.core import MOT, ModuleOp, Session, SessionTracingLevel
-from bench.bench.execution import ExecutionFrame
+from bench.bench.core import MOT, ModuleOp, Session
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
+from bench.bench.session import LogEntry, Run
 from bench.bench.type import check_type, strip_py_value
-from bench.bench.wire import ExecutionFrameData
 from bench.utils.uuidt import UUIDT
 
 if typing.TYPE_CHECKING:
@@ -39,7 +41,7 @@ logger = structlog.get_logger(__name__)
 
 class Tracer:
     """
-    Trace and track everything in a module/session (executions, mutations, etc.).
+    Trace and track everything in a module/session (runs, mutations, etc.).
     """
 
     # module
@@ -108,9 +110,85 @@ class Tracer:
         pass
 
 
-class SessionTracer(Tracer):
-    """ """
+# TODO @Performance: investigate performance implication of contextual stdout/stderr redirect
 
+stderr_track: ContextVar[typing.Callable[[str], None] | None] = ContextVar("stderr_track")
+stdout_track: ContextVar[typing.Callable[[str], None] | None] = ContextVar("stdout_track")
+
+
+class _RedirectedStream:
+    """Redirect stdout/stderr for dual-writing to context-specific track functions."""
+
+    def __init__(self, native, contextvar: ContextVar[typing.Callable[[str], None]]):
+        self.native = native
+        self.contextvar = contextvar
+
+    def write(self, data: str) -> int:
+        ret = self.native.write(data)
+        track = self.contextvar.get()
+        if track:
+            track(data)
+        return ret
+
+    def flush(self) -> None:
+        self.native.flush()
+
+
+def redirect_streams_if_needed():
+    """Redirect stdout/stderr to the current context's track functions if they are set."""
+    if not isinstance(sys.stdout, _RedirectedStream):
+        sys.stdout = _RedirectedStream(sys.stdout, stdout_track)
+    if not isinstance(sys.stderr, _RedirectedStream):
+        sys.stderr = _RedirectedStream(sys.stderr, stderr_track)
+
+
+class LogCollector:
+    def __init__(self, track: typing.Callable[[LogEntry], None], stream: str, session: "Session"):
+        self.track = track
+        self.session = session
+        self.stream = stream
+        self.module_id = session.module.id
+
+    def _track(self, message: str) -> None:
+        active_run = _active_run.get()
+        if active_run:
+            runnable_id = active_run.runnable.id
+            run_id = active_run.id
+        else:
+            runnable_id = None
+            run_id = None
+        log_entry = LogEntry(
+            module_id=self.module_id,
+            session_id=self.session.id,
+            created_at=datetime.now(pytz.utc),
+            runnable_id=runnable_id,
+            run_id=run_id,
+            stream=self.stream,
+            message=message,
+        )
+        self.track(log_entry)
+
+    def start(self):
+        if self.stream == "stderr":
+            stderr_track.set(self._track)
+        elif self.stream == "stdout":
+            stdout_track.set(self._track)
+        else:
+            raise ValueError(f"invalid stream: {self.stream}")
+
+    def stop(self):
+        if self.stream == "stderr":
+            stderr_track.set(None)
+        elif self.stream == "stdout":
+            stdout_track.set(None)
+        else:
+            raise ValueError(f"invalid stream: {self.stream}")
+
+
+SESSION_FLUSH_INTERVAL = 0.1
+
+
+class SessionTracer(Tracer):
     def __init__(
         self,
         session: Session,
@@ -119,15 +197,71 @@ class SessionTracer(Tracer):
         validate: bool = True,
     ):
         self.session = session
-        self.execution = ExecutionTracer(
-            session=session,
-            publish=publish and session.ctx.tracing_level & SessionTracingLevel.EXECUTION,
-        )
+        self._pending_logs: list[LogEntry] = []
+        self._pending_runs: list[Run] = []
+        self._flush_cancel: asyncio.Event | None = None
+        self._flush_task: asyncio.Task | None = None
+
+        self.execution = RunTracer(session=session, track=self._track_run)
         self.tracers: list[Tracer] = [self.execution, PermissionCheckingTracer(session)]
         if validate:  # validation tracer must be last
             self.tracers.append(TypeCheckingTracer())
         if mutator:
             self.tracers.append(MutationTracer(mutator))
+        self.stdout_collector = LogCollector(self._track_log, "stdout", session)
+        self.stderr_collector = LogCollector(self._track_log, "stderr", session)
+
+    def _track_run(self, run: Run):
+        self._pending_runs.append(run)
+
+    def _track_log(self, log: LogEntry):
+        self._pending_logs.append(log)
+
+    async def _flush(self, force: bool = False):
+        """Flushes session data."""
+        if not force and not self._pending_logs and not self._pending_runs:
+            return  # skip if nothing to flush
+
+        from bench.bench import wire
+        from bench.msg.core import request
+        from bench.msg.messages import NMessageType, ReqWriteSessionPayload
+
+        session_data = wire.pack_data(self.session)
+        runs_data = [wire.pack_data(run) for run in self._pending_runs]
+        logs_data = [wire.pack_data(log) for log in self._pending_logs]
+        self._pending_runs.clear()
+        self._pending_logs.clear()
+
+        req = ReqWriteSessionPayload(
+            module_id=self.session.module.id,
+            session=session_data,
+            runs=runs_data,
+            logs=logs_data,
+        )
+        await request(NMessageType.REQUEST_WRITE_SESSION, req)
+        raise NotImplementedError
+
+    async def open(self, flush_interval: float = SESSION_FLUSH_INTERVAL):
+        self.stdout_collector.start()
+        self.stderr_collector.start()
+
+        _cancel = asyncio.Event()
+
+        async def _flush_loop():
+            while not _cancel.is_set():
+                await asyncio.sleep(flush_interval)
+                await self._flush()
+
+        self._flush_cancel = _cancel
+        self._flush_task = asyncio.create_task(_flush_loop())
+        await self._flush(force=True)  # create session
+
+    async def close(self):
+        self.stdout_collector.stop()
+        self.stderr_collector.stop()
+
+        self._flush_cancel.set()
+        await self._flush(force=True)  # flush pending data
 
     def value_update(self, value: Value, key: typing.Optional[str] = None):
         for tracer in self.tracers:
@@ -180,43 +314,37 @@ class SessionTracer(Tracer):
             tracer.run_cached(statement, inputs, result, generated_at, duration)
 
 
-class ExecutionTracer(Tracer):
+_active_run: ContextVar[Run | None] = ContextVar("_active_run")
+
+
+class RunTracer(Tracer):
     """
     A worker-side tracer that records code and model executions.
     """
 
-    def __init__(self, session: Session, publish: bool = True):
+    def __init__(self, session: Session, track: typing.Callable[[Run], None]):
         self.session = session
-        self.publish = publish
         self.stacktrace = []
+        self._track = track
         self.frames = {}
 
     def __str__(self):
-        return f"{len(self.stacktrace)} stack, {len(self.frames)} frames"
+        return f"{len(self.stacktrace)} stack, {len(self.frames)} runs"
 
     def __repr__(self):
-        return f"<ExecutionTracer {self}>"
+        return f"<RunTracer {self}>"
 
     @property
-    def current_frame(self) -> typing.Optional[ExecutionFrame]:
+    def current_frame(self) -> typing.Optional[Run]:
         if self.stacktrace:
             return self.stacktrace[-1]
         return None
 
-    def track(self, frame: ExecutionFrame):
-        if self.publish:
-            from bench.msg.core import publish_soon
-            from bench.msg.messages import ExecutionChangedPayload, NMessageType
-
-            frame_data = ExecutionFrameData.from_frame(frame, session=self.session)
-            logger.debug("execution.track", frame=frame_data.id)
-            publish_soon(
-                NMessageType.EXECUTION_CHANGED,
-                ExecutionChangedPayload(frame.module_id, frames=[frame_data]),
-            )
+    def track(self, frame: Run):
         self.frames[frame.id] = frame
+        self._track(frame)
 
-    def pop_stacktrace(self) -> ExecutionFrame:
+    def pop_stacktrace(self) -> Run:
         frame = self.stacktrace.pop()
         # update cached info in parent(s)
         if frame.cached_generated_at is not None:
@@ -245,10 +373,11 @@ class ExecutionTracer(Tracer):
         else:
             root = None
             parent = None
-        frame = ExecutionFrame(
+        frame = Run(
             id=self.session.ctx.root_id if root is None else UUIDT(),
             module_id=self.session.module.id,
             runnable=runnable,
+            session=self.session,
             root=root,
             parent=parent,
             entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
@@ -280,6 +409,7 @@ class ExecutionTracer(Tracer):
             runnable=statement, inputs=strip_py_value(inputs, statement, is_output=False)
         )
         self.stacktrace.append(frame)
+        _active_run.set(frame)
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
 
@@ -288,6 +418,8 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = strip_py_value(result, statement, is_output=True)
         self.track(frame)
+        if _active_run.get() is frame:
+            _active_run.set(None)
         logger.debug("trace.run.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: Runnable, exception: Exception):
@@ -295,6 +427,8 @@ class ExecutionTracer(Tracer):
         frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
         self.track(frame)
+        if _active_run.get() is frame:
+            _active_run.set(None)
         logger.debug("trace.run.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def run_cached(

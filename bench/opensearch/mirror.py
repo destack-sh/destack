@@ -425,6 +425,7 @@ class Session(os.Document):
     cached_duration: Optional[float] = os.field(os.FT.FLOAT)
     duration: Optional[float] = os.field(os.FT.FLOAT)
     status: str = os.field(os.FT.KEYWORD)
+    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
 
 @document(DocumentType.EXECUTION)
@@ -451,10 +452,11 @@ class LogEntry(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     worker_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
-    execution_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    run_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     stream: str = os.field(os.FT.KEYWORD)
     level: str = os.field(os.FT.KEYWORD)
     logger: str = os.field(os.FT.KEYWORD)
     message: str = os.field(os.FT.TEXT)
+    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)

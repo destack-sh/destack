@@ -209,7 +209,7 @@ def normalize_to_project(obj) -> models.Project:
         return normalize_to_project(obj[0])
     elif isinstance(obj, (models.Field, models.Tagging)):
         obj = obj.statement.project_version.project
-    elif isinstance(obj, (models.File, models.Statement, models.Execution)):
+    elif isinstance(obj, (models.File, models.Statement, models.Run)):
         obj = obj.project_version.project
     elif isinstance(
         obj,
@@ -328,7 +328,7 @@ class CanViewProject(HasCustomPermDirective):
             prefix = "project_version__project__"
         elif issubclass(
             qs.model,
-            (models.ProjectVersion, models.Execution),
+            (models.ProjectVersion, models.Run),
         ):
             prefix = "project__"
         else:

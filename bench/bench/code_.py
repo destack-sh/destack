@@ -23,7 +23,7 @@ from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.remote import RemoteObject, RemoteObjectStatus
 from bench.bench.tag import HasTags, Tag
 from bench.bench.type import HasType, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import get_execution_cache_key
+from bench.bench.utils import get_run_cache_key
 from bench.utils.cache import redis, redis_sync
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
@@ -130,7 +130,7 @@ class Code(HasType, HasTags, Statement):
         inputs = self._inputs_from_args(args, kwargs)
         if self.cached:
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_key = get_execution_cache_key(self.id, inputs_raw, content_id=self._code_hash)
+            cache_key = get_run_cache_key(self.id, inputs_raw, content_id=self._code_hash)
             cached_run = await redis.get(cache_key)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
@@ -158,7 +158,7 @@ class Code(HasType, HasTags, Statement):
         inputs = self._inputs_from_args(args, kwargs)
         if self.cached:
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_key = get_execution_cache_key(self.id, inputs_raw, content_id=self._code_hash)
+            cache_key = get_run_cache_key(self.id, inputs_raw, content_id=self._code_hash)
             cached_run = redis_sync.get(cache_key)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
@@ -371,7 +371,7 @@ async def run(
     session: "Session",
     is_trusted: bool = False,
 ) -> Any:
-    from bench.bench.execution import RunError, RunErrorKind
+    from bench.bench.session import RunError, RunErrorKind
 
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
         raise RunError(RunErrorKind.UNTRUSTED, code)
@@ -381,7 +381,7 @@ async def run(
     }
     try:
         # set current session
-        session.open()
+        await session.aopen()
         if not code._is_async:
             code = code.to_async()
         ret = await code(**arguments)

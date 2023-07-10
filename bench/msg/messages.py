@@ -5,7 +5,6 @@ import typing
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
-from itertools import chain
 from typing import Optional
 from uuid import UUID
 
@@ -14,11 +13,13 @@ from bench.bench.core import ModuleReference
 from bench.bench.mutate import ModuleMutation
 from bench.bench.query import Query, Sort
 from bench.bench.wire import (
-    ExecutionFrameData,
+    LogEntryData,
     ModuleTreeData,
     RecordData,
     RemoteObjectData,
+    RunData,
     SecretData,
+    SessionData,
 )
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -45,6 +46,9 @@ class NMessageType(StrEnum):
     SCREEN_CHANGED = "screen.changed"
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
+    SESSION_CHANGED = "session.changed"
+    SESSION_INTERNAL_CHANGED = "session.internal.changed"  # for internal
+    EXECUTION_MARKED_DEAD = "execution.marked_dead"
 
     # Worker <-> Internal
     REQUEST_REGISTER_WORKER = "worker.register"
@@ -54,6 +58,8 @@ class NMessageType(StrEnum):
     REPLY_READ_MODULE = "module.read.rep"
     REQUEST_WRITE_MODULE = "module.write"
     REPLY_WRITE_MODULE = "module.write.rep"
+    REQUEST_WRITE_SESSION = "session.write"
+    REPLY_WRITE_SESSION = "session.write.rep"
     REQUEST_SEARCH_DATASET = "module.dataset.search"
     REPLY_SEARCH_DATASET = "module.dataset.search.rep"
     REQUEST_READ_OBJECT = "object.read"
@@ -66,9 +72,6 @@ class NMessageType(StrEnum):
     REPLY_READ_SECRET = "secret.read.rep"
     REQUEST_RUN_INFERENCE = "model.inference"
     REPLY_RUN_INFERENCE = "model.inference.rep"
-    EXECUTION_CHANGED = "execution.changed"
-    EXECUTION_SAVED = "execution.saved"
-    EXECUTION_MARKED_DEAD = "execution.marked_dead"
 
     # API <-> Worker
     REQUEST_RUN = "run"
@@ -204,7 +207,7 @@ class ReqRunPayload:
     tracing_level: int
     trigger_type: ExecutionTriggerType
     trigger_id: Optional[UUID]
-    execution_id: Optional[UUID]
+    run_id: Optional[UUID]
 
 
 class RunErrorType(enum.StrEnum):
@@ -218,14 +221,14 @@ class RunErrorType(enum.StrEnum):
 @payload(NMessageType.REPLY_RUN)
 class RepRunPayload:
     error: Optional[RunErrorType] = None
-    execution_id: Optional[UUID] = None
-    execution: Optional[ExecutionFrameData] = None
+    run_id: Optional[UUID] = None
+    execution: Optional[RunData] = None
 
 
 @payload(NMessageType.REQUEST_CANCEL_RUN)
 class ReqCancelRunPayload:
     module_id: UUID
-    execution_id: UUID
+    run_id: UUID
 
 
 @payload(NMessageType.REPLY_CANCEL_RUN)
@@ -236,29 +239,21 @@ class RepCancelRunPayload:
 @payload(NMessageType.EXECUTION_MARKED_DEAD)
 class ExecutionMarkedDeadPayload:
     module_id: UUID
-    execution_id: UUID
+    run_id: UUID
 
 
-@payload(NMessageType.EXECUTION_CHANGED)
-class ExecutionChangedPayload(BatchablePayload):
+@payload(NMessageType.SESSION_INTERNAL_CHANGED)
+class SessionInternalChangedPayload:
     module_id: UUID
-    frames: list[ExecutionFrameData]
-
-    @staticmethod
-    def batch(messages: list["ExecutionChangedPayload"]) -> "ExecutionChangedPayload":
-        frames = list(chain.from_iterable(m.frames for m in messages))
-        return ExecutionChangedPayload(module_id=messages[0].module_id, frames=frames)
+    session: SessionData
+    runs: list[RunData]
+    logs: list[LogEntryData]
 
 
-@payload(NMessageType.EXECUTION_SAVED)
-class ExecutionSavedPayload(BatchablePayload):
+@payload(NMessageType.SESSION_CHANGED)
+class SessionChangedPayload:
     module_id: UUID
-    frames: list[ExecutionFrameData]
-
-    @staticmethod
-    def batch(messages: list["ExecutionSavedPayload"]) -> "ExecutionSavedPayload":
-        frames = list(chain.from_iterable(m.frames for m in messages))
-        return ExecutionSavedPayload(module_id=messages[0].module_id, frames=frames)
+    executions: list[RunData]
 
 
 @payload(NMessageType.REQUEST_READ_MODULE)
@@ -282,6 +277,21 @@ class ReqWriteModulePayload:
 
 @payload(NMessageType.REPLY_WRITE_MODULE)
 class RepWriteModulePayload:
+    success: bool
+
+
+@payload(NMessageType.REQUEST_WRITE_SESSION)
+class ReqWriteSessionPayload:
+    module_id: UUID
+    session: SessionData
+    runs: list[RunData]
+    logs: list[LogEntryData]
+    client: ClientOrigin
+    wait: bool
+
+
+@payload(NMessageType.REPLY_WRITE_SESSION)
+class RepWriteSessionPayload:
     success: bool
 
 
@@ -383,8 +393,8 @@ PROJECT_SCOPED_PAYLOAD_TYPES = (ProjectChangedPayload,)
 MODULE_SCOPED_PAYLOAD_TYPES = (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
-    ExecutionChangedPayload,
-    ExecutionSavedPayload,
+    SessionInternalChangedPayload,
+    SessionChangedPayload,
     ExecutionMarkedDeadPayload,
 )
 
