@@ -1881,7 +1881,7 @@ type User implements Node & Owner {
   """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
   email: String!
-  completedSignup: Boolean!
+  status: UserStatus!
   bot: Boolean!
   description: String
   organizations(
@@ -1961,6 +1961,14 @@ input UserFilter {
 union UserOperationInfo = User | OperationInfo
 
 union UserOrganization = User | Organization
+
+enum UserStatus {
+  INITIATED_SIGNUP
+  WAITLISTED
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
 
 input UserUpdateInput {
   id: GlobalID!

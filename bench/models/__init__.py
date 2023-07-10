@@ -14,7 +14,7 @@ from .project import File, Project, ProjectVersion, ProjectVisibility, RefMappin
 from .secret import Secret
 from .statement import Field, Statement, Tagging
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
-from .user import Client, ClientType, User
+from .user import Client, ClientType, User, UserStatus
 from .utils import CrudModel
 from .worker import Worker, WorkerStatus, WorkerTenancy
 
@@ -54,6 +54,7 @@ __all__ = [
     "Secret",
     "Tagging",
     "User",
+    "UserStatus",
     "Worker",
     "WorkerStatus",
     "WorkerTenancy",

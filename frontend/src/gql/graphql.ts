@@ -2195,7 +2195,6 @@ export type User = Node &
     bot: Scalars["Boolean"];
     canViewFull: Scalars["Boolean"];
     canWrite: Scalars["Boolean"];
-    completedSignup: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
     email: Scalars["String"];
@@ -2206,6 +2205,7 @@ export type User = Node &
     organizations: OrganizationConnection;
     projects: ProjectConnection;
     slug: Scalars["String"];
+    status: UserStatus;
     updatedAt: Scalars["DateTime"];
     /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
     username: Scalars["String"];
@@ -2282,6 +2282,14 @@ export type UserFilter = {
 export type UserOperationInfo = OperationInfo | User;
 
 export type UserOrganization = Organization | User;
+
+export enum UserStatus {
+  Active = "ACTIVE",
+  Deactivated = "DEACTIVATED",
+  InitiatedSignup = "INITIATED_SIGNUP",
+  Suspended = "SUSPENDED",
+  Waitlisted = "WAITLISTED",
+}
 
 export type UserUpdateInput = {
   description: Scalars["String"];
@@ -2912,7 +2920,7 @@ export type MeQuery = {
     name: string;
     createdAt: any;
     updatedAt: any;
-    completedSignup: boolean;
+    status: UserStatus;
     organizationMemberships: {
       __typename?: "OrganizationMembershipConnection";
       totalCount?: number | null;
@@ -4591,7 +4599,7 @@ export type CompleteSignupMutation = {
         name: string;
         createdAt: any;
         updatedAt: any;
-        completedSignup: boolean;
+        status: UserStatus;
       };
 };
 
@@ -4614,7 +4622,7 @@ export type AcceptOrganizationInviteMutation = {
         name: string;
         createdAt: any;
         updatedAt: any;
-        completedSignup: boolean;
+        status: UserStatus;
         organizationMemberships: {
           __typename?: "OrganizationMembershipConnection";
           totalCount?: number | null;
@@ -7994,7 +8002,7 @@ export const MeDocument = {
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                 { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                { kind: "Field", name: { kind: "Name", value: "status" } },
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "organizationMemberships" },
@@ -14084,7 +14092,7 @@ export const CompleteSignupDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
                     ],
                   },
                 },
@@ -14141,7 +14149,7 @@ export const AcceptOrganizationInviteDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "completedSignup" } },
+                      { kind: "Field", name: { kind: "Name", value: "status" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "organizationMemberships" },

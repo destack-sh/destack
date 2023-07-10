@@ -1,11 +1,12 @@
 <script lang="ts" setup>
+import BenchIcon from "@/components/basic/BenchIcon.vue";
 import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
 import ValidationMessage from "@/components/basic/ValidationMessage.vue";
 import { useValidName, useValidSlug } from "@/composables/useValidation";
-import { useRedirectIfNotLoggedIn } from "@/state/auth";
+import { useRedirectIfNotLoggedIn, useRedirectIfWaitlisted } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { useTitle } from "@vueuse/core";
@@ -15,9 +16,8 @@ import { useRouter } from "vue-router";
 const title = useTitle();
 title.value = "Start your organization";
 
-useRedirectIfNotLoggedIn();
-
 useRedirectIfNotLoggedIn({ name: "Signup" });
+useRedirectIfWaitlisted();
 
 const name: Ref<string> = ref("Hooli, Inc.");
 const slug: Ref<string> = ref("hooli");
@@ -87,12 +87,8 @@ async function createOrganization() {
       </template>
     </FatHeader>
     <div class="mx-auto mt-20 w-72 text-center lg:mt-32">
-      <div class="flex flex-row items-baseline justify-center gap-1">
-        <div class="font-mono text-2xl font-bold">
-          <span class="-mx-0.5 text-gray-900">[</span>
-          <span class="text-3xl text-orange-600">x</span>
-          <span class="-mx-0.5 text-gray-900">]</span>
-        </div>
+      <div class="flex flex-row items-baseline justify-center gap-2">
+        <BenchIcon class="h-4 w-4 text-orange-600" />
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="-mx-32 mt-4 text-5xl font-bold">Start your organization</h1>

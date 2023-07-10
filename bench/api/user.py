@@ -54,13 +54,16 @@ class UserFilter:
         return queryset
 
 
+UserStatus = gql.enum(models.UserStatus)
+
+
 @gql.django.type(models.User)
 class User(gql.relay.Node, Owner):
     username: auto
     email: auto
     created_at: auto
     updated_at: auto
-    completed_signup: auto
+    status: UserStatus
     bot: auto
     description: auto
 
@@ -164,7 +167,7 @@ class UserMutation:
             raise PermissionDenied("can only complete signup for yourself")
         user.change_username(input.username)
         user.first_name = input.full_name
-        user.completed_signup = True
+        user.status = UserStatus
         user.save()
         return user
 

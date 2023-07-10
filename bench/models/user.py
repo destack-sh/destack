@@ -43,6 +43,14 @@ class UserManager(BaseUserManager["User"]):
         return user
 
 
+class UserStatus(models.TextChoices):
+    INITIATED_SIGNUP = "initiated_signup"
+    WAITLISTED = "waitlisted"
+    ACTIVE = "active"
+    SUSPENDED = "suspended"
+    DEACTIVATED = "deactivated"
+
+
 class User(AbstractUser, UUIDModel):
     """
     A user is an authenticated human working on a program in bench.
@@ -58,7 +66,7 @@ class User(AbstractUser, UUIDModel):
         "OwnerSlug", unique=True, on_delete=models.CASCADE, null=True, related_name="user"
     )
     owner_slug_id: Optional[str]  # noqa via Statement.reference
-    completed_signup: models.BooleanField = models.BooleanField(default=False)
+    status: models.CharField = models.CharField(max_length=32, choices=UserStatus.choices)
     bot: models.BooleanField = models.BooleanField(default=False)
     description: models.CharField = models.CharField(
         max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
@@ -76,7 +84,7 @@ class User(AbstractUser, UUIDModel):
         return self.username
 
     def __repr__(self):
-        return f"<User {self.username} {self.id}>"
+        return f"<User {self.username} {self.status.name}>"
 
     @property
     def slug(self) -> str:

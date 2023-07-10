@@ -1,4 +1,5 @@
 import { graphql } from "@/gql";
+import { UserStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { HTTP_API_BASE_URL, IS_LOCALHOST } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
@@ -21,7 +22,7 @@ function _useAuth() {
           name
           createdAt
           updatedAt
-          completedSignup
+          status
           organizationMemberships {
             totalCount
             edges {
@@ -106,6 +107,24 @@ export function useRedirectIfNotLoggedIn(redirectTo = { name: "Signup" }) {
         type: "auth.redirect",
         message: "Log in first",
         description: "You need to be logged in to do this.",
+      });
+    }
+  });
+}
+
+export function useRedirectIfWaitlisted() {
+  const auth = useAuth();
+  const router = useRouter();
+  const notifications = useNotifications();
+  watchEffect(() => {
+    if (!auth.loading.value && auth.loggedIn.value && auth.me.value?.status == UserStatus.Waitlisted) {
+      console.log("user waitlisted, redirecting");
+      router.replace({ name: "Waitlisted" });
+      notifications.show({
+        kind: "notice",
+        type: "auth.redirect",
+        message: "Waitlisted",
+        description: "You're waiting eagerly for access. Soon!",
       });
     }
   });

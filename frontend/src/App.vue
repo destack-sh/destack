@@ -12,7 +12,7 @@ import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
 import { useFullscreen } from "@vueuse/core";
 import { onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
-import { OperationMessageKind, type OperationInfo } from "@/gql/graphql";
+import { OperationMessageKind, type OperationInfo, UserStatus } from "@/gql/graphql";
 
 // handle errors in operations with notification
 const notifications = useNotifications();
@@ -88,7 +88,7 @@ const router = useRouter();
 const auth = useAuth();
 
 watchEffect(() => {
-  if (auth.loggedIn.value && !auth.me.value?.completedSignup) {
+  if (auth.loggedIn.value && auth.me.value?.status == UserStatus.InitiatedSignup) {
     router.push("/signup/complete");
   }
 });

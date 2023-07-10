@@ -41,7 +41,7 @@ export function useUserOps() {
             name
             createdAt
             updatedAt
-            completedSignup
+            status
           }
           ...OperationInfoContent
         }
@@ -71,7 +71,7 @@ export function useUserOps() {
             name
             createdAt
             updatedAt
-            completedSignup
+            status
             # refetch memberships
             organizationMemberships {
               totalCount
