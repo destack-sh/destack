@@ -81,10 +81,10 @@ class Tracer:
     def tagging_clear(self, statement: Statement, tagging: Tagging):
         pass
 
-    def remote_object_read(self, object: RemoteObject):
+    def object_read(self, object: RemoteObject):
         pass
 
-    def remote_object_write(self, object: RemoteObject):
+    def object_write(self, object: RemoteObject):
         pass
 
     def secret_reveal(self, secret: Secret):
@@ -326,10 +326,10 @@ class RunTracer(Tracer):
         self.session = session
         self.stacktrace = []
         self._track = track
-        self.frames = {}
+        self.runs = {}
 
     def __str__(self):
-        return f"{len(self.stacktrace)} stack, {len(self.frames)} runs"
+        return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
 
     def __repr__(self):
         return f"<RunTracer {self}>"
@@ -341,7 +341,7 @@ class RunTracer(Tracer):
         return None
 
     def track(self, frame: Run):
-        self.frames[frame.id] = frame
+        self.runs[frame.id] = frame
         self._track(frame)
 
     def pop_stacktrace(self) -> Run:

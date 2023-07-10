@@ -921,6 +921,7 @@ class Session:
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+        self.metadata
         self._pending_flushes: list[tuple[int, typing.Awaitable[bool]]] = []
 
     def __str__(self):

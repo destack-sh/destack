@@ -6,14 +6,17 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Session
+from bench.bench.core import Module, Session, Statement
+from bench.bench.query import Query, Sort
 from bench.bench.reflect import reflect_enum, reflect_struct
+from bench.bench.search import Search
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.bench.code_ import Code
     from bench.bench.model import Model
     from bench.bench.task import Task
+    from bench.bench.wire import LogEntryData, RunData
 
 
 @reflect_enum("RunStatus", "The status of a run")
@@ -51,6 +54,7 @@ class Run:
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
     error: Optional[Exception]
+    metadata: Optional[dict[str, Any]]
     queue_position: Optional[int]
     children: list["Run"] = field(default_factory=list)
 
@@ -188,8 +192,111 @@ class LogEntry:
     stream: str
     level: Optional[str] = None
     logger: Optional[str] = None
-    session_id: Optional[UUID] = None
-    runnable_id: Optional[UUID] = None
+    session: Optional[Session] = None
+    runnable: Optional[Statement] = None
     run_id: Optional[UUID] = None
     message: Optional[str] = None
     metadata: dict[str, Any] = None
+
+
+class RunSearch(Search[RunData, Run]):
+    """Search over runs."""
+
+    def __init__(
+        self,
+        module: Module,
+        runnables: list[Statement] | None,
+        query: Query,
+        sort: list[Sort],
+        limit: Optional[int],
+    ):
+        super().__init__(query, sort, limit)
+        self.module = module
+        self.runnables = runnables
+
+    async def _do_search(
+        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
+    ):
+        from bench.msg import NMessage
+        from bench.msg.core import request
+        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunPayload
+
+        batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
+        runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
+        rep: NMessage[RepSearchRunPayload] = await request(
+            NMessageType.REQUEST_SEARCH_RUN,
+            ReqSearchRunPayload(
+                module_id=self.module.id,
+                runnables_ids=runnables_ids,
+                query=self._query,
+                sort=self._sort,
+                after=after,
+                limit=batch_limit,
+                count=count,
+            ),
+            reply_t=RepSearchRunPayload,
+        )
+        if rep.p.error:
+            raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
+        return rep
+
+    def _unpack_element_data(self, element_data: "RunData") -> Run:
+        parent = self.module._statements_by_id.get(element_data.parent_id)
+        if parent is None:
+            parent = MissingStatement(element_data.parent_id)
+        raise NotImplementedError
+
+
+class LogSearch(Search[LogEntry]):
+    """Search over logs."""
+
+    def __init__(
+        self,
+        module: Module,
+        runnables: list[Statement] | None,
+        query: Query,
+        sort: list[Sort],
+        limit: Optional[int],
+    ):
+        super().__init__(query, sort, limit)
+        self.module = module
+        self.runnables = runnables
+
+    async def _do_search(
+        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
+    ):
+        from bench.msg import NMessage
+        from bench.msg.core import request
+        from bench.msg.messages import NMessageType, RepSearchLogPayload, ReqSearchLogPayload
+
+        batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
+        runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
+        rep: NMessage[RepSearchLogPayload] = await request(
+            NMessageType.REQUEST_SEARCH_LOG,
+            ReqSearchLogPayload(
+                module_id=self.module.id,
+                runnables_ids=runnables_ids,
+                query=self._query,
+                sort=self._sort,
+                after=after,
+                limit=batch_limit,
+                count=count,
+            ),
+            reply_t=RepSearchLogPayload,
+        )
+        if rep.p.error:
+            raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
+        return rep
+
+    def _unpack_element_data(self, element_data: "LogEntryData") -> LogEntry:
+        raise NotImplementedError
+
+
+@dataclass
+class MissingStatement:
+    id: UUID
+
+    def __getattr__(self, item):
+        if item == "id":
+            return self.id
+        raise AttributeError(f"statement {self.id} not found, so {item} cannot be accessed")

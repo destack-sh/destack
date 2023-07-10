@@ -36,7 +36,7 @@ DOCUMENTS_BY_INDEX = {
     IndexType.BENCH: [
         mirror.Record,  # only the static parts
         mirror.Session,
-        mirror.Execution,  # only the static parts
+        mirror.Run,  # only the static parts
         mirror.LogEntry,
     ],
 }

@@ -240,6 +240,9 @@ def get_default_sort(query: "Query") -> list["Sort"]:
         return [Sort("_id", SortOrder.ASCENDING)]
 
 
+TYPE_DISCRIMINATOR_KEY = "_type"
+
+
 #
 # Field query ops
 #

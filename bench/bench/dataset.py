@@ -13,13 +13,26 @@ import structlog
 from more_itertools import first
 
 from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
-from bench.bench.core import HasCrud, HasSession, ModuleNode, Scope, Session, Statement, node
+from bench.bench.core import (
+    HasCrud,
+    HasSession,
+    Module,
+    ModuleNode,
+    Scope,
+    Session,
+    Statement,
+    node,
+)
 from bench.bench.query import Query, Sort
+from bench.bench.search import ElementT, Search
 from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
+
+if typing.TYPE_CHECKING:
+    from bench.bench.wire import RecordData
 
 logger = structlog.get_logger(__name__)
 
@@ -203,9 +216,9 @@ class Dataset(HasType, HasTags, Statement):
 
     def search(
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
-    ) -> Search:
+    ) -> RecordSearch:
         """Searches this dataset remotely."""
-        return Search(self, query, sort, limit)
+        return RecordSearch(self, query, sort, limit)
 
     def __getitem__(self, item: slice):
         if isinstance(item, slice):
@@ -213,17 +226,17 @@ class Dataset(HasType, HasTags, Statement):
         else:
             raise TypeError(f"index into {self} must be slice (not {type(item)})")
 
-    def filter(self, query: Query) -> Search:
+    def filter(self, query: Query) -> RecordSearch:
         if not isinstance(query, Query):
             raise TypeError(f"cannot filter by {type(query)}")
         return self.search(query=query)
 
-    def sort(self, sort: list[Sort] | Sort) -> Search:
+    def sort(self, sort: list[Sort] | Sort) -> RecordSearch:
         if isinstance(sort, Sort):
             sort = [sort]
         return self.search(sort=sort)
 
-    def limit(self, limit: int) -> Search:
+    def limit(self, limit: int) -> RecordSearch:
         return self.search(limit=limit)
 
     def __len__(self):
@@ -236,8 +249,6 @@ class Dataset(HasType, HasTags, Statement):
         return aiter(self.search())
 
 
-SEARCH_RESULT_BATCH_SIZE = 400
-
 MapFunction = typing.Callable[[Record], typing.Union[Record, dict]]
 BatchMapFunction = typing.Callable[[list[Record]], list[typing.Union[Record, dict]]]
 AmapFunction = typing.Callable[[Record], typing.Awaitable[typing.Union[Record, dict]]]
@@ -246,151 +257,82 @@ BatchAmapFunction = typing.Callable[
 ]
 
 
-class Search:
-    """A search over a dataset."""
+class RecordSearch(Search[RecordData, Record]):
+    """A search over records (of a dataset)."""
 
-    def __init__(self, dataset: Dataset, query: Query, sort: list[Sort], limit: Optional[int]):
-        self.dataset = dataset
-        self._query = query
-        self._sort = sort
-        self._limit = limit
+    def __init__(
+        self,
+        module: Module,
+        datasets: list[Dataset],
+        query: Query,
+        sort: list[Sort],
+        limit: Optional[int],
+    ):
+        super().__init__(query, sort, limit)
+        self.module = module
+        self.datasets = datasets
         # cache
         self._total: Optional[int] = None
 
     def __str__(self):
-        return f"{self.dataset} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
+        return f"{self.datasets} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
 
     def __repr__(self):
-        return f"<Search {self}>"
-
-    def filter(self, query: Query) -> Search:
-        return Search(self.dataset, self._query.filter(query), self._sort, self._limit)
-
-    def sort(self, sort: list[Sort] | Sort) -> Search:
-        if isinstance(sort, Sort):
-            sort = [sort]
-        return Search(self.dataset, self._query, sort, self._limit)
-
-    def limit(self, limit: int) -> Search:
-        return Search(self.dataset, self._query, self._sort, limit)
+        return f"<RecordSearch {self}>"
 
     async def _do_search(
         self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import (
-            NMessageType,
-            RepSearchDatasetPayload,
-            ReqSearchDatasetPayload,
-        )
+        from bench.msg.messages import NMessageType, RepSearchRecordPayload, ReqSearchRecordPayload
 
-        batch_limit = min(
-            SEARCH_RESULT_BATCH_SIZE, limit or self._limit or SEARCH_RESULT_BATCH_SIZE
-        )
-        rep: NMessage[RepSearchDatasetPayload] = await request(
-            NMessageType.REQUEST_SEARCH_DATASET,
-            ReqSearchDatasetPayload(
-                module_id=self.dataset.module.id,
-                statement_id=self.dataset.id,
-                backend_id=self.dataset.backend_id,
+        batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
+        if self.datasets is not None:
+            statement_ids = [dataset.statement_id for dataset in self.datasets]
+            backend_ids = [dataset.backend_id for dataset in self.datasets]
+        else:
+            statement_ids = None
+            backend_ids = None
+        rep: NMessage[RepSearchRecordPayload] = await request(
+            NMessageType.REQUEST_SEARCH_RECORD,
+            ReqSearchRecordPayload(
+                module_id=self.module.id,
+                statement_ids=statement_ids,
+                backend_ids=backend_ids,
                 query=self._query,
                 sort=self._sort,
                 after=after,
                 limit=batch_limit,
                 count=count,
             ),
-            reply_t=RepSearchDatasetPayload,
+            reply_t=RepSearchRecordPayload,
         )
         if rep.p.error:
             raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
         return rep
 
-    def __iter__(self) -> typing.Iterator[Record]:
-        yield from self._iter(batched=False)
-
-    def batched(self) -> typing.Iterator[list[Record]]:
-        yield from self._iter(batched=True)
-
-    def _iter(self, batched: bool):
+    def _unpack_element_data(self, element_data: "RecordData") -> ElementT:
         from bench.bench import wire
 
-        after = None
-        remaining_limit = self._limit
-        while remaining_limit is None or remaining_limit > 0:
-            rep = self.dataset.session.async_to_sync(self._do_search)(
-                after=after, limit=remaining_limit
-            )
-            if len(rep.payload.records) == 0:
-                break
-            records = DotList() if batched else None
-            for record_data in rep.payload.records:
-                record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
-                record._instantiated = False
-                record.activate_in(self.dataset.session)
-                if batched:
-                    records.append(record)
-                else:
-                    yield record
-            if batched:
-                yield records
-            after = rep.payload.end_cursor
-            if remaining_limit is not None:
-                remaining_limit -= len(rep.payload.records)
+        parent = self.module._statements_by_id[element_data.parent_id]
+        element = wire.unpack_node_flat(element_data, parent, self.module.session)
+        element._instantiated = False
+        element.activate_in(self.module.session)
+        return element
 
-    async def abatched(self) -> typing.AsyncIterator[list[Record]]:
-        async for batch in self._aiter(batched=True):
-            yield batch
+    def filter(self, query: Query) -> RecordSearch:
+        return RecordSearch(
+            self.module, self.datasets, self._query.filter(query), self._sort, self._limit
+        )
 
-    async def __aiter__(self) -> typing.AsyncIterator[Record]:
-        """Iterates over the records of the search result (batched)."""
-        async for record in self._aiter(batched=False):
-            yield record
+    def sort(self, sort: list[Sort] | Sort) -> RecordSearch:
+        if isinstance(sort, Sort):
+            sort = [sort]
+        return RecordSearch(self.module, self.datasets, self._query, sort, self._limit)
 
-    async def _aiter(self, batched: bool) -> typing.AsyncIterator[Record]:
-        from bench.bench import wire
-
-        after = None
-        remaining_limit = self._limit
-        while remaining_limit is None or remaining_limit > 0:
-            rep = await self._do_search(after=after, limit=remaining_limit)
-            if len(rep.payload.records) == 0:
-                break
-            records = DotList() if batched else None
-            for record_data in rep.payload.records:
-                record = wire.unpack_node_flat(record_data, self.dataset, self.dataset.session)
-                record._instantiated = False
-                record.activate_in(self.dataset.session)
-                if batched:
-                    records.append(record)
-                else:
-                    yield record
-            if batched:
-                yield records
-            after = rep.payload.end_cursor
-            if remaining_limit is not None:
-                remaining_limit -= len(rep.payload.records)
-
-    def __len__(self) -> int:
-        return self.count()
-
-    async def afirst(self) -> Optional[Record]:
-        """Returns the first record of the search result."""
-        async for record in self.limit(1):
-            return record
-        return None
-
-    def first(self) -> Optional[Record]:
-        """Returns the first record of the search result."""
-        return self.dataset.session.async_to_sync(self.afirst)()
-
-    async def atolist(self) -> list[Record]:
-        """Returns the search result as a list."""
-        return [record async for record in self]
-
-    def tolist(self) -> list[Record]:
-        """Returns the search result as a list."""
-        return list(self)
+    def limit(self, limit: int) -> RecordSearch:
+        return RecordSearch(self.module, self.datasets, self._query, self._sort, limit)
 
     async def avalues(self, field: str) -> list[Any]:
         """Returns the values of the given field for all records."""
@@ -413,7 +355,7 @@ class Search:
     def count(self):
         if self._total is not None:
             return self._total
-        rep = self.dataset.session.async_to_sync(self._do_search)(limit=0, count=True)
+        rep = self.module.session.async_to_sync(self._do_search)(limit=0, count=True)
         self._total = rep.payload.total
         return self._total
 

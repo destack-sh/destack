@@ -311,7 +311,9 @@ class DataQuery:  # avoid name conflict with DatasetQuery
 
         effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
         search = prepare_search(
-            backend_id=statement.dataset.backend_id,
+            type=mirror.DocumentType.RECORD,
+            project_version_id=str(statement.project_version_id),
+            backend_ids=[statement.dataset.backend_id],
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,

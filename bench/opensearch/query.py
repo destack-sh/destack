@@ -2,7 +2,7 @@ import base64
 import json
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any, Optional, Union
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 from bench.bench.query import (
     ComparisonQuery,
@@ -17,6 +17,9 @@ from bench.bench.query import (
     VectorQuery,
     get_default_sort,
 )
+
+if TYPE_CHECKING:
+    from bench.opensearch.mirror import DocumentType
 
 
 @dataclass
@@ -152,7 +155,10 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def prepare_search(
-    backend_id: str,
+    type: DocumentType,
+    project_version_id: str,
+    backend_ids: Optional[list[str]],
+    runnable_ids: Optional[list[str]],
     limit: int,
     count: bool,
     after: Optional[str],
@@ -162,10 +168,15 @@ def prepare_search(
     combined_query = Q(
         QueryOp.AND,
         queries=[
-            Q(QueryOp.EQUALS, key="dataset_id", value=backend_id),
+            Q(QueryOp.EQUALS, key="type", value=type.value),
+            Q(QueryOp.EQUALS, key="project_version_id", value=project_version_id),
             ~Q(QueryOp.EXISTS, key="deleted_at"),
         ],
     )
+    if backend_ids:
+        combined_query &= Q(QueryOp.EQUALS, key="backend_id", value=backend_ids)
+    if runnable_ids:
+        combined_query &= Q(QueryOp.EQUALS, key="runnable_id", value=runnable_ids)
     if query is not None:
         combined_query &= query
     compilation = CompilationInfo(root_limit=limit)

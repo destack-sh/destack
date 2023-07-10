@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
-from bench.bench.query import SubfieldType
+from bench.bench.query import TYPE_DISCRIMINATOR_KEY, SubfieldType
 
 
 class FieldType(enum.StrEnum):
@@ -226,7 +226,6 @@ class HnswParameters:
 field = Field
 
 TYPE_DISCRIMINATOR_FIELD = Field(FT.KEYWORD)
-TYPE_DISCRIMINATOR_KEY = "_type"
 
 
 @dataclass

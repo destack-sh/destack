@@ -1465,6 +1465,33 @@ class SessionData:
     trigger_type: RunTriggerType
 
 
+@data_packer(SessionData, lang.Session)
+class SessionPacker(DataPacker[SessionData, lang.Session]):
+    def pack(self, object: lang.Session) -> SessionData:
+        return SessionData(
+            id=object.id,
+            module_id=object.module_id,
+            worker_id=object.worker_id,
+            opened_at=object.opened_at,
+            closed_at=object.closed_at,
+            metadata=object.metadata,
+            trigger_id=object.trigger_id,
+            trigger_type=object.trigger_type,
+        )
+
+    def unpack(self, data: SessionData) -> lang.Session:
+        return lang.Session(
+            id=data.id,
+            module_id=data.module_id,
+            worker_id=data.worker_id,
+            opened_at=data.opened_at,
+            closed_at=data.closed_at,
+            metadata=data.metadata,
+            trigger_id=data.trigger_id,
+            trigger_type=data.trigger_type,
+        )
+
+
 @dataclass
 class RunData:
     id: UUID
@@ -1517,8 +1544,9 @@ class LogEntryData:
     module_id: UUID
     worker_id: UUID
     created_at: datetime
-    level: str
-    logger: str
+    stream: str
+    level: Optional[str]
+    logger: Optional[str]
     message: Optional[str]
     session_id: Optional[UUID]
     runnable_id: Optional[UUID]
