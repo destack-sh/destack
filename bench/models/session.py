@@ -36,10 +36,10 @@ class Run(UUIDTModel):
     started_at = models.DateTimeField(null=True, blank=True)
     terminated_at = models.DateTimeField(null=True, blank=True)
     root = models.ForeignKey(
-        "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
+        "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
     )
     parent = models.ForeignKey(
-        "Execution", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
+        "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
     runnable = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
     inputs = models.JSONField(null=True, blank=True)
@@ -64,9 +64,12 @@ class Run(UUIDTModel):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["updated_at"]),
-            models.Index(fields=["runnable_id"]),
-            models.Index(fields=["runnable_id", "project_version_id"]),
+            models.Index(fields=["started_at"], name="run_started_at_idx"),
+            models.Index(fields=["updated_at"], name="run_updated_at_idx"),
+            models.Index(fields=["runnable_id"], name="run_runnable_id_idx"),
+            models.Index(
+                fields=["runnable_id", "project_version_id"], name="run_runnable_id_scoped_idx"
+            ),
         ]
 
 

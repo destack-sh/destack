@@ -88,13 +88,13 @@ export enum AccessTokenStatus {
 }
 
 export type CancelRunInput = {
-  executionId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+  runId: Scalars["GlobalID"];
 };
 
 export type CancelRunPayload = {
   __typename?: "CancelRunPayload";
-  execution?: Maybe<Execution>;
+  run?: Maybe<Run>;
   success: Scalars["Boolean"];
 };
 
@@ -200,87 +200,9 @@ export type Dataset = Node & {
   versioned: Scalars["Boolean"];
 };
 
-export type DatasetQuery = {
-  key?: InputMaybe<Scalars["String"]>;
-  op: QueryOp;
-  queries?: InputMaybe<Array<DatasetQuery>>;
-  value?: InputMaybe<Scalars["JSON"]>;
-};
-
-export type DatasetSort = {
-  key: Scalars["String"];
-  mode?: InputMaybe<SortMode>;
-  order?: SortOrder;
-};
-
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
-
-export type Execution = Node & {
-  __typename?: "Execution";
-  accessToken?: Maybe<AccessToken>;
-  cachedDuration?: Maybe<Scalars["Float"]>;
-  cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
-  createdAt: Scalars["DateTime"];
-  descendants: Array<Execution>;
-  duration?: Maybe<Scalars["Float"]>;
-  error?: Maybe<Scalars["JSON"]>;
-  errorNice?: Maybe<RunError>;
-  id: Scalars["GlobalID"];
-  inputs?: Maybe<Scalars["JSON"]>;
-  metadata?: Maybe<Scalars["JSON"]>;
-  outputs?: Maybe<Scalars["JSON"]>;
-  parent?: Maybe<Execution>;
-  project: Project;
-  projectVersion: ProjectVersion;
-  root?: Maybe<Execution>;
-  runnable?: Maybe<Statement>;
-  startedAt?: Maybe<Scalars["DateTime"]>;
-  status: ExecutionStatus;
-  terminatedAt?: Maybe<Scalars["DateTime"]>;
-  triggerType: ExecutionTriggerType;
-  updatedAt: Scalars["DateTime"];
-  user?: Maybe<User>;
-};
-
-/** A connection to a list of items. */
-export type ExecutionConnection = {
-  __typename?: "ExecutionConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<ExecutionEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
-/** An edge in a connection. */
-export type ExecutionEdge = {
-  __typename?: "ExecutionEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: Execution;
-};
-
-export enum ExecutionStatus {
-  Aborted = "Aborted",
-  Aborting = "Aborting",
-  Completed = "Completed",
-  Created = "Created",
-  Failed = "Failed",
-  Queued = "Queued",
-  Running = "Running",
-  Scheduled = "Scheduled",
-}
-
-export enum ExecutionTriggerType {
-  Api = "API",
-  Reactive = "REACTIVE",
-  Scheduled = "SCHEDULED",
-  Ui = "UI",
-}
 
 export type Field = CrudModel &
   ModuleNode &
@@ -498,6 +420,40 @@ export type LangserverWakePayload = {
 };
 
 export type LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo;
+
+export type LogEntry = {
+  __typename?: "LogEntry";
+  createdAt: Scalars["DateTime"];
+  level?: Maybe<Scalars["String"]>;
+  logger?: Maybe<Scalars["String"]>;
+  message?: Maybe<Scalars["String"]>;
+  metadata?: Maybe<Scalars["JSON"]>;
+  moduleId: Scalars["GlobalID"];
+  runId?: Maybe<Scalars["GlobalID"]>;
+  runnableId?: Maybe<Scalars["GlobalID"]>;
+  sessionId?: Maybe<Scalars["GlobalID"]>;
+  stream: Scalars["String"];
+};
+
+/** A connection to a list of items. */
+export type LogEntryConnection = {
+  __typename?: "LogEntryConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<LogEntryEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type LogEntryEdge = {
+  __typename?: "LogEntryEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: LogEntry;
+};
 
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
@@ -1439,21 +1395,12 @@ export enum ProjectVisibility {
   SourcePrivate = "SOURCE_PRIVATE",
 }
 
-export type PyFrame = {
-  __typename?: "PyFrame";
-  filename: Scalars["String"];
-  line: Scalars["String"];
-  lineno: Scalars["Int"];
-  locals?: Maybe<Scalars["JSON"]>;
-  name: Scalars["String"];
-};
-
 export type Query = {
   __typename?: "Query";
   clients: ClientConnection;
-  executions: ExecutionConnection;
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
+  logs: LogEntryConnection;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
@@ -1465,6 +1412,7 @@ export type Query = {
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
+  runs: RunConnection;
   searchDataset: RecordConnection;
   secret?: Maybe<Secret>;
   statement?: Maybe<Statement>;
@@ -1488,18 +1436,6 @@ export type QueryClientsArgs = {
   userId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
-export type QueryExecutionsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  includeAncestorVersions?: Scalars["Boolean"];
-  last?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  rootIdNull?: Scalars["Boolean"];
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
-};
-
 export type QueryFeaturedProjectsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
@@ -1509,6 +1445,22 @@ export type QueryFeaturedProjectsArgs = {
 
 export type QueryFileArgs = {
   id: Scalars["GlobalID"];
+};
+
+export type QueryLogsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  query?: InputMaybe<SearchQuery>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  sort?: InputMaybe<Array<SearchSort>>;
 };
 
 export type QueryOrganizationArgs = {
@@ -1558,6 +1510,22 @@ export type QueryRemoteObjectArgs = {
   id: Scalars["GlobalID"];
 };
 
+export type QueryRunsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  before?: InputMaybe<Scalars["String"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
+  first?: InputMaybe<Scalars["Int"]>;
+  last?: InputMaybe<Scalars["Int"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  query?: InputMaybe<SearchQuery>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  sort?: InputMaybe<Array<SearchSort>>;
+};
+
 export type QuerySearchDatasetArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
@@ -1565,8 +1533,8 @@ export type QuerySearchDatasetArgs = {
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
   limit?: InputMaybe<Scalars["Int"]>;
-  query?: InputMaybe<DatasetQuery>;
-  sort?: InputMaybe<Array<DatasetSort>>;
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort>>;
   statementId: Scalars["GlobalID"];
 };
 
@@ -1779,37 +1747,119 @@ export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
+export type Run = Node & {
+  __typename?: "Run";
+  cachedDuration?: Maybe<Scalars["Float"]>;
+  cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"];
+  descendants: Array<Run>;
+  duration?: Maybe<Scalars["Float"]>;
+  error?: Maybe<Scalars["JSON"]>;
+  errorNice?: Maybe<RunError>;
+  id: Scalars["GlobalID"];
+  inputs?: Maybe<Scalars["JSON"]>;
+  metadata?: Maybe<Scalars["JSON"]>;
+  outputs?: Maybe<Scalars["JSON"]>;
+  parent?: Maybe<Run>;
+  projectVersion: ProjectVersion;
+  root?: Maybe<Run>;
+  runnable?: Maybe<Statement>;
+  session: Session;
+  startedAt?: Maybe<Scalars["DateTime"]>;
+  status: RunStatus;
+  terminatedAt?: Maybe<Scalars["DateTime"]>;
+  updatedAt: Scalars["DateTime"];
+};
+
+export type RunCodeFrame = {
+  __typename?: "RunCodeFrame";
+  filename: Scalars["String"];
+  line: Scalars["String"];
+  lineno: Scalars["Int"];
+  locals?: Maybe<Scalars["JSON"]>;
+  name: Scalars["String"];
+};
+
+/** A connection to a list of items. */
+export type RunConnection = {
+  __typename?: "RunConnection";
+  /** Contains the nodes in this connection */
+  edges: Array<RunEdge>;
+  /** Pagination data for this connection */
+  pageInfo: PageInfo;
+  /** Total quantity of existing nodes */
+  totalCount?: Maybe<Scalars["Int"]>;
+};
+
+/** An edge in a connection. */
+export type RunEdge = {
+  __typename?: "RunEdge";
+  /** A cursor for use in pagination */
+  cursor: Scalars["String"];
+  /** The item at the end of the edge */
+  node: Run;
+};
+
 /** Wire-able representation of an exception. */
 export type RunError = {
   __typename?: "RunError";
   kind: Scalars["String"];
   message: Scalars["String"];
   statementId?: Maybe<Scalars["GlobalID"]>;
-  traceback?: Maybe<Array<PyFrame>>;
+  traceback?: Maybe<Array<RunCodeFrame>>;
   type: Scalars["String"];
 };
 
 export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
-  executionId?: InputMaybe<Scalars["GlobalID"]>;
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
+  runId?: InputMaybe<Scalars["GlobalID"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
   trace?: Scalars["Int"];
 };
 
 export type RunState = {
   __typename?: "RunState";
-  execution?: Maybe<Execution>;
-  executionId?: Maybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
+  run?: Maybe<Run>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
 };
 
 export type RunStateOperationInfo = OperationInfo | RunState;
+
+export enum RunStatus {
+  Aborted = "Aborted",
+  Aborting = "Aborting",
+  Completed = "Completed",
+  Created = "Created",
+  Failed = "Failed",
+  Queued = "Queued",
+  Running = "Running",
+  Scheduled = "Scheduled",
+}
+
+export enum RunTriggerType {
+  Api = "API",
+  Ui = "UI",
+}
+
+export type SearchQuery = {
+  key?: InputMaybe<Scalars["String"]>;
+  op: QueryOp;
+  queries?: InputMaybe<Array<SearchQuery>>;
+  value?: InputMaybe<Scalars["JSON"]>;
+};
+
+export type SearchSort = {
+  key: Scalars["String"];
+  mode?: InputMaybe<SortMode>;
+  order?: SortOrder;
+};
 
 export type Secret = Node & {
   __typename?: "Secret";
@@ -1838,6 +1888,26 @@ export type SecretUpdateInput = {
   id: Scalars["GlobalID"];
   name?: InputMaybe<Scalars["String"]>;
   value: Scalars["JSON"];
+};
+
+export type Session = Node & {
+  __typename?: "Session";
+  accessToken?: Maybe<AccessToken>;
+  closedAt?: Maybe<Scalars["DateTime"]>;
+  createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
+  metadata?: Maybe<Scalars["JSON"]>;
+  openedAt?: Maybe<Scalars["DateTime"]>;
+  project: Project;
+  triggerType: RunTriggerType;
+  updatedAt: Scalars["DateTime"];
+  user?: Maybe<User>;
+};
+
+export type SessionChange = {
+  __typename?: "SessionChange";
+  runs: Array<Run>;
+  session: Session;
 };
 
 export enum SortMode {
@@ -2039,9 +2109,10 @@ export type StatementUpdateTextInput = {
 export type Subscription = {
   __typename?: "Subscription";
   clientsChanged: Client;
-  executionsChanged: Execution;
+  logsChanged: LogEntry;
   moduleChanged: ModuleChange;
   projectChanged: ProjectChange;
+  sessionsChanged: SessionChange;
 };
 
 export type SubscriptionClientsChangedArgs = {
@@ -2049,13 +2120,12 @@ export type SubscriptionClientsChangedArgs = {
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
-export type SubscriptionExecutionsChangedArgs = {
-  includeAncestorVersions?: Scalars["Boolean"];
+export type SubscriptionLogsChangedArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  rootId?: InputMaybe<Scalars["GlobalID"]>;
-  rootIdNull?: Scalars["Boolean"];
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SubscriptionModuleChangedArgs = {
@@ -2064,6 +2134,11 @@ export type SubscriptionModuleChangedArgs = {
 
 export type SubscriptionProjectChangedArgs = {
   projectId: Scalars["GlobalID"];
+};
+
+export type SubscriptionSessionsChangedArgs = {
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SymbolUpdateCodeInput = {
@@ -2617,16 +2692,16 @@ export type UpdateUserMutation = {
     | { __typename?: "User"; id: any; name: string; description?: string | null };
 };
 
-export type SearchDatasetQueryVariables = Exact<{
+export type SearchRecordQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
-  query?: InputMaybe<DatasetQuery>;
-  sort?: InputMaybe<Array<DatasetSort> | DatasetSort>;
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
   after?: InputMaybe<Scalars["String"]>;
   limit?: InputMaybe<Scalars["Int"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type SearchDatasetQuery = {
+export type SearchRecordQuery = {
   __typename?: "Query";
   searchDataset: {
     __typename?: "RecordConnection";
@@ -3758,7 +3833,8 @@ export type WakeLangserverMutation = {
 export type RunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
-  executionId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
   arguments?: InputMaybe<Scalars["JSON"]>;
   keyed?: InputMaybe<Scalars["Boolean"]>;
   block?: InputMaybe<Scalars["Boolean"]>;
@@ -3774,10 +3850,10 @@ export type RunMutation = {
         projectVersionId: any;
         runnableId?: any | null;
         success: boolean;
-        execution?: {
-          __typename?: "Execution";
+        run?: {
+          __typename?: "Run";
           id: any;
-          status: ExecutionStatus;
+          status: RunStatus;
           startedAt?: any | null;
           terminatedAt?: any | null;
           createdAt: any;
@@ -3792,7 +3868,7 @@ export type RunMutation = {
             type: string;
             message: string;
             traceback?: Array<{
-              __typename?: "PyFrame";
+              __typename?: "RunCodeFrame";
               line: string;
               filename: string;
               lineno: number;
@@ -3806,7 +3882,7 @@ export type RunMutation = {
 
 export type CancelMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  executionId: Scalars["GlobalID"];
+  runId: Scalars["GlobalID"];
 }>;
 
 export type CancelMutation = {
@@ -3815,10 +3891,10 @@ export type CancelMutation = {
     | {
         __typename?: "CancelRunPayload";
         success: boolean;
-        execution?: {
-          __typename?: "Execution";
+        run?: {
+          __typename?: "Run";
           id: any;
-          status: ExecutionStatus;
+          status: RunStatus;
           startedAt?: any | null;
           terminatedAt?: any | null;
           createdAt: any;
@@ -4717,8 +4793,8 @@ export type RevealSecretQuery = {
   secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
 };
 
-export type ExecutionContentFragment = {
-  __typename?: "Execution";
+export type RunContentFragment = {
+  __typename?: "Run";
   id: any;
   createdAt: any;
   updatedAt: any;
@@ -4727,21 +4803,18 @@ export type ExecutionContentFragment = {
   duration?: number | null;
   cachedDuration?: number | null;
   cachedGeneratedAt?: any | null;
-  status: ExecutionStatus;
-  triggerType: ExecutionTriggerType;
+  status: RunStatus;
   inputs?: any | null;
   outputs?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
-  user?: { __typename?: "User"; id: any; slug: string } | null;
-  accessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
-  root?: { __typename?: "Execution"; id: any } | null;
-  parent?: { __typename?: "Execution"; id: any } | null;
+  root?: { __typename?: "Run"; id: any } | null;
+  parent?: { __typename?: "Run"; id: any } | null;
   errorNice?: {
     __typename?: "RunError";
     type: string;
     message: string;
     traceback?: Array<{
-      __typename?: "PyFrame";
+      __typename?: "RunCodeFrame";
       line: string;
       filename: string;
       lineno: number;
@@ -4750,57 +4823,7 @@ export type ExecutionContentFragment = {
     }> | null;
   } | null;
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
-} & { " $fragmentName"?: "ExecutionContentFragment" };
-
-export type ExecutionsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  rootIdNull?: InputMaybe<Scalars["Boolean"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-}>;
-
-export type ExecutionsQuery = {
-  __typename?: "Query";
-  executions: {
-    __typename?: "ExecutionConnection";
-    totalCount?: number | null;
-    edges: Array<{
-      __typename?: "ExecutionEdge";
-      cursor: string;
-      node: {
-        __typename?: "Execution";
-        descendants: Array<
-          { __typename?: "Execution" } & { " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment } }
-        >;
-      } & { " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment } };
-    }>;
-    pageInfo: {
-      __typename?: "PageInfo";
-      hasNextPage: boolean;
-      hasPreviousPage: boolean;
-      startCursor?: string | null;
-      endCursor?: string | null;
-    };
-  };
-};
-
-export type ExecutionsChangedSubscriptionVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  includeAncestorVersions?: InputMaybe<Scalars["Boolean"]>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  rootIdNull?: InputMaybe<Scalars["Boolean"]>;
-}>;
-
-export type ExecutionsChangedSubscription = {
-  __typename?: "Subscription";
-  executionsChanged: { __typename?: "Execution" } & {
-    " $fragmentRefs"?: { ExecutionContentFragment: ExecutionContentFragment };
-  };
-};
+} & { " $fragmentName"?: "RunContentFragment" };
 
 export type ModuleChangedSubscriptionVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -5776,13 +5799,13 @@ export const InterpStatementFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpStatementFragment, unknown>;
-export const ExecutionContentFragmentDoc = {
+export const RunContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ExecutionContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Execution" } },
+      name: { kind: "Name", value: "RunContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -5795,7 +5818,6 @@ export const ExecutionContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
           { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
           { kind: "Field", name: { kind: "Name", value: "status" } },
-          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "projectVersion" },
@@ -5804,28 +5826,6 @@ export const ExecutionContentFragmentDoc = {
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "user" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "slug" } },
-              ],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "accessToken" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
               ],
             },
@@ -5888,7 +5888,7 @@ export const ExecutionContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<ExecutionContentFragment, unknown>;
+} as unknown as DocumentNode<RunContentFragment, unknown>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [
@@ -7104,13 +7104,13 @@ export const UpdateUserDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
-export const SearchDatasetDocument = {
+export const SearchRecordDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "searchDataset" },
+      name: { kind: "Name", value: "searchRecord" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7120,14 +7120,14 @@ export const SearchDatasetDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "DatasetQuery" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
         },
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
           type: {
             kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "DatasetSort" } } },
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
           },
         },
         {
@@ -7234,7 +7234,7 @@ export const SearchDatasetDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<SearchDatasetQuery, SearchDatasetQueryVariables>;
+} as unknown as DocumentNode<SearchRecordQuery, SearchRecordQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
@@ -10208,7 +10208,12 @@ export const RunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
         {
@@ -10257,8 +10262,13 @@ export const RunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "executionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+                      name: { kind: "Name", value: "runId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sessionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
                     },
                     {
                       kind: "ObjectField",
@@ -10298,7 +10308,7 @@ export const RunDocument = {
                       { kind: "Field", name: { kind: "Name", value: "success" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "execution" },
+                        name: { kind: "Name", value: "run" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -10367,7 +10377,7 @@ export const CancelDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
       ],
@@ -10391,8 +10401,8 @@ export const CancelDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "executionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "executionId" } },
+                      name: { kind: "Name", value: "runId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
                     },
                   ],
                 },
@@ -10410,7 +10420,7 @@ export const CancelDocument = {
                       { kind: "Field", name: { kind: "Name", value: "success" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "execution" },
+                        name: { kind: "Name", value: "run" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -14553,233 +14563,6 @@ export const RevealSecretDocument = {
     },
   ],
 } as unknown as DocumentNode<RevealSecretQuery, RevealSecretQueryVariables>;
-export const ExecutionsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "executions" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "first" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "last" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "executions" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "includeAncestorVersions" },
-                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "runnableIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "rootIdNull" },
-                value: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "first" },
-                value: { kind: "Variable", name: { kind: "Name", value: "first" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "last" },
-                value: { kind: "Variable", name: { kind: "Name", value: "last" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "edges" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "cursor" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "node" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "descendants" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "pageInfo" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
-                      { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
-                      { kind: "Field", name: { kind: "Name", value: "startCursor" } },
-                      { kind: "Field", name: { kind: "Name", value: "endCursor" } },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...ExecutionContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<ExecutionsQuery, ExecutionsQueryVariables>;
-export const ExecutionsChangedDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "subscription",
-      name: { kind: "Name", value: "executionsChanged" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
-          type: {
-            kind: "ListType",
-            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-          },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "executionsChanged" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectVersionId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "includeAncestorVersions" },
-                value: { kind: "Variable", name: { kind: "Name", value: "includeAncestorVersions" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "runnableIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "rootIdNull" },
-                value: { kind: "Variable", name: { kind: "Name", value: "rootIdNull" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ExecutionContent" } }],
-            },
-          },
-        ],
-      },
-    },
-    ...ExecutionContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<ExecutionsChangedSubscription, ExecutionsChangedSubscriptionVariables>;
 export const ModuleChangedDocument = {
   kind: "Document",
   definitions: [

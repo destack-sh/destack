@@ -53,7 +53,7 @@ export const TYPE_POLICIES = {
       files: useIncoming,
     },
   },
-  ExecutionConnection: {
+  RunConnection: {
     fields: {
       edges: useIncoming,
     },

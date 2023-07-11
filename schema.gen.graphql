@@ -77,12 +77,12 @@ enum AccessTokenStatus {
 
 input CancelRunInput {
   projectVersionId: GlobalID!
-  executionId: GlobalID!
+  runId: GlobalID!
 }
 
 type CancelRunPayload {
   success: Boolean!
-  execution: Execution
+  run: Run
 }
 
 union CancelRunPayloadOperationInfo = CancelRunPayload | OperationInfo
@@ -185,89 +185,11 @@ type Dataset implements Node {
   versioned: Boolean!
 }
 
-input DatasetQuery {
-  op: QueryOp!
-  key: String = null
-  value: JSON = null
-  queries: [DatasetQuery!] = null
-}
-
-input DatasetSort {
-  key: String!
-  order: SortOrder! = ASCENDING
-  mode: SortMode = null
-}
-
 """Date with time (isoformat)"""
 scalar DateTime
 
 input DeleteObjectInput {
   id: GlobalID!
-}
-
-type Execution implements Node {
-  id: GlobalID!
-  project: Project!
-  projectVersion: ProjectVersion!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  startedAt: DateTime
-  terminatedAt: DateTime
-  cachedGeneratedAt: DateTime
-  cachedDuration: Float
-  duration: Float
-  status: ExecutionStatus!
-  inputs: JSON
-  outputs: JSON
-  error: JSON
-  errorNice: RunError
-  metadata: JSON
-  root: Execution
-  parent: Execution
-  descendants: [Execution!]!
-  runnable: Statement
-  triggerType: ExecutionTriggerType!
-  user: User
-  accessToken: AccessToken
-}
-
-"""A connection to a list of items."""
-type ExecutionConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [ExecutionEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type ExecutionEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Execution!
-}
-
-enum ExecutionStatus {
-  Created
-  Scheduled
-  Queued
-  Running
-  Aborting
-  Aborted
-  Failed
-  Completed
-}
-
-enum ExecutionTriggerType {
-  API
-  UI
-  REACTIVE
-  SCHEDULED
 }
 
 type Field implements CrudModel & ModuleNode & Node {
@@ -481,6 +403,40 @@ type LangserverWakePayload {
 }
 
 union LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo
+
+type LogEntry {
+  moduleId: GlobalID!
+  createdAt: DateTime!
+  stream: String!
+  level: String
+  logger: String
+  message: String
+  sessionId: GlobalID
+  runnableId: GlobalID
+  runId: GlobalID
+  metadata: JSON
+}
+
+"""A connection to a list of items."""
+type LogEntryConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [LogEntryEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type LogEntryEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: LogEntry!
+}
 
 type ModuleChange implements Change {
   id: UUID!
@@ -1154,20 +1110,30 @@ enum ProjectVisibility {
   PRIVATE
 }
 
-type PyFrame {
-  filename: String!
-  lineno: Int!
-  name: String!
-  line: String!
-  locals: JSON
-}
-
 type Query {
-  executions(
+  runs(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
+    after: String = null
+
+    """Returns the first n items from the list."""
+    first: Int = null
 
     """Returns the items in the list that come after the specified cursor."""
+    last: Int = null
+    projectId: GlobalID!
+    projectVersionId: GlobalID!
+    sessionId: GlobalID = null
+    runId: GlobalID = null
+    runnableIds: [GlobalID!] = null
+    query: SearchQuery = null
+    sort: [SearchSort!] = null
+    limit: Int = null
+    count: Boolean = null
+  ): RunConnection!
+  logs(
+    """Returns the items in the list that come before the specified cursor."""
+    before: String = null
     after: String = null
 
     """Returns the first n items from the list."""
@@ -1177,10 +1143,14 @@ type Query {
     last: Int = null
     projectId: GlobalID!
     projectVersionId: GlobalID = null
-    includeAncestorVersions: Boolean! = false
+    sessionId: GlobalID = null
+    runId: GlobalID = null
     runnableIds: [GlobalID!] = null
-    rootIdNull: Boolean! = false
-  ): ExecutionConnection! @canViewProject(atRoot: true)
+    query: SearchQuery = null
+    sort: [SearchSort!] = null
+    limit: Int = null
+    count: Boolean = null
+  ): LogEntryConnection!
   clients(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1212,8 +1182,8 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
     statementId: GlobalID!
-    query: DatasetQuery = null
-    sort: [DatasetSort!] = null
+    query: SearchQuery = null
+    sort: [SearchSort!] = null
     limit: Int = null
     count: Boolean = null
   ): RecordConnection!
@@ -1481,19 +1451,72 @@ input RestoreInput {
   projectVersionId: GlobalID!
 }
 
+type Run implements Node {
+  id: GlobalID!
+  projectVersion: ProjectVersion!
+  session: Session!
+  root: Run
+  parent: Run
+  descendants: [Run!]!
+  runnable: Statement
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  startedAt: DateTime
+  terminatedAt: DateTime
+  duration: Float
+  status: RunStatus!
+  inputs: JSON
+  outputs: JSON
+  error: JSON
+  errorNice: RunError
+  metadata: JSON
+  cachedGeneratedAt: DateTime
+  cachedDuration: Float
+}
+
+type RunCodeFrame {
+  filename: String!
+  lineno: Int!
+  name: String!
+  line: String!
+  locals: JSON
+}
+
+"""A connection to a list of items."""
+type RunConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RunEdge!]!
+
+  """Total quantity of existing nodes"""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type RunEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Run!
+}
+
 """Wire-able representation of an exception."""
 type RunError {
   kind: String!
   type: String!
   message: String!
   statementId: GlobalID
-  traceback: [PyFrame!]
+  traceback: [RunCodeFrame!]
 }
 
 input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
-  executionId: GlobalID = null
+  runId: GlobalID = null
+  sessionId: GlobalID = null
   arguments: JSON = null
   trace: Int! = 7
   block: Boolean! = true
@@ -1505,11 +1528,39 @@ type RunState {
   projectVersionId: GlobalID!
   runnableId: GlobalID
   success: Boolean!
-  executionId: GlobalID
-  execution: Execution
+  run: Run
 }
 
 union RunStateOperationInfo = RunState | OperationInfo
+
+enum RunStatus {
+  Created
+  Scheduled
+  Queued
+  Running
+  Aborting
+  Aborted
+  Failed
+  Completed
+}
+
+enum RunTriggerType {
+  API
+  UI
+}
+
+input SearchQuery {
+  op: QueryOp!
+  key: String = null
+  value: JSON = null
+  queries: [SearchQuery!] = null
+}
+
+input SearchSort {
+  key: String!
+  order: SortOrder! = ASCENDING
+  mode: SortMode = null
+}
 
 type Secret implements Node {
   id: GlobalID!
@@ -1537,6 +1588,24 @@ input SecretUpdateInput {
   id: GlobalID!
   name: String
   value: JSON!
+}
+
+type Session implements Node {
+  id: GlobalID!
+  project: Project!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  openedAt: DateTime
+  closedAt: DateTime
+  metadata: JSON
+  triggerType: RunTriggerType!
+  user: User
+  accessToken: AccessToken
+}
+
+type SessionChange {
+  session: Session!
+  runs: [Run!]!
 }
 
 enum SortMode {
@@ -1719,7 +1788,8 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  executionsChanged(projectId: GlobalID!, projectVersionId: GlobalID, includeAncestorVersions: Boolean! = false, runnableIds: [GlobalID!] = null, rootId: GlobalID = null, rootIdNull: Boolean! = false): Execution!
+  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID): SessionChange!
+  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID, sessionId: GlobalID, runId: GlobalID, statementId: GlobalID): LogEntry!
 }
 
 input SymbolUpdateCodeInput {

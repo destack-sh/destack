@@ -1,10 +1,10 @@
 <script lang="ts" setup>
-import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
+import { RunStatus, RunTriggerType } from "@/gql/graphql";
 import { useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
@@ -38,7 +38,7 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
-const { executions, totalCount, loading } = useSessions(
+const { runs, totalCount, loading } = useSessions(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
@@ -47,11 +47,11 @@ const { executions, totalCount, loading } = useSessions(
   },
   { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
 );
-const executionRefs = useElementRefs<HTMLDivElement>();
+const runRefs = useElementRefs<HTMLDivElement>();
 const statement = computed(() => module.statementOf(props.runnableId));
 const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
-const expandedExecutionId = ref<string | null>(null);
+const expandedRunId = ref<string | null>(null);
 
 // navigation
 
@@ -69,54 +69,54 @@ const previewWidth = computed(() => {
   return containerSize.width.value - metadataWidth - paddingX * 2;
 });
 
-function toggleExpanded(executionId: string) {
-  if (expandedExecutionId.value == executionId) {
-    expandedExecutionId.value = null;
+function toggleExpanded(runId: string) {
+  if (expandedRunId.value == runId) {
+    expandedRunId.value = null;
   } else {
-    expandedExecutionId.value = executionId;
+    expandedRunId.value = runId;
   }
 }
 
-function isExpanded(executionId: string) {
-  return expandedExecutionId.value == executionId;
+function isExpanded(runId: string) {
+  return expandedRunId.value == runId;
 }
 
-function getStatusIcon(status: ExecutionStatus) {
-  if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running) {
+function getStatusIcon(status: RunStatus) {
+  if (status == RunStatus.Queued || status == RunStatus.Running) {
     return BusySpinnerIcon;
-  } else if (status == ExecutionStatus.Aborting || status == ExecutionStatus.Aborted) {
+  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
     return XCircleIcon;
-  } else if (status == ExecutionStatus.Failed) {
+  } else if (status == RunStatus.Failed) {
     return XCircleIcon;
-  } else if (status == ExecutionStatus.Completed) {
+  } else if (status == RunStatus.Completed) {
     return CheckCircleIcon;
   } else {
     return QuestionMarkCircleIcon;
   }
 }
 
-function getStatusColor(status: ExecutionStatus) {
-  if (status == ExecutionStatus.Queued || status == ExecutionStatus.Running || status == ExecutionStatus.Scheduled) {
+function getStatusColor(status: RunStatus) {
+  if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
     return "text-gray-700";
-  } else if (status == ExecutionStatus.Aborting || status == ExecutionStatus.Aborted) {
+  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
     return "text-gray-700";
-  } else if (status == ExecutionStatus.Failed) {
+  } else if (status == RunStatus.Failed) {
     return "text-red-600";
-  } else if (status == ExecutionStatus.Completed) {
+  } else if (status == RunStatus.Completed) {
     return "text-green-700";
   } else {
     return "text-gray-700";
   }
 }
 
-function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: { slug?: string | null } }): string {
+function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: string | null } }): string {
   return (
     {
-      [ExecutionTriggerType.Ui]: "by " + execution.user?.slug,
-      [ExecutionTriggerType.Api]: "via API",
-      [ExecutionTriggerType.Reactive]: "reactively",
-      [ExecutionTriggerType.Scheduled]: "scheduled",
-    }[execution.triggerType] ?? "by a ghost"
+      [RunTriggerType.Ui]: "by " + run.user?.slug,
+      [RunTriggerType.Api]: "via API",
+      [RunTriggerType.Reactive]: "reactively",
+      [RunTriggerType.Scheduled]: "scheduled",
+    }[run.triggerType] ?? "by a ghost"
   );
 }
 </script>
@@ -124,42 +124,42 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
   <div ref="containerRef" class="flex flex-col">
     <!-- Header with filters  -->
     <!-- not yet -->
-    <!-- Executions -->
+    <!-- Runs -->
     <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs</div>
     <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
       <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
     </div>
-    <!-- TODO @UX: animate executions in tile (without interfering with expand/close animation, looks glitchy) -->
+    <!-- TODO @UX: animate runs in tile (without interfering with expand/close animation, looks glitchy) -->
     <div v-else class="relative flex flex-col">
       <div
-        :ref="(el: any) => executionRefs.registerRef(execution.id, el)"
+        :ref="(el: any) => runRefs.registerRef(run.id, el)"
         tabindex="-1"
-        v-for="(execution, y) in executions"
-        :key="execution.id"
-        class="group/execution flex flex-col"
+        v-for="(run, y) in runs"
+        :key="run.id"
+        class="group/run flex flex-col"
         :class="[y > 0 ? 'border-t- border-orange-900 border-opacity-[12%]' : '']"
         :style="{
           paddingTop: paddingY + 'px',
           paddingBottom: paddingY + 'px',
           paddingLeft: paddingX + 'px',
           paddingRight: paddingX + 'px',
-          height: isExpanded(execution.id) ? undefined : headerHeight + 'px',
+          height: isExpanded(run.id) ? undefined : headerHeight + 'px',
         }"
-        @click.stop="toggleExpanded(execution.id)"
-        @keydown.enter.stop="toggleExpanded(execution.id)"
+        @click.stop="toggleExpanded(run.id)"
+        @keydown.enter.stop="toggleExpanded(run.id)"
       >
         <!-- Header -->
         <div class="flex flex-row justify-between gap-5 rounded-sm">
           <!-- Metadata -->
           <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
-            <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(execution.status)">
+            <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(run.status)">
               <!-- Status -->
               <component
-                :is="getStatusIcon(execution.status)"
+                :is="getStatusIcon(run.status)"
                 class="h-4 w-4"
                 :class="[
-                  execution.status == ExecutionStatus.Running || execution.status == ExecutionStatus.Queued
+                  run.status == RunStatus.Running || run.status == RunStatus.Queued
                     ? 'animate-spin'
                     : '',
                 ]"
@@ -168,22 +168,22 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
                 {{
-                  execution.duration != null
-                    ? formatDurationSeconds(execution.duration * 1000)
-                    : now.getTimeFromNowString(execution.startedAt)
+                  run.duration != null
+                    ? formatDurationSeconds(run.duration * 1000)
+                    : now.getTimeFromNowString(run.startedAt)
                 }}
                 <!-- Cached info :CacheInfo -->
-                <span v-if="isMostlyCached(execution as any)" class="relative px-0.5 py-1">
+                <span v-if="isMostlyCached(run as any)" class="relative px-0.5 py-1">
                   <BoltIcon class="h-3 w-3 text-orange-500" />
                   <span
-                    v-if="execution.duration != null && execution.cachedDuration != null"
+                    v-if="run.duration != null && run.cachedDuration != null"
                     class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
                   >
                     Cached
-                    {{ now.getTimeFromNowString(execution.cachedGeneratedAt) }} ago<br />
-                    <template v-if="getCachedPercentage(execution) > 0">
-                      Saved {{ getCachedPercentage(execution).toFixed() }}% (~{{
-                        formatDurationSeconds((execution.cachedDuration - execution.duration) * 1000)
+                    {{ now.getTimeFromNowString(run.cachedGeneratedAt) }} ago<br />
+                    <template v-if="getCachedPercentage(run) > 0">
+                      Saved {{ getCachedPercentage(run).toFixed() }}% (~{{
+                        formatDurationSeconds((run.cachedDuration - run.duration) * 1000)
                       }})
                     </template>
                   </span>
@@ -193,12 +193,12 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
             <!-- Trigger -->
             <span class="flex w-full flex-row gap-1 text-gray-400">
               <!-- From -->
-              <span class="text-gray-400">{{ now.getTimeFromNowString(execution.startedAt) }}</span>
-              <span class="truncate">{{ getTriggerLabel(execution) }}</span>
+              <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt) }}</span>
+              <span class="truncate">{{ getTriggerLabel(run) }}</span>
             </span>
           </div>
           <!-- Selected fields as a preview -->
-          <!-- TODO @UX: select and render execution fields preview more intelligently -->
+          <!-- TODO @UX: select and render run fields preview more intelligently -->
           <div
             class="relative flex w-full flex-row justify-normal gap-x-3 overflow-hidden"
             :style="{
@@ -213,7 +213,7 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
               readonly
               active
               wrap
-              :model-value="execution.inputs?.[module.getTypedKey(field) as string] ?? execution.outputs?.[module.getTypedKey(field) as string]"
+              :model-value="run.inputs?.[module.getTypedKey(field) as string] ?? run.outputs?.[module.getTypedKey(field) as string]"
               class="overflow-hidden"
               :style="{
                 // 12 = gap-x-3
@@ -230,12 +230,12 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           </div>
           <!-- Controls -->
           <button class="self-start p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
-            <component :is="isExpanded(execution.id) ? ChevronDoubleUpIcon : ChevronDoubleDownIcon" class="h-4 w-4" />
+            <component :is="isExpanded(run.id) ? ChevronDoubleUpIcon : ChevronDoubleDownIcon" class="h-4 w-4" />
           </button>
         </div>
-        <!-- Body / execution tile preview -->
+        <!-- Body / run tile preview -->
         <div
-          v-if="expandedExecutionId === execution.id"
+          v-if="expandedRunId === run.id"
           @click.stop
           class="scroll-hidden my-3 w-full gap-5 overflow-y-auto"
           :style="{
@@ -243,17 +243,17 @@ function getTriggerLabel(execution: { triggerType: ExecutionTriggerType; user?: 
           }"
         >
           <StructTile
-            v-if="execution.inputs != null"
+            v-if="run.inputs != null"
             readonly
             class="w-full"
-            :fields="[...inputFields, ...(execution.outputs != null ? outputFields : [])]"
-            :model-value="{ ...(execution.inputs ?? {}), ...(execution.outputs ?? {}) }"
+            :fields="[...inputFields, ...(run.outputs != null ? outputFields : [])]"
+            :model-value="{ ...(run.inputs ?? {}), ...(run.outputs ?? {}) }"
           />
-          <ExecutionTraceback
-            v-if="execution.errorNice"
+          <ErrorTraceback
+            v-if="run.errorNice"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 font-mono"
             name="run"
-            :execution="execution"
+            :run="run"
           />
         </div>
       </div>

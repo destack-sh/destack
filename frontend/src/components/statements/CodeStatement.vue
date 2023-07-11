@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import ExecutionTraceback from "@/components/basic/ExecutionTraceback.vue";
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { ExecutionStatus, type Execution } from "@/gql/graphql";
+import { RunStatus, type Run } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { EXECUTION_TERMINAL_STATES, useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
-import { TypeFlag, newExecutionId } from "@/state/module";
+import { RUN_TERMINAL_STATES, useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
+import { TypeFlag, newRunId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
@@ -48,26 +48,18 @@ const codeSync = context.syncCode(
 
 const now = useTimeFromNow(100);
 
-// TODO @Performance: load inline code executions more sensibly
+// TODO @Performance: load inline code runs more sensibly
 const bench = useBenchState();
-const executions = useSessions(
-  {
-    projectId: toRef(bench, "projectId"),
-    projectVersionId: toRef(bench, "projectVersionId"),
-    runnableIds: ref([context.statement.value.id]),
-    includeAncestorVersions: ref(false),
-  },
-  { root: false, limit: 3, live: true }
-);
+const runs = useSessions({ runnableIds: ref([context.statement.value.id]) }, { live: true });
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
 const numCodeLines = computed(() => code.value.split("\n").length);
 
-const lastExecutionLocal: Ref<Execution | null> = ref(null); // triggered in this client session
-const lastExecutionLocalId: Ref<string | null> = ref(null); // same but optimistic id
-const lastExecution = computed(() => lastExecutionLocal.value ?? executions.executions.value[0]);
-const lastExecutionId = computed(() => lastExecutionLocalId.value ?? lastExecution.value?.id ?? null);
+const lastRunLocal: Ref<Run | null> = ref(null); // triggered in this client session
+const lastRunLocalId: Ref<string | null> = ref(null); // same but optimistic id
+const lastRun = computed(() => lastRunLocal.value ?? runs.runs.value[0]);
+const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? null);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
@@ -79,14 +71,14 @@ const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
 const showTraceback = computed(
-  () => lastExecution.value != null && lastExecution.value.status == ExecutionStatus.Failed && !hideOutput.value
+  () => lastRun.value != null && lastRun.value.status == RunStatus.Failed && !hideOutput.value
 );
 
-const executionActive = computed(
+const runActive = computed(
   () =>
     preparingRun.value ||
     ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
-    (lastExecution.value != null && !EXECUTION_TERMINAL_STATES.includes(lastExecution.value?.status))
+    (lastRun.value != null && !RUN_TERMINAL_STATES.includes(lastRun.value?.status))
 );
 
 function unfoldIfFolded() {
@@ -127,7 +119,7 @@ const extraActions = computed(() => {
     {
       label: "Run",
       icon: PlayIcon,
-      active: executionActive.value && !cancelled.value,
+      active: runActive.value && !cancelled.value,
       disabled: hasTypes.value, // needs parameters
       action: async () => await run(),
     },
@@ -140,7 +132,7 @@ const extraActions = computed(() => {
       },
     },
   ];
-  if (executionActive.value) {
+  if (runActive.value) {
     inlineActions.push({
       label: "Cancel",
       icon: StopIcon,
@@ -149,10 +141,10 @@ const extraActions = computed(() => {
   } else {
     inlineActions.push({
       label: hideOutput.value ? "Show output" : "Hide output",
-      disabled: lastExecution.value == null,
+      disabled: lastRun.value == null,
       icon: hideOutput.value ? EyeSlashIcon : EyeIcon,
       action: async () => {
-        // TODO @Feature: clear execution for real?
+        // TODO @Feature: clear run for real?
         hideOutput.value = !hideOutput.value;
       },
       hideInline: props.folded,
@@ -164,18 +156,18 @@ const extraActions = computed(() => {
 context.setCustomActions(extraActions);
 
 async function run() {
-  if (executionActive.value) {
+  if (runActive.value) {
     return; // already running
   }
   if (hasTypes.value) {
     const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
-    lastExecutionLocalId.value = newExecutionId();
-    // optimistically set last execution local
-    lastExecutionLocal.value = {
-      id: lastExecutionLocalId.value,
-      status: ExecutionStatus.Running,
+    lastRunLocalId.value = newRunId();
+    // optimistically set last run local
+    lastRunLocal.value = {
+      id: lastRunLocalId.value,
+      status: RunStatus.Running,
       startedAt: now.now.value.toString(),
       createdAt: now.now.value.toString(),
       updatedAt: now.now.value.toString(),
@@ -185,7 +177,7 @@ async function run() {
       inputs: null,
       outputs: null,
       error: null,
-    } as Execution;
+    } as Run;
     cancelled.value = false;
     hideOutput.value = false;
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
@@ -195,7 +187,7 @@ async function run() {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is exact same as in editor
-    const ret = await ops.runtime.run(context.statement.value.id, lastExecutionLocalId.value);
+    const ret = await ops.runtime.run(context.statement.value.id, lastRunLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",
@@ -205,19 +197,19 @@ async function run() {
       });
     }
     if (ret?.data?.run.__typename == "RunState") {
-      lastExecutionLocal.value = (ret.data.run.execution as Execution) ?? null;
+      lastRunLocal.value = (ret.data.run.run as Run) ?? null;
     }
   }
 }
 
 async function cancel() {
   cancelled.value = true;
-  if (lastExecutionId.value == null) {
+  if (lastRunId.value == null) {
     return;
   }
-  lastExecutionLocal.value = null;
-  lastExecutionLocalId.value = null;
-  await ops.runtime.cancel(lastExecutionId.value);
+  lastRunLocal.value = null;
+  lastRunLocalId.value = null;
+  await ops.runtime.cancel(lastRunId.value);
 }
 
 defineExpose({
@@ -234,7 +226,7 @@ defineExpose({
     monacoRef.value?.blur();
   },
   run,
-  loading: computed(() => false), // executions may be loading, but does not affect layout because output/state hidden by default
+  loading: computed(() => false), // runs may be loading, but does not affect layout because output/state hidden by default
 });
 </script>
 <template>
@@ -251,35 +243,31 @@ defineExpose({
     <!-- Meta info & controls -->
     <div
       class="group/info flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
-      :class="context.focused.value || executionActive ? '' : 'opacity-0'"
+      :class="context.focused.value || runActive ? '' : 'opacity-0'"
     >
-      <!-- Execution time -->
+      <!-- Run time -->
       <span
-        v-if="!hasTypes && lastExecution != null"
-        :class="[lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
+        v-if="!hasTypes && lastRun != null"
+        :class="[lastRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
       >
         {{
           formatDurationSeconds(
-            (lastExecution?.duration ?? now.now.value.diff(DateTime.fromISO(lastExecution.startedAt)).as("seconds")) *
-              1000
+            (lastRun?.duration ?? now.now.value.diff(DateTime.fromISO(lastRun.startedAt)).as("seconds")) * 1000
           )
         }}
       </span>
       <!-- Cache info -->
-      <span
-        v-if="!hasTypes && lastExecution != null && isMostlyCached(lastExecution as any)"
-        class="relative mr-0.5 py-1"
-      >
+      <span v-if="!hasTypes && lastRun != null && isMostlyCached(lastRun as any)" class="relative mr-0.5 py-1">
         <BoltIcon class="h-3 w-3 text-orange-500" />
         <span
-          v-if="lastExecution.duration != null && lastExecution.cachedDuration != null"
+          v-if="lastRun.duration != null && lastRun.cachedDuration != null"
           class="invisible absolute -right-10 z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/info:visible"
         >
           Cached
-          {{ now.getTimeFromNowString(lastExecution.cachedGeneratedAt) }} ago<br />
-          <template v-if="getCachedPercentage(lastExecution) > 0">
-            Saved {{ getCachedPercentage(lastExecution).toFixed() }}% (~{{
-              formatDurationSeconds((lastExecution.cachedDuration - lastExecution.duration) * 1000)
+          {{ now.getTimeFromNowString(lastRun.cachedGeneratedAt) }} ago<br />
+          <template v-if="getCachedPercentage(lastRun) > 0">
+            Saved {{ getCachedPercentage(lastRun).toFixed() }}% (~{{
+              formatDurationSeconds((lastRun.cachedDuration - lastRun.duration) * 1000)
             }})
           </template>
         </span>
@@ -288,11 +276,11 @@ defineExpose({
       <span
         v-if="!hasTypes"
         :class="[
-          lastExecution?.status != ExecutionStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
-          lastExecution?.updatedAt ? 'opacity-100' : 'opacity-0',
+          lastRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          lastRun?.updatedAt ? 'opacity-100' : 'opacity-0',
         ]"
       >
-        {{ now.getTimeFromNowString(lastExecution?.updatedAt) }}</span
+        {{ now.getTimeFromNowString(lastRun?.updatedAt) }}</span
       >
       <InlineActions :extraActions="extraActions" />
     </div>
@@ -343,13 +331,13 @@ defineExpose({
     :class="[showTraceback ? '' : 'rounded-b-sm']"
   />
   <!-- Last output/error (if any) -->
-  <ExecutionTraceback
+  <ErrorTraceback
     v-if="!hasTypes && showTraceback && !folded"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
-    :key="lastExecution?.id"
+    :key="lastRun?.id"
     :name="context.statement.value?.name ?? 'run'"
-    :execution="lastExecution"
+    :run="lastRun"
   >
     <!-- If truncating, button overlay with fade gradient -->
     <button
@@ -364,5 +352,5 @@ defineExpose({
     <button v-else class="group/truncate flex w-full flex-row justify-center pt-0.5" @click="truncateOutput = true">
       <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
     </button>
-  </ExecutionTraceback>
+  </ErrorTraceback>
 </template>

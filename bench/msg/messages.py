@@ -214,6 +214,7 @@ class ReqRunPayload:
     tracing_level: int
     trigger_type: RunTriggerType
     trigger_id: Optional[UUID]
+    session_id: Optional[UUID]
     run_id: Optional[UUID]
 
 

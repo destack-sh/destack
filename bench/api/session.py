@@ -393,6 +393,7 @@ class SessionSubscription:
         while True:
             msg: NMessage[SessionChangedPayload] = await sessions_sub.next_msg()
             log.debug("sessions.update", msg=msg)
+            raise NotImplementedError
 
     @asafe_subscription
     async def logs_changed(

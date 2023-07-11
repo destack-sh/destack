@@ -49,6 +49,7 @@ class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
     run_id: Optional[GlobalID] = None
+    session_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
     trace: int = SessionTracingLevel.ALL
     block: bool = True
@@ -64,7 +65,6 @@ class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
     success: bool
-    run_id: Optional[GlobalID]
     run: Optional[Run]
 
 
@@ -114,6 +114,7 @@ class RuntimeMutation:
             trigger_type=RunTriggerType.UI,
             trigger_id=user.id,
             run_id=to_uuid(input.run_id),
+            session_id=to_uuid(input.session_id),
             keyed=input.keyed,
         )
         try:

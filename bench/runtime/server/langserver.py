@@ -3,6 +3,7 @@ import json
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import chain
+import typing
 from typing import Optional
 from uuid import UUID
 
@@ -13,7 +14,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, wire, QueryOp, Query
+from bench.bench import HasType, Issue, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
@@ -55,6 +56,10 @@ from bench.msg.messages import (
     SessionChangedPayload,
     WorkerHeartbeatPayload,
     LogsChangedPayload,
+    ReqSearch,
+    RepSearch,
+    ReqSearchRunPayload,
+    ReqSearchLogPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -74,7 +79,9 @@ def create_wrapped_task(coro, task_id: str = None):
 
 
 WORKER_HEARTBEAT_TIMEOUT = 30
-MAX_SEARCH_DATASET_LIMIT = 500
+MAX_SEARCH_RECORD_LIMIT = 500
+MAX_SEARCH_LOG_LIMIT = 1000
+MAX_SEARCH_RUN_LIMIT = 1000
 
 
 class ModuleDB:
@@ -116,6 +123,26 @@ class ModuleDB:
         return (await self.get_module(ref))[0]
 
 
+record_packer = mirror.get_node_packer(mirror.Record)
+run_packer = mirror.get_node_packer(mirror.Run)
+log_packer = mirror.get_node_packer(mirror.LogEntry)
+
+
+def _unpack_record(record: mirror.Record):
+    doc = mirror.Record.from_dict(record["_source"], record["_id"], record["_version"])
+    return record_packer.pack(doc)
+
+
+def _unpack_run(run: mirror.Run):
+    doc = mirror.Run.from_dict(run["_source"], run["_id"], run["_version"])
+    return run_packer.pack(doc)
+
+
+def _unpack_log(log: mirror.LogEntry):
+    doc = mirror.LogEntry.from_dict(log["_source"], log["_id"], log["_version"])
+    return log_packer.pack(doc)
+
+
 class LanguageServer:
     """
     Bench language & runtime server for LSP and runtime DB access.
@@ -139,7 +166,7 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.REQUEST_WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
-            await handle_reply(NMessageType.REQUEST_SEARCH_RECORD, self.search_dataset),
+            await handle_reply(NMessageType.REQUEST_SEARCH_RECORD, self.search_record),
             await handle_reply(NMessageType.REQUEST_SEARCH_RUN, self.search_run),
             await handle_reply(NMessageType.REQUEST_SEARCH_LOG, self.search_log),
             await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
@@ -227,55 +254,50 @@ class LanguageServer:
         runs = [packer.unpack_data(run) for run in msg.p.runs]
         logs = [packer.unpack_data(log) for log in msg.p.logs]
 
-    @message_handler
-    async def search_dataset(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
-        logger.debug("dataset.search", msg=msg)
-        # TODO @Security: check if msg origin has read access to dataset
-        project_version = await ProjectVersion.objects.aget(id=msg.p.module_id)
-        effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
-
+    def _do_search(
+        self,
+        project_v: models.ProjectVersion,
+        type: mirror.DocumentType,
+        max_limit: int,
+        req: ReqSearch,
+        unpack: typing.Callable,
+    ) -> RepSearch:
+        effective_limit = min(req.limit, max_limit)
         try:
-            if msg.p.backend_ids:
-                extra_query = Q(QueryOp.EQUALS, "backend_id", msg.p.backend_ids)
-            else:
-                extra_query = None
             search = prepare_search(
-                type=mirror.DocumentType.RECORD,
-                project_version_id=str(project_version.id),
+                type=type,
+                project_version_id=str(project_v.id),
                 limit=effective_limit,
-                count=msg.p.count,
-                after=msg.p.after,
-                sort=msg.p.sort,
-                query=Query.and_if_set(msg.p.query, extra_query),
+                count=req.count,
+                after=req.after,
+                sort=req.sort,
+                query=req.query,
             )
             results = os_client.search(
-                index=IndexType.BENCH.get_index_name(project_id=project_version.project_id),
+                index=IndexType.BENCH.get_index_name(project_id=project_v.project_id),
                 body=search,
             )
-            record_packer = mirror.get_node_packer(mirror.Record)
-            records: list[wire.RecordData] = []
+            elements: list[typing.Any] = []
             for r in results["hits"]["hits"]:
-                doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
-                record = record_packer.pack(doc)
-                records.append(record)
-            if records:
-                start_cursor = encode_cursor(results["hits"]["hits"][0], msg.p.after, i=0)
+                elements.append(unpack(r["_source"]))
+            if elements:
+                start_cursor = encode_cursor(results["hits"]["hits"][0], req.after, i=0)
                 end_cursor = encode_cursor(
-                    results["hits"]["hits"][-1], msg.p.after, i=len(records) - 1
+                    results["hits"]["hits"][-1], req.after, i=len(elements) - 1
                 )
             else:
                 start_cursor = None
                 end_cursor = None
             rep = RepSearchRecordPayload(
-                records=records,
-                total=(results["hits"]["total"]["value"] if msg.p.count else None),
+                elements=elements,
+                total=(results["hits"]["total"]["value"] if req.count else None),
                 limit=effective_limit,
                 start_cursor=start_cursor,
                 end_cursor=end_cursor,
             )
         except Exception as e:
             sentry_capture_if_enabled(e)
-            logger.error("dataset.search.failed", msg=msg, exc_info=True)
+            logger.error("dataset.search.failed", req=req, exc_info=True)
             rep = RepSearchRecordPayload(
                 records=None,
                 total=-1,
@@ -284,7 +306,36 @@ class LanguageServer:
                 end_cursor=None,
                 error=str(e),
             )
+        return rep
 
+    @message_handler
+    async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
+        logger.debug("search.record", msg=msg)
+        # TODO @Security: check if msg origin has read access to dataset
+        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
+        rep = await sync_to_async(self._do_search)(
+            project_v, mirror.DocumentType.RECORD, MAX_SEARCH_RECORD_LIMIT, msg.p, _unpack_record
+        )
+        await msg.reply(rep)
+
+    @message_handler
+    async def search_run(self, msg: NMessage[ReqSearchRunPayload]) -> None:
+        logger.debug("search.dataset", msg=msg)
+        # TODO @Security: check if msg origin has read access to dataset
+        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
+        rep = await sync_to_async(self._do_search)(
+            project_v, mirror.DocumentType.RUN, MAX_SEARCH_RUN_LIMIT, msg.p, _unpack_run
+        )
+        await msg.reply(rep)
+
+    @message_handler
+    async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
+        logger.debug("search.log", msg=msg)
+        # TODO @Security: check if msg origin has read access to dataset
+        project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
+        rep = await sync_to_async(self._do_search)(
+            project_v, mirror.DocumentType.LOG_ENTRY, MAX_SEARCH_LOG_LIMIT, msg.p, _unpack_log
+        )
         await msg.reply(rep)
 
     @message_handler

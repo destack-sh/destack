@@ -34,7 +34,8 @@ export function useRuntimeOps() {
       mutation run(
         $projectVersionId: GlobalID!
         $runnableId: GlobalID
-        $executionId: GlobalID
+        $runId: GlobalID
+        $sessionId: GlobalID
         $arguments: JSON
         $keyed: Boolean
         $block: Boolean
@@ -44,7 +45,8 @@ export function useRuntimeOps() {
           input: {
             projectVersionId: $projectVersionId
             runnableId: $runnableId
-            executionId: $executionId
+            runId: $runId
+            sessionId: $sessionId
             arguments: $arguments
             keyed: $keyed
             block: $block
@@ -55,7 +57,7 @@ export function useRuntimeOps() {
             projectVersionId
             runnableId
             success
-            execution {
+            run {
               id
               status
               startedAt
@@ -87,7 +89,7 @@ export function useRuntimeOps() {
 
   async function run(
     runnableId: string,
-    executionId?: string,
+    runId?: string,
     arguments_?: Record<string, any>,
     options?: { block?: boolean; keyed?: boolean; timeoutSeconds?: number }
   ) {
@@ -99,7 +101,7 @@ export function useRuntimeOps() {
         return await runMut({
           projectVersionId: bench.projectVersionId,
           runnableId,
-          executionId,
+          runId,
           arguments: arguments_,
           keyed: options?.keyed,
           block: options?.block,
@@ -111,11 +113,11 @@ export function useRuntimeOps() {
 
   const { mutate: cancelMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation cancel($projectVersionId: GlobalID!, $executionId: GlobalID!) {
-        cancelRun(input: { projectVersionId: $projectVersionId, executionId: $executionId }) {
+      mutation cancel($projectVersionId: GlobalID!, $runId: GlobalID!) {
+        cancelRun(input: { projectVersionId: $projectVersionId, runId: $runId }) {
           ... on CancelRunPayload {
             success
-            execution {
+            run {
               id
               status
               startedAt
@@ -133,15 +135,15 @@ export function useRuntimeOps() {
     `)
   );
 
-  async function cancel(executionId: string) {
+  async function cancel(runId: string) {
     return await ops.perform({
       type: "runtime.cancel",
-      key: executionId,
+      key: runId,
       stateless: true,
       do: async () => {
         return await cancelMut({
           projectVersionId: bench.projectVersionId,
-          executionId,
+          runId,
         });
       },
     });
