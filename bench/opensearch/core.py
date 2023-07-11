@@ -270,7 +270,9 @@ class Document:
         """
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
-        d = {**d, "id": UUID(id), "revision": version}
+        d = {**d, "id": UUID(id)}
+        if "revision" in cls.__fields__:
+            d["revision"] = version
         for name, field in cls.__fields__.items():
             if not field.can_set_directly:
                 continue

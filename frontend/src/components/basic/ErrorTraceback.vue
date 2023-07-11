@@ -1,19 +1,19 @@
 <script lang="ts" setup>
-import { ExecutionStatus, type Execution } from "@/gql/graphql";
+import { RunStatus, type Run } from "@/gql/graphql";
 
 const props = defineProps<{
   name: string;
-  execution: Execution;
+  run: Run;
 }>();
 </script>
 <template>
-  <div class="relative w-full" :class="[execution.status == ExecutionStatus.Failed ? 'text-red-600' : 'text-gray-600']">
-    {{ name }} {{ execution.status.toLowerCase() }}:
-    <span class="font-bold">{{ execution.errorNice?.message }}</span>
+  <div class="relative w-full" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
+    {{ name }} {{ run.status.toLowerCase() }}:
+    <span class="font-bold">{{ run.errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
       <li
-        v-for="(frame, i) of execution.errorNice?.traceback"
+        v-for="(frame, i) of run.errorNice?.traceback"
         :key="i"
         class="flex max-w-full flex-col overflow-hidden py-0.5 hover:bg-red-100"
       >

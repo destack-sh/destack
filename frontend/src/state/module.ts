@@ -406,10 +406,10 @@ export function useNavigation() {
   return { focusStatement: focusSymbol, focusFile };
 }
 
-export function newExecutionId(): string {
+export function newRunId(): string {
   /* Generates a new statement global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
-  return btoa(`Execution:${nodeId}`);
+  return btoa(`Run:${nodeId}`);
 }
 
 export function getSymbolSubtype(statement: {

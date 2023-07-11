@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
-import ExecutionsTile from "@/components/tiles/ExecutionsTile.vue";
+import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
@@ -10,7 +10,7 @@ import { StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
-import { newExecutionId, TypeFlag, useCurrentModule } from "@/state/module";
+import { newRunId, TypeFlag, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { PlayIcon } from "@heroicons/vue/24/solid";
@@ -71,9 +71,9 @@ watch(path, () => {
 
 async function run() {
   if (statement.value == null) return;
-  editor.value.lastExecutionId = newExecutionId();
+  editor.value.lastRunId = newRunId();
   running.value = true;
-  const ret = await ops.runtime.run(editor.value.statementId, editor.value.lastExecutionId, editor.value.arguments, {
+  const ret = await ops.runtime.run(editor.value.statementId, editor.value.lastRunId, editor.value.arguments, {
     block: true,
     keyed: true,
   });
@@ -88,18 +88,18 @@ async function run() {
       });
     } else {
       // notify on success if run took a bit
-      if ((ret.data.run?.execution?.duration ?? 0) > 5) {
+      if ((ret.data.run?.run?.duration ?? 0) > 5) {
         notifications.show({
           kind: "success",
           type: "run.success",
           message: "Run completed",
           description: `${statement.value.name} finished after ${formatDurationSeconds(
-            ret.data.run?.execution?.duration ?? 5
+            ret.data.run?.run?.duration ?? 5
           )}.`,
         });
       }
-      editor.value.lastOutput = ret.data.run.execution?.outputs;
-      editor.value.lastExecutionTerminatedAt = ret.data.run.execution?.terminatedAt;
+      editor.value.lastOutput = ret.data.run.run?.outputs;
+      editor.value.lastRunTerminatedAt = ret.data.run.run?.terminatedAt;
     }
   }
 }
@@ -246,8 +246,8 @@ defineExpose({
         <ContainerTile
           label="Output"
           :sub-label="
-            editor.lastExecutionTerminatedAt != null
-              ? now.getTimeFromNowLongString(editor.lastExecutionTerminatedAt as string)
+            editor.lastRunTerminatedAt != null
+              ? now.getTimeFromNowLongString(editor.lastRunTerminatedAt as string)
               : undefined
           "
           :style="{ ...baseTilePositionX }"
@@ -263,9 +263,9 @@ defineExpose({
             <span class="text-sm text-gray-400">No output</span>
           </div>
         </ContainerTile>
-        <!-- Executions -->
+        <!-- Runs -->
         <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
-          <ExecutionsTile
+          <RunsTile
             :project-id="bench.projectId"
             :project-version-id="bench.projectVersionId"
             include-ancestor-versions

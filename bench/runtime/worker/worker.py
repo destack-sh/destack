@@ -143,6 +143,7 @@ class ModuleWorker:
         arguments: dict[str, Any],
         keyed: bool,
         run_id: Optional[UUID],
+        session_id: Optional[UUID],
         tracing_level: SessionTracingLevel,
         trigger_type: RunTriggerType,
         trigger_id: Optional[UUID],
@@ -168,6 +169,7 @@ class ModuleWorker:
                 root_id=root_id,
             )
             session = Session(
+                id=session_id or UUIDT(),
                 module=self.module,
                 ctx=session_ctx,
                 mode=SessionMode.WRITE,
@@ -373,6 +375,7 @@ class SandboxedWorker:
             runnable=msg.p.runnable,
             arguments=msg.p.arguments,
             run_id=msg.p.run_id,
+            session_id=msg.p.session_id,
             tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,

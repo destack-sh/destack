@@ -230,7 +230,7 @@ QueryOp = gql.enum(query.QueryOp)
 AggregationOp = gql.enum(query.AggregationOp)
 
 
-@gql.type
+@gql.input
 class SearchQuery:
     op: QueryOp
     key: Optional[str] = None

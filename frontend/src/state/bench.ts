@@ -1042,8 +1042,8 @@ export class LaunchEditor extends Editor {
   statementType?: StatementType.Task | StatementType.Code;
   arguments: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
-  lastExecutionTerminatedAt?: string;
-  lastExecutionId?: string;
+  lastRunTerminatedAt?: string;
+  lastRunId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
     super("launch", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");

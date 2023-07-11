@@ -42,7 +42,7 @@ class DocumentType(enum.StrEnum):
     RECORD = "record"
     COMMENT = "comment"
     SESSION = "session"
-    EXECUTION = "execution"
+    RUN = "run"
     LOG_ENTRY = "log_entry"
 
 
@@ -435,7 +435,7 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
     pass
 
 
-@document(DocumentType.EXECUTION)
+@document(DocumentType.RUN)
 class Run(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
