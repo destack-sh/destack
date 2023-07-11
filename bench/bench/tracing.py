@@ -380,8 +380,8 @@ class RunTracer(Tracer):
             session=self.session,
             root=root,
             parent=parent,
-            entered_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-            exited_at=None,
+            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            terminated_at=None,
             cached_generated_at=None,
             cached_duration=None,
             inputs=inputs,
@@ -415,7 +415,7 @@ class RunTracer(Tracer):
 
     def run_exit(self, statement: Runnable, result):
         frame = self.pop_stacktrace()
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = strip_py_value(result, statement, is_output=True)
         self.track(frame)
         if _active_run.get() is frame:
@@ -424,7 +424,7 @@ class RunTracer(Tracer):
 
     def run_exception(self, statement: Runnable, exception: Exception):
         frame = self.pop_stacktrace()
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
         self.track(frame)
         if _active_run.get() is frame:
@@ -435,7 +435,7 @@ class RunTracer(Tracer):
         self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
     ):
         frame = self._create_frame(runnable=statement, trace=True)
-        frame.exited_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = generated_at
         frame.cached_duration = duration
         frame.inputs = strip_py_value(inputs, statement, is_output=False)

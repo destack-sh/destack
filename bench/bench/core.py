@@ -18,7 +18,7 @@ import pytz
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 
-from bench.bench.const import ExecutionTriggerType, StatementType
+from bench.bench.const import RunTriggerType, StatementType
 from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
@@ -857,7 +857,7 @@ class SessionContext:
     project_id: UUID
     worker_id: UUID
     tracing_level: SessionTracingLevel
-    trigger_type: ExecutionTriggerType
+    trigger_type: RunTriggerType
     trigger_id: typing.Optional[UUID]
     root_id: typing.Optional[UUID] = None
 
@@ -921,7 +921,7 @@ class Session:
         self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
-        self.metadata
+        self.metadata: dict[str, typing.Any] = {}
         self._pending_flushes: list[tuple[int, typing.Awaitable[bool]]] = []
 
     def __str__(self):

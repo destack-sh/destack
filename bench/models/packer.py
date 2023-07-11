@@ -25,6 +25,7 @@ from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
 from bench.bench.session import RunError
 from bench.bench.wire import ModuleTree, ModuleTreeData
+from bench.opensearch.index import write_session_to_os
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -995,3 +996,22 @@ def upsert_module(
 
     write_mutations(project_v, ModuleTree(old_module.nodes), diff_mutations, wait_for_os=True)
     return diff_mutations
+
+
+@transaction.atomic(savepoint=False)
+def write_session(
+    project_v: models.ProjectVersion,
+    session: wire.SessionData,
+    runs: list[wire.RunData],
+    logs: list[wire.LogEntryData],
+):
+    """
+    Writes a session and relevant runs and logs to the database.
+    """
+    session = unpack_data(session)
+    runs = [unpack_data(r) for r in runs]
+
+    session.save()
+    models.Run.objects.bulk_create(runs, ignore_conflicts=True)
+
+    write_session_to_os(project_v, session, runs, logs)

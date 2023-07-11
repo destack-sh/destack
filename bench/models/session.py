@@ -5,13 +5,9 @@ from typing import Optional
 from django.db import models
 from strawberry_django_plus import gql
 
+from bench.bench.const import RunTriggerType
 from bench.bench.session import RunStatus
 from bench.models.utils import UUIDTModel, get_choices
-
-
-class RunTriggerType(models.TextChoices):
-    API = "api"
-    UI = "ui"
 
 
 class Session(UUIDTModel):
@@ -33,7 +29,7 @@ class Session(UUIDTModel):
 
 class Run(UUIDTModel):
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
-    session = models.ForeignKey("Session", on_delete=models.CASCADE)
+    session = models.ForeignKey("Session", on_delete=models.CASCADE, related_name="runs")
     status = models.CharField(max_length=32, choices=get_choices(RunStatus))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -49,10 +45,10 @@ class Run(UUIDTModel):
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
-    # TODO @Cleanup @Architecture: cached info belongs in metadata
+    metadata = models.JSONField(null=True, blank=True)
+    # TODO @Cleanup @Architecture: cached info & queue position belongs in metadata
     cached_generated_at = models.DateTimeField(null=True, blank=True)
     cached_duration = models.FloatField(null=True, blank=True)
-    metadata = models.JSONField(null=True, blank=True)
 
     @gql.model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:
@@ -67,6 +63,11 @@ class Run(UUIDTModel):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["updated_at"]),
+            models.Index(fields=["runnable_id"]),
+            models.Index(fields=["runnable_id", "project_version_id"]),
+        ]
 
 
 # LogEntry lives in OpenSearch only

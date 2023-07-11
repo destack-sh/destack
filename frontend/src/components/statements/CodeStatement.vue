@@ -7,7 +7,7 @@ import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, type Execution } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { EXECUTION_TERMINAL_STATES, useExecutions, isMostlyCached, getCachedPercentage } from "@/state/session";
+import { EXECUTION_TERMINAL_STATES, useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
 import { TypeFlag, newExecutionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -50,7 +50,7 @@ const now = useTimeFromNow(100);
 
 // TODO @Performance: load inline code executions more sensibly
 const bench = useBenchState();
-const executions = useExecutions(
+const executions = useSessions(
   {
     projectId: toRef(bench, "projectId"),
     projectVersionId: toRef(bench, "projectVersionId"),

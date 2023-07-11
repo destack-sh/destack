@@ -6,7 +6,7 @@ import pytest
 
 from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
 from bench.bench.code_ import _parse_code
-from bench.bench.const import TypeFlag
+from bench.bench.const import TypeFlag, RunTriggerType
 from bench.bench.core import (
     LookupBy,
     Module,
@@ -88,7 +88,7 @@ MOCK_SESSION_CONTEXT = SessionContext(
     worker_id=UUID("00000000-0000-0000-0000-000000000000"),
     trigger_id=UUID("00000000-0000-0000-0000-000000000000"),
     root_id=UUID("00000000-0000-0000-0000-000000000000"),
-    trigger_type=None,
+    trigger_type=RunTriggerType.API,
     tracing_level=SessionTracingLevel.ALL,
 )
 

@@ -13,16 +13,16 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, wire
+from bench.bench import HasType, Issue, ResolvedField, wire, QueryOp, Query
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
+from bench.bench.session import PENDING_RUN_STATUSES
 from bench.bench.type import instantiate_py_value, strip_py_value
 from bench.bench.utils import get_run_cache_key
-from bench.bench.wire import ModuleTree, RunData, SessionData
+from bench.bench.wire import ModuleTree
 from bench.models import Project, ProjectVersion, Run, RunStatus, packer
-from bench.models.packer import write_mutations
-from bench.models.session import PENDING_RUN_STATUSES
+from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
@@ -53,8 +53,8 @@ from bench.msg.messages import (
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
     SessionChangedPayload,
-    SessionInternalChangedPayload,
     WorkerHeartbeatPayload,
+    LogsChangedPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -150,9 +150,6 @@ class LanguageServer:
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
             await subscribe(
-                f"{NMessageType.SESSION_INTERNAL_CHANGED}.*", cb=self.execution_changed
-            ),
-            await subscribe(
                 f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
             ),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
@@ -225,7 +222,10 @@ class LanguageServer:
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
-        raise NotImplementedError
+        session = packer.unpack_data(msg.p.session)
+        logger.debug("session.write", msg=msg, session=session, client=msg.p.client)
+        runs = [packer.unpack_data(run) for run in msg.p.runs]
+        logs = [packer.unpack_data(log) for log in msg.p.logs]
 
     @message_handler
     async def search_dataset(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
@@ -235,15 +235,18 @@ class LanguageServer:
         effective_limit = min(msg.p.limit or MAX_SEARCH_DATASET_LIMIT, MAX_SEARCH_DATASET_LIMIT)
 
         try:
+            if msg.p.backend_ids:
+                extra_query = Q(QueryOp.EQUALS, "backend_id", msg.p.backend_ids)
+            else:
+                extra_query = None
             search = prepare_search(
                 type=mirror.DocumentType.RECORD,
                 project_version_id=str(project_version.id),
-                backend_ids=msg.p.backend_ids,
                 limit=effective_limit,
                 count=msg.p.count,
                 after=msg.p.after,
                 sort=msg.p.sort,
-                query=msg.p.query,
+                query=Query.and_if_set(msg.p.query, extra_query),
             )
             results = os_client.search(
                 index=IndexType.BENCH.get_index_name(project_id=project_version.project_id),
@@ -567,6 +570,29 @@ class LanguageWorker:
             ),
         )
 
+    async def write_session(
+        self,
+        session: wire.SessionData,
+        runs: list[wire.RunData] | None,
+        logs: list[wire.LogEntryData] | None,
+        origins: tuple[ClientOrigin] = None,
+    ) -> None:
+        """Write a session to the database, and publish it to the client"""
+        logger.debug("write_session", session=session, runs=len(runs), logs=len(logs))
+        await sync_to_async(write_session)(self.project_version, session, runs, logs)
+
+        origins = (*(origins or ()), self.client)
+
+        await publish(
+            NMessageType.SESSION_CHANGED,
+            SessionChangedPayload(module_id=self.module_id, session=session, runs=runs),
+        )
+        if logs:
+            await publish(
+                NMessageType.LOGS_CHANGED,
+                LogsChangedPayload(module_id=self.module_id, origins=origins, entries=logs),
+            )
+
     def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, ModuleTree, Module]:
         self.source = new_source
         old = self.module
@@ -633,35 +659,3 @@ class LanguageWorker:
         source, project = await self.module_db.get_module(self.module_ref)
         await self.do_interp(source)
         self.ready.set()
-
-
-def save_session(session: SessionData, runs: list[RunData]) -> bool:
-    model_executions: list[Run] = []
-    seen_ids = set()  # dedup by id, keep last (assumes chronological order)
-    for run in reversed(runs):
-        if run.id in seen_ids:
-            continue
-        seen_ids.add(run.id)
-        execution = packer.unpack_data(run)
-        model_executions.append(execution)
-
-    try:
-        # upsert frames
-        Run.objects.bulk_create(
-            model_executions,
-            update_conflicts=True,
-            unique_fields=["id"],
-            update_fields=[
-                "status",
-                "terminated_at",
-                "cached_generated_at",
-                "cached_duration",
-                "outputs",
-                "error",
-            ],
-        )
-        # TODO @Feature!: write executions to OS
-        return True
-    except Exception as e:
-        logger.error("save_execution_frames_failed", exc_info=e, executions=model_executions)
-        return False

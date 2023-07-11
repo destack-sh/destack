@@ -1,5 +1,5 @@
 import abc
-from typing import Any, AsyncIterator, Generic, Iterator, Optional, Self, TypeVar
+from typing import Generic, TypeVar, Self, Iterator, AsyncIterator, Optional, Any
 
 from bench.bench.core import Module
 from bench.bench.query import Query, Sort
@@ -18,7 +18,7 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
 
     RESULT_BATCH_SIZE = 400
 
-    def __init__(self, module: Module, query: Query, sort: list[Sort], limit: int):
+    def __init__(self, module: Module, query: Query | None, sort: list[Sort] | None, limit: int):
         self.module = module
         self._query = query
         self._sort = sort
@@ -48,6 +48,7 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
         yield from self._iter(batched=True)
 
     def _iter(self, batched: bool):
+
         after = None
         remaining_limit = self._limit
         while remaining_limit is None or remaining_limit > 0:
@@ -79,7 +80,6 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
             yield element
 
     async def _aiter(self, batched: bool) -> AsyncIterator[ElementT]:
-        from bench.bench import wire
 
         after = None
         remaining_limit = self._limit

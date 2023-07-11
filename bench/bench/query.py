@@ -115,6 +115,19 @@ class Query:
         cls = _QUERIES[op]
         return cls
 
+    @staticmethod
+    def and_if_set(base: Optional[Query], extra: Optional[Query]) -> Optional[Query]:
+        if base is None:
+            if extra is None:
+                return None
+            else:
+                return extra
+        else:
+            if extra is None:
+                return base
+            else:
+                return base & extra
+
 
 @query(QueryOp.NOT, QueryOp.AND, QueryOp.OR)
 class CompoundQuery(Query):

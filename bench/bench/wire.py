@@ -13,7 +13,14 @@ from uuid import UUID
 
 from bench import bench as lang
 from bench.bench import StatementType
-from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
+from bench.bench.const import (
+    DatasetBackend,
+    RemoteObjectStatus,
+    TypeFlag,
+    TypeHint,
+    TypeTag,
+    RunTriggerType,
+)
 from bench.bench.core import (
     CRUD_PROPERTIES,
     MOT,
@@ -21,11 +28,11 @@ from bench.bench.core import (
     ModuleNode,
     ModuleObjectType,
     Session,
+    Module,
 )
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
-from bench.bench.session import Run, RunCodeFrame, RunError, RunErrorKind
-from bench.models import RunTriggerType
+from bench.bench.session import RunError, RunErrorKind, RunCodeFrame, MissingStatement
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
@@ -1346,12 +1353,12 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
 
 
 class DataPacker(abc.ABC, typing.Generic[DataT, ObjectT]):
-    """Generic data packer for non-node data types"""
+    """Generic data packer for non-node module data types"""
 
     def pack(self, object: ObjectT) -> DataT:
         raise NotImplementedError
 
-    def unpack(self, data: DataT) -> ObjectT:
+    def unpack(self, data: DataT, module: Module) -> ObjectT:
         raise NotImplementedError
 
 
@@ -1386,10 +1393,10 @@ def pack_data(data: ObjectT) -> DataT:
     return packer.pack(data)
 
 
-def unpack_data(data: DataT) -> ObjectT:
+def unpack_data(data: DataT, module: Module) -> ObjectT:
     """Unpack a flat module node into a language data object"""
     packer = _data_packers_by_data[type(data)]
-    return packer.unpack(data)
+    return packer.unpack(data, module)
 
 
 @dataclass
@@ -1420,7 +1427,7 @@ class RemoteObjectPacker(DataPacker[RemoteObjectData, lang.RemoteObject]):
             status=object.status,
         )
 
-    def unpack(self, data: RemoteObjectData) -> lang.RemoteObject:
+    def unpack(self, data: RemoteObjectData, module: Module) -> lang.RemoteObject:
         return lang.RemoteObject(
             id=data.id,
             sha512=data.sha512,
@@ -1449,7 +1456,7 @@ class SecretPacker(DataPacker[SecretData, lang.Secret]):
     def pack(self, object: lang.Secret) -> SecretData:
         return SecretData(id=object.id, sha512=object.sha512, value=object.value)
 
-    def unpack(self, data: SecretData) -> lang.Secret:
+    def unpack(self, data: SecretData, module: Module) -> lang.Secret:
         return lang.Secret(id=data.id, sha512=data.sha512, value=data.value)
 
 
@@ -1470,26 +1477,23 @@ class SessionPacker(DataPacker[SessionData, lang.Session]):
     def pack(self, object: lang.Session) -> SessionData:
         return SessionData(
             id=object.id,
-            module_id=object.module_id,
-            worker_id=object.worker_id,
+            module_id=object.module.id,
+            worker_id=object.ctx.worker_id,
             opened_at=object.opened_at,
             closed_at=object.closed_at,
             metadata=object.metadata,
-            trigger_id=object.trigger_id,
-            trigger_type=object.trigger_type,
+            trigger_id=object.ctx.trigger_id,
+            trigger_type=object.ctx.trigger_type,
         )
 
-    def unpack(self, data: SessionData) -> lang.Session:
-        return lang.Session(
-            id=data.id,
-            module_id=data.module_id,
-            worker_id=data.worker_id,
-            opened_at=data.opened_at,
-            closed_at=data.closed_at,
-            metadata=data.metadata,
-            trigger_id=data.trigger_id,
-            trigger_type=data.trigger_type,
-        )
+
+@dataclass
+class RunErrorData:
+    kind: RunErrorKind
+    type: str
+    message: Optional[str]
+    runnable_id: Optional[UUID]
+    traceback: list[RunCodeFrame]
 
 
 @dataclass
@@ -1498,6 +1502,7 @@ class RunData:
     module_id: UUID
     worker_id: UUID
     runnable_id: UUID
+    runnable_type: str
     session_id: UUID
     parent_id: Optional[UUID]
     entered_at: datetime
@@ -1507,35 +1512,83 @@ class RunData:
     inputs: Optional[Any]
     outputs: Optional[Any]
     error: Optional[RunError]
+    metadata: Optional[dict[str, Any]]
     queue_position: Optional[int]
 
-    @staticmethod
-    def from_frame(frame: Run, *, session: "Session") -> RunData:
-        # this should also follow the packer pattern
-        if frame.error:
-            if frame.runnable is None:
-                raise ValueError(f"error outside code: {frame}")
+
+@data_packer(RunData, lang.Run)
+class RunPacker(DataPacker[RunData, lang.Run]):
+    def pack(self, object: lang.Run) -> RunData:
+        if object.error:
             stack_summary = traceback.StackSummary.extract(
-                traceback.walk_tb(frame.error.__traceback__), capture_locals=True
+                traceback.walk_tb(object.error.__traceback__), capture_locals=True
             )
-            if isinstance(frame.runnable, lang.Code):
+            if isinstance(object.runnable, lang.Code):
                 stack = RunCodeFrame.from_stack(stack_summary)
-                stack = RunCodeFrame.clean(stack, frame.runnable, session=session)
+                stack = RunCodeFrame.clean(stack, object.runnable, session=object.session)
             else:
                 stack = []
-            error_str = str(frame.error)
+            error_str = str(object.error)
             # remove (source=...) from error message
             error_str = re.sub(r"\(source=.+\)", "", error_str)
-            error_data = RunError(
-                kind=RunErrorKind.RUNTIME,
-                type=type(frame.error).__name__,
-                statement_id=frame.runnable.id,
-                message=f"{type(frame.error).__name__}: {error_str}",
+            error = RunErrorData(
+                kind=object.error.kind,
+                type=object.error.type,
+                message=error_str,
+                runnable_id=object.runnable.id,
                 traceback=stack,
             )
         else:
-            error_data = None
-        raise NotImplementedError  # nocheckin
+            error = None
+        return RunData(
+            id=object.id,
+            module_id=object.session.module.id,
+            worker_id=object.session.ctx.worker_id,
+            runnable_id=object.runnable.id,
+            session_id=object.session.id,
+            parent_id=object.parent.id if object.parent else None,
+            entered_at=object.started_at,
+            exited_at=object.terminated_at,
+            inputs=object.inputs,
+            outputs=object.outputs,
+            error=error,
+            metadata=object.metadata,
+            cached_generated_at=object.cached_generated_at,
+            cached_duration=object.cached_duration,
+            queue_position=object.queue_position,
+        )
+
+    def unpack(self, data: RunData, module: Module) -> lang.Run:
+        # we leave relational references that aren't in the module as None?
+        runnable = module._statements_by_id.get(data.runnable_id) or MissingStatement(
+            data.runnable_id
+        )
+        if data.error:
+            error = lang.RunError(
+                kind=data.error.kind,
+                type=data.error.type,
+                message=data.error.message,
+                traceback=data.error.traceback,
+                runnable=runnable,
+            )
+        else:
+            error = None
+        return lang.Run(
+            id=data.id,
+            module=module,
+            session=None,
+            parent=None,
+            runnable=runnable,
+            started_at=data.entered_at,
+            terminated_at=data.exited_at,
+            inputs=data.inputs,
+            outputs=data.outputs,
+            error=error,
+            metadata=data.metadata,
+            cached_generated_at=data.cached_generated_at,
+            cached_duration=data.cached_duration,
+            queue_position=data.queue_position,
+        )
 
 
 @dataclass
@@ -1552,3 +1605,22 @@ class LogEntryData:
     runnable_id: Optional[UUID]
     run_id: Optional[UUID]
     metadata: Optional[dict[str, Any]]
+
+
+@data_packer(LogEntryData, lang.LogEntry)
+class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
+    def pack(self, object: lang.LogEntry) -> LogEntryData:
+        return LogEntryData(
+            id=object.id,
+            module_id=object.module.id,
+            worker_id=object.session.ctx.worker_id,
+            created_at=object.created_at,
+            stream=object.stream,
+            level=object.level,
+            logger=object.logger,
+            message=object.message,
+            session_id=object.session.id,
+            runnable_id=object.runnable.id if object.runnable else None,
+            run_id=object.run.id if object.run else None,
+            metadata=object.metadata,
+        )

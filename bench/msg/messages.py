@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.bench.const import ExecutionTriggerType
+from bench.bench.const import RunTriggerType
 from bench.bench.core import ModuleReference
 from bench.bench.mutate import ModuleMutation
 from bench.bench.query import Query, Sort
@@ -21,6 +21,7 @@ from bench.bench.wire import (
     SecretData,
     SessionData,
 )
+from bench.utils.utils import required_field
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
@@ -47,7 +48,7 @@ class NMessageType(StrEnum):
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
     SESSION_CHANGED = "session.changed"
-    SESSION_INTERNAL_CHANGED = "session.internal.changed"  # for internal
+    LOGS_CHANGED = "logs.changed"
     EXECUTION_MARKED_DEAD = "execution.marked_dead"
 
     # Worker <-> Internal
@@ -211,7 +212,7 @@ class ReqRunPayload:
     block: bool
     keyed: bool
     tracing_level: int
-    trigger_type: ExecutionTriggerType
+    trigger_type: RunTriggerType
     trigger_id: Optional[UUID]
     run_id: Optional[UUID]
 
@@ -248,18 +249,17 @@ class ExecutionMarkedDeadPayload:
     run_id: UUID
 
 
-@payload(NMessageType.SESSION_INTERNAL_CHANGED)
-class SessionInternalChangedPayload:
-    module_id: UUID
-    session: SessionData
-    runs: list[RunData]
-    logs: list[LogEntryData]
-
-
 @payload(NMessageType.SESSION_CHANGED)
 class SessionChangedPayload:
     module_id: UUID
-    executions: list[RunData]
+    session: SessionData
+    runs: list[RunData]
+
+
+@payload(NMessageType.LOGS_CHANGED)
+class LogsChangedPayload:
+    module_id: UUID
+    logs: list[LogEntryData]
 
 
 @payload(NMessageType.REQUEST_READ_MODULE)
@@ -293,7 +293,6 @@ class ReqWriteSessionPayload:
     runs: list[RunData]
     logs: list[LogEntryData]
     client: ClientOrigin
-    wait: bool
 
 
 @payload(NMessageType.REPLY_WRITE_SESSION)
@@ -322,36 +321,36 @@ class RepSearch(abc.ABC):
 
 @payload(NMessageType.REQUEST_SEARCH_RECORD)
 class ReqSearchRecordPayload(ReqSearch):
-    module_id: UUID
+    module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
     backend_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_RECORD)
 class RepSearchRecordPayload(RepSearch):
-    elements: Optional[list[RecordData]]
+    elements: Optional[list[RecordData]] = None
 
 
 @payload(NMessageType.REQUEST_SEARCH_RUN)
 class ReqSearchRunPayload(ReqSearch):
-    module_id: UUID
+    module_id: UUID = required_field()
     runnable_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_RUN)
 class RepSearchRunPayload(RepSearch):
-    elements: Optional[list[RunData]]
+    elements: Optional[list[RunData]] = None
 
 
 @payload(NMessageType.REQUEST_SEARCH_LOG)
 class ReqSearchLogPayload(ReqSearch):
-    module_id: UUID
+    module_id: UUID = required_field()
     runnable_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_LOG)
 class RepSearchLogPayload(RepSearch):
-    elements: Optional[list[LogEntryData]]
+    elements: Optional[list[LogEntryData]] = None
 
 
 @payload(NMessageType.REQUEST_READ_OBJECT)
@@ -430,8 +429,8 @@ PROJECT_SCOPED_PAYLOAD_TYPES = (ProjectChangedPayload,)
 MODULE_SCOPED_PAYLOAD_TYPES = (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
-    SessionInternalChangedPayload,
     SessionChangedPayload,
+    LogsChangedPayload,
     ExecutionMarkedDeadPayload,
 )
 
