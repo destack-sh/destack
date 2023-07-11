@@ -5,7 +5,7 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { ExecutionStatus, ExecutionTriggerType } from "@/gql/graphql";
-import { useExecutions, isMostlyCached, getCachedPercentage } from "@/state/session";
+import { useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
   BoltIcon,
@@ -38,7 +38,7 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
-const { executions, totalCount, loading } = useExecutions(
+const { executions, totalCount, loading } = useSessions(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),

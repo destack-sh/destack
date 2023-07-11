@@ -14,9 +14,7 @@ from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id
-from bench.bench import query
-from bench.bench.query import Q
+from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id, SearchQuery, SearchSort
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -261,35 +259,7 @@ class DatasetMutation:
         return project_v, statement, records  # noqa
 
 
-SortOrder = gql.enum(query.SortOrder)
-SortMode = gql.enum(query.SortMode)
-QueryOp = gql.enum(query.QueryOp)
-AggregationOp = gql.enum(query.AggregationOp)
-
-
-@gql.input
-class DatasetSort:
-    key: str
-    order: SortOrder = SortOrder.ASCENDING
-    mode: Optional[SortMode] = None
-
-    def to_dsl(self) -> query.Sort:
-        return query.Sort(self.key, self.order, self.mode)
-
-
-@gql.input
-class DatasetQuery:
-    op: QueryOp
-    key: Optional[str] = None
-    value: Optional[JSON] = None
-    queries: Optional[list["DatasetQuery"]] = None
-
-    def to_dsl(self) -> query.Query:
-        queries = [q.to_dsl() for q in self.queries] if self.queries else None
-        return Q(self.op, queries=queries, key=self.key, value=self.value)
-
-
-DEFAULT_QUERY_LIMIT = 100
+RECORDS_LIMIT = 100
 
 
 @gql.type
@@ -300,8 +270,8 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         self,
         info: Info,
         statement_id: GlobalID,
-        query: Optional[DatasetQuery] = None,
-        sort: Optional[list[DatasetSort]] = None,
+        query: Optional[SearchQuery] = None,
+        sort: Optional[list[SearchSort]] = None,
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
@@ -309,7 +279,7 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
-        effective_limit = min(limit or DEFAULT_QUERY_LIMIT, DEFAULT_QUERY_LIMIT)
+        effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,
             project_version_id=str(statement.project_version_id),
@@ -321,13 +291,11 @@ class DataQuery:  # avoid name conflict with DatasetQuery
             query=query.to_dsl() if query else None,
         )
 
-        # do the search
         results = os_client.search(
             index=IndexType.BENCH.get_index_name(statement.project_version.project_id),
             body=search,
         )
 
-        # transform results
         edges = []
         for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])

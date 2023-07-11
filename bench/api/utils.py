@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Iterable, Optional, Sequence, Union
 from uuid import UUID
 
+from strawberry.scalars import JSON
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -19,6 +20,7 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
+from bench.bench import query
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 
@@ -220,3 +222,31 @@ class ThingBatch(Iterable):
 
     def __iter__(self):
         return iter(self.things)
+
+
+SortOrder = gql.enum(query.SortOrder)
+SortMode = gql.enum(query.SortMode)
+QueryOp = gql.enum(query.QueryOp)
+AggregationOp = gql.enum(query.AggregationOp)
+
+
+@gql.type
+class SearchQuery:
+    op: QueryOp
+    key: Optional[str] = None
+    value: Optional[JSON] = None
+    queries: Optional[list["SearchQuery"]] = None
+
+    def to_dsl(self) -> query.Query:
+        queries = [q.to_dsl() for q in self.queries] if self.queries else None
+        return Q(self.op, queries=queries, key=self.key, value=self.value)
+
+
+@gql.input
+class SearchSort:
+    key: str
+    order: SortOrder = SortOrder.ASCENDING
+    mode: Optional[SortMode] = None
+
+    def to_dsl(self) -> query.Sort:
+        return query.Sort(self.key, self.order, self.mode)

@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import inspect
 import random
 import string
@@ -16,15 +14,15 @@ from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, 
 from bench.bench.core import (
     HasCrud,
     HasSession,
-    Module,
     ModuleNode,
     Scope,
     Session,
     Statement,
     node,
+    Module,
 )
 from bench.bench.query import Query, Sort
-from bench.bench.search import ElementT, Search
+from bench.bench.search import Search, ElementT
 from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type, did_you_mean_str
@@ -45,7 +43,7 @@ def new_dataset_backend_id():
 @node(tracked=["order_key", "value"])
 class Record(ModuleNode, HasSession, HasCrud):
     id: UUID = field(default_factory=uuid.uuid4)
-    parent: Dataset = required_field()
+    parent: "Dataset" = required_field()
     value: typing.Any = field(default_factory=dict)
     order_key: str = None
     _instantiated: bool = True
@@ -128,13 +126,13 @@ DEFAULT_SORT = None
 
 @node(tracked=["name", "layout", "query", "sort", "order_key"])
 class DatasetView(ModuleNode, HasSession, HasCrud):
-    parent: Dataset = required_field()
+    parent: "Dataset" = required_field()
     name: str = None
     layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     order_key: str = field(default_factory=uuid.uuid4)
-    fields: Optional[list[DatasetViewField]] = None
+    fields: Optional[list["DatasetViewField"]] = None
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
@@ -154,7 +152,7 @@ class DatasetViewField(ModuleNode):
 
 
 @node(tracked=["description", "versioned"])
-class Dataset(HasType, HasTags, Statement):
+class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
     type: StatementType = StatementType.DATASET
     description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
@@ -206,17 +204,25 @@ class Dataset(HasType, HasTags, Statement):
         records = [Record(id=uuid.uuid4(), parent=self, value=value) for value in values]
         self.session.tracer.dataset_extend(self, records)
 
-    def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
+    def map(
+        self,
+        func: typing.Union["MapFunction", "BatchMapFunction"],
+        batch_size: Optional[int] = None,
+    ):
         """Maps the dataset with the given function."""
         self.search().map(func, batch_size)
 
-    async def amap(self, func: AmapFunction | BatchAmapFunction, batch_size: Optional[int] = None):
+    async def amap(
+        self,
+        func: typing.Union["AmapFunction", "BatchAmapFunction"],
+        batch_size: Optional[int] = None,
+    ):
         """Maps the dataset with the given async function."""
         await self.search().amap(func, batch_size)
 
     def search(
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
-    ) -> RecordSearch:
+    ) -> "RecordSearch":
         """Searches this dataset remotely."""
         return RecordSearch(self, query, sort, limit)
 
@@ -226,17 +232,17 @@ class Dataset(HasType, HasTags, Statement):
         else:
             raise TypeError(f"index into {self} must be slice (not {type(item)})")
 
-    def filter(self, query: Query) -> RecordSearch:
+    def filter(self, query: Query) -> "RecordSearch":
         if not isinstance(query, Query):
             raise TypeError(f"cannot filter by {type(query)}")
         return self.search(query=query)
 
-    def sort(self, sort: list[Sort] | Sort) -> RecordSearch:
+    def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
         if isinstance(sort, Sort):
             sort = [sort]
         return self.search(sort=sort)
 
-    def limit(self, limit: int) -> RecordSearch:
+    def limit(self, limit: int) -> "RecordSearch":
         return self.search(limit=limit)
 
     def __len__(self):
@@ -257,7 +263,7 @@ BatchAmapFunction = typing.Callable[
 ]
 
 
-class RecordSearch(Search[RecordData, Record]):
+class RecordSearch(Search["RecordData", Record]):
     """A search over records (of a dataset)."""
 
     def __init__(
@@ -285,7 +291,11 @@ class RecordSearch(Search[RecordData, Record]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchRecordPayload, ReqSearchRecordPayload
+        from bench.msg.messages import (
+            NMessageType,
+            ReqSearchRecordPayload,
+            RepSearchRecordPayload,
+        )
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
@@ -321,17 +331,15 @@ class RecordSearch(Search[RecordData, Record]):
         element.activate_in(self.module.session)
         return element
 
-    def filter(self, query: Query) -> RecordSearch:
-        return RecordSearch(
-            self.module, self.datasets, self._query.filter(query), self._sort, self._limit
-        )
+    def filter(self, query: Query) -> "RecordSearch":
+        combined_query = Query.and_if_set(self._query, query)
+        return RecordSearch(self.module, self.datasets, combined_query, self._sort, self._limit)
 
-    def sort(self, sort: list[Sort] | Sort) -> RecordSearch:
-        if isinstance(sort, Sort):
-            sort = [sort]
+    def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
+        sort = [sort] if isinstance(sort, Sort) else sort
         return RecordSearch(self.module, self.datasets, self._query, sort, self._limit)
 
-    def limit(self, limit: int) -> RecordSearch:
+    def limit(self, limit: int) -> "RecordSearch":
         return RecordSearch(self.module, self.datasets, self._query, self._sort, limit)
 
     async def avalues(self, field: str) -> list[Any]:

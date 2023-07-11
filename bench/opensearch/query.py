@@ -155,10 +155,8 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def prepare_search(
-    type: DocumentType,
-    project_version_id: str,
-    backend_ids: Optional[list[str]],
-    runnable_ids: Optional[list[str]],
+    type: "DocumentType",
+    project_version_id: Optional[str],
     limit: int,
     count: bool,
     after: Optional[str],
@@ -169,14 +167,11 @@ def prepare_search(
         QueryOp.AND,
         queries=[
             Q(QueryOp.EQUALS, key="type", value=type.value),
-            Q(QueryOp.EQUALS, key="project_version_id", value=project_version_id),
             ~Q(QueryOp.EXISTS, key="deleted_at"),
         ],
     )
-    if backend_ids:
-        combined_query &= Q(QueryOp.EQUALS, key="backend_id", value=backend_ids)
-    if runnable_ids:
-        combined_query &= Q(QueryOp.EQUALS, key="runnable_id", value=runnable_ids)
+    if project_version_id:
+        combined_query &= Q(QueryOp.EQUALS, key="project_version_id", value=project_version_id)
     if query is not None:
         combined_query &= query
     compilation = CompilationInfo(root_limit=limit)

@@ -9,7 +9,7 @@ from asgiref.sync import sync_to_async
 
 from bench.bench import Code, Task, wire
 from bench.bench.code_ import run
-from bench.bench.const import ExecutionTriggerType, WorkerTenancy
+from bench.bench.const import RunTriggerType, WorkerTenancy
 from bench.bench.core import (
     Module,
     ModuleReference,
@@ -144,7 +144,7 @@ class ModuleWorker:
         keyed: bool,
         run_id: Optional[UUID],
         tracing_level: SessionTracingLevel,
-        trigger_type: ExecutionTriggerType,
+        trigger_type: RunTriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | RunErrorType:
         if not self.interpreted:

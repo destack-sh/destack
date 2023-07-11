@@ -228,6 +228,35 @@ def write_mutations_to_os(
     _flush()  # flush any remaining mutations
 
 
+def write_session_to_os(
+    project_v: models.ProjectVersion,
+    session: models.Session,
+    runs: list[models.Run],
+    logs: list[wire.LogEntryData],
+) -> None:
+    """Writes/mirrors a session to OpenSearch."""
+
+    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
+    ops: list[dict] = [
+        # session itself
+        {"index": {"_index": bench_index, "_id": str(session.id)}},
+        mirror.mirror_node(session).to_dict(),
+    ]
+    for run in runs:
+        ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
+        ops.append(mirror.mirror_node(run).to_dict())
+    for log in logs:
+        ops.append({"index": {"_index": bench_index, "_id": str(log.id)}})
+        ops.append(mirror.unpack_node_flat(project_v, log, None).to_dict())
+
+    logger.debug(
+        "os.write_session", project_version=project_v, index=bench_index, operations=len(ops)
+    )
+    ret = os_client.bulk(ops, refresh="wait_for")
+    if ret.get("errors"):
+        raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
+
+
 def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module

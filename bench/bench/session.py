@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Module, Session, Statement
+from bench.bench.core import Session, Statement, Module
 from bench.bench.query import Query, Sort
 from bench.bench.reflect import reflect_enum, reflect_struct
 from bench.bench.search import Search
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from bench.bench.code_ import Code
     from bench.bench.model import Model
     from bench.bench.task import Task
-    from bench.bench.wire import LogEntryData, RunData
+    from bench.bench.wire import RunData, LogEntryData
 
 
 @reflect_enum("RunStatus", "The status of a run")
@@ -47,26 +47,26 @@ class Run:
     session: Session
     root: Optional["Run"]
     parent: Optional["Run"]
-    entered_at: datetime
-    exited_at: Optional[datetime]
+    started_at: datetime
+    terminated_at: Optional[datetime]
     cached_generated_at: Optional[datetime]
     cached_duration: Optional[float]
+    queue_position: Optional[int]
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
-    error: Optional[Exception]
+    error: Optional["RunError"]
     metadata: Optional[dict[str, Any]]
-    queue_position: Optional[int]
     children: list["Run"] = field(default_factory=list)
 
     @property
     def duration(self) -> float:
-        if self.exited_at is None:
+        if self.terminated_at is None:
             return 0
-        return (self.exited_at - self.entered_at).total_seconds()
+        return (self.terminated_at - self.started_at).total_seconds()
 
     @property
     def duration_with_cache(self) -> float:
-        if self.exited_at is None:
+        if self.terminated_at is None:
             return 0
         return self.duration + (self.cached_duration or 0)
 
@@ -174,40 +174,43 @@ class RunErrorKind(enum.StrEnum):
     UNTRUSTED = "UNTRUSTED"
 
 
-@reflect_struct("RunError", "An error while running a statement")
+# RunError/LogEntry and many others should be reflect types as well, but missing Statement and such
+# @reflect_struct("RunError", "An error while running a statement")
+@dataclass
 class RunError(Exception):  # can this really be a subclass of Exception?
     """Wire-able representation of an exception."""
 
     kind: RunErrorKind
     type: str
     message: Optional[str] = None
-    statement_id: Optional[UUID] = None
+    runnable: Optional[Statement] = None
     traceback: list[RunCodeFrame] = None
 
 
-@reflect_struct("LogEntry", "A single log entry from a run")
+# @reflect_struct("LogEntry", "A single log entry from a run")
+@dataclass
 class LogEntry:
-    module_id: UUID
+    module: Module
     created_at: datetime
     stream: str
+    session: Session
     level: Optional[str] = None
     logger: Optional[str] = None
-    session: Optional[Session] = None
     runnable: Optional[Statement] = None
-    run_id: Optional[UUID] = None
+    run: Optional[Run] = None
     message: Optional[str] = None
     metadata: dict[str, Any] = None
 
 
-class RunSearch(Search[RunData, Run]):
+class RunSearch(Search["RunData", Run]):
     """Search over runs."""
 
     def __init__(
         self,
         module: Module,
         runnables: list[Statement] | None,
-        query: Query,
-        sort: list[Sort],
+        query: Query | None,
+        sort: list[Sort] | None,
         limit: Optional[int],
     ):
         super().__init__(query, sort, limit)
@@ -219,7 +222,7 @@ class RunSearch(Search[RunData, Run]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunPayload
+        from bench.msg.messages import NMessageType, ReqSearchRunPayload, RepSearchRunPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
@@ -246,16 +249,37 @@ class RunSearch(Search[RunData, Run]):
             parent = MissingStatement(element_data.parent_id)
         raise NotImplementedError
 
+    def filter(self, query: Query) -> "RunSearch":
+        combined_query = Query.and_if_set(self._query, query)
+        return RunSearch(self.module, self.runnables, combined_query, self._sort, self._limit)
 
-class LogSearch(Search[LogEntry]):
+    def sort(self, sort: list[Sort] | Sort) -> "RunSearch":
+        sort = [sort] if isinstance(sort, Sort) else sort
+        return RunSearch(self.module, self.runnables, self._query, sort, self._limit)
+
+    def limit(self, limit: int) -> "RunSearch":
+        return RunSearch(self.module, self.runnables, self._query, self._sort, limit)
+
+    @staticmethod
+    def from_runnable(runnable: Statement) -> "RunSearch":
+        return RunSearch(
+            module=runnable.module,
+            runnables=[runnable],
+            query=None,
+            sort=[Sort("created_at", desc=True)],
+            limit=None,
+        )
+
+
+class LogSearch(Search["LogEntryData", LogEntry]):
     """Search over logs."""
 
     def __init__(
         self,
         module: Module,
         runnables: list[Statement] | None,
-        query: Query,
-        sort: list[Sort],
+        query: Query | None,
+        sort: list[Sort] | None,
         limit: Optional[int],
     ):
         super().__init__(query, sort, limit)
@@ -267,7 +291,7 @@ class LogSearch(Search[LogEntry]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchLogPayload, ReqSearchLogPayload
+        from bench.msg.messages import NMessageType, ReqSearchLogPayload, RepSearchLogPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
@@ -289,12 +313,41 @@ class LogSearch(Search[LogEntry]):
         return rep
 
     def _unpack_element_data(self, element_data: "LogEntryData") -> LogEntry:
-        raise NotImplementedError
+        from bench.bench import wire
+
+        return wire.unpack_data(element_data, module=self.module)
+
+    def filter(self, query: Query) -> "LogSearch":
+        combined_query = Query.and_if_set(self._query, query)
+        return LogSearch(self.module, self.runnables, combined_query, self._sort, self._limit)
+
+    def sort(self, sort: list[Sort] | Sort) -> "LogSearch":
+        sort = [sort] if isinstance(sort, Sort) else sort
+        return LogSearch(self.module, self.runnables, self._query, sort, self._limit)
+
+    def limit(self, limit: int) -> "LogSearch":
+        return LogSearch(self.module, self.runnables, self._query, self._sort, limit)
+
+    @staticmethod
+    def from_runnable(runnable: Statement) -> "LogSearch":
+        return LogSearch(
+            module=runnable.module,
+            runnables=[runnable],
+            query=None,
+            sort=[Sort("created_at", desc=True)],
+            limit=None,
+        )
 
 
 @dataclass
 class MissingStatement:
     id: UUID
+
+    def __str__(self):
+        return str(self.id)
+
+    def __repr__(self):
+        return f"<MissingStatement {self.id}>"
 
     def __getattr__(self, item):
         if item == "id":

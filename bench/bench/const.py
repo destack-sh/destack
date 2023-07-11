@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import enum
 
+
 #
 # Collection of enums for use without circular import hell.
 #
@@ -22,6 +23,13 @@ class StatementType(enum.StrEnum):
     DATASET = "dataset"
     REFERENCE = "reference"
     BLOCK = "block"
+
+
+RUNNABLE_STATEMENT_TYPES = {
+    StatementType.CODE,
+    StatementType.MODEL,
+    StatementType.TASK,
+}
 
 
 class DatasetBackend(enum.StrEnum):
@@ -139,8 +147,6 @@ class WorkerTenancy(enum.StrEnum):
     DEDICATED = "DEDICATED"
 
 
-class ExecutionTriggerType(enum.StrEnum):
+class RunTriggerType(enum.StrEnum):
     API = "rest"
     UI = "ui"
-    REACTIVE = "reactive"
-    SCHEDULED = "scheduled"

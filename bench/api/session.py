@@ -2,6 +2,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
+from django.db.models import OuterRef, Subquery
+from strawberry_django_plus.utils.resolvers import async_safe
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -12,12 +14,26 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
-from bench.api.auth import CanViewProject, check_can_view_project_by_id
+from bench.api.auth import check_can_view_project_by_id, check_can_read_project
 from bench.api.statement import Statement
-from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid, to_uuids
-from bench.models import packer
+from bench.api.utils import (
+    asafe_subscription,
+    get_user_from_info,
+    to_global_id,
+    to_uuid,
+    SearchQuery,
+    to_uuids,
+    QueryOp,
+    SearchSort,
+)
+from bench.bench import session, Q
+from bench.bench.const import RUNNABLE_STATEMENT_TYPES
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import NMessageType, SessionChangedPayload
+from bench.msg.messages import NMessageType, SessionChangedPayload, LogsChangedPayload
+from bench.opensearch import mirror
+from bench.opensearch.client import os_client
+from bench.opensearch.core import IndexType
+from bench.opensearch.query import prepare_search, encode_cursor
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
@@ -31,7 +47,7 @@ RunTriggerType = gql.enum(models.RunTriggerType)
 
 
 @gql.type
-class PyFrame:
+class RunCodeFrame:
     filename: str
     lineno: int
     name: str
@@ -39,8 +55,8 @@ class PyFrame:
     locals: Optional[JSON] = None
 
     @staticmethod
-    def from_data(data: run.RunCodeFrame) -> "PyFrame":
-        return PyFrame(
+    def from_data(data: session.RunCodeFrame) -> "RunCodeFrame":
+        return RunCodeFrame(
             filename=data.filename,
             lineno=data.lineno,
             name=data.name,
@@ -57,14 +73,16 @@ class RunError:
     type: str
     message: str
     statement_id: Optional[GlobalID]
-    traceback: Optional[list[PyFrame]]
+    traceback: Optional[list[RunCodeFrame]]
 
     @staticmethod
     def from_dict(data: dict) -> "RunError":
-        error: execution.RunError = execution.RunError.instantiate_from(data)
+        error: session.RunError = session.RunError.instantiate_from(data)
         statement_id = to_global_id("Statement", error.statement_id) if error.statement_id else None
         traceback = (
-            [PyFrame.from_data(frame) for frame in error.traceback] if error.traceback else None
+            [RunCodeFrame.from_data(frame) for frame in error.traceback]
+            if error.traceback
+            else None
         )
         return RunError(
             kind=error.kind,
@@ -99,12 +117,15 @@ class Session(gql.Node):
 @gql.django.type(models.Run)
 class Run(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
+    session: Session
+    root: Optional["Run"]
+    parent: Optional["Run"]
+    descendants: list["Run"]
+    runnable: Optional["Statement"]
     created_at: auto
     updated_at: auto
     started_at: auto
     terminated_at: auto
-    cached_generated_at: auto
-    cached_duration: auto
     duration: auto
     status: RunStatus
     inputs: auto
@@ -112,10 +133,8 @@ class Run(gql.Node):
     error: auto
     error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
     metadata: auto
-    root: Optional["Run"]
-    parent: Optional["Run"]
-    descendants: list["Run"]
-    runnable: Optional["Statement"]
+    cached_generated_at: auto
+    cached_duration: auto
 
 
 @gql.type
@@ -127,9 +146,24 @@ class LogEntry:
     logger: Optional[str]
     message: Optional[str]
     session_id: Optional[GlobalID]
-    statement_id: Optional[GlobalID]
+    runnable_id: Optional[GlobalID]
     run_id: Optional[GlobalID]
     metadata: Optional[JSON]
+
+    @staticmethod
+    def from_os(log_entry: mirror.LogEntry) -> "LogEntry":
+        return LogEntry(
+            module_id=to_global_id("Module", log_entry.module_id),
+            created_at=log_entry.created_at,
+            stream=log_entry.stream,
+            level=log_entry.level,
+            logger=log_entry.logger,
+            message=log_entry.message,
+            session_id=to_global_id("Session", log_entry.session_id),
+            runnable_id=to_global_id("Statement", log_entry.runnable_id),
+            run_id=to_global_id("Run", log_entry.run_id),
+            metadata=log_entry.metadata,
+        )
 
 
 async def _expand_filter(
@@ -158,36 +192,208 @@ async def _expand_filter(
     return expanded_ids, project_version_ids
 
 
+RUNS_LIMIT = 100
+LOGS_LIMIT = 250
+
+
 @gql.type
 class SessionQuery:
-    @gql.django.connection(directives=[CanViewProject()])
-    async def executions(
+    @async_safe
+    def last_runs(
         self,
+        info: Info,
+        project_id: GlobalID,
+        project_version_id: GlobalID,
+    ) -> Iterable[Run]:
+        project = models.Project.objects.get(id=to_uuid(project_id))
+        project_version_id = to_uuid(project_version_id)
+        check_can_read_project(info, project)
+
+        runnable_statements_ids = models.Statement.objects.filter(
+            deleted_at=None,
+            project_version_id=project_version_id,
+            type__in=RUNNABLE_STATEMENT_TYPES,
+        ).values_list("id", flat=True)
+
+        # subquery to get the latest run per runnable_id
+        latest_runs = Run.objects.filter(
+            runnable_id=OuterRef("pk"), project_version_id=project_version_id
+        ).order_by("-updated_at")
+
+        # get ids of the latest runs for each runnable statement
+        latest_run_ids = (
+            models.Statement.objects.filter(id__in=runnable_statements_ids)
+            .annotate(
+                latest_run_id=Subquery(latest_runs.values("id")[:1]),
+            )
+            .values_list("latest_run_id", flat=True)
+        )
+
+        latest_run_instances = Run.objects.filter(id__in=latest_run_ids)
+        return latest_run_instances
+
+    @gql.relay.connection
+    @async_safe
+    def runs(
+        self,
+        info: Info,
+        project_id: GlobalID,
+        project_version_id: GlobalID,
+        session_id: Optional[GlobalID] = None,
+        run_id: Optional[GlobalID] = None,
+        runnable_ids: Optional[list[GlobalID]] = None,
+        query: Optional[SearchQuery] = None,
+        sort: Optional[list[SearchSort]] = None,
+        after: Optional[str] = None,
+        limit: Optional[int] = None,
+        count: Optional[bool] = None,
+    ) -> gql.relay.Connection[Run]:
+        project = models.Project.objects.get(id=to_uuid(project_id))
+        project_version_id = to_uuid(project_version_id)
+        session_id = to_uuid(session_id)
+        run_id = to_uuid(run_id)
+        check_can_read_project(info, project)
+
+        query = query.to_dsl() if query else None
+        if session_id:
+            query &= Q(QueryOp.EQUALS, "session_id", session_id)
+        if run_id:
+            query &= Q(QueryOp.EQUALS, "run_id", run_id)
+        if runnable_ids:
+            query &= Q(QueryOp.IN, "runnable_id", runnable_ids)
+        effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
+        search = prepare_search(
+            type=mirror.DocumentType.RECORD,
+            project_version_id=str(project_version_id) if project_version_id else None,
+            limit=effective_limit + 1,  # +1 to determine if there is a next page
+            count=count or False,
+            after=after,
+            sort=[s.to_dsl() for s in sort] if sort else None,
+            query=query,
+        )
+
+        results = os_client.search(
+            index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
+        )
+
+        edges = []
+        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
+            doc = mirror.Run.from_dict(r["_source"], r["_id"], r["_version"])
+            run = mirror.unmirror_node(doc)
+            cursor = encode_cursor(r, after, i)
+            edge = gql.relay.Edge(node=run, cursor=cursor)
+            edges.append(edge)
+        page_info = gql.relay.PageInfo(
+            start_cursor=edges[0].cursor if edges else None,
+            end_cursor=edges[-1].cursor if edges else None,
+            has_next_page=len(results["hits"]["hits"]) > effective_limit,
+            has_previous_page=False,
+        )
+        total_count = results["hits"]["total"]["value"] if count else None
+        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
+
+    @gql.relay.connection
+    @async_safe
+    def logs(
+        self,
+        info: Info,
         project_id: GlobalID,
         project_version_id: Optional[GlobalID] = None,
-        include_ancestor_versions: bool = False,
-        runnable_ids: list[GlobalID] | None = None,
-        root_id_null: bool = False,
-    ) -> Iterable[Run]:
-        qs = models.Run.objects.all()
-        # :ExecutionsFilter
+        session_id: Optional[GlobalID] = None,
+        run_id: Optional[GlobalID] = None,
+        runnable_ids: Optional[list[GlobalID]] = None,
+        query: Optional[SearchQuery] = None,
+        sort: Optional[list[SearchSort]] = None,
+        after: Optional[str] = None,
+        limit: Optional[int] = None,
+        count: Optional[bool] = None,
+    ) -> gql.relay.Connection[LogEntry]:
+        project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
+        session_id = to_uuid(session_id)
+        run_id = to_uuid(run_id)
         runnable_ids = to_uuids(runnable_ids)
-        expanded_runnable_ids, project_version_ids = await _expand_filter(
-            project_version_id, include_ancestor_versions, runnable_ids
-        )
-        qs = qs.filter(project_id=project_id.node_id)
-        if project_version_ids:
-            qs = qs.filter(project_version_id__in=project_version_ids)
+        check_can_read_project(info, project)
+
+        query = query.to_dsl() if query else None
+        if session_id:
+            query &= Q(QueryOp.EQUALS, "session_id", session_id)
+        if run_id:
+            query &= Q(QueryOp.EQUALS, "run_id", run_id)
         if runnable_ids:
-            qs = qs.filter(runnable_id__in=expanded_runnable_ids)
-        if root_id_null:
-            qs = qs.filter(root_id__isnull=True)
-        return qs
+            query &= Q(QueryOp.EQUALS, "runnable_id", runnable_ids)
+        effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
+        search = prepare_search(
+            type=mirror.DocumentType.RECORD,
+            project_version_id=str(project_version_id) if project_version_id else None,
+            limit=effective_limit + 1,  # +1 to determine if there is a next page
+            count=count or False,
+            after=after,
+            sort=[s.to_dsl() for s in sort] if sort else None,
+            query=query,
+        )
+
+        results = os_client.search(
+            index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
+        )
+
+        edges = []
+        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
+            doc = mirror.LogEntry.from_dict(r["_source"], r["_id"], r["_version"])
+            node = LogEntry.from_os(doc)
+            cursor = encode_cursor(r, after, i)
+            edge = gql.relay.Edge(node=node, cursor=cursor)
+            edges.append(edge)
+        page_info = gql.relay.PageInfo(
+            start_cursor=edges[0].cursor if edges else None,
+            end_cursor=edges[-1].cursor if edges else None,
+            has_next_page=len(results["hits"]["hits"]) > effective_limit,
+            has_previous_page=False,
+        )
+        total_count = results["hits"]["total"]["value"] if count else None
+        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
+
+
+@gql.type
+class LogChange:
+    logs: list[LogEntry]
+
+
+@gql.type
+class SessionChange:
+    session: Session
+    runs: list[Run]
 
 
 @gql.type
 class SessionSubscription:
+    @asafe_subscription
+    async def sessions_changed(
+        self,
+        info: Info,
+        project_id: GlobalID,
+        project_version_id: Optional[GlobalID],
+    ) -> AsyncGenerator[SessionChange, None]:
+        project_id = UUID(project_id.node_id)
+        project_version_id = UUID(project_version_id.node_id)
+        user = get_user_from_info(info)
+        log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
+        try:
+            await sync_to_async(check_can_view_project_by_id)(
+                user, project_id=project_id, project_version_id=project_version_id
+            )
+        except PermissionDenied:
+            log.debug("sessions.subscribe_denied", exc_info=True)
+            return
+
+        log.info("sessions.subscribe")
+        sessions_sub = await subscribe(
+            f"{NMessageType.SESSION_CHANGED}.{project_version_id}", payload_t=SessionChangedPayload
+        )
+        while True:
+            msg: NMessage[SessionChangedPayload] = await sessions_sub.next_msg()
+            log.debug("sessions.update", msg=msg)
+
     @asafe_subscription
     async def logs_changed(
         self,
@@ -198,63 +404,28 @@ class SessionSubscription:
         run_id: Optional[GlobalID],
         statement_id: Optional[GlobalID],
     ) -> AsyncGenerator[LogEntry, None]:
-        raise NotImplementedError
-
-    @asafe_subscription
-    async def sessions_changed(
-        self,
-        info: Info,
-        project_id: GlobalID,
-        project_version_id: Optional[GlobalID],
-    ) -> AsyncGenerator[Run | Session, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
+        session_id = UUID(session_id.node_id) if session_id else None
+        run_id = UUID(run_id.node_id) if run_id else None
+        statement_id = UUID(statement_id.node_id) if statement_id else None
         user = get_user_from_info(info)
-        log = logger.bind(
-            project_id=project_id,
-            project_version_id=project_version_id,
-            runnable_ids=runnable_ids,
-            root_id=root_id,
-            root_id_null=root_id_null,
-            user=user,
-        )
+        log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
         try:
             await sync_to_async(check_can_view_project_by_id)(
                 user, project_id=project_id, project_version_id=project_version_id
             )
         except PermissionDenied:
-            log.debug("executions.subscribe_denied", exc_info=True)
+            log.debug("sessions.subscribe_denied", exc_info=True)
             return
 
-        log.info("executions.subscribe")
-        executions_sub = await subscribe(
-            f"{NMessageType.SESSION_CHANGED}.{project_version_id}", payload_t=SessionChangedPayload
+        log.info("logs.subscribe")
+        logs_sub = await subscribe(
+            f"{NMessageType.LOGS_CHANGED}.{project_version_id}", payload_t=LogsChangedPayload
         )
-
-        # :ExecutionsFilter
-        project_version_id = to_uuid(project_version_id)
-        runnable_ids = to_uuids(runnable_ids)
-        expanded_ids, project_version_ids = await _expand_filter(
-            project_version_id, include_ancestor_versions, runnable_ids
-        )
-        log.debug("executions.listen")
         while True:
-            msg: NMessage[SessionChangedPayload] = await executions_sub.next_msg()
-            for frame_data in msg.payload.executions:
-                # :ExecutionsFilter
-                other_runnable = (
-                    frame_data.runnable_id is not None
-                    and frame_data.runnable_id not in expanded_ids
-                )
-                other_root = (
-                    root_id is not None
-                    and root_id.node_id != frame_data.root_id
-                    or root_id_null is True
-                    and frame_data.root_id is not None
-                )
-                if other_runnable or other_root:
-                    # TODO @Performance: filter execution frames more precisely via NATS?
-                    continue
-                frame = packer.unpack_data(frame_data)
-                log.debug("executions.update", frame=frame)
-                yield frame
+            msg: NMessage[LogsChangedPayload] = await logs_sub.next_msg()
+            log.debug("logs.update", msg=msg)
+            for log in logs:
+                pass
+            raise NotImplementedError  # nocheckin

@@ -68,6 +68,9 @@ class Packer(Generic[ModelT, MirrorT, DataT]):
     def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
         raise NotImplementedError
 
+    def unmirror(self, mirror: MirrorT) -> ModelT:
+        raise NotImplementedError
+
     def pack(self, mirror: MirrorT) -> DataT:
         raise NotImplementedError
 
@@ -112,6 +115,11 @@ def has_mirror(node: ModelT) -> bool:
 def mirror_node(project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
     packer = _packers_by_model[type(node)]
     return packer.mirror(project_v, node)
+
+
+def unmirror_node(mirror: MirrorT) -> ModelT:
+    packer = _packers_by_mirror[type(mirror)]
+    return packer.unmirror(mirror)
 
 
 def pack_node_flat(node: MirrorT) -> DataT:
@@ -424,14 +432,7 @@ class Session(os.Document):
 
 @packer(models.Session, Session, wire.SessionData)
 class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
-    def pack(self, node: models.Session) -> wire.SessionData:
-        return wire.SessionData(
-            id=node.id,
-            project_version_id=node.project_version_id,
-            opened_at=node.opened_at,
-            closed_at=node.closed_at,
-            metadata=node.metadata,
-        )
+    pass
 
 
 @document(DocumentType.EXECUTION)
@@ -440,8 +441,6 @@ class Run(os.Document):
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: UUID = os.field(os.FT.KEYWORD)
     runnable_type: str = os.field(os.FT.KEYWORD)
-    created_at: datetime = os.field(os.FT.DATE)
-    updated_at: datetime = os.field(os.FT.DATE)
     started_at: Optional[datetime] = os.field(os.FT.DATE)
     terminated_at: Optional[datetime] = os.field(os.FT.DATE)
     cached_generated_at: Optional[datetime] = os.field(os.FT.DATE)
@@ -455,25 +454,7 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
-    def pack(self, node: models.Run) -> wire.RunData:
-        return wire.RunData(
-            id=node.id,
-            project_version_id=node.project_version_id,
-            session_id=node.session_id,
-            runnable_id=node.runnable_id,
-            runnable_type=node.runnable_type,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            started_at=node.started_at,
-            terminated_at=node.terminated_at,
-            cached_generated_at=node.cached_generated_at,
-            cached_duration=node.cached_duration,
-            duration=node.duration,
-            status=node.status,
-            inputs=node.inputs,
-            outputs=node.outputs,
-            metadata=node.metadata,
-        )
+    pass
 
 
 @document(DocumentType.LOG_ENTRY)
@@ -493,36 +474,4 @@ class LogEntry(os.Document):
 
 @packer(LogEntry, LogEntry, wire.LogEntryData)
 class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
-    def pack(self, node: LogEntry) -> wire.LogEntryData:
-        return wire.LogEntryData(
-            id=node.id,
-            project_version_id=node.project_version_id,
-            worker_id=node.worker_id,
-            session_id=node.session_id,
-            run_id=node.run_id,
-            runnable_id=node.statement_id,
-            created_at=node.created_at,
-            stream=node.stream,
-            level=node.level,
-            logger=node.logger,
-            message=node.message,
-            metadata=node.metadata,
-        )
-
-    def unpack(
-        self, project_v: models.ProjectVersion, data: wire.LogEntryData, parent: models.Statement
-    ) -> LogEntry:
-        return LogEntry(
-            id=data.id,
-            project_version_id=project_v.id,
-            worker_id=data.worker_id,
-            session_id=data.session_id,
-            run_id=data.run_id,
-            runnable_id=parent.id,
-            created_at=data.created_at,
-            stream=data.stream,
-            level=data.level,
-            logger=data.logger,
-            message=data.message,
-            metadata=data.metadata,
-        )
+    pass

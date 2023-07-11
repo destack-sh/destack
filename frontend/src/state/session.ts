@@ -62,14 +62,12 @@ export const ExecutionContentType = graphql(/* GraphQL */ `
 
 // TODO @Performance @Architecture: use single module session subscription for mutations, logs, sessions, executions, etc.
 //  also load runtime state (last execution, etc.) and stream live state (filtered, somehow) here for the entire module
-export function useExecutions(
+export function useSessions(
   filter: {
     projectId: Ref<string>;
-    projectVersionId: Ref<string>;
-    includeAncestorVersions: Ref<boolean>;
-    runnableIds: Ref<string[] | null>;
+    projectVersionId: Ref<string | null>;
   },
-  options: { root: boolean; first?: number; live?: boolean }
+  options: { live?: boolean }
 ) {
   // rewrap refs to prevent eager updates
   filter = wrapValueRefs(filter);
@@ -180,7 +178,7 @@ function _useModuleExecutions() {
   const bench = useBenchState();
   const projectId = computed(() => bench.projectId);
   const projectVersionId = computed(() => bench.projectVersionId);
-  return useExecutions(
+  return useSessions(
     {
       projectId,
       projectVersionId,
