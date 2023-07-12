@@ -118,7 +118,7 @@ def _create_index(
             index=index_name, body={"dynamic": "strict", "properties": mappings}
         )
         # reopen index
-        os_client.indices.aopen(index=index_name)
+        os_client.indices.open(index=index_name)
 
 
 def create_global_index(name: str = None, upsert: bool = False) -> None:
@@ -231,7 +231,7 @@ def write_mutations_to_os(
 def write_session_to_os(
     project_v: models.ProjectVersion,
     session: models.Session,
-    runs: list[models.Run],
+    runs: list[wire.RunData],
     logs: list[wire.LogEntryData],
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
@@ -240,11 +240,11 @@ def write_session_to_os(
     ops: list[dict] = [
         # session itself
         {"index": {"_index": bench_index, "_id": str(session.id)}},
-        mirror.mirror_node(session).to_dict(),
+        mirror.mirror_node(project_v, session).to_dict(),
     ]
     for run in runs:
         ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
-        ops.append(mirror.mirror_node(run).to_dict())
+        ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())
     for log in logs:
         ops.append({"index": {"_index": bench_index, "_id": str(log.id)}})
         ops.append(mirror.unpack_node_flat(project_v, log, None).to_dict())

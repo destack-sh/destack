@@ -404,6 +404,10 @@ type LangserverWakePayload {
 
 union LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo
 
+type LogChange {
+  logs: [LogEntry!]!
+}
+
 type LogEntry {
   moduleId: GlobalID!
   createdAt: DateTime!
@@ -1520,7 +1524,6 @@ input RunInput {
   runId: GlobalID = null
   sessionId: GlobalID = null
   arguments: JSON = null
-  trace: Int! = 7
   block: Boolean! = true
   keyed: Boolean! = false
   timeoutSeconds: Int = null
@@ -1531,6 +1534,7 @@ type RunState {
   runnableId: GlobalID
   success: Boolean!
   run: Run
+  logs: [LogEntry!]
 }
 
 union RunStateOperationInfo = RunState | OperationInfo
@@ -1797,7 +1801,7 @@ type Subscription {
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
   sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID): SessionChange!
-  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID, sessionId: GlobalID, runId: GlobalID, statementId: GlobalID): LogEntry!
+  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID, sessionId: GlobalID, runId: GlobalID, runnableIds: [GlobalID!]): LogChange!
 }
 
 input SymbolUpdateCodeInput {

@@ -193,7 +193,6 @@ class SessionTracer(Tracer):
         self,
         session: Session,
         mutator: ModuleMutator = None,
-        publish: bool = True,
         validate: bool = True,
     ):
         self.session = session
@@ -202,8 +201,8 @@ class SessionTracer(Tracer):
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
 
-        self.execution = RunTracer(session=session, track=self._track_run)
-        self.tracers: list[Tracer] = [self.execution, PermissionCheckingTracer(session)]
+        self.run = RunTracer(session=session, track=self._track_run)
+        self.tracers: list[Tracer] = [self.run, PermissionCheckingTracer(session)]
         if validate:  # validation tracer must be last
             self.tracers.append(TypeCheckingTracer())
         if mutator:
@@ -217,29 +216,22 @@ class SessionTracer(Tracer):
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)
 
-    async def _flush(self, force: bool = False):
+    @property
+    def pending_logs(self) -> list[LogEntry]:
+        return self._pending_logs
+
+    async def _flush(self, force: bool = False) -> None:
         """Flushes session data."""
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to flush
 
-        from bench.bench import wire
-        from bench.msg.core import request
-        from bench.msg.messages import NMessageType, ReqWriteSessionPayload
-
-        session_data = wire.pack_data(self.session)
-        runs_data = [wire.pack_data(run) for run in self._pending_runs]
-        logs_data = [wire.pack_data(log) for log in self._pending_logs]
-        self._pending_runs.clear()
+        logs = self._pending_logs[:]
+        runs = self._pending_runs[:]
         self._pending_logs.clear()
-
-        req = ReqWriteSessionPayload(
-            module_id=self.session.module.id,
-            session=session_data,
-            runs=runs_data,
-            logs=logs_data,
-        )
-        await request(NMessageType.REQUEST_WRITE_SESSION, req)
-        raise NotImplementedError
+        self._pending_runs.clear()
+        success = await self.session.writer.write_session(self.session, runs, logs)
+        if not success:
+            raise RuntimeError(f"failed to write session {self.session}")
 
     async def open(self, flush_interval: float = SESSION_FLUSH_INTERVAL):
         self.stdout_collector.start()
@@ -249,12 +241,11 @@ class SessionTracer(Tracer):
 
         async def _flush_loop():
             while not _cancel.is_set():
-                await asyncio.sleep(flush_interval)
                 await self._flush()
+                await asyncio.sleep(flush_interval)
 
         self._flush_cancel = _cancel
         self._flush_task = asyncio.create_task(_flush_loop())
-        await self._flush(force=True)  # create session
 
     async def close(self):
         self.stdout_collector.stop()
@@ -375,18 +366,19 @@ class RunTracer(Tracer):
             parent = None
         frame = Run(
             id=self.session.ctx.root_id if root is None else UUIDT(),
-            module_id=self.session.module.id,
+            module=self.session.module,
             runnable=runnable,
             session=self.session,
             root=root,
             parent=parent,
             started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             terminated_at=None,
-            cached_generated_at=None,
-            cached_duration=None,
             inputs=inputs,
             outputs=None,
             error=None,
+            metadata=None,
+            cached_generated_at=None,
+            cached_duration=None,
             queue_position=queue_position,
         )
         if parent is not None:
@@ -417,6 +409,7 @@ class RunTracer(Tracer):
         frame = self.pop_stacktrace()
         frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.outputs = strip_py_value(result, statement, is_output=True)
+        frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
             _active_run.set(None)
@@ -426,6 +419,7 @@ class RunTracer(Tracer):
         frame = self.pop_stacktrace()
         frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.error = exception
+        frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
             _active_run.set(None)
@@ -440,6 +434,7 @@ class RunTracer(Tracer):
         frame.cached_duration = duration
         frame.inputs = strip_py_value(inputs, statement, is_output=False)
         frame.outputs = strip_py_value(result, statement, is_output=True)
+        frame._update_status()
         self.track(frame)
         self._update_cached_info()
         logger.debug("trace.run.cached", frame=frame, stackdepth=len(self.stacktrace))

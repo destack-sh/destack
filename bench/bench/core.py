@@ -26,6 +26,7 @@ from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.bench.mutate import ModuleMutation, ModuleMutator
+    from bench.bench.session import LogEntry, Run
     from bench.bench.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -843,20 +844,11 @@ active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 )
 
 
-class SessionTracingLevel(enum.IntFlag):
-    NONE = 0
-    RUN = 1
-    MUTATION = 2
-    VALIDATION = 4
-    ALL = RUN | MUTATION | VALIDATION
-
-
 @dataclass(slots=True)
 class SessionContext:
     module_id: UUID
     project_id: UUID
     worker_id: UUID
-    tracing_level: SessionTracingLevel
     trigger_type: RunTriggerType
     trigger_id: typing.Optional[UUID]
     root_id: typing.Optional[UUID] = None
@@ -881,26 +873,45 @@ class SessionBase(abc.ABC):
 SESSION_MUTATION_FLUSH_WATERMARK = 500
 
 
+class ModuleWriter(abc.ABC):
+    async def write_module(self, mutations: list["ModuleMutation"]) -> bool:
+        raise NotImplementedError
+
+    async def write_session(
+        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
+    ) -> bool:
+        raise NotImplementedError
+
+
+class NoopModuleWriter(ModuleWriter):
+    async def write_module(self, mutations: list["ModuleMutation"]) -> bool:
+        return True
+
+    async def write_session(
+        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
+    ) -> bool:
+        return True
+
+
 class Session:
     """A managed context for running code in a module (may mutate)."""
 
     def __init__(
         self,
         module: Module,
+        writer: ModuleWriter,
+        id: UUID = None,
         ctx: SessionContext | None = None,
         cache_inferences: bool = True,
         inference_timeout: int = 30,
         inference_retries: int = 5,
         mode: SessionMode = SessionMode.READ_ONLY,
-        write: Callable[[list["ModuleMutation"]], typing.Awaitable[bool]] = None,
         executor: Executor = None,
     ):
         from bench.bench.mutate import ModuleMutator
         from bench.bench.tracing import SessionTracer
 
-        if mode != SessionMode.READ_ONLY and write is None:
-            raise ValueError("write must be provided for non-readonly sessions")
-        self.id = uuid4()
+        self.id = id or uuid4()
         self.ctx = ctx
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
@@ -912,13 +923,13 @@ class Session:
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.mode = mode
-        self.write = write
+        self.writer = writer
 
         self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
         self.mutator = ModuleMutator(self.module, hooks=[self._on_mutated])
-        self.tracer = SessionTracer(self, mutator=self.mutator, publish=True, validate=True)
+        self.tracer = SessionTracer(self, mutator=self.mutator, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
         self.metadata: dict[str, typing.Any] = {}
@@ -988,7 +999,7 @@ class Session:
 
     async def _do_flush(self, mutations: list["ModuleMutation"]) -> bool:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
-        success = await self.write(mutations)
+        success = await self.writer.write_module(mutations)
         if not success:
             if len(mutations) > 20:
                 mutations_str = f"{mutations[:10]} ... {mutations[-10:]}"

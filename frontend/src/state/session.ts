@@ -113,6 +113,7 @@ export function _useSessions(
         ...filter,
       }
     );
+    // nocheckin do something on session change
   }
 
   function runsOf(statement: { id: string }) {

@@ -13,9 +13,8 @@ from strawberry_django_plus.types import OperationInfo
 from bench import bench as language
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
-from bench.api.session import Run, RunTriggerType
+from bench.api.session import LogEntry, Run, RunTriggerType
 from bench.api.utils import asafe_mutation, get_user_from_info, to_uuid
-from bench.bench.core import SessionTracingLevel
 from bench.models import packer
 from bench.msg import messages
 from bench.msg.core import NMessage, request
@@ -51,7 +50,6 @@ class RunInput:
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
-    trace: int = SessionTracingLevel.ALL
     block: bool = True
     keyed: bool = False
     timeout_seconds: Optional[int] = None
@@ -66,6 +64,7 @@ class RunState:
     runnable_id: Optional[GlobalID]
     success: bool
     run: Optional[Run]
+    logs: Optional[list[LogEntry]]
 
 
 @gql.input
@@ -110,7 +109,6 @@ class RuntimeMutation:
             runnable_type=None,
             arguments=input.arguments,
             block=input.block,
-            tracing_level=input.trace,
             trigger_type=RunTriggerType.UI,
             trigger_id=user.id,
             run_id=to_uuid(input.run_id),
@@ -127,6 +125,7 @@ class RuntimeMutation:
             success = rep.p.error is None
             error = rep.p.error
         except TimeoutError:
+            rep = None
             success = False
             error = ModuleRunErrorType.TIMEOUT
         posthog.capture(
@@ -134,13 +133,14 @@ class RuntimeMutation:
             "run",
             {"project_version_id": str(project_version_id), "success": success, "error": error},
         )
-        run = packer.unpack_data(rep.p.run) if rep.p.run else None
+        run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
+        logs = [packer.unpack_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             success=success,
             run=run,
-            run_id=rep.p.run_id,
+            logs=logs,
         )
 
     @asafe_mutation

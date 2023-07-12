@@ -10,17 +10,19 @@ if TYPE_CHECKING:
 
 
 class Runnable(abc.ABC):
+    """A runnable statement"""
+
     @property
     def logs(self) -> "LogSearch":
         from bench.bench.session import LogSearch
 
-        return LogSearch(self)
+        return LogSearch.from_runnable(self)
 
     @property
     def runs(self) -> "RunSearch":
         from bench.bench.session import RunSearch
 
-        return RunSearch(self)
+        return RunSearch.from_runnable(self)
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError

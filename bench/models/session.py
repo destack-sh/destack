@@ -11,10 +11,8 @@ from bench.models.utils import UUIDTModel, get_choices
 
 
 class Session(UUIDTModel):
-    project = models.ForeignKey("Project", on_delete=models.CASCADE)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker = models.ForeignKey("Worker", null=True, blank=True, on_delete=models.SET_NULL)
-    tracing_level = models.IntegerField(default=0)
     trigger_type = models.CharField(max_length=32, choices=get_choices(RunTriggerType))
     user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
     access_token = models.ForeignKey(

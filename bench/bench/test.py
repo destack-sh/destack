@@ -12,7 +12,6 @@ from bench.bench.core import (
     Module,
     Session,
     SessionContext,
-    SessionTracingLevel,
     StatementPath,
 )
 from bench.bench.issue import BenchError, IssueType
@@ -89,7 +88,6 @@ MOCK_SESSION_CONTEXT = SessionContext(
     trigger_id=UUID("00000000-0000-0000-0000-000000000000"),
     root_id=UUID("00000000-0000-0000-0000-000000000000"),
     trigger_type=RunTriggerType.API,
-    tracing_level=SessionTracingLevel.ALL,
 )
 
 

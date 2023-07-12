@@ -13,7 +13,6 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.bench.core import SessionTracingLevel
 from bench.models import Project, ProjectVersion, RunTriggerType
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg.core import request
@@ -29,7 +28,6 @@ class RunInputSerializer(serializers.Serializer):
     build = serializers.CharField(default=None, allow_null=True)
     inputs = serializers.JSONField(default=None, allow_null=True)
     block = serializers.BooleanField(default=True)
-    trace = serializers.IntegerField(default=SessionTracingLevel.ALL)
 
 
 class RunOutputSerializer(serializers.Serializer):
@@ -170,7 +168,6 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         build=data["build"],
         arguments=data["inputs"],
         block=data["block"],
-        tracing_level=data["trace"],
         trigger_type=RunTriggerType.API,
         trigger_id=access.access_token_id,
     )

@@ -271,6 +271,8 @@ class Document:
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
         d = {**d, "id": UUID(id)}
+        if TYPE_DISCRIMINATOR_KEY in d:
+            d.pop(TYPE_DISCRIMINATOR_KEY)
         if "revision" in cls.__fields__:
             d["revision"] = version
         for name, field in cls.__fields__.items():

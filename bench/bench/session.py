@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Session, Statement, Module
+from bench.bench.core import Module, Session, Statement, StatementType
 from bench.bench.query import Query, Sort
 from bench.bench.reflect import reflect_enum, reflect_struct
 from bench.bench.search import Search
@@ -16,7 +16,7 @@ if TYPE_CHECKING:
     from bench.bench.code_ import Code
     from bench.bench.model import Model
     from bench.bench.task import Task
-    from bench.bench.wire import RunData, LogEntryData
+    from bench.bench.wire import LogEntryData, RunData
 
 
 @reflect_enum("RunStatus", "The status of a run")
@@ -44,19 +44,34 @@ PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
 class Run:
     id: UUID
     runnable: Union["Code", "Model", "Task"]
+    module: Module
     session: Session
     root: Optional["Run"]
     parent: Optional["Run"]
     started_at: datetime
     terminated_at: Optional[datetime]
-    cached_generated_at: Optional[datetime]
-    cached_duration: Optional[float]
-    queue_position: Optional[int]
+    status: RunStatus = field(init=False)
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
     metadata: Optional[dict[str, Any]]
+    queue_position: Optional[int]
+    cached_generated_at: Optional[datetime]
+    cached_duration: Optional[float]
     children: list["Run"] = field(default_factory=list)
+
+    def __post_init__(self):
+        self._update_status()
+
+    def _update_status(self):
+        if self.error:
+            self.status = RunStatus.Failed
+        elif self.terminated_at:
+            self.status = RunStatus.Completed
+        elif self.queue_position:
+            self.status = RunStatus.Queued
+        else:
+            self.status = RunStatus.Running
 
     @property
     def duration(self) -> float:
@@ -76,18 +91,11 @@ class Run:
             yield from child.walk_descendants()
 
     def __str__(self):
-        # get str of all non-null fields
-        fields_strs = [
-            f"module={self.module_id}",
-            f"runnable={self.runnable}" if self.runnable else None,
-            f"root={self.root.id}" if self.root else None,
-            f"parent={self.parent.id}" if self.parent else None,
-        ]
-        fields_str = [s for s in fields_strs if s]
-        return f"id={self.id} ({', '.join(fields_str)})"
+        metadata_keys_str = ", ".join(self.metadata.keys()) if self.metadata else ""
+        return f"{self.runnable} ({self.status}, metadata={metadata_keys_str or '<none>'})"
 
     def __repr__(self):
-        return f"<ExecutionFrame {self}>"
+        return f"<Run {self}>"
 
 
 _IGNORED_PACKAGE_PREFIXES = [
@@ -106,6 +114,16 @@ class RunCodeFrame:
     name: str
     locals: dict[str, Any] = None  # locals should be richer for deep linking (with ids)
     line: str = None
+
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "RunCodeFrame":
+        return RunCodeFrame(
+            filename=data["filename"],
+            lineno=data["lineno"],
+            name=data["name"],
+            locals=data["locals"],
+            line=data["line"],
+        )
 
     @staticmethod
     def from_stack(stack: traceback.StackSummary) -> list["RunCodeFrame"]:
@@ -222,7 +240,7 @@ class RunSearch(Search["RunData", Run]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, ReqSearchRunPayload, RepSearchRunPayload
+        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
@@ -291,7 +309,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, ReqSearchLogPayload, RepSearchLogPayload
+        from bench.msg.messages import NMessageType, RepSearchLogPayload, ReqSearchLogPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
@@ -342,12 +360,13 @@ class LogSearch(Search["LogEntryData", LogEntry]):
 @dataclass
 class MissingStatement:
     id: UUID
+    type: Optional[StatementType] = None
 
     def __str__(self):
         return str(self.id)
 
     def __repr__(self):
-        return f"<MissingStatement {self.id}>"
+        return f"<MissingStatement {self.id} {self.type or '<unknown type>'}>"
 
     def __getattr__(self, item):
         if item == "id":

@@ -156,7 +156,7 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def prepare_search(
-    type: Optional["DocumentType"],
+    type: "DocumentType",
     project_version_id: Optional[str],
     limit: int,
     count: bool,
@@ -167,11 +167,10 @@ def prepare_search(
     combined_query = Q(
         QueryOp.AND,
         queries=[
+            Q(QueryOp.EQUALS, key=TYPE_DISCRIMINATOR_KEY, value=type.value),
             ~Q(QueryOp.EXISTS, key="deleted_at"),
         ],
     )
-    if type:
-        combined_query &= Q(QueryOp.EQUALS, key=TYPE_DISCRIMINATOR_KEY, value=type.value)
     if project_version_id:
         combined_query &= Q(QueryOp.EQUALS, key="project_version_id", value=project_version_id)
     if query is not None:

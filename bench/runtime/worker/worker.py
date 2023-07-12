@@ -7,21 +7,20 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.bench import Code, Task, wire
+from bench.bench import Code, LogEntry, Task, wire
 from bench.bench.code_ import run
 from bench.bench.const import RunTriggerType, WorkerTenancy
 from bench.bench.core import (
     Module,
     ModuleReference,
+    ModuleWriter,
     Session,
     SessionContext,
     SessionMode,
-    SessionTracingLevel,
 )
 from bench.bench.mutate import ModuleMutation, ModuleMutator
 from bench.bench.session import Run, RunError
 from bench.bench.type import instantiate_py_value_flat, map_value
-from bench.bench.wire import RunData
 from bench.msg.core import (
     NMessage,
     handle_reply,
@@ -33,7 +32,6 @@ from bench.msg.core import (
 )
 from bench.msg.messages import (
     ClientOrigin,
-    ExecutionMarkedDeadPayload,
     ModuleInternalChangedPayload,
     NMessageType,
     RepCancelRunPayload,
@@ -47,6 +45,7 @@ from bench.msg.messages import (
     ReqRunPayload,
     ReqWriteModulePayload,
     RunErrorType,
+    RunMarkedDeadPayload,
     WorkerHeartbeatPayload,
 )
 from bench.utils.func import describe_type, wrap_task
@@ -70,7 +69,7 @@ class RunJob:
     runnable: Task | Code = None
     session: Session = None
     arguments: dict[str, Any] = None
-    execution: Optional[Run] = None
+    run: Optional[Run] = None
     error: Optional[RunError] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
@@ -82,7 +81,7 @@ class RunJob:
         return f"<RunJob {self}>"
 
 
-class ModuleWorker:
+class ModuleWorker(ModuleWriter):
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
     def __init__(self, module_id: UUID, master: "SandboxedWorker", timeout: float):
@@ -114,7 +113,7 @@ class ModuleWorker:
         self.source = new_source
         self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
-    async def do_write(self, mutations: list[ModuleMutation]) -> bool:
+    async def write_module(self, mutations: list[ModuleMutation]) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         is_semantic = any(m.type.semantic for m in mutations)
         self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
@@ -136,6 +135,29 @@ class ModuleWorker:
         )
         return rep.p.success
 
+    async def write_session(
+        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
+    ) -> bool:
+        from bench.msg import NMessage
+        from bench.msg.core import request
+        from bench.msg.messages import NMessageType, RepWriteSessionPayload, ReqWriteSessionPayload
+
+        session_data = wire.pack_data(session)
+        runs_data = [wire.pack_data(run) for run in runs]
+        logs_data = [wire.pack_data(log) for log in logs]
+
+        req = ReqWriteSessionPayload(
+            module_id=self.module_id,
+            session=session_data,
+            runs=runs_data,
+            logs=logs_data,
+            client=self.master.client,
+        )
+        rep: NMessage[RepWriteSessionPayload] = await request(
+            NMessageType.REQUEST_WRITE_SESSION, req, RepWriteSessionPayload
+        )
+        return rep.p.success
+
     def queue_run(
         self,
         *,
@@ -144,7 +166,6 @@ class ModuleWorker:
         keyed: bool,
         run_id: Optional[UUID],
         session_id: Optional[UUID],
-        tracing_level: SessionTracingLevel,
         trigger_type: RunTriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | RunErrorType:
@@ -163,7 +184,6 @@ class ModuleWorker:
                 module_id=self.module_id,
                 project_id=self.project_id,
                 worker_id=self.master.worker_id,
-                tracing_level=tracing_level,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
                 root_id=root_id,
@@ -173,7 +193,7 @@ class ModuleWorker:
                 module=self.module,
                 ctx=session_ctx,
                 mode=SessionMode.WRITE,
-                write=self.do_write,
+                writer=self,
                 executor=self.executor,
             )
         except Exception as e:
@@ -229,8 +249,8 @@ class ModuleWorker:
         # mark it as dead for everyone
         # (just in case it's still bugging around in some frontend)
         await publish(
-            NMessageType.EXECUTION_MARKED_DEAD,
-            ExecutionMarkedDeadPayload(self.module_id, run_id),
+            NMessageType.RUN_MARKED_DEAD,
+            RunMarkedDeadPayload(self.module_id, run_id),
         )
         return False
 
@@ -257,8 +277,8 @@ class ModuleWorker:
             try:
                 self.log.debug("run", job=job, timeout=self.timeout)
                 await self.do_run(job, self.timeout)
-                if job.session.tracer.execution.executions:
-                    job.execution = job.session.tracer.execution.executions[job.id]
+                if job.session.tracer.run.runs:
+                    job.run = job.session.tracer.run.runs[job.id]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)
@@ -282,10 +302,6 @@ class SandboxedWorker:
         self.subs = []
         self.tasks = []
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
-
-    @property
-    def default_tracing_level(self) -> SessionTracingLevel:
-        return SessionTracingLevel.ALL
 
     @property
     def client(self):
@@ -376,7 +392,6 @@ class SandboxedWorker:
             arguments=msg.p.arguments,
             run_id=msg.p.run_id,
             session_id=msg.p.session_id,
-            tracing_level=msg.p.tracing_level,
             trigger_type=msg.p.trigger_type,
             trigger_id=msg.p.trigger_id,
             keyed=msg.p.keyed,
@@ -386,11 +401,8 @@ class SandboxedWorker:
         else:
             if msg.p.block:
                 await run_job.terminated.wait()
-            if run_job.execution is not None:  # may be cancelled
-                execution = RunData.from_frame(run_job.execution, session=run_job.session)
-            else:
-                execution = None
-            rep = RepRunPayload(error=run_job.error, execution=execution, run_id=run_job.id)
+            run = wire.pack_data(run_job.run) if run_job.run else None
+            rep = RepRunPayload(error=run_job.error, run=run, run_id=run_job.id)
             await msg.reply(rep)
 
     @message_handler

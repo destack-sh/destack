@@ -49,7 +49,7 @@ class NMessageType(StrEnum):
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
     SESSION_CHANGED = "session.changed"
     LOGS_CHANGED = "logs.changed"
-    EXECUTION_MARKED_DEAD = "execution.marked_dead"
+    RUN_MARKED_DEAD = "execution.marked_dead"
 
     # Worker <-> Internal
     REQUEST_REGISTER_WORKER = "worker.register"
@@ -91,6 +91,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
     NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
     NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
+    NMessageType.REQUEST_WRITE_SESSION: NMessageType.REPLY_WRITE_SESSION,
     NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
     NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
     NMessageType.REQUEST_MARK_UPLOADED_OBJECT: NMessageType.REPLY_MARK_UPLOADED_OBJECT,
@@ -104,6 +105,11 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.REQUEST_LANGSERVER: NMessageType.REPLY_LANGSERVER,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
+
+# assert that all REQUEST types have a REPLY type
+_request_types = {t for t in NMessageType if t.name.startswith("REQUEST")}
+_missing_reply_types = _request_types - set(REPLY_BY_REQUEST_TYPE.keys())
+assert not _missing_reply_types, f"missing reply types for {_missing_reply_types}"
 
 #
 # All messages are just Python dataclasses.
@@ -211,7 +217,6 @@ class ReqRunPayload:
     arguments: dict[str, typing.Any]
     block: bool
     keyed: bool
-    tracing_level: int
     trigger_type: RunTriggerType
     trigger_id: Optional[UUID]
     session_id: Optional[UUID]
@@ -230,7 +235,8 @@ class RunErrorType(enum.StrEnum):
 class RepRunPayload:
     error: Optional[RunErrorType] = None
     run_id: Optional[UUID] = None
-    execution: Optional[RunData] = None
+    run: Optional[RunData] = None
+    logs: Optional[list[LogEntryData]] = None
 
 
 @payload(NMessageType.REQUEST_CANCEL_RUN)
@@ -244,8 +250,8 @@ class RepCancelRunPayload:
     success: bool
 
 
-@payload(NMessageType.EXECUTION_MARKED_DEAD)
-class ExecutionMarkedDeadPayload:
+@payload(NMessageType.RUN_MARKED_DEAD)
+class RunMarkedDeadPayload:
     module_id: UUID
     run_id: UUID
 
@@ -432,7 +438,7 @@ MODULE_SCOPED_PAYLOAD_TYPES = (
     ModuleInternalChangedPayload,
     SessionChangedPayload,
     LogsChangedPayload,
-    ExecutionMarkedDeadPayload,
+    RunMarkedDeadPayload,
 )
 
 

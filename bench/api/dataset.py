@@ -151,6 +151,7 @@ class DatasetMutation:
             last_edited_by_id=None,  # not handled yet
             order_key=input.order_key,
             value=input.value,
+            revision=None,  # not set yet
         )
         record = create_record(project_v, record)
         return project_v, statement, record  # noqa (will be unwrapped)
@@ -282,11 +283,11 @@ class DataQuery:  # avoid name conflict with DatasetQuery
 
         query = query.to_dsl() if query else None
         query = Query.and_if_set(
-            Q(QueryOp.EQUALS, "backend_id", statement.dataset.backend_id), query
+            Q(QueryOp.EQUALS, "dataset_id", statement.dataset.backend_id), query
         )
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
-            type=None,  # already limited by dataset
+            type=mirror.DocumentType.RECORD,  # already limited by dataset
             project_version_id=None,  # already limited by dataset
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
