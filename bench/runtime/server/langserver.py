@@ -676,8 +676,7 @@ class LanguageWorker:
         )
         if logs:
             await publish(
-                NMessageType.LOGS_CHANGED,
-                LogsChangedPayload(module_id=self.module_id, origins=origins, entries=logs),
+                NMessageType.LOGS_CHANGED, LogsChangedPayload(module_id=self.module_id, logs=logs)
             )
 
     def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, ModuleTree, Module]:

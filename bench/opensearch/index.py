@@ -252,7 +252,7 @@ def write_session_to_os(
     logger.debug(
         "os.write_session", project_version=project_v, index=bench_index, operations=len(ops)
     )
-    ret = os_client.bulk(ops, refresh="wait_for")
+    ret = os_client.bulk(ops)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
 

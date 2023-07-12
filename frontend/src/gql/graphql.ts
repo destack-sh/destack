@@ -429,11 +429,12 @@ export type LogChange = {
 export type LogEntry = {
   __typename?: "LogEntry";
   createdAt: Scalars["DateTime"];
+  id: Scalars["GlobalID"];
   level?: Maybe<Scalars["String"]>;
   logger?: Maybe<Scalars["String"]>;
   message?: Maybe<Scalars["String"]>;
   metadata?: Maybe<Scalars["JSON"]>;
-  moduleId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
   runId?: Maybe<Scalars["GlobalID"]>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
   sessionId?: Maybe<Scalars["GlobalID"]>;
@@ -4846,6 +4847,21 @@ export type RunContentFragment = {
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "RunContentFragment" };
 
+export type LogEntryContentFragment = {
+  __typename?: "LogEntry";
+  id: any;
+  createdAt: any;
+  projectVersionId: any;
+  sessionId?: any | null;
+  runnableId?: any | null;
+  runId?: any | null;
+  stream: string;
+  level?: string | null;
+  logger?: string | null;
+  message?: string | null;
+  metadata?: any | null;
+} & { " $fragmentName"?: "LogEntryContentFragment" };
+
 export type CurrentRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
@@ -4902,6 +4918,52 @@ export type RunsQuery = {
       cursor: string;
       node: { __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } };
     }>;
+  };
+};
+
+export type LogsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type LogsQuery = {
+  __typename?: "Query";
+  logs: {
+    __typename?: "LogEntryConnection";
+    totalCount?: number | null;
+    pageInfo: {
+      __typename?: "PageInfo";
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor?: string | null;
+      endCursor?: string | null;
+    };
+    edges: Array<{
+      __typename?: "LogEntryEdge";
+      cursor: string;
+      node: { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } };
+    }>;
+  };
+};
+
+export type LogsChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type LogsChangedSubscription = {
+  __typename?: "Subscription";
+  logsChanged: {
+    __typename?: "LogChange";
+    logs: Array<
+      { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
+    >;
   };
 };
 
@@ -5978,6 +6040,32 @@ export const RunContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<RunContentFragment, unknown>;
+export const LogEntryContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "LogEntryContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "LogEntry" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+          { kind: "Field", name: { kind: "Name", value: "sessionId" } },
+          { kind: "Field", name: { kind: "Name", value: "runnableId" } },
+          { kind: "Field", name: { kind: "Name", value: "runId" } },
+          { kind: "Field", name: { kind: "Name", value: "stream" } },
+          { kind: "Field", name: { kind: "Name", value: "level" } },
+          { kind: "Field", name: { kind: "Name", value: "logger" } },
+          { kind: "Field", name: { kind: "Name", value: "message" } },
+          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<LogEntryContentFragment, unknown>;
 export const MatchingUsersDocument = {
   kind: "Document",
   definitions: [
@@ -14910,6 +14998,210 @@ export const RunsDocument = {
     ...RunContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunsQuery, RunsQueryVariables>;
+export const LogsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "logs" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "logs" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sessionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "startCursor" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "LogEntryContent" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "cursor" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...LogEntryContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<LogsQuery, LogsQueryVariables>;
+export const LogsChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "logsChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "logsChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sessionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "logs" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "LogEntryContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...LogEntryContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<LogsChangedSubscription, LogsChangedSubscriptionVariables>;
 export const ModuleChangedDocument = {
   kind: "Document",
   definitions: [

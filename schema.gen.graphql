@@ -409,7 +409,8 @@ type LogChange {
 }
 
 type LogEntry {
-  moduleId: GlobalID!
+  id: GlobalID!
+  projectVersionId: GlobalID!
   createdAt: DateTime!
   stream: String!
   level: String
