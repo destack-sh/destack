@@ -7,7 +7,13 @@ import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { RUN_TERMINAL_STATES, useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
+import {
+  RUN_TERMINAL_STATES,
+  useSessions,
+  isMostlyCached,
+  getCachedPercentage,
+  useCurrentSessions,
+} from "@/state/session";
 import { TypeFlag, newRunId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -50,7 +56,8 @@ const now = useTimeFromNow(100);
 
 // TODO @Performance: load inline code runs more sensibly
 const bench = useBenchState();
-const runs = useSessions({ runnableIds: ref([context.statement.value.id]) }, { live: true });
+const sessions = useCurrentSessions();
+const runs = sessions.runsOf(context.statement.value.id);
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
@@ -58,7 +65,7 @@ const numCodeLines = computed(() => code.value.split("\n").length);
 
 const lastRunLocal: Ref<Run | null> = ref(null); // triggered in this client session
 const lastRunLocalId: Ref<string | null> = ref(null); // same but optimistic id
-const lastRun = computed(() => lastRunLocal.value ?? runs.runs.value[0]);
+const lastRun = computed(() => lastRunLocal.value ?? runs.value[0]);
 const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? null);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
@@ -70,7 +77,7 @@ const hideOutput = ref(true);
 const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
-const showTraceback = computed(
+const showError = computed(
   () => lastRun.value != null && lastRun.value.status == RunStatus.Failed && !hideOutput.value
 );
 
@@ -193,7 +200,7 @@ async function run() {
         type: "run.fail",
         kind: "error",
         message: "Run failed",
-        description: `Failed to run ${context.statement.value.name}: ${ret?.data?.run?.error ?? "rejected"}`,
+        description: `${context.statement.value.name} failed: ${ret?.data?.run?.error ?? "rejected"}`,
       });
     }
     if (ret?.data?.run.__typename == "RunState") {
@@ -328,29 +335,28 @@ defineExpose({
     :focused="context.focused.value"
     :readonly="context.readonly.value"
     class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
-    :class="[showTraceback ? '' : 'rounded-b-sm']"
+    :class="[showError ? '' : 'rounded-b-sm']"
   />
   <!-- Last output/error (if any) -->
-  <ErrorTraceback
-    v-if="!hasTypes && showTraceback && !folded"
+  <div
+    v-if="!hasTypes && !folded"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
-    :key="lastRun?.id"
-    :name="context.statement.value?.name ?? 'run'"
-    :run="lastRun"
   >
-    <!-- If truncating, button overlay with fade gradient -->
-    <button
-      v-if="truncateOutput"
-      class="group/truncate absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
-      @click="truncateOutput = false"
-    >
-      <span class="p-0.5 text-gray-400 group-hover/truncate:animate-bounce group-hover/truncate:text-gray-800">
-        <ChevronDoubleDownIcon class="h-4 w-4" />
-      </span>
-    </button>
-    <button v-else class="group/truncate flex w-full flex-row justify-center pt-0.5" @click="truncateOutput = true">
-      <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
-    </button>
-  </ErrorTraceback>
+    <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun">
+      <!-- If truncating, button overlay with fade gradient -->
+      <button
+        v-if="truncateOutput"
+        class="group/truncate absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
+        @click="truncateOutput = false"
+      >
+        <span class="p-0.5 text-gray-400 group-hover/truncate:animate-bounce group-hover/truncate:text-gray-800">
+          <ChevronDoubleDownIcon class="h-4 w-4" />
+        </span>
+      </button>
+      <button v-else class="group/truncate flex w-full flex-row justify-center pt-0.5" @click="truncateOutput = true">
+        <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
+      </button>
+    </ErrorTraceback>
+  </div>
 </template>

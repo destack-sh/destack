@@ -1111,6 +1111,7 @@ enum ProjectVisibility {
 }
 
 type Query {
+  currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   runs(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1126,6 +1127,7 @@ type Query {
     sessionId: GlobalID = null
     runId: GlobalID = null
     runnableIds: [GlobalID!] = null
+    rootOnly: Boolean = null
     query: SearchQuery = null
     sort: [SearchSort!] = null
     limit: Int = null
@@ -1607,6 +1609,12 @@ type SessionChange {
   session: Session!
   runs: [Run!]!
 }
+
+type SessionState {
+  runs: [Run!]!
+}
+
+union SessionStateOperationInfo = SessionState | OperationInfo
 
 enum SortMode {
   MAX

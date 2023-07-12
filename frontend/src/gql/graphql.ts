@@ -1398,6 +1398,7 @@ export enum ProjectVisibility {
 export type Query = {
   __typename?: "Query";
   clients: ClientConnection;
+  currentRuns: SessionStateOperationInfo;
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
   logs: LogEntryConnection;
@@ -1434,6 +1435,11 @@ export type QueryClientsArgs = {
   projectId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   userId?: InputMaybe<Scalars["GlobalID"]>;
+};
+
+export type QueryCurrentRunsArgs = {
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
 };
 
 export type QueryFeaturedProjectsArgs = {
@@ -1520,6 +1526,7 @@ export type QueryRunsArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   query?: InputMaybe<SearchQuery>;
+  rootOnly?: InputMaybe<Scalars["Boolean"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
@@ -1909,6 +1916,13 @@ export type SessionChange = {
   runs: Array<Run>;
   session: Session;
 };
+
+export type SessionState = {
+  __typename?: "SessionState";
+  runs: Array<Run>;
+};
+
+export type SessionStateOperationInfo = OperationInfo | SessionState;
 
 export enum SortMode {
   Average = "AVERAGE",
@@ -4807,10 +4821,12 @@ export type RunContentFragment = {
   inputs?: any | null;
   outputs?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
+  session: { __typename?: "Session"; id: any };
   root?: { __typename?: "Run"; id: any } | null;
   parent?: { __typename?: "Run"; id: any } | null;
   errorNice?: {
     __typename?: "RunError";
+    kind: string;
     type: string;
     message: string;
     traceback?: Array<{
@@ -4824,6 +4840,65 @@ export type RunContentFragment = {
   } | null;
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "RunContentFragment" };
+
+export type CurrentRunsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type CurrentRunsQuery = {
+  __typename?: "Query";
+  currentRuns:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "SessionState";
+        runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+      };
+};
+
+export type SessionsChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type SessionsChangedSubscription = {
+  __typename?: "Subscription";
+  sessionsChanged: {
+    __typename?: "SessionChange";
+    runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+  };
+};
+
+export type RunsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  projectVersionId: Scalars["GlobalID"];
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  rootOnly: Scalars["Boolean"];
+}>;
+
+export type RunsQuery = {
+  __typename?: "Query";
+  runs: {
+    __typename?: "RunConnection";
+    totalCount?: number | null;
+    pageInfo: {
+      __typename?: "PageInfo";
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor?: string | null;
+      endCursor?: string | null;
+    };
+    edges: Array<{
+      __typename?: "RunEdge";
+      cursor: string;
+      node: { __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } };
+    }>;
+  };
+};
 
 export type ModuleChangedSubscriptionVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
@@ -5832,6 +5907,14 @@ export const RunContentFragmentDoc = {
           },
           {
             kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
             name: { kind: "Name", value: "root" },
             selectionSet: {
               kind: "SelectionSet",
@@ -5854,6 +5937,7 @@ export const RunContentFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [
+                { kind: "Field", name: { kind: "Name", value: "kind" } },
                 { kind: "Field", name: { kind: "Name", value: "type" } },
                 { kind: "Field", name: { kind: "Name", value: "message" } },
                 {
@@ -14563,6 +14647,264 @@ export const RevealSecretDocument = {
     },
   ],
 } as unknown as DocumentNode<RevealSecretQuery, RevealSecretQueryVariables>;
+export const CurrentRunsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "currentRuns" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "currentRuns" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SessionState" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "runs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+    ...RunContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CurrentRunsQuery, CurrentRunsQueryVariables>;
+export const SessionsChangedDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "subscription",
+      name: { kind: "Name", value: "sessionsChanged" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "sessionsChanged" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SessionChange" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "runs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...RunContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SessionsChangedSubscription, SessionsChangedSubscriptionVariables>;
+export const RunsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "runs" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "runs" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectVersionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sessionId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "rootOnly" },
+                value: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "startCursor" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "cursor" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...RunContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RunsQuery, RunsQueryVariables>;
 export const ModuleChangedDocument = {
   kind: "Document",
   definitions: [

@@ -432,7 +432,7 @@ class Session(os.Document):
 
 @packer(models.Session, Session, wire.SessionData)
 class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
-    pass
+    pass  # nocheckin
 
 
 @document(DocumentType.RUN)
@@ -454,7 +454,7 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
-    pass
+    pass  # nocheckin
 
 
 @document(DocumentType.LOG_ENTRY)
@@ -474,4 +474,4 @@ class LogEntry(os.Document):
 
 @packer(LogEntry, LogEntry, wire.LogEntryData)
 class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
-    pass
+    pass  # nocheckin

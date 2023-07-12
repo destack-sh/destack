@@ -84,7 +84,7 @@ class User(AbstractUser, UUIDModel):
         return self.username
 
     def __repr__(self):
-        return f"<User {self.username} {self.status.name}>"
+        return f"<User {self.username} {self.status}>"
 
     @property
     def slug(self) -> str:
