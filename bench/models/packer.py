@@ -1032,8 +1032,29 @@ def write_session(
     Writes a session and relevant runs and logs to the database.
     """
     session = unpack_data(session)
-    session.save()
+    models.Session.objects.bulk_create(
+        [session],
+        update_conflicts=True,
+        unique_fields=["id"],
+        update_fields=["updated_at", "opened_at", "closed_at", "metadata"],
+    )
     runs_models = [unpack_data(r) for r in runs]
-    models.Run.objects.bulk_create(runs_models, ignore_conflicts=True)
+    models.Run.objects.bulk_create(
+        runs_models,
+        update_conflicts=True,
+        unique_fields=["id"],
+        update_fields=[
+            "status",
+            "updated_at",
+            "started_at",
+            "terminated_at",
+            "inputs",
+            "outputs",
+            "error",
+            "metadata",
+            "cached_generated_at",
+            "cached_duration",
+        ],
+    )
 
     write_session_to_os(project_v, session, runs, logs)

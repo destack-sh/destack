@@ -2,10 +2,9 @@ from __future__ import annotations
 
 import asyncio
 import sys
-import typing
 from contextvars import ContextVar
 from datetime import datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import pytz
 import structlog
@@ -17,7 +16,7 @@ from bench.bench.session import LogEntry, Run
 from bench.bench.type import check_type, strip_py_value
 from bench.utils.uuidt import UUIDT
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.bench import (
         Code,
         Dataset,
@@ -55,7 +54,7 @@ class Tracer:
     def field_append(self, symbol: HasType, field: Field):
         pass
 
-    def value_update(self, value: Value, key: typing.Optional[str] = None):
+    def value_update(self, value: Value, key: Optional[str] = None):
         pass
 
     def dataset_clear(self, dataset: Dataset):
@@ -70,7 +69,7 @@ class Tracer:
     def dataset_remove(self, dataset: Dataset, record: Record):
         pass
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
         pass
 
     # TODO @Broken: the below trace events aren't fired (or used) yet
@@ -112,14 +111,14 @@ class Tracer:
 
 # TODO @Performance: investigate performance implication of contextual stdout/stderr redirect
 
-stderr_track: ContextVar[typing.Callable[[str], None] | None] = ContextVar("stderr_track")
-stdout_track: ContextVar[typing.Callable[[str], None] | None] = ContextVar("stdout_track")
+stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
+stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
 
 
-class _RedirectedStream:
+class _ContextRedirectedStream:
     """Redirect stdout/stderr for dual-writing to context-specific track functions."""
 
-    def __init__(self, native, contextvar: ContextVar[typing.Callable[[str], None]]):
+    def __init__(self, native, contextvar: ContextVar[Callable[[str], None]]):
         self.native = native
         self.contextvar = contextvar
 
@@ -136,14 +135,14 @@ class _RedirectedStream:
 
 def redirect_streams_if_needed():
     """Redirect stdout/stderr to the current context's track functions if they are set."""
-    if not isinstance(sys.stdout, _RedirectedStream):
-        sys.stdout = _RedirectedStream(sys.stdout, stdout_track)
-    if not isinstance(sys.stderr, _RedirectedStream):
-        sys.stderr = _RedirectedStream(sys.stderr, stderr_track)
+    if not isinstance(sys.stdout, _ContextRedirectedStream):
+        sys.stdout = _ContextRedirectedStream(sys.stdout, stdout_track)
+    if not isinstance(sys.stderr, _ContextRedirectedStream):
+        sys.stderr = _ContextRedirectedStream(sys.stderr, stderr_track)
 
 
 class LogCollector:
-    def __init__(self, track: typing.Callable[[LogEntry], None], stream: str, session: "Session"):
+    def __init__(self, track: Callable[[LogEntry], None], stream: str, session: "Session"):
         self.track = track
         self.session = session
         self.stream = stream
@@ -152,23 +151,25 @@ class LogCollector:
     def _track(self, message: str) -> None:
         active_run = _active_run.get()
         if active_run:
-            runnable_id = active_run.runnable.id
-            run_id = active_run.id
+            runnable = active_run.runnable
+            run = active_run
         else:
-            runnable_id = None
-            run_id = None
+            runnable = None
+            run = None
         log_entry = LogEntry(
-            module_id=self.module_id,
-            session_id=self.session.id,
+            id=UUIDT(),
+            module=self.session.module,
             created_at=datetime.now(pytz.utc),
-            runnable_id=runnable_id,
-            run_id=run_id,
             stream=self.stream,
+            session=self.session,
+            runnable=runnable,
+            run=run,
             message=message,
         )
         self.track(log_entry)
 
     def start(self):
+        redirect_streams_if_needed()
         if self.stream == "stderr":
             stderr_track.set(self._track)
         elif self.stream == "stdout":
@@ -211,6 +212,11 @@ class SessionTracer(Tracer):
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
 
     def _track_run(self, run: Run):
+        # replace if already exists by id (runs are updated)
+        for i, existing in enumerate(self._pending_runs):
+            if existing.id == run.id:
+                self._pending_runs[i] = run
+                return
         self._pending_runs.append(run)
 
     def _track_log(self, log: LogEntry):
@@ -254,7 +260,7 @@ class SessionTracer(Tracer):
         self._flush_cancel.set()
         await self._flush(force=True)  # flush pending data
 
-    def value_update(self, value: Value, key: typing.Optional[str] = None):
+    def value_update(self, value: Value, key: Optional[str] = None):
         for tracer in self.tracers:
             tracer.value_update(value, key)
 
@@ -274,7 +280,7 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.dataset_remove(dataset, record)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
         for tracer in self.tracers:
             tracer.dataset_update(dataset, record, key)
 
@@ -313,7 +319,7 @@ class RunTracer(Tracer):
     A worker-side tracer that records code and model executions.
     """
 
-    def __init__(self, session: Session, track: typing.Callable[[Run], None]):
+    def __init__(self, session: Session, track: Callable[[Run], None]):
         self.session = session
         self.stacktrace = []
         self._track = track
@@ -326,7 +332,7 @@ class RunTracer(Tracer):
         return f"<RunTracer {self}>"
 
     @property
-    def current_frame(self) -> typing.Optional[Run]:
+    def current_frame(self) -> Optional[Run]:
         if self.stacktrace:
             return self.stacktrace[-1]
         return None
@@ -353,7 +359,7 @@ class RunTracer(Tracer):
 
     def _create_frame(
         self,
-        runnable: typing.Optional[Code | Task | Model] = None,
+        runnable: Optional[Code | Task | Model] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -447,7 +453,7 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def value_update(self, value: Value, key: typing.Optional[str] = None):
+    def value_update(self, value: Value, key: Optional[str] = None):
         from bench.bench import wire
 
         self.mutator.update(wire.pack_node_flat(value), properties=["value"])
@@ -470,9 +476,7 @@ class MutationTracer(Tracer):
 
         self.mutator.delete(wire.pack_node_flat(record))
 
-    def dataset_update(
-        self, dataset: Dataset | Value, record: Record, key: typing.Optional[str] = None
-    ):
+    def dataset_update(self, dataset: Dataset | Value, record: Record, key: Optional[str] = None):
         from bench.bench import wire
 
         self.mutator.update(wire.pack_node_flat(record))
@@ -487,13 +491,13 @@ class TypeCheckingTracer(Tracer):
     def run_exit(self, statement: Runnable, result):
         check_type(result, statement, is_output=True)
 
-    def value_update(self, value: Value, key: typing.Optional[str] = None):
+    def value_update(self, value: Value, key: Optional[str] = None):
         check_type(value.value, value)
 
     def dataset_append(self, dataset: Dataset, record: Record):
         check_type(record.value, dataset, ignore_array=True)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
         if key is not None and key != "":
             # validate only this key
             field_ = dataset.get_field(key)
@@ -519,7 +523,7 @@ class PermissionCheckingTracer(Tracer):
     def symbol_create(self, symbol: Statement):
         self.session.check_can(ModuleOp.CREATE, symbol)
 
-    def value_update(self, value: Value, key: typing.Optional[str] = None):
+    def value_update(self, value: Value, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
     def dataset_clear(self, dataset: Dataset):
@@ -528,7 +532,7 @@ class PermissionCheckingTracer(Tracer):
     def dataset_append(self, dataset: Dataset, record: Record):
         self.session.check_can(ModuleOp.UPDATE, dataset)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: typing.Optional[str] = None):
+    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, dataset)
 
     def dataset_delete(self, dataset: Dataset, record: Record):

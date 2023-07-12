@@ -208,6 +208,7 @@ class RunError(Exception):  # can this really be a subclass of Exception?
 # @reflect_struct("LogEntry", "A single log entry from a run")
 @dataclass
 class LogEntry:
+    id: UUID
     module: Module
     created_at: datetime
     stream: str

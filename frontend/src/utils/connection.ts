@@ -1,6 +1,6 @@
 import type { PageInfo } from "@/gql/graphql";
 
-type Connection<T> = {
+export type Connection<T> = {
   totalCount: number;
   edges: { cursor: string; node: T & { id: string } }[];
   pageInfo: PageInfo;
@@ -53,4 +53,12 @@ export function getUpdatedConnectionQuery<T>(
     edges: maxLength ? edges.slice(0, maxLength) : edges,
     pageInfo,
   };
+}
+
+export function getUpdatedConnectionQueryMany<T>(
+  nodes: (T & { id: string })[],
+  prev: Connection<T> | undefined,
+  maxLength?: number
+): Connection<T> {
+  return nodes.reduce((prev, node) => getUpdatedConnectionQuery(node, prev, maxLength), prev) as Connection<T>;
 }

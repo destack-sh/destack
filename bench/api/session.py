@@ -28,7 +28,7 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.bench import Q, session, wire, Query
+from bench.bench import Q, Query, session, wire
 from bench.bench.const import RUNNABLE_STATEMENT_TYPES
 from bench.bench.session import PENDING_RUN_STATUSES
 from bench.models import packer
@@ -143,7 +143,8 @@ class Run(gql.Node):
 
 @gql.type
 class LogEntry:
-    module_id: GlobalID
+    id: GlobalID
+    project_version_id: GlobalID
     created_at: datetime
     stream: str
     level: Optional[str]
@@ -157,7 +158,8 @@ class LogEntry:
     @staticmethod
     def from_os(log_entry: mirror.LogEntry) -> "LogEntry":
         return LogEntry(
-            module_id=to_global_id("Module", log_entry.module_id),
+            id=to_global_id("LogEntry", log_entry.id),
+            project_version_id=to_global_id("ProjectVersion", log_entry.module_id),
             created_at=log_entry.created_at,
             stream=log_entry.stream,
             level=log_entry.level,
@@ -172,7 +174,8 @@ class LogEntry:
     @staticmethod
     def from_data(log_entry: wire.LogEntryData) -> "LogEntry":
         return LogEntry(
-            module_id=to_global_id("Module", log_entry.module_id),
+            id=to_global_id("LogEntry", log_entry.id),
+            project_version_id=to_global_id("ProjectVersion", log_entry.module_id),
             created_at=log_entry.created_at,
             stream=log_entry.stream,
             level=log_entry.level,

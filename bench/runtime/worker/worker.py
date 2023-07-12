@@ -142,6 +142,8 @@ class ModuleWorker(ModuleWriter):
         from bench.msg.core import request
         from bench.msg.messages import NMessageType, RepWriteSessionPayload, ReqWriteSessionPayload
 
+        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
+
         session_data = wire.pack_data(session)
         runs_data = [wire.pack_data(run) for run in runs]
         logs_data = [wire.pack_data(log) for log in logs]
