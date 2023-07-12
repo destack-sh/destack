@@ -7,6 +7,7 @@ Server-side mapper to translate between language and database models.
 from __future__ import annotations
 
 import abc
+import dataclasses
 import typing
 from collections import OrderedDict, defaultdict
 from datetime import datetime
@@ -19,11 +20,10 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.bench import StatementType, TypeHint, TypeTag, wire
-from bench.bench.const import DatasetBackend, RemoteObjectStatus, TypeFlag
+from bench.bench.const import DatasetBackend, RemoteObjectStatus, RunTriggerType, TypeFlag
 from bench.bench.core import InterpScope, ModuleObjectType
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
-from bench.bench.session import RunError
 from bench.bench.wire import ModuleTree, ModuleTreeData
 from bench.opensearch.index import write_session_to_os
 
@@ -873,58 +873,81 @@ class SecretPacker(DataPacker[wire.SecretData, models.Secret]):
         )
 
 
+@data_packer(wire.SessionData, models.Session)
+class SessionPacker(DataPacker[wire.SessionData, models.Session]):
+    def pack(self, data: models.Session) -> wire.SessionData:
+        return wire.SessionData(
+            id=data.id,
+            module_id=data.project_version_id,
+            worker_id=data.worker_id,
+            opened_at=data.opened_at,
+            closed_at=data.closed_at,
+            metadata=data.metadata,
+            trigger_id=data.trigger_id,
+            trigger_type=data.trigger_type,
+        )
+
+    def unpack(self, data: wire.SessionData) -> models.Session:
+        user_id = None
+        access_token_id = None
+        if data.trigger_type == RunTriggerType.API:
+            access_token_id = data.trigger_id
+        elif data.trigger_type == RunTriggerType.UI:
+            user_id = data.trigger_id
+        return models.Session(
+            id=data.id,
+            project_version_id=data.module_id,
+            worker_id=data.worker_id,
+            opened_at=data.opened_at,
+            closed_at=data.closed_at,
+            metadata=data.metadata,
+            trigger_type=data.trigger_type,
+            access_token_id=access_token_id,
+            user_id=user_id,
+        )
+
+
 @data_packer(wire.RunData, models.Run)
 class RunPacker(DataPacker[wire.RunData, models.Run]):
     def pack(self, model: models.Run) -> wire.RunData:
         return wire.RunData(
             id=model.id,
-            project_id=model.project_id,
             module_id=model.project_version_id,
+            session_id=model.session_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
             runnable_id=model.runnable_id,
-            entered_at=model.started_at,
-            exited_at=model.terminated_at,
+            started_at=model.started_at,
+            terminated_at=model.terminated_at,
+            status=model.status,
+            inputs=model.inputs,
+            outputs=model.outputs,
+            metadata=model.metadata,
+            error=wire.RunErrorData.from_dict(model.error) if model.error else None,
             cached_generated_at=model.cached_generated_at,
             cached_duration=model.cached_duration,
             queue_position=None,
-            inputs=model.inputs,
-            outputs=model.outputs,
-            error=RunError.instantiate_from(model.error) if model.error else None,
         )
 
     def unpack(self, data: wire.RunData) -> models.Run:
-        if data.error:
-            status = models.RunStatus.Failed
-        elif data.exited_at:
-            status = models.RunStatus.Completed
-        elif data.queue_position:
-            status = models.RunStatus.Queued
-        else:
-            status = models.RunStatus.Running
         # additional context
-        user_id = data.trigger_id if data.trigger_type == models.RunTriggerType.UI else None
-        access_token_id = (
-            data.trigger_id if data.trigger_type == models.RunTriggerType.API else None
-        )
-        error = data.error.strip() if data.error else None
         return models.Run(
             id=data.id,
-            project_id=data.project_id,
             project_version_id=data.module_id,
-            status=status,
+            session_id=data.session_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,
-            created_at=data.entered_at,  # not sure what to pass since it's not in DB, not frame
+            created_at=data.started_at,  # not sure what to pass since it's not in DB, not frame
             updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-            started_at=data.entered_at,
-            terminated_at=data.exited_at,
-            cached_generated_at=data.cached_generated_at,
-            cached_duration=data.cached_duration,
+            started_at=data.started_at,
+            terminated_at=data.terminated_at,
+            status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
-            error=error,
+            error=dataclasses.asdict(data.error) if data.error else None,
+            cached_generated_at=data.cached_generated_at,
+            cached_duration=data.cached_duration,
         )
 
 
@@ -1009,9 +1032,8 @@ def write_session(
     Writes a session and relevant runs and logs to the database.
     """
     session = unpack_data(session)
-    runs = [unpack_data(r) for r in runs]
-
     session.save()
-    models.Run.objects.bulk_create(runs, ignore_conflicts=True)
+    runs_models = [unpack_data(r) for r in runs]
+    models.Run.objects.bulk_create(runs_models, ignore_conflicts=True)
 
     write_session_to_os(project_v, session, runs, logs)

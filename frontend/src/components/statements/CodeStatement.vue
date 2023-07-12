@@ -21,7 +21,6 @@ import { useStatementContext } from "@/state/statement";
 import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
-  NoSymbolIcon,
   PlayIcon,
   StopIcon,
   ArrowDownRightIcon,

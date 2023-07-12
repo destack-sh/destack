@@ -16,23 +16,23 @@ from bench.bench import StatementType
 from bench.bench.const import (
     DatasetBackend,
     RemoteObjectStatus,
+    RunTriggerType,
     TypeFlag,
     TypeHint,
     TypeTag,
-    RunTriggerType,
 )
 from bench.bench.core import (
     CRUD_PROPERTIES,
     MOT,
     InterpScope,
+    Module,
     ModuleNode,
     ModuleObjectType,
     Session,
-    Module,
 )
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
-from bench.bench.session import RunError, RunErrorKind, RunCodeFrame, MissingStatement
+from bench.bench.session import MissingStatement, RunCodeFrame, RunError, RunErrorKind, RunStatus
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
@@ -1495,6 +1495,16 @@ class RunErrorData:
     runnable_id: Optional[UUID]
     traceback: list[RunCodeFrame]
 
+    @staticmethod
+    def from_dict(data: dict[str, Any]) -> "RunErrorData":
+        return RunErrorData(
+            kind=RunErrorKind(data["kind"]),
+            type=data["type"],
+            message=data["message"],
+            runnable_id=data["runnable_id"],
+            traceback=[RunCodeFrame.from_dict(frame) for frame in data["traceback"]],
+        )
+
 
 @dataclass
 class RunData:
@@ -1502,17 +1512,19 @@ class RunData:
     module_id: UUID
     worker_id: UUID
     runnable_id: UUID
-    runnable_type: str
+    runnable_type: StatementType
     session_id: UUID
+    root_id: UUID
     parent_id: Optional[UUID]
-    entered_at: datetime
-    exited_at: Optional[datetime]
-    cached_generated_at: Optional[datetime]
-    cached_duration: Optional[float]
+    started_at: datetime
+    terminated_at: Optional[datetime]
+    status: RunStatus
     inputs: Optional[Any]
     outputs: Optional[Any]
     error: Optional[RunError]
     metadata: Optional[dict[str, Any]]
+    cached_generated_at: Optional[datetime]
+    cached_duration: Optional[float]
     queue_position: Optional[int]
 
 
@@ -1545,10 +1557,13 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             module_id=object.session.module.id,
             worker_id=object.session.ctx.worker_id,
             runnable_id=object.runnable.id,
+            runnable_type=object.runnable.type,
             session_id=object.session.id,
+            root_id=object.root.id if object.root else None,
             parent_id=object.parent.id if object.parent else None,
-            entered_at=object.started_at,
-            exited_at=object.terminated_at,
+            started_at=object.started_at,
+            terminated_at=object.terminated_at,
+            status=object.status,
             inputs=object.inputs,
             outputs=object.outputs,
             error=error,
@@ -1561,7 +1576,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
     def unpack(self, data: RunData, module: Module) -> lang.Run:
         # we leave relational references that aren't in the module as None?
         runnable = module._statements_by_id.get(data.runnable_id) or MissingStatement(
-            data.runnable_id
+            data.runnable_id, data.runnable_type
         )
         if data.error:
             error = lang.RunError(
@@ -1579,8 +1594,9 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             session=None,
             parent=None,
             runnable=runnable,
-            started_at=data.entered_at,
-            terminated_at=data.exited_at,
+            started_at=data.started_at,
+            terminated_at=data.terminated_at,
+            status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
             error=error,

@@ -374,7 +374,7 @@ async def run(
     from bench.bench.session import RunError, RunErrorKind
 
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
-        raise RunError(RunErrorKind.UNTRUSTED, code)
+        raise RunError(kind=RunErrorKind.UNTRUSTED, type="untrusted", runnable=code)
     # transform keys to valid python identifiers
     arguments = {
         to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
@@ -389,7 +389,7 @@ async def run(
         return ret
     except Exception as e:
         raise RunError(
-            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), statement_id=code.id
+            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=code
         ) from e
 
 

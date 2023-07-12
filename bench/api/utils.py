@@ -4,7 +4,6 @@ from datetime import datetime
 from typing import Iterable, Optional, Sequence, Union
 from uuid import UUID
 
-from strawberry.scalars import JSON
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -12,6 +11,7 @@ from more_itertools import first
 from strawberry import lazy
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
+from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.mutations.fields import _map_exception
@@ -20,7 +20,7 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.bench import query
+from bench.bench import Q, query
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 

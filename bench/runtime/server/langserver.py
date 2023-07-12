@@ -1,9 +1,9 @@
 import asyncio
 import json
+import typing
 from datetime import datetime, timedelta
 from functools import partial
 from itertools import chain
-import typing
 from typing import Optional
 from uuid import UUID
 
@@ -14,7 +14,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, ResolvedField, wire
+from bench.bench import HasType, Issue, Query, QueryOp, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
@@ -28,7 +28,7 @@ from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
 from bench.msg.messages import (
     ClientOrigin,
-    ExecutionMarkedDeadPayload,
+    LogsChangedPayload,
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
@@ -39,9 +39,11 @@ from bench.msg.messages import (
     RepReadSecretPayload,
     RepRegisterWorkerPayload,
     RepRunInferencePayload,
+    RepSearch,
     RepSearchRecordPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
+    RepWriteSessionPayload,
     ReqLangserverPayload,
     ReqMarkUploadedObjectPayload,
     ReqReadModulePayload,
@@ -49,17 +51,16 @@ from bench.msg.messages import (
     ReqReadSecretPayload,
     ReqRegisterWorkerPayload,
     ReqRunInferencePayload,
+    ReqSearch,
+    ReqSearchLogPayload,
     ReqSearchRecordPayload,
+    ReqSearchRunPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
+    RunMarkedDeadPayload,
     SessionChangedPayload,
     WorkerHeartbeatPayload,
-    LogsChangedPayload,
-    ReqSearch,
-    RepSearch,
-    ReqSearchRunPayload,
-    ReqSearchLogPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -176,9 +177,7 @@ class LanguageServer:
             ),
             await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
-            await subscribe(
-                f"{NMessageType.EXECUTION_MARKED_DEAD}.*", cb=self.execution_marked_dead
-            ),
+            await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.*", cb=self.run_marked_dead),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
         ]
         self.tasks = [
@@ -249,15 +248,25 @@ class LanguageServer:
 
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
-        session = packer.unpack_data(msg.p.session)
-        logger.debug("session.write", msg=msg, session=session, client=msg.p.client)
-        runs = [packer.unpack_data(run) for run in msg.p.runs]
-        logs = [packer.unpack_data(log) for log in msg.p.logs]
+        logger.debug("session.write", msg=msg, client=msg.p.client)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        try:
+            await worker.write_session(
+                msg.p.session, msg.p.runs, msg.p.logs, origins=(msg.p.client,)
+            )
+            logger.debug("session.write.done", msg=msg)
+            success = True
+        except Exception as e:
+            sentry_capture_if_enabled(e)
+            logger.error("write_session.failed", msg=msg, exc_info=True)
+            success = False
+        await msg.reply(RepWriteSessionPayload(success=success))
 
     def _do_search(
         self,
         project_v: models.ProjectVersion,
-        type: mirror.DocumentType,
+        type: Optional[mirror.DocumentType],
+        extra_query: Optional[Query],
         max_limit: int,
         req: ReqSearch,
         unpack: typing.Callable,
@@ -271,7 +280,7 @@ class LanguageServer:
                 count=req.count,
                 after=req.after,
                 sort=req.sort,
-                query=req.query,
+                query=Query.and_if_set(req.query, extra_query),
             )
             results = os_client.search(
                 index=IndexType.BENCH.get_index_name(project_id=project_v.project_id),
@@ -311,10 +320,19 @@ class LanguageServer:
     @message_handler
     async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
         logger.debug("search.record", msg=msg)
+        if msg.p.backend_ids:
+            extra_query = Q(QueryOp.EQUALS, "dataset_id", msg.p.backend_ids)
+        else:
+            extra_query = None
         # TODO @Security: check if msg origin has read access to dataset
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
-            project_v, mirror.DocumentType.RECORD, MAX_SEARCH_RECORD_LIMIT, msg.p, _unpack_record
+            project_v=project_v,
+            extra_query=extra_query,
+            type=mirror.DocumentType.RECORD,
+            limit=MAX_SEARCH_RECORD_LIMIT,
+            req=msg.p,
+            unpack=_unpack_record,
         )
         await msg.reply(rep)
 
@@ -322,19 +340,37 @@ class LanguageServer:
     async def search_run(self, msg: NMessage[ReqSearchRunPayload]) -> None:
         logger.debug("search.dataset", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
+        if msg.p.runnable_ids:
+            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnable_ids)
+        else:
+            extra_query = None
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
-            project_v, mirror.DocumentType.RUN, MAX_SEARCH_RUN_LIMIT, msg.p, _unpack_run
+            project_v=project_v,
+            extra_query=extra_query,
+            type=mirror.DocumentType.RUN,
+            limit=MAX_SEARCH_RUN_LIMIT,
+            req=msg.p,
+            unpack=_unpack_run,
         )
         await msg.reply(rep)
 
     @message_handler
     async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
         logger.debug("search.log", msg=msg)
+        if msg.p.runnable_ids:
+            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnable_ids)
+        else:
+            extra_query = None
         # TODO @Security: check if msg origin has read access to dataset
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
-            project_v, mirror.DocumentType.LOG_ENTRY, MAX_SEARCH_LOG_LIMIT, msg.p, _unpack_log
+            project_v=project_v,
+            extra_query=extra_query,
+            type=mirror.DocumentType.LOG_ENTRY,
+            limit=MAX_SEARCH_LOG_LIMIT,
+            req=msg.p,
+            unpack=_unpack_log,
         )
         await msg.reply(rep)
 
@@ -446,19 +482,19 @@ class LanguageServer:
         await msg.reply(RepLangserverPayload(module_id=msg.p.module_id))
 
     @message_handler
-    async def execution_marked_dead(self, msg: NMessage[ExecutionMarkedDeadPayload]) -> None:
-        execution = await models.Run.objects.filter(id=msg.p.run_id).afirst()
-        if execution is None:
-            logger.warning("execution_marked_dead.not_found", msg=msg, run_id=msg.p.run_id)
+    async def run_marked_dead(self, msg: NMessage[RunMarkedDeadPayload]) -> None:
+        run = await models.Run.objects.filter(id=msg.p.run_id).afirst()
+        if run is None:
+            logger.warning("run_marked_dead.not_found", msg=msg, run_id=msg.p.run_id)
             return
-        if execution.terminated_at is not None:
+        if run.terminated_at is not None:
             return
-        execution.status = models.RunStatus.Aborted
-        execution.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        await execution.asave()
+        run.status = models.RunStatus.Aborted
+        run.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        await run.asave()
         await publish(
             NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(execution)]),
+            SessionChangedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(run)]),
         )
 
     @message_handler
@@ -502,7 +538,7 @@ class LanguageServer:
             logger.debug("manage_workers", live_workers=live_workers, dead_workers=dead_workers)
 
             if dead_workers:
-                # mark all relevant jobs and executions as failed
+                # mark all relevant jobs and runs as failed
                 dead_ids = [worker.id for worker in dead_workers]
                 await Run.objects.filter(
                     status__in=PENDING_RUN_STATUSES, worker_id__in=dead_ids
@@ -515,7 +551,7 @@ class LanguageServer:
             await asyncio.sleep(interval_seconds)
 
     async def manage_timeouts(self, interval_seconds: int, timeout_seconds: int):
-        """Mark any timed out jobs or executions as failed."""
+        """Mark any timed out jobs or runs as failed."""
         while True:
             start_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
                 seconds=timeout_seconds

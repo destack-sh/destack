@@ -421,6 +421,11 @@ export type LangserverWakePayload = {
 
 export type LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo;
 
+export type LogChange = {
+  __typename?: "LogChange";
+  logs: Array<LogEntry>;
+};
+
 export type LogEntry = {
   __typename?: "LogEntry";
   createdAt: Scalars["DateTime"];
@@ -1826,11 +1831,11 @@ export type RunInput = {
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
-  trace?: Scalars["Int"];
 };
 
 export type RunState = {
   __typename?: "RunState";
+  logs?: Maybe<Array<LogEntry>>;
   projectVersionId: Scalars["GlobalID"];
   run?: Maybe<Run>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
@@ -2123,7 +2128,7 @@ export type StatementUpdateTextInput = {
 export type Subscription = {
   __typename?: "Subscription";
   clientsChanged: Client;
-  logsChanged: LogEntry;
+  logsChanged: LogChange;
   moduleChanged: ModuleChange;
   projectChanged: ProjectChange;
   sessionsChanged: SessionChange;
@@ -2138,8 +2143,8 @@ export type SubscriptionLogsChangedArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  statementId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type SubscriptionModuleChangedArgs = {

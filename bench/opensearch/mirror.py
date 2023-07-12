@@ -360,10 +360,10 @@ class Tile(CrudThing, Revisioned, os.Document):
     name: Optional[str] = NAME_FIELD
 
 
-# not packed yet because it is not used yet
+# Tile is not packed yet because it is not used yet
 
 
-@document(DocumentType.RECORD, store_type=False)
+@document(DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
@@ -372,7 +372,7 @@ class Record(CrudThing, os.Document):
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
     value: dict = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
-    revision: Optional[int] = None  # set from OS-internal version on access
+    revision: Optional[int] = os.field(os.FT.INTEGER)  # set from OS 'version' on read (for now)
 
 
 @packer(Record, Record, wire.RecordData)
@@ -432,7 +432,14 @@ class Session(os.Document):
 
 @packer(models.Session, Session, wire.SessionData)
 class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
-    pass  # nocheckin
+    def mirror(self, project_v: models.ProjectVersion | None, node: models.Session) -> Session:
+        return Session(
+            id=node.id,
+            project_version_id=node.project_version_id,
+            opened_at=node.opened_at,
+            closed_at=node.closed_at,
+            metadata=node.metadata,
+        )
 
 
 @document(DocumentType.RUN)
@@ -443,8 +450,6 @@ class Run(os.Document):
     runnable_type: str = os.field(os.FT.KEYWORD)
     started_at: Optional[datetime] = os.field(os.FT.DATE)
     terminated_at: Optional[datetime] = os.field(os.FT.DATE)
-    cached_generated_at: Optional[datetime] = os.field(os.FT.DATE)
-    cached_duration: Optional[float] = os.field(os.FT.FLOAT)
     duration: Optional[float] = os.field(os.FT.FLOAT)
     status: str = os.field(os.FT.KEYWORD)
     inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
@@ -454,7 +459,39 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
-    pass  # nocheckin
+    def pack(self, mirror: Run) -> wire.RunData:
+        return wire.RunData(
+            id=mirror.id,
+            parent_id=mirror.runnable_id,
+            parent_type=mirror.runnable_type,
+            started_at=mirror.started_at,
+            terminated_at=mirror.terminated_at,
+            duration=mirror.duration,
+            status=mirror.status,
+            inputs=mirror.inputs,
+            outputs=mirror.outputs,
+            metadata=mirror.metadata,
+        )
+
+    def unpack(self, project_v: models.ProjectVersion, data: wire.RunData, parent: None) -> Run:
+        if data.started_at and data.terminated_at:
+            duration = (data.terminated_at - data.started_at).total_seconds()
+        else:
+            duration = None
+        return Run(
+            id=data.id,
+            project_version_id=project_v.id,
+            session_id=None,
+            runnable_id=data.runnable_id,
+            runnable_type=data.runnable_type,
+            started_at=data.started_at,
+            terminated_at=data.terminated_at,
+            duration=duration,
+            status=data.status,
+            inputs=data.inputs,
+            outputs=data.outputs,
+            metadata=data.metadata,
+        )
 
 
 @document(DocumentType.LOG_ENTRY)
@@ -474,4 +511,32 @@ class LogEntry(os.Document):
 
 @packer(LogEntry, LogEntry, wire.LogEntryData)
 class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
-    pass  # nocheckin
+    def pack(self, mirror: LogEntry) -> wire.LogEntryData:
+        return wire.LogEntryData(
+            id=mirror.id,
+            runnable_id=mirror.runnable_id,
+            created_at=mirror.created_at,
+            stream=mirror.stream,
+            level=mirror.level,
+            logger=mirror.logger,
+            message=mirror.message,
+            metadata=mirror.metadata,
+        )
+
+    def unpack(
+        self, project_v: models.ProjectVersion, data: wire.LogEntryData, parent: None
+    ) -> LogEntry:
+        return LogEntry(
+            id=data.id,
+            project_version_id=project_v.id,
+            worker_id=None,
+            session_id=None,
+            run_id=None,
+            runnable_id=data.runnable_id,
+            created_at=data.created_at,
+            stream=data.stream,
+            level=data.level,
+            logger=data.logger,
+            message=data.message,
+            metadata=data.metadata,
+        )

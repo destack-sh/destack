@@ -727,7 +727,9 @@ def map_value(
     if not isinstance(value, Mapping) and not dataclasses.is_dataclass(value):
         return value  # type error, ignore here
     mapped = {}
-    for subtype in type.resolved_fields or type.fields:
+    if type.fields and type.resolved_fields is None:
+        raise RuntimeError(f"unexpected unresolved type {type}")
+    for subtype in type.resolved_fields:
         if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
             raise RuntimeError(f"unexpected union with {type}->{subtype}")
         if is_output is not None and bool(subtype.flags & TypeFlag.IsOutput) != is_output:

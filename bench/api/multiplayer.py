@@ -161,7 +161,7 @@ class MultiplayerSubscription:
         project_sub = await subscribe(
             f"{NMessageType.PROJECT_CHANGED}.{project_id}", payload_t=ProjectChangedPayload
         )
-        log.info("project.listen")
+        log.info("project.subscribe")
         while True:
             change: NMessage[ProjectChangedPayload] = await project_sub.next_msg()
             if client_id is not None and change.p.has_origin(client_id, client_nonce):
@@ -199,7 +199,7 @@ class MultiplayerSubscription:
         module_sub = await subscribe(
             f"{NMessageType.MODULE_CHANGED}.{project_version_id}", payload_t=ModuleChangedPayload
         )
-        log.info("module.listen")
+        log.info("module.subscribe")
         while True:
             change: NMessage[ModuleChangedPayload] = await module_sub.next_msg()
             if client_id is not None and change.p.has_origin(client_id, client_nonce):

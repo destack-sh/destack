@@ -28,9 +28,10 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.bench import Q, session
+from bench.bench import Q, session, wire, Query
 from bench.bench.const import RUNNABLE_STATEMENT_TYPES
 from bench.bench.session import PENDING_RUN_STATUSES
+from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import LogsChangedPayload, NMessageType, SessionChangedPayload
 from bench.opensearch import mirror
@@ -168,6 +169,21 @@ class LogEntry:
             metadata=log_entry.metadata,
         )
 
+    @staticmethod
+    def from_data(log_entry: wire.LogEntryData) -> "LogEntry":
+        return LogEntry(
+            module_id=to_global_id("Module", log_entry.module_id),
+            created_at=log_entry.created_at,
+            stream=log_entry.stream,
+            level=log_entry.level,
+            logger=log_entry.logger,
+            message=log_entry.message,
+            session_id=to_global_id("Session", log_entry.session_id),
+            runnable_id=to_global_id("Statement", log_entry.runnable_id),
+            run_id=to_global_id("Run", log_entry.run_id),
+            metadata=log_entry.metadata,
+        )
+
 
 async def _expand_filter(
     project_version_id: UUID,
@@ -268,13 +284,13 @@ class SessionQuery:
 
         query = query.to_dsl() if query else None
         if session_id:
-            query &= Q(QueryOp.EQUALS, "session_id", session_id)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
         if run_id:
-            query &= Q(QueryOp.EQUALS, "run_id", run_id)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
         if runnable_ids:
-            query &= Q(QueryOp.IN, "runnable_id", runnable_ids)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
         if root_only:
-            query &= Q(QueryOp.DOES_NOT_EXIST, "parent_id")
+            query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RUN,
@@ -331,11 +347,11 @@ class SessionQuery:
 
         query = query.to_dsl() if query else None
         if session_id:
-            query &= Q(QueryOp.EQUALS, "session_id", session_id)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
         if run_id:
-            query &= Q(QueryOp.EQUALS, "run_id", run_id)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
         if runnable_ids:
-            query &= Q(QueryOp.EQUALS, "runnable_id", runnable_ids)
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.LOG_ENTRY,
@@ -407,7 +423,10 @@ class SessionSubscription:
         while True:
             msg: NMessage[SessionChangedPayload] = await sessions_sub.next_msg()
             log.debug("sessions.update", msg=msg)
-            raise NotImplementedError
+            yield SessionChange(
+                session=(packer.unpack_data(msg.p.session)),
+                runs=[packer.unpack_data(r) for r in msg.p.runs],
+            )
 
     @asafe_subscription
     async def logs_changed(
@@ -417,13 +436,13 @@ class SessionSubscription:
         project_version_id: Optional[GlobalID],
         session_id: Optional[GlobalID],
         run_id: Optional[GlobalID],
-        statement_id: Optional[GlobalID],
-    ) -> AsyncGenerator[LogEntry, None]:
-        project_id = UUID(project_id.node_id)
-        project_version_id = UUID(project_version_id.node_id)
-        session_id = UUID(session_id.node_id) if session_id else None
-        run_id = UUID(run_id.node_id) if run_id else None
-        statement_id = UUID(statement_id.node_id) if statement_id else None
+        runnable_ids: Optional[list[GlobalID]],
+    ) -> AsyncGenerator[LogChange, None]:
+        project_id = to_uuid(project_id)
+        project_version_id = to_uuid(project_version_id)
+        session_id = to_uuid(session_id)
+        run_id = to_uuid(run_id)
+        runnable_ids = to_uuids(runnable_ids)
         user = get_user_from_info(info)
         log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
         try:
@@ -434,13 +453,23 @@ class SessionSubscription:
             log.debug("sessions.subscribe_denied", exc_info=True)
             return
 
+        def _filter_log(log: wire.LogEntryData) -> bool:
+            if session_id and log.session_id != session_id:
+                return False
+            if run_id and log.run_id != run_id:
+                return False
+            if runnable_ids and log.runnable_id not in runnable_ids:
+                return False
+            return True
+
         log.info("logs.subscribe")
         logs_sub = await subscribe(
             f"{NMessageType.LOGS_CHANGED}.{project_version_id}", payload_t=LogsChangedPayload
         )
         while True:
             msg: NMessage[LogsChangedPayload] = await logs_sub.next_msg()
-            log.debug("logs.update", msg=msg)
-            for log in logs:
-                pass
-            raise NotImplementedError  # nocheckin
+            logs = [LogEntry.from_data(l) for l in msg.p.logs if _filter_log(l)]
+            if not logs:
+                continue
+            log.debug("logs.update", msg=msg, logs=len(logs))
+            yield LogChange(logs=logs)
