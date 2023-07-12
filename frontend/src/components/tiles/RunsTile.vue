@@ -5,7 +5,7 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, RunTriggerType } from "@/gql/graphql";
-import { useSessions, isMostlyCached, getCachedPercentage } from "@/state/session";
+import { isMostlyCached, getCachedPercentage, useRuns } from "@/state/session";
 import { useCurrentModule, TypeFlag } from "@/state/module";
 import {
   BoltIcon,
@@ -23,7 +23,6 @@ const props = defineProps<{
   runnableId: string;
   projectId: string;
   projectVersionId?: string;
-  includeAncestorVersions?: boolean;
   rootOnly?: boolean;
   live?: boolean;
   limit?: number;
@@ -38,14 +37,16 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
-const { runs, totalCount, loading } = useSessions(
+const runs = useRuns(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
-    includeAncestorVersions: toRef(props, "includeAncestorVersions"),
     runnableIds: computed(() => [props.runnableId]),
+    sessionId: ref(null),
+    runId: ref(null),
+    rootOnly: toRef(props, "rootOnly"),
   },
-  { root: props.rootOnly, live: props.live, first: props.limit ?? 10 }
+  { live: props.live, limit: props.limit }
 );
 const runRefs = useElementRefs<HTMLDivElement>();
 const statement = computed(() => module.statementOf(props.runnableId));
@@ -114,8 +115,6 @@ function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: str
     {
       [RunTriggerType.Ui]: "by " + run.user?.slug,
       [RunTriggerType.Api]: "via API",
-      [RunTriggerType.Reactive]: "reactively",
-      [RunTriggerType.Scheduled]: "scheduled",
     }[run.triggerType] ?? "by a ghost"
   );
 }
@@ -158,11 +157,7 @@ function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: str
               <component
                 :is="getStatusIcon(run.status)"
                 class="h-4 w-4"
-                :class="[
-                  run.status == RunStatus.Running || run.status == RunStatus.Queued
-                    ? 'animate-spin'
-                    : '',
-                ]"
+                :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
               <span class="ml-1 max-w-full truncate font-semibold">{{ statement?.name }}</span>
               <!-- Duration -->

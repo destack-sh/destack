@@ -1,39 +1,42 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
+from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Optional
 from uuid import UUID
 
-from django.db.models import OuterRef, Subquery
-from strawberry_django_plus.utils.resolvers import async_safe
+import django.db.models
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import OuterRef, Subquery
 from strawberry import auto, lazy
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
+from strawberry_django_plus.types import OperationInfo
+from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import check_can_view_project_by_id, check_can_read_project
+from bench.api.auth import check_can_read_project, check_can_view_project_by_id
 from bench.api.statement import Statement
 from bench.api.utils import (
+    QueryOp,
+    SearchQuery,
+    SearchSort,
     asafe_subscription,
     get_user_from_info,
     to_global_id,
     to_uuid,
-    SearchQuery,
     to_uuids,
-    QueryOp,
-    SearchSort,
 )
-from bench.bench import session, Q
+from bench.bench import Q, session
 from bench.bench.const import RUNNABLE_STATEMENT_TYPES
+from bench.bench.session import PENDING_RUN_STATUSES
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import NMessageType, SessionChangedPayload, LogsChangedPayload
+from bench.msg.messages import LogsChangedPayload, NMessageType, SessionChangedPayload
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
-from bench.opensearch.query import prepare_search, encode_cursor
+from bench.opensearch.query import encode_cursor, prepare_search
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
@@ -197,14 +200,20 @@ LOGS_LIMIT = 250
 
 
 @gql.type
+class SessionState:
+    runs: list[Run]
+
+
+@gql.type
 class SessionQuery:
+    @gql.field
     @async_safe
-    def last_runs(
+    def current_runs(
         self,
         info: Info,
         project_id: GlobalID,
         project_version_id: GlobalID,
-    ) -> Iterable[Run]:
+    ) -> SessionState | OperationInfo:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
         check_can_read_project(info, project)
@@ -216,7 +225,7 @@ class SessionQuery:
         ).values_list("id", flat=True)
 
         # subquery to get the latest run per runnable_id
-        latest_runs = Run.objects.filter(
+        latest_runs = models.Run.objects.filter(
             runnable_id=OuterRef("pk"), project_version_id=project_version_id
         ).order_by("-updated_at")
 
@@ -228,9 +237,11 @@ class SessionQuery:
             )
             .values_list("latest_run_id", flat=True)
         )
-
-        latest_run_instances = Run.objects.filter(id__in=latest_run_ids)
-        return latest_run_instances
+        latest_run_instances = models.Run.objects.filter(
+            django.db.models.Q(id__in=latest_run_ids)
+            | django.db.models.Q(status__in=PENDING_RUN_STATUSES)
+        )
+        return SessionState(runs=latest_run_instances)
 
     @gql.relay.connection
     @async_safe
@@ -242,6 +253,7 @@ class SessionQuery:
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
         runnable_ids: Optional[list[GlobalID]] = None,
+        root_only: Optional[bool] = None,
         query: Optional[SearchQuery] = None,
         sort: Optional[list[SearchSort]] = None,
         after: Optional[str] = None,
@@ -261,9 +273,11 @@ class SessionQuery:
             query &= Q(QueryOp.EQUALS, "run_id", run_id)
         if runnable_ids:
             query &= Q(QueryOp.IN, "runnable_id", runnable_ids)
+        if root_only:
+            query &= Q(QueryOp.DOES_NOT_EXIST, "parent_id")
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
-            type=mirror.DocumentType.RECORD,
+            type=mirror.DocumentType.RUN,
             project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
@@ -324,7 +338,7 @@ class SessionQuery:
             query &= Q(QueryOp.EQUALS, "runnable_id", runnable_ids)
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
-            type=mirror.DocumentType.RECORD,
+            type=mirror.DocumentType.LOG_ENTRY,
             project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,

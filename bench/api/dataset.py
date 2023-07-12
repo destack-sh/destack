@@ -14,7 +14,8 @@ from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import CrudModel, Revisioned, ThingBatch, to_global_id, SearchQuery, SearchSort
+from bench.api.utils import CrudModel, Revisioned, SearchQuery, SearchSort, ThingBatch, to_global_id
+from bench.bench import Q, Query, QueryOp
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -279,16 +280,19 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
+        query = query.to_dsl() if query else None
+        query = Query.and_if_set(
+            Q(QueryOp.EQUALS, "backend_id", statement.dataset.backend_id), query
+        )
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
-            type=mirror.DocumentType.RECORD,
-            project_version_id=str(statement.project_version_id),
-            backend_ids=[statement.dataset.backend_id],
+            type=None,  # already limited by dataset
+            project_version_id=None,  # already limited by dataset
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
             sort=[s.to_dsl() for s in sort] if sort else None,
-            query=query.to_dsl() if query else None,
+            query=query,
         )
 
         results = os_client.search(
