@@ -349,6 +349,8 @@ def document(
         partial_cls = dataclasses.dataclass(partial_cls, repr=False)
         cls.Partial = partial_cls
         if _type is not None:
+            if not isinstance(_type, str):
+                raise TypeError(f"_type must be a string, not {_type!r}: {_type}")
             cls.__type__ = _type
         cls.__store_type__ = store_type
         return cls

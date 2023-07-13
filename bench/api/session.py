@@ -159,7 +159,7 @@ class LogEntry:
     def from_os(log_entry: mirror.LogEntry) -> "LogEntry":
         return LogEntry(
             id=to_global_id("LogEntry", log_entry.id),
-            project_version_id=to_global_id("ProjectVersion", log_entry.module_id),
+            project_version_id=to_global_id("ProjectVersion", log_entry.project_version_id),
             created_at=log_entry.created_at,
             stream=log_entry.stream,
             level=log_entry.level,
@@ -353,11 +353,11 @@ class SessionQuery:
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
         query = query.to_dsl() if query else None
         if session_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", str(session_id)))
         if run_id:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", str(run_id)))
         if runnable_ids:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", str(runnable_ids)))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.LOG_ENTRY,
@@ -408,7 +408,7 @@ class SessionSubscription:
         self,
         info: Info,
         project_id: GlobalID,
-        project_version_id: Optional[GlobalID],
+        project_version_id: Optional[GlobalID] = None,
     ) -> AsyncGenerator[SessionChange, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
@@ -439,10 +439,10 @@ class SessionSubscription:
         self,
         info: Info,
         project_id: GlobalID,
-        project_version_id: Optional[GlobalID],
-        session_id: Optional[GlobalID],
-        run_id: Optional[GlobalID],
-        runnable_ids: Optional[list[GlobalID]],
+        project_version_id: Optional[GlobalID] = None,
+        session_id: Optional[GlobalID] = None,
+        run_id: Optional[GlobalID] = None,
+        runnable_ids: Optional[list[GlobalID]] = None,
     ) -> AsyncGenerator[LogChange, None]:
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
@@ -460,6 +460,8 @@ class SessionSubscription:
             return
 
         def _filter_log(log: wire.LogEntryData) -> bool:
+            if project_version_id and log.module_id != project_version_id:
+                return False
             if session_id and log.session_id != session_id:
                 return False
             if run_id and log.run_id != run_id:
@@ -474,7 +476,7 @@ class SessionSubscription:
         )
         while True:
             msg: NMessage[LogsChangedPayload] = await logs_sub.next_msg()
-            logs = [LogEntry.from_data(l) for l in msg.p.logs if _filter_log(l)]
+            logs = [LogEntry.from_data(e) for e in msg.p.logs if _filter_log(e)]
             if not logs:
                 continue
             log.debug("logs.update", msg=msg, logs=len(logs))

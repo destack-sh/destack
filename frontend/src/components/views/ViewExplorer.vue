@@ -136,7 +136,7 @@ watch(
               @navigate-up="fileExplorer?.focus('last')"
               @navigate-down="fileExplorer?.focus('first')"
             />
-            <!-- <span v-else class="text-red-500">panic!</span> -->
+            <!-- <span v-else class="text-red-600">panic!</span> -->
           </FadeTransition>
         </div>
       </div>

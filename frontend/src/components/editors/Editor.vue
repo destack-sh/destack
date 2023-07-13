@@ -64,6 +64,6 @@ defineExpose({
     @close="bench.closeEditor(editor)"
   />
   <div v-else class="h-full w-full text-center">
-    <span class="text-red-500">cannot render editor of type {{ editor.type }}</span>
+    <span class="text-red-600">cannot render editor of type {{ editor.type }}</span>
   </div>
 </template>

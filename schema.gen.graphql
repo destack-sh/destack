@@ -1801,8 +1801,8 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID): SessionChange!
-  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID, sessionId: GlobalID, runId: GlobalID, runnableIds: [GlobalID!]): LogChange!
+  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChange!
+  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null): LogChange!
 }
 
 input SymbolUpdateCodeInput {
