@@ -8,13 +8,11 @@ import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { RUN_TERMINAL_STATES, isMostlyCached, getCachedPercentage, useCurrentSessions } from "@/state/session";
-import { TypeFlag, newRunId } from "@/state/module";
+import { TypeFlag, newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { useStatementContext } from "@/state/statement";
 import {
-  ChevronDoubleDownIcon,
-  ChevronDoubleUpIcon,
   PlayIcon,
   StopIcon,
   ArrowDownRightIcon,
@@ -26,7 +24,7 @@ import {
   EyeSlashIcon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
-import { nextTick, computed, ref, toRef, type Ref } from "vue";
+import { nextTick, computed, ref, type Ref } from "vue";
 import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
@@ -59,8 +57,10 @@ const numCodeLines = computed(() => code.value.split("\n").length);
 
 const lastRunLocal: Ref<Run | null> = ref(null); // triggered in this client session
 const lastRunLocalId: Ref<string | null> = ref(null); // same but optimistic id
+const lastSessionLocalId: Ref<string | null> = ref(null); // same but optimistic id
 const lastRun = computed(() => lastRunLocal.value ?? runs.value[0]);
 const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? null);
+const lastSessionId = computed(() => lastSessionLocalId.value ?? lastRun.value?.session.id ?? null);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
@@ -164,6 +164,7 @@ async function run() {
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
     lastRunLocalId.value = newRunId();
+    lastSessionLocalId.value = newSessionId();
     // optimistically set last run local
     lastRunLocal.value = {
       id: lastRunLocalId.value,
@@ -187,7 +188,7 @@ async function run() {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is exact same as in editor
-    const ret = await ops.runtime.run(context.statement.value.id, lastRunLocalId.value);
+    const ret = await ops.runtime.run(context.statement.value.id, lastRunLocalId.value, lastSessionLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",
@@ -342,13 +343,18 @@ defineExpose({
     :class="['max-h-[300px] overflow-y-auto']"
     :key="lastRun.id"
   >
+    <span v-if="!showError && logsTileRef?.logs?.length == 0" class="w-full text-gray-400">No output</span>
     <LogsTile
       ref="logsTileRef"
       v-if="!showError"
-      v-show="!logsTileRef?.loading"
+      v-show="!logsTileRef?.loading && (logsTileRef?.logs?.length ?? 1) > 0"
       :project-id="(bench.projectId as string)"
       :project-version-id="(bench.projectVersionId as string)"
-      :run-id="lastRun.id"
+      :session-id="lastSessionId"
+      :focus="{
+        runnableIds: [context.statement.value.id],
+      }"
+      lowlight
       live
       :limit="500"
     />

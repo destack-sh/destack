@@ -222,6 +222,22 @@ watch(
   { deep: false }
 );
 
+// blur statement interface if focused in container but no longer editing or focused
+watch(
+  () => [isEditing.value, inStatementFocused.value],
+  () => {
+    if (!isEditing.value && inStatementFocused.value) {
+      // it can take a frame for focus to take effect, so we wait a frame before blurring
+      // (otherwise we may cancel focus before it happens)
+      nextTick(() => {
+        if (!isEditing.value && inStatementFocused.value) {
+          statementRef.value?.blur();
+        }
+      });
+    }
+  }
+);
+
 const altKeyState = useKeyModifier("Alt");
 const shiftKeyState = useKeyModifier("Shift");
 // cancel focus if clicked outside this statement in our editor (unless alt/shift is pressed)
@@ -318,14 +334,14 @@ async function onDrop(thing: File[] | { type: string; id: string } | null) {
     if (
       thing.id == statement.value.id ||
       targetStatement == null ||
-      nav?.value?.isDescendantOf(targetStatement, statement.value) ||
-      nav?.value?.isDescendantOf(statement.value, targetStatement)
+      nav?.value?.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
+      nav?.value?.isDescendantOf(statement.value as StatementHeader, targetStatement)
     ) {
       return;
     }
     const dropLocation = dragInTopHalf.value
-      ? nav?.value?.getLocationRightAbove(statement.value)
-      : nav?.value?.getLocationRightBelow(statement.value);
+      ? nav?.value?.getLocationRightAbove(statement.value as StatementHeader)
+      : nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
     console.log("drop move statement", thing, dropLocation);
     await nav?.value?.moveTo(targetStatement as StatementHeader, dropLocation);
   } else {

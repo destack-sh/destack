@@ -407,9 +407,13 @@ export function useNavigation() {
 }
 
 export function newRunId(): string {
-  /* Generates a new statement global id (as in relay) with a new uuid4 */
   const nodeId = uuidv4();
   return btoa(`Run:${nodeId}`);
+}
+
+export function newSessionId(): string {
+  const nodeId = uuidv4();
+  return btoa(`Session:${nodeId}`);
 }
 
 export function getSymbolSubtype(statement: {

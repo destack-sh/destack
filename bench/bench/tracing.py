@@ -6,6 +6,7 @@ from collections import deque
 from contextvars import ContextVar
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Optional
+from uuid import UUID
 
 import pytz
 import structlog
@@ -339,6 +340,7 @@ class RunTracer(Tracer):
         self.stacktrace = []
         self._track = track
         self.runs = {}
+        self._cvar_tokens: dict[UUID, Any] = {}
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
@@ -422,7 +424,7 @@ class RunTracer(Tracer):
             runnable=statement, inputs=strip_py_value(inputs, statement, is_output=False)
         )
         self.stacktrace.append(frame)
-        _active_run.set(frame)
+        self._cvar_tokens[frame.id] = _active_run.set(frame)
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
 
@@ -433,7 +435,7 @@ class RunTracer(Tracer):
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
-            _active_run.set(None)
+            _active_run.reset(self._cvar_tokens.pop(frame.id))
         logger.debug("trace.run.exit", frame=frame, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: Runnable, exception: Exception):
@@ -443,7 +445,7 @@ class RunTracer(Tracer):
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
-            _active_run.set(None)
+            _active_run.reset(self._cvar_tokens.pop(frame.id))
         logger.debug("trace.run.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def run_cached(

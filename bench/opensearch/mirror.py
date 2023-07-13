@@ -459,7 +459,8 @@ class Run(os.Document):
     status: str = os.field(os.FT.KEYWORD)
     inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
-    error: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
+    # both error and metadata aren't used yet, need to figure out a way to get their types..
+    error: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
     metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
 
@@ -469,7 +470,6 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         return models.Run(
             id=mirror.id,
             project_version_id=mirror.project_version_id,
-            worker_id=mirror.worker_id,
             session_id=mirror.session_id,
             runnable_id=mirror.runnable_id,
             created_at=mirror.created_at,
@@ -479,10 +479,12 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             status=mirror.status,
             inputs=mirror.inputs,
             outputs=mirror.outputs,
+            error=None,
             metadata=mirror.metadata,
         )
 
     def pack(self, mirror: Run) -> wire.RunData:
+        runnable_type = wire.StatementType(mirror.runnable_type) if mirror.runnable_type else None
         return wire.RunData(
             id=mirror.id,
             module_id=mirror.project_version_id,
@@ -491,9 +493,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             root_id=mirror.root_id,
             parent_id=mirror.parent_id,
             runnable_id=mirror.runnable_id,
-            runnable_type=wire.StatementType(mirror.runnable_type)
-            if mirror.runnable_type
-            else None,
+            runnable_type=runnable_type,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
             started_at=mirror.started_at,
@@ -501,7 +501,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             status=wire.RunStatus(mirror.status),
             inputs=mirror.inputs,
             outputs=mirror.outputs,
-            error=mirror.error,
+            error=None,
             metadata=mirror.metadata,
             # not great but we'll fix this when it's moved into metadata
             cached_duration=None,
@@ -531,7 +531,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
-            error=data.error,
+            error=None,
             metadata=data.metadata,
         )
 
