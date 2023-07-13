@@ -1516,6 +1516,8 @@ class RunData:
     session_id: UUID
     root_id: UUID
     parent_id: Optional[UUID]
+    created_at: datetime
+    updated_at: datetime
     started_at: datetime
     terminated_at: Optional[datetime]
     status: RunStatus
@@ -1561,6 +1563,8 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             session_id=object.session.id,
             root_id=object.root.id if object.root else None,
             parent_id=object.parent.id if object.parent else None,
+            created_at=object.created_at,
+            updated_at=object.updated_at,
             started_at=object.started_at,
             terminated_at=object.terminated_at,
             status=object.status,
@@ -1594,6 +1598,8 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             session=None,
             parent=None,
             runnable=runnable,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             status=data.status,

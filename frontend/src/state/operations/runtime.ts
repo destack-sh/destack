@@ -81,6 +81,9 @@ export function useRuntimeOps() {
                 }
               }
             }
+            logs {
+              ...LogEntryContent
+            }
           }
         }
       }

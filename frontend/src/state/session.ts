@@ -101,7 +101,7 @@ export function _useSessions(
   // init from initial query
   const currentRuns = ref<Record<string, any>>({});
   onInitialLoaded((result) => {
-    if (result?.data.currentRuns?.__typename == "SessionState" && result.data.currentRuns.runs != null) {
+    if (result?.data?.currentRuns?.__typename == "SessionState" && result.data.currentRuns.runs != null) {
       for (const run of result.data.currentRuns.runs.map((r) => useFragment(RunContentType, r))) {
         currentRuns.value[run.id] = run;
       }
@@ -183,7 +183,7 @@ export function useRuns(
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
   },
-  options: {
+  options?: {
     live?: boolean;
     limit?: number;
     count?: boolean;
@@ -191,6 +191,16 @@ export function useRuns(
 ) {
   filter = wrapValueRefs(filter);
 
+  const combinedVariables = computed(() => ({
+    projectId: filter.projectId.value,
+    projectVersionId: filter.projectVersionId.value,
+    runnableIds: filter.runnableIds.value,
+    sessionId: filter.sessionId.value,
+    runId: filter.runId.value,
+    rootOnly: filter.rootOnly.value,
+    limit: options?.limit,
+    count: options?.count,
+  }));
   const RUNS_QUERY = graphql(/* GraphQL */ `
     query runs(
       $projectId: GlobalID!
@@ -199,6 +209,8 @@ export function useRuns(
       $sessionId: GlobalID
       $runId: GlobalID
       $rootOnly: Boolean!
+      $limit: Int
+      $count: Boolean
     ) {
       runs(
         projectId: $projectId
@@ -207,6 +219,8 @@ export function useRuns(
         sessionId: $sessionId
         runId: $runId
         rootOnly: $rootOnly
+        limit: $limit
+        count: $count
       ) {
         totalCount
         pageInfo {
@@ -224,33 +238,25 @@ export function useRuns(
       }
     }
   `);
-  const { result: initialResult, loading: initialLoading } = useQuery(
-    RUNS_QUERY,
-    {
-      ...filter,
-      limit: options.limit,
-      count: options.count,
-    } as any,
-    {
-      enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
-    }
-  );
+  const { result: result, loading: initialLoading } = useQuery(RUNS_QUERY, combinedVariables as any, {
+    enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
+  });
 
   const client = useApolloClient();
-  if (options.live) {
+  if (options?.live) {
     const sessions = useCurrentSessions();
     const unsub = sessions.onRunChange((run) => {
       if (
-        (filter.projectVersionId.value != null && run.projectVersion?.id === filter.projectVersionId.value) ||
-        (filter.runnableIds.value != null && filter.runnableIds.value.includes(run.runnable?.id ?? "")) ||
-        (filter.sessionId.value != null && run.session?.id === filter.sessionId.value)
+        (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
+        (filter.runnableIds.value != null && !filter.runnableIds.value.includes(run.runnable?.id ?? "")) ||
+        (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value)
       ) {
         return;
       }
       client.client.cache.updateQuery(
         {
           query: RUNS_QUERY,
-          variables: { ...filter, limit: options.limit, count: options.count } as any,
+          variables: combinedVariables.value as any,
         },
         (prev) => {
           return {
@@ -264,20 +270,30 @@ export function useRuns(
 
   return {
     loading: initialLoading,
-    runs: computed(() => initialResult.value?.runs.edges.map((e) => useFragment(RunContentType, e.node))),
+    totalCount: computed(() => result.value?.runs.totalCount),
+    runs: computed(() => result.value?.runs.edges.map((e) => useFragment(RunContentType, e.node))),
   };
 }
 
 export function useLogs(
   filter: {
-    projectId: Ref<string | null>;
+    projectId: Ref<string | null | undefined>;
     projectVersionId: Ref<string | null | undefined>;
-    runnableIds: Ref<string[] | null>;
-    sessionId: Ref<string | null>;
-    runId: Ref<string | null>;
+    runnableIds: Ref<string[] | null | undefined>;
+    sessionId: Ref<string | null | undefined>;
+    runId: Ref<string | null | undefined>;
   },
-  options: { live: boolean; limit: number }
+  options?: { live?: boolean; limit?: number; count?: boolean }
 ) {
+  const combinedVariables = computed(() => ({
+    projectId: filter.projectId.value,
+    projectVersionId: filter.projectVersionId.value,
+    runnableIds: filter.runnableIds.value,
+    sessionId: filter.sessionId.value,
+    runId: filter.runId.value,
+    limit: options?.limit,
+    count: options?.count,
+  }));
   const LOGS_QUERY = graphql(/* GraphQL */ `
     query logs(
       $projectId: GlobalID!
@@ -285,6 +301,8 @@ export function useLogs(
       $runnableIds: [GlobalID!]
       $sessionId: GlobalID
       $runId: GlobalID
+      $limit: Int
+      $count: Boolean
     ) {
       logs(
         projectId: $projectId
@@ -292,6 +310,8 @@ export function useLogs(
         runnableIds: $runnableIds
         sessionId: $sessionId
         runId: $runId
+        limit: $limit
+        count: $count
       ) {
         totalCount
         pageInfo {
@@ -313,19 +333,12 @@ export function useLogs(
     result: initialResult,
     loading: initialLoading,
     subscribeToMore,
-  } = useQuery(
-    LOGS_QUERY,
-    {
-      ...filter,
-      limit: options.limit,
-    } as any,
-    {
-      enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
-    }
-  );
+  } = useQuery(LOGS_QUERY, combinedVariables.value, {
+    enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
+  });
 
   const client = useApolloClient();
-  if (options.live) {
+  if (options?.live) {
     subscribeToMore({
       document: graphql(/* GraphQL */ `
         subscription logsChanged(
@@ -369,7 +382,7 @@ export function useLogs(
     client.client.cache.updateQuery(
       {
         query: LOGS_QUERY,
-        variables: { ...filter, limit: options.limit },
+        variables: combinedVariables.value,
       },
       (prev) => {
         return {
@@ -380,6 +393,7 @@ export function useLogs(
   }
 
   return {
+    loading: initialLoading,
     logs: computed(() => initialResult.value?.logs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
     addLogs,
   };

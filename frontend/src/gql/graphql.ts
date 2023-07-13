@@ -3897,6 +3897,9 @@ export type RunMutation = {
             }> | null;
           } | null;
         } | null;
+        logs?: Array<
+          { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
+        > | null;
       };
 };
 
@@ -4899,6 +4902,8 @@ export type RunsQueryVariables = Exact<{
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   rootOnly: Scalars["Boolean"];
+  limit?: InputMaybe<Scalars["Int"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type RunsQuery = {
@@ -4927,6 +4932,8 @@ export type LogsQueryVariables = Exact<{
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
 export type LogsQuery = {
@@ -10528,6 +10535,14 @@ export const RunDocument = {
                           ],
                         },
                       },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "logs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "LogEntryContent" } }],
+                        },
+                      },
                     ],
                   },
                 },
@@ -10537,6 +10552,7 @@ export const RunDocument = {
         ],
       },
     },
+    ...LogEntryContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;
 export const CancelDocument = {
@@ -14915,6 +14931,16 @@ export const RunsDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "count" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -14952,6 +14978,16 @@ export const RunsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "rootOnly" },
                 value: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "count" },
+                value: { kind: "Variable", name: { kind: "Name", value: "count" } },
               },
             ],
             selectionSet: {
@@ -15034,6 +15070,16 @@ export const LogsDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "count" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -15066,6 +15112,16 @@ export const LogsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "runId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "count" },
+                value: { kind: "Variable", name: { kind: "Name", value: "count" } },
               },
             ],
             selectionSet: {

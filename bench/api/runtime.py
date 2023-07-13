@@ -134,7 +134,7 @@ class RuntimeMutation:
             {"project_version_id": str(project_version_id), "success": success, "error": error},
         )
         run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
-        logs = [packer.unpack_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
+        logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,

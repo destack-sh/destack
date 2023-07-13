@@ -70,6 +70,7 @@ class RunJob:
     session: Session = None
     arguments: dict[str, Any] = None
     run: Optional[Run] = None
+    logs: Optional[list[LogEntry]] = None
     error: Optional[RunError] = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
@@ -281,6 +282,7 @@ class ModuleWorker(ModuleWriter):
                 await self.do_run(job, self.timeout)
                 if job.session.tracer.run.runs:
                     job.run = job.session.tracer.run.runs[job.id]
+                    job.logs = job.session.tracer.cached_logs[:50]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)
@@ -404,7 +406,8 @@ class SandboxedWorker:
             if msg.p.block:
                 await run_job.terminated.wait()
             run = wire.pack_data(run_job.run) if run_job.run else None
-            rep = RepRunPayload(error=run_job.error, run=run, run_id=run_job.id)
+            logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
+            rep = RepRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
             await msg.reply(rep)
 
     @message_handler

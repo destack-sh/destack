@@ -446,8 +446,12 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
 class Run(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: UUID = os.field(os.FT.KEYWORD)
     runnable_type: str = os.field(os.FT.KEYWORD)
+    created_at: datetime = os.field(os.FT.DATE)
+    updated_at: datetime = os.field(os.FT.DATE)
     started_at: Optional[datetime] = os.field(os.FT.DATE)
     terminated_at: Optional[datetime] = os.field(os.FT.DATE)
     duration: Optional[float] = os.field(os.FT.FLOAT)
@@ -459,11 +463,32 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
+    def unmirror(self, mirror: Run) -> models.Run:
+        return models.Run(
+            id=mirror.id,
+            project_version_id=mirror.project_version_id,
+            session_id=mirror.session_id,
+            runnable_id=mirror.runnable_id,
+            created_at=mirror.created_at,
+            updated_at=mirror.updated_at,
+            started_at=mirror.started_at,
+            terminated_at=mirror.terminated_at,
+            status=mirror.status,
+            inputs=mirror.inputs,
+            outputs=mirror.outputs,
+            metadata=mirror.metadata,
+        )
+
     def pack(self, mirror: Run) -> wire.RunData:
         return wire.RunData(
             id=mirror.id,
+            module_id=mirror.project_version_id,
+            session_id=mirror.session_id,
+            root_id=mirror.root_id,
             parent_id=mirror.runnable_id,
             parent_type=mirror.runnable_type,
+            created_at=mirror.created_at,
+            updated_at=mirror.updated_at,
             started_at=mirror.started_at,
             terminated_at=mirror.terminated_at,
             duration=mirror.duration,
@@ -481,9 +506,13 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         return Run(
             id=data.id,
             project_version_id=project_v.id,
-            session_id=None,
+            session_id=data.session_id,
+            root_id=data.root_id,
+            parent_id=data.parent_id,
             runnable_id=data.runnable_id,
             runnable_type=data.runnable_type,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             duration=duration,
