@@ -53,7 +53,7 @@ def document(type: DocumentType, *, store_type: bool = True):
     """Decorator to register a Document subclass."""
 
     def decorator(cls):
-        cls = os.document(cls, type, store_type=store_type)
+        cls = os.document(cls, type.value, store_type=store_type)
         if type in DOCUMENT_CLASS_BY_TYPE:
             raise ValueError(
                 f"document already registered for {type}: {DOCUMENT_CLASS_BY_TYPE[type]}"
@@ -543,6 +543,10 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
     def pack(self, mirror: LogEntry) -> wire.LogEntryData:
         return wire.LogEntryData(
             id=mirror.id,
+            module_id=mirror.project_version_id,
+            worker_id=mirror.worker_id,
+            session_id=mirror.session_id,
+            run_id=mirror.run_id,
             runnable_id=mirror.runnable_id,
             created_at=mirror.created_at,
             stream=mirror.stream,
@@ -558,9 +562,9 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
         return LogEntry(
             id=data.id,
             project_version_id=project_v.id,
-            worker_id=None,
-            session_id=None,
-            run_id=None,
+            worker_id=data.worker_id,
+            session_id=data.session_id,
+            run_id=data.run_id,
             runnable_id=data.runnable_id,
             created_at=data.created_at,
             stream=data.stream,

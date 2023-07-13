@@ -5,7 +5,7 @@ import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQue
 import { wrapValueRefs } from "@/utils/functools";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 
@@ -240,6 +240,7 @@ export function useRuns(
   `);
   const { result: result, loading: initialLoading } = useQuery(RUNS_QUERY, combinedVariables as any, {
     enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
+    fetchPolicy: "network-only",
   });
 
   const client = useApolloClient();
@@ -277,7 +278,7 @@ export function useRuns(
 
 export function useLogs(
   filter: {
-    projectId: Ref<string | null | undefined>;
+    projectId: Ref<string>;
     projectVersionId: Ref<string | null | undefined>;
     runnableIds: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null | undefined>;
@@ -285,6 +286,7 @@ export function useLogs(
   },
   options?: { live?: boolean; limit?: number; count?: boolean }
 ) {
+  filter = wrapValueRefs(filter);
   const combinedVariables = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
@@ -297,7 +299,7 @@ export function useLogs(
   const LOGS_QUERY = graphql(/* GraphQL */ `
     query logs(
       $projectId: GlobalID!
-      $projectVersionId: GlobalID!
+      $projectVersionId: GlobalID
       $runnableIds: [GlobalID!]
       $sessionId: GlobalID
       $runId: GlobalID
@@ -333,8 +335,8 @@ export function useLogs(
     result: initialResult,
     loading: initialLoading,
     subscribeToMore,
-  } = useQuery(LOGS_QUERY, combinedVariables.value, {
-    enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) as any,
+  } = useQuery(LOGS_QUERY, combinedVariables as any, {
+    fetchPolicy: "network-only",
   });
 
   const client = useApolloClient();
@@ -343,7 +345,7 @@ export function useLogs(
       document: graphql(/* GraphQL */ `
         subscription logsChanged(
           $projectId: GlobalID!
-          $projectVersionId: GlobalID!
+          $projectVersionId: GlobalID
           $runnableIds: [GlobalID!]
           $sessionId: GlobalID
           $runId: GlobalID
@@ -361,13 +363,7 @@ export function useLogs(
           }
         }
       `),
-      variables: {
-        projectId: filter.projectId,
-        projectVersionId: filter.projectVersionId,
-        runnableIds: filter.runnableIds,
-        sessionId: filter.sessionId,
-        runId: filter.runId,
-      },
+      variables: combinedVariables as any,
       updateQuery: (prev, { subscriptionData }) => {
         if (!subscriptionData.data) return prev;
         const logs = subscriptionData.data.logsChanged.logs.map((l) => useFragment(LogEntryContentType, l));

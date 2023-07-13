@@ -128,6 +128,7 @@ class _ContextRedirectedStream:
         ret = self.native.write(data)
         track = self.contextvar.get()
         if track and (data != "\n" or self._just_saw_newline):
+            # TODO @Robustness: figure out better way of collecting stdout/stderr
             # ignore default newline after every print
             track(data)
         self._just_saw_newline = data == "\n"
@@ -322,7 +323,7 @@ class SessionTracer(Tracer):
             tracer.run_cached(statement, inputs, result, generated_at, duration)
 
 
-_active_run: ContextVar[Run | None] = ContextVar("_active_run")
+_active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
 
 
 class RunTracer(Tracer):

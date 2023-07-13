@@ -60,5 +60,8 @@ export function getUpdatedConnectionQueryMany<T>(
   prev: Connection<T> | undefined,
   maxLength?: number
 ): Connection<T> {
-  return nodes.reduce((prev, node) => getUpdatedConnectionQuery(node, prev, maxLength), prev) as Connection<T>;
+  return nodes
+    .slice()
+    .reverse()
+    .reduce((prev, node) => getUpdatedConnectionQuery(node, prev, maxLength), prev) as Connection<T>;
 }

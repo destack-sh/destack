@@ -30,6 +30,7 @@ import { nextTick, computed, ref, toRef, type Ref } from "vue";
 import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
+import { useActiveScroll } from "@/composables/useScroll";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -64,16 +65,15 @@ const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? nu
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
+const outputRef = ref<HTMLDivElement | null>(null);
 const logsTileRef: Ref<InstanceType<typeof LogsTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const hideOutput = ref(true);
+const showOutput = ref(false);
 const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
-const showError = computed(
-  () => lastRun.value != null && lastRun.value.status == RunStatus.Failed && !hideOutput.value
-);
+const showError = computed(() => lastRun.value != null && lastRun.value.status == RunStatus.Failed && showOutput.value);
 
 const runActive = computed(
   () =>
@@ -81,6 +81,8 @@ const runActive = computed(
     ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
     (lastRun.value != null && !RUN_TERMINAL_STATES.includes(lastRun.value?.status))
 );
+
+useActiveScroll(outputRef);
 
 function unfoldIfFolded() {
   if (props.folded) emit("toggleFold");
@@ -141,12 +143,11 @@ const extraActions = computed(() => {
     });
   } else {
     inlineActions.push({
-      label: hideOutput.value ? "Show output" : "Hide output",
+      label: showOutput.value ? "Hide output" : "Show output",
       disabled: lastRun.value == null,
-      icon: hideOutput.value ? EyeSlashIcon : EyeIcon,
+      icon: showOutput.value ? EyeIcon : EyeSlashIcon,
       action: async () => {
-        // TODO @Feature: clear run for real?
-        hideOutput.value = !hideOutput.value;
+        showOutput.value = !showOutput.value;
       },
       hideInline: props.folded,
     });
@@ -180,7 +181,7 @@ async function run() {
       error: null,
     } as Run;
     cancelled.value = false;
-    hideOutput.value = false;
+    showOutput.value = true;
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
     try {
       await codeSync.flushNow(); // flush any pending changes to the code (which is debounced)
@@ -332,14 +333,22 @@ defineExpose({
     class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
     :class="[showError ? '' : 'rounded-b-sm']"
   />
-  <!-- Last output/error (if any) -->
+  <!-- Last output: logs/error -->
   <div
-    v-if="!hasTypes && lastRun != null && !folded"
+    ref="outputRef"
+    v-if="!hasTypes && lastRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
-    :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
+    :class="[truncateOutput ? 'max-h-[300px] overflow-y-auto' : '']"
     :key="lastRun.id"
   >
-    <LogsTile ref="logsTileRef" v-if="!showError" :project-id="(bench.projectId as string)" :run-id="lastRun.id" live />
+    <LogsTile
+      ref="logsTileRef"
+      v-if="!showError"
+      :project-id="(bench.projectId as string)"
+      :run-id="lastRun.id"
+      live
+      :limit="500"
+    />
     <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun">
       <!-- If truncating, button overlay with fade gradient -->
       <button

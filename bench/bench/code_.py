@@ -346,7 +346,7 @@ STATIC_BUILTINS: dict[str, Any] = {
     "last": last,
     "chain": itertools.chain,
 }
-DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "random"}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "random", "self"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 
