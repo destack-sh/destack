@@ -14,6 +14,7 @@ from bench.bench.core import Scope, Statement, node
 from bench.bench.model import Model
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
+from bench.bench.utils import Runnable
 from bench.utils.utils import DotDict, DotList
 
 
@@ -55,7 +56,7 @@ class LimitExceededError(TaskError):
 
 
 @node(tracked=["description"])
-class Task(HasType, HasTags, Statement):
+class Task(HasType, HasTags, Runnable, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK

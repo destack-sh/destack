@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.bench.core import Module, Session, Statement, StatementType
-from bench.bench.query import Query, Sort
+from bench.bench.query import Query, Sort, SortOrder
 from bench.bench.reflect import reflect_enum, reflect_struct
 from bench.bench.search import Search
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
@@ -143,7 +143,7 @@ class RunCodeFrame:
 
     @staticmethod
     def clean(
-        stack: list["RunCodeFrame"], from_code: "Code", session: "Session"
+        stack: list["RunCodeFrame"], from_statement: "Statement", session: "Session"
     ) -> list["RunCodeFrame"]:
         from bench.bench.code_ import Code
 
@@ -153,7 +153,6 @@ class RunCodeFrame:
             if isinstance(symbol, Code) and symbol._transform is not None
         }
 
-        transform = from_code._transform
         found_start = False
         cleaned_stack = []
         for frame in stack:
@@ -163,16 +162,16 @@ class RunCodeFrame:
                 # impute bench source info into instantiated code callables
                 code = code_by_method.get(frame.name)
                 if code is not None:
-                    if code == from_code:
+                    if code == from_statement:
                         found_start = True
                     elif not found_start:
                         continue  # ignore
                     frame.filename = to_pyidentifier_multi(
-                        from_code.file.name, from_code.name, type=IdentifierType.PATH
+                        from_statement.file.name, from_statement.name, type=IdentifierType.PATH
                     )
-                    frame.name = from_code.name
-                    frame.line = transform.transformed_code.splitlines()[frame.lineno - 1]
-                    frame.lineno = frame.lineno - transform.start_offset
+                    frame.name = from_statement.name
+                    frame.line = code._transform.transformed_code.splitlines()[frame.lineno - 1]
+                    frame.lineno = frame.lineno - code._transform.start_offset
                     frame.locals = frame.locals or {}
                     for ident, var in code._references.items():
                         if ident not in frame.locals and var.id in session.instances:
@@ -207,6 +206,20 @@ class RunError(Exception):  # can this really be a subclass of Exception?
     runnable: Optional[Statement] = None
     traceback: list[RunCodeFrame] = None
 
+    @staticmethod
+    def from_exception(e: Exception, runnable: Optional[Statement]) -> "RunError":
+        if isinstance(e, RunError):
+            return e
+        stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
+        stack = RunCodeFrame.clean(stack, runnable, runnable.session)
+        return RunError(
+            kind=RunErrorKind.RUNTIME,
+            type=type(e).__name__,
+            message=str(e),
+            runnable=runnable,
+            traceback=stack,
+        )
+
 
 # @reflect_struct("LogEntry", "A single log entry from a run")
 @dataclass
@@ -235,8 +248,7 @@ class RunSearch(Search["RunData", Run]):
         sort: list[Sort] | None,
         limit: Optional[int],
     ):
-        super().__init__(query, sort, limit)
-        self.module = module
+        super().__init__(module, query, sort, limit)
         self.runnables = runnables
 
     async def _do_search(
@@ -288,7 +300,7 @@ class RunSearch(Search["RunData", Run]):
             module=runnable.module,
             runnables=[runnable],
             query=None,
-            sort=[Sort("created_at", desc=True)],
+            sort=[Sort("created_at", SortOrder.DESCENDING)],
             limit=None,
         )
 
@@ -304,8 +316,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
         sort: list[Sort] | None,
         limit: Optional[int],
     ):
-        super().__init__(query, sort, limit)
-        self.module = module
+        super().__init__(module, query, sort, limit)
         self.runnables = runnables
 
     async def _do_search(
@@ -356,7 +367,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
             module=runnable.module,
             runnables=[runnable],
             query=None,
-            sort=[Sort("created_at", desc=True)],
+            sort=[Sort("created_at", SortOrder.DESCENDING)],
             limit=None,
         )
 

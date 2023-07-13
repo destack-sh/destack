@@ -318,7 +318,6 @@ class ReqSearch(abc.ABC):
 
 @dataclass
 class RepSearch(abc.ABC):
-    records: Optional[list[RecordData]]
     total: Optional[int]
     limit: int
     start_cursor: Optional[str] = None
@@ -330,7 +329,7 @@ class RepSearch(abc.ABC):
 class ReqSearchRecordPayload(ReqSearch):
     module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
-    backend_ids: Optional[list[UUID]] = None
+    backend_ids: Optional[list[str]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_RECORD)
@@ -341,7 +340,7 @@ class RepSearchRecordPayload(RepSearch):
 @payload(NMessageType.REQUEST_SEARCH_RUN)
 class ReqSearchRunPayload(ReqSearch):
     module_id: UUID = required_field()
-    runnable_ids: Optional[list[UUID]] = None
+    runnables_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_RUN)
@@ -352,7 +351,7 @@ class RepSearchRunPayload(RepSearch):
 @payload(NMessageType.REQUEST_SEARCH_LOG)
 class ReqSearchLogPayload(ReqSearch):
     module_id: UUID = required_field()
-    runnable_ids: Optional[list[UUID]] = None
+    runnables_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.REPLY_SEARCH_LOG)

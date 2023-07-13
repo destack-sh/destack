@@ -222,16 +222,6 @@ watch(
   { deep: false }
 );
 
-// blur statement interface if focused in container but no longer editing or focused
-watch(
-  () => [isEditing.value, inStatementFocused.value],
-  () => {
-    if (!isEditing.value && inStatementFocused.value) {
-      statementRef.value?.blur();
-    }
-  }
-);
-
 const altKeyState = useKeyModifier("Alt");
 const shiftKeyState = useKeyModifier("Shift");
 // cancel focus if clicked outside this statement in our editor (unless alt/shift is pressed)
@@ -271,10 +261,6 @@ function focusInEditor() {
 }
 
 function onClickContainer(e: MouseEvent) {
-  // ignore if alt was pressed :AltKeyEditing
-  if (e.altKey) {
-    return;
-  }
   // create selection to here if shift was pressed
   if (e.shiftKey && nav != null) {
     const index = nav?.value?.statementPositions[statement.value.id];
@@ -291,15 +277,6 @@ function onClickContainer(e: MouseEvent) {
       }
     }
     return;
-  }
-  if (!isFocused.value) {
-    focusInEditor();
-  }
-  if (!bench.readonly) {
-    nav?.value?.editor.editElement(statement.value);
-  }
-  if (!inContainerFocused.value) {
-    statementRef.value?.focus();
   }
 }
 

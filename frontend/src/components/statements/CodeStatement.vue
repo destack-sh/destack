@@ -70,7 +70,6 @@ const logsTileRef: Ref<InstanceType<typeof LogsTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const showOutput = ref(false);
-const truncateOutput = ref(true);
 const preparingRun = ref(false);
 const cancelled = ref(false);
 const showError = computed(() => lastRun.value != null && lastRun.value.status == RunStatus.Failed && showOutput.value);
@@ -149,7 +148,6 @@ const extraActions = computed(() => {
       action: async () => {
         showOutput.value = !showOutput.value;
       },
-      hideInline: props.folded,
     });
   }
 
@@ -200,7 +198,9 @@ async function run() {
     }
     if (ret?.data?.run.__typename == "RunState") {
       lastRunLocal.value = (ret.data.run.run as Run) ?? null;
-      logsTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
+      if (ret.data.run.logs != null) {
+        logsTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
+      }
     }
   }
 }
@@ -233,6 +233,7 @@ defineExpose({
 });
 </script>
 <template>
+  <!-- Header -->
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
     <div class="flex flex-row">
@@ -338,31 +339,19 @@ defineExpose({
     ref="outputRef"
     v-if="!hasTypes && lastRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
-    :class="[truncateOutput ? 'max-h-[300px] overflow-y-auto' : '']"
+    :class="['max-h-[300px] overflow-y-auto']"
     :key="lastRun.id"
   >
     <LogsTile
       ref="logsTileRef"
       v-if="!showError"
+      v-show="!logsTileRef?.loading"
       :project-id="(bench.projectId as string)"
+      :project-version-id="(bench.projectVersionId as string)"
       :run-id="lastRun.id"
       live
       :limit="500"
     />
-    <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun">
-      <!-- If truncating, button overlay with fade gradient -->
-      <button
-        v-if="truncateOutput"
-        class="group/truncate absolute bottom-0 left-0 flex h-12 w-full items-end justify-center bg-gradient-to-t from-white to-transparent pb-2"
-        @click="truncateOutput = false"
-      >
-        <span class="p-0.5 text-gray-400 group-hover/truncate:animate-bounce group-hover/truncate:text-gray-800">
-          <ChevronDoubleDownIcon class="h-4 w-4" />
-        </span>
-      </button>
-      <button v-else class="group/truncate flex w-full flex-row justify-center pt-0.5" @click="truncateOutput = true">
-        <ChevronDoubleUpIcon class="h-4 w-4 text-gray-400 group-hover/truncate:text-gray-800" />
-      </button>
-    </ErrorTraceback>
+    <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun" />
   </div>
 </template>

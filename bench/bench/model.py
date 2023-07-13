@@ -16,7 +16,7 @@ from bench.bench.const import StatementType
 from bench.bench.core import Scope, Statement, node
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import get_run_cache_key
+from bench.bench.utils import Runnable, get_run_cache_key
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -31,7 +31,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class Model(HasType, HasTags, Statement):
+class Model(HasType, HasTags, Runnable, Statement):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
@@ -43,6 +43,7 @@ class Model(HasType, HasTags, Statement):
     _key: typing.Optional[str] = None
 
     def _clear(self) -> None:
+        Scope._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
         self._key = None

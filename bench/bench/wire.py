@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import abc
 import dataclasses
-import re
-import traceback
 import typing
 from collections import OrderedDict, deque
 from dataclasses import dataclass, replace
@@ -1534,23 +1532,12 @@ class RunData:
 class RunPacker(DataPacker[RunData, lang.Run]):
     def pack(self, object: lang.Run) -> RunData:
         if object.error:
-            stack_summary = traceback.StackSummary.extract(
-                traceback.walk_tb(object.error.__traceback__), capture_locals=True
-            )
-            if isinstance(object.runnable, lang.Code):
-                stack = RunCodeFrame.from_stack(stack_summary)
-                stack = RunCodeFrame.clean(stack, object.runnable, session=object.session)
-            else:
-                stack = []
-            error_str = str(object.error)
-            # remove (source=...) from error message
-            error_str = re.sub(r"\(source=.+\)", "", error_str)
             error = RunErrorData(
                 kind=object.error.kind,
                 type=object.error.type,
-                message=error_str,
+                message=object.error.message,
                 runnable_id=object.runnable.id,
-                traceback=stack,
+                traceback=object.error.traceback,
             )
         else:
             error = None

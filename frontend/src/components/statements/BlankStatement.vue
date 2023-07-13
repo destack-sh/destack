@@ -162,7 +162,7 @@ defineExpose({
 });
 </script>
 <template>
-  <span class="flex flex-row items-center outline-none">
+  <span class="flex w-full flex-row items-center outline-none" @click="spanRef?.focus()">
     <EditableSpan
       ref="spanRef"
       v-if="!commanding"

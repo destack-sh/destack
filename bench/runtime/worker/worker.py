@@ -229,7 +229,6 @@ class ModuleWorker(ModuleWriter):
             task = asyncio.create_task(run(job.runnable, arguments, job.session))
             self.pending_runs[job.id] = task
             await asyncio.wait_for(task, timeout=timeout)
-            job.session.module.deactivate()
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
@@ -238,6 +237,7 @@ class ModuleWorker(ModuleWriter):
             self.log.exception("module.run.failed", exc_info=e, sentry=sentry_capture_if_enabled(e))
             return RunErrorType.INTERNAL_ERROR
         finally:
+            job.session.module.deactivate()
             if job.id in self.pending_runs:
                 del self.pending_runs[job.id]
 

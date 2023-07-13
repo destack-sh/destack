@@ -345,7 +345,7 @@ export function useLogs(
       document: graphql(/* GraphQL */ `
         subscription logsChanged(
           $projectId: GlobalID!
-          $projectVersionId: GlobalID
+          $projectVersionId: GlobalID!
           $runnableIds: [GlobalID!]
           $sessionId: GlobalID
           $runId: GlobalID

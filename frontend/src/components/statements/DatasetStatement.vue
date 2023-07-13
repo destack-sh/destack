@@ -787,7 +787,7 @@ defineExpose({
       <!-- Views (soon) -->
       <!-- Count -->
       <span v-if="!folded" class="ml-1 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
-      <StatementTags ref="tagsRef" class="ml-1.5 mt-0.5" />
+      <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Inline actions -->
     <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->

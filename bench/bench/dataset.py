@@ -14,15 +14,15 @@ from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, 
 from bench.bench.core import (
     HasCrud,
     HasSession,
+    Module,
     ModuleNode,
     Scope,
     Session,
     Statement,
     node,
-    Module,
 )
 from bench.bench.query import Query, Sort
-from bench.bench.search import Search, ElementT
+from bench.bench.search import ElementT, Search
 from bench.bench.tag import HasTags
 from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type, did_you_mean_str
@@ -224,7 +224,7 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
     ) -> "RecordSearch":
         """Searches this dataset remotely."""
-        return RecordSearch(self, query, sort, limit)
+        return RecordSearch(self.module, [self], query, sort, limit)
 
     def __getitem__(self, item: slice):
         if isinstance(item, slice):
@@ -246,7 +246,7 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
         return self.search(limit=limit)
 
     def __len__(self):
-        return len(self.search(limit=0))
+        return self.count()
 
     def __iter__(self):
         return iter(self.search())
@@ -274,11 +274,11 @@ class RecordSearch(Search["RecordData", Record]):
         sort: list[Sort],
         limit: Optional[int],
     ):
-        super().__init__(query, sort, limit)
+        super().__init__(module, query, sort, limit)
+        if not isinstance(datasets, list):
+            raise TypeError(f"datasets must be a list (not {type(datasets)}): {datasets}")
         self.module = module
         self.datasets = datasets
-        # cache
-        self._total: Optional[int] = None
 
     def __str__(self):
         return f"{self.datasets} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
@@ -291,15 +291,11 @@ class RecordSearch(Search["RecordData", Record]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import (
-            NMessageType,
-            ReqSearchRecordPayload,
-            RepSearchRecordPayload,
-        )
+        from bench.msg.messages import NMessageType, RepSearchRecordPayload, ReqSearchRecordPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
-            statement_ids = [dataset.statement_id for dataset in self.datasets]
+            statement_ids = [dataset.id for dataset in self.datasets]
             backend_ids = [dataset.backend_id for dataset in self.datasets]
         else:
             statement_ids = None
@@ -359,13 +355,6 @@ class RecordSearch(Search["RecordData", Record]):
 
     def values_map(self, func: MapFunction) -> list[Any]:
         return [func(record) for record in self]
-
-    def count(self):
-        if self._total is not None:
-            return self._total
-        rep = self.module.session.async_to_sync(self._do_search)(limit=0, count=True)
-        self._total = rep.payload.total
-        return self._total
 
     def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
         """Maps the filtered records with the given function."""
@@ -436,6 +425,7 @@ class Value(HasType, HasTags, Statement):
     _instantiated: bool = True
 
     def _clear(self) -> None:
+        Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
         self.deactivate()

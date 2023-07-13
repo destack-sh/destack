@@ -22,7 +22,7 @@ context.syncName(
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
 
-const altKeyState = useKeyModifier("Alt");
+const altKey = useKeyModifier("Alt");
 const editor = useEditorContext();
 
 function openInEditor() {
@@ -48,8 +48,8 @@ defineExpose({
     <EditableSpan
       ref="nameRef"
       class="text-md ml-[18px] px-0.5 font-semibold text-orange-600"
-      :class="altKeyState ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : ''"
-      @click="altKeyState && openInEditor()"
+      :class="altKey ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : 'cursor-text'"
+      @click="altKey && openInEditor()"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"
@@ -59,7 +59,7 @@ defineExpose({
       @escape="context.escape"
       @enter="context.insertBelow"
     />
-    <!-- 'anon' placeholder if unnamed as a button -->
+    <!-- Anonymous placeholder if unnamed as a button -->
     <button
       tabindex="-1"
       v-if="!hasName"

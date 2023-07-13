@@ -23,7 +23,7 @@ from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.remote import RemoteObject, RemoteObjectStatus
 from bench.bench.tag import HasTags, Tag
 from bench.bench.type import HasType, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import get_run_cache_key
+from bench.bench.utils import Runnable, get_run_cache_key
 from bench.utils.cache import redis, redis_sync
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
@@ -46,7 +46,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, HasTags, Statement):
+class Code(HasType, HasTags, Runnable, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
@@ -144,8 +144,6 @@ class Code(HasType, HasTags, Statement):
                 outputs_raw = strip_py_value(result, self, is_output=True)
                 run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
                 await redis.set(cache_key, run_bytes)
-            if not isinstance(result, DotDict):
-                result = DotDict(result)
             return self._to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
