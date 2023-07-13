@@ -6,7 +6,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, RunTriggerType } from "@/gql/graphql";
 import { isMostlyCached, getCachedPercentage, useRuns } from "@/state/session";
-import { useCurrentModule, TypeFlag } from "@/state/module";
+import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
 import {
   BoltIcon,
   CheckCircleIcon,
@@ -15,7 +15,7 @@ import {
   QuestionMarkCircleIcon,
   XCircleIcon,
 } from "@heroicons/vue/24/solid";
-import { useElementSize } from "@vueuse/core";
+import { useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
@@ -37,7 +37,9 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
-const runs = useRuns(
+const nav = useNavigation();
+
+const { runs, loading, totalCount } = useRuns(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
@@ -55,6 +57,8 @@ const outputFields = computed(() => statement.value?.fields?.filter((t) => t.fla
 const expandedRunId = ref<string | null>(null);
 
 // navigation
+
+const altKeyState = useKeyModifier("Alt");
 
 // display
 
@@ -109,15 +113,6 @@ function getStatusColor(status: RunStatus) {
     return "text-gray-700";
   }
 }
-
-function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: string | null } }): string {
-  return (
-    {
-      [RunTriggerType.Ui]: "by " + run.user?.slug,
-      [RunTriggerType.Api]: "via API",
-    }[run.triggerType] ?? "by a ghost"
-  );
-}
 </script>
 <template>
   <div ref="containerRef" class="flex flex-col">
@@ -159,7 +154,17 @@ function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: str
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
-              <span class="ml-1 max-w-full truncate font-semibold">{{ statement?.name }}</span>
+              <span
+                class="ml-1 max-w-full truncate font-semibold underline-offset-4"
+                :class="[altKeyState ? 'cursor-pointer hover:underline' : '']"
+                @click="
+                  (e) =>
+                    altKeyState && run.runnable != null
+                      ? (nav.focusStatement(run.runnable), e.stopPropagation(), e.preventDefault())
+                      : undefined
+                "
+                >{{ statement?.name }}</span
+              >
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
                 {{
@@ -189,7 +194,6 @@ function getTriggerLabel(run: { triggerType: RunTriggerType; user?: { slug?: str
             <span class="flex w-full flex-row gap-1 text-gray-400">
               <!-- From -->
               <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt) }}</span>
-              <span class="truncate">{{ getTriggerLabel(run) }}</span>
             </span>
           </div>
           <!-- Selected fields as a preview -->

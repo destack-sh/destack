@@ -58,10 +58,13 @@ class Run:
     queue_position: Optional[int]
     cached_generated_at: Optional[datetime]
     cached_duration: Optional[float]
+    created_at: datetime = field(default_factory=datetime.utcnow)
+    updated_at: datetime = field(default_factory=datetime.utcnow)
     children: list["Run"] = field(default_factory=list)
 
     def __post_init__(self):
         self._update_status()
+        self.updated_at = datetime.utcnow()
 
     def _update_status(self):
         if self.error:

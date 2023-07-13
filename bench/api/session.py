@@ -28,7 +28,7 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.bench import Q, Query, session, wire
+from bench.bench import Q, Query, Sort, SortOrder, session, wire
 from bench.bench.const import RUNNABLE_STATEMENT_TYPES
 from bench.bench.session import PENDING_RUN_STATUSES
 from bench.models import packer
@@ -283,6 +283,7 @@ class SessionQuery:
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
+        runnable_ids = to_uuids(runnable_ids)
         check_can_read_project(info, project)
 
         query = query.to_dsl() if query else None
@@ -295,13 +296,14 @@ class SessionQuery:
         if root_only:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
+        sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
         search = prepare_search(
             type=mirror.DocumentType.RUN,
             project_version_id=str(project_version_id) if project_version_id else None,
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
-            sort=[s.to_dsl() for s in sort] if sort else None,
+            sort=sort,
             query=query,
         )
 
@@ -348,6 +350,7 @@ class SessionQuery:
         runnable_ids = to_uuids(runnable_ids)
         check_can_read_project(info, project)
 
+        sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
         query = query.to_dsl() if query else None
         if session_id:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
@@ -362,7 +365,7 @@ class SessionQuery:
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,
-            sort=[s.to_dsl() for s in sort] if sort else None,
+            sort=sort,
             query=query,
         )
 

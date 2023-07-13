@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import sys
+from collections import deque
 from contextvars import ContextVar
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Optional
@@ -121,12 +122,15 @@ class _ContextRedirectedStream:
     def __init__(self, native, contextvar: ContextVar[Callable[[str], None]]):
         self.native = native
         self.contextvar = contextvar
+        self._just_saw_newline = False
 
     def write(self, data: str) -> int:
         ret = self.native.write(data)
         track = self.contextvar.get()
-        if track:
+        if track and (data != "\n" or self._just_saw_newline):
+            # ignore default newline after every print
             track(data)
+        self._just_saw_newline = data == "\n"
         return ret
 
     def flush(self) -> None:
@@ -187,6 +191,7 @@ class LogCollector:
 
 
 SESSION_FLUSH_INTERVAL = 0.1
+LOG_CACHE_SIZE = 1000
 
 
 class SessionTracer(Tracer):
@@ -197,6 +202,7 @@ class SessionTracer(Tracer):
         validate: bool = True,
     ):
         self.session = session
+        self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
         self._pending_runs: list[Run] = []
         self._flush_cancel: asyncio.Event | None = None
@@ -221,6 +227,11 @@ class SessionTracer(Tracer):
 
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)
+        self._cached_logs.append(log)
+
+    @property
+    def cached_logs(self) -> list[LogEntry]:
+        return list(self._cached_logs)
 
     @property
     def pending_logs(self) -> list[LogEntry]:

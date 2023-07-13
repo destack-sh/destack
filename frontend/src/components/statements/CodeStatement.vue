@@ -5,15 +5,9 @@ import StatementDeclaration from "@/components/statements/StatementDeclaration.v
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, type Run } from "@/gql/graphql";
+import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import {
-  RUN_TERMINAL_STATES,
-  useSessions,
-  isMostlyCached,
-  getCachedPercentage,
-  useCurrentSessions,
-} from "@/state/session";
+import { RUN_TERMINAL_STATES, isMostlyCached, getCachedPercentage, useCurrentSessions } from "@/state/session";
 import { TypeFlag, newRunId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -35,6 +29,7 @@ import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, toRef, type Ref } from "vue";
 import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
+import LogsTile from "@/components/tiles/LogsTile.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -53,10 +48,9 @@ const codeSync = context.syncCode(
 
 const now = useTimeFromNow(100);
 
-// TODO @Performance: load inline code runs more sensibly
 const bench = useBenchState();
 const sessions = useCurrentSessions();
-const runs = sessions.runsOf(context.statement.value.id);
+const runs = sessions.runsOf(context.statement.value);
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
@@ -70,6 +64,7 @@ const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? nu
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
+const logsTileRef: Ref<InstanceType<typeof LogsTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const hideOutput = ref(true);
@@ -204,6 +199,7 @@ async function run() {
     }
     if (ret?.data?.run.__typename == "RunState") {
       lastRunLocal.value = (ret.data.run.run as Run) ?? null;
+      logsTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
     }
   }
 }
@@ -338,10 +334,12 @@ defineExpose({
   />
   <!-- Last output/error (if any) -->
   <div
-    v-if="!hasTypes && !folded"
+    v-if="!hasTypes && lastRun != null && !folded"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
     :class="[truncateOutput ? 'max-h-[300px] overflow-y-hidden' : '']"
+    :key="lastRun.id"
   >
+    <LogsTile ref="logsTileRef" v-if="!showError" :project-id="(bench.projectId as string)" :run-id="lastRun.id" live />
     <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun">
       <!-- If truncating, button overlay with fade gradient -->
       <button

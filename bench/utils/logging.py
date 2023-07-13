@@ -78,6 +78,11 @@ LOGGING = {
         "django_structlog": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "axes": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
         "bench": {"handlers": logged_handlers, "level": LOG_LEVEL, "propagate": False},
+        "django.db.backends": {
+            "handlers": logged_handlers,
+            "level": NOISY_LOG_LEVEL,
+            "propagate": False,
+        },
         **NOISY_LOGGERS,
     },
 }
