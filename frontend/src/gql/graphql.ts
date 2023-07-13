@@ -3870,33 +3870,7 @@ export type RunMutation = {
         projectVersionId: any;
         runnableId?: any | null;
         success: boolean;
-        run?: {
-          __typename?: "Run";
-          id: any;
-          status: RunStatus;
-          startedAt?: any | null;
-          terminatedAt?: any | null;
-          createdAt: any;
-          updatedAt: any;
-          duration?: number | null;
-          cachedGeneratedAt?: any | null;
-          cachedDuration?: number | null;
-          inputs?: any | null;
-          outputs?: any | null;
-          errorNice?: {
-            __typename?: "RunError";
-            type: string;
-            message: string;
-            traceback?: Array<{
-              __typename?: "RunCodeFrame";
-              line: string;
-              filename: string;
-              lineno: number;
-              name: string;
-              locals?: any | null;
-            }> | null;
-          } | null;
-        } | null;
+        run?: ({ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }) | null;
         logs?: Array<
           { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
         > | null;
@@ -10495,44 +10469,7 @@ export const RunDocument = {
                         name: { kind: "Name", value: "run" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "status" } },
-                            { kind: "Field", name: { kind: "Name", value: "startedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "duration" } },
-                            { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
-                            { kind: "Field", name: { kind: "Name", value: "inputs" } },
-                            { kind: "Field", name: { kind: "Name", value: "outputs" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "errorNice" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "type" } },
-                                  { kind: "Field", name: { kind: "Name", value: "message" } },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "traceback" },
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "Field", name: { kind: "Name", value: "line" } },
-                                        { kind: "Field", name: { kind: "Name", value: "filename" } },
-                                        { kind: "Field", name: { kind: "Name", value: "lineno" } },
-                                        { kind: "Field", name: { kind: "Name", value: "name" } },
-                                        { kind: "Field", name: { kind: "Name", value: "locals" } },
-                                      ],
-                                    },
-                                  },
-                                ],
-                              },
-                            },
-                          ],
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
                         },
                       },
                       {
@@ -10552,6 +10489,7 @@ export const RunDocument = {
         ],
       },
     },
+    ...RunContentFragmentDoc.definitions,
     ...LogEntryContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunMutation, RunMutationVariables>;

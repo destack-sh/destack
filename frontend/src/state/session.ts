@@ -5,7 +5,7 @@ import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQue
 import { wrapValueRefs } from "@/utils/functools";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 

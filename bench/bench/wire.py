@@ -30,7 +30,14 @@ from bench.bench.core import (
 )
 from bench.bench.issue import IssueKind, IssueType
 from bench.bench.query import Query, Sort
-from bench.bench.session import MissingStatement, RunCodeFrame, RunError, RunErrorKind, RunStatus
+from bench.bench.session import (
+    LazyRun,
+    MissingStatement,
+    RunCodeFrame,
+    RunError,
+    RunErrorKind,
+    RunStatus,
+)
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
@@ -1583,13 +1590,13 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             id=data.id,
             module=module,
             session=None,
-            parent=None,
+            root=LazyRun(data.root_id) if data.root_id else None,
+            parent=LazyRun(data.parent_id) if data.parent_id else None,
             runnable=runnable,
             created_at=data.created_at,
             updated_at=data.updated_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
-            status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
             error=error,
@@ -1632,4 +1639,23 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             runnable_id=object.runnable.id if object.runnable else None,
             run_id=object.run.id if object.run else None,
             metadata=object.metadata,
+        )
+
+    def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
+        runnable = module._statements_by_id.get(data.runnable_id) or MissingStatement(
+            data.runnable_id
+        )
+        run = LazyRun(data.run_id) if data.run_id else None
+        return lang.LogEntry(
+            id=data.id,
+            module=module,
+            session=None,
+            created_at=data.created_at,
+            stream=data.stream,
+            level=data.level,
+            logger=data.logger,
+            message=data.message,
+            runnable=runnable,
+            run=run,
+            metadata=data.metadata,
         )

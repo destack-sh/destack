@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import type { LogEntry } from "@/gql/graphql";
 import { useLogs } from "@/state/session";
 import { DateTime } from "luxon";
 import { computed, toRef } from "vue";
@@ -12,6 +13,13 @@ const props = defineProps<{
   sessionId?: string;
   live?: boolean;
   limit?: number;
+  focus?: {
+    runnableIds?: string[];
+    runId?: string;
+    sessionId?: string;
+  };
+  highlight?: boolean;
+  lowlight?: boolean;
 }>();
 
 const { logs, loading, addLogs } = useLogs(
@@ -28,6 +36,17 @@ const { logs, loading, addLogs } = useLogs(
   }
 );
 const logsSorted = computed(() => logs.value?.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)) ?? []);
+
+const hasFocus = computed(() => props.focus != null);
+
+function isHighlighted(log: LogEntry): boolean {
+  return (
+    hasFocus.value &&
+    (props.focus?.runnableIds == null || props.focus.runnableIds.includes(log.runnableId)) &&
+    (props.focus?.runId == null || props.focus.runId == log.runId) &&
+    (props.focus?.sessionId == null || props.focus.sessionId == log.sessionId)
+  );
+}
 
 // appearance
 const showTimestamp = true;
@@ -46,7 +65,11 @@ defineExpose({
       v-for="log in logsSorted"
       :key="log.id"
       class="w-full select-text font-mono"
-      :class="[wrap ? 'whitespace-normal' : 'whitespace-nowrap']"
+      :class="[
+        wrap ? 'whitespace-normal' : 'whitespace-nowrap',
+        highlight && isHighlighted(log) ? 'bg-yellow-100' : '',
+        lowlight && !isHighlighted(log) ? 'opacity-50' : '',
+      ]"
     >
       <span v-if="showTimestamp" class="mr-2 select-all text-gray-400">
         {{ DateTime.fromISO(log.createdAt).toFormat("HH:mm:ss.SSS") }}

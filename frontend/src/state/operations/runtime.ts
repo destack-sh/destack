@@ -58,28 +58,7 @@ export function useRuntimeOps() {
             runnableId
             success
             run {
-              id
-              status
-              startedAt
-              terminatedAt
-              createdAt
-              updatedAt
-              duration
-              cachedGeneratedAt
-              cachedDuration
-              inputs
-              outputs
-              errorNice {
-                type
-                message
-                traceback {
-                  line
-                  filename
-                  lineno
-                  name
-                  locals
-                }
-              }
+              ...RunContent
             }
             logs {
               ...LogEntryContent
@@ -93,6 +72,7 @@ export function useRuntimeOps() {
   async function run(
     runnableId: string,
     runId?: string,
+    sessionId?: string,
     arguments_?: Record<string, any>,
     options?: { block?: boolean; keyed?: boolean; timeoutSeconds?: number }
   ) {
@@ -105,6 +85,7 @@ export function useRuntimeOps() {
           projectVersionId: bench.projectVersionId,
           runnableId,
           runId,
+          sessionId,
           arguments: arguments_,
           keyed: options?.keyed,
           block: options?.block,

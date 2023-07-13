@@ -4,7 +4,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, RunTriggerType } from "@/gql/graphql";
+import { RunStatus } from "@/gql/graphql";
 import { isMostlyCached, getCachedPercentage, useRuns } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
 import {

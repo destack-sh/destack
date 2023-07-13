@@ -41,6 +41,16 @@ PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
 
 
 @dataclass
+class LazyRun:
+    """Run that's not loaded."""
+
+    id: UUID
+
+    def load(self) -> "Run":
+        raise NotImplementedError
+
+
+@dataclass
 class Run:
     id: UUID
     runnable: Union["Code", "Model", "Task"]
@@ -236,6 +246,12 @@ class LogEntry:
     message: Optional[str] = None
     metadata: dict[str, Any] = None
 
+    def __str__(self):
+        return f"'{self.message}' ({self.created_at})"
+
+    def __repr__(self):
+        return f"<LogEntry {self}>"
+
 
 class RunSearch(Search["RunData", Run]):
     """Search over runs."""
@@ -278,10 +294,9 @@ class RunSearch(Search["RunData", Run]):
         return rep
 
     def _unpack_element_data(self, element_data: "RunData") -> Run:
-        parent = self.module._statements_by_id.get(element_data.parent_id)
-        if parent is None:
-            parent = MissingStatement(element_data.parent_id)
-        raise NotImplementedError
+        from bench.bench import wire
+
+        return wire.unpack_data(element_data, module=self.module)
 
     def filter(self, query: Query) -> "RunSearch":
         combined_query = Query.and_if_set(self._query, query)
