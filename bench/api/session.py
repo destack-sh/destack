@@ -28,7 +28,7 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.bench import Q, Query, Sort, SortOrder, session, wire
+from bench.bench import Q, Query, Sort, SortOrder, wire
 from bench.bench.const import RUNNABLE_STATEMENT_TYPES
 from bench.bench.session import PENDING_RUN_STATUSES
 from bench.models import packer
@@ -59,13 +59,13 @@ class RunCodeFrame:
     locals: Optional[JSON] = None
 
     @staticmethod
-    def from_data(data: session.RunCodeFrame) -> "RunCodeFrame":
+    def from_dict(data: dict) -> "RunCodeFrame":
         return RunCodeFrame(
-            filename=data.filename,
-            lineno=data.lineno,
-            name=data.name,
-            line=data.line,
-            locals=data.locals,
+            filename=data["filename"],
+            lineno=data["lineno"],
+            name=data["name"],
+            line=data.get("line"),
+            locals=data.get("locals"),
         )
 
 
@@ -81,17 +81,16 @@ class RunError:
 
     @staticmethod
     def from_dict(data: dict) -> "RunError":
-        error: session.RunError = session.RunError.instantiate_from(data)
-        statement_id = to_global_id("Statement", error.statement_id) if error.statement_id else None
-        traceback = (
-            [RunCodeFrame.from_data(frame) for frame in error.traceback]
-            if error.traceback
+        statement_id = (
+            to_global_id("Statement", data.get("statement_id"))
+            if data.get("statement_id")
             else None
         )
+        traceback = [RunCodeFrame.from_dict(frame) for frame in data.get("traceback", [])] or None
         return RunError(
-            kind=error.kind,
-            type=error.type,
-            message=error.message,
+            kind=data["kind"],
+            type=data["type"],
+            message=data["message"],
             statement_id=statement_id,
             traceback=traceback,
         )

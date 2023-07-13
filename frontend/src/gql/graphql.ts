@@ -4958,7 +4958,7 @@ export type LogsQuery = {
 
 export type LogsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  projectVersionId: Scalars["GlobalID"];
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
@@ -15184,7 +15184,7 @@ export const LogsChangedDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
         {
           kind: "VariableDefinition",

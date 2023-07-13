@@ -1,5 +1,5 @@
 import abc
-from typing import Generic, TypeVar, Self, Iterator, AsyncIterator, Optional, Any
+from typing import Any, AsyncIterator, Generic, Iterator, Optional, Self, TypeVar
 
 from bench.bench.core import Module
 from bench.bench.query import Query, Sort
@@ -48,7 +48,6 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
         yield from self._iter(batched=True)
 
     def _iter(self, batched: bool):
-
         after = None
         remaining_limit = self._limit
         while remaining_limit is None or remaining_limit > 0:
@@ -80,7 +79,6 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
             yield element
 
     async def _aiter(self, batched: bool) -> AsyncIterator[ElementT]:
-
         after = None
         remaining_limit = self._limit
         while remaining_limit is None or remaining_limit > 0:
@@ -99,6 +97,10 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
             after = rep.payload.end_cursor
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.elements)
+
+    def count(self) -> int:
+        rep = self.module.session.async_to_sync(self._do_search)(limit=0, count=True)
+        return rep.payload.total
 
     def __len__(self) -> int:
         return self.count()

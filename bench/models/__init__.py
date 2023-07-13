@@ -1,3 +1,5 @@
+from django.db.models import Q
+
 from .dataset import Dataset
 from .interp import InterpScope, Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
@@ -26,13 +28,11 @@ __all__ = [
     "ClientType",
     "CrudModel",
     "Dataset",
-    "Run",
-    "RunStatus",
-    "RunTriggerType",
+    "Field",
+    "File",
+    "InterpScope",
     "Issue",
     "IssueKind",
-    "InterpScope",
-    "File",
     "Notification",
     "NotificationStatus",
     "NotificationType",
@@ -44,15 +44,18 @@ __all__ = [
     "Project",
     "ProjectVersion",
     "ProjectVisibility",
+    "Q",
     "RefMapping",
     "RefMappingKind",
     "RemoteObject",
     "RemoteObjectStatus",
     "ResolvedField",
-    "Field",
+    "Run",
+    "RunStatus",
+    "RunTriggerType",
+    "Secret",
     "Session",
     "Statement",
-    "Secret",
     "Tagging",
     "User",
     "UserStatus",

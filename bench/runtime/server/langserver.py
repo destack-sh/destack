@@ -11,10 +11,9 @@ import pytz
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
-from django.db.models import Q
 
 from bench import models
-from bench.bench import HasType, Issue, Query, QueryOp, ResolvedField, wire
+from bench.bench import HasType, Issue, Q, Query, QueryOp, ResolvedField, wire
 from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.bench.libs import DEFAULT_MODULES
 from bench.bench.mutate import ModuleMutation, ModuleMutator
@@ -40,7 +39,9 @@ from bench.msg.messages import (
     RepRegisterWorkerPayload,
     RepRunInferencePayload,
     RepSearch,
+    RepSearchLogPayload,
     RepSearchRecordPayload,
+    RepSearchRunPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
     RepWriteSessionPayload,
@@ -110,7 +111,10 @@ class ModuleDB:
                 await Project.objects.filter(
                     slug=project,
                 )
-                .filter(Q(organization__owner_slug_id=owner) | Q(user__owner_slug_id=owner))
+                .filter(
+                    models.Q(organization__owner_slug_id=owner)
+                    | models.Q(user__owner_slug_id=owner)
+                )
                 .select_related("head")
                 .aget()
             )
@@ -267,11 +271,12 @@ class LanguageServer:
         project_v: models.ProjectVersion,
         type: Optional[mirror.DocumentType],
         extra_query: Optional[Query],
-        max_limit: int,
+        limit: int,
         req: ReqSearch,
         unpack: typing.Callable,
+        rep_cls: typing.Type[RepSearch],
     ) -> RepSearch:
-        effective_limit = min(req.limit, max_limit)
+        effective_limit = min(req.limit, limit)
         try:
             search = prepare_search(
                 type=type,
@@ -288,7 +293,7 @@ class LanguageServer:
             )
             elements: list[typing.Any] = []
             for r in results["hits"]["hits"]:
-                elements.append(unpack(r["_source"]))
+                elements.append(unpack(r))
             if elements:
                 start_cursor = encode_cursor(results["hits"]["hits"][0], req.after, i=0)
                 end_cursor = encode_cursor(
@@ -297,7 +302,7 @@ class LanguageServer:
             else:
                 start_cursor = None
                 end_cursor = None
-            rep = RepSearchRecordPayload(
+            rep = rep_cls(
                 elements=elements,
                 total=(results["hits"]["total"]["value"] if req.count else None),
                 limit=effective_limit,
@@ -307,8 +312,8 @@ class LanguageServer:
         except Exception as e:
             sentry_capture_if_enabled(e)
             logger.error("dataset.search.failed", req=req, exc_info=True)
-            rep = RepSearchRecordPayload(
-                records=None,
+            rep = rep_cls(
+                elements=None,
                 total=-1,
                 limit=effective_limit,
                 start_cursor=None,
@@ -333,6 +338,7 @@ class LanguageServer:
             limit=MAX_SEARCH_RECORD_LIMIT,
             req=msg.p,
             unpack=_unpack_record,
+            rep_cls=RepSearchRecordPayload,
         )
         await msg.reply(rep)
 
@@ -340,8 +346,8 @@ class LanguageServer:
     async def search_run(self, msg: NMessage[ReqSearchRunPayload]) -> None:
         logger.debug("search.dataset", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
-        if msg.p.runnable_ids:
-            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnable_ids)
+        if msg.p.runnables_ids:
+            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids)
         else:
             extra_query = None
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
@@ -352,14 +358,15 @@ class LanguageServer:
             limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,
             unpack=_unpack_run,
+            rep_cls=RepSearchRunPayload,
         )
         await msg.reply(rep)
 
     @message_handler
     async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
         logger.debug("search.log", msg=msg)
-        if msg.p.runnable_ids:
-            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnable_ids)
+        if msg.p.runnables_ids:
+            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids)
         else:
             extra_query = None
         # TODO @Security: check if msg origin has read access to dataset
@@ -371,6 +378,7 @@ class LanguageServer:
             limit=MAX_SEARCH_LOG_LIMIT,
             req=msg.p,
             unpack=_unpack_log,
+            rep_cls=RepSearchLogPayload,
         )
         await msg.reply(rep)
 
@@ -667,8 +675,6 @@ class LanguageWorker:
         """Write a session to the database, and publish it to the client"""
         logger.debug("write_session", session=session, runs=len(runs), logs=len(logs))
         await sync_to_async(write_session)(self.project_version, session, runs, logs)
-
-        origins = (*(origins or ()), self.client)
 
         await publish(
             NMessageType.SESSION_CHANGED,

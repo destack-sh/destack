@@ -13,7 +13,7 @@ import structlog
 from bench.bench.core import MOT, ModuleOp, Session
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
-from bench.bench.session import LogEntry, Run
+from bench.bench.session import LogEntry, Run, RunError
 from bench.bench.type import check_type, strip_py_value
 from bench.utils.uuidt import UUIDT
 
@@ -129,8 +129,11 @@ class _ContextRedirectedStream:
         track = self.contextvar.get()
         if track and (data != "\n" or self._just_saw_newline):
             # TODO @Robustness: figure out better way of collecting stdout/stderr
-            # ignore default newline after every print
-            track(data)
+            #  This is very hacky because we don't know who called print and want to skip
+            #  some of our own log messages. Unfortunately we can't just trivially
+            #  provide a custom 'print' since many libraries use the real 'print' internally.
+            if not ("[debug    ]" in data or "[info     ]" in data):
+                track(data)
         self._just_saw_newline = data == "\n"
         return ret
 
@@ -436,7 +439,7 @@ class RunTracer(Tracer):
     def run_exception(self, statement: Runnable, exception: Exception):
         frame = self.pop_stacktrace()
         frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.error = exception
+        frame.error = RunError.from_exception(exception, statement)
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:

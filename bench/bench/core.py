@@ -461,7 +461,6 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def activate_in(self, session: "Session"):
         if self._session is not None:
             self._session.remove(self)
-        self._session = session
         self.clear()
         self.index()
         self.interp()
@@ -470,6 +469,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 n.activate_in(session)
         for dependency in self.dependencies.values():
             dependency.activate_in(session)
+        self._session = session
 
     def deactivate(self) -> None:
         self._session = None
@@ -785,6 +785,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def _clear(self) -> None:
         """Clears any derived/interpreted values on this statement."""
+        super()._clear()
         self.issues = None
 
     def _interp(self, scope: Scope) -> None:
