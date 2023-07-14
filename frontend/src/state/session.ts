@@ -31,8 +31,6 @@ export const RunHeaderType = graphql(/* GraphQL */ `
     startedAt
     terminatedAt
     duration
-    cachedDuration
-    cachedGeneratedAt
     status
     projectVersion {
       id
@@ -63,8 +61,6 @@ export const RunContentType = graphql(/* GraphQL */ `
     startedAt
     terminatedAt
     duration
-    cachedDuration
-    cachedGeneratedAt
     status
     projectVersion {
       id
@@ -602,6 +598,7 @@ export function getStatusColor(status: RunStatus) {
 }
 
 export function isMostlyCached(run: { duration?: number; cachedDuration?: number }): boolean {
+  // nocheckin: fix this with new metadata
   return run.duration != null && run.cachedDuration != null && run.cachedDuration > run.duration * 0.8;
 }
 

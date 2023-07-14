@@ -9,6 +9,7 @@ from bench import models
 from bench.bench import wire
 from bench.bench.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
+from bench.bench.utils import Runnable
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -261,7 +262,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module
     TODO @Performance: update OS field mappings more efficiently on field mutations
+      (especially for library/dependency mappings)
     """
+    from bench.bench import libs
     from bench.models import packer
 
     logger.info("os.update_mappings", project_version=project_v)
@@ -270,22 +273,46 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     module.index()
     module.interp()
 
-    value_mappings = {}
-    inputs_mappings = {}
-    outputs_mappings = {}
+    value_mappings: dict[str, os.Field] = {}
+    inputs_mappings: dict[str, os.Field] = {}
+    outputs_mappings: dict[str, os.Field] = {}
+    metadata_mappings: dict[str, os.Field] = {}
+
+    # get library mappings
+    for lib in libs.DEFAULT_MODULES.values():
+        for statement in lib._statements_by_id.values():
+            if isinstance(statement, Runnable):
+                for field in statement.inputs:
+                    inputs_mappings[field.typed_key] = map_to_os_field(field)
+                for field in statement.outputs:
+                    outputs_mappings[field.typed_key] = map_to_os_field(field)
+    # ensure library vectors are not indexed (would be pointless waste of resources)
+    for field in (*inputs_mappings.values(), *outputs_mappings.values()):
+        if field.type == os.FieldType.KNN_VECTOR:
+            field.index = False
+
+    # and 'static' metadata mappings (hard-coded)
+    for metadata_type in (
+        libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),
+        libs.symbolx_lib.lookup_or_error(".reflect.TaskMetadata"),
+    ):
+        for field in metadata_type.resolved_fields:
+            metadata_mappings[field.typed_key] = map_to_os_field(field)
+
+    # add dynamic user mappings
     for statement in module._statements_by_id.values():
         if not isinstance(statement, lang.HasType) or statement.errors:
             continue  # ignore symbols with issues
         elif isinstance(statement, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in statement.resolved_fields:
-                value_mappings[field.typed_key] = map_to_os_field(field).to_dict()
+                value_mappings[field.typed_key] = map_to_os_field(field)
         elif isinstance(statement, (lang.Task, lang.Code)):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in statement.inputs:
-                inputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
+                inputs_mappings[field.typed_key] = map_to_os_field(field)
             for field in statement.outputs:
-                outputs_mappings[field.typed_key] = map_to_os_field(field).to_dict()
+                outputs_mappings[field.typed_key] = map_to_os_field(field)
 
     logger.info(
         "os.update_mappings.done",
@@ -293,12 +320,18 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         value_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
+        metadata_mappings=len(metadata_mappings),
     )
-    mappings = {
-        "value": {"type": "object", "dynamic": "strict", "properties": value_mappings},
-        "inputs": {"type": "object", "dynamic": "strict", "properties": inputs_mappings},
-        "outputs": {"type": "object", "dynamic": "strict", "properties": outputs_mappings},
-    }
+    mappings = {}
+    for key, sub_mappings in (
+        ("value", value_mappings),
+        ("inputs", inputs_mappings),
+        ("outputs", outputs_mappings),
+        ("metadata", metadata_mappings),
+    ):
+        sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
+        mappings[key] = {"type": "object", "dynamic": "strict", "properties": sub_mappings}
+
     index_name = IndexType.BENCH.get_index_name(project_v.project_id)
     os_client.indices.put_mapping(index=index_name, body={"properties": mappings})
 

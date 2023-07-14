@@ -41,37 +41,37 @@ _symbolx_utils = symbolx_lib.create_file("utils")
 symbolx_lib.add_file(_symbolx_reflect)
 
 
-@x_tag("tool", "Mark as a tool", key="x.tool", file=_symbolx_builtins)
+@x_tag("tool", "Mark as a tool", file=_symbolx_builtins)
 class Tool:
     pass
 
 
-@x_tag("step", "Mark as a required step", key="x.step", file=_symbolx_builtins)
+@x_tag("step", "Mark as a required step", file=_symbolx_builtins)
 class Step:
     pass
 
 
-@x_tag("consider", "Mark as something to consider", key="x.consider", file=_symbolx_builtins)
+@x_tag("consider", "Mark as something to consider", file=_symbolx_builtins)
 class Consider:
     pass
 
 
-@x_tag("check", "Mark as a mandatory check", key="x.check", file=_symbolx_builtins)
+@x_tag("check", "Mark as a mandatory check", file=_symbolx_builtins)
 class Check:
     pass
 
 
-@x_tag("retry", "Auto-retry runs", key="x.retry", file=_symbolx_builtins)
+@x_tag("retry", "Auto-retry runs", file=_symbolx_builtins)
 class Retry:  # like tenacity but maybe with autoheal?
     pass
 
 
-@x_tag("cache", "Auto-cache runs", key="x.cache", file=_symbolx_builtins)
+@x_tag("cache", "Auto-cache runs", file=_symbolx_builtins)
 class Cache:  # like cachetools
     pass
 
 
-@x_tag("confirm", "Prompt for confirmation before running", key="x.confirm", file=_symbolx_builtins)
+@x_tag("confirm", "Prompt for confirmation before running", file=_symbolx_builtins)
 class Confirm:
     pass
 

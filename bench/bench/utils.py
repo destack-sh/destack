@@ -34,6 +34,16 @@ class Runnable(abc.ABC):
         raise NotImplementedError
 
 
+if TYPE_CHECKING:
+    from bench.bench.core import Statement
+    from bench.bench.type import HasType
+
+    class _Runnable(Runnable, HasType, Statement):
+        pass
+
+    Runnable = _Runnable
+
+
 def get_run_cache_key(runnable: UUID | str, inputs_raw: Any, content_id: Optional[str] = None):
     if isinstance(runnable, UUID):
         runnable = runnable.hex

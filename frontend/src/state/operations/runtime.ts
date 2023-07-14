@@ -109,8 +109,6 @@ export function useRuntimeOps() {
               createdAt
               updatedAt
               duration
-              cachedGeneratedAt
-              cachedDuration
             }
           }
           ...OperationInfoContent

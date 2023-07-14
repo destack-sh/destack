@@ -924,9 +924,6 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             outputs=model.outputs,
             metadata=model.metadata,
             error=wire.RunErrorData.from_dict(model.error) if model.error else None,
-            cached_generated_at=model.cached_generated_at,
-            cached_duration=model.cached_duration,
-            queue_position=None,
         )
 
     def unpack(self, data: wire.RunData) -> models.Run:
@@ -946,8 +943,6 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             inputs=data.inputs,
             outputs=data.outputs,
             error=dataclasses.asdict(data.error) if data.error else None,
-            cached_generated_at=data.cached_generated_at,
-            cached_duration=data.cached_duration,
         )
 
 
@@ -1052,8 +1047,6 @@ def write_session(
             "outputs",
             "error",
             "metadata",
-            "cached_generated_at",
-            "cached_duration",
         ],
     )
 

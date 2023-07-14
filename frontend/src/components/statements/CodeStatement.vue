@@ -183,6 +183,7 @@ async function run() {
   } else {
     lastRunLocalId.value = newRunId();
     lastSessionLocalId.value = newSessionId();
+    // nocheckin: move optimistic run/session handling to session.ss (incl. cancellation/suspend etc.)
     // optimistically set last run local
     lastRunLocal.value = {
       id: lastRunLocalId.value,
@@ -191,8 +192,6 @@ async function run() {
       createdAt: now.now.value.toString(),
       updatedAt: now.now.value.toString(),
       duration: null,
-      cachedDuration: null,
-      cachedGeneratedAt: null,
       inputs: null,
       outputs: null,
       error: null,
@@ -366,8 +365,8 @@ defineExpose({
       <button
         v-for="view in ['logs', 'trace', 'error'].filter((v) => v != 'error' || lastRun?.status == RunStatus.Failed)"
         :key="view"
-        class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
-        :class="[showOutput == view ? 'bg-orange-100 text-gray-700' : '']"
+        class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
+        :class="[showOutput == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
         @click="showOutput = view"
       >
         <component
@@ -378,7 +377,7 @@ defineExpose({
               error: XCircleIcon,
             }[view]
           "
-          class="h-4 w-4 text-gray-400"
+          class="h-4 w-4"
         />
         <!-- Label -->
         <span

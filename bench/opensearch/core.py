@@ -112,6 +112,7 @@ class Field:
     store: bool = None  # default: true
     coerce: bool = None
     dynamic: bool | typing.Literal["strict"] = None
+    enabled: bool = None  # default: true
     copy_to: str | list[str] = None
     ignore_malformed: bool = None
     ignore_above: int = None
@@ -162,6 +163,8 @@ class Field:
             d["store"] = self.store
         if self.coerce is not None:
             d["coerce"] = self.coerce
+        if self.enabled is not None:
+            d["enabled"] = self.enabled
         if self.dynamic is not None:
             d["dynamic"] = self.dynamic
         if self.copy_to is not None:

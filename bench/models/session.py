@@ -44,9 +44,6 @@ class Run(UUIDTModel):
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
-    # TODO @Cleanup @Architecture: cached info & queue position belongs in metadata
-    cached_generated_at = models.DateTimeField(null=True, blank=True)
-    cached_duration = models.FloatField(null=True, blank=True)
 
     @gql.model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:

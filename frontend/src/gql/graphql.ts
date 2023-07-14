@@ -1772,8 +1772,6 @@ export type RestoreInput = {
 
 export type Run = Node & {
   __typename?: "Run";
-  cachedDuration?: Maybe<Scalars["Float"]>;
-  cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
   children: Array<Run>;
   createdAt: Scalars["DateTime"];
   descendants: Array<Run>;
@@ -3910,8 +3908,6 @@ export type CancelMutation = {
           createdAt: any;
           updatedAt: any;
           duration?: number | null;
-          cachedGeneratedAt?: any | null;
-          cachedDuration?: number | null;
         } | null;
       }
     | ({ __typename?: "OperationInfo" } & {
@@ -4811,8 +4807,6 @@ export type RunHeaderFragment = {
   startedAt?: any | null;
   terminatedAt?: any | null;
   duration?: number | null;
-  cachedDuration?: number | null;
-  cachedGeneratedAt?: any | null;
   status: RunStatus;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session: { __typename?: "Session"; id: any };
@@ -4829,8 +4823,6 @@ export type RunContentFragment = {
   startedAt?: any | null;
   terminatedAt?: any | null;
   duration?: number | null;
-  cachedDuration?: number | null;
-  cachedGeneratedAt?: any | null;
   status: RunStatus;
   inputs?: any | null;
   outputs?: any | null;
@@ -5983,8 +5975,6 @@ export const RunHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "startedAt" } },
           { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "duration" } },
-          { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
-          { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
           { kind: "Field", name: { kind: "Name", value: "status" } },
           {
             kind: "Field",
@@ -6054,8 +6044,6 @@ export const RunContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "startedAt" } },
           { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "duration" } },
-          { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
-          { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
           { kind: "Field", name: { kind: "Name", value: "status" } },
           {
             kind: "Field",
@@ -10678,8 +10666,6 @@ export const CancelDocument = {
                             { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                             { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "duration" } },
-                            { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
                           ],
                         },
                       },

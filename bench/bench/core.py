@@ -69,6 +69,8 @@ STATEMENT_REFERENCE_REGEX = re.compile(
 
 def parse_absolute_statement_reference(path: str) -> tuple[str, str]:
     match = STATEMENT_REFERENCE_REGEX.match(path)
+    if not match:
+        raise ValueError(f"invalid absolute statement reference: {path}")
     module_name = match.group("module_owner") + "." + match.group("module_name")
     localized_path = "." + match.group("path")
     return module_name, localized_path

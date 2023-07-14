@@ -138,8 +138,6 @@ class Run(gql.Node):
     error: auto
     error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
     metadata: auto
-    cached_generated_at: auto
-    cached_duration: auto
 
 
 @gql.type
