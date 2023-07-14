@@ -7,7 +7,7 @@ const props = defineProps<{
 }>();
 </script>
 <template>
-  <div class="relative w-full" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
+  <div class="relative w-full font-mono" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
     {{ name }} {{ run.status.toLowerCase() }}:
     <span class="font-bold">{{ run.errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">

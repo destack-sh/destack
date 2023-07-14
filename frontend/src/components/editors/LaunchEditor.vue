@@ -16,7 +16,7 @@ import { useOperations } from "@/state/operations";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import RunTraceTile from "@/components/tiles/RunTraceTile.vue";
+import TraceTile from "@/components/tiles/TraceTile.vue";
 import { RunContentType } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
@@ -103,7 +103,9 @@ async function run() {
           kind: "success",
           type: "run.success",
           message: "Run completed",
-          description: `${statement.value.name} finished after ${formatDurationSeconds(run?.duration ?? 5)}.`,
+          description: `${statement.value.name} finished after ${formatDurationSeconds(
+            (run?.duration ?? 5000) * 1000
+          )}.`,
         });
       }
       editor.value.lastOutput = run?.outputs;
@@ -251,8 +253,16 @@ defineExpose({
           </div>
         </ContainerTile>
         <!-- Trace -->
-        <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
-          <RunTraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="list" live />
+        <ContainerTile
+          label="Trace"
+          :sub-label="
+            editor.lastRunTerminatedAt != null
+              ? now.getTimeFromNowLongString(editor.lastRunTerminatedAt as string)
+              : undefined
+          "
+          :style="{ ...baseTilePositionX }"
+        >
+          <TraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="list" live />
           <div v-else class="flex h-full w-full flex-col items-center justify-center">
             <span class="text-sm text-gray-400">No trace</span>
           </div>
