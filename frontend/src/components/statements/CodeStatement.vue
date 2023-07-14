@@ -22,13 +22,18 @@ import {
   TagIcon,
   EyeIcon,
   EyeSlashIcon,
+  XCircleIcon,
+  QueueListIcon,
+  ListBulletIcon,
+  Bars3Icon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
-import { nextTick, computed, ref, type Ref } from "vue";
+import { nextTick, computed, ref, type Ref, watch } from "vue";
 import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { useActiveScroll } from "@/composables/useScroll";
+import RunTraceTile from "@/components/tiles/RunTraceTile.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -69,10 +74,18 @@ const outputRef = ref<HTMLDivElement | null>(null);
 const logsTileRef: Ref<InstanceType<typeof LogsTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const showOutput = ref(false);
+const showOutput: Ref<"logs" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
 const preparingRun = ref(false);
 const cancelled = ref(false);
-const showError = computed(() => lastRun.value != null && lastRun.value.status == RunStatus.Failed && showOutput.value);
+
+watch(
+  () => lastRun.value?.status,
+  () => {
+    if (lastRun.value?.status == RunStatus.Failed) {
+      showOutput.value = "error";
+    }
+  }
+);
 
 const runActive = computed(
   () =>
@@ -146,7 +159,11 @@ const extraActions = computed(() => {
       disabled: lastRun.value == null,
       icon: showOutput.value ? EyeIcon : EyeSlashIcon,
       action: async () => {
-        showOutput.value = !showOutput.value;
+        if (showOutput.value == null) {
+          showOutput.value = "logs";
+        } else {
+          showOutput.value = null;
+        }
       },
     });
   }
@@ -180,7 +197,7 @@ async function run() {
       error: null,
     } as Run;
     cancelled.value = false;
-    showOutput.value = true;
+    showOutput.value = "logs";
     preparingRun.value = true; // for immediate feedback if flush takes more than few ms
     try {
       await codeSync.flushNow(); // flush any pending changes to the code (which is debounced)
@@ -333,31 +350,66 @@ defineExpose({
     :focused="context.focused.value"
     :readonly="context.readonly.value"
     class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
-    :class="[showError ? '' : 'rounded-b-sm']"
+    :class="[showOutput != null ? '' : 'rounded-b-sm']"
   />
-  <!-- Last output: logs/error -->
+  <!-- Last output: logs/trace/error -->
   <div
-    ref="outputRef"
     v-if="!hasTypes && lastRun != null && !folded && showOutput"
-    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 font-mono transition duration-150"
-    :class="['max-h-[300px] overflow-y-auto']"
-    :key="lastRun.id"
+    class="relative -mx-1 mb-0.5 max-h-[300px] w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
+    :key="lastRun?.id"
   >
-    <span v-if="!showError && logsTileRef?.logs?.length == 0" class="w-full text-gray-400">No output</span>
-    <LogsTile
-      ref="logsTileRef"
-      v-if="!showError"
-      v-show="!logsTileRef?.loading && (logsTileRef?.logs?.length ?? 1) > 0"
-      :project-id="(bench.projectId as string)"
-      :project-version-id="(bench.projectVersionId as string)"
-      :session-id="lastSessionId"
-      :focus="{
-        runnableIds: [context.statement.value.id],
-      }"
-      lowlight
-      live
-      :limit="500"
-    />
-    <ErrorTraceback v-if="showError" :name="context.statement.value?.name ?? 'run'" :run="lastRun" />
+    <!-- View switcher -->
+    <div class="absolute right-1.5 z-10 flex flex-row gap-1">
+      <button
+        v-for="view in ['logs', 'trace', 'error']"
+        :key="view"
+        class="group relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
+        :class="[showOutput == view ? 'bg-orange-100 text-gray-700' : '']"
+        @click="showOutput = view"
+      >
+        <component
+          :is="
+            {
+              logs: Bars3Icon,
+              trace: ListBulletIcon,
+              error: XCircleIcon,
+            }[view]
+          "
+          class="h-4 w-4 text-gray-400"
+        />
+        <!-- Label -->
+        <span
+          class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+        >
+          Show {{ view }}
+        </span>
+      </button>
+    </div>
+    <!-- View container (scrollable) -->
+    <div ref="outputRef" class="max-h-full max-w-full overflow-auto">
+      <!-- Output views -->
+      <RunTraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" live />
+      <LogsTile
+        ref="logsTileRef"
+        v-if="showOutput == 'logs'"
+        v-show="logsTileRef?.loading || (logsTileRef?.logs?.length ?? 1) > 0"
+        :project-id="(bench.projectId as string)"
+        :project-version-id="(bench.projectVersionId as string)"
+        :session-id="lastSessionId"
+        :focus="{
+          runnableIds: [context.statement.value.id],
+        }"
+        lowlight
+        live
+        :limit="500"
+      />
+      <span v-if="showOutput == 'logs' && logsTileRef?.logs?.length == 0" class="w-full text-gray-400">No logs</span>
+      <ErrorTraceback
+        v-if="showOutput == 'error' && lastRun?.error != null"
+        :name="context.statement.value?.name ?? 'run'"
+        :run="lastRun"
+      />
+      <span v-if="showOutput == 'error' && lastRun?.error == null" class="w-full text-gray-400">No error</span>
+    </div>
   </div>
 </template>

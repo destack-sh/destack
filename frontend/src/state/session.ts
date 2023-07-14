@@ -2,12 +2,44 @@ import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
-import { wrapValueRefs } from "@/utils/functools";
+import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
+
+export const RunHeaderType = graphql(/* GraphQL */ `
+  fragment RunHeader on Run {
+    id
+    createdAt
+    updatedAt
+    startedAt
+    terminatedAt
+    duration
+    cachedDuration
+    cachedGeneratedAt
+    status
+    projectVersion {
+      id
+      tag
+      name
+    }
+    session {
+      id
+    }
+    root {
+      id
+    }
+    parent {
+      id
+    }
+    runnable {
+      id
+      name
+    }
+  }
+`);
 
 export const RunContentType = graphql(/* GraphQL */ `
   fragment RunContent on Run {
@@ -108,9 +140,9 @@ export function _useSessions(
     }
   });
 
+  // then subscribe to changes as they come if live
   const onRunChangeSubscribers = ref<((run: Run) => void)[]>([]);
   if (options.live) {
-    // then subscribe to changes as they come if live
     const { onResult: onSessionChange } = useSubscription(
       graphql(/* GraphQL */ `
         subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {
@@ -142,7 +174,7 @@ export function _useSessions(
 
   function onRunChange(subscriber: (run: Run) => void): () => void {
     if (!options.live) {
-      throw new Error("onRunChange only makes sense when live is true");
+      throw new Error("onRunChange only makes sense when live");
     }
     onRunChangeSubscribers.value.push(subscriber);
     return () => {
@@ -153,6 +185,14 @@ export function _useSessions(
     };
   }
 
+  // utilities
+
+  const currentRoots = computed(() => Object.values(currentRuns.value).filter((run) => run.parent == null));
+  const activeRuns = computed(() =>
+    Object.values(currentRuns.value).filter((run) => !RUN_TERMINAL_STATES.includes(run.status))
+  );
+  const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
+
   function runsOf(statement: { id: string }) {
     return computed(() => Object.values(currentRuns.value).filter((run) => run.runnable?.id === statement.id));
   }
@@ -160,6 +200,9 @@ export function _useSessions(
   return {
     loading: initialLoading,
     currentRuns,
+    currentRoots,
+    activeRuns,
+    activeRoots,
     onRunChange,
     runsOf,
   };
@@ -189,6 +232,9 @@ export function useRuns(
     count?: boolean;
   }
 ) {
+  /**
+   * Gets all runs that match the given filter (without descendants)
+   */
   filter = wrapValueRefs(filter);
 
   const combinedVariables = computed(() => ({
@@ -276,6 +322,105 @@ export function useRuns(
   };
 }
 
+export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
+  /**
+   * Gets the entire trace of a single session/run
+   */
+  runId = toValueRef(runId);
+  const RUN_QUERY = graphql(/* GraphQL */ `
+    # getRun as not to conflict with run from runtime
+    query getRun($id: GlobalID!) {
+      run(id: $id) {
+        ...RunContent
+        descendants {
+          ...RunContent
+        }
+      }
+    }
+  `);
+
+  const { result: initialResult, loading: initialLoading } = useQuery(RUN_QUERY, { id: runId } as any, {
+    fetchPolicy: "network-only",
+  });
+
+  const client = useApolloClient();
+  if (options?.live) {
+    const sessions = useCurrentSessions();
+    const unsub = sessions.onRunChange((run) => {
+      console.log("run changed", run.id, runId.value, run); // nocheckin
+      if (run.id === runId.value) {
+        // run was just created
+        client.client.cache.updateQuery(
+          {
+            query: RUN_QUERY,
+            variables: { id: run.id },
+          },
+          (prev) => {
+            return {
+              run: {
+                ...run,
+                descendants: prev?.run?.descendants ?? run?.descendants ?? [],
+              },
+            };
+          }
+        );
+      } else if (run.root?.id !== runId.value) {
+        return; // ignore
+      } else {
+        // descendant
+        client.client.cache.updateQuery(
+          {
+            query: RUN_QUERY,
+            variables: { id: run.id },
+          },
+          (prev) => {
+            // extend descendants if not already present
+            const descendants = prev?.run?.descendants ?? [];
+            const index = descendants.findIndex((r) => (r as Run).id === run.id);
+            if (index != -1) {
+              return; // already present
+            }
+            return {
+              run: {
+                ...prev?.run,
+                descendants: [...descendants, run],
+              },
+            };
+          }
+        );
+      }
+    });
+    onBeforeUnmount(unsub);
+  }
+
+  const run = computed(() => useFragment(RunContentType, initialResult.value?.run));
+  const descendants = computed(() => initialResult.value?.run?.descendants.map((r) => useFragment(RunContentType, r)));
+  const nodes = computed(() => {
+    if (run.value == null) return null;
+    return [run.value, ...(descendants.value ?? [])];
+  });
+  const children = computed(() => {
+    const nodesByParent: Record<string, Run[]> = {};
+    for (const node of nodes.value ?? []) {
+      if (node.parent != null) {
+        if (nodesByParent[node.parent.id] == null) {
+          nodesByParent[node.parent.id] = [];
+        }
+        nodesByParent[node.parent.id].push(node as Run);
+      }
+    }
+    return nodesByParent;
+  });
+
+  return {
+    loading: initialLoading,
+    run,
+    descendants,
+    children,
+    nodes,
+  };
+}
+
 export function useLogs(
   filter: {
     projectId: Ref<string>;
@@ -286,6 +431,9 @@ export function useLogs(
   },
   options?: { live?: boolean; limit?: number; count?: boolean }
 ) {
+  /**
+   * Gets all logs that match the given filter
+   */
   filter = wrapValueRefs(filter);
   const combinedVariables = computed(() => ({
     projectId: filter.projectId.value,

@@ -1044,6 +1044,7 @@ export class LaunchEditor extends Editor {
   lastOutput?: Record<string, any> = {};
   lastRunTerminatedAt?: string;
   lastRunId?: string;
+  lastSessionId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
     super("launch", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");

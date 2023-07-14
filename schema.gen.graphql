@@ -1116,6 +1116,14 @@ enum ProjectVisibility {
 }
 
 type Query {
+  session(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Session @canViewProject(atRoot: true)
+  run(
+    """The ID of the object."""
+    id: GlobalID!
+  ): Run @canViewProject(atRoot: true)
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   runs(
     """Returns the items in the list that come before the specified cursor."""
@@ -1464,6 +1472,7 @@ type Run implements Node {
   session: Session!
   root: Run
   parent: Run
+  children: [Run!]!
   descendants: [Run!]!
   runnable: Statement
   createdAt: DateTime!
@@ -1605,6 +1614,7 @@ type Session implements Node {
   openedAt: DateTime
   closedAt: DateTime
   metadata: JSON
+  runs: [Run!]!
   triggerType: RunTriggerType!
   user: User
   accessToken: AccessToken
