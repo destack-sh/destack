@@ -237,6 +237,8 @@ const documents = {
     types.RestoreDocument,
   "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      ":
     types.RevealSecretDocument,
+  "\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n":
+    types.RunHeaderFragmentDoc,
   "\n  fragment RunContent on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    errorNice {\n      kind\n      type\n      message\n      traceback {\n        line\n        filename\n        lineno\n        name\n        locals\n      }\n    }\n    runnable {\n      id\n      name\n    }\n  }\n":
     types.RunContentFragmentDoc,
   "\n  fragment LogEntryContent on LogEntry {\n    id\n    createdAt\n    projectVersionId\n    sessionId\n    runnableId\n    runId\n    stream\n    level\n    logger\n    message\n    metadata\n  }\n":
@@ -247,6 +249,8 @@ const documents = {
     types.SessionsChangedDocument,
   "\n    query runs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $limit: Int\n      $count: Boolean\n    ) {\n      runs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.RunsDocument,
+  "\n    # getRun as not to conflict with run from runtime\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  ":
+    types.GetRunDocument,
   "\n    query logs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID\n      $runnableIds: [GlobalID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $limit: Int\n      $count: Boolean\n    ) {\n      logs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        sessionId: $sessionId\n        runId: $runId\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...LogEntryContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.LogsDocument,
   "\n        subscription logsChanged(\n          $projectId: GlobalID!\n          $projectVersionId: GlobalID!\n          $runnableIds: [GlobalID!]\n          $sessionId: GlobalID\n          $runId: GlobalID\n        ) {\n          logsChanged(\n            projectId: $projectId\n            projectVersionId: $projectVersionId\n            runnableIds: $runnableIds\n            sessionId: $sessionId\n            runId: $runId\n          ) {\n            logs {\n              ...LogEntryContent\n            }\n          }\n        }\n      ":
@@ -949,6 +953,12 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"
+): typeof documents["\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n  fragment RunContent on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    errorNice {\n      kind\n      type\n      message\n      traceback {\n        line\n        filename\n        lineno\n        name\n        locals\n      }\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"
 ): typeof documents["\n  fragment RunContent on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    cachedDuration\n    cachedGeneratedAt\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    errorNice {\n      kind\n      type\n      message\n      traceback {\n        line\n        filename\n        lineno\n        name\n        locals\n      }\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"];
 /**
@@ -975,6 +985,12 @@ export function graphql(
 export function graphql(
   source: "\n    query runs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $limit: Int\n      $count: Boolean\n    ) {\n      runs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  "
 ): typeof documents["\n    query runs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $limit: Int\n      $count: Boolean\n    ) {\n      runs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    # getRun as not to conflict with run from runtime\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "
+): typeof documents["\n    # getRun as not to conflict with run from runtime\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

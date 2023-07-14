@@ -10,12 +10,14 @@ import { StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
-import { newRunId, TypeFlag, useCurrentModule } from "@/state/module";
+import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import RunTraceTile from "@/components/tiles/RunTraceTile.vue";
+import { RunContentType } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -72,11 +74,18 @@ watch(path, () => {
 async function run() {
   if (statement.value == null) return;
   editor.value.lastRunId = newRunId();
+  editor.value.lastSessionId = newSessionId();
   running.value = true;
-  const ret = await ops.runtime.run(editor.value.statementId, editor.value.lastRunId, editor.value.arguments, {
-    block: true,
-    keyed: true,
-  });
+  const ret = await ops.runtime.run(
+    editor.value.statementId,
+    editor.value.lastRunId,
+    editor.value.lastSessionId,
+    editor.value.arguments,
+    {
+      block: true,
+      keyed: true,
+    }
+  );
   running.value = false;
   if (ret?.data?.run?.__typename == "RunState") {
     if (!ret?.data?.run?.success) {
@@ -88,18 +97,17 @@ async function run() {
       });
     } else {
       // notify on success if run took a bit
-      if ((ret.data.run?.run?.duration ?? 0) > 5) {
+      const run = useFragment(RunContentType, ret.data.run.run);
+      if ((run?.duration ?? 0) > 5) {
         notifications.show({
           kind: "success",
           type: "run.success",
           message: "Run completed",
-          description: `${statement.value.name} finished after ${formatDurationSeconds(
-            ret.data.run?.run?.duration ?? 5
-          )}.`,
+          description: `${statement.value.name} finished after ${formatDurationSeconds(run?.duration ?? 5)}.`,
         });
       }
-      editor.value.lastOutput = ret.data.run.run?.outputs;
-      editor.value.lastRunTerminatedAt = ret.data.run.run?.terminatedAt;
+      editor.value.lastOutput = run?.outputs;
+      editor.value.lastRunTerminatedAt = run?.terminatedAt;
     }
   }
 }
@@ -240,6 +248,13 @@ defineExpose({
           />
           <div v-else class="flex h-full w-full flex-col items-center justify-center">
             <span class="text-sm text-gray-400">No input</span>
+          </div>
+        </ContainerTile>
+        <!-- Trace -->
+        <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
+          <RunTraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="list" live />
+          <div v-else class="flex h-full w-full flex-col items-center justify-center">
+            <span class="text-sm text-gray-400">No trace</span>
           </div>
         </ContainerTile>
         <!-- Output -->

@@ -16,7 +16,7 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import check_can_read_project, check_can_view_project_by_id
+from bench.api.auth import CanViewProject, check_can_read_project, check_can_view_project_by_id
 from bench.api.statement import Statement
 from bench.api.utils import (
     QueryOp,
@@ -111,6 +111,7 @@ class Session(gql.Node):
     opened_at: auto
     closed_at: auto
     metadata: Optional[JSON]
+    runs: list["Run"]
     # trigger
     trigger_type: RunTriggerType
     user: Optional[Annotated["User", lazy(".user")]]
@@ -123,6 +124,7 @@ class Run(gql.Node):
     session: Session
     root: Optional["Run"]
     parent: Optional["Run"]
+    children: list["Run"]
     descendants: list["Run"]
     runnable: Optional["Statement"]
     created_at: auto
@@ -260,6 +262,9 @@ class SessionQuery:
             | django.db.models.Q(status__in=PENDING_RUN_STATUSES)
         )
         return SessionState(runs=latest_run_instances)
+
+    session: Optional[Session] = gql.relay.node(directives=[CanViewProject()])
+    run: Optional[Run] = gql.relay.node(directives=[CanViewProject()])
 
     @gql.relay.connection
     @async_safe

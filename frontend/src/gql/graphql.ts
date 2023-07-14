@@ -1419,9 +1419,11 @@ export type Query = {
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
+  run?: Maybe<Run>;
   runs: RunConnection;
   searchDataset: RecordConnection;
   secret?: Maybe<Secret>;
+  session?: Maybe<Session>;
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
@@ -1522,6 +1524,10 @@ export type QueryRemoteObjectArgs = {
   id: Scalars["GlobalID"];
 };
 
+export type QueryRunArgs = {
+  id: Scalars["GlobalID"];
+};
+
 export type QueryRunsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
@@ -1552,6 +1558,10 @@ export type QuerySearchDatasetArgs = {
 };
 
 export type QuerySecretArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type QuerySessionArgs = {
   id: Scalars["GlobalID"];
 };
 
@@ -1764,6 +1774,7 @@ export type Run = Node & {
   __typename?: "Run";
   cachedDuration?: Maybe<Scalars["Float"]>;
   cachedGeneratedAt?: Maybe<Scalars["DateTime"]>;
+  children: Array<Run>;
   createdAt: Scalars["DateTime"];
   descendants: Array<Run>;
   duration?: Maybe<Scalars["Float"]>;
@@ -1912,6 +1923,7 @@ export type Session = Node & {
   metadata?: Maybe<Scalars["JSON"]>;
   openedAt?: Maybe<Scalars["DateTime"]>;
   project: Project;
+  runs: Array<Run>;
   triggerType: RunTriggerType;
   updatedAt: Scalars["DateTime"];
   user?: Maybe<User>;
@@ -4790,6 +4802,24 @@ export type RevealSecretQuery = {
   secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
 };
 
+export type RunHeaderFragment = {
+  __typename?: "Run";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  startedAt?: any | null;
+  terminatedAt?: any | null;
+  duration?: number | null;
+  cachedDuration?: number | null;
+  cachedGeneratedAt?: any | null;
+  status: RunStatus;
+  projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
+  session: { __typename?: "Session"; id: any };
+  root?: { __typename?: "Run"; id: any } | null;
+  parent?: { __typename?: "Run"; id: any } | null;
+  runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+} & { " $fragmentName"?: "RunHeaderFragment" };
+
 export type RunContentFragment = {
   __typename?: "Run";
   id: any;
@@ -4898,6 +4928,20 @@ export type RunsQuery = {
       node: { __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } };
     }>;
   };
+};
+
+export type GetRunQueryVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type GetRunQuery = {
+  __typename?: "Query";
+  run?:
+    | ({
+        __typename?: "Run";
+        descendants: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+      } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } })
+    | null;
 };
 
 export type LogsQueryVariables = Exact<{
@@ -5922,6 +5966,77 @@ export const InterpStatementFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpStatementFragment, unknown>;
+export const RunHeaderFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "RunHeader" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Run" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "duration" } },
+          { kind: "Field", name: { kind: "Name", value: "cachedDuration" } },
+          { kind: "Field", name: { kind: "Name", value: "cachedGeneratedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersion" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "session" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "root" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "runnable" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<RunHeaderFragment, unknown>;
 export const RunContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -14972,6 +15087,54 @@ export const RunsDocument = {
     ...RunContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RunsQuery, RunsQueryVariables>;
+export const GetRunDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "getRun" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "run" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "descendants" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...RunContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<GetRunQuery, GetRunQueryVariables>;
 export const LogsDocument = {
   kind: "Document",
   definitions: [
