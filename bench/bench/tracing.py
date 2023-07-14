@@ -16,6 +16,7 @@ from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
 from bench.bench.session import LogEntry, Run, RunError
 from bench.bench.type import check_type, strip_py_value
+from bench.bench.utils import Runnable
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -34,8 +35,6 @@ if TYPE_CHECKING:
         Task,
         Value,
     )
-
-    Runnable = Code | Task | Model
 
 logger = structlog.get_logger(__name__)
 
@@ -400,10 +399,8 @@ class RunTracer(Tracer):
             outputs=None,
             error=None,
             metadata=None,
-            cached_generated_at=None,
-            cached_duration=None,
-            queue_position=queue_position,
         )
+        frame.queue_position = queue_position
         if parent is not None:
             parent.children.append(frame)
         return frame

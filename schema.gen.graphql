@@ -1486,8 +1486,6 @@ type Run implements Node {
   error: JSON
   errorNice: RunError
   metadata: JSON
-  cachedGeneratedAt: DateTime
-  cachedDuration: Float
 }
 
 type RunCodeFrame {

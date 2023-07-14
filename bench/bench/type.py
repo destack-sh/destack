@@ -1144,13 +1144,11 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
         type = type_map[stripped]
     else:
         type = type_from_py_type(py_type, name, type_map)
+    # key is set to None so we error if they're not set later
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
-        # TODO @Broken: only use name as key for stdlib types? (not the other libs)
-        # (others should be mapped with :LibImplementation)
-        # turn into reference
-        return Field(name=name, key=name, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
+        return Field(name=name, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
     else:
-        return Field(name=name, key=name, tag=type.tag, hint=type.hint, flags=flags)
+        return Field(name=name, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
 def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:

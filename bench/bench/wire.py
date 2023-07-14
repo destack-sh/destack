@@ -1530,9 +1530,6 @@ class RunData:
     outputs: Optional[Any]
     error: Optional[RunError]
     metadata: Optional[dict[str, Any]]
-    cached_generated_at: Optional[datetime]
-    cached_duration: Optional[float]
-    queue_position: Optional[int]
 
 
 @data_packer(RunData, lang.Run)
@@ -1566,9 +1563,6 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             outputs=object.outputs,
             error=error,
             metadata=object.metadata,
-            cached_generated_at=object.cached_generated_at,
-            cached_duration=object.cached_duration,
-            queue_position=object.queue_position,
         )
 
     def unpack(self, data: RunData, module: Module) -> lang.Run:
@@ -1601,9 +1595,6 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             outputs=data.outputs,
             error=error,
             metadata=data.metadata,
-            cached_generated_at=data.cached_generated_at,
-            cached_duration=data.cached_duration,
-            queue_position=data.queue_position,
         )
 
 

@@ -59,7 +59,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex flex-col">
+  <div class="relative flex w-full flex-col">
     <!-- Actual logs -->
     <span
       v-for="log in logsSorted"
@@ -77,6 +77,6 @@ defineExpose({
       <span :class="log.stream == 'stderr' ? 'text-red-600' : 'text-gray-900'">{{ log.message }}</span>
     </span>
     <!-- Loading -->
-    <BusySpinnerIcon v-if="loading" class="h-4 w-4 animate-spin text-gray-400" />
+    <BusySpinnerIcon v-if="loading" class="h-4 w-4 animate-spin self-center text-gray-400" />
   </div>
 </template>

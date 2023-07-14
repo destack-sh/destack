@@ -136,6 +136,9 @@ register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
+# vector
+# TODO @Feature: index JSON as flattened object fields (not available in OpenSearch 2.5)
+register_mapper(os.Field(os.FT.OBJECT, dynamic=True, enabled=False), tags=[TypeTag.JSON])
 # file
 register_mapper(
     os.Field(

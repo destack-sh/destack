@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from bench.bench.code_ import Code
     from bench.bench.model import Model
     from bench.bench.task import Task
+    from bench.bench.type import Field
     from bench.bench.wire import LogEntryData, RunData
 
 
@@ -51,6 +52,14 @@ class LazyRun:
         raise NotImplementedError
 
 
+@reflect_struct("RunMetadata", "Default metadata about a run", return_type=True)
+class RunMetadata:
+    queue_position: Optional[int]
+    cached_generated_at: Optional[datetime]
+    cached_duration: Optional[float]
+    progress: Optional[float]
+
+
 @dataclass
 class Run:
     id: UUID
@@ -66,9 +75,6 @@ class Run:
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
     metadata: Optional[dict[str, Any]]
-    queue_position: Optional[int]
-    cached_generated_at: Optional[datetime]
-    cached_duration: Optional[float]
     created_at: datetime = field(default_factory=datetime.utcnow)
     updated_at: datetime = field(default_factory=datetime.utcnow)
     children: list["Run"] = field(default_factory=list)
@@ -76,6 +82,13 @@ class Run:
     def __post_init__(self):
         self._update_status()
         self.updated_at = datetime.utcnow()
+
+    def __str__(self):
+        metadata_keys_str = ", ".join(self.metadata.keys()) if self.metadata else ""
+        return f"{self.runnable} ({self.status}, metadata={metadata_keys_str or '<none>'})"
+
+    def __repr__(self):
+        return f"<Run {self}>"
 
     def _update_status(self):
         if self.error:
@@ -104,12 +117,53 @@ class Run:
         for child in self.children:
             yield from child.walk_descendants()
 
-    def __str__(self):
-        metadata_keys_str = ", ".join(self.metadata.keys()) if self.metadata else ""
-        return f"{self.runnable} ({self.status}, metadata={metadata_keys_str or '<none>'})"
+    def get_metadata(self, key: Union[str, "Field"], default: Any = None) -> Any:
+        if not isinstance(key, str):
+            key = key.typed_key
+        if self.metadata is None:
+            return default
+        return self.metadata.get(key, default)
 
-    def __repr__(self):
-        return f"<Run {self}>"
+    def set_metadata(self, key: Union[str, "Field"], value: Any):
+        if not isinstance(key, str):
+            key = key.typed_key
+        if self.metadata is None:
+            self.metadata = {}
+        self.metadata[key] = value
+
+    # direct accessors for default metadata
+
+    @property
+    def cached_duration(self) -> Optional[float]:
+        return self.get_metadata(RunMetadata.cached_duration)
+
+    @cached_duration.setter
+    def cached_duration(self, value: Optional[float]):
+        self.set_metadata(RunMetadata.cached_duration, value)
+
+    @property
+    def queue_position(self) -> Optional[int]:
+        return self.get_metadata(RunMetadata.queue_position)
+
+    @queue_position.setter
+    def queue_position(self, value: Optional[int]):
+        self.set_metadata(RunMetadata.queue_position, value)
+
+    @property
+    def progress(self) -> Optional[float]:
+        return self.get_metadata(RunMetadata.progress)
+
+    @progress.setter
+    def progress(self, value: Optional[float]):
+        self.set_metadata(RunMetadata.progress, value)
+
+    @property
+    def cached_generated_at(self) -> Optional[datetime]:
+        return self.get_metadata(RunMetadata.cached_generated_at)
+
+    @cached_generated_at.setter
+    def cached_generated_at(self, value: Optional[datetime]):
+        self.set_metadata(RunMetadata.cached_generated_at, value)
 
 
 _IGNORED_PACKAGE_PREFIXES = [

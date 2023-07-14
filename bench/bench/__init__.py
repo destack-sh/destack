@@ -1,13 +1,13 @@
 from bench.bench.basic import Blank, Block, Expectation, Reference, Text
 from bench.bench.code_ import Code
-from bench.bench.const import DatasetViewLayout, StatementType, TypeHint, TypeTag, RunTriggerType
+from bench.bench.const import DatasetViewLayout, RunTriggerType, StatementType, TypeHint, TypeTag
 from bench.bench.core import File, Module, Scope, Session, Statement
 from bench.bench.dataset import Dataset, DatasetView, Record, Value
 from bench.bench.issue import Issue, IssueType
 from bench.bench.model import Model
 from bench.bench.query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.bench.remote import RemoteObject, Secret
-from bench.bench.session import Run, LogEntry, RunError
+from bench.bench.session import LogEntry, Run, RunError, RunMetadata
 from bench.bench.tag import HasTags, Tag, Tagging
 from bench.bench.task import Task
 from bench.bench.type import Field, HasType, ResolvedField, Type, TypeBase, TypeStorageFormat
@@ -50,6 +50,7 @@ __all__ = [
     "Text",
     "Run",
     "RunError",
+    "RunMetadata",
     "RunTriggerType",
     "LogEntry",
     "Type",

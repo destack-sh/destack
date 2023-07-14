@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import abc
 import enum
 import json
@@ -12,6 +10,7 @@ from bench.bench.code_ import Code
 from bench.bench.const import StatementType, TypeTag
 from bench.bench.core import Scope, Statement, node
 from bench.bench.model import Model
+from bench.bench.reflect import reflect_struct
 from bench.bench.tag import HasTags
 from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
 from bench.bench.utils import Runnable
@@ -34,7 +33,7 @@ class TaskError(ValueError):
         self.path = path
 
     @staticmethod
-    def from_exception(e: Exception, path: str = None) -> TaskError:
+    def from_exception(e: Exception, path: str = None) -> "TaskError":
         if isinstance(e, TaskError):
             return e
         elif isinstance(e, ValueError):
@@ -53,6 +52,11 @@ class IncapableError(TaskError):
 class LimitExceededError(TaskError):
     def __init__(self, message: str = None, path: str = None):
         super().__init__(TaskErrorType.EXCEEDED_LIMIT, message, path)
+
+
+@reflect_struct("TaskMetadata", "Default metadata about a task", return_type=True)
+class TaskMetadata:
+    retries: Optional[int]
 
 
 @node(tracked=["description"])

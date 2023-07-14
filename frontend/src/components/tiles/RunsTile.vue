@@ -133,7 +133,7 @@ function isExpanded(runId: string) {
               >
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
-                <span class="">
+                <span class="font-semibold">
                   {{
                     run.duration != null
                       ? formatDurationSeconds(run.duration * 1000)
@@ -141,6 +141,7 @@ function isExpanded(runId: string) {
                   }}
                 </span>
                 <!-- Cached info :CacheInfo -->
+                <!-- nocheckin fixed cache info stuff -->
                 <span v-if="isMostlyCached(run as any)" class="relative px-0.5 py-1">
                   <BoltIcon class="h-3 w-3 text-orange-500" />
                   <span

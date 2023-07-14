@@ -459,7 +459,6 @@ class Run(os.Document):
     status: str = os.field(os.FT.KEYWORD)
     inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
-    # both error and metadata aren't used yet, need to figure out a way to get their types..
     error: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
     metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
@@ -503,10 +502,6 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             outputs=mirror.outputs,
             error=None,
             metadata=mirror.metadata,
-            # not great but we'll fix this when it's moved into metadata
-            cached_duration=None,
-            cached_generated_at=None,
-            queue_position=None,
         )
 
     def unpack(self, project_v: models.ProjectVersion, data: wire.RunData, parent: None) -> Run:
