@@ -339,7 +339,7 @@ class OpenAIChatCompletionModel(Model):
             messages=messages_raw,
             functions=functions_raw,
             **settings_raw,
-            api_key=self.key,
+            api_key=self._api_key,
         )
         message = response["choices"][0]["message"]
         if "function_call" in message:
@@ -535,7 +535,7 @@ class OpenAITextEmbeddingModel(Model):
         if not is_batched:
             text = [text]
         rep = await openai.Embedding.acreate(
-            input=text, model=self.external_name, api_key=self._key
+            input=text, model=self.external_name, api_key=self._api_key
         )
         if not is_batched:
             vector = rep["data"][0]["embedding"]
@@ -622,7 +622,7 @@ class AnthropicTextCompletionModel(Model):
         self, prompt: str, settings: AnthropicTextCompletionSettings
     ) -> AnthropicTextCompletion:
         if self._client is None:
-            self.client = anthropic.Client(self.key)
+            self.client = anthropic.Client(self._api_key)
 
             # monkey patch Anthropic validation (which is broken)
             from anthropic import api

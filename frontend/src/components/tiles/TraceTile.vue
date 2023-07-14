@@ -1,8 +1,12 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import StructTile from "@/components/tiles/StructTile.vue";
+import { pinAbsoluteElement } from "@/composables/useFixed";
 import { formatDurationSeconds, useNow } from "@/composables/useNow";
+import { useFragment } from "@/gql";
 import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
-import { useCurrentModule, useNavigation } from "@/state/module";
+import { FieldType } from "@/state/fragments";
+import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
 import { RUN_TERMINAL_STATES } from "@/state/session";
 import { getStatusColor, getStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
@@ -25,9 +29,19 @@ const layout = ref<TRACE_LAYOUT>(props.layout);
 const module = useCurrentModule();
 const nav = useNavigation();
 const now = useNow(100);
+const altKey = useKeyModifier("Alt");
+
 const canvasRef: Ref<HTMLDivElement | null> = ref(null);
 const canvasBounding = useElementBounding(canvasRef);
-const altKey = useKeyModifier("Alt");
+
+const focusedRunPopoverRef: Ref<HTMLDivElement | null> = ref(null);
+const focusedRun = ref<Run | null>(null);
+const focusedRunPin = pinAbsoluteElement(focusedRunPopoverRef, { pos: true, keepInView: true });
+const focusedRunFields = computed(() =>
+  focusedRun.value?.runnable == null
+    ? []
+    : module.statementOf(focusedRun.value?.runnable?.id)?.fields.map((f) => useFragment(FieldType, f)) ?? []
+);
 
 type OrderedNode = {
   id: string;
@@ -102,14 +116,14 @@ type BarNode = OrderedNode & {
 };
 const barPaddingX = 0;
 const barPaddingY = 4;
-const barHeight = 20;
+const barHeight = 32;
 const barGapY = 2;
 const barMinWidth = 4;
 
 const bgColorByNodeType = {
-  [StatementType.Model]: "bg-teal-600",
-  [StatementType.Code]: "bg-blue-600",
-  [StatementType.Task]: "bg-orange-600",
+  [StatementType.Model]: "bg-teal-100 border-teal-200",
+  [StatementType.Code]: "bg-blue-100 border-blue-200",
+  [StatementType.Task]: "bg-orange-100 border-orange-200",
 };
 
 const bars = computed(() => {
@@ -132,6 +146,7 @@ const bars = computed(() => {
 
   return bars;
 });
+const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y + barHeight), 0));
 
 // other traces will come later (timeline, mutations, logs, etc.)
 </script>
@@ -179,36 +194,101 @@ const bars = computed(() => {
     </div>
     <!-- nocheckin -->
   </div>
-  <div ref="canvasRef" v-else-if="layout == 'bartree'" class="relative h-full w-full">
+  <div
+    ref="canvasRef"
+    v-else-if="layout == 'bartree'"
+    class="relative w-full"
+    :style="{
+      height: totalHeight + 'px',
+    }"
+  >
     <div
-      v-for="bar in bars"
-      :key="bar.id"
-      class="absolute flex max-h-full max-w-full flex-row items-center rounded-sm p-1 hover:bg-orange-100"
-      :class="[getStatusColor(bar.run.status)]"
+      v-for="node in bars"
+      :key="node.id"
+      class="absolute flex max-h-full max-w-full flex-row items-center truncate rounded-sm border border-opacity-60 bg-opacity-60 p-1 transition-all hover:z-10 hover:min-w-fit hover:cursor-pointer hover:border-opacity-100 hover:bg-opacity-100"
+      :class="[node.color, focusedRun?.id == node.id ? 'ring-1 ring-orange-600' : '']"
       :style="{
-        left: bar.x + 'px',
-        top: bar.y + 'px',
-        width: bar.width + 'px',
+        left: node.x + 'px',
+        top: node.y + 'px',
+        width: node.width + 'px',
         height: barHeight + 'px',
       }"
+      @click="focusedRun = node.run"
     >
       <!-- Status -->
       <component
-        :is="getStatusIconSolid(bar.run.status)"
-        class="h-4 w-4"
-        :class="[bar.run.status == RunStatus.Running || bar.run.status == RunStatus.Queued ? 'animate-spin' : '']"
+        :is="getStatusIconSolid(node.run.status)"
+        class="h-4 w-4 flex-shrink-0"
+        :class="[
+          node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '',
+          getStatusColor(node.run.status),
+        ]"
       />
       <!-- Runnable -->
       <span
-        class="ml-1 max-w-full truncate font-semibold underline-offset-4"
-        :class="[altKey && bar.runnable != null ? 'cursor-pointer hover:underline' : '']"
+        class="ml-1 max-w-full flex-shrink-0 whitespace-nowrap font-semibold underline-offset-4"
+        :class="[
+          altKey && node.runnable != null ? 'cursor-pointer hover:underline' : '',
+          getStatusColor(node.run.status),
+        ]"
         @click="
           (e) =>
-            altKey && bar.runnable != null
-              ? (nav.focusStatement(bar.runnable), e.stopPropagation(), e.preventDefault())
+            altKey && node.runnable != null
+              ? (nav.focusStatement(node.runnable), e.stopPropagation(), e.preventDefault())
               : undefined
         "
-        >{{ bar.runnable?.name ?? "???" }}</span
+        >{{ node.runnable?.name ?? "???" }}</span
+      >
+      <!-- Duration -->
+      <span class="ml-1 flex-shrink-0" :class="[getStatusColor(node.run.status)]">
+        <span class="font-semibold">{{ formatDurationSeconds(node.duration * 1000) }}</span>
+        <template v-if="node.children.length > 0">
+          /
+          <span class="font-light">{{ formatDurationSeconds(node.durationSelf * 1000) }}</span>
+        </template>
+      </span>
+    </div>
+  </div>
+  <!-- Prevent scroll and capture click outside -->
+  <div
+    v-if="focusedRunPopoverRef != null"
+    class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+    @click.stop="focusedRun = null"
+  />
+  <div
+    v-if="focusedRun != null"
+    ref="focusedRunPopoverRef"
+    class="z-50 flex w-[400px] flex-col gap-2 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+    :class="[focusedRunPin.pinned.value ? '' : 'absolute right-8']"
+  >
+    <!-- Runnable -->
+    <div class="flex flex-row">
+      <h2 class="font-semibold">{{ focusedRun?.runnable?.name }}</h2>
+    </div>
+    <!-- Inputs -->
+    <div class="mt-1">
+      <h3 class="mb-0.5 text-sm font-semibold">Inputs</h3>
+      <StructTile
+        readonly
+        class="w-full"
+        :fields="focusedRunFields.filter((f) => !(f.flags & TypeFlag.IsOutput))"
+        :model-value="focusedRun?.inputs ?? {}"
+      />
+      <span v-if="focusedRunFields.filter((f) => !(f.flags & TypeFlag.IsOutput)).length == 0" class="text-gray-400"
+        >No inputs</span
+      >
+    </div>
+    <!-- Outputs -->
+    <div class="mt-1">
+      <h3 class="mb-0.5 text-sm font-semibold">Outputs</h3>
+      <StructTile
+        readonly
+        class="w-full"
+        :fields="focusedRunFields.filter((f) => f.flags & TypeFlag.IsOutput)"
+        :model-value="focusedRun?.outputs ?? {}"
+      />
+      <span v-if="focusedRunFields.filter((f) => f.flags & TypeFlag.IsOutput).length == 0" class="text-gray-400"
+        >No outputs</span
       >
     </div>
   </div>

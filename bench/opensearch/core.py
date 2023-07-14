@@ -143,6 +143,18 @@ class Field:
     def __eq__(self, other):
         return id(self) == id(other) or self.to_dict() == other.to_dict()  # not efficient, I know
 
+    def walk(self) -> typing.Iterator["Field"]:
+        """
+        Iterate over this field and all its subfields.
+        """
+        yield self
+        if self.fields is not None:
+            for f in self.fields.values():
+                yield from f.walk()
+        if self.properties is not None:
+            for f in self.properties.values():
+                yield from f.walk()
+
     def to_dict(self) -> dict[str, Any]:
         """
         Convert this field to a dict wireable to OpenSearch.
