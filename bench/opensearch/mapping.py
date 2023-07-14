@@ -75,11 +75,13 @@ class StaticFieldMapper(FieldMapper):
 
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        subfields = {
-            f.typed_key: get_mapper(f).to_os_type(f, depth + 1)
-            for f in type.resolved_fields
-            if f.effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH
-        }
+        subfields = {}
+        for f in type.resolved_fields:
+            if f.effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
+                subfields[f.typed_key] = get_mapper(f).to_os_type(f, depth + 1)
+            else:
+                # treat as json (but not as flattened yet.. :BadJsonMapping)
+                subfields[f.typed_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
         subfields[TYPENAME_SENTINEL] = os.Field(os.FT.KEYWORD)
         return os.Field(
             os.FT.OBJECT,
@@ -137,7 +139,7 @@ register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])
 # vector
 register_mapper(VectorFieldMapper(), tags=[TypeTag.VECTOR])
 # vector
-# TODO @Feature: index JSON as flattened object fields (not available in OpenSearch 2.5)
+# TODO @Feature: index JSON as flattened object fields (not available in OpenSearch 2.5) :BadJsonMapping
 register_mapper(os.Field(os.FT.OBJECT, dynamic=True, enabled=False), tags=[TypeTag.JSON])
 # file
 register_mapper(

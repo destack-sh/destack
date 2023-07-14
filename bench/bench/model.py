@@ -40,13 +40,13 @@ class Model(HasType, HasTags, Runnable, Statement):
     _remote: bool = False
     _endpoint_impl: typing.Optional[typing.Callable] = None
     _compiler_impl: typing.Optional[typing.Callable] = None
-    _key: typing.Optional[str] = None
+    _api_key: typing.Optional[str] = None
 
     def _clear(self) -> None:
         Scope._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
-        self._key = None
+        self._api_key = None
         self._remote = True
         self._endpoint_impl = None
         self._compiler_impl = None
@@ -57,8 +57,8 @@ class Model(HasType, HasTags, Runnable, Statement):
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:
-            self._key = os.environ.get(f"{provider.upper()}_API_KEY")
-        self._remote = self._key is None
+            self._api_key = os.environ.get(f"{provider.upper()}_API_KEY")
+        self._remote = self._api_key is None
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
         inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)

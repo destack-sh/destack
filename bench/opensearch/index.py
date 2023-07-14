@@ -258,6 +258,7 @@ def write_session_to_os(
         raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
 
 
+# WHYurbCO-obj] within [inputs.jIjnlify-obj.reTruPnv-obj.WHYurbCO-obj.CeeVQvCs-obj
 def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module
@@ -288,8 +289,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
                     outputs_mappings[field.typed_key] = map_to_os_field(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
-        if field.type == os.FieldType.KNN_VECTOR:
-            field.index = False
+        for f in field.walk():
+            if f.type == os.FieldType.KNN_VECTOR:
+                f.index = False
 
     # and 'static' metadata mappings (hard-coded)
     for metadata_type in (

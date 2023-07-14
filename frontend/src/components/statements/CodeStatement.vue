@@ -184,6 +184,7 @@ async function run() {
     lastRunLocalId.value = newRunId();
     lastSessionLocalId.value = newSessionId();
     // nocheckin: move optimistic run/session handling to session.ss (incl. cancellation/suspend etc.)
+    //  .. maybe just make run mut optimistic?
     // optimistically set last run local
     lastRunLocal.value = {
       id: lastRunLocalId.value,
@@ -358,39 +359,43 @@ defineExpose({
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
     :key="lastRun?.id"
   >
-    <!-- View switcher -->
-    <div
-      class="group/controls absolute right-2 z-10 flex flex-row gap-1 opacity-50 transition-opacity duration-150 hover:opacity-100"
-    >
-      <button
-        v-for="view in ['logs', 'trace', 'error'].filter((v) => v != 'error' || lastRun?.status == RunStatus.Failed)"
-        :key="view"
-        class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
-        :class="[showOutput == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-        @click="showOutput = view"
+    <!-- Controls -->
+    <div class="flex flex-row justify-between">
+      <span class="font-mono text-gray-400"
+        >{{ showOutput }} from {{ now.getTimeFromNowLongString(lastRun.updatedAt) }}</span
       >
-        <component
-          :is="
-            {
-              logs: Bars3Icon,
-              trace: Squares2X2Icon,
-              error: XCircleIcon,
-            }[view]
-          "
-          class="h-4 w-4"
-        />
-        <!-- Label -->
-        <span
-          class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
+      <!-- View switcher -->
+      <div class="group/controls z-10 flex flex-row gap-1">
+        <button
+          v-for="view in ['logs', 'trace', 'error'].filter((v) => v != 'error' || lastRun?.status == RunStatus.Failed)"
+          :key="view"
+          class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
+          :class="[showOutput == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
+          @click="showOutput = view"
         >
-          Show {{ view }}
-        </span>
-      </button>
+          <component
+            :is="
+              {
+                logs: Bars3Icon,
+                trace: Squares2X2Icon,
+                error: XCircleIcon,
+              }[view]
+            "
+            class="h-4 w-4"
+          />
+          <!-- Label -->
+          <span
+            class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
+          >
+            Show {{ view }}
+          </span>
+        </button>
+      </div>
     </div>
     <!-- View container (scrollable) -->
-    <div ref="outputRef" class="max-h-[300px] overflow-auto">
+    <div ref="outputRef" class="mt-1 max-h-[300px] overflow-auto">
       <!-- Output views -->
-      <TraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" live />
+      <TraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" layout="bartree" live />
       <LogsTile
         ref="logsTileRef"
         v-if="showOutput == 'logs'"
