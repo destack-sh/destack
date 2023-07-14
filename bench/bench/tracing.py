@@ -381,9 +381,9 @@ class RunTracer(Tracer):
         queue_position: int | None = None,
         trace: bool = True,
     ):
-        if trace:
-            root = self.stacktrace[0] if self.stacktrace else None
-            parent = self.stacktrace[-1] if self.stacktrace else None
+        if trace and _active_run.get() is not None:
+            root = _active_run.get().root or _active_run.get()
+            parent = _active_run.get()
         else:
             root = None
             parent = None

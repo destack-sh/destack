@@ -26,6 +26,7 @@ import {
   QueueListIcon,
   ListBulletIcon,
   Bars3Icon,
+  Squares2X2Icon,
 } from "@heroicons/vue/24/outline";
 import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
@@ -33,7 +34,7 @@ import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import RunTraceTile from "@/components/tiles/RunTraceTile.vue";
+import TraceTile from "@/components/tiles/TraceTile.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -355,15 +356,17 @@ defineExpose({
   <!-- Last output: logs/trace/error -->
   <div
     v-if="!hasTypes && lastRun != null && !folded && showOutput"
-    class="relative -mx-1 mb-0.5 max-h-[300px] w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
+    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
     :key="lastRun?.id"
   >
     <!-- View switcher -->
-    <div class="absolute right-1.5 z-10 flex flex-row gap-1">
+    <div
+      class="group/controls absolute right-2 z-10 flex flex-row gap-1 opacity-50 transition-opacity duration-150 hover:opacity-100"
+    >
       <button
-        v-for="view in ['logs', 'trace', 'error']"
+        v-for="view in ['logs', 'trace', 'error'].filter((v) => v != 'error' || lastRun?.status == RunStatus.Failed)"
         :key="view"
-        class="group relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
+        class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
         :class="[showOutput == view ? 'bg-orange-100 text-gray-700' : '']"
         @click="showOutput = view"
       >
@@ -371,7 +374,7 @@ defineExpose({
           :is="
             {
               logs: Bars3Icon,
-              trace: ListBulletIcon,
+              trace: Squares2X2Icon,
               error: XCircleIcon,
             }[view]
           "
@@ -379,16 +382,16 @@ defineExpose({
         />
         <!-- Label -->
         <span
-          class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+          class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
         >
           Show {{ view }}
         </span>
       </button>
     </div>
     <!-- View container (scrollable) -->
-    <div ref="outputRef" class="max-h-full max-w-full overflow-auto">
+    <div ref="outputRef" class="max-h-[300px] overflow-auto">
       <!-- Output views -->
-      <RunTraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" live />
+      <TraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" live />
       <LogsTile
         ref="logsTileRef"
         v-if="showOutput == 'logs'"
@@ -405,11 +408,11 @@ defineExpose({
       />
       <span v-if="showOutput == 'logs' && logsTileRef?.logs?.length == 0" class="w-full text-gray-400">No logs</span>
       <ErrorTraceback
-        v-if="showOutput == 'error' && lastRun?.error != null"
+        v-if="showOutput == 'error' && lastRun?.errorNice != null"
         :name="context.statement.value?.name ?? 'run'"
         :run="lastRun"
       />
-      <span v-if="showOutput == 'error' && lastRun?.error == null" class="w-full text-gray-400">No error</span>
+      <span v-if="showOutput == 'error' && lastRun?.errorNice == null" class="w-full text-gray-400">No error</span>
     </div>
   </div>
 </template>

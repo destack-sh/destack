@@ -25,6 +25,7 @@ class RunStatus(enum.StrEnum):
     Scheduled = "Scheduled"
     Queued = "Queued"
     Running = "Running"
+    Suspended = "Suspended"
     Aborting = "Aborting"
     # terminal statuses
     Aborted = "Aborted"

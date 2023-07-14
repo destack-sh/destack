@@ -1,8 +1,22 @@
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
+import {
+  CheckCircleIcon as CheckCircleIconOutline,
+  PauseCircleIcon as PauseCircleIconOutline,
+  QuestionMarkCircleIcon as QuestionMarkCircleIconOutline,
+  XCircleIcon as XCircleIconOutline,
+} from "@heroicons/vue/24/outline";
+
+import {
+  CheckCircleIcon as CheckCircleIconSolid,
+  PauseCircleIcon as PauseCircleIconSolid,
+  QuestionMarkCircleIcon as QuestionMarkCircleIconSolid,
+  XCircleIcon as XCircleIconSolid,
+} from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
@@ -322,11 +336,11 @@ export function useRuns(
   };
 }
 
-export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
+export function useRun(rootId: Ref<string>, options?: { live?: boolean }) {
   /**
    * Gets the entire trace of a single session/run
    */
-  runId = toValueRef(runId);
+  rootId = toValueRef(rootId);
   const RUN_QUERY = graphql(/* GraphQL */ `
     # getRun as not to conflict with run from runtime
     query getRun($id: GlobalID!) {
@@ -339,7 +353,7 @@ export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
     }
   `);
 
-  const { result: initialResult, loading: initialLoading } = useQuery(RUN_QUERY, { id: runId } as any, {
+  const { result: initialResult, loading: initialLoading } = useQuery(RUN_QUERY, { id: rootId } as any, {
     fetchPolicy: "network-only",
   });
 
@@ -347,13 +361,12 @@ export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
   if (options?.live) {
     const sessions = useCurrentSessions();
     const unsub = sessions.onRunChange((run) => {
-      console.log("run changed", run.id, runId.value, run); // nocheckin
-      if (run.id === runId.value) {
+      if (run.id === rootId.value) {
         // run was just created
         client.client.cache.updateQuery(
           {
             query: RUN_QUERY,
-            variables: { id: run.id },
+            variables: { id: rootId.value },
           },
           (prev) => {
             return {
@@ -364,21 +377,20 @@ export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
             };
           }
         );
-      } else if (run.root?.id !== runId.value) {
-        return; // ignore
+      } else if (run.root?.id !== rootId.value) {
+        return; // ignore from other run
       } else {
-        // descendant
+        // add descendant if it's not already there
         client.client.cache.updateQuery(
           {
             query: RUN_QUERY,
-            variables: { id: run.id },
+            variables: { id: rootId.value },
           },
           (prev) => {
-            // extend descendants if not already present
             const descendants = prev?.run?.descendants ?? [];
             const index = descendants.findIndex((r) => (r as Run).id === run.id);
             if (index != -1) {
-              return; // already present
+              return prev;
             }
             return {
               run: {
@@ -399,7 +411,7 @@ export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
     if (run.value == null) return null;
     return [run.value, ...(descendants.value ?? [])];
   });
-  const children = computed(() => {
+  const childrenByParentId = computed(() => {
     const nodesByParent: Record<string, Run[]> = {};
     for (const node of nodes.value ?? []) {
       if (node.parent != null) {
@@ -416,7 +428,7 @@ export function useRun(runId: Ref<string>, options?: { live?: boolean }) {
     loading: initialLoading,
     run,
     descendants,
-    children,
+    childrenByParentId,
     nodes,
   };
 }
@@ -541,6 +553,52 @@ export function useLogs(
     logs: computed(() => initialResult.value?.logs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
     addLogs,
   };
+}
+
+export function getStatusIconOutline(status: RunStatus) {
+  if (status == RunStatus.Queued || status == RunStatus.Running) {
+    return BusySpinnerIcon;
+  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
+    return XCircleIconOutline;
+  } else if (status == RunStatus.Suspended) {
+    return PauseCircleIconOutline;
+  } else if (status == RunStatus.Failed) {
+    return XCircleIconOutline;
+  } else if (status == RunStatus.Completed) {
+    return CheckCircleIconOutline;
+  } else {
+    return QuestionMarkCircleIconOutline;
+  }
+}
+
+export function getStatusIconSolid(status: RunStatus) {
+  if (status == RunStatus.Queued || status == RunStatus.Running) {
+    return BusySpinnerIcon;
+  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
+    return XCircleIconSolid;
+  } else if (status == RunStatus.Suspended) {
+    return PauseCircleIconSolid;
+  } else if (status == RunStatus.Failed) {
+    return XCircleIconSolid;
+  } else if (status == RunStatus.Completed) {
+    return CheckCircleIconSolid;
+  } else {
+    return QuestionMarkCircleIconSolid;
+  }
+}
+
+export function getStatusColor(status: RunStatus) {
+  if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
+    return "text-gray-700";
+  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
+    return "text-gray-700";
+  } else if (status == RunStatus.Failed) {
+    return "text-red-600";
+  } else if (status == RunStatus.Completed) {
+    return "text-green-700";
+  } else {
+    return "text-gray-700";
+  }
 }
 
 export function isMostlyCached(run: { duration?: number; cachedDuration?: number }): boolean {

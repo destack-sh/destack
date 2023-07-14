@@ -1865,6 +1865,7 @@ export enum RunStatus {
   Queued = "Queued",
   Running = "Running",
   Scheduled = "Scheduled",
+  Suspended = "Suspended",
 }
 
 export enum RunTriggerType {

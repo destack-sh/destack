@@ -5,16 +5,9 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
-import { isMostlyCached, getCachedPercentage, useRuns } from "@/state/session";
+import { isMostlyCached, getCachedPercentage, useRuns, getStatusColor, getStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
-import {
-  BoltIcon,
-  CheckCircleIcon,
-  ChevronDoubleDownIcon,
-  ChevronDoubleUpIcon,
-  QuestionMarkCircleIcon,
-  XCircleIcon,
-} from "@heroicons/vue/24/solid";
+import { BoltIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
 import { useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -58,7 +51,7 @@ const expandedRunId = ref<string | null>(null);
 
 // navigation
 
-const altKeyState = useKeyModifier("Alt");
+const altKey = useKeyModifier("Alt");
 
 // display
 
@@ -84,34 +77,6 @@ function toggleExpanded(runId: string) {
 
 function isExpanded(runId: string) {
   return expandedRunId.value == runId;
-}
-
-function getStatusIcon(status: RunStatus) {
-  if (status == RunStatus.Queued || status == RunStatus.Running) {
-    return BusySpinnerIcon;
-  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
-    return XCircleIcon;
-  } else if (status == RunStatus.Failed) {
-    return XCircleIcon;
-  } else if (status == RunStatus.Completed) {
-    return CheckCircleIcon;
-  } else {
-    return QuestionMarkCircleIcon;
-  }
-}
-
-function getStatusColor(status: RunStatus) {
-  if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
-    return "text-gray-700";
-  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
-    return "text-gray-700";
-  } else if (status == RunStatus.Failed) {
-    return "text-red-600";
-  } else if (status == RunStatus.Completed) {
-    return "text-green-700";
-  } else {
-    return "text-gray-700";
-  }
 }
 </script>
 <template>
@@ -150,16 +115,17 @@ function getStatusColor(status: RunStatus) {
             <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(run.status)">
               <!-- Status -->
               <component
-                :is="getStatusIcon(run.status)"
+                :is="getStatusIconSolid(run.status)"
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
+              <!-- Runnable -->
               <span
                 class="ml-1 max-w-full truncate font-semibold underline-offset-4"
-                :class="[altKeyState ? 'cursor-pointer hover:underline' : '']"
+                :class="[altKey ? 'cursor-pointer hover:underline' : '']"
                 @click="
                   (e) =>
-                    altKeyState && run.runnable != null
+                    altKey && run.runnable != null
                       ? (nav.focusStatement(run.runnable), e.stopPropagation(), e.preventDefault())
                       : undefined
                 "
@@ -167,11 +133,13 @@ function getStatusColor(status: RunStatus) {
               >
               <!-- Duration -->
               <span class="group/cache ml-1 flex flex-row">
-                {{
-                  run.duration != null
-                    ? formatDurationSeconds(run.duration * 1000)
-                    : now.getTimeFromNowString(run.startedAt)
-                }}
+                <span class="">
+                  {{
+                    run.duration != null
+                      ? formatDurationSeconds(run.duration * 1000)
+                      : now.getTimeFromNowString(run.startedAt)
+                  }}
+                </span>
                 <!-- Cached info :CacheInfo -->
                 <span v-if="isMostlyCached(run as any)" class="relative px-0.5 py-1">
                   <BoltIcon class="h-3 w-3 text-orange-500" />

@@ -1554,6 +1554,7 @@ enum RunStatus {
   Scheduled
   Queued
   Running
+  Suspended
   Aborting
   Aborted
   Failed
