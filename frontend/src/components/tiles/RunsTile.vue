@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import StructTile from "@/components/tiles/StructTile.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus } from "@/gql/graphql";
-import { isMostlyCached, getCachedPercentage, useRuns, getStatusColor, getStatusIconSolid } from "@/state/session";
+import { RunStatus, type Run } from "@/gql/graphql";
+import { useRuns, getStatusColor, getStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
-import { BoltIcon, ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
+import { ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
 import { useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import RunTile from "@/components/tiles/RunTile.vue";
+import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 
 const props = defineProps<{
   runnableId: string;
@@ -141,22 +141,7 @@ function isExpanded(runId: string) {
                   }}
                 </span>
                 <!-- Cached info :CacheInfo -->
-                <!-- nocheckin fixed cache info stuff -->
-                <span v-if="isMostlyCached(run as any)" class="relative px-0.5 py-1">
-                  <BoltIcon class="h-3 w-3 text-orange-500" />
-                  <span
-                    v-if="run.duration != null && run.cachedDuration != null"
-                    class="invisible absolute z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/cache:visible"
-                  >
-                    Cached
-                    {{ now.getTimeFromNowString(run.cachedGeneratedAt) }} ago<br />
-                    <template v-if="getCachedPercentage(run) > 0">
-                      Saved {{ getCachedPercentage(run).toFixed() }}% (~{{
-                        formatDurationSeconds((run.cachedDuration - run.duration) * 1000)
-                      }})
-                    </template>
-                  </span>
-                </span>
+                <RunCacheInfo :run="run" />
               </span>
             </span>
             <!-- Trigger -->
@@ -202,28 +187,19 @@ function isExpanded(runId: string) {
           </button>
         </div>
         <!-- Body / run tile preview -->
-        <div
+        <RunTile
           v-if="expandedRunId === run.id"
           @click.stop
           class="scroll-hidden my-3 w-full gap-5 overflow-y-auto"
+          :project-id="props.projectId"
+          :project-version-id="props.projectVersionId"
+          :run="(run as Run)"
           :style="{
             maxHeight: bodyHeight + 'px',
           }"
-        >
-          <StructTile
-            v-if="run.inputs != null"
-            readonly
-            class="w-full"
-            :fields="[...inputFields, ...(run.outputs != null ? outputFields : [])]"
-            :model-value="{ ...(run.inputs ?? {}), ...(run.outputs ?? {}) }"
-          />
-          <ErrorTraceback
-            v-if="run.errorNice"
-            class="w-full rounded-sm border border-orange-900 border-opacity-[12%] p-1 font-mono"
-            name="run"
-            :run="run"
-          />
-        </div>
+          view="metadata"
+          show-controls
+        />
       </div>
     </div>
     <!-- Load more -->

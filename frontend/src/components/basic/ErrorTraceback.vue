@@ -1,14 +1,17 @@
 <script lang="ts" setup>
 import { RunStatus, type Run } from "@/gql/graphql";
+import { useCurrentModule } from "@/state/module";
+import { computed } from "vue";
 
 const props = defineProps<{
-  name: string;
   run: Run;
 }>();
+const module = useCurrentModule();
+const runnableName = computed(() => module.statementOf(props.run.runnable?.id)?.name);
 </script>
 <template>
   <div class="relative w-full font-mono" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
-    {{ name }} {{ run.status.toLowerCase() }}:
+    {{ runnableName ?? "run" }} {{ run.status.toLowerCase() }}:
     <span class="font-bold">{{ run.errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->

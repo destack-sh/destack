@@ -146,15 +146,25 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
   }
 
-  function pathOf(file: { id: string }) {
+  function pathOf(fileOrStatement: { id: string }) {
     // traverse parents
+    const statement = idx.value?.statementsById[fileOrStatement.id];
+    if (statement != null) {
+      const filePath = pathOfFile(statement);
+      return filePath + "." + statement.name;
+    } else {
+      return pathOfFile(fileOrStatement);
+    }
+  }
+
+  function pathOfFile(file: { id: string }) {
     let f = idx.value?.filesById[file.id];
     const path: string[] = [];
     while (f != null) {
       path.push(f.name);
       f = idx.value?.filesById[f.parent?.id ?? ""];
     }
-    return path.reverse().join("/");
+    return path.reverse().join(".");
   }
 
   function contextOf(symbol: { id: string }) {

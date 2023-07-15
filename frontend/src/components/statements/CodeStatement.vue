@@ -1,5 +1,4 @@
 <script lang="ts" setup>
-import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
@@ -7,7 +6,7 @@ import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { RUN_TERMINAL_STATES, isMostlyCached, getCachedPercentage, useCurrentSessions } from "@/state/session";
+import { RUN_TERMINAL_STATES, useCurrentSessions } from "@/state/session";
 import { TypeFlag, newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -22,19 +21,13 @@ import {
   TagIcon,
   EyeIcon,
   EyeSlashIcon,
-  XCircleIcon,
-  QueueListIcon,
-  ListBulletIcon,
-  Bars3Icon,
-  Squares2X2Icon,
 } from "@heroicons/vue/24/outline";
-import { BoltIcon } from "@heroicons/vue/20/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
-import LogsTile from "@/components/tiles/LogsTile.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import TraceTile from "@/components/tiles/TraceTile.vue";
+import RunTile from "@/components/tiles/RunTile.vue";
+import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -187,6 +180,7 @@ async function run() {
     //  .. maybe just make run mut optimistic?
     // optimistically set last run local
     lastRunLocal.value = {
+      __typename: "Run",
       id: lastRunLocalId.value,
       status: RunStatus.Running,
       startedAt: now.now.value.toString(),
@@ -196,6 +190,10 @@ async function run() {
       inputs: null,
       outputs: null,
       error: null,
+      session: {
+        __typename: "Session",
+        id: lastSessionLocalId.value,
+      },
     } as Run;
     cancelled.value = false;
     showOutput.value = "logs";
@@ -280,21 +278,7 @@ defineExpose({
         }}
       </span>
       <!-- Cache info -->
-      <span v-if="!hasTypes && lastRun != null && isMostlyCached(lastRun as any)" class="relative mr-0.5 py-1">
-        <BoltIcon class="h-3 w-3 text-orange-500" />
-        <span
-          v-if="lastRun.duration != null && lastRun.cachedDuration != null"
-          class="invisible absolute -right-10 z-10 -ml-1 mt-1 w-36 rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover/info:visible"
-        >
-          Cached
-          {{ now.getTimeFromNowString(lastRun.cachedGeneratedAt) }} ago<br />
-          <template v-if="getCachedPercentage(lastRun) > 0">
-            Saved {{ getCachedPercentage(lastRun).toFixed() }}% (~{{
-              formatDurationSeconds((lastRun.cachedDuration - lastRun.duration) * 1000)
-            }})
-          </template>
-        </span>
-      </span>
+      <RunCacheInfo v-if="!hasTypes && lastRun != null" :run="lastRun" class="relative mr-0.5 py-1" />
       <!-- Age -->
       <span
         v-if="!hasTypes"
@@ -354,69 +338,14 @@ defineExpose({
     :class="[showOutput != null ? '' : 'rounded-b-sm']"
   />
   <!-- Last output: logs/trace/error -->
-  <div
+  <RunTile
     v-if="!hasTypes && lastRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
+    :project-id="bench.projectId"
+    :project-version-id="bench.projectVersionId"
+    :run="lastRun"
     :key="lastRun?.id"
-  >
-    <!-- Controls -->
-    <div class="flex flex-row justify-between">
-      <span class="font-mono text-gray-400"
-        >{{ showOutput }} from {{ now.getTimeFromNowLongString(lastRun.updatedAt) }}</span
-      >
-      <!-- View switcher -->
-      <div class="group/controls z-10 flex flex-row gap-1">
-        <button
-          v-for="view in ['logs', 'trace', 'error'].filter((v) => v != 'error' || lastRun?.status == RunStatus.Failed)"
-          :key="view"
-          class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
-          :class="[showOutput == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-          @click="showOutput = view"
-        >
-          <component
-            :is="
-              {
-                logs: Bars3Icon,
-                trace: Squares2X2Icon,
-                error: XCircleIcon,
-              }[view]
-            "
-            class="h-4 w-4"
-          />
-          <!-- Label -->
-          <span
-            class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
-          >
-            Show {{ view }}
-          </span>
-        </button>
-      </div>
-    </div>
-    <!-- View container (scrollable) -->
-    <div ref="outputRef" class="mt-1 max-h-[300px] overflow-auto">
-      <!-- Output views -->
-      <TraceTile v-if="showOutput == 'trace'" :session-id="lastSessionId" :root-id="lastRunId" layout="bartree" live />
-      <LogsTile
-        ref="logsTileRef"
-        v-if="showOutput == 'logs'"
-        v-show="logsTileRef?.loading || (logsTileRef?.logs?.length ?? 1) > 0"
-        :project-id="(bench.projectId as string)"
-        :project-version-id="(bench.projectVersionId as string)"
-        :session-id="lastSessionId"
-        :focus="{
-          runnableIds: [context.statement.value.id],
-        }"
-        lowlight
-        live
-        :limit="500"
-      />
-      <span v-if="showOutput == 'logs' && logsTileRef?.logs?.length == 0" class="w-full text-gray-400">No logs</span>
-      <ErrorTraceback
-        v-if="showOutput == 'error' && lastRun?.errorNice != null"
-        :name="context.statement.value?.name ?? 'run'"
-        :run="lastRun"
-      />
-      <span v-if="showOutput == 'error' && lastRun?.errorNice == null" class="w-full text-gray-400">No error</span>
-    </div>
-  </div>
+    view="logs"
+    show-controls
+  />
 </template>
