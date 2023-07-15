@@ -159,11 +159,12 @@ class Run:
 
     @property
     def cached_generated_at(self) -> Optional[datetime]:
-        return self.get_metadata(RunMetadata.cached_generated_at)
+        cached_generated_at = self.get_metadata(RunMetadata.cached_generated_at)
+        return datetime.fromisoformat(cached_generated_at) if cached_generated_at else None
 
     @cached_generated_at.setter
     def cached_generated_at(self, value: Optional[datetime]):
-        self.set_metadata(RunMetadata.cached_generated_at, value)
+        self.set_metadata(RunMetadata.cached_generated_at, value.isoformat() if value else None)
 
 
 _IGNORED_PACKAGE_PREFIXES = [

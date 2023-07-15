@@ -90,6 +90,7 @@ export const RunContentType = graphql(/* GraphQL */ `
         locals
       }
     }
+    metadata
     runnable {
       id
       name
@@ -595,13 +596,4 @@ export function getStatusColor(status: RunStatus) {
   } else {
     return "text-gray-700";
   }
-}
-
-export function isMostlyCached(run: { duration?: number; cachedDuration?: number }): boolean {
-  // nocheckin: fix this with new metadata
-  return run.duration != null && run.cachedDuration != null && run.cachedDuration > run.duration * 0.8;
-}
-
-export function getCachedPercentage(run: { duration?: number | null; cachedDuration?: number | null }): number {
-  return 100 - ((run.duration ?? 0) * 100) / (run.cachedDuration ?? 0);
 }

@@ -132,7 +132,7 @@ function isExpanded(runId: string) {
                 >{{ statement?.name }}</span
               >
               <!-- Duration -->
-              <span class="group/cache ml-1 flex flex-row">
+              <span class="group/cache ml-1 flex flex-row flex-nowrap items-center">
                 <span class="font-semibold">
                   {{
                     run.duration != null
@@ -140,7 +140,6 @@ function isExpanded(runId: string) {
                       : now.getTimeFromNowString(run.startedAt)
                   }}
                 </span>
-                <!-- Cached info :CacheInfo -->
                 <RunCacheInfo :run="run" />
               </span>
             </span>

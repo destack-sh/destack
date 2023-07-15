@@ -1061,7 +1061,7 @@ defineExpose({
             @navigate-up="grid.navigateUp(record.id, field.key as string)"
             @navigate-down="grid.navigateDown(record.id, field.key as string)"
             @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
-            class="h-full w-full overflow-hidden border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+            class="scroll-hidden h-full w-full overflow-auto border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
             :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
           />
         </div>

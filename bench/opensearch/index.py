@@ -258,7 +258,6 @@ def write_session_to_os(
         raise RuntimeError(f"failed to write session to OpenSearch: {ret['items'][:5]}")
 
 
-# WHYurbCO-obj] within [inputs.jIjnlify-obj.reTruPnv-obj.WHYurbCO-obj.CeeVQvCs-obj
 def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module
@@ -271,6 +270,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     logger.info("os.update_mappings", project_version=project_v)
     source = packer.pack_module(project_v)
     module = wire.unpack_module(source, session=None)
+    for dependency in libs.DEFAULT_MODULES.values():
+        module.add_dependency(dependency)
+    module.add_builtin(libs.symbolx_lib.get_file("builtins"))
     module.index()
     module.interp()
 
@@ -303,7 +305,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     # add dynamic user mappings
     for statement in module._statements_by_id.values():
-        if not isinstance(statement, lang.HasType) or statement.errors:
+        if not isinstance(statement, lang.HasType) or statement.self_errors:
             continue  # ignore symbols with issues
         elif isinstance(statement, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)

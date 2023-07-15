@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
@@ -243,12 +244,16 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
           >{{ node.runnable?.name ?? "???" }}</span
         >
         <!-- Duration -->
-        <span class="ml-1 flex-shrink-0" :class="[getStatusColor(node.run.status)]">
+        <span
+          class="ml-1 flex flex-shrink-0 flex-row flex-nowrap items-center"
+          :class="[getStatusColor(node.run.status)]"
+        >
           <span class="font-semibold">{{ formatDurationSeconds(node.duration * 1000) }}</span>
           <template v-if="node.children.length > 0">
             /
             <span class="font-light">{{ formatDurationSeconds(node.durationSelf * 1000) }}</span>
           </template>
+          <RunCacheInfo :run="node.run" class="px-1" />
         </span>
       </div>
     </div>

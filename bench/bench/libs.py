@@ -76,6 +76,11 @@ class Confirm:
     pass
 
 
+@x_tag("autoheal", "Auto-heal on error", file=_symbolx_builtins)
+class Autoheal:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
