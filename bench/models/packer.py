@@ -942,6 +942,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
+            metadata=data.metadata,
             error=dataclasses.asdict(data.error) if data.error else None,
         )
 

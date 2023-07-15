@@ -4826,6 +4826,7 @@ export type RunContentFragment = {
   status: RunStatus;
   inputs?: any | null;
   outputs?: any | null;
+  metadata?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session: { __typename?: "Session"; id: any };
   root?: { __typename?: "Run"; id: any } | null;
@@ -6109,6 +6110,7 @@ export const RunContentFragmentDoc = {
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "metadata" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "runnable" },

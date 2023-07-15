@@ -400,7 +400,8 @@ class RunTracer(Tracer):
             error=None,
             metadata=None,
         )
-        frame.queue_position = queue_position
+        if queue_position is not None:
+            frame.queue_position = queue_position
         if parent is not None:
             parent.children.append(frame)
         return frame

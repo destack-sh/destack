@@ -236,6 +236,10 @@ class HasIssues(abc.ABC):
             return []
         return [i for i in self.issues if i.kind == IssueKind.ERROR]
 
+    @property
+    def self_errors(self):
+        return [i for i in self.errors if i.subject == self]
+
     def _on_issue(
         self,
         issue: "Issue" = None,

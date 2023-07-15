@@ -2,7 +2,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType, TypeTag, type InterpFileFragment, type InterpStatementFragment } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
-import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
+import { FieldType, InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import type { Field } from "@/state/statement";
 import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
@@ -139,6 +139,20 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
     [symbolxLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
   );
+
+  // run metadata fields are hardcoded for now
+  const runMetadataFields = computed(() => {
+    return (
+      Object.values(symbolxLib.idx.value?.statementsById ?? {})
+        .find((s) => s.name == "RunMetadata")
+        ?.fields.map((f) => useFragment(FieldType, f)) ?? []
+    );
+  });
+  function runMetadataKey(name: string): string | null {
+    const field = runMetadataFields.value.find((f) => f.name == name);
+    if (field == null) return null;
+    return getTypedKey(field);
+  }
 
   // utils
 
@@ -322,6 +336,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     symbolxLib,
     dependenciesIndex,
     // utils
+    runMetadataFields,
+    runMetadataKey,
     fileOf,
     pathOf,
     contextOf,
