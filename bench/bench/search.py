@@ -69,14 +69,12 @@ class Search(abc.ABC, Generic[ElementDataT, ElementT]):
             if remaining_limit is not None:
                 remaining_limit -= len(rep.payload.elements)
 
-    async def abatched(self) -> AsyncIterator[list[ElementT]]:
-        async for batch in self._aiter(batched=True):
-            yield batch
+    def abatched(self) -> AsyncIterator[list[ElementT]]:
+        return self._aiter(batched=True)
 
-    async def __aiter__(self) -> AsyncIterator[ElementT]:
+    def __aiter__(self) -> AsyncIterator[ElementT]:
         """Iterates over the elements of the search result (batched)."""
-        async for element in self._aiter(batched=False):
-            yield element
+        return self._aiter(batched=False)
 
     async def _aiter(self, batched: bool) -> AsyncIterator[ElementT]:
         after = None

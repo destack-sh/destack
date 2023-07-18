@@ -251,7 +251,7 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
     def __iter__(self):
         return iter(self.search())
 
-    async def __aiter__(self):
+    def __aiter__(self):
         return aiter(self.search())
 
 

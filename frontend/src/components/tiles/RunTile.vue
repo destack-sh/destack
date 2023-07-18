@@ -4,9 +4,9 @@ import LogsTile from "@/components/tiles/LogsTile.vue";
 import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, type Run } from "@/gql/graphql";
+import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { Bars3Icon, DocumentChartBarIcon, Squares2X2Icon, XCircleIcon } from "@heroicons/vue/24/outline";
-import { ref } from "vue";
+import { ref, watch } from "vue";
 
 type View = "logs" | "trace" | "error" | "metadata";
 
@@ -18,8 +18,24 @@ const props = defineProps<{
   showControls?: boolean;
 }>();
 
+const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
+
 const now = useTimeFromNow(100);
 const activeView = ref<"logs" | "trace" | "error" | "metadata">(props.view ?? "logs");
+
+// sync props view into activeView on change
+watch(
+  () => props.view,
+  (view) => {
+    if (view != null) activeView.value = view;
+  }
+);
+
+defineExpose({
+  addLogs(logs: LogEntry[]) {
+    logsTileRef.value?.addLogs(logs);
+  },
+});
 </script>
 <template>
   <div class="relative">
@@ -58,6 +74,7 @@ const activeView = ref<"logs" | "trace" | "error" | "metadata">(props.view ?? "l
       <TraceTile v-if="activeView == 'trace'" :session-id="run.session.id" :root-id="run.id" layout="bartree" live />
       <LogsTile
         v-else-if="activeView == 'logs'"
+        ref="logsTileRef"
         :project-id="(projectId as string)"
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session.id"
