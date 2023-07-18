@@ -778,7 +778,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             **{s.name: s for s in self._scopes_by_name.values()},
         }
         did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean}")
+        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
     def _index(self):
         self._clear()
@@ -910,7 +910,7 @@ class Session:
         id: UUID = None,
         ctx: SessionContext | None = None,
         cache_inferences: bool = True,
-        inference_timeout: int = 30,
+        inference_timeout: int = 120,
         inference_retries: int = 5,
         mode: SessionMode = SessionMode.READ_ONLY,
         executor: Executor = None,
@@ -923,8 +923,8 @@ class Session:
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
         self.default_models = [
-            module.lookup_or_error("openai.lib.chat.gpt3"),
             module.lookup_or_error("openai.lib.chat.gpt4"),
+            module.lookup_or_error("openai.lib.chat.gpt3"),
         ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout

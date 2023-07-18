@@ -164,7 +164,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     // traverse parents
     const statement = idx.value?.statementsById[fileOrStatement.id];
     if (statement != null) {
-      const filePath = pathOfFile(statement);
+      const filePath = pathOfFile(statement.file);
       return filePath + "." + statement.name;
     } else {
       return pathOfFile(fileOrStatement);
