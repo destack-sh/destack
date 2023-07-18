@@ -135,13 +135,13 @@ const bars = computed(() => {
   if (root == null) return [];
   const bars: BarNode[] = [];
   const targetWidth = canvasBounding.width.value - 2 * barPaddingX;
-  const rootStart = DateTime.fromISO(root.run.createdAt);
+  const rootStart = DateTime.fromISO(root.run.startedAt);
 
   // time on x, depth on y
   for (const node of orderedNodes.value) {
     const durationFraction = node.duration / root.duration;
     const width = Math.max(barMinWidth, Math.round(durationFraction * targetWidth));
-    const timeOffset = DateTime.fromISO(node.run.createdAt).diff(rootStart, "seconds").seconds;
+    const timeOffset = DateTime.fromISO(node.run.startedAt).diff(rootStart, "seconds").seconds;
     const x = Math.round((timeOffset / root.duration) * targetWidth);
     const y = node.depth * (barHeight + barGapY);
     const color = bgColorByNodeType[node.runnable?.type] ?? "bg-gray-600";
@@ -158,6 +158,9 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
   <div ref="canvasRef" class="relative w-full">
     <div v-if="loading" class="w-full text-center">
       <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-400" />
+    </div>
+    <div v-else-if="orderedNodes.length == 0" class="w-full text-center">
+      <span class="text-gray-400">No trace</span>
     </div>
     <div v-else-if="layout == 'list'" class="flex h-full w-full flex-col gap-0.5">
       <!-- Run tree -->

@@ -2,6 +2,8 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
+import { newRunId } from "@/state/module";
+import { useRuntimeOps } from "@/state/operations/runtime";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import {
@@ -194,6 +196,58 @@ export function _useSessions(
         onRunChangeSubscribers.value.splice(index, 1);
       }
     };
+  }
+
+  // runtime ops
+
+  const runtime = useRuntimeOps();
+
+  function run(
+    runnable: { id: string },
+    options?: { sessionId?: string; runId?: string; arguments?: any; block?: boolean; keyed?: boolean }
+  ): { run: Run; promise: Promise<Run> } {
+    const runId = options?.runId ?? newRunId();
+    const sessionId = options?.sessionId ?? newRunId();
+
+    const run = {
+      __typename: "Run",
+      id: runId,
+      status: RunStatus.Running,
+      startedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      duration: null,
+      inputs: options?.arguments ?? {},
+      outputs: null,
+      metadata: null,
+      error: null,
+      session: {
+        __typename: "Session",
+        id: sessionId,
+      },
+      root: null,
+      parent: null,
+    } as Run;
+
+    currentRuns.value[runId] = run;
+
+    const promise = runtime.run(runnable.id, run.id, run.session.id, run.inputs, {
+      block: options?.block,
+      keyed: options?.keyed,
+    });
+    return { run, promise: promise as Promise<Run> };
+  }
+
+  function pause(run: { id: string }) {
+    throw new Error("not implemented yet");
+  }
+
+  function resume(run: { id: string }) {
+    throw new Error("not implemented yet");
+  }
+
+  function cancel(run: { id: string }) {
+    throw new Error("nocheckin");
   }
 
   // utilities

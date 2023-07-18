@@ -90,6 +90,7 @@ function isExpanded(runId: string) {
     </div>
     <!-- TODO @UX: animate runs in tile (without interfering with expand/close animation, looks glitchy) -->
     <div v-else class="relative flex flex-col">
+      <div v-if="(runs?.length ?? 0) == 0" class="w-full text-center"><span class="text-gray-400">No runs</span></div>
       <div
         :ref="(el: any) => runRefs.registerRef(run.id, el)"
         tabindex="-1"

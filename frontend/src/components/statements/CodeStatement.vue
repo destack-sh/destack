@@ -65,7 +65,7 @@ const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = re
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 const outputRef = ref<HTMLDivElement | null>(null);
-const logsTileRef: Ref<InstanceType<typeof LogsTile> | null> = ref(null);
+const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const showOutput: Ref<"logs" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
@@ -167,7 +167,7 @@ const extraActions = computed(() => {
 context.setCustomActions(extraActions);
 
 async function run() {
-  if (runActive.value) {
+  if (runActive.value && !cancelled.value) {
     return; // already running
   }
   if (hasTypes.value) {
@@ -203,7 +203,7 @@ async function run() {
     } finally {
       preparingRun.value = false;
     }
-    // TODO @Robustness: ensure that executed code is exact same as in editor
+    // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
     const ret = await ops.runtime.run(context.statement.value.id, lastRunLocalId.value, lastSessionLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
@@ -216,7 +216,7 @@ async function run() {
     if (ret?.data?.run.__typename == "RunState") {
       lastRunLocal.value = (ret.data.run.run as Run) ?? null;
       if (ret.data.run.logs != null) {
-        logsTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
+        runTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
       }
     }
   }
@@ -339,13 +339,14 @@ defineExpose({
   />
   <!-- Last output: logs/trace/error -->
   <RunTile
+    ref="runTileRef"
     v-if="!hasTypes && lastRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
     :project-id="bench.projectId"
     :project-version-id="bench.projectVersionId"
     :run="lastRun"
     :key="lastRun?.id"
-    view="logs"
+    :view="showOutput"
     show-controls
   />
 </template>
