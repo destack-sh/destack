@@ -1,10 +1,11 @@
 <script lang="ts" setup>
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { formatDurationSeconds } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import type { Run } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
 import { getStatusColor } from "@/state/session";
 import { DateTime } from "luxon";
 import { computed } from "vue";
@@ -13,6 +14,7 @@ const props = defineProps<{
   run: Run;
 }>();
 const module = useCurrentModule();
+const nav = useNavigation();
 const fields = computed(
   () => module.statementOf(props.run.runnable?.id)?.fields.map((f) => useFragment(FieldType, f)) ?? []
 );
@@ -25,8 +27,15 @@ const fields = computed(
       <table class="w-full table-auto">
         <tbody>
           <tr>
-            <td class="font-semibold">Path</td>
-            <td class="text-gray-600">{{ module.pathOf(props.run.runnable as any) }}</td>
+            <td class="font-semibold">Source</td>
+            <td class="">
+              <a
+                class="text-orange-600 underline-offset-4 hover:cursor-pointer hover:underline"
+                @click="nav.focusStatement(props.run.runnable as any)"
+              >
+                {{ module.pathOf(props.run.runnable as any) }}
+              </a>
+            </td>
           </tr>
           <tr>
             <td class="font-semibold">Status</td>
@@ -84,6 +93,11 @@ const fields = computed(
         :model-value="run.outputs ?? {}"
       />
       <span v-if="fields.filter((f) => f.flags & TypeFlag.IsOutput).length == 0" class="text-gray-400">No outputs</span>
+    </div>
+    <!-- Error (if any) -->
+    <div v-if="props.run.error" class="mt-1">
+      <h3 class="mb-0.5 text-sm font-semibold">Error</h3>
+      <ErrorTraceback :run="props.run" />
     </div>
   </div>
 </template>

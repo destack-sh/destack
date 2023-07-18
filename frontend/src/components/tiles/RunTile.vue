@@ -5,10 +5,16 @@ import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import { Bars3Icon, DocumentChartBarIcon, Squares2X2Icon, XCircleIcon } from "@heroicons/vue/24/outline";
+import {
+  Bars3Icon,
+  DocumentChartBarIcon,
+  ListBulletIcon,
+  Squares2X2Icon,
+  XCircleIcon,
+} from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "trace" | "error" | "metadata";
+type View = "logs" | "tracebars" | "tracelist" | "error" | "metadata";
 
 const props = defineProps<{
   projectId: string;
@@ -21,7 +27,7 @@ const props = defineProps<{
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
 
 const now = useTimeFromNow(100);
-const activeView = ref<"logs" | "trace" | "error" | "metadata">(props.view ?? "logs");
+const activeView = ref<View>(props.view ?? "logs");
 
 // sync props view into activeView on change
 watch(
@@ -47,7 +53,7 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'trace', 'error', 'metadata'].filter(
+          v-for="view in ['logs', 'tracelist', 'tracebars', 'error', 'metadata'].filter(
             (v) => v != 'error' || run?.status == RunStatus.Failed
           )"
           :key="view"
@@ -56,7 +62,15 @@ defineExpose({
           @click="activeView = view"
         >
           <component
-            :is="{ logs: Bars3Icon, trace: Squares2X2Icon, error: XCircleIcon, metadata: DocumentChartBarIcon }[view]"
+            :is="
+              {
+                logs: Bars3Icon,
+                tracebars: Squares2X2Icon,
+                tracelist: ListBulletIcon,
+                error: XCircleIcon,
+                metadata: DocumentChartBarIcon,
+              }[view]
+            "
             class="h-4 w-4"
           />
           <!-- Label -->
@@ -71,7 +85,13 @@ defineExpose({
     <!-- View container (scrollable) -->
     <div ref="outputRef" class="mt-1 max-h-[300px] overflow-auto">
       <!-- Output views -->
-      <TraceTile v-if="activeView == 'trace'" :session-id="run.session.id" :root-id="run.id" layout="bartree" live />
+      <TraceTile
+        v-if="activeView == 'tracebars' || activeView == 'tracelist'"
+        :session-id="run.session.id"
+        :root-id="run.id"
+        :layout="activeView == 'tracebars' ? 'bars' : 'list'"
+        live
+      />
       <LogsTile
         v-else-if="activeView == 'logs'"
         ref="logsTileRef"

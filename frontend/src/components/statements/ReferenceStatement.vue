@@ -117,7 +117,7 @@ defineExpose({
         @keydown.enter.exact.stop.prevent="open"
         @keydown.up.stop.prevent="context.navigateUp"
         @keydown.down.stop.prevent="context.navigateDown"
-        class="mb-1 px-0.5 font-semibold text-orange-600 decoration-gray-900 underline-offset-4 focus:bg-orange-100 focus:outline-none focus:ring-0"
+        class="mb-1 whitespace-nowrap px-0.5 font-semibold text-orange-600 decoration-gray-900 underline-offset-4 focus:bg-orange-100 focus:outline-none focus:ring-0"
         :class="altKeyState ? 'hover:underline' : 'hover:bg-orange-100'"
       >
         {{ resolvedReference?.name ?? (context.statement.value.reference == null ? "..." : "???") }}

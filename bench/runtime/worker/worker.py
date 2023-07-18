@@ -224,7 +224,11 @@ class ModuleWorker(ModuleWriter):
             #  esp. with contexts, dependencies, parallelism, etc.
             job.session.module.activate_in(job.session)
             arguments = map_value(
-                job.arguments, job.runnable, map_v=instantiate_py_value_flat, is_output=False
+                job.arguments,
+                job.runnable,
+                map_k=lambda f: (f.py_ident, f.py_ident),
+                map_v=instantiate_py_value_flat,
+                is_output=False,
             )
             task = asyncio.create_task(run(job.runnable, arguments, job.session))
             self.pending_runs[job.id] = task

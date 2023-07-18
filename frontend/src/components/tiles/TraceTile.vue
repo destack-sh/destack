@@ -2,21 +2,20 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
-import StructTile from "@/components/tiles/StructTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { formatDurationSeconds, useNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
-import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation } from "@/state/module";
 import { RUN_TERMINAL_STATES } from "@/state/session";
 import { getStatusColor, getStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref, watch } from "vue";
 
-type TRACE_LAYOUT = "list" | "bartree" | "table";
+type TRACE_LAYOUT = "list" | "bars" | "table";
 
 const props = defineProps<{
   sessionId?: string;
@@ -34,6 +33,14 @@ const module = useCurrentModule();
 const nav = useNavigation();
 const now = useNow(100);
 const altKey = useKeyModifier("Alt");
+
+// sync layout from props on change
+watch(
+  () => props.layout,
+  () => {
+    layout.value = props.layout;
+  }
+);
 
 const canvasRef: Ref<HTMLDivElement | null> = ref(null);
 const canvasBounding = useElementBounding(canvasRef);
@@ -152,6 +159,24 @@ const bars = computed(() => {
 });
 const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y + barHeight), 0));
 
+function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; left: string } {
+  if (layout.value == "bars") {
+    return {
+      top: (node as BarNode).y + "px",
+      left: (node as BarNode).x + "px",
+    };
+  } else if (layout.value == "list") {
+    // it's laid out linearly, so just use the offset * 20px
+    const idx = orderedNodes.value.findIndex((n) => n.id == node.id);
+    return {
+      top: 32 * idx + "px",
+      left: node.depth * 20 + "px",
+    };
+  } else {
+    throw new Error(`unexpected layout: ${layout.value}`);
+  }
+}
+
 // other traces will come later (timeline, mutations, logs, etc.)
 </script>
 <template>
@@ -167,8 +192,11 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
       <div
         v-for="node in orderedNodes"
         :key="node.id"
-        class="flex flex-row items-center rounded-sm p-1 hover:bg-orange-100"
-        :class="[getStatusColor(node.run.status)]"
+        class="flex flex-row items-center rounded-sm p-1 hover:cursor-pointer hover:bg-orange-100"
+        :class="[
+          getStatusColor(node.run.status),
+          focusedNode?.id == node.id ? 'ring-inset-1 ring-1 ring-orange-600 ring-opacity-40' : '',
+        ]"
         :style="{
           marginLeft: node.depth * 20 + 'px',
         }"
@@ -203,7 +231,7 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
       </div>
     </div>
     <div
-      v-else-if="layout == 'bartree'"
+      v-else-if="layout == 'bars'"
       class="relative w-full"
       :style="{
         height: totalHeight + 'px',
@@ -213,7 +241,7 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
         v-for="node in bars"
         :key="node.id"
         class="absolute flex max-h-full max-w-full flex-row items-center truncate rounded-sm border border-opacity-60 bg-opacity-60 p-1 transition-all hover:z-10 hover:min-w-fit hover:cursor-pointer hover:border-opacity-100 hover:bg-opacity-100"
-        :class="[node.color, focusedNode?.id == node.id ? 'ring-1 ring-orange-600' : '']"
+        :class="[node.color, focusedNode?.id == node.id ? 'ring-1 ring-inset ring-orange-600 ring-opacity-40' : '']"
         :style="{
           left: node.x + 'px',
           top: node.y + 'px',
@@ -271,14 +299,7 @@ const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y +
       v-if="focusedNode != null"
       ref="focusedRunPopoverRef"
       class="z-50 flex w-[400px] flex-col gap-2 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-      :style="
-        focusedRunPin.pinned.value || layout != 'bartree'
-          ? {}
-          : {
-              left: (focusedNode as BarNode).x + 'px',
-              top: (focusedNode as BarNode).y + 'px',
-            }
-      "
+      :style="focusedRunPin.pinned.value ? {} : getAbsoluteNodePosition(focusedNode)"
       :class="[focusedRunPin.pinned.value ? '' : 'absolute']"
     >
       <!-- Runnable -->

@@ -150,7 +150,9 @@ class Task(HasType, HasTags, Runnable, Statement):
 
         # run
         # should probably track task runner state in run metadata?
-        runner = TaskRunner(self, max_steps=10, max_function_calls=3, max_errors=3)
+        runner = TaskRunner(
+            self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
+        )
         ret = await compiler.run(model, runner)
         if isinstance(ret, TaskError):
             raise ret
@@ -195,14 +197,23 @@ class TaskProxy:  # :SyncProxy
 
 
 class TaskRunner(abc.ABC):
-    def __init__(self, task: Task, max_steps: int, max_function_calls: int, max_errors: int):
+    def __init__(
+        self,
+        task: Task,
+        max_steps: int,
+        max_function_calls: int,
+        max_errors: int,
+        max_model_errors: int,
+    ):
         self.task = task
         self.max_steps = max_steps
         self.max_function_calls = max_function_calls
         self.max_errors = max_errors
+        self.max_model_errors = max_model_errors
         self.num_steps = 0
         self.num_function_calls = 0
         self.num_errors = 0
+        self.num_model_errors = 0
 
     async def step(self):
         self.num_steps += 1
@@ -213,6 +224,14 @@ class TaskRunner(abc.ABC):
         self.num_errors += 1
         if self.num_errors > self.max_errors:
             raise LimitExceededError("max errors exceeded")
+
+    async def model_step(self, model: Model):
+        pass
+
+    async def model_error(self, model: Model, error: TaskError):
+        self.num_model_errors += 1
+        if self.num_model_errors > self.max_model_errors:
+            raise LimitExceededError("max model errors exceeded")
 
     @property
     def can_call_another_function(self) -> bool:

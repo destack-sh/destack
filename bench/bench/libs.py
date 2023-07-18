@@ -451,11 +451,11 @@ class OpenAIChatCompiler(TaskCompiler):
             *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_v=strip_py_value_flat)}",
+                content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_py_value_flat)}",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content="Now, perform the task by calling a relevant function as instructed.",
+                content=f"Now, perform the task '{self.task.name}' using the inputs as needed and call a relevant function as instructed.",
             ),
         ]
         functions: list[OpenAIFunction] = [
@@ -485,9 +485,17 @@ class OpenAIChatCompiler(TaskCompiler):
 
         while True:
             await runner.step()
-            completion: OpenAIChatCompletion = await model(
-                messages=messages, functions=functions, settings=settings
-            )
+            completion: Optional[OpenAIChatCompletion] = None
+            while completion is None:
+                try:
+                    await runner.model_step(model)
+                    completion = await model(
+                        messages=messages, functions=functions, settings=settings
+                    )
+                    break
+                except RuntimeError as e:
+                    await runner.model_error(model, e)
+                    continue
             m = completion.message
             messages.append(m)
             if m.function_call is None:  # missing function call
@@ -505,7 +513,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 try:
                     check_type(arguments, self.task, is_output=True)
                     return arguments
-                except TaskError as e:
+                except (ValueError, TypeError, TaskError) as e:
                     await _error(e)
             elif m.function_call.name not in self.functions_by_py_ident:
                 await _error(

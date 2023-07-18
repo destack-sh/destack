@@ -262,7 +262,7 @@ defineExpose({
           "
           :style="{ ...baseTilePositionX }"
         >
-          <TraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="bartree" live />
+          <TraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="list" live />
           <div v-else class="flex h-full w-full flex-col items-center justify-center">
             <span class="text-sm text-gray-400">No trace</span>
           </div>
