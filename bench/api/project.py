@@ -96,10 +96,12 @@ class ProjectMigrationInfo:
 
 
 REF_TYPE_TO_TYPE_NAME = {
+    MOT.MODULE: "ProjectVersion",
     MOT.FILE: "File",
     MOT.STATEMENT: "Statement",
     MOT.RECORD: "Record",
     MOT.FIELD: "Field",
+    MOT.TAGGING: "Tagging",
 }
 
 
