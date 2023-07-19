@@ -58,8 +58,7 @@ class Block(Statement, HasTags):
     description: str | None = None
 
 
-@node(tracked=["reference", "description"])
+@node(tracked=["description"])
 class Expectation(Statement):  # not clear how this will evolve yet
     type: StatementType = StatementType.EXPECTATION
-    reference: StatementReference | Statement | None = None
     description: Optional[str] = None
