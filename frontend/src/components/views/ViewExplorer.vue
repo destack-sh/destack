@@ -11,7 +11,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useBenchState } from "@/state/bench";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 
-const props = defineProps<{ focused: boolean }>();
+const props = defineProps<{ active: boolean; focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const actions = useActions();

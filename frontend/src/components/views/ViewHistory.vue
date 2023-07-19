@@ -23,6 +23,7 @@ import { useRouter } from "vue-router";
 const props = defineProps<{
   project: ProjectHeader;
   currentVersion?: FragmentType<typeof ProjectVersionHeaderType>;
+  active: boolean;
   focused: boolean;
 }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
@@ -55,7 +56,7 @@ const { result: versionsQuery, loading } = useQuery(
     projectId: props.project.id,
   }),
   {
-    enabled: computed(() => props.focused),
+    enabled: computed(() => props.active),
   } as any
 );
 const head = computed(() => useFragment(ProjectVersionHeaderType, versionsQuery.value?.project?.head));
