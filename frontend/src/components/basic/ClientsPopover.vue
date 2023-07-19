@@ -6,7 +6,7 @@ import { useCurrentModule } from "@/state/module";
 import { computed } from "vue";
 
 const props = defineProps<{
-  size: "large" | "medium" | "small";
+  size: "large" | "small";
   fileId?: string;
   statementId?: string;
   first?: number;
@@ -30,7 +30,7 @@ const now = useTimeFromNow();
   <div class="flex flex-row items-baseline gap-1">
     <!-- :ProfilePreview -->
     <div v-for="client in filteredClients.slice(0, first)" :key="client.id" class="group/popover relative">
-      <UserAvatar :user="client.user" :clientId="client.id" :size="props.size" />
+      <UserAvatar :user="client.user" :clientId="client.id" :class="props.size == 'large' ? 'h-5 w-5' : 'h-4 w-4'" />
       <!-- Profile info popover -->
       <div
         class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover/popover:visible"
