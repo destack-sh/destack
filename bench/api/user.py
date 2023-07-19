@@ -199,7 +199,7 @@ class UserMutation:
             client.last_seen_at = client.closed_at
             client.save()
             _publish_client_changed(client, info)
-        async_to_sync(channels_logout)(info.context["request"].scope)
+        async_to_sync(channels_logout)(info.context["request"].consumer.scope)
         return None
 
     # TODO @Security: check that secret root login is never exposed in prod
