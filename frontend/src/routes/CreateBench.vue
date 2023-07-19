@@ -131,8 +131,8 @@ async function createProject() {
         <BenchIcon class="h-4 w-4 text-orange-600" />
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
-      <h1 class="-mx-2 mt-4 text-5xl font-bold">Create your Bench</h1>
-      <p class="mx-4 mt-4 text-lg text-orange-700">What your bots call home. Think big.</p>
+      <h1 class="-mx-4 mt-4 text-5xl font-bold">Create your Bench</h1>
+      <p class="mx-4 mt-4 text-lg text-orange-700">Home to your awesome bots. Think big.</p>
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">
         <!-- Full name & visibility -->

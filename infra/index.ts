@@ -233,7 +233,7 @@ const OPENSEARCH_ENV_VARS = [
   },
   {
     name: "OPENSEARCH_PORT",
-    value: 443,
+    value: "443",
   },
   {
     name: "OPENSEARCH_USERNAME",
