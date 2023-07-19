@@ -859,7 +859,6 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
 @dataclass
 class ExpectationData(StatementData):
     description: Optional[str]
-    reference_id: Optional[UUID]
 
 
 @node_packer(MOT.STATEMENT, ExpectationData, lang.Expectation)
@@ -875,9 +874,6 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
         return ExpectationData(
             **statement_data.__dict__,
             description=symbol.description,
-            reference_id=symbol.reference.id
-            if isinstance(symbol.reference, lang.Statement)
-            else symbol.reference,
         )
 
     def unpack(
@@ -890,16 +886,11 @@ class ExpectationPacker(StatementPacker, NodePacker[ExpectationData, lang.Expect
         return lang.Expectation(
             **statement.__dict__,
             description=symbol.description,
-            reference=symbol.reference_id,
         )
 
     def unwalk(self, statement: lang.Expectation, tree: ModuleTree):
         super().unwalk(statement, tree)
         statement.tags = tree.get_descendants(statement.id, lang.Tag)
-
-    def patch(self, symbol: ExpectationData, references: dict[UUID, UUID]):
-        super().patch(symbol, references)
-        symbol.reference_id = references.get(symbol.reference_id, symbol.reference_id)
 
 
 @dataclass

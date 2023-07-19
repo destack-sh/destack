@@ -524,7 +524,6 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
         return wire.ExpectationData(
             **statement_data.__dict__,
             description=statement.description,
-            reference_id=statement.reference_id,
         )
 
     def unpack(
@@ -532,8 +531,7 @@ class ExpectationPacker(StatementPacker, NodePacker[wire.ExpectationData, models
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.reference_id = data.reference_id
-        return parent
+        return statement
 
 
 @node_packer(MOT.STATEMENT, wire.CodeData, models.Statement, StatementType.CODE)

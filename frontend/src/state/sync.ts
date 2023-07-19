@@ -262,11 +262,12 @@ function useSyncedOps() {
       console.warn(`cannot apply unknown input mutation: ${mutation.type}`);
       return;
     }
-    console.debug("apply sync mutation", mutation);
+    console.debug("apply api sync mutation", mutation);
     applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
   function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
+    console.debug("apply raw sync mutation", mutation);
     // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
     // TODO @Cleanup: organize 'manual' mutations better
     // map dataset mutations to bumps
@@ -299,8 +300,16 @@ function useSyncedOps() {
             },
           },
         });
+      } else if (mutation.fileId != null) {
+        client.cache.modify({
+          id: `File:${mutation.fileId}`,
+          fields: {
+            issues(existingIssues = []) {
+              return [];
+            },
+          },
+        });
       } else {
-        // TODO @Broken: clear all issues (cache.modify does not work as it needs an id)
         const allStatements = client.cache.extract(true);
         Object.keys(allStatements).forEach((key) => {
           if (key.startsWith("Statement") || key.startsWith("File") || key.startsWith("module")) {
@@ -341,7 +350,20 @@ function useSyncedOps() {
         id: `Statement:${mutation.statementId}`,
         fields: {
           issues(existingIssues = []) {
-            return existingIssues.filter((issue: any) => issue.id != mutation.data?.id);
+            return existingIssues.filter(
+              (issue: any) => issue.id != mutation.data?.id && issue.__ref != `Issue:${mutation.data?.id}`
+            );
+          },
+        },
+      });
+    } else if (mutation.type == ModuleMutationType.DeleteIssue && mutation.fileId != null) {
+      client.cache.modify({
+        id: `File:${mutation.fileId}`,
+        fields: {
+          issues(existingIssues = []) {
+            return existingIssues.filter(
+              (issue: any) => issue.id != mutation.data?.id && issue.__ref != `Issue:${mutation.data?.id}`
+            );
           },
         },
       });
