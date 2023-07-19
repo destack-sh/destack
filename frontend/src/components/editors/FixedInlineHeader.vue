@@ -73,7 +73,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
         {{ bench.focusedEditorId == editor.editor.value.id ? "(focused)" : "" }}
       </span>
     </div>
-    <div class="flex flex-row gap-1">
+    <div class="flex flex-row items-center gap-1">
       <!-- Other clients presence -->
       <ClientsPopover
         v-if="auth.loggedIn.value && ['statement', 'file'].includes(editor.editor.value.type)"
