@@ -356,9 +356,10 @@ class RecordSearch(Search["RecordData", Record]):
     def values_map(self, func: MapFunction) -> list[Any]:
         return [func(record) for record in self]
 
-    def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None):
+    def map(self, func: MapFunction | BatchMapFunction, batch_size: Optional[int] = None) -> int:
         """Maps the filtered records with the given function."""
         batch: DotList[Record] = DotList() if batch_size is not None else None
+        num_mapped = 0
         for record in self:
             if batch_size is None:
                 self._map_single_ret(record, func(record))
@@ -367,12 +368,17 @@ class RecordSearch(Search["RecordData", Record]):
                 if len(batch) >= batch_size:
                     self._map_batch_ret(batch, func(batch))
                     batch = DotList()
+            num_mapped += 1
         if batch_size is not None and batch:
             self._map_batch_ret(batch, func(batch))
+        return num_mapped
 
-    async def amap(self, func: AmapFunction | BatchAmapFunction, batch_size: Optional[int] = None):
+    async def amap(
+        self, func: AmapFunction | BatchAmapFunction, batch_size: Optional[int] = None
+    ) -> int:
         """Maps the filtered records with the given async function."""
         batch: list[Record] = []
+        num_mapped = 0
         async for record in self:
             if batch_size is None:
                 self._map_single_ret(record, await func(record))
@@ -381,8 +387,10 @@ class RecordSearch(Search["RecordData", Record]):
                 if len(batch) >= batch_size:
                     self._map_batch_ret(batch, await func(batch))
                     batch = []
+            num_mapped += 1
         if batch_size is not None and batch:
             self._map_batch_ret(batch, await func(batch))
+        return num_mapped
 
     def _map_single_ret(self, record: Record, ret: Record) -> None:
         if isinstance(ret, dict):

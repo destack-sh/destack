@@ -77,7 +77,7 @@ const icon = computed(() => editorIcons[editor.editor.value.type]);
       <!-- Other clients presence -->
       <ClientsPopover
         v-if="auth.loggedIn.value && ['statement', 'file'].includes(editor.editor.value.type)"
-        size="medium"
+        size="small"
         :file-id="(editor.editor.value as FileEditor).fileId"
         :statement-id="(editor.editor.value as StatementEditor).statementId"
       />

@@ -20,7 +20,7 @@ const userNavigation = computed(() => [
 </script>
 <template>
   <FadeTransition mode="out-in">
-    <div v-if="!auth.loggedIn.value" class="flex flex-row gap-2 px-4">
+    <div v-if="!auth.loggedIn.value || auth.me.value == null" class="flex flex-row gap-2 px-4">
       <router-link
         :to="{ name: 'Signup', query: { next: location.href } }"
         class="rounded-sm bg-orange-600 px-2 py-1 text-sm text-white"
@@ -39,17 +39,20 @@ const userNavigation = computed(() => [
         class="group flex h-full items-center px-2 text-left focus:bg-gray-100 focus:outline-none"
         :class="{ 'bg-gray-100': open }"
       >
-        <UserAvatar :user="auth.me.value" size="large" />
+        <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-5 w-5" />
       </MenuButton>
       <FadeTransition>
         <MenuItems
           class="absolute right-1 top-12 z-30 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
         >
-          <p class="flex max-w-full flex-col px-2 py-2">
-            <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>
-            <span class="truncate text-sm text-gray-500">{{ auth.me.value?.name }}</span>
-            <!-- Future plan info -->
-          </p>
+          <div class="flex flex-row items-center gap-1 px-2">
+            <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-8 w-8" />
+            <p class="flex max-w-full flex-col px-2 py-2">
+              <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>
+              <span class="truncate text-sm text-gray-500">{{ auth.me.value?.name }}</span>
+              <!-- Future plan info -->
+            </p>
+          </div>
           <MenuItem v-for="item in userNavigation" :key="item.name" v-slot="{ active }">
             <router-link
               v-if="item.to"
