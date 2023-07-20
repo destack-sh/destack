@@ -24,7 +24,6 @@ google-auth-oauthlib==1.0.0
 googlemaps==4.6.0
 grpcio==1.56.0
 h3==3.7.6
-hdbscan==0.8.29
 huggingface-hub==0.9.1
 idna==3.4
 itsdangerous==2.1.2
