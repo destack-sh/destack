@@ -4260,7 +4260,7 @@ export type BatchPasteStatementMutation = {
 
 export type UpdateStatementReferenceMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  referenceId: Scalars["GlobalID"];
+  referenceId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
 export type UpdateStatementReferenceMutation = {
@@ -12367,7 +12367,7 @@ export const UpdateStatementReferenceDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
       ],
       selectionSet: {
