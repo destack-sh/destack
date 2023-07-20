@@ -11,27 +11,8 @@ from uuid import UUID
 
 from bench.bench.const import StatementType
 from bench.bench.core import Module, ModuleNode, ModuleObjectType
-from bench.bench.wire import (
-    CodeData,
-    DatasetData,
-    DatasetViewData,
-    ExpectationData,
-    FieldData,
-    FileData,
-    IssueData,
-    ModelData,
-    ModuleData,
-    ModuleTree,
-    ModuleTreeData,
-    NodeData,
-    RecordData,
-    ResolvedFieldData,
-    StatementData,
-    TaggingData,
-    TaskData,
-    TypeData,
-    ValueData,
-)
+from bench.bench.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
+from bench.utils.serialize import from_dict
 
 
 class ModuleMutationType(enum.StrEnum):
@@ -285,36 +266,28 @@ class ModuleMutation:
     # really annoyingly manual until we get a proper :WireFormat
 
     _data__mot: Optional[ModuleObjectType] = None  # discriminator for 'union'
-    _data_module: Optional[ModuleData] = None
-    _data_file: Optional[FileData] = None
-    _data_statement: Optional[StatementData] = None
     _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
-    _data_statement_type: Optional[TypeData] = None
-    _data_statement_task: Optional[TaskData] = None
-    _data_statement_expectation: Optional[ExpectationData] = None
-    _data_statement_code: Optional[CodeData] = None
-    _data_statement_model: Optional[ModelData] = None
-    _data_statement_value: Optional[ValueData] = None
-    _data_statement_dataset: Optional[DatasetData] = None
-    _data_tagging: Optional[TaggingData] = None
-    _data_field: Optional[FieldData] = None
-    _data_record: Optional[RecordData] = None
-    _data_dataset_view: Optional[DatasetViewData] = None
-    _data_issue: Optional[IssueData] = None
-    _data_resolved_field: Optional[ResolvedFieldData] = None
+    _data: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
+        # no special encoding of data here
         return {"thing": None}  # always omit thing
+
+    @classmethod
+    def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
+        from bench.bench import wire
+
+        _data = data.get("_data")
+        if _data is not None:
+            _data_cls = wire.BASE_DATA_CLASS_BY_MOT[data["_data__mot"]]
+            if data.get("_data_statement__type") is not None:
+                _data_cls = wire.STATEMENT_DATA_CLASS_BY_TYPE[data["_data_statement__type"]]
+            _data = from_dict(_data_cls, _data)
+        return {"_data": _data}
 
     @property
     def data(self) -> Optional["NodeData"]:
-        if self._data_statement__type is not None:
-            # map to _symbol_<type>
-            return getattr(self, f"_data_statement_{self._data_statement__type.value.lower()}")
-        elif self._data__mot is not None:
-            return getattr(self, f"_data_{self._data__mot.value.lower()}")
-        else:
-            return None
+        return self._data
 
     @data.setter
     def data(self, value: "NodeData"):
@@ -325,9 +298,7 @@ class ModuleMutation:
             # map to _symbol_<type>
             statement_type = wire.STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
             self._data_statement__type = statement_type
-            setattr(self, f"_data_statement_{statement_type.value.lower()}", value)
-        else:
-            setattr(self, f"_data_{self._data__mot.value.lower()}", value)
+        self._data = value
 
     @property
     def scope(self) -> ModuleObjectType:

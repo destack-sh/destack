@@ -1065,7 +1065,10 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
 
 
-STATEMENT_DATA_BY_TYPE = {
+STATEMENT_DATA_CLASS_BY_TYPE: dict[StatementType, NodeData] = {
+    StatementType.BLANK: BlankData,
+    StatementType.TEXT: TextData,
+    StatementType.TAG: TagData,
     StatementType.TYPE: TypeData,
     StatementType.TASK: TaskData,
     StatementType.EXPECTATION: ExpectationData,
@@ -1073,8 +1076,13 @@ STATEMENT_DATA_BY_TYPE = {
     StatementType.MODEL: ModelData,
     StatementType.DATASET: DatasetData,
     StatementType.VALUE: ValueData,
+    StatementType.BLOCK: BlockData,
+    StatementType.REFERENCE: ReferenceData,
 }
-STATEMENT_TYPE_BY_DATA_CLASS = {v: k for k, v in STATEMENT_DATA_BY_TYPE.items()}
+STATEMENT_TYPE_BY_DATA_CLASS = {v: k for k, v in STATEMENT_DATA_CLASS_BY_TYPE.items()}
+# assert that all statement types are covered
+_missing_statement_types = set(StatementType) - set(STATEMENT_DATA_CLASS_BY_TYPE.keys())
+assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
 
 
 @dataclass

@@ -39,7 +39,7 @@ export function useSymbolContentOps() {
   const { mutate: updateStatementReferenceMut } = registry.useMutation(
     ModuleMutationType.UpdateStatementReference,
     graphql(/* GraphQL */ `
-      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {
+      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID) {
         updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
           ... on Statement {
             id

@@ -177,7 +177,7 @@ const documents = {
     types.BatchRestoreStatementsDocument,
   "\n      mutation batchPasteStatement(\n        $sourceIds: [GlobalID!]!\n        $targetIds: [GlobalID!]!\n        $targetFileId: GlobalID!\n        $targetParentIds: [GlobalID]!\n        $targetOrderKeys: [String!]!\n      ) {\n        batchPasteStatement(\n          input: {\n            sourceIds: $sourceIds\n            targetIds: $targetIds\n            targetFileId: $targetFileId\n            targetParentIds: $targetParentIds\n            targetOrderKeys: $targetOrderKeys\n          }\n        ) {\n          ... on StatementBatch {\n            statements {\n              id\n              ...StatementContent\n              file {\n                id\n              }\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.BatchPasteStatementDocument,
-  "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateStatementReferenceDocument,
   "\n      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {\n        updateSymbolDescription(input: { id: $id, description: $description }) {\n          ... on Statement {\n            id\n            description\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateSymbolDescriptionDocument,
@@ -773,8 +773,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID!) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID) {\n        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {\n          ... on Statement {\n            id\n            revision\n            reference {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
