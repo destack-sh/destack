@@ -47,16 +47,16 @@ def trim_record_mutations(
                 trimmed_mutations.append(mutation)
         else:
             trimmed_mutations.append(mutation)
-    if num_record_updates >= MAX_RECORD_MUTATIONS_PER_BATCH:
-        for statement_id, file_id in bumped_statement_ids.items():
-            trimmed_mutations.append(
-                ModuleMutation(
-                    type=MMT.BUMP_STATEMENT,
-                    project_version_id=mutations[0].project_version_id,
-                    file_id=file_id,
-                    statement_id=statement_id,
-                )
+    # always add bumps since we don't have proper bump propagation on the frontend yet
+    for statement_id, file_id in bumped_statement_ids.items():
+        trimmed_mutations.append(
+            ModuleMutation(
+                type=MMT.BUMP_STATEMENT,
+                project_version_id=mutations[0].project_version_id,
+                file_id=file_id,
+                statement_id=statement_id,
             )
+        )
     return trimmed_mutations
 
 
