@@ -396,7 +396,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
         top: getStatementBounding(client.statementId).top + 4 + 'px',
       }"
     >
-      <UserAvatar :client-id="client.id" :user="client.user" size="small" />
+      <UserAvatar :client-id="client.id" :user="client.user" class="h-4 w-4" />
     </div>
   </div>
 </template>
