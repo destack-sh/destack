@@ -4,8 +4,10 @@ import FatHeader from "@/components/basic/FatHeader.vue";
 import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
+import { UserStatus } from "@/gql/graphql";
 import { useAuth, useRedirectIfNotLoggedIn } from "@/state/auth";
 import { useTitle } from "@vueuse/core";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 
 defineProps<{ next?: string }>();
@@ -16,6 +18,8 @@ const auth = useAuth();
 const router = useRouter();
 
 useRedirectIfNotLoggedIn({ name: "Home" });
+
+const active = computed(() => auth.me.value != null && auth.me.value.status == UserStatus.Active);
 </script>
 <template>
   <div class="flex h-full flex-col bg-white pb-12">
@@ -33,13 +37,25 @@ useRedirectIfNotLoggedIn({ name: "Home" });
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="mt-4 text-5xl font-bold">The Waitlist</h1>
-      <div class="">
-        <h3 class="mt-6 font-bold">Bench is currently over capacity.</h3>
-        <p class="mt-1">
+      <div class="" v-if="!active">
+        <h3 class="mt-6 font-bold">Bench is currently at capacity.</h3>
+        <p class="mt-3 text-orange-700">
           Many people want beautiful bots.<br />
           We're excited to let you in soon.<br />
-          Our bots will be in touch.
+          Our bots will contact your bots.
         </p>
+      </div>
+      <div v-else>
+        <h3 class="mt-6 font-bold">Bench is ready for you.</h3>
+        <p class="mt-3 text-orange-700">Thank you for your patience.</p>
+        <div class="mt-5">
+          <router-link
+            to="/new"
+            class="w-fit self-end border border-orange-600 px-3 py-1 hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
+          >
+            Enter &rarr;
+          </router-link>
+        </div>
       </div>
     </div>
     <NotificationArea />
