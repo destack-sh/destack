@@ -44,13 +44,13 @@ COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 
 # Copy the specific directories and files for the worker
-COPY bench/utils/ bench/utils/
+COPY bench/utils bench/utils
 COPY bench/runtime/common bench/runtime/common
 COPY bench/runtime/worker bench/runtime/worker
-COPY bench/bench/ bench/bench/
-COPY bench/msg/ bench/msg/
-COPY manageworker.py manageworker.py
-COPY pyproject.toml pyproject.toml
+COPY bench/bench bench/bench
+COPY bench/msg bench/msg
+COPY manageworker.py .
+COPY pyproject.toml .
 COPY version .
 
 ARG GIT_COMMIT

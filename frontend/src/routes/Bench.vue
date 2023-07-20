@@ -14,7 +14,6 @@ import HelpPopover from "@/components/bench/HelpPopover.vue";
 import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import ProjectPopover from "@/components/bench/ProjectPopover.vue";
 import SettingsPopover from "@/components/bench/SettingsPopover.vue";
-import SharePopover from "@/components/bench/SharePopover.vue";
 import EditorGroup from "@/components/editors/EditorGroup.vue";
 import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
@@ -561,8 +560,7 @@ onBeforeUnmount(() => {
       <template v-slot:right>
         <!-- Bench-global controls -->
         <FadeTransition>
-          <div v-if="versionLoaded" class="flex h-full items-center space-x-2 pl-4">
-            <SharePopover @show="bench.showGlobalHeader = true" />
+          <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2 pl-4">
             <DeployPopover :project="project" @show="bench.showGlobalHeader = true" />
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />
