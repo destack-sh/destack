@@ -11,6 +11,9 @@ from bench.runtime.worker import SandboxedWorker
 from bench.utils.analytics import init_sentry
 from bench.utils.logging import configure_logging
 
+# ensure that project root is first in sys.path
+sys.path = [str(Path(__file__).parent)] + sys.path
+
 os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
 configure_logging(apply_logging=True, apply_structlog=True)
