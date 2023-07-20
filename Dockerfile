@@ -9,7 +9,6 @@ RUN apt-get update
 RUN apt-get install -y libpq-dev libzbar-dev
 # Install ML libs
 RUN apt-get install -y ffmpeg
-
 # Install GCC and Fortran
 RUN apt-get install -y gcc gfortran
 RUN apt-get install -y pkg-config cmake libopenblas-dev liblapack-dev
@@ -41,6 +40,10 @@ EXPOSE 80
 # Define the worker image
 FROM base as bench-worker
 
+# for sentencepiece
+RUN apt-get install -y cmake build-essential pkg-config libgoogle-perftools-dev
+# quick install sentencepiece just to make sure it works (nocheckin)
+RUN pip install --no-cache-dir sentencepiece
 COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 
@@ -48,9 +51,9 @@ RUN pip install --no-cache-dir -r requirements-worker.txt
 COPY bench/utils/ bench/utils/
 COPY bench/runtime/common bench/runtime/common
 COPY bench/runtime/worker bench/runtime/worker
-COPY bench/language/ bench/language/
+COPY bench/bench/ bench/bench/
 COPY bench/msg/ bench/msg/
-COPY bench/runworker.py bench/runworker.py
+COPY manageworker.py manageworker.py
 COPY pyproject.toml pyproject.toml
 COPY version .
 
