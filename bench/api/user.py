@@ -209,7 +209,9 @@ class UserMutation:
             raise PermissionDenied("can only use this in test mode")
         user = models.User.objects.get(username=username)
         async_to_sync(channels_login)(
-            info.context["request"].scope, user, backend="django.contrib.auth.backends.ModelBackend"
+            info.context["request"].consumer.scope,
+            user,
+            backend="django.contrib.auth.backends.ModelBackend",
         )
         return user
 

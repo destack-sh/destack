@@ -42,6 +42,7 @@ class FieldType(enum.StrEnum):
     # object
     OBJECT = "object"
     NESTED = "nested"
+    FLAT_OBJECT = "flat_object"
     JOIN = "join"
     # string
     KEYWORD = "keyword"

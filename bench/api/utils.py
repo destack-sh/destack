@@ -116,7 +116,6 @@ def asafe_subscription(func, **kwargs):
             async for item in func(*args, **kwargs):
                 yield item
         except Exception as e:
-            e = map_exception(e)
             # no way to propagate exception to client here?
             logger.error(
                 "subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e)

@@ -159,7 +159,7 @@ const opensearchSecurityGroup = new aws.ec2.SecurityGroup("opensearch", {
 });
 const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
   domainName: opensearchDomainName,
-  engineVersion: "OpenSearch_2.5",
+  engineVersion: "OpenSearch_2.7",
   clusterConfig: {
     instanceType: "m5.large.search",
     instanceCount: 1,
@@ -170,7 +170,7 @@ const opensearchDomain = new aws.opensearch.Domain(opensearchDomainName, {
   },
   ebsOptions: {
     ebsEnabled: true,
-    volumeSize: 10,
+    volumeSize: 50,
     volumeType: "gp3",
   },
   encryptAtRest: {
@@ -237,7 +237,7 @@ const OPENSEARCH_ENV_VARS = [
   },
   {
     name: "OPENSEARCH_USERNAME",
-    value: "password",
+    value: "opensearch",
   },
   {
     name: "OPENSEARCH_PASSWORD",
