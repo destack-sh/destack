@@ -31,7 +31,7 @@ from strawberry_django_plus.utils import aio, resolvers
 
 from bench import models
 from bench.api.utils import get_user_from_info
-from bench.models import Notification, Organization, User
+from bench.models import Notification, Organization, User, UserStatus
 from bench.models.notification import create_notifications_on_signup
 from bench.models.owner import OwnerSlug, slugify
 
@@ -466,7 +466,7 @@ def social_create_user(strategy: DjangoStrategy, details, backend, user=None, *a
         or details.get("username")
     )
     # incomplete signup, need to set/confirm properties manually (name/username/description, etc.)
-    user = User.objects.create_user(username, email, full_name, completed_signup=False)
+    user = User.objects.create_user(username, email, full_name, status=UserStatus.WAITLISTED)
     logger.info("social_create_user", user=user)
     strategy.session_set("backend", backend.name)
 
