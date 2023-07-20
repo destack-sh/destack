@@ -6,6 +6,9 @@ from pathlib import Path
 
 import dotenv
 
+# nocheckin print all files  at working directory
+print(os.listdir(os.getcwd() + "/bench/bench"))
+
 from bench.msg.core import init_nats, process_soon_queue
 from bench.runtime.worker import SandboxedWorker
 from bench.utils.analytics import init_sentry
