@@ -714,7 +714,7 @@ def map_value(
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
         if _is_arrayable_single(type, value):
-            return value
+            return map_value(value, type, map_v, map_k, ignore_array=True)
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.effective_tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)

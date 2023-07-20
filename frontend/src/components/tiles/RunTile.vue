@@ -47,9 +47,7 @@ defineExpose({
   <div class="relative">
     <!-- Controls -->
     <div v-if="showControls" class="flex flex-row justify-between">
-      <span class="font-mono text-gray-400"
-        >{{ activeView }} from {{ now.getTimeFromNowLongString(run.updatedAt) }}</span
-      >
+      <span class="text-gray-400">{{ activeView }} from {{ now.getTimeFromNowLongString(run.updatedAt) }}</span>
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button

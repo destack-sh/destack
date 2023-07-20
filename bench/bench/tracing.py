@@ -15,7 +15,14 @@ from bench.bench.core import MOT, ModuleOp, Session
 from bench.bench.mutate import ModuleMutator
 from bench.bench.query import Query, Sort
 from bench.bench.session import LogEntry, Run, RunError
-from bench.bench.type import check_type, strip_py_value
+from bench.bench.type import (
+    TypeBase,
+    TypeTag,
+    check_type,
+    map_value,
+    strip_py_value,
+    strip_py_value_flat,
+)
 from bench.bench.utils import Runnable
 from bench.utils.uuidt import UUIDT
 
@@ -329,6 +336,35 @@ class SessionTracer(Tracer):
 _active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
 
 
+def is_run_value_truncated(value: Any, type: TypeBase) -> bool:
+    return type.tag == TypeTag.VECTOR
+
+
+def _strip_and_truncate_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+    stripped = strip_py_value_flat(value, type, *args, **kwargs)
+    if is_run_value_truncated(stripped, type):
+        return None  # can't use OMITTED_SENTINEL because of type mismatch... hmm
+    return stripped
+
+
+def _strip_and_truncate_py_value(
+    value: Any,
+    type: TypeBase,
+    ignore_array: bool = False,
+    ignore_outer_map: bool = False,
+    is_output: bool = None,
+) -> Any:
+    return map_value(
+        value=value,
+        type=type,
+        map_k=lambda f: (f.py_ident, f.typed_key),
+        map_v=_strip_and_truncate_py_value_flat,
+        ignore_array=ignore_array,
+        ignore_outer_map=ignore_outer_map,
+        is_output=is_output,
+    )
+
+
 class RunTracer(Tracer):
     """
     A worker-side tracer that records code and model executions.
@@ -429,7 +465,7 @@ class RunTracer(Tracer):
     def run_exit(self, statement: Runnable, result):
         frame = self.pop_stacktrace()
         frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        frame.outputs = strip_py_value(result, statement, is_output=True)
+        frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
@@ -453,8 +489,8 @@ class RunTracer(Tracer):
         frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         frame.cached_generated_at = generated_at
         frame.cached_duration = duration
-        frame.inputs = strip_py_value(inputs, statement, is_output=False)
-        frame.outputs = strip_py_value(result, statement, is_output=True)
+        frame.inputs = _strip_and_truncate_py_value(inputs, statement, is_output=False)
+        frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         self._update_cached_info()

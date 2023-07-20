@@ -79,7 +79,7 @@ class Model(HasType, HasTags, Runnable, Statement):
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
                     self.session.tracer.run_cached(
-                        self, inputs, inference.outputs, inference.generated_at, inference.duration
+                        self, inputs, outputs, inference.generated_at, inference.duration
                     )
                     return DotDict(outputs)
                 except (ValueError, TypeError, JSONDecodeError) as e:
