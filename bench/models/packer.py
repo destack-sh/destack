@@ -19,12 +19,12 @@ from django.db import transaction
 from django.db.models import Model, QuerySet
 
 from bench import models
-from bench.bench import StatementType, TypeHint, TypeTag, wire
-from bench.bench.const import DatasetBackend, RemoteObjectStatus, RunTriggerType, TypeFlag
-from bench.bench.core import InterpScope, ModuleObjectType
-from bench.bench.issue import IssueKind, IssueType
-from bench.bench.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
-from bench.bench.wire import ModuleTree, ModuleTreeData
+from bench.language import StatementType, TypeHint, TypeTag, wire
+from bench.language.const import DatasetBackend, RemoteObjectStatus, RunTriggerType, TypeFlag
+from bench.language.core import InterpScope, ModuleObjectType
+from bench.language.issue import IssueKind, IssueType
+from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
+from bench.language.wire import ModuleTree, ModuleTreeData
 from bench.opensearch.index import write_session_to_os
 
 MOT = ModuleObjectType

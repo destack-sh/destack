@@ -4,8 +4,8 @@ from django.core.management.base import CommandParser
 from django.db import transaction
 
 from bench import models
-from bench.bench import wire
-from bench.bench.libs import DEFAULT_MODULES
+from bench.language import wire
+from bench.language.libs import DEFAULT_MODULES
 from bench.models.packer import upsert_module
 
 logger = structlog.get_logger(__name__)

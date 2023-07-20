@@ -4,17 +4,11 @@ from uuid import UUID
 
 import pytest
 
-from bench.bench import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
-from bench.bench.code_ import _parse_code
-from bench.bench.const import TypeFlag, RunTriggerType
-from bench.bench.core import (
-    LookupBy,
-    Module,
-    Session,
-    SessionContext,
-    StatementPath,
-)
-from bench.bench.issue import BenchError, IssueType
+from bench.language import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
+from bench.language.code_ import _parse_code
+from bench.language.const import RunTriggerType, TypeFlag
+from bench.language.core import LookupBy, Module, Session, SessionContext, StatementPath
+from bench.language.issue import BenchError, IssueType
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 

@@ -5,8 +5,8 @@ from typing import Optional
 from django.db import models
 from strawberry_django_plus import gql
 
-from bench.bench.const import RunTriggerType
-from bench.bench.session import RunStatus
+from bench.language.const import RunTriggerType
+from bench.language.session import RunStatus
 from bench.models.utils import UUIDTModel, get_choices
 
 

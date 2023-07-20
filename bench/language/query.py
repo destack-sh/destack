@@ -5,10 +5,10 @@ from dataclasses import dataclass
 from functools import wraps
 from typing import TYPE_CHECKING, Any, Optional
 
-from bench.bench.const import TypeFlag, TypeHint, TypeStorageFormat, TypeTag
+from bench.language.const import TypeFlag, TypeHint, TypeStorageFormat, TypeTag
 
 if TYPE_CHECKING:
-    from bench.bench import Field
+    from bench.language import Field
 
 
 #
@@ -336,7 +336,7 @@ class FieldQueryOps:
         return _BASE_QUERY_OPS | format_ops | hint_ops | tag_ops
 
     def _strip_value(self, value: Any) -> Any:
-        from bench.bench.type import Field
+        from bench.language.type import Field
 
         if isinstance(value, Field):
             if value.effective_tag == TypeTag.LITERAL:  # for enum members
@@ -463,7 +463,7 @@ class FieldQueryOps:
     # TODO @Cleanup: wrap sub properties into accessor for disambiguation (like with FieldAccessor)
 
     def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
-        from bench.bench.type import get_storage_format
+        from bench.language.type import get_storage_format
 
         storage_format = get_storage_format(tag, hint, TypeFlag.Zero)
         return Subfield(

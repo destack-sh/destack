@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import enum
 
-
 #
 # Collection of enums for use without circular import hell.
 #

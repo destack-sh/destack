@@ -8,11 +8,11 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.bench.const import RunTriggerType
-from bench.bench.core import ModuleReference
-from bench.bench.mutate import ModuleMutation
-from bench.bench.query import Query, Sort
-from bench.bench.wire import (
+from bench.language.const import RunTriggerType
+from bench.language.core import ModuleReference
+from bench.language.mutate import ModuleMutation
+from bench.language.query import Query, Sort
+from bench.language.wire import (
     LogEntryData,
     ModuleTreeData,
     RecordData,

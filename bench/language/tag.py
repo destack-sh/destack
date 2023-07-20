@@ -4,8 +4,8 @@ import typing
 from dataclasses import field
 from uuid import UUID
 
-from bench.bench.const import TypeTag
-from bench.bench.core import (
+from bench.language.const import TypeTag
+from bench.language.core import (
     HasCrud,
     HasSession,
     ModuleNode,
@@ -108,7 +108,7 @@ class HasTags(StatementBase):
 
 
 # avoid circular import because Tag is HasType but Type is HasTags
-from bench.bench.type import HasType  # noqa
+from bench.language.type import HasType  # noqa
 
 
 @node(tracked=["name"])

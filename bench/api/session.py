@@ -28,9 +28,9 @@ from bench.api.utils import (
     to_uuid,
     to_uuids,
 )
-from bench.bench import Q, Query, Sort, SortOrder, wire
-from bench.bench.const import RUNNABLE_STATEMENT_TYPES
-from bench.bench.session import PENDING_RUN_STATUSES
+from bench.language import Q, Query, Sort, SortOrder, wire
+from bench.language.const import RUNNABLE_STATEMENT_TYPES
+from bench.language.session import PENDING_RUN_STATUSES
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import LogsChangedPayload, NMessageType, SessionChangedPayload

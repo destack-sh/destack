@@ -6,7 +6,7 @@ from uuid import UUID
 import msgpack
 
 if TYPE_CHECKING:
-    from bench.bench.session import LogSearch, RunSearch
+    from bench.language.session import LogSearch, RunSearch
 
 
 class Runnable(abc.ABC):
@@ -14,13 +14,13 @@ class Runnable(abc.ABC):
 
     @property
     def logs(self) -> "LogSearch":
-        from bench.bench.session import LogSearch
+        from bench.language.session import LogSearch
 
         return LogSearch.from_runnable(self)
 
     @property
     def runs(self) -> "RunSearch":
-        from bench.bench.session import RunSearch
+        from bench.language.session import RunSearch
 
         return RunSearch.from_runnable(self)
 
@@ -35,8 +35,8 @@ class Runnable(abc.ABC):
 
 
 if TYPE_CHECKING:
-    from bench.bench.core import Statement
-    from bench.bench.type import HasType
+    from bench.language.core import Statement
+    from bench.language.type import HasType
 
     class _Runnable(Runnable, HasType, Statement):
         pass

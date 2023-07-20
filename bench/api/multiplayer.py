@@ -15,7 +15,7 @@ from bench.api.auth import check_can_view_project_by_id
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid
-from bench.bench import mutate, wire
+from bench.language import mutate, wire
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload

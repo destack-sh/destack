@@ -11,11 +11,11 @@ from uuid import UUID
 import pytz
 import structlog
 
-from bench.bench.core import MOT, ModuleOp, Session
-from bench.bench.mutate import ModuleMutator
-from bench.bench.query import Query, Sort
-from bench.bench.session import LogEntry, Run, RunError
-from bench.bench.type import (
+from bench.language.core import MOT, ModuleOp, Session
+from bench.language.mutate import ModuleMutator
+from bench.language.query import Query, Sort
+from bench.language.session import LogEntry, Run, RunError
+from bench.language.type import (
     TypeBase,
     TypeTag,
     check_type,
@@ -23,11 +23,11 @@ from bench.bench.type import (
     strip_py_value,
     strip_py_value_flat,
 )
-from bench.bench.utils import Runnable
+from bench.language.utils import Runnable
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.bench import (
+    from bench.language import (
         Code,
         Dataset,
         Field,
@@ -505,7 +505,7 @@ class MutationTracer(Tracer):
         # publish not supported yet
 
     def value_update(self, value: Value, key: Optional[str] = None):
-        from bench.bench import wire
+        from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(value), properties=["value"])
 
@@ -513,22 +513,22 @@ class MutationTracer(Tracer):
         self.mutator.truncate(dataset, MOT.RECORD)
 
     def dataset_append(self, dataset: Dataset, record: Record):
-        from bench.bench import wire
+        from bench.language import wire
 
         self.mutator.create(wire.pack_node_flat(record))
 
     def dataset_extend(self, dataset: Dataset, records: list[Record]):
-        from bench.bench import wire
+        from bench.language import wire
 
         self.mutator.create_many(*[wire.pack_node_flat(record) for record in records])
 
     def dataset_remove(self, dataset: Dataset, record: Record):
-        from bench.bench import wire
+        from bench.language import wire
 
         self.mutator.delete(wire.pack_node_flat(record))
 
     def dataset_update(self, dataset: Dataset | Value, record: Record, key: Optional[str] = None):
-        from bench.bench import wire
+        from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(record))
 

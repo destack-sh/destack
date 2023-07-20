@@ -7,12 +7,12 @@ from typing import Any, Optional
 import anthropic
 import openai
 
-from bench.bench.basic import Expectation
-from bench.bench.code_ import Code
-from bench.bench.const import TypeFlag, TypeTag
-from bench.bench.core import LookupBy, Module, Statement, parse_absolute_statement_reference
-from bench.bench.model import Model
-from bench.bench.reflect import (
+from bench.language.basic import Expectation
+from bench.language.code_ import Code
+from bench.language.const import TypeFlag, TypeTag
+from bench.language.core import LookupBy, Module, Statement, parse_absolute_statement_reference
+from bench.language.model import Model
+from bench.language.reflect import (
     _model_compilers,
     _model_impls,
     _symbolx_reflect,
@@ -23,8 +23,8 @@ from bench.bench.reflect import (
     x_tag,
     x_task,
 )
-from bench.bench.remote import RemoteObject
-from bench.bench.task import (
+from bench.language.remote import RemoteObject
+from bench.language.task import (
     IncapableError,
     Task,
     TaskCompiler,
@@ -32,7 +32,7 @@ from bench.bench.task import (
     TaskErrorType,
     TaskRunner,
 )
-from bench.bench.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
+from bench.language.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
 symbolx_lib = Module(name="symbolx.lib")

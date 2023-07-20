@@ -10,7 +10,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-from bench import bench as language
+from bench import language as language
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.session import LogEntry, Run, RunTriggerType

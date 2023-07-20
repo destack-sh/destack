@@ -10,7 +10,7 @@ from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
 from bench.api.utils import to_global_id
-from bench.bench.mutate import MMT, MOT, ModuleMutation, ModuleMutator
+from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.opensearch import mirror
 

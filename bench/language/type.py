@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 import structlog
 from more_itertools import first
 
-from bench.bench.const import (
+from bench.language.const import (
     RemoteObjectStatus,
     StatementType,
     TypeFlag,
@@ -23,7 +23,7 @@ from bench.bench.const import (
     TypeStorageFormat,
     TypeTag,
 )
-from bench.bench.core import (
+from bench.language.core import (
     HasCrud,
     HasSession,
     ModuleNode,
@@ -34,9 +34,9 @@ from bench.bench.core import (
     StatementReference,
     node,
 )
-from bench.bench.issue import IssueType
-from bench.bench.query import FieldQueryOps
-from bench.bench.remote import RemoteObject, Secret
+from bench.language.issue import IssueType
+from bench.language.query import FieldQueryOps
+from bench.language.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
@@ -506,7 +506,7 @@ class HasType(TypeBase, StatementBase):
 
 
 # avoid circular import because Tag is HasType but Type is HasTags
-from bench.bench.tag import HasTags  # noqa
+from bench.language.tag import HasTags  # noqa
 
 
 @node

@@ -14,8 +14,8 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 from strawberry_django_plus import gql
 
-from bench.bench import wire
-from bench.bench.wire import MOT_BY_DATA_CLASS
+from bench.language import wire
+from bench.language.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs

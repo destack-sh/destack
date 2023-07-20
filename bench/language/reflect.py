@@ -3,9 +3,9 @@ import typing
 from dataclasses import dataclass
 from uuid import UUID, uuid5
 
-from bench.bench.const import TypeTag
-from bench.bench.core import File
-from bench.bench.type import (
+from bench.language.const import TypeTag
+from bench.language.core import File
+from bench.language.type import (
     HasType,
     instantiate_py_value,
     new_field_key,
@@ -80,7 +80,7 @@ def x_struct(name: str, description: str, *, file: File, return_type: bool = Fal
 
 def x_task(name: str, description: str, *, file: File):
     def decorator(fn):
-        from bench.bench.task import Task
+        from bench.language.task import Task
 
         task = Task(name=name, description=description)
         file.append(task)
@@ -95,7 +95,7 @@ def x_task(name: str, description: str, *, file: File):
 
 def x_tag(name: str, description: str, *, file: File):
     def decorator(cls):
-        from bench.bench.tag import Tag
+        from bench.language.tag import Tag
 
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
@@ -116,7 +116,7 @@ _model_compilers: dict[str, typing.Callable] = {}
 
 def x_model(name: str, description: str, *, external_name: str, file: File):
     def decorator(cls):
-        from bench.bench.model import Model
+        from bench.language.model import Model
 
         model = Model(name=name, external_name=external_name, description=description)
         model.id = _versioned_id(model.path)

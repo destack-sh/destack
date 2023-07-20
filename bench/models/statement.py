@@ -11,11 +11,11 @@ from django.db import models
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
-from bench.bench import StatementType, TypeHint, TypeTag, wire
-from bench.bench.const import DatasetBackend, TypeFlag
-from bench.bench.dataset import new_dataset_backend_id
-from bench.bench.tag import new_tag_key
-from bench.bench.type import new_field_key
+from bench.language import StatementType, TypeHint, TypeTag, wire
+from bench.language.const import DatasetBackend, TypeFlag
+from bench.language.dataset import new_dataset_backend_id
+from bench.language.tag import new_tag_key
+from bench.language.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,

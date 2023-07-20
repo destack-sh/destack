@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from typing import NamedTuple, Optional
 
-import bench.bench as lang
+import bench.language as lang
 import bench.opensearch.core as os
-from bench.bench import TypeHint, TypeTag
-from bench.bench.const import TypeFlag
-from bench.bench.query import SubfieldType
-from bench.bench.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
+from bench.language import TypeHint, TypeTag
+from bench.language.const import TypeFlag
+from bench.language.query import SubfieldType
+from bench.language.type import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
 from bench.opensearch import mirror
 
 MAXIMUM_NESTING_DEPTH = 3
