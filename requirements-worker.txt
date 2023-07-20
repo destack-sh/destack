@@ -428,8 +428,6 @@ selenium==4.10.0
     # via -r requirements-worker.in
 semver==2.13.0
     # via -r requirements-worker.in
-sentencepiece==0.1.97
-    # via -r requirements-worker.in
 sentry-sdk==1.18.0
     # via -r requirements-worker.in
 six==1.16.0

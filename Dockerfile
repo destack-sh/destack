@@ -40,10 +40,6 @@ EXPOSE 80
 # Define the worker image
 FROM base as bench-worker
 
-# for sentencepiece
-RUN apt-get install -y cmake build-essential pkg-config libgoogle-perftools-dev
-# quick install sentencepiece just to make sure it works (nocheckin)
-RUN pip install --no-cache-dir sentencepiece
 COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 
