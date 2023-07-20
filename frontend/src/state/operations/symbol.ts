@@ -24,6 +24,7 @@ import {
   type UpdateSymbolValueMutation,
   type TaggingUpdateInput,
   type Tagging,
+  type UpdateStatementReferenceMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
