@@ -7,7 +7,7 @@ if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
 fi
 
 # call build_push.sh
-./scripts/build_push.sh
+./scripts/build_push.sh $1
 
 # deploy with pulumi
 pulumi --cwd infra up -y --skip-preview
