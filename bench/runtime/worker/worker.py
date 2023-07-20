@@ -7,10 +7,10 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.bench import Code, LogEntry, Task, wire
-from bench.bench.code_ import run
-from bench.bench.const import RunTriggerType, WorkerTenancy
-from bench.bench.core import (
+from bench.language import Code, LogEntry, Task, wire
+from bench.language.code_ import run
+from bench.language.const import RunTriggerType, WorkerTenancy
+from bench.language.core import (
     Module,
     ModuleReference,
     ModuleWriter,
@@ -18,9 +18,9 @@ from bench.bench.core import (
     SessionContext,
     SessionMode,
 )
-from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.session import Run, RunError
-from bench.bench.type import instantiate_py_value_flat, map_value
+from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.session import Run, RunError
+from bench.language.type import instantiate_py_value_flat, map_value
 from bench.msg.core import (
     NMessage,
     handle_reply,

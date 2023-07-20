@@ -14,13 +14,12 @@ from strawberry_django_plus.gql import auto
 from strawberry_django_plus.relay import GlobalID
 from strawberry_django_plus.types import OperationInfo
 
-import bench.bench.type
-from bench import models
+from bench import language, models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue, IssueFilter
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
-from bench.bench import const
+from bench.language import const
 from bench.models import RefMappingKind
 
 if TYPE_CHECKING:
@@ -52,9 +51,9 @@ class FieldFilter:
         return queryset
 
 
-TypeStorageFormat = gql.enum(bench.bench.type.TypeStorageFormat)
-TypeTag = gql.enum(bench.bench.const.TypeTag)
-TypeHint = gql.enum(bench.bench.const.TypeHint)
+TypeStorageFormat = gql.enum(language.TypeStorageFormat)
+TypeTag = gql.enum(language.TypeTag)
+TypeHint = gql.enum(language.TypeHint)
 
 
 @gql.django.type(models.Tagging)

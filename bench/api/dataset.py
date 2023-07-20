@@ -15,7 +15,7 @@ from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
 from bench.api.utils import CrudModel, Revisioned, SearchQuery, SearchSort, ThingBatch, to_global_id
-from bench.bench import Q, Query, QueryOp
+from bench.language import Q, Query, QueryOp
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType

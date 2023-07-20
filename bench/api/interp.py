@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from django.db.models import QuerySet
 import structlog
+from django.db.models import QuerySet
 from strawberry import lazy
 from strawberry_django_plus import gql
 
-from bench import bench as language
+from bench import language as language
 from bench import models
 
 if TYPE_CHECKING:

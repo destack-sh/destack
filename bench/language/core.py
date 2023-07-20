@@ -18,16 +18,16 @@ import pytz
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 
-from bench.bench.const import RunTriggerType, StatementType
-from bench.bench.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
+from bench.language.const import RunTriggerType, StatementType
+from bench.language.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.bench.mutate import ModuleMutation, ModuleMutator
-    from bench.bench.session import LogEntry, Run
-    from bench.bench.wire import ModuleTreeData
+    from bench.language.mutate import ModuleMutation, ModuleMutator
+    from bench.language.session import LogEntry, Run
+    from bench.language.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
 
@@ -145,12 +145,12 @@ class ModuleNode(abc.ABC):
         return self.parent.id if self.parent is not None else None
 
     def walk(self) -> typing.Iterator["ModuleNode"]:
-        from bench.bench.wire import walk_node
+        from bench.language.wire import walk_node
 
         return walk_node(self)
 
     def copy(self):
-        from bench.bench import wire
+        from bench.language import wire
 
         _, node_datas = wire.pack_node(self)
         return wire.unpack_node(node_datas, parent=self.parent, session=None)
@@ -509,7 +509,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.status = ModuleStatus.Interp
 
     def copy(self):
-        from bench.bench import wire
+        from bench.language import wire
 
         module_data = wire.pack_module(self)
         module_copy = wire.unpack_module(module_data, session=None)
@@ -531,7 +531,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def interp_from(
         module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
     ) -> "Module":
-        from bench.bench import libs, wire
+        from bench.language import libs, wire
 
         # copy default dependencies
         dependencies = {name: dep.copy() for name, dep in libs.DEFAULT_MODULES.items()}
@@ -915,8 +915,8 @@ class Session:
         mode: SessionMode = SessionMode.READ_ONLY,
         executor: Executor = None,
     ):
-        from bench.bench.mutate import ModuleMutator
-        from bench.bench.tracing import SessionTracer
+        from bench.language.mutate import ModuleMutator
+        from bench.language.tracing import SessionTracer
 
         self.id = id or uuid4()
         self.ctx = ctx

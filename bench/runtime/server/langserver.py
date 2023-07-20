@@ -13,14 +13,14 @@ from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 
 from bench import models
-from bench.bench import HasType, Issue, Q, Query, QueryOp, ResolvedField, wire
-from bench.bench.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
-from bench.bench.libs import DEFAULT_MODULES
-from bench.bench.mutate import ModuleMutation, ModuleMutator
-from bench.bench.session import PENDING_RUN_STATUSES
-from bench.bench.type import instantiate_py_value, strip_py_value
-from bench.bench.utils import get_run_cache_key
-from bench.bench.wire import ModuleTree
+from bench.language import HasType, Issue, Q, Query, QueryOp, ResolvedField, wire
+from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
+from bench.language.libs import DEFAULT_MODULES
+from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.session import PENDING_RUN_STATUSES
+from bench.language.type import instantiate_py_value, strip_py_value
+from bench.language.utils import get_run_cache_key
+from bench.language.wire import ModuleTree
 from bench.models import Project, ProjectVersion, Run, RunStatus, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage

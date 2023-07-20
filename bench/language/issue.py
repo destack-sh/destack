@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from bench.bench.core import File, InterpScope, Statement, statement_path_as_str
+    from bench.language.core import File, InterpScope, Statement, statement_path_as_str
 
 
 class IssueKind(enum.StrEnum):
@@ -74,7 +74,7 @@ class Issue:
     def __init__(
         self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
     ):
-        from bench.bench.core import File, InterpScope, Statement, StatementPath
+        from bench.language.core import File, InterpScope, Statement, StatementPath
 
         # auto convert kwargs
         for key, value in kwargs.items():
@@ -118,7 +118,7 @@ class Issue:
 
     @property
     def statement_id(self) -> UUID | None:
-        from bench.bench.core import InterpScope
+        from bench.language.core import InterpScope
 
         if self.scope == InterpScope.STATEMENT:
             return self.subject.id
@@ -126,7 +126,7 @@ class Issue:
 
     @property
     def file_id(self) -> UUID | None:
-        from bench.bench.core import InterpScope
+        from bench.language.core import InterpScope
 
         if self.scope == InterpScope.FILE:
             return self.subject.id

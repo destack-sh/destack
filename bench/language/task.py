@@ -5,15 +5,15 @@ import re
 from json import JSONDecodeError
 from typing import Collection, Optional, Self
 
-from bench.bench.basic import Expectation
-from bench.bench.code_ import Code
-from bench.bench.const import StatementType, TypeTag
-from bench.bench.core import Scope, Statement, node
-from bench.bench.model import Model
-from bench.bench.reflect import reflect_struct
-from bench.bench.tag import HasTags
-from bench.bench.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
-from bench.bench.utils import Runnable
+from bench.language.basic import Expectation
+from bench.language.code_ import Code
+from bench.language.const import StatementType, TypeTag
+from bench.language.core import Scope, Statement, node
+from bench.language.model import Model
+from bench.language.reflect import reflect_struct
+from bench.language.tag import HasTags
+from bench.language.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
+from bench.language.utils import Runnable
 from bench.utils.utils import DotDict, DotList
 
 

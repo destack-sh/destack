@@ -54,8 +54,8 @@ NOISY_LOG_SOURCES = {
     "bench.api.execution",
     "bench.api.user",
     "bench.api.multiplayer",
-    "bench.bench.code",
-    "bench.bench.tracing",
+    "bench.language.code",
+    "bench.language.tracing",
     "bench.runtime.worker.run",
     "bench.runtime.common.interp",
 }

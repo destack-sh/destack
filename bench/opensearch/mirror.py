@@ -6,8 +6,8 @@ from uuid import UUID
 
 import bench.opensearch.core as os
 from bench import models
-from bench.bench import StatementType, wire
-from bench.bench.query import SubfieldType
+from bench.language import StatementType, wire
+from bench.language.query import SubfieldType
 
 if TYPE_CHECKING:
     from django.db.models import Model

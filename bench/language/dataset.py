@@ -10,8 +10,8 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.bench.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
-from bench.bench.core import (
+from bench.language.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
+from bench.language.core import (
     HasCrud,
     HasSession,
     Module,
@@ -21,16 +21,16 @@ from bench.bench.core import (
     Statement,
     node,
 )
-from bench.bench.query import Query, Sort
-from bench.bench.search import ElementT, Search
-from bench.bench.tag import HasTags
-from bench.bench.type import Field, HasType, instantiate_py_value, strip_py_value
+from bench.language.query import Query, Sort
+from bench.language.search import ElementT, Search
+from bench.language.tag import HasTags
+from bench.language.type import Field, HasType, instantiate_py_value, strip_py_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
 
 if typing.TYPE_CHECKING:
-    from bench.bench.wire import RecordData
+    from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
 
@@ -319,7 +319,7 @@ class RecordSearch(Search["RecordData", Record]):
         return rep
 
     def _unpack_element_data(self, element_data: "RecordData") -> ElementT:
-        from bench.bench import wire
+        from bench.language import wire
 
         parent = self.module._statements_by_id[element_data.parent_id]
         element = wire.unpack_node_flat(element_data, parent, self.module.session)

@@ -9,9 +9,9 @@ from functools import cached_property
 from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
-from bench.bench.const import StatementType
-from bench.bench.core import Module, ModuleNode, ModuleObjectType
-from bench.bench.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
+from bench.language.const import StatementType
+from bench.language.core import Module, ModuleNode, ModuleObjectType
+from bench.language.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
 
 
@@ -275,7 +275,7 @@ class ModuleMutation:
 
     @classmethod
     def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
-        from bench.bench import wire
+        from bench.language import wire
 
         _data = data.get("_data")
         if _data is not None:
@@ -291,7 +291,7 @@ class ModuleMutation:
 
     @data.setter
     def data(self, value: "NodeData"):
-        from bench.bench import wire
+        from bench.language import wire
 
         self._data__mot = wire.MOT_BY_DATA_CLASS[type(value)]
         if type(value) in wire.STATEMENT_TYPE_BY_DATA_CLASS:
@@ -320,7 +320,7 @@ class ModuleMutation:
 
 
 def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
-    from bench.bench import wire
+    from bench.language import wire
 
     if isinstance(node, wire.NodeData):
         return node
@@ -344,7 +344,7 @@ class ModuleMutator:
         file_id: UUID = None,
         statement_id: UUID = None,
     ):
-        from bench.bench import wire
+        from bench.language import wire
 
         if isinstance(module, wire.ModuleTree):
             self.module = wire.ModuleTreeData(
@@ -385,7 +385,7 @@ class ModuleMutator:
     def do(
         self, type: MMT, obj: "NodeData", apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
-        from bench.bench import wire
+        from bench.language import wire
 
         if isinstance(obj, wire.StatementData):
             statement_id = obj.id
@@ -427,7 +427,7 @@ class ModuleMutator:
         return self
 
     def apply(self, mut: ModuleMutation):
-        from bench.bench.wire import BASE_DATA_CLASS_BY_MOT
+        from bench.language.wire import BASE_DATA_CLASS_BY_MOT
 
         if mut.type.kind == MMK.CREATE:
             self.tree.add(mut.data)
@@ -457,7 +457,7 @@ class ModuleMutator:
         return self
 
     def create(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
-        from bench.bench.wire import MOT_BY_DATA_CLASS
+        from bench.language.wire import MOT_BY_DATA_CLASS
 
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
@@ -475,7 +475,7 @@ class ModuleMutator:
     def update(
         self, obj: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
-        from bench.bench.wire import MOT_BY_DATA_CLASS
+        from bench.language.wire import MOT_BY_DATA_CLASS
 
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]
@@ -491,7 +491,7 @@ class ModuleMutator:
         return self
 
     def delete(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
-        from bench.bench.wire import MOT_BY_DATA_CLASS
+        from bench.language.wire import MOT_BY_DATA_CLASS
 
         obj = pack_node_flat_if_needed(obj)
         mot = MOT_BY_DATA_CLASS[type(obj)]

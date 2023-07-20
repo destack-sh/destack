@@ -1,9 +1,9 @@
 from typing import Optional
 from uuid import UUID
 
-from bench.bench.core import Scope, Statement, StatementReference, StatementType, node
-from bench.bench.issue import IssueType
-from bench.bench.tag import HasTags
+from bench.language.core import Scope, Statement, StatementReference, StatementType, node
+from bench.language.issue import IssueType
+from bench.language.tag import HasTags
 
 # common statements
 

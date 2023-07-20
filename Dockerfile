@@ -47,7 +47,7 @@ RUN pip install --no-cache-dir -r requirements-worker.txt
 COPY bench/utils bench/utils
 COPY bench/runtime/common bench/runtime/common
 COPY bench/runtime/worker bench/runtime/worker
-COPY bench/bench bench/bench
+COPY bench/language bench/language
 COPY bench/msg bench/msg
 COPY manageworker.py .
 COPY pyproject.toml .

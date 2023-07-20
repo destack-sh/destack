@@ -12,8 +12,8 @@ import requests
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.bench.const import RemoteObjectStatus
-from bench.bench.core import HasSession, Session, node
+from bench.language.const import RemoteObjectStatus
+from bench.language.core import HasSession, Session, node
 from bench.utils.utils import required_field
 
 logger = structlog.get_logger(__name__)
@@ -53,7 +53,7 @@ class RemoteObject(HasSession):
 
     async def aread(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
-        from bench.bench import wire
+        from bench.language import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepReadObjectPayload, ReqReadObjectPayload
 
@@ -99,7 +99,7 @@ class RemoteObject(HasSession):
         Note that we perform a sleight of hand here: we change the id and status if the object
         already exists under a different id in the object store.
         """
-        from bench.bench import wire
+        from bench.language import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import NMessageType, RepWriteObjectPayload, ReqWriteObjectPayload
 
@@ -123,7 +123,7 @@ class RemoteObject(HasSession):
 
     async def _mark_uploaded(self) -> None:
         """Mark the object as uploaded to the remote storage."""
-        from bench.bench import wire
+        from bench.language import wire
         from bench.msg.core import NMessage, request
         from bench.msg.messages import (
             NMessageType,
@@ -234,7 +234,7 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
         if self.value is not None:
             return self.value
 
-        from bench.bench import wire
+        from bench.language import wire
         from bench.msg import messages
         from bench.msg.core import NMessage, NMessageType, request
 

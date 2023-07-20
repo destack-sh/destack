@@ -20,7 +20,7 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.bench import Q, query
+from bench.language import Q, query
 from bench.msg.messages import ClientOrigin
 from bench.utils.utils import sentry_capture_if_enabled
 

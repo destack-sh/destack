@@ -1,8 +1,8 @@
 import abc
 from typing import Any, AsyncIterator, Generic, Iterator, Optional, Self, TypeVar
 
-from bench.bench.core import Module
-from bench.bench.query import Query, Sort
+from bench.language.core import Module
+from bench.language.query import Query, Sort
 from bench.utils.utils import DotList
 
 #

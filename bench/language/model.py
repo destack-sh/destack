@@ -12,17 +12,17 @@ import msgpack
 import pytz
 import structlog
 
-from bench.bench.const import StatementType
-from bench.bench.core import Scope, Statement, node
-from bench.bench.tag import HasTags
-from bench.bench.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import Runnable, get_run_cache_key
+from bench.language.const import StatementType
+from bench.language.core import Scope, Statement, node
+from bench.language.tag import HasTags
+from bench.language.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
+from bench.language.utils import Runnable, get_run_cache_key
 from bench.utils.cache import redis
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.bench.task import Task, TaskCompiler
+    from bench.language.task import Task, TaskCompiler
 
 logger = structlog.get_logger(__name__)
 
@@ -166,7 +166,7 @@ class Model(HasType, HasTags, Runnable, Statement):
     @property
     def _endpoint_resolved(self):
         if self._endpoint_impl is None:
-            from bench.bench import libs
+            from bench.language import libs
 
             # get actual model implementation from libs  :LibImplementation
             # (this is a stop gap until we fully support model statements, then it's just like Code)
@@ -182,7 +182,7 @@ class Model(HasType, HasTags, Runnable, Statement):
     @property
     def _compiler_resolved(self):
         if self._compiler_impl is None:
-            from bench.bench import libs
+            from bench.language import libs
 
             # get actual model implementation from libs  :LibCompiler (see above)
             actual_model_compiler = libs.lookup_model_compiler(self.path)

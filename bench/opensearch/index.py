@@ -4,12 +4,12 @@ from uuid import UUID, uuid4
 import structlog
 
 import bench.opensearch.core as os
-from bench import bench as lang
+from bench import language as lang
 from bench import models
-from bench.bench import wire
-from bench.bench.dataset import MAX_VERSIONED_RECORDS_TOTAL
-from bench.bench.mutate import MMK, MMT, MOT, ModuleMutation
-from bench.bench.utils import Runnable
+from bench.language import wire
+from bench.language.dataset import MAX_VERSIONED_RECORDS_TOTAL
+from bench.language.mutate import MMK, MMT, MOT, ModuleMutation
+from bench.language.utils import Runnable
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -264,7 +264,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     TODO @Performance: update OS field mappings more efficiently on field mutations
       (especially for library/dependency mappings)
     """
-    from bench.bench import libs
+    from bench.language import libs
     from bench.models import packer
 
     logger.info("os.update_mappings", project_version=project_v)

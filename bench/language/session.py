@@ -6,18 +6,18 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.bench.core import Module, Session, Statement, StatementType
-from bench.bench.query import Query, Sort, SortOrder
-from bench.bench.reflect import reflect_enum, reflect_struct
-from bench.bench.search import Search
+from bench.language.core import Module, Session, Statement, StatementType
+from bench.language.query import Query, Sort, SortOrder
+from bench.language.reflect import reflect_enum, reflect_struct
+from bench.language.search import Search
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.bench.code_ import Code
-    from bench.bench.model import Model
-    from bench.bench.task import Task
-    from bench.bench.type import Field
-    from bench.bench.wire import LogEntryData, RunData
+    from bench.language.code_ import Code
+    from bench.language.model import Model
+    from bench.language.task import Task
+    from bench.language.type import Field
+    from bench.language.wire import LogEntryData, RunData
 
 
 @reflect_enum("RunStatus", "The status of a run")
@@ -211,7 +211,7 @@ class RunCodeFrame:
     def clean(
         stack: list["RunCodeFrame"], from_statement: "Statement", session: "Session"
     ) -> list["RunCodeFrame"]:
-        from bench.bench.code_ import Code
+        from bench.language.code_ import Code
 
         code_by_method: dict[str, Code] = {
             symbol._transform.method_name: symbol
@@ -350,7 +350,7 @@ class RunSearch(Search["RunData", Run]):
         return rep
 
     def _unpack_element_data(self, element_data: "RunData") -> Run:
-        from bench.bench import wire
+        from bench.language import wire
 
         return wire.unpack_data(element_data, module=self.module)
 
@@ -417,7 +417,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
         return rep
 
     def _unpack_element_data(self, element_data: "LogEntryData") -> LogEntry:
-        from bench.bench import wire
+        from bench.language import wire
 
         return wire.unpack_data(element_data, module=self.module)
 

@@ -10,7 +10,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.utils import safe_mutation
-from bench.bench.remote import REMOTE_OBJECT_MAX_SIZE
+from bench.language.remote import REMOTE_OBJECT_MAX_SIZE
 from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)

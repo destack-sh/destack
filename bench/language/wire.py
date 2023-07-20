@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
-from bench import bench as lang
-from bench.bench import StatementType
-from bench.bench.const import (
+from bench import language as lang
+from bench.language import StatementType
+from bench.language.const import (
     DatasetBackend,
     RemoteObjectStatus,
     RunTriggerType,
@@ -19,7 +19,7 @@ from bench.bench.const import (
     TypeHint,
     TypeTag,
 )
-from bench.bench.core import (
+from bench.language.core import (
     CRUD_PROPERTIES,
     MOT,
     InterpScope,
@@ -28,9 +28,9 @@ from bench.bench.core import (
     ModuleObjectType,
     Session,
 )
-from bench.bench.issue import IssueKind, IssueType
-from bench.bench.query import Query, Sort
-from bench.bench.session import (
+from bench.language.issue import IssueKind, IssueType
+from bench.language.query import Query, Sort
+from bench.language.session import (
     LazyRun,
     MissingStatement,
     RunCodeFrame,

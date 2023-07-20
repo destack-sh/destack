@@ -17,8 +17,8 @@ from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
-from bench.bench import Statement
-from bench.bench.mutate import ModuleMutation, ModuleMutationKind
+from bench.language import Statement
+from bench.language.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
 from bench.msg.core import publish_soon
 from bench.msg.messages import (

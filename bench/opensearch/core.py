@@ -7,7 +7,7 @@ from datetime import datetime
 from typing import Any, ClassVar
 from uuid import UUID
 
-from bench.bench.query import TYPE_DISCRIMINATOR_KEY, SubfieldType
+from bench.language.query import TYPE_DISCRIMINATOR_KEY, SubfieldType
 
 
 class FieldType(enum.StrEnum):

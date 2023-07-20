@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Optional, Union
 
-from bench.bench.query import (
+from bench.language.query import (
     TYPE_DISCRIMINATOR_KEY,
     ComparisonQuery,
     CompoundQuery,

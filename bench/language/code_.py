@@ -17,13 +17,13 @@ import pytz
 import structlog
 from more_itertools import first, last
 
-from bench.bench.const import StatementType, TypeTag
-from bench.bench.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
-from bench.bench.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
-from bench.bench.remote import RemoteObject, RemoteObjectStatus
-from bench.bench.tag import HasTags, Tag
-from bench.bench.type import HasType, check_type, instantiate_py_value, strip_py_value
-from bench.bench.utils import Runnable, get_run_cache_key
+from bench.language.const import StatementType, TypeTag
+from bench.language.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
+from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
+from bench.language.remote import RemoteObject, RemoteObjectStatus
+from bench.language.tag import HasTags, Tag
+from bench.language.type import HasType, check_type, instantiate_py_value, strip_py_value
+from bench.language.utils import Runnable, get_run_cache_key
 from bench.utils.cache import redis, redis_sync
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
@@ -97,7 +97,7 @@ class Code(HasType, HasTags, Runnable, Statement):
 
     @cached_property
     def cached(self) -> bool:
-        from bench.bench.libs import symbolx_lib
+        from bench.language.libs import symbolx_lib
 
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", statement_t=Tag))
 
@@ -270,7 +270,7 @@ def instantiate_callable(
     if not code._parse.is_async:
         # replace any async functions with sync versions
         for key, symbol in context.items():
-            from bench.bench import Task
+            from bench.language import Task
 
             if isinstance(symbol, (Code, Task)) and symbol._is_async:
                 context[key] = symbol.to_sync()
@@ -369,7 +369,7 @@ async def run(
     session: "Session",
     is_trusted: bool = False,
 ) -> Any:
-    from bench.bench.session import RunError, RunErrorKind
+    from bench.language.session import RunError, RunErrorKind
 
     if not is_trusted and not ALLOW_UNTRUSTED_CODE:
         raise RunError(kind=RunErrorKind.UNTRUSTED, type="untrusted", runnable=code)
