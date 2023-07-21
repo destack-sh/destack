@@ -31,7 +31,6 @@ from bench.models.user import (
 )
 from bench.msg.core import NMessage, publish_soon, subscribe
 from bench.msg.messages import ClientChangedPayload, ClientOrigin, NMessageType
-from bench.settings import DEBUG, TEST
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
@@ -205,6 +204,8 @@ class UserMutation:
     # TODO @Security: check that secret root login is never exposed in prod
     @safe_mutation
     def secret_root_login(self, info: Info, username: str) -> User | OperationInfo:
+        from bench.utils.utils import DEBUG, TEST
+
         if not (TEST or DEBUG):
             raise PermissionDenied("can only use this in test mode")
         user = models.User.objects.get(username=username)

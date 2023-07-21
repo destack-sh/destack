@@ -61,7 +61,10 @@ WSGI_APPLICATION = "bench.wsgi.application"
 ASGI_APPLICATION = "bench.asgi.application"
 
 # Where are we?
-WEBAPP_URL = get_from_env("WEBAPP_URL", str)
+WEBAPP_URL = get_from_env("WEBAPP_URL", type_cast=str)
+
+# Emails
+LOOPS_API_KEY = get_from_env("LOOPS_API_KEY", type_cast=str, optional=True)
 
 # Auth
 

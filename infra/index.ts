@@ -440,6 +440,17 @@ const SOCIAL_AUTH_ENV_VARS = [
   name,
   value: config.requireSecret(name),
 }));
+const BASE_BACKEND_ENV_VARS = [
+  { name: "LOOPS_API_KEY", value: config.requireSecret("LOOPS_API_KEY") },
+  { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
+  { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
+  { name: "WEBAPP_URL", value: config.require("webappUrl") },
+  { name: "RUN_LANGSERVER", value: "true" },
+  {
+    name: "REDIS_URL",
+    value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
+  },
+];
 
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
@@ -457,7 +468,12 @@ const apiDeployment = new k8s.apps.v1.Deployment(
             {
               name: apiName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
-              env: [...PUBLIC_BACKEND_VARS, ...DB_ENV_VARS, { name: "SEND_API_PUB_MSG", value: "" }],
+              env: [
+                ...PUBLIC_BACKEND_VARS,
+                ...DB_ENV_VARS,
+                ...BASE_BACKEND_ENV_VARS,
+                { name: "SEND_API_PUB_MSG", value: "" },
+              ],
               command: ["python", "manage.py", "migrate"],
             },
           ],
@@ -472,14 +488,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 ...OPENSEARCH_ENV_VARS,
                 ...MODEL_PROVIDER_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
-                { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
-                { name: "WEBAPP_URL", value: config.require("webappUrl") },
-                { name: "RUN_LANGSERVER", value: "true" },
-                {
-                  name: "REDIS_URL",
-                  value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
-                },
+                ...BASE_BACKEND_ENV_VARS,
                 ...SOCIAL_AUTH_ENV_VARS,
               ],
               command: ["sh", "-c"],
