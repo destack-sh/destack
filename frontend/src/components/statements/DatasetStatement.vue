@@ -777,8 +777,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex max-w-full flex-row justify-between gap-2">
-    <!-- TODO @UX: dataset statement tags are not horizontally aligned -->
-    <div class="flex max-w-full flex-row items-baseline">
+    <div class="flex max-w-full flex-row items-center">
       <TypedDeclarationCell
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"

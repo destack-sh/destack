@@ -253,7 +253,7 @@ defineExpose({
   <!-- Header -->
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
-    <div class="flex flex-row">
+    <div class="flex flex-row items-center">
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"

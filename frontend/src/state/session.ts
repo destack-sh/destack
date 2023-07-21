@@ -372,7 +372,7 @@ export function useRuns(
         },
         (prev) => {
           return {
-            runs: getUpdatedConnectionQuery(run, prev?.runs as Connection<Run> | undefined),
+            runs: getUpdatedConnectionQuery(run, prev?.runs as Connection<Run> | undefined, options?.limit),
           };
         }
       );

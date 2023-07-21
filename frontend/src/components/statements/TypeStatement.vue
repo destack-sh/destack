@@ -205,7 +205,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row">
+    <div class="flex flex-row items-center">
       <TypedStatementDeclaration
         ref="declarationRef"
         @navigate-down="focusDescriptionFromTop"
