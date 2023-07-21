@@ -293,12 +293,6 @@ export const useBenchState = defineStore("bench", {
     },
   },
   actions: {
-    setProject(projectId: string, versionId: string): void {
-      this.$reset();
-      this.projectId = projectId;
-      this.projectVersionId = versionId;
-    },
-
     // views
 
     setActiveView(viewId: ViewId): void {

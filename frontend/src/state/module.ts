@@ -39,7 +39,7 @@ export type ModuleIndex = {
   filesById: Record<string, InterpFile>;
 };
 
-function _useModuleFlat(projectVersionId: Ref<string | null>) {
+function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
   const { result: module, loading } = useQuery(
     graphql(/* GraphQL */ `
       query module($projectVersionId: GlobalID!) {
@@ -67,7 +67,10 @@ function _useModuleFlat(projectVersionId: Ref<string | null>) {
       }
     `),
     () => ({ projectVersionId: projectVersionId.value }),
-    () => ({ enabled: !!projectVersionId.value })
+    () => ({
+      enabled: !!projectVersionId.value,
+      fetchPolicy: !(options?.cache ?? false) ? "cache-and-network" : "network-only",
+    })
   );
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
@@ -135,7 +138,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
   // TODO @Performance: cache symbolx lib (and other default module dependencies)
   // TODO @Broken: don't hardcode symbolx.lib id
   // (this is not that terrible since the project version id is static for now, see :LibImplementation)
-  const symbolxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"));
+  const symbolxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"), {
+    cache: true,
+  });
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
     [symbolxLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
   );
