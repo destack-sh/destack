@@ -104,7 +104,7 @@ class Model(HasType, HasTags, Runnable, Statement):
                     timeout=timeout,
                 )
                 rep: NMessage[RepRunInferencePayload] = await request(
-                    NMessageType.REQUEST_RUN_INFERENCE,
+                    NMessageType.RUN_PROXY_INFERENCE,
                     req,
                     RepRunInferencePayload,
                     timeout=timeout + 2,

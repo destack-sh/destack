@@ -47,11 +47,14 @@ botocore==1.29.125
     #   boto3
     #   s3transfer
 cachetools==5.2.0
-    # via -r requirements.in
+    # via
+    #   -r requirements.in
+    #   google-auth
 certifi==2023.5.7
     # via
     #   httpcore
     #   httpx
+    #   kubernetes
     #   opensearch-py
     #   requests
     #   sentry-sdk
@@ -154,6 +157,8 @@ frozenlist==1.3.3
     # via
     #   aiohttp
     #   aiosignal
+google-auth==2.22.0
+    # via kubernetes
 graphql-core==3.2.3
     # via strawberry-graphql
 gunicorn==20.1.0
@@ -198,6 +203,8 @@ json-stream-rs-tokenizer==0.4.20
     # via json-stream
 jsonschema==4.17.3
     # via drf-spectacular
+kubernetes==27.2.0
+    # via -r requirements.in
 libcst==1.0.1
     # via strawberry-graphql
 markdown-it-py==3.0.0
@@ -228,6 +235,7 @@ numpy==1.25.0
     # via -r requirements.in
 oauthlib==3.2.2
     # via
+    #   kubernetes
     #   requests-oauthlib
     #   social-auth-core
 openai==0.27.2
@@ -255,9 +263,12 @@ psycopg2==2.9.5
 pyasn1==0.5.0
     # via
     #   pyasn1-modules
+    #   rsa
     #   service-identity
 pyasn1-modules==0.3.0
-    # via service-identity
+    # via
+    #   google-auth
+    #   service-identity
 pycparser==2.21
     # via cffi
 pydub==0.25.1
@@ -275,6 +286,7 @@ pyrsistent==0.19.3
 python-dateutil==2.8.2
     # via
     #   botocore
+    #   kubernetes
     #   opensearch-py
     #   posthog
     #   strawberry-graphql
@@ -291,21 +303,27 @@ pytz==2022.1
 pyyaml==6.0
     # via
     #   drf-spectacular
+    #   kubernetes
     #   libcst
 redis[hiredis]==4.5.3
     # via -r requirements.in
 requests==2.31.0
     # via
     #   anthropic
+    #   kubernetes
     #   openai
     #   opensearch-py
     #   posthog
     #   requests-oauthlib
     #   social-auth-core
 requests-oauthlib==1.3.1
-    # via social-auth-core
+    # via
+    #   kubernetes
+    #   social-auth-core
 rich==13.4.2
     # via strawberry-graphql
+rsa==4.9
+    # via google-auth
 s3transfer==0.6.1
     # via boto3
 sentry-sdk[django]==1.18.0
@@ -315,6 +333,8 @@ service-identity==23.1.0
 six==1.16.0
     # via
     #   automat
+    #   google-auth
+    #   kubernetes
     #   opensearch-py
     #   posthog
     #   python-dateutil
@@ -369,6 +389,8 @@ uritemplate==4.1.1
 urllib3==1.26.16
     # via
     #   botocore
+    #   google-auth
+    #   kubernetes
     #   opensearch-py
     #   requests
     #   sentry-sdk
@@ -376,6 +398,8 @@ uvicorn==0.19.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
+websocket-client==1.6.1
+    # via kubernetes
 wrapt==1.15.0
     # via deprecated
 yarl==1.9.2

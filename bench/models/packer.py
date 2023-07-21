@@ -911,10 +911,14 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         return wire.RunData(
             id=model.id,
             module_id=model.project_version_id,
+            worker_id=model.worker_id,
             session_id=model.session_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
             runnable_id=model.runnable_id,
+            runnable_type=StatementType(model.runnable_type) if model.runnable_type else None,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
             started_at=model.started_at,
             terminated_at=model.terminated_at,
             status=model.status,
@@ -928,11 +932,13 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         # additional context
         return models.Run(
             id=data.id,
+            worker_id=data.worker_id,
             project_version_id=data.module_id,
             session_id=data.session_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,
+            runnable_type=data.runnable_type.value,
             created_at=data.started_at,  # not sure what to pass since it's not in DB, not frame
             updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             started_at=data.started_at,

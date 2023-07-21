@@ -21,11 +21,11 @@ from bench.msg.core import NMessage, request
 from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
-    RepLangserverPayload,
-    RepRunPayload,
+    RepStartRunPayload,
+    RepWakeLangserverPayload,
     ReqCancelRunPayload,
-    ReqLangserverPayload,
-    ReqRunPayload,
+    ReqStartRunPayload,
+    ReqWakeLangserverPayload,
 )
 
 logger = structlog.get_logger(__name__)
@@ -89,9 +89,9 @@ class RuntimeMutation:
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_read_project)(info, project_version)
         await request(
-            NMessageType.REQUEST_LANGSERVER,
-            ReqLangserverPayload(module_id=project_version_id),
-            reply_t=RepLangserverPayload,
+            NMessageType.WAKE_LANGSERVER,
+            ReqWakeLangserverPayload(module_id=project_version_id),
+            reply_t=RepWakeLangserverPayload,
         )
         return LangserverWakePayload(success=True)
 
@@ -103,7 +103,7 @@ class RuntimeMutation:
         # TODO @Auth: should run be a guest-level permission for projects?
         await sync_to_async(check_can_write_project)(info, project_version)
 
-        run = ReqRunPayload(
+        run = ReqStartRunPayload(
             module_id=project_version_id,
             runnable=to_uuid(input.runnable_id),
             runnable_type=None,
@@ -116,10 +116,10 @@ class RuntimeMutation:
             keyed=input.keyed,
         )
         try:
-            rep: NMessage[RepRunPayload] = await request(
-                NMessageType.REQUEST_RUN,
+            rep: NMessage[RepStartRunPayload] = await request(
+                NMessageType.START_RUN,
                 run,
-                reply_t=RepRunPayload,
+                reply_t=RepStartRunPayload,
                 timeout=input.timeout_seconds,
             )
             success = rep.p.error is None
@@ -128,6 +128,10 @@ class RuntimeMutation:
             rep = None
             success = False
             error = ModuleRunErrorType.TIMEOUT
+        except RuntimeError as e:
+            rep = None
+            success = False
+            error = ModuleRunErrorType.UNAVAILABLE
         posthog.capture(
             str(user.id),
             "run",
@@ -157,7 +161,7 @@ class RuntimeMutation:
         )
         try:
             rep: NMessage[RepCancelRunPayload] = await request(
-                NMessageType.REQUEST_CANCEL_RUN,
+                NMessageType.CANCEL_RUN,
                 cancel,
                 reply_t=RepCancelRunPayload,
             )

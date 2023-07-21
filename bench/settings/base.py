@@ -14,4 +14,4 @@ PROMETHEUS_EXPORT_MIGRATIONS: bool = get_from_env(
 )
 
 RUN_LANGSERVER = get_from_env("RUN_LANGSERVER", DEBUG, type_cast=str_to_bool)
-RUN_WORKER = get_from_env("RUN_WORKER", DEBUG, type_cast=str_to_bool)
+RUN_MASTER = get_from_env("RUN_MASTER", DEBUG, type_cast=str_to_bool)

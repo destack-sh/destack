@@ -36,23 +36,21 @@ from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
     RepReadModulePayload,
-    RepRegisterWorkerPayload,
-    RepRunPayload,
+    RepRegisterWorkerNodePayload,
+    RepStartRunPayload,
     RepWriteModulePayload,
     ReqCancelRunPayload,
     ReqReadModulePayload,
     ReqRegisterWorkerPayload,
-    ReqRunPayload,
+    ReqStartRunPayload,
     ReqWriteModulePayload,
     RunErrorType,
     RunMarkedDeadPayload,
-    WorkerHeartbeatPayload,
 )
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
-WORKER_HEARTBEAT_INTERVAL = get_from_env("WORKER_HEARTBEAT_INTERVAL", 5, type_cast=int)
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
 
 logger = structlog.get_logger(__name__)
@@ -85,7 +83,7 @@ class RunJob:
 class ModuleWorker(ModuleWriter):
     """A worker that processes all jobs for a single module (incl. to maintain its state)"""
 
-    def __init__(self, module_id: UUID, master: "SandboxedWorker", timeout: float):
+    def __init__(self, module_id: UUID, master: "WorkerNode", timeout: float):
         self.master = master
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires langserver fetch)
@@ -132,7 +130,7 @@ class ModuleWorker(ModuleWriter):
             wait=False,
         )
         rep: NMessage[RepWriteModulePayload] = await request(
-            NMessageType.REQUEST_WRITE_MODULE, req, RepWriteModulePayload
+            NMessageType.WRITE_MODULE, req, RepWriteModulePayload
         )
         return rep.p.success
 
@@ -157,7 +155,7 @@ class ModuleWorker(ModuleWriter):
             client=self.master.client,
         )
         rep: NMessage[RepWriteSessionPayload] = await request(
-            NMessageType.REQUEST_WRITE_SESSION, req, RepWriteSessionPayload
+            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload
         )
         return rep.p.success
 
@@ -255,10 +253,7 @@ class ModuleWorker(ModuleWriter):
                 job.cancelled = True
         # mark it as dead for everyone
         # (just in case it's still bugging around in some frontend)
-        await publish(
-            NMessageType.RUN_MARKED_DEAD,
-            RunMarkedDeadPayload(self.module_id, run_id),
-        )
+        await publish(NMessageType.RUN_MARKED_DEAD, RunMarkedDeadPayload(self.module_id, run_id))
         return False
 
     async def run(self):
@@ -299,12 +294,14 @@ class ModuleWorker(ModuleWriter):
                 self.queue.task_done()
 
 
-class SandboxedWorker:
+class WorkerNode:
     """A sandboxed runtime worker to execute arbitrary code (community or dedicated)."""
 
-    def __init__(self, worker_id: UUID, project_id: UUID | None):
-        self.worker_id = worker_id
+    def __init__(self, worker_node_id: UUID | None, worker_set_id: UUID, project_id: UUID | None):
+        self.worker_set_id = worker_set_id
+        self.worker_node_id = worker_node_id or UUIDT()
         self.project_id = project_id
+        self.routing_id = project_id or "*"
         self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
@@ -322,12 +319,12 @@ class SandboxedWorker:
         success = False
         while attempts < 3 and not success:
             try:
-                register_rep: NMessage[RepRegisterWorkerPayload] = await request(
-                    NMessageType.REQUEST_REGISTER_WORKER,
+                register_rep: NMessage[RepRegisterWorkerNodePayload] = await request(
+                    NMessageType.REGISTER_WORKER_NODE,
                     ReqRegisterWorkerPayload(
                         worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
                     ),
-                    RepRegisterWorkerPayload,
+                    RepRegisterWorkerNodePayload,
                 )
                 success = register_rep.p.success
             except Exception as e:
@@ -341,11 +338,8 @@ class SandboxedWorker:
             raise RuntimeError("failed to register worker")
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
-            await handle_reply(NMessageType.REQUEST_RUN, self.request_run),
-            await handle_reply(NMessageType.REQUEST_CANCEL_RUN, self.request_cancel),
-        ]
-        self.tasks = [
-            create_wrapped_task(self.send_heartbeats(interval_seconds=WORKER_HEARTBEAT_INTERVAL))
+            await handle_reply(f"{NMessageType.START_RUN}.{self.routing_id}", self.start_run),
+            await handle_reply(f"{NMessageType.CANCEL_RUN}.{self.routing_id}", self.cancel_run),
         ]
 
     async def run_forever(self):
@@ -355,14 +349,6 @@ class SandboxedWorker:
             await asyncio.Event().wait()
         finally:
             await self.stop()
-
-    async def send_heartbeats(self, interval_seconds: float):
-        # of course, eventually this should be done on / synced with the k8s level
-        while True:
-            await publish(
-                NMessageType.WORKER_HEARTBEAT, WorkerHeartbeatPayload(worker_id=self.worker_id)
-            )
-            await asyncio.sleep(interval_seconds)
 
     def _get_worker(self, module_id: UUID) -> ModuleWorker:
         if module_id not in self.workers:
@@ -393,7 +379,7 @@ class SandboxedWorker:
             await worker.do_interp_on_change(msg.p.mutations)
 
     @message_handler
-    async def request_run(self, msg: NMessage[ReqRunPayload]):
+    async def start_run(self, msg: NMessage[ReqStartRunPayload]):
         worker = await self._get_ready_worker(msg.p.module_id)
         run_job = worker.queue_run(
             runnable=msg.p.runnable,
@@ -405,17 +391,17 @@ class SandboxedWorker:
             keyed=msg.p.keyed,
         )
         if isinstance(run_job, RunErrorType):  # couldn't queue run
-            await msg.reply(RepRunPayload(error=run_job))
+            await msg.reply(RepStartRunPayload(error=run_job))
         else:
             if msg.p.block:
                 await run_job.terminated.wait()
             run = wire.pack_data(run_job.run) if run_job.run else None
             logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
-            rep = RepRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
+            rep = RepStartRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
             await msg.reply(rep)
 
     @message_handler
-    async def request_cancel(self, msg: NMessage[ReqCancelRunPayload]):
+    async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
         worker = await self._get_ready_worker(msg.p.module_id)
         success = await worker.cancel_run(msg.p.run_id)
         await msg.reply(RepCancelRunPayload(success=success))
@@ -428,7 +414,7 @@ class SandboxedWorker:
             log.debug("module.fetch", cached=True)
             return cached
         module_rep = await request(
-            NMessageType.REQUEST_READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
+            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
         )
         if module_rep.p.module.committed:
             self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id

@@ -20,6 +20,30 @@ if TYPE_CHECKING:
     from bench.language.wire import LogEntryData, RunData
 
 
+class WorkerProfile(enum.StrEnum):
+    TINY = "TINY"
+
+
+class WorkerRegion(enum.StrEnum):
+    US_CENTRAL = "US_CENTRAL"
+    EU_CENTRAL = "EU_CENTRAL"
+
+
+class WorkerSetStatus(enum.StrEnum):
+    PENDING = "PENDING"
+    SLEEPING = "SLEEPING"
+    CREATING = "CREATING"
+    RUNNING = "RUNNING"
+
+
+class WorkerStatus(enum.StrEnum):
+    PENDING = "PENDING"
+    CREATING = "CREATING"
+    RUNNING = "RUNNING"
+    DELETING = "DELETING"
+    DELETED = "DELETED"
+
+
 @reflect_enum("RunStatus", "The status of a run")
 class RunStatus(enum.StrEnum):
     Created = "Created"
@@ -333,7 +357,7 @@ class RunSearch(Search["RunData", Run]):
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchRunPayload] = await request(
-            NMessageType.REQUEST_SEARCH_RUN,
+            NMessageType.SEARCH_RUN,
             ReqSearchRunPayload(
                 module_id=self.module.id,
                 runnables_ids=runnables_ids,
@@ -400,7 +424,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchLogPayload] = await request(
-            NMessageType.REQUEST_SEARCH_LOG,
+            NMessageType.SEARCH_LOG,
             ReqSearchLogPayload(
                 module_id=self.module.id,
                 runnables_ids=runnables_ids,

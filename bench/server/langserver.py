@@ -1,7 +1,7 @@
 import asyncio
 import json
 import typing
-from datetime import datetime, timedelta
+from datetime import datetime
 from functools import partial
 from itertools import chain
 from typing import Optional
@@ -17,11 +17,10 @@ from bench.language import HasType, Issue, Q, Query, QueryOp, ResolvedField, wir
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import PENDING_RUN_STATUSES
 from bench.language.type import instantiate_py_value, strip_py_value
 from bench.language.utils import get_run_cache_key
 from bench.language.wire import ModuleTree
-from bench.models import Project, ProjectVersion, Run, RunStatus, packer
+from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
@@ -31,101 +30,84 @@ from bench.msg.messages import (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
-    RepLangserverPayload,
     RepMarkUploadedObjectPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
     RepReadSecretPayload,
-    RepRegisterWorkerPayload,
     RepRunInferencePayload,
     RepSearch,
     RepSearchLogPayload,
     RepSearchRecordPayload,
     RepSearchRunPayload,
+    RepWakeLangserverPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
     RepWriteSessionPayload,
-    ReqLangserverPayload,
     ReqMarkUploadedObjectPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
     ReqReadSecretPayload,
-    ReqRegisterWorkerPayload,
     ReqRunInferencePayload,
     ReqSearch,
     ReqSearchLogPayload,
     ReqSearchRecordPayload,
     ReqSearchRunPayload,
+    ReqWakeLangserverPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
     RunMarkedDeadPayload,
     SessionChangedPayload,
-    WorkerHeartbeatPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
-from bench.runtime.common.mutate import get_api_mutation_from_internal, trim_record_mutations
-from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
+from bench.worker.mutate import get_api_mutation_from_internal, trim_record_mutations
 
 logger = structlog.get_logger(__name__)
 
-
-def create_wrapped_task(coro, task_id: str = None):
-    asyncio.create_task(wrap_task(coro, task_id))
-
-
-WORKER_HEARTBEAT_TIMEOUT = 30
 MAX_SEARCH_RECORD_LIMIT = 500
 MAX_SEARCH_LOG_LIMIT = 1000
 MAX_SEARCH_RUN_LIMIT = 1000
 
+_cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
 
-class ModuleDB:
-    def __init__(self, cache_committed: bool = True):
-        self.cache_committed = cache_committed
-        self._cached_modules: dict[
-            ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]
-        ] = {}
 
-    async def get_module(
-        self, ref: ModuleReference | UUID
-    ) -> tuple[wire.ModuleTreeData, models.Project]:
-        # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
-        if ref in self._cached_modules:
-            return self._cached_modules[ref]
-        if isinstance(ref, UUID):
-            project_version = await ProjectVersion.objects.aget(id=ref)
-        elif ref.id is not None:
-            project_version = await ProjectVersion.objects.aget(id=ref.id)
-        else:
-            owner, project = ref.name.split(".")
-            if ref.version != "x":
-                raise NotImplementedError("TODO: versioned module fetch")
-            project_version = (
-                await Project.objects.filter(
-                    slug=project,
-                )
-                .filter(
-                    models.Q(organization__owner_slug_id=owner)
-                    | models.Q(user__owner_slug_id=owner)
-                )
-                .select_related("head")
-                .aget()
+async def get_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, models.Project]:
+    # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
+    if ref in _cached_modules:
+        return _cached_modules[ref]
+    if isinstance(ref, UUID):
+        project_version = await ProjectVersion.objects.aget(id=ref)
+    elif ref.id is not None:
+        project_version = await ProjectVersion.objects.aget(id=ref.id)
+    else:
+        owner, project = ref.name.split(".")
+        if ref.version != "x":
+            raise NotImplementedError("TODO: versioned module fetch")
+        project_version = (
+            await Project.objects.filter(
+                slug=project,
             )
-            project_version = project_version.head
-        module = await sync_to_async(packer.pack_module)(project_version)
-        if self.cache_committed and project_version.committed:
-            self._cached_modules[ref] = module, project_version.project
-        return module, project_version.project
+            .filter(
+                models.Q(organization__owner_slug_id=owner) | models.Q(user__owner_slug_id=owner)
+            )
+            .select_related("head")
+            .aget()
+        )
+        project_version = project_version.head
+    module = await sync_to_async(packer.pack_module)(project_version)
+    if project_version.committed:
+        _cached_modules[ref] = module, project_version.project
+    return module, project_version.project
 
-    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
-        return (await self.get_module(ref))[0]
+
+async def fetch(ref: ModuleReference) -> wire.ModuleTreeData:
+    return (await get_module(ref))[0]
 
 
 record_packer = mirror.get_node_packer(mirror.Record)
@@ -151,7 +133,6 @@ def _unpack_log(log: mirror.LogEntry):
 class LanguageServer:
     """
     Bench language & runtime server for LSP and runtime DB access.
-    Also manages sandboxed worker lifecycle (for now?).
     """
 
     def __init__(self):
@@ -159,34 +140,25 @@ class LanguageServer:
         self.lang_workers: dict[UUID, LanguageWorker] = {}
         self.subs = []
         self.tasks = []
-        self.module_db = ModuleDB()
 
     async def run(self):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
-            await handle_reply(NMessageType.REQUEST_REGISTER_WORKER, self.register_worker),
-            await subscribe(NMessageType.WORKER_HEARTBEAT, cb=self.worker_heartbeat),
-            await handle_reply(NMessageType.REQUEST_READ_MODULE, self.read_module),
-            await handle_reply(NMessageType.REQUEST_WRITE_MODULE, self.write_module),
-            await handle_reply(NMessageType.REQUEST_WRITE_SESSION, self.write_session),
-            await handle_reply(NMessageType.REQUEST_LANGSERVER, self.request_langserver),
-            await handle_reply(NMessageType.REQUEST_SEARCH_RECORD, self.search_record),
-            await handle_reply(NMessageType.REQUEST_SEARCH_RUN, self.search_run),
-            await handle_reply(NMessageType.REQUEST_SEARCH_LOG, self.search_log),
-            await handle_reply(NMessageType.REQUEST_READ_OBJECT, self.read_object),
-            await handle_reply(NMessageType.REQUEST_WRITE_OBJECT, self.write_object),
-            await handle_reply(
-                NMessageType.REQUEST_MARK_UPLOADED_OBJECT, self.mark_uploaded_object
-            ),
-            await handle_reply(NMessageType.REQUEST_READ_SECRET, self.read_secret),
-            await handle_reply(NMessageType.REQUEST_RUN_INFERENCE, self.run_inference),
+            await handle_reply(NMessageType.READ_MODULE, self.read_module),
+            await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
+            await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
+            await handle_reply(NMessageType.WAKE_LANGSERVER, self.request_langserver),
+            await handle_reply(NMessageType.SEARCH_RECORD, self.search_record),
+            await handle_reply(NMessageType.SEARCH_RUN, self.search_run),
+            await handle_reply(NMessageType.SEARCH_LOG, self.search_log),
+            await handle_reply(NMessageType.READ_OBJECT, self.read_object),
+            await handle_reply(NMessageType.WRITE_OBJECT, self.write_object),
+            await handle_reply(NMessageType.MARK_UPLOADED_OBJECT, self.mark_uploaded_object),
+            await handle_reply(NMessageType.READ_SECRET, self.read_secret),
+            await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.*", cb=self.run_marked_dead),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
-        ]
-        self.tasks = [
-            create_wrapped_task(self.manage_sandboxed_workers(interval_seconds=10)),
-            create_wrapped_task(self.manage_timeouts(interval_seconds=10, timeout_seconds=60)),
         ]
 
     async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
@@ -197,37 +169,12 @@ class LanguageServer:
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = LanguageWorker(self.id, project_version, self.module_db)
+            worker = LanguageWorker(self.id, project_version)
             self.lang_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         if not worker.ready.is_set():
             await worker.ready.wait()
         return worker
-
-    @message_handler
-    async def register_worker(self, msg: NMessage[ReqRegisterWorkerPayload]) -> None:
-        try:
-            worker = await models.Worker.objects.acreate(
-                id=msg.payload.worker_id,
-                status=models.WorkerStatus.ACTIVE,
-                project_id=msg.p.project_id,
-                tenancy=msg.p.tenancy,
-                started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
-            )
-            success = True
-            logger.info("register_worker", worker=worker)
-        except Exception as e:
-            sentry_capture_if_enabled(e)
-            logger.error("register_worker.failed", msg=msg, exc_info=True)
-            success = False
-        await msg.reply(RepRegisterWorkerPayload(success=success))
-
-    @message_handler
-    async def worker_heartbeat(self, msg: NMessage[WorkerHeartbeatPayload]) -> None:
-        last_seen = datetime.utcnow().replace(tzinfo=pytz.utc)
-        await redis.set(
-            f"worker.{msg.payload.worker_id}.heartbeat", str(last_seen), ex=WORKER_HEARTBEAT_TIMEOUT
-        )
 
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
@@ -484,10 +431,10 @@ class LanguageServer:
         await msg.reply(RepRunInferencePayload(outputs=outputs, timeout=timeout))
 
     @message_handler
-    async def request_langserver(self, msg: NMessage[ReqLangserverPayload]):
+    async def request_langserver(self, msg: NMessage[ReqWakeLangserverPayload]):
         logger.debug("langserver.wake", msg=msg)
         await self._get_ready_worker(msg.p.module_id)
-        await msg.reply(RepLangserverPayload(module_id=msg.p.module_id))
+        await msg.reply(RepWakeLangserverPayload(module_id=msg.p.module_id))
 
     @message_handler
     async def run_marked_dead(self, msg: NMessage[RunMarkedDeadPayload]) -> None:
@@ -513,63 +460,6 @@ class LanguageServer:
         worker = await self._get_ready_worker(msg.p.module_id)
         await worker.on_module_changed(msg.p.mutations)
 
-    async def manage_sandboxed_workers(self, interval_seconds: int):
-        """Update last seens and mark any unresponsive workers as inactive."""
-        while True:
-            # get last seen for all workers
-            live_worker_keys = [
-                worker_id async for worker_id in redis.scan_iter("worker.*.heartbeat")
-            ]
-            live_worker_ids = [UUID(key.decode().split(".")[1]) for key in live_worker_keys]
-            live_worker_ids.append(self.id)  # we're a worker too
-            last_seen = await redis.mget(keys=live_worker_keys)
-            if len(live_worker_ids) != len(last_seen):
-                continue  # try again?
-            last_seen = [datetime.fromisoformat(ts.decode()) for ts in last_seen]
-
-            # batch update last seen for live workers
-            live_workers = [w async for w in models.Worker.objects.filter(id__in=live_worker_ids)]
-            for ls, worker in zip(last_seen + [datetime.utcnow()], live_workers):
-                worker.last_seen_at = ls
-            await models.Worker.objects.abulk_update(live_workers, ["last_seen_at"])
-
-            # check if there are any dead workers
-            liveness_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
-                seconds=WORKER_HEARTBEAT_TIMEOUT
-            )
-            dead_workers = [
-                worker
-                async for worker in models.Worker.objects.filter(
-                    status=models.WorkerStatus.ACTIVE, last_seen_at__lt=liveness_cutoff
-                )
-            ]
-            logger.debug("manage_workers", live_workers=live_workers, dead_workers=dead_workers)
-
-            if dead_workers:
-                # mark all relevant jobs and runs as failed
-                dead_ids = [worker.id for worker in dead_workers]
-                await Run.objects.filter(
-                    status__in=PENDING_RUN_STATUSES, worker_id__in=dead_ids
-                ).aupdate(status=RunStatus.Failed)
-                for worker in dead_workers:
-                    worker.status = models.WorkerStatus.TERMINATED
-                    worker.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-                await models.Worker.objects.abulk_update(dead_workers, ["status", "terminated_at"])
-
-            await asyncio.sleep(interval_seconds)
-
-    async def manage_timeouts(self, interval_seconds: int, timeout_seconds: int):
-        """Mark any timed out jobs or runs as failed."""
-        while True:
-            start_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
-                seconds=timeout_seconds
-            )
-            await Run.objects.filter(
-                status__in=PENDING_RUN_STATUSES,
-                started_at__lt=start_cutoff,
-            ).aupdate(status=RunStatus.Failed)
-            await asyncio.sleep(interval_seconds)
-
     async def stop(self):
         logger.info("stop")
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
@@ -585,16 +475,13 @@ COMPLETED_JOBS_BUFFER_SIZE = 128
 class LanguageWorker:
     """Language server worker for a single module"""
 
-    def __init__(
-        self, worker_id: UUID, project_version: models.ProjectVersion, module_db: ModuleDB
-    ):
+    def __init__(self, worker_id: UUID, project_version: models.ProjectVersion):
         self.worker_id = worker_id
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
             module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
         )
-        self.module_db = module_db
         # module data
         self.source: wire.ModuleTreeData | None = None
         self.module: Optional[Module] = None
