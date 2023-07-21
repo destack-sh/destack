@@ -107,6 +107,9 @@ class Project(UUIDModel, CrudModel):
         "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
     remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
+    worker_set = models.OneToOneField(
+        "WorkerSet", on_delete=models.CASCADE, related_name="project", optional=True
+    )
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"

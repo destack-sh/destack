@@ -179,7 +179,7 @@ class LanguageServer:
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
-        module, project = await self.module_db.get_module(msg.p.ref)
+        module, project = await get_module(msg.p.ref)
         await msg.reply(RepReadModulePayload(module=module, project_id=project.id))
 
     @message_handler
@@ -465,7 +465,7 @@ class LanguageServer:
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
         # update self as worker
         await models.Worker.objects.filter(id=self.id).aupdate(
-            status=models.WorkerStatus.TERMINATED
+            status=models.WorkerNodeStatus.TERMINATED
         )
 
 
@@ -635,6 +635,6 @@ class LanguageWorker:
             )
 
     async def run(self) -> None:
-        source, project = await self.module_db.get_module(self.module_ref)
+        source, project = await get_module(self.module_ref)
         await self.do_interp(source)
         self.ready.set()

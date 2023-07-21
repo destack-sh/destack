@@ -18,6 +18,3 @@ ACCESS_TOKEN_KEY_LENGTH = int(get_from_env("ACCESS_TOKEN_KEY_LENGTH", default=6)
 ENCRYPT_BENCH_S3_BUCKETS = get_from_env("ENCRYPT_BENCH_S3_BUCKETS", default=False, type_cast=bool)
 
 PGCRYPTO_KEY = get_from_env("PGCRYPTO_KEY", default="<insecure pgcrypto key>")
-
-KUBERNETES_API_URL = get_from_env("KUBERNETES_API_URL", optional=True)
-KUBERNETES_KUBECONFIG_PATH = get_from_env("KUBERNETES_KUBECONFIG_PATH", optional=True)

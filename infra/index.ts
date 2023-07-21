@@ -483,7 +483,7 @@ const SOCIAL_AUTH_ENV_VARS = [
   value: config.requireSecret(name),
 }));
 
-const BASE_BACKEND_ENV_VARS = [
+const BASE_PRIVATE_BACKEND_ENV_VARS = [
   { name: "LOOPS_API_KEY", value: config.requireSecret("LOOPS_API_KEY") },
   { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
   { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
@@ -494,7 +494,23 @@ const BASE_BACKEND_ENV_VARS = [
   },
 ];
 
-const REDIS_WORKER_URL = pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
+const WORKER_ENV_VARS = [
+  ...PUBLIC_BACKEND_VARS,
+  {
+    name: "REDIS_URL",
+    value: pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
+  },
+  { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
+];
+// encode as k1=v1;k2=v2;... and then base64
+const WORKER_ENV_VARS_ENCODED = Buffer.from(
+  WORKER_ENV_VARS.map((env) => `${env.name}=${env.value}`).join(";")
+).toString("base64");
+const KUBERNETES_ENV_VARS = [
+  { name: "KUBERNETES_WORKER_IMAGE", value: `ghcr.io/symbolx/bench-worker:${imageVersion}` },
+  { name: "KUBERNETES_WORKER_ENV_VARS", value: WORKER_ENV_VARS_ENCODED },
+  { name: "KUBERNETES_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
+];
 
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
@@ -517,7 +533,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
                 ...DB_ENV_VARS,
                 ...OPENSEARCH_ENV_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                ...BASE_BACKEND_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 ...SOCIAL_AUTH_ENV_VARS,
               ],
               command: ["sh", "-c"],
@@ -545,12 +561,12 @@ const serverDeployment = new k8s.apps.v1.Deployment(
           // auto-migrate
           initContainers: [
             {
-              name: apiName + "-migrate",
+              name: serverName + "-migrate",
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
                 ...DB_ENV_VARS,
-                ...BASE_BACKEND_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
               command: ["python", "manage.py", "migrate"],
@@ -558,7 +574,7 @@ const serverDeployment = new k8s.apps.v1.Deployment(
           ],
           containers: [
             {
-              name: apiName,
+              name: serverName,
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               ports: [{ containerPort: 80, name: "http" }],
               env: [
@@ -567,8 +583,8 @@ const serverDeployment = new k8s.apps.v1.Deployment(
                 ...OPENSEARCH_ENV_VARS,
                 ...MODEL_PROVIDER_VARS,
                 ...AWS_BACKEND_ENV_VARS,
-                ...BASE_BACKEND_ENV_VARS,
-                ...SOCIAL_AUTH_ENV_VARS,
+                ...BASE_PRIVATE_BACKEND_ENV_VARS,
+                ...KUBERNETES_ENV_VARS,
               ],
               command: ["sh", "-c"],
               args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
@@ -577,39 +593,6 @@ const serverDeployment = new k8s.apps.v1.Deployment(
           ],
           imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
           serviceAccountName: serverServiceAccount.metadata.name,
-        },
-      },
-    },
-  },
-  { provider: eksCluster.provider }
-);
-// Create deployment for workers
-// (nocheckin: remove manually allocated worker deployment)
-const workerDeployment = new k8s.apps.v1.Deployment(
-  workerName,
-  {
-    metadata: { namespace: "default", labels: { app: workerName } },
-    spec: {
-      replicas: 4,
-      selector: { matchLabels: { app: workerName } },
-      template: {
-        metadata: { labels: { app: workerName }, annotations: { "prometheus.io/scrape": "true" } },
-        spec: {
-          containers: [
-            {
-              name: workerName,
-              image: `ghcr.io/symbolx/bench-worker:${imageVersion}`,
-              ports: [{ containerPort: 80, name: "http" }],
-              env: [
-                ...PUBLIC_BACKEND_VARS,
-                { name: "REDIS_URL", value: REDIS_WORKER_URL },
-                { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
-              ],
-              command: ["python", "manageworker.py"],
-              resources: { requests: { cpu: "500m", memory: "500Mi" } },
-            },
-          ],
-          imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
         },
       },
     },

@@ -36,12 +36,10 @@ from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
     RepReadModulePayload,
-    RepRegisterWorkerNodePayload,
     RepStartRunPayload,
     RepWriteModulePayload,
     ReqCancelRunPayload,
     ReqReadModulePayload,
-    ReqRegisterWorkerPayload,
     ReqStartRunPayload,
     ReqWriteModulePayload,
     RunErrorType,
@@ -310,32 +308,11 @@ class WorkerNode:
 
     @property
     def client(self):
-        return ClientOrigin(type="worker", id=self.worker_id, nonce=None)
+        return ClientOrigin(type="worker", id=self.worker_node_id, nonce=None)
 
     async def run(self):
         await nc_init.wait()
-        logger.info("start", worker_id=self.worker_id, tenancy=self.tenancy)
-        attempts = 0
-        success = False
-        while attempts < 3 and not success:
-            try:
-                register_rep: NMessage[RepRegisterWorkerNodePayload] = await request(
-                    NMessageType.REGISTER_WORKER_NODE,
-                    ReqRegisterWorkerPayload(
-                        worker_id=self.worker_id, project_id=self.project_id, tenancy=self.tenancy
-                    ),
-                    RepRegisterWorkerNodePayload,
-                )
-                success = register_rep.p.success
-            except Exception as e:
-                logger.exception("register.failed", exc_info=e)
-                success = False
-            finally:
-                attempts += 1
-                if not success:
-                    await asyncio.sleep(3)
-        if not success:
-            raise RuntimeError("failed to register worker")
+        logger.info("start", worker_node_id=self.worker_node_id, project_id=self.project_id)
         self.subs = [
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
             await handle_reply(f"{NMessageType.START_RUN}.{self.routing_id}", self.start_run),
