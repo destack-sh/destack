@@ -2,6 +2,8 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Optional
 
 import pytz
+import requests
+import structlog
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
 from django.db import models, transaction
@@ -16,10 +18,13 @@ from bench.models.organization import (
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.msg.messages import ClientData
+from bench.utils.utils import DEBUG, LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import Project, ProjectVersion
+
+logger = structlog.get_logger(__name__)
 
 
 class UserManager(BaseUserManager["User"]):
@@ -39,6 +44,8 @@ class UserManager(BaseUserManager["User"]):
         from bench.models.organization import OrganizationInvite
 
         OrganizationInvite.objects.filter(email=email).update(user=user)
+        if not DEBUG and not LOCAL:
+            user._create_in_loops()
 
         return user
 
@@ -101,6 +108,8 @@ class User(AbstractUser, UUIDModel):
         # TODO @UX: keep previous slug for redirect for user/org (under prev_slug)
         self.owner_slug = OwnerSlug.objects.create_slug(username)
         self.save()
+        if not DEBUG and not LOCAL:
+            self._update_in_loops()
 
     def join_organization(
         self,
@@ -112,8 +121,52 @@ class User(AbstractUser, UUIDModel):
         )
         return membership
 
+    def _to_loops_contact(self) -> dict:
+        return {
+            "id": str(self.id),
+            "username": self.owner_slug_id,
+            "email": self.email,
+            "firstName": self.first_name,
+            "lastName": self.last_name,
+            "status": self.status,
+        }
+
+    def _create_in_loops(self):
+        """
+        Creates the user in loops.so for email marketing/tx emails.
+        Intended for production use only.
+        """
+        _loops_request("POST", "contacts/create", body=self._to_loops_contact())
+
+    def _update_in_loops(self):
+        """
+        Updates the user in loops.so for email marketing/tx emails.
+        Intended for production use only.
+        """
+        _loops_request("POST", "contacts/update", body=self._to_loops_contact())
+
     class Meta:
         default_manager_name = "objects"
+
+
+def _loops_request(
+    method: str,
+    path: str,
+    body: Optional[dict] = None,
+    query_params: Optional[dict] = None,
+    headers: Optional[dict] = None,
+) -> requests.Response:
+    from bench import settings
+
+    if settings.LOOPS_API_KEY is None:
+        raise RuntimeError("LOOPS_API_KEY is not set")
+    url = f"https://app.loops.so/api/v1/{path}"
+    headers = headers or {}
+    headers["Authorization"] = f"Bearer {settings.LOOPS_API_KEY}"
+    rep = requests.request(method, url, json=body, params=query_params, headers=headers)
+    if rep.status_code != 200:
+        raise RuntimeError(f"failed to {method} {url}: {rep.text}")
+    return rep
 
 
 # :ClientTimeouts

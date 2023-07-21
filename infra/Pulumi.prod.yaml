@@ -4,6 +4,8 @@ config:
     secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
   bench:COHERE_API_KEY:
     secure: AAABAGwaYpLADp5UUQemDsUFVsu+rb2kihRdZBABFV8/r3qvO6pckT8xY02z7ikfGEpajgeUNacS/Jmd1Q/3lABUAy2OCJ1i
+  bench:LOOPS_API_KEY:
+    secure: AAABALugbjvj+BJBfVwXcSB2vq9oCmiWncVZ5V6k1xNKaIkCCLIJa/+VmPsidbPSTLYJpnROIzaSD6MGabTWDA==
   bench:OPENAI_API_KEY:
     secure: AAABAPNZUmkJnMERio8jl0beB7jZJktjMP7yxPSKZNNDygwnkIS2hcc1h/oXFZK/oHgduMzD0Hs8HBkkIgo9DUzqtJOUONv/qb0rXhw8Bxk22Vo=
   bench:PGCRYPTO_KEY:
