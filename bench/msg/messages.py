@@ -82,13 +82,11 @@ class NMessageType(StrEnum):
     # worker management/lifecycle
     CONFIGURE_WORKER_SET = "worker.configure"
     CONFIGURE_WORKER_SET_REP = "worker.configure.rep"
-    REGISTER_WORKER_NODE = "worker_node.register_self"
-    REGISTER_WORKER_NODE_REP = "worker_node.register_self.rep"
     WORKER_NODE_HEARTBEAT = "worker_node.heartbeat"
     WAKE_WORKER_SET = "worker_set.wake"
     WAKE_WORKER_SET_REP = "worker_set.wake.rep"
-    RESTART_WORKER_NODE = "worker_node.restart"
-    RESTART_WORKER_NODE_REP = "worker_node.restart.rep"
+    RESTART_WORKER_SET = "worker_set.restart"
+    RESTART_WORKER_SET_REP = "worker_set.restart.rep"
     # running (routed via project id)
     START_RUN = "run"
     START_RUN_REP = "run.rep"
@@ -101,10 +99,9 @@ class NMessageType(StrEnum):
 
 
 REPLY_BY_REQUEST_TYPE = {
-    NMessageType.REGISTER_WORKER_NODE: NMessageType.REGISTER_WORKER_NODE_REP,
     NMessageType.CONFIGURE_WORKER_SET: NMessageType.CONFIGURE_WORKER_SET_REP,
     NMessageType.WAKE_WORKER_SET: NMessageType.WAKE_WORKER_SET_REP,
-    NMessageType.RESTART_WORKER_NODE: NMessageType.RESTART_WORKER_NODE_REP,
+    NMessageType.RESTART_WORKER_SET: NMessageType.RESTART_WORKER_SET_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
@@ -208,18 +205,6 @@ class ModuleChangedPayload(OriginPayload):
 class ModuleInternalChangedPayload(OriginPayload):
     module_id: UUID
     mutations: list[ModuleMutation]
-
-
-@payload(NMessageType.REGISTER_WORKER_NODE)
-class ReqRegisterWorkerPayload:
-    worker_set_id: UUID
-    worker_node_id: UUID
-    project_id: Optional[UUID]
-
-
-@payload(NMessageType.REGISTER_WORKER_NODE_REP)
-class RepRegisterWorkerNodePayload:
-    success: bool
 
 
 @payload(NMessageType.START_RUN)
@@ -464,14 +449,14 @@ class RepWakeWorkerSetPayload:
     success: bool
 
 
-@payload(NMessageType.RESTART_WORKER_NODE)
+@payload(NMessageType.RESTART_WORKER_SET)
 class ReqRestartWorkerNodePayload:
     project_id: UUID
-    node_id: UUID
+    node_id: Optional[UUID]
     block: bool
 
 
-@payload(NMessageType.RESTART_WORKER_NODE_REP)
+@payload(NMessageType.RESTART_WORKER_SET_REP)
 class RepRestartWorkerNodePayload:
     worker_set_id: UUID
     success: bool

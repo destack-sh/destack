@@ -103,6 +103,24 @@ def get_error_nice(root: "Run") -> Optional[RunError]:
         return None
 
 
+WorkerProfile = gql.enum(models.WorkerProfile)
+WorkerRegion = gql.enum(models.WorkerRegion)
+WorkerNodeStatus = gql.enum(models.WorkerNodeStatus)
+WorkerSetStatus = gql.enum(models.WorkerSetStatus)
+
+
+@gql.django.type(models.WorkerSet)
+class WorkerSet(gql.Node):
+    project: Annotated["Project", lazy(".project")]
+    created_at: auto
+    updated_at: auto
+    profile: WorkerProfile
+    region: WorkerRegion
+    status: WorkerSetStatus
+    target_replicas: int
+    actual_replicas: int
+
+
 @gql.django.type(models.Session)
 class Session(gql.Node):
     project: Annotated["Project", lazy(".project")]
@@ -219,6 +237,7 @@ LOGS_LIMIT = 250
 
 @gql.type
 class SessionState:
+    worker_set: Optional[WorkerSet]
     runs: list[Run]
 
 
@@ -404,6 +423,11 @@ class SessionChange:
 
 
 @gql.type
+class WorkerChange:
+    worker_set: WorkerSet
+
+
+@gql.type
 class SessionSubscription:
     @asafe_subscription
     async def sessions_changed(
@@ -411,7 +435,7 @@ class SessionSubscription:
         info: Info,
         project_id: GlobalID,
         project_version_id: Optional[GlobalID] = None,
-    ) -> AsyncGenerator[SessionChange, None]:
+    ) -> AsyncGenerator[SessionChange | WorkerChange, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = get_user_from_info(info)

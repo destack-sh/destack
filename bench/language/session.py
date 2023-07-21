@@ -22,6 +22,9 @@ if TYPE_CHECKING:
 
 class WorkerProfile(enum.StrEnum):
     TINY = "TINY"
+    SMALL = "SMALL"
+    MEDIUM = "MEDIUM"
+    LARGE = "LARGE"
 
 
 class WorkerRegion(enum.StrEnum):
@@ -36,7 +39,7 @@ class WorkerSetStatus(enum.StrEnum):
     RUNNING = "RUNNING"
 
 
-class WorkerStatus(enum.StrEnum):
+class WorkerNodeStatus(enum.StrEnum):
     PENDING = "PENDING"
     CREATING = "CREATING"
     RUNNING = "RUNNING"

@@ -20,11 +20,11 @@ from .user import Client, ClientType, User, UserStatus
 from .utils import CrudModel
 from .worker import (
     WorkerNode,
+    WorkerNodeStatus,
     WorkerProfile,
     WorkerRegion,
     WorkerSet,
     WorkerSetStatus,
-    WorkerStatus,
 )
 
 __all__ = [
@@ -71,5 +71,5 @@ __all__ = [
     "WorkerProfile",
     "WorkerSetStatus",
     "WorkerNode",
-    "WorkerStatus",
+    "WorkerNodeStatus",
 ]
