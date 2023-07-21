@@ -346,25 +346,6 @@ watch(
   }
 );
 
-// provide Zen mode
-provideAction({
-  id: "editor.zenMode",
-  label: computed(() => (bench.zenMode ? "Exit Zen Mode" : "Enter Zen Mode")),
-  shortcuts: ["alt+z"],
-  apply: () => {
-    bench.setZenMode(!bench.zenMode);
-    notifications.dismissIf({ type: "zenMode" });
-    notifications.show({
-      type: "zenMode",
-      kind: "notice",
-      message: bench.zenMode ? "Zen Mode on" : "Zen Mode off",
-      description: bench.zenMode ? "Minimize distractions." : "Restored full editor view.",
-      action: () => bench.setZenMode(!bench.zenMode),
-      actionText: "Toggle",
-    });
-  },
-});
-
 const { load } = useBenchPersistence();
 const { migrateTo: migrate, migrating } = useBenchMigrations();
 
@@ -425,7 +406,8 @@ watch(
       bench.projectId = project.value.id;
       bench.projectVersionId = versionToViewId.value;
     }
-  }
+  },
+  { immediate: true }
 );
 
 // clear bench state when exiting view
