@@ -66,23 +66,22 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="group relative mb-1 flex flex-row gap-1.5">
-    <!-- TODO @Broken @Cleanup @UX: fix vertical positioning (see hack above) -->
+  <div class="group relative flex flex-row gap-1.5">
     <!-- Existing tags -->
     <!-- obviously deleting on click is bad UX and will be fixed when we have proper tag value menus -->
     <button
       v-for="tagging in context.tags.value"
       :key="tagging.id"
-      class="flex flex-row items-center rounded-xl px-1 ring-1 ring-orange-600 ring-opacity-30 hover:bg-orange-100 hover:ring-opacity-60"
+      class="flex flex-row rounded-xl px-1 ring-1 ring-inset ring-orange-600 ring-opacity-0 hover:bg-orange-100 hover:ring-opacity-60"
       @click="deleteTagging(tagging)"
     >
-      <TagIconOutline class="h-4 w-4 text-orange-600" />
+      <TagIconOutline class="mt-0.5 h-4 w-4 text-orange-600" />
       <span class="ml-0.5 text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
     <button
       v-if="!context.readonly.value"
-      class="group/add flex flex-row items-center rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-orange-100 hover:text-gray-700 group-hover/add:ring-1"
+      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-orange-100 hover:text-gray-700 group-hover/add:ring-1"
       :class="
         context.focused.value
           ? ''
@@ -90,8 +89,8 @@ defineExpose({
       "
       @click="open"
     >
-      <TagIconOutline class="h-4 w-4" />
-      <PlusIcon class="ml-1 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" />
+      <TagIconOutline class="mt-0.5 h-4 w-4" />
+      <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />

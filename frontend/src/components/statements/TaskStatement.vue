@@ -117,7 +117,7 @@ defineExpose({
 <template>
   <!-- Declaration -->
   <div class="flex flex-row justify-between">
-    <div class="flex flex-row gap-1.5">
+    <div class="flex flex-row items-center gap-1.5">
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"

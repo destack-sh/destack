@@ -120,7 +120,7 @@ defineExpose({
 <template>
   <div>
     <div class="flex max-w-full flex-row justify-between">
-      <div class="flex flex-row">
+      <div class="flex flex-row items-center">
         <TypedStatementDeclaration
           ref="declarationRef"
           @navigate-up="context.navigateUp"
