@@ -7,9 +7,9 @@ from pathlib import Path
 import dotenv
 
 from bench.msg.core import init_nats, process_soon_queue
-from bench.runtime.worker import SandboxedWorker
 from bench.utils.analytics import init_sentry
 from bench.utils.logging import configure_logging
+from bench.worker import WorkerNode
 
 # ensure that project root is first in sys.path
 sys.path = [str(Path(__file__).parent)] + sys.path
@@ -24,7 +24,7 @@ if DEPLOYMENT_ID is not None:
 
 worker_id = uuid.UUID(os.environ["WORKER_ID"]) if "WORKER_ID" in os.environ else uuid.uuid4()
 project_id = uuid.UUID(os.environ["PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
-worker = SandboxedWorker(worker_id=worker_id, project_id=project_id)
+worker = WorkerNode(worker_id=worker_id, project_id=project_id)
 
 init_sentry(django=False)
 

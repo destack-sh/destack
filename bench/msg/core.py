@@ -234,7 +234,7 @@ async def request(
     return reply_msg
 
 
-async def handle_reply(type: NMessageType, cb, *, group: str = "") -> Subscription:
+async def handle_reply(type: str, cb, *, group: str = "") -> Subscription:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
     # topic is type for request/reply

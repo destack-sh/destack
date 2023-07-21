@@ -28,7 +28,7 @@ from bench.msg.messages import (
     NMessageType,
 )
 from bench.opensearch.index import write_mutations_to_os
-from bench.runtime.common.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_api
+from bench.worker.mutate import MutableThing, input_to_gql_jsonable, map_mutation_from_api
 
 logger = structlog.get_logger(__name__)
 

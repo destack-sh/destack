@@ -12,6 +12,7 @@ from bench.language.const import RunTriggerType
 from bench.language.core import ModuleReference
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
+from bench.language.session import WorkerProfile, WorkerRegion
 from bench.language.wire import (
     LogEntryData,
     ModuleTreeData,
@@ -40,76 +41,93 @@ def payload(message_type: "NMessageType"):
 class NMessageType(StrEnum):
     """All messages types"""
 
-    # Bench sync
+    # for sync
     CLIENT_CHANGED = "client.changed"
     PROJECT_CHANGED = "project.changed"
     COMMENT_CHANGED = "comment.changed"
     SCREEN_CHANGED = "screen.changed"
     MODULE_CHANGED = "module.changed"
-    MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal
+    MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
     SESSION_CHANGED = "session.changed"
     LOGS_CHANGED = "logs.changed"
-    RUN_MARKED_DEAD = "execution.marked_dead"
+    WORKERS_CHANGED = "workers.changed"
+    RUN_MARKED_DEAD = "run.marked_dead"
 
-    # Worker <-> Internal
-    REQUEST_REGISTER_WORKER = "worker.register"
-    REPLY_REGISTER_WORKER = "worker.register.rep"
-    WORKER_HEARTBEAT = "worker.heartbeat"
-    REQUEST_READ_MODULE = "module.read"
-    REPLY_READ_MODULE = "module.read.rep"
-    REQUEST_WRITE_MODULE = "module.write"
-    REPLY_WRITE_MODULE = "module.write.rep"
-    REQUEST_WRITE_SESSION = "session.write"
-    REPLY_WRITE_SESSION = "session.write.rep"
-    REQUEST_SEARCH_RECORD = "module.search.record"
-    REPLY_SEARCH_RECORD = "module.search.record.rep"
-    REQUEST_SEARCH_RUN = "module.search.run"
-    REPLY_SEARCH_RUN = "module.search.run.rep"
-    REQUEST_SEARCH_LOG = "module.search.log"
-    REPLY_SEARCH_LOG = "module.search.log.rep"
-    REQUEST_READ_OBJECT = "object.read"
-    REPLY_READ_OBJECT = "object.read.rep"
-    REQUEST_WRITE_OBJECT = "object.write"
-    REPLY_WRITE_OBJECT = "object.write.rep"
-    REQUEST_MARK_UPLOADED_OBJECT = "object.mark_uploaded"
-    REPLY_MARK_UPLOADED_OBJECT = "object.mark_uploaded.rep"
-    REQUEST_READ_SECRET = "secret.read"
-    REPLY_READ_SECRET = "secret.read.rep"
-    REQUEST_RUN_INFERENCE = "model.inference"
-    REPLY_RUN_INFERENCE = "model.inference.rep"
+    # read/write via server
+    READ_MODULE = "module.read"
+    READ_MODULE_REP = "module.read.rep"
+    WRITE_MODULE = "module.write"
+    WRITE_MODULE_REP = "module.write.rep"
+    WRITE_SESSION = "session.write"
+    WRITE_SESSION_REP = "session.write.rep"
+    SEARCH_RECORD = "module.search.record"
+    SEARCH_RECORD_REP = "module.search.record.rep"
+    SEARCH_RUN = "module.search.run"
+    SEARCH_RUN_REP = "module.search.run.rep"
+    SEARCH_LOG = "module.search.log"
+    SEARCH_LOG_REP = "module.search.log.rep"
+    READ_OBJECT = "object.read"
+    READ_OBJECT_REP = "object.read.rep"
+    WRITE_OBJECT = "object.write"
+    WRITE_OBJECT_REP = "object.write.rep"
+    MARK_UPLOADED_OBJECT = "object.mark_uploaded"
+    MARK_UPLOADED_OBJECT_REP = "object.mark_uploaded.rep"
+    READ_SECRET = "secret.read"
+    READ_SECRET_REP = "secret.read.rep"
+    RUN_PROXY_INFERENCE = "model.proxy_inference"
+    RUN_PROXY_INFERENCE_REP = "model.proxy_inference.rep"
+    WAKE_LANGSERVER = "langserver.wake"
+    WAKE_LANGSERVER_REP = "langserver.wake.rep"
 
-    # API <-> Worker
-    REQUEST_RUN = "run"
-    REPLY_RUN = "run.rep"
-    REQUEST_CANCEL_RUN = "run.cancel"
-    REPLY_CANCEL_RUN = "run.cancel.rep"
-    REQUEST_LANGSERVER = "langserver.get"
-    REPLY_LANGSERVER = "langserver.get.rep"
+    # worker management/lifecycle
+    CONFIGURE_WORKER_SET = "worker.configure"
+    CONFIGURE_WORKER_SET_REP = "worker.configure.rep"
+    REGISTER_WORKER_NODE = "worker_node.register_self"
+    REGISTER_WORKER_NODE_REP = "worker_node.register_self.rep"
+    WORKER_NODE_HEARTBEAT = "worker_node.heartbeat"
+    WAKE_WORKER_SET = "worker_set.wake"
+    WAKE_WORKER_SET_REP = "worker_set.wake.rep"
+    RESTART_WORKER_NODE = "worker_node.restart"
+    RESTART_WORKER_NODE_REP = "worker_node.restart.rep"
+    # running (routed via project id)
+    START_RUN = "run"
+    START_RUN_REP = "run.rep"
+    CANCEL_RUN = "run.cancel"
+    CANCEL_RUN_REP = "run.cancel.rep"
+    PAUSE_RUN = "run.pause"
+    PAUSE_RUN_REP = "run.pause.rep"
+    RESUME_RUN = "run.resume"
+    RESUME_RUN_REP = "run.resume.rep"
 
 
 REPLY_BY_REQUEST_TYPE = {
-    NMessageType.REQUEST_REGISTER_WORKER: NMessageType.REPLY_REGISTER_WORKER,
-    NMessageType.REQUEST_READ_MODULE: NMessageType.REPLY_READ_MODULE,
-    NMessageType.REQUEST_WRITE_MODULE: NMessageType.REPLY_WRITE_MODULE,
-    NMessageType.REQUEST_WRITE_SESSION: NMessageType.REPLY_WRITE_SESSION,
-    NMessageType.REQUEST_READ_OBJECT: NMessageType.REPLY_READ_OBJECT,
-    NMessageType.REQUEST_WRITE_OBJECT: NMessageType.REPLY_WRITE_OBJECT,
-    NMessageType.REQUEST_MARK_UPLOADED_OBJECT: NMessageType.REPLY_MARK_UPLOADED_OBJECT,
-    NMessageType.REQUEST_SEARCH_RECORD: NMessageType.REPLY_SEARCH_RECORD,
-    NMessageType.REQUEST_SEARCH_RUN: NMessageType.REPLY_SEARCH_RUN,
-    NMessageType.REQUEST_SEARCH_LOG: NMessageType.REPLY_SEARCH_LOG,
-    NMessageType.REQUEST_READ_SECRET: NMessageType.REPLY_READ_SECRET,
-    NMessageType.REQUEST_RUN_INFERENCE: NMessageType.REPLY_RUN_INFERENCE,
-    NMessageType.REQUEST_RUN: NMessageType.REPLY_RUN,
-    NMessageType.REQUEST_CANCEL_RUN: NMessageType.REPLY_CANCEL_RUN,
-    NMessageType.REQUEST_LANGSERVER: NMessageType.REPLY_LANGSERVER,
+    NMessageType.REGISTER_WORKER_NODE: NMessageType.REGISTER_WORKER_NODE_REP,
+    NMessageType.CONFIGURE_WORKER_SET: NMessageType.CONFIGURE_WORKER_SET_REP,
+    NMessageType.WAKE_WORKER_SET: NMessageType.WAKE_WORKER_SET_REP,
+    NMessageType.RESTART_WORKER_NODE: NMessageType.RESTART_WORKER_NODE_REP,
+    NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
+    NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
+    NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
+    NMessageType.READ_OBJECT: NMessageType.READ_OBJECT_REP,
+    NMessageType.WRITE_OBJECT: NMessageType.WRITE_OBJECT_REP,
+    NMessageType.MARK_UPLOADED_OBJECT: NMessageType.MARK_UPLOADED_OBJECT_REP,
+    NMessageType.SEARCH_RECORD: NMessageType.SEARCH_RECORD_REP,
+    NMessageType.SEARCH_RUN: NMessageType.SEARCH_RUN_REP,
+    NMessageType.SEARCH_LOG: NMessageType.SEARCH_LOG_REP,
+    NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
+    NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
+    NMessageType.START_RUN: NMessageType.START_RUN_REP,
+    NMessageType.CANCEL_RUN: NMessageType.CANCEL_RUN_REP,
+    NMessageType.PAUSE_RUN: NMessageType.PAUSE_RUN_REP,
+    NMessageType.RESUME_RUN: NMessageType.RESUME_RUN_REP,
+    NMessageType.WAKE_LANGSERVER: NMessageType.WAKE_LANGSERVER_REP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
 # assert that all REQUEST types have a REPLY type
-_request_types = {t for t in NMessageType if t.name.startswith("REQUEST")}
-_missing_reply_types = _request_types - set(REPLY_BY_REQUEST_TYPE.keys())
-assert not _missing_reply_types, f"missing reply types for {_missing_reply_types}"
+_reply_types = {t for t in NMessageType if t.name.endswith("REP")}
+_missing_request_types = _reply_types - set(REPLY_BY_REQUEST_TYPE.values())
+assert not _missing_request_types, f"missing reply types for {_missing_request_types}"
 
 #
 # All messages are just Python dataclasses.
@@ -192,25 +210,20 @@ class ModuleInternalChangedPayload(OriginPayload):
     mutations: list[ModuleMutation]
 
 
-@payload(NMessageType.REQUEST_REGISTER_WORKER)
+@payload(NMessageType.REGISTER_WORKER_NODE)
 class ReqRegisterWorkerPayload:
-    worker_id: UUID
+    worker_set_id: UUID
+    worker_node_id: UUID
     project_id: Optional[UUID]
-    tenancy: str
 
 
-@payload(NMessageType.REPLY_REGISTER_WORKER)
-class RepRegisterWorkerPayload:
+@payload(NMessageType.REGISTER_WORKER_NODE_REP)
+class RepRegisterWorkerNodePayload:
     success: bool
 
 
-@payload(NMessageType.WORKER_HEARTBEAT)
-class WorkerHeartbeatPayload:
-    worker_id: UUID
-
-
-@payload(NMessageType.REQUEST_RUN)
-class ReqRunPayload:
+@payload(NMessageType.START_RUN)
+class ReqStartRunPayload:
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
@@ -224,6 +237,7 @@ class ReqRunPayload:
 
 
 class RunErrorType(enum.StrEnum):
+    UNAVAILABLE = "unavailable"
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
     INVALID_RUNCONFIG = "invalid_runconfig"
@@ -231,21 +245,21 @@ class RunErrorType(enum.StrEnum):
     RUNTIME_ERROR = "runtime_error"
 
 
-@payload(NMessageType.REPLY_RUN)
-class RepRunPayload:
+@payload(NMessageType.START_RUN_REP)
+class RepStartRunPayload:
     error: Optional[RunErrorType] = None
     run_id: Optional[UUID] = None
     run: Optional[RunData] = None
     logs: Optional[list[LogEntryData]] = None
 
 
-@payload(NMessageType.REQUEST_CANCEL_RUN)
+@payload(NMessageType.CANCEL_RUN)
 class ReqCancelRunPayload:
     module_id: UUID
     run_id: UUID
 
 
-@payload(NMessageType.REPLY_CANCEL_RUN)
+@payload(NMessageType.CANCEL_RUN_REP)
 class RepCancelRunPayload:
     success: bool
 
@@ -269,18 +283,18 @@ class LogsChangedPayload:
     logs: list[LogEntryData]
 
 
-@payload(NMessageType.REQUEST_READ_MODULE)
+@payload(NMessageType.READ_MODULE)
 class ReqReadModulePayload:
     ref: typing.Union[ModuleReference, UUID]
 
 
-@payload(NMessageType.REPLY_READ_MODULE)
+@payload(NMessageType.READ_MODULE_REP)
 class RepReadModulePayload:
     module: ModuleTreeData
     project_id: UUID
 
 
-@payload(NMessageType.REQUEST_WRITE_MODULE)
+@payload(NMessageType.WRITE_MODULE)
 class ReqWriteModulePayload:
     module_id: UUID
     mutations: list[ModuleMutation]
@@ -288,12 +302,12 @@ class ReqWriteModulePayload:
     wait: bool
 
 
-@payload(NMessageType.REPLY_WRITE_MODULE)
+@payload(NMessageType.WRITE_MODULE_REP)
 class RepWriteModulePayload:
     success: bool
 
 
-@payload(NMessageType.REQUEST_WRITE_SESSION)
+@payload(NMessageType.WRITE_SESSION)
 class ReqWriteSessionPayload:
     module_id: UUID
     session: SessionData
@@ -302,7 +316,7 @@ class ReqWriteSessionPayload:
     client: ClientOrigin
 
 
-@payload(NMessageType.REPLY_WRITE_SESSION)
+@payload(NMessageType.WRITE_SESSION_REP)
 class RepWriteSessionPayload:
     success: bool
 
@@ -325,103 +339,142 @@ class RepSearch(abc.ABC):
     error: Optional[str] = None
 
 
-@payload(NMessageType.REQUEST_SEARCH_RECORD)
+@payload(NMessageType.SEARCH_RECORD)
 class ReqSearchRecordPayload(ReqSearch):
     module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
     backend_ids: Optional[list[str]] = None
 
 
-@payload(NMessageType.REPLY_SEARCH_RECORD)
+@payload(NMessageType.SEARCH_RECORD_REP)
 class RepSearchRecordPayload(RepSearch):
     elements: Optional[list[RecordData]] = None
 
 
-@payload(NMessageType.REQUEST_SEARCH_RUN)
+@payload(NMessageType.SEARCH_RUN)
 class ReqSearchRunPayload(ReqSearch):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
 
 
-@payload(NMessageType.REPLY_SEARCH_RUN)
+@payload(NMessageType.SEARCH_RUN_REP)
 class RepSearchRunPayload(RepSearch):
     elements: Optional[list[RunData]] = None
 
 
-@payload(NMessageType.REQUEST_SEARCH_LOG)
+@payload(NMessageType.SEARCH_LOG)
 class ReqSearchLogPayload(ReqSearch):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
 
 
-@payload(NMessageType.REPLY_SEARCH_LOG)
+@payload(NMessageType.SEARCH_LOG_REP)
 class RepSearchLogPayload(RepSearch):
     elements: Optional[list[LogEntryData]] = None
 
 
-@payload(NMessageType.REQUEST_READ_OBJECT)
+@payload(NMessageType.READ_OBJECT)
 class ReqReadObjectPayload:
     objects: list[RemoteObjectData]
 
 
-@payload(NMessageType.REPLY_READ_OBJECT)
+@payload(NMessageType.READ_OBJECT_REP)
 class RepReadObjectPayload:
     get_urls: list[typing.Union[str, None]]
 
 
-@payload(NMessageType.REQUEST_WRITE_OBJECT)
+@payload(NMessageType.WRITE_OBJECT)
 class ReqWriteObjectPayload:
     module_id: UUID
     objects: list[RemoteObjectData]
 
 
-@payload(NMessageType.REPLY_WRITE_OBJECT)
+@payload(NMessageType.WRITE_OBJECT_REP)
 class RepWriteObjectPayload:
     objects: list[RemoteObjectData]
     post_urls: list[typing.Union[str, None]]
 
 
-@payload(NMessageType.REQUEST_MARK_UPLOADED_OBJECT)
+@payload(NMessageType.MARK_UPLOADED_OBJECT)
 class ReqMarkUploadedObjectPayload:
     objects: list[RemoteObjectData]
 
 
-@payload(NMessageType.REPLY_MARK_UPLOADED_OBJECT)
+@payload(NMessageType.MARK_UPLOADED_OBJECT_REP)
 class RepMarkUploadedObjectPayload:
     success: bool
 
 
-@payload(NMessageType.REQUEST_READ_SECRET)
+@payload(NMessageType.READ_SECRET)
 class ReqReadSecretPayload:
     secrets: list[SecretData]
 
 
-@payload(NMessageType.REPLY_READ_SECRET)
+@payload(NMessageType.READ_SECRET_REP)
 class RepReadSecretPayload:
     secrets: list[SecretData]
 
 
-@payload(NMessageType.REQUEST_RUN_INFERENCE)
+@payload(NMessageType.RUN_PROXY_INFERENCE)
 class ReqRunInferencePayload:
     model_path: str
     inputs: typing.Any
     timeout: int
 
 
-@payload(NMessageType.REPLY_RUN_INFERENCE)
+@payload(NMessageType.RUN_PROXY_INFERENCE_REP)
 class RepRunInferencePayload:
     outputs: Optional[typing.Any] = None
     timeout: bool = False
 
 
-@payload(NMessageType.REQUEST_LANGSERVER)
-class ReqLangserverPayload:
+@payload(NMessageType.WAKE_LANGSERVER)
+class ReqWakeLangserverPayload:
     module_id: UUID
 
 
-@payload(NMessageType.REPLY_LANGSERVER)
-class RepLangserverPayload:
+@payload(NMessageType.WAKE_LANGSERVER_REP)
+class RepWakeLangserverPayload:
     module_id: UUID
+
+
+@payload(NMessageType.CONFIGURE_WORKER_SET)
+class ReqConfigureWorkerSetPayload:
+    project_id: UUID
+    profile: WorkerProfile
+    region: WorkerRegion
+    target_count: int
+    block: bool
+
+
+@payload(NMessageType.CONFIGURE_WORKER_SET_REP)
+class RepConfigureWorkerSetPayload:
+    worker_set_id: UUID
+    success: bool
+
+
+@payload(NMessageType.WAKE_WORKER_SET)
+class ReqWakeWorkerSetPayload:
+    project_id: UUID
+
+
+@payload(NMessageType.WAKE_WORKER_SET_REP)
+class RepWakeWorkerSetPayload:
+    worker_set_id: UUID
+    success: bool
+
+
+@payload(NMessageType.RESTART_WORKER_NODE)
+class ReqRestartWorkerNodePayload:
+    project_id: UUID
+    node_id: UUID
+    block: bool
+
+
+@payload(NMessageType.RESTART_WORKER_NODE_REP)
+class RepRestartWorkerNodePayload:
+    worker_set_id: UUID
+    success: bool
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

@@ -74,11 +74,13 @@ cachetools==5.2.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
+    #   google-auth
 certifi==2023.5.7
     # via
     #   -c requirements.txt
     #   httpcore
     #   httpx
+    #   kubernetes
     #   opensearch-py
     #   requests
     #   sentry-sdk
@@ -256,6 +258,10 @@ frozenlist==1.3.3
     #   -c requirements.txt
     #   aiohttp
     #   aiosignal
+google-auth==2.22.0
+    # via
+    #   -c requirements.txt
+    #   kubernetes
 graphql-core==3.2.3
     # via
     #   -c requirements.txt
@@ -334,6 +340,10 @@ jsonschema==4.17.3
     # via
     #   -c requirements.txt
     #   drf-spectacular
+kubernetes==27.2.0
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 libcst==1.0.1
     # via
     #   -c requirements.txt
@@ -398,6 +408,7 @@ numpy==1.25.0
 oauthlib==3.2.2
     # via
     #   -c requirements.txt
+    #   kubernetes
     #   requests-oauthlib
     #   social-auth-core
 openai==0.27.2
@@ -459,10 +470,12 @@ pyasn1==0.5.0
     # via
     #   -c requirements.txt
     #   pyasn1-modules
+    #   rsa
     #   service-identity
 pyasn1-modules==0.3.0
     # via
     #   -c requirements.txt
+    #   google-auth
     #   service-identity
 pycodestyle==2.9.1
     # via
@@ -510,6 +523,7 @@ python-dateutil==2.8.2
     # via
     #   -c requirements.txt
     #   botocore
+    #   kubernetes
     #   opensearch-py
     #   posthog
     #   strawberry-graphql
@@ -534,6 +548,7 @@ pyyaml==6.0
     # via
     #   -c requirements.txt
     #   drf-spectacular
+    #   kubernetes
     #   libcst
     #   pre-commit
 redis[hiredis]==4.5.3
@@ -545,6 +560,7 @@ requests==2.31.0
     #   -c requirements.txt
     #   anthropic
     #   djangorestframework-stubs
+    #   kubernetes
     #   openai
     #   opensearch-py
     #   posthog
@@ -553,11 +569,16 @@ requests==2.31.0
 requests-oauthlib==1.3.1
     # via
     #   -c requirements.txt
+    #   kubernetes
     #   social-auth-core
 rich==13.4.2
     # via
     #   -c requirements.txt
     #   strawberry-graphql
+rsa==4.9
+    # via
+    #   -c requirements.txt
+    #   google-auth
 ruff==0.0.261
     # via -r requirements-dev.in
 s3transfer==0.6.1
@@ -576,6 +597,8 @@ six==1.16.0
     # via
     #   -c requirements.txt
     #   automat
+    #   google-auth
+    #   kubernetes
     #   opensearch-py
     #   posthog
     #   python-dateutil
@@ -686,6 +709,8 @@ urllib3==1.26.16
     # via
     #   -c requirements.txt
     #   botocore
+    #   google-auth
+    #   kubernetes
     #   opensearch-py
     #   requests
     #   sentry-sdk
@@ -696,6 +721,10 @@ uvicorn==0.19.0
     #   strawberry-graphql
 virtualenv==20.23.1
     # via pre-commit
+websocket-client==1.6.1
+    # via
+    #   -c requirements.txt
+    #   kubernetes
 wheel==0.40.0
     # via pip-tools
 wrapt==1.15.0

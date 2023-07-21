@@ -301,7 +301,7 @@ class RecordSearch(Search["RecordData", Record]):
             statement_ids = None
             backend_ids = None
         rep: NMessage[RepSearchRecordPayload] = await request(
-            NMessageType.REQUEST_SEARCH_RECORD,
+            NMessageType.SEARCH_RECORD,
             ReqSearchRecordPayload(
                 module_id=self.module.id,
                 statement_ids=statement_ids,

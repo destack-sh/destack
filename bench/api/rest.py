@@ -16,7 +16,7 @@ from rest_framework import serializers
 from bench.models import Project, ProjectVersion, RunTriggerType
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg.core import request
-from bench.msg.messages import NMessageType, RepRunPayload, ReqRunPayload
+from bench.msg.messages import NMessageType, RepStartRunPayload, ReqStartRunPayload
 
 logger = structlog.get_logger(__name__)
 
@@ -161,7 +161,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         owner=owner, project=project, tag=data["version"], token_digest=token_digest
     )
 
-    run = ReqRunPayload(
+    run = ReqStartRunPayload(
         module_id=access.project_version_id,
         runnable=runnable,
         runnable_type=runnable_type,
@@ -171,7 +171,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         trigger_type=RunTriggerType.API,
         trigger_id=access.access_token_id,
     )
-    rep = await request(NMessageType.REQUEST_RUN, run, RepRunPayload, timeout=60)
+    rep = await request(NMessageType.START_RUN, run, RepStartRunPayload, timeout=60)
     outputs = dict(
         run_id=rep.p.run_id,
         output=rep.p.outputs,

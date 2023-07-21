@@ -416,6 +416,8 @@ const apiService = new k8s.core.v1.Service(
   },
   { provider: eksCluster.provider }
 );
+// internal server service
+const serverName = "server";
 // internal worker service
 const workerName = "worker";
 
@@ -429,6 +431,46 @@ if (version == "current") {
   imageVersion = version;
 }
 
+// generate kubernetes server roles and such to create deployments
+const serverServiceAccount = new k8s.core.v1.ServiceAccount("server-deployment-service-account", {
+  metadata: {
+    namespace: "default",
+  },
+});
+const serverClusterRole = new k8s.rbac.v1.ClusterRole("server-deployment-cluster-role", {
+  rules: [
+    {
+      apiGroups: [""],
+      resources: ["pods", "services", "endpoints", "persistentvolumeclaims", "events", "configmaps", "secrets"],
+      verbs: ["get", "watch", "list", "create", "update", "patch", "delete"],
+    },
+    {
+      apiGroups: ["apps"],
+      resources: ["deployments", "replicasets"],
+      verbs: ["get", "watch", "list", "create", "update", "patch", "delete"],
+    },
+    {
+      apiGroups: ["batch"],
+      resources: ["jobs", "cronjobs"],
+      verbs: ["get", "watch", "list", "create", "update", "patch", "delete"],
+    },
+  ],
+});
+const serverClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("server-deployment-cluster-role-binding", {
+  subjects: [
+    {
+      kind: "ServiceAccount",
+      name: serverServiceAccount.metadata.name,
+      namespace: "default",
+    },
+  ],
+  roleRef: {
+    kind: "ClusterRole",
+    name: serverClusterRole.metadata.name,
+    apiGroup: "rbac.authorization.k8s.io",
+  },
+});
+
 const SOCIAL_AUTH_ENV_VARS = [
   "SOCIAL_AUTH_GITHUB_KEY",
   "SOCIAL_AUTH_GITHUB_SECRET",
@@ -440,17 +482,19 @@ const SOCIAL_AUTH_ENV_VARS = [
   name,
   value: config.requireSecret(name),
 }));
+
 const BASE_BACKEND_ENV_VARS = [
   { name: "LOOPS_API_KEY", value: config.requireSecret("LOOPS_API_KEY") },
   { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
   { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
   { name: "WEBAPP_URL", value: config.require("webappUrl") },
-  { name: "RUN_LANGSERVER", value: "true" },
   {
     name: "REDIS_URL",
     value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
   },
 ];
+
+const REDIS_WORKER_URL = pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 
 // Create deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
@@ -462,6 +506,41 @@ const apiDeployment = new k8s.apps.v1.Deployment(
       selector: { matchLabels: { app: apiName } },
       template: {
         metadata: { labels: { app: apiName }, annotations: { "prometheus.io/scrape": "true" } },
+        spec: {
+          containers: [
+            {
+              name: apiName,
+              image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
+              ports: [{ containerPort: 80, name: "http" }],
+              env: [
+                ...PUBLIC_BACKEND_VARS,
+                ...DB_ENV_VARS,
+                ...OPENSEARCH_ENV_VARS,
+                ...AWS_BACKEND_ENV_VARS,
+                ...BASE_BACKEND_ENV_VARS,
+                ...SOCIAL_AUTH_ENV_VARS,
+              ],
+              command: ["sh", "-c"],
+              args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
+              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
+            },
+          ],
+          imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
+        },
+      },
+    },
+  },
+  { provider: eksCluster.provider }
+);
+const serverDeployment = new k8s.apps.v1.Deployment(
+  serverName,
+  {
+    metadata: { namespace: "default", labels: { app: serverName } },
+    spec: {
+      replicas: 1,
+      selector: { matchLabels: { app: serverName } },
+      template: {
+        metadata: { labels: { app: serverName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
           // auto-migrate
           initContainers: [
@@ -493,10 +572,11 @@ const apiDeployment = new k8s.apps.v1.Deployment(
               ],
               command: ["sh", "-c"],
               args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
-              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
+              resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
             },
           ],
           imagePullSecrets: [{ name: imagePullSecret.metadata.name }],
+          serviceAccountName: serverServiceAccount.metadata.name,
         },
       },
     },
@@ -504,12 +584,13 @@ const apiDeployment = new k8s.apps.v1.Deployment(
   { provider: eksCluster.provider }
 );
 // Create deployment for workers
+// (nocheckin: remove manually allocated worker deployment)
 const workerDeployment = new k8s.apps.v1.Deployment(
   workerName,
   {
     metadata: { namespace: "default", labels: { app: workerName } },
     spec: {
-      replicas: 1,
+      replicas: 4,
       selector: { matchLabels: { app: workerName } },
       template: {
         metadata: { labels: { app: workerName }, annotations: { "prometheus.io/scrape": "true" } },
@@ -521,14 +602,11 @@ const workerDeployment = new k8s.apps.v1.Deployment(
               ports: [{ containerPort: 80, name: "http" }],
               env: [
                 ...PUBLIC_BACKEND_VARS,
-                {
-                  name: "REDIS_URL",
-                  value: pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
-                },
+                { name: "REDIS_URL", value: REDIS_WORKER_URL },
                 { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
               ],
               command: ["python", "manageworker.py"],
-              resources: { requests: { cpu: "500m", memory: "1000Mi" } },
+              resources: { requests: { cpu: "500m", memory: "500Mi" } },
             },
           ],
           imagePullSecrets: [{ name: imagePullSecret.metadata.name }],

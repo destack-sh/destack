@@ -60,7 +60,7 @@ class RemoteObject(HasSession):
         if self.status != RemoteObjectStatus.AVAILABLE:
             raise ValueError(f"unable to read {self}")
         rep: NMessage[RepReadObjectPayload] = await request(
-            NMessageType.REQUEST_READ_OBJECT,
+            NMessageType.READ_OBJECT,
             ReqReadObjectPayload(objects=[wire.pack_data(self)]),
             reply_t=RepReadObjectPayload,
             timeout=timeout,
@@ -106,7 +106,7 @@ class RemoteObject(HasSession):
         logger.debug("object.prepare_upload", object=self)
         # first get POST url to upload the object
         rep: NMessage[RepWriteObjectPayload] = await request(
-            NMessageType.REQUEST_WRITE_OBJECT,
+            NMessageType.WRITE_OBJECT,
             ReqWriteObjectPayload(module_id=self.session.module.id, objects=[wire.pack_data(self)]),
             reply_t=RepWriteObjectPayload,
         )
@@ -133,7 +133,7 @@ class RemoteObject(HasSession):
 
         logger.debug("object.mark_uploaded", object=self)
         rep: NMessage[RepMarkUploadedObjectPayload] = await request(
-            NMessageType.REQUEST_MARK_UPLOADED_OBJECT,
+            NMessageType.MARK_UPLOADED_OBJECT,
             ReqMarkUploadedObjectPayload(objects=[wire.pack_data(self)]),
             reply_t=RepMarkUploadedObjectPayload,
         )
@@ -239,7 +239,7 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
         from bench.msg.core import NMessage, NMessageType, request
 
         rep: NMessage[messages.RepReadSecretPayload] = await request(
-            NMessageType.REQUEST_READ_SECRET,
+            NMessageType.READ_SECRET,
             messages.ReqReadSecretPayload(secrets=[wire.pack_data(self)]),
             reply_t=messages.RepReadSecretPayload,
             timeout=10,
