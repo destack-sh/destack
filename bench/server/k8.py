@@ -10,7 +10,7 @@ import structlog
 from kubernetes_asyncio import client, config, watch
 
 from bench import models, settings
-from bench.language.session import WorkerProfile, WorkerRegion
+from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
 from bench.settings.k8 import (
     KUBERNETES_WORKER_ENV_VARS_STR,
     KUBERNETES_WORKER_IMAGE,
@@ -54,8 +54,55 @@ WORKER_RESOURCES_BY_PROFILE = {
         requests={"cpu": "4", "memory": "8Gi"},
         limits={"cpu": "4", "memory": "8Gi"},
     ),
+    WorkerProfile.XLARGE_CPU: client.V1ResourceRequirements(
+        requests={"cpu": "8", "memory": "16Gi"},
+        limits={"cpu": "8", "memory": "16Gi"},
+    ),
+    WorkerProfile.XLARGE_MEM: client.V1ResourceRequirements(
+        requests={"cpu": "4", "memory": "64Gi"},
+        limits={"cpu": "4", "memory": "64Gi"},
+    ),
 }
-WORKER_ENV_VARS: list[client.V1EnvVar] = []
+
+BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
+try:
+    for v in base64.decodestring(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";"):
+        k, v = v.split("=")
+        BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
+except Exception:
+    logger.exception(f"failed to parse worker env vars: {KUBERNETES_WORKER_ENV_VARS_STR}")
+    raise
+
+
+def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
+    if not deployment.status.conditions:
+        return WorkerSetStatus.UNKNOWN
+
+    for condition in deployment.status.conditions:
+        if condition.type == "Progressing":
+            if condition.status == "True":
+                if condition.reason in [
+                    "NewReplicaSetCreated",
+                    "FoundNewReplicaSet",
+                    "ReplicaSetUpdated",
+                ]:
+                    return WorkerSetStatus.UPDATING
+                elif condition.reason == "NewReplicaSetAvailable":
+                    return WorkerSetStatus.HEALTHY
+            elif condition.status == "False":
+                if condition.reason == "ProgressDeadlineExceeded":
+                    return WorkerSetStatus.UNHEALTHY
+        elif condition.type == "Available":
+            if condition.status == "False":
+                return WorkerSetStatus.UNHEALTHY
+        elif condition.type == "ReplicaFailure":
+            if condition.status == "True":
+                return WorkerSetStatus.UNHEALTHY
+
+    return WorkerSetStatus.UNKNOWN
+
+
+DEPLOYMENT_DYNAMIC_FIELDS = ["available_replicas", "ready_replicas", "sleeping", "status"]
 
 
 @dataclass
@@ -64,24 +111,39 @@ class Deployment:
     worker_set_id: UUID
     region: WorkerRegion
     profile: WorkerProfile
+    desired_replicas: int
     target_replicas: int
-    actual_replicas: Optional[int] = None
+    # read from k8
+    available_replicas: Optional[int] = None
+    ready_replicas: Optional[int] = None
+    status: Optional[WorkerSetStatus] = None
 
     @property
     def name(self):
-        return f"bench-worker-{self.project_id}-{self.region.lower()}-{self.worker_set_id.hex[:6]}-{self.profile.lower()}"
+        return f"bench-worker-{self.project_id}-{self.worker_set_id.hex[:6]}"
 
     def to_k8(self: "Deployment") -> client.V1Deployment:
+        extended_env_vars = [
+            client.V1EnvVar(name="WORKER_PROJECT_ID", value=str(self.project_id)),
+            client.V1EnvVar(name="WORKER_SET_ID", value=str(self.worker_set_id)),
+            # worker node id from k8
+            client.V1EnvVar(
+                name="WORKER_NODE_ID",
+                value_from=client.V1EnvVarSource(
+                    field_ref=client.V1ObjectFieldSelector(field_path="spec.nodeName")
+                ),
+            ),
+            *BASE_WORKER_ENV_VARS,
+        ]
         container = client.V1Container(
             name=self.name,
             image=KUBERNETES_WORKER_IMAGE,
             image_pull_policy="Always",
             ports=[client.V1ContainerPort(container_port=80, name="http")],
             resources=WORKER_RESOURCES_BY_PROFILE[self.profile],
-            env=WORKER_ENV_VARS,
+            env=extended_env_vars,
             command=["python", "manageworker.py"],
         )
-
         labels = {
             "app": "bench-worker",
             "project_id": str(self.project_id),
@@ -98,7 +160,6 @@ class Deployment:
                 ],
             ),
         )
-
         deployment = client.V1Deployment(
             metadata=client.V1ObjectMeta(name=self.name, labels=labels),
             spec=client.V1DeploymentSpec(
@@ -111,14 +172,18 @@ class Deployment:
 
     @classmethod
     def from_k8(cls, deployment: client.V1Deployment) -> "Deployment":
+        """Gets partial deployment info from k8."""
+        # check conditions (and reasons) for status (updating, healthy, unhealthy)
         labels = deployment.metadata.labels
         return cls(
             project_id=UUID(labels["project_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
             region=WorkerRegion(labels["region"]),
             profile=WorkerProfile(labels["profile"]),
+            status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,
-            actual_replicas=deployment.status.replicas,
+            available_replicas=deployment.status.available_replicas,
+            ready_replicas=deployment.status.ready_replicas,
         )
 
     @classmethod
@@ -129,20 +194,18 @@ class Deployment:
             region=model.region,
             profile=model.profile,
             target_replicas=model.target_replicas,
-            actual_replicas=model.actual_replicas,
         )
 
-
-try:
-    base64.decode(KUBERNETES_WORKER_ENV_VARS_STR)
-    for v in KUBERNETES_WORKER_ENV_VARS_STR.split(";"):
-        if not v:
-            continue
-        k, v = v.split("=")
-        WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
-except Exception:
-    logger.exception(f"failed to parse env vars: {KUBERNETES_WORKER_ENV_VARS_STR}")
-    raise
+    def to_model(self) -> models.WorkerSet:
+        return models.WorkerSet(
+            id=self.worker_set_id,
+            project_id=self.project_id,
+            region=self.region,
+            profile=self.profile,
+            target_replicas=self.target_replicas,
+            available_replicas=self.available_replicas,
+            ready_replicas=self.ready_replicas,
+        )
 
 
 def _check_k8_available():
@@ -194,7 +257,7 @@ class EventType(enum.StrEnum):
     DELETED = "DELETED"
 
 
-async def watch_our_stuff() -> AsyncIterator[tuple[EventType, Deployment]]:
+async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment]]:
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
     v1 = client.CoreV1Api()

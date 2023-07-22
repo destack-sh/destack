@@ -22,9 +22,12 @@ DEPLOYMENT_ID = os.environ.get("DEPLOYMENT_ID")
 if DEPLOYMENT_ID is not None:
     DEPLOYMENT_ID = uuid.UUID(DEPLOYMENT_ID)
 
-worker_id = uuid.UUID(os.environ["WORKER_ID"]) if "WORKER_ID" in os.environ else uuid.uuid4()
-project_id = uuid.UUID(os.environ["PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
-worker = WorkerNode(worker_id=worker_id, project_id=project_id)
+worker_set_id = uuid.UUID(os.environ["WORKER_SET_ID"])
+worker_node_id = os.environ.get("WORKER_NODE_ID", uuid.uuid4())
+project_id = uuid.UUID(os.environ["WORKER_PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
+worker = WorkerNode(
+    worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
+)
 
 init_sentry(django=False)
 

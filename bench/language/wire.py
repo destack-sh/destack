@@ -37,6 +37,9 @@ from bench.language.session import (
     RunError,
     RunErrorKind,
     RunStatus,
+    WorkerRegion,
+    WorkerProfile,
+    WorkerSetStatus,
 )
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
@@ -1468,7 +1471,6 @@ class SecretPacker(DataPacker[SecretData, lang.Secret]):
 class SessionData:
     id: UUID
     module_id: UUID
-    worker_id: UUID
     opened_at: Optional[datetime]
     closed_at: Optional[datetime]
     metadata: Optional[dict[str, Any]]
@@ -1482,7 +1484,6 @@ class SessionPacker(DataPacker[SessionData, lang.Session]):
         return SessionData(
             id=object.id,
             module_id=object.module.id,
-            worker_id=object.ctx.worker_id,
             opened_at=object.opened_at,
             closed_at=object.closed_at,
             metadata=object.metadata,
@@ -1514,7 +1515,6 @@ class RunErrorData:
 class RunData:
     id: UUID
     module_id: UUID
-    worker_id: UUID
     runnable_id: UUID
     runnable_type: StatementType
     session_id: UUID
@@ -1547,7 +1547,6 @@ class RunPacker(DataPacker[RunData, lang.Run]):
         return RunData(
             id=object.id,
             module_id=object.session.module.id,
-            worker_id=object.session.ctx.worker_id,
             runnable_id=object.runnable.id,
             runnable_type=object.runnable.type,
             session_id=object.session.id,
@@ -1601,7 +1600,6 @@ class RunPacker(DataPacker[RunData, lang.Run]):
 class LogEntryData:
     id: UUID
     module_id: UUID
-    worker_id: UUID
     created_at: datetime
     stream: str
     level: Optional[str]
@@ -1619,7 +1617,6 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
         return LogEntryData(
             id=object.id,
             module_id=object.module.id,
-            worker_id=object.session.ctx.worker_id,
             created_at=object.created_at,
             stream=object.stream,
             level=object.level,
@@ -1649,3 +1646,20 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             run=run,
             metadata=data.metadata,
         )
+
+
+@dataclass
+class WorkerSetData:
+    id: UUID
+    project_id: UUID
+    region: WorkerRegion
+    profile: WorkerProfile
+    sleeping: bool
+    status: WorkerSetStatus
+    desired_replicas: int
+    target_replicas: int
+    available_replicas: int
+    ready_replicas: int
+    created_at: datetime
+    updated_at: datetime
+    last_active_at: Optional[datetime]

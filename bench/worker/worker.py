@@ -1,6 +1,7 @@
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+import time
 from typing import Any, Optional
 from uuid import UUID
 
@@ -45,6 +46,7 @@ from bench.msg.messages import (
     RunErrorType,
     RunMarkedDeadPayload,
 )
+from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
@@ -79,7 +81,7 @@ class RunJob:
 
 
 class ModuleWorker(ModuleWriter):
-    """A worker that processes all jobs for a single module (incl. to maintain its state)"""
+    """A worker that runs a single module."""
 
     def __init__(self, module_id: UUID, master: "WorkerNode", timeout: float):
         self.master = master
@@ -93,11 +95,19 @@ class ModuleWorker(ModuleWriter):
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
-        self.log = logger.bind(worker_id=self.master.worker_id, module_id=self.module_id)
+        self.log = logger.bind(
+            worker_set=self.master.worker_set_id,
+            worker_node=self.master.worker_node_id,
+            module_id=self.module_id,
+        )
 
     @property
     def interpreted(self) -> bool:
         return self.module is not None
+
+    @property
+    def active(self) -> bool:
+        return self.pending_runs or not self.queue.empty()
 
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
@@ -176,16 +186,15 @@ class ModuleWorker(ModuleWriter):
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 
-        root_id = run_id or UUIDT()
+        root_run_id = run_id or UUIDT()
         # instantiate
         try:
             session_ctx = SessionContext(
                 module_id=self.module_id,
                 project_id=self.project_id,
-                worker_id=self.master.worker_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
-                root_id=root_id,
+                root_run_id=root_run_id,
             )
             session = Session(
                 id=session_id or UUIDT(),
@@ -203,7 +212,7 @@ class ModuleWorker(ModuleWriter):
             arguments = map_value(
                 arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident), is_output=False
             )
-        job = RunJob(id=root_id, session=session, runnable=runnable, arguments=arguments)
+        job = RunJob(id=root_run_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
         session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
         return job
@@ -295,9 +304,9 @@ class ModuleWorker(ModuleWriter):
 class WorkerNode:
     """A sandboxed runtime worker to execute arbitrary code (community or dedicated)."""
 
-    def __init__(self, worker_node_id: UUID | None, worker_set_id: UUID, project_id: UUID | None):
-        self.worker_set_id = worker_set_id
-        self.worker_node_id = worker_node_id or UUIDT()
+    def __init__(self, worker_node_id: UUID | str, worker_set_id: UUID, project_id: UUID):
+        self.worker_set_id: UUID = worker_set_id
+        self.worker_node_id: str | UUID = worker_node_id or UUIDT()
         self.project_id = project_id
         self.routing_id = project_id or "*"
         self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
@@ -312,12 +321,20 @@ class WorkerNode:
 
     async def run(self):
         await nc_init.wait()
-        logger.info("start", worker_node_id=self.worker_node_id, project_id=self.project_id)
+        logger.info(
+            "start",
+            worker_node=self.worker_node_id,
+            workset_set=self.worker_set_id,
+            project_id=self.project_id,
+        )
         self.subs = [
-            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
+            await subscribe(
+                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{self.routing_id}", cb=self.module_changed
+            ),
             await handle_reply(f"{NMessageType.START_RUN}.{self.routing_id}", self.start_run),
             await handle_reply(f"{NMessageType.CANCEL_RUN}.{self.routing_id}", self.cancel_run),
         ]
+        self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
 
     async def run_forever(self):
         # run forever until cancelled
@@ -341,6 +358,15 @@ class WorkerNode:
         if not worker.ready.is_set():
             await worker.ready.wait()
         return worker
+
+    async def _notify_worker_is_active(self):
+        # :WorkerSetActive
+        await redis.set(f"worker_set.{self.worker_set_id}.last_active_at", time.time())
+
+    async def notify_is_active_if_active(self, interval=10):
+        while True:
+            if any(w.active for w in self.workers.values()):
+                await self._notify_worker_is_active()
 
     @message_handler
     async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
@@ -367,6 +393,7 @@ class WorkerNode:
             trigger_id=msg.p.trigger_id,
             keyed=msg.p.keyed,
         )
+        await self._notify_worker_is_active()
         if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepStartRunPayload(error=run_job))
         else:

@@ -512,7 +512,7 @@ const KUBERNETES_ENV_VARS = [
   { name: "KUBERNETES_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
 ];
 
-// Create deployment for API service (ASGI Django with Daphne)
+// deployment for API service (ASGI Django with Daphne)
 const apiDeployment = new k8s.apps.v1.Deployment(
   apiName,
   {
@@ -548,13 +548,16 @@ const apiDeployment = new k8s.apps.v1.Deployment(
   },
   { provider: eksCluster.provider }
 );
-const serverDeployment = new k8s.apps.v1.Deployment(
+// master server for k8 worker orchestration and DB migrations
+const serverStatefulSet = new k8s.apps.v1.StatefulSet(
   serverName,
   {
     metadata: { namespace: "default", labels: { app: serverName } },
     spec: {
       replicas: 1,
       selector: { matchLabels: { app: serverName } },
+      serviceName: serverName, // The name of the corresponding headless service
+      podManagementPolicy: "Parallel", // or "OrderedReady" if you prefer ordered deployment
       template: {
         metadata: { labels: { app: serverName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {

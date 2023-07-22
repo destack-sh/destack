@@ -951,6 +951,41 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         )
 
 
+@data_packer(wire.WorkerSetData, models.WorkerSet)
+class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
+    def pack(self, model: models.WorkerSet) -> wire.WorkerSetData:
+        return wire.WorkerSetData(
+            id=model.id,
+            project_id=model.project_id,
+            region=model.region,
+            profile=model.profile,
+            sleeping=model.sleeping,
+            status=model.status,
+            target_replicas=model.target_replicas,
+            available_replicas=model.available_replicas,
+            ready_replicas=model.ready_replicas,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+            last_active_at=model.last_active_at,
+        )
+
+    def unpack(self, data: wire.WorkerSetData) -> models.WorkerSet:
+        return models.WorkerSet(
+            id=data.id,
+            project_id=data.project_id,
+            region=data.region,
+            profile=data.profile,
+            sleeping=data.sleeping,
+            status=data.status,
+            target_replicas=data.target_replicas,
+            available_replicas=data.available_replicas,
+            ready_replicas=data.ready_replicas,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            last_active_at=data.last_active_at,
+        )
+
+
 @transaction.atomic(savepoint=False)
 def write_mutations(
     project_v: models.ProjectVersion,

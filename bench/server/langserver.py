@@ -530,11 +530,10 @@ class LanguageWorker:
         await sync_to_async(write_mutations)(
             self.project_version, self.module_tree, mutations, wait_for_os=wait
         )
+        await self.on_module_changed(mutations)
 
         # trim mutations to remove overhead from large dataset updates
         trimmed_mutations = trim_record_mutations(mutations)
-
-        await self.on_module_changed(mutations)
         origins = (*(origins or ()), self.client)
         api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in trimmed_mutations)
@@ -542,13 +541,19 @@ class LanguageWorker:
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
-                module_id=self.module_id, origins=origins, mutations=trimmed_mutations
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                mutations=trimmed_mutations,
             ),
         )
         await publish(
             NMessageType.MODULE_CHANGED,
             ModuleChangedPayload(
-                module_id=self.module_id, origins=origins, mutations=api_mutations
+                project_id=self.project_id,
+                module_id=self.module_id,
+                origins=origins,
+                mutations=api_mutations,
             ),
         )
 
@@ -630,7 +635,10 @@ class LanguageWorker:
             await publish(
                 NMessageType.MODULE_CHANGED,
                 ModuleChangedPayload(
-                    module_id=self.module_id, origins=(self.client,), mutations=interp_mut.mutations
+                    project_id=self.project_id,
+                    module_id=self.module_id,
+                    origins=(self.client,),
+                    mutations=interp_mut.mutations,
                 ),
             )
 
