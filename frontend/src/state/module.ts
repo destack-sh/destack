@@ -326,7 +326,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       auth.loggedIn.value
     ) {
       wokeLangserver.value = true;
-      await ops.runtime.wake(projectVersionId.value);
+      await ops.session.wakeLangserver(projectVersionId.value);
     }
   });
 

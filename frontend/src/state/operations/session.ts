@@ -3,35 +3,57 @@ import { useBenchState } from "@/state/bench";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
-export function useRuntimeOps() {
+export function useSessionOps() {
   const bench = useBenchState();
   const ops = useOperationsStore();
 
-  const { mutate: wakeLangserver } = useMutation(
+  const { mutate: wakeLangserverMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation wakeLangserver($projectVersionId: GlobalID!) {
-        langserverWake(input: { projectVersionId: $projectVersionId }) {
+        wakeLangserver(input: { projectVersionId: $projectVersionId }) {
           ...OperationInfoContent
         }
       }
     `)
   );
 
-  async function wake(moduleId: string) {
+  async function wakeLangserver(moduleId: string) {
     return await ops.perform({
       type: "runtime.wake",
       stateless: true,
       do: async () => {
-        return await wakeLangserver({
+        return await wakeLangserverMut({
           projectVersionId: moduleId,
         });
       },
     });
   }
 
-  const { mutate: runMut } = useMutation(
+  const { mutate: wakeWorkerSetMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation run(
+      mutation wakeWorkerSet($projectId: GlobalID!) {
+        wakeWorkerSet(input: { projectId: $projectId }) {
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function wakeWorkerSet(projectId: string) {
+    return await ops.perform({
+      type: "runtime.wake",
+      stateless: true,
+      do: async () => {
+        return await wakeWorkerSetMut({
+          projectId,
+        });
+      },
+    });
+  }
+
+  const { mutate: startRunMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation startRun(
         $projectVersionId: GlobalID!
         $runnableId: GlobalID
         $runId: GlobalID
@@ -57,6 +79,7 @@ export function useRuntimeOps() {
             projectVersionId
             runnableId
             success
+            error
             run {
               ...RunContent
             }
@@ -81,7 +104,7 @@ export function useRuntimeOps() {
       key: runnableId,
       stateless: true,
       do: async () => {
-        return await runMut({
+        return await startRunMut({
           projectVersionId: bench.projectVersionId,
           runnableId,
           runId,
@@ -132,7 +155,8 @@ export function useRuntimeOps() {
   }
 
   return {
-    wake,
+    wakeLangserver,
+    wakeWorkerSet,
     run,
     cancel,
   };

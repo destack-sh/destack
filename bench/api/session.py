@@ -48,10 +48,12 @@ from bench.msg.messages import (
     RepGetEnvironmentPayload,
     RepStartRunPayload,
     RepWakeLangserverPayload,
+    RepWakeWorkerSetPayload,
     ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
     ReqStartRunPayload,
     ReqWakeLangserverPayload,
+    ReqWakeWorkerSetPayload,
     RunErrorType,
     SessionChangedPayload,
     WorkersChangedPayload,
@@ -266,12 +268,23 @@ class SessionState:
 
 
 @gql.input
-class LangserverWakeInput:
+class WakeLangserverInput:
     project_version_id: GlobalID
 
 
 @gql.type
-class LangserverWakePayload:
+class WakeLangserverPayload:
+    success: bool
+
+
+@gql.input
+class WakeWorkerSetInput:
+    project_id: GlobalID
+
+
+@gql.type
+class WakeWorkerSetPayload:
+    worker_set: Optional[WorkerSet]
     success: bool
 
 
@@ -295,6 +308,7 @@ class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
     success: bool
+    error: Optional[ModuleRunErrorType]
     run: Optional[Run]
     logs: Optional[list[LogEntry]]
 
@@ -530,9 +544,9 @@ class SessionQuery:
 @gql.type
 class SessionMutation:
     @asafe_mutation
-    async def langserver_wake(
-        self, info: Info, input: LangserverWakeInput
-    ) -> LangserverWakePayload | OperationInfo:
+    async def wake_langserver(
+        self, info: Info, input: WakeLangserverInput
+    ) -> WakeLangserverPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_read_project)(info, project_version)
@@ -541,7 +555,21 @@ class SessionMutation:
             ReqWakeLangserverPayload(module_id=project_version_id),
             reply_t=RepWakeLangserverPayload,
         )
-        return LangserverWakePayload(success=True)
+        return WakeLangserverPayload(success=True)
+
+    @asafe_mutation
+    async def wake_worker_set(
+        self, info: Info, input: WakeWorkerSetInput
+    ) -> WakeWorkerSetPayload | OperationInfo:
+        project_id = UUID(input.project_id.node_id)
+        project = await models.Project.objects.aget(id=project_id)
+        await sync_to_async(check_can_read_project)(info, project)
+        rep: NMessage[RepWakeWorkerSetPayload] = await request(
+            NMessageType.WAKE_WORKER_SET,
+            ReqWakeWorkerSetPayload(project_id=project_id),
+            reply_t=RepWakeWorkerSetPayload,
+        )
+        return WakeWorkerSetPayload(success=rep.payload.success)
 
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
@@ -591,6 +619,7 @@ class SessionMutation:
             project_version_id=input.project_version_id,
             runnable_id=input.runnable_id,
             success=success,
+            error=error,
             run=run,
             logs=logs,
         )

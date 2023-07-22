@@ -1,9 +1,9 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { graphql, useFragment } from "@/gql";
-import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile } from "@/gql/graphql";
+import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { newRunId } from "@/state/module";
-import { useRuntimeOps } from "@/state/operations/runtime";
+import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import {
@@ -223,7 +223,7 @@ export function _useSessions(
           }
         }
       }
-      if (result.data?.sessionsChanged?.__typename == "WorkerSetChange") {
+      if (result.data?.sessionsChanged?.__typename == "WorkerChange") {
         for (const ws of result.data.sessionsChanged.workerSets.map((ws) => useFragment(WorkerSetContentType, ws))) {
           workerSets.value[ws.id] = ws as WorkerSet;
         }
@@ -245,9 +245,27 @@ export function _useSessions(
     };
   }
 
-  // runtime ops
+  // session ops
 
-  const runtime = useRuntimeOps();
+  const sessionOps = useSessionOps();
+  const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
+  const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
+
+  function wakeWorkerSet(): Promise<boolean> {
+    return sessionOps
+      .wakeWorkerSet(filter.projectId.value as string)
+      .then(
+        (r) => (r?.data?.wakeWorkerSet?.__typename == "WakeWorkerSetPayload" && r?.data?.wakeWorkerSet.success) ?? false
+      );
+  }
+
+  function withWorkers<T>(fn: () => Promise<T>) {
+    if (isWorkerSetReady.value) {
+      return wakeWorkerSet().then(fn);
+    } else {
+      return fn();
+    }
+  }
 
   function run(
     runnable: { id: string },
@@ -278,10 +296,12 @@ export function _useSessions(
 
     currentRuns.value[runId] = run;
 
-    const promise = runtime.run(runnable.id, run.id, run.session.id, run.inputs, {
-      block: options?.block,
-      keyed: options?.keyed,
-    });
+    const promise = withWorkers(() =>
+      sessionOps.run(runnable.id, run.id, run.session.id, run.inputs, {
+        block: options?.block,
+        keyed: options?.keyed,
+      })
+    );
     return { run, promise: promise as Promise<Run> };
   }
 
@@ -293,13 +313,12 @@ export function _useSessions(
     throw new Error("not implemented yet");
   }
 
-  function cancel(run: { id: string }) {
-    throw new Error("nocheckin");
+  function cancel(run: { id: string }): Promise<boolean> {
+    return withWorkers(() => sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false));
   }
 
   // utilities
 
-  const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const currentRoots = computed(() => Object.values(currentRuns.value).filter((run) => run.parent == null));
   const activeRuns = computed(() =>
     Object.values(currentRuns.value).filter((run) => !RUN_TERMINAL_STATES.includes(run.status))
@@ -319,6 +338,10 @@ export function _useSessions(
     activeRoots,
     onRunChange,
     runsOf,
+    run,
+    pause,
+    resume,
+    cancel,
   };
 }
 
