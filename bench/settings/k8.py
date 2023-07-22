@@ -1,6 +1,7 @@
 from bench.utils.utils import get_from_env
 
 KUBERNETES_KUBECONFIG_PATH = get_from_env("KUBERNETES_KUBECONFIG_PATH", optional=True)
+KUBERNETES_KUBECONFIG_CTX = get_from_env("KUBERNETES_KUBECONFIG_CTX", optional=True)
 KUBERNETES_WORKER_IMAGE = get_from_env("KUBERNETES_WORKER_IMAGE", optional=True)
 KUBERNETES_WORKER_NAMESPACE = get_from_env("KUBERNETES_WORKER_NAMESPACE", default="default")
 KUBERNETES_WORKER_ENV_VARS_STR = get_from_env("KUBERNETES_WORKER_ENV_VARS", optional=True)

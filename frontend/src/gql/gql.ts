@@ -41,6 +41,8 @@ const documents = {
     types.UpdateUserDocument,
   "\n  query searchRecord(\n    $statementId: GlobalID!\n    $query: SearchQuery\n    $sort: [SearchSort!]\n    $after: String\n    $limit: Int\n    $count: Boolean\n  ) {\n    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          value\n        }\n      }\n    }\n  }\n":
     types.SearchRecordDocument,
+  "\n    query workerEnvironment($projectId: GlobalID!) {\n      environment(projectId: $projectId) {\n        ... on Environment {\n          language\n          version\n          platform\n          packages {\n            name\n            version\n          }\n        }\n      }\n    }\n  ":
+    types.WorkerEnvironmentDocument,
   "\n    query projectVersions($projectId: GlobalID!) {\n      project(id: $projectId) {\n        id\n        head {\n          ...ProjectVersionHeader\n        }\n        versions {\n          totalCount\n          edges {\n            node {\n              ...ProjectVersionHeader\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProjectVersionsDocument,
   "\n      query checkOwnerBySlug($slug: String!) {\n        ownerBySlug(slug: $slug) {\n          ... on Organization {\n            id\n          }\n          ... on User {\n            id\n          }\n        }\n      }\n    ":
@@ -237,15 +239,17 @@ const documents = {
     types.RestoreDocument,
   "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      ":
     types.RevealSecretDocument,
+  "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n":
+    types.WorkerSetContentFragmentDoc,
   "\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n":
     types.RunHeaderFragmentDoc,
   "\n  fragment RunContent on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    inputs\n    outputs\n    errorNice {\n      kind\n      type\n      message\n      traceback {\n        line\n        filename\n        lineno\n        name\n        locals\n      }\n    }\n    metadata\n    runnable {\n      id\n      name\n    }\n  }\n":
     types.RunContentFragmentDoc,
   "\n  fragment LogEntryContent on LogEntry {\n    id\n    createdAt\n    projectVersionId\n    sessionId\n    runnableId\n    runId\n    stream\n    level\n    logger\n    message\n    metadata\n  }\n":
     types.LogEntryContentFragmentDoc,
-  "\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n          }\n        }\n      }\n    ":
+  "\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n            workerSet {\n              ...WorkerSetContent\n            }\n          }\n        }\n      }\n    ":
     types.CurrentRunsDocument,
-  "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n          }\n        }\n      ":
+  "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      ":
     types.SessionsChangedDocument,
   "\n    query runs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $limit: Int\n      $count: Boolean\n    ) {\n      runs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.RunsDocument,
@@ -361,6 +365,12 @@ export function graphql(
 export function graphql(
   source: "\n  query searchRecord(\n    $statementId: GlobalID!\n    $query: SearchQuery\n    $sort: [SearchSort!]\n    $after: String\n    $limit: Int\n    $count: Boolean\n  ) {\n    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          value\n        }\n      }\n    }\n  }\n"
 ): typeof documents["\n  query searchRecord(\n    $statementId: GlobalID!\n    $query: SearchQuery\n    $sort: [SearchSort!]\n    $after: String\n    $limit: Int\n    $count: Boolean\n  ) {\n    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {\n      totalCount\n      pageInfo {\n        hasNextPage\n        hasPreviousPage\n        startCursor\n        endCursor\n      }\n      edges {\n        cursor\n        node {\n          id\n          revision\n          createdAt\n          updatedAt\n          deletedAt\n          orderKey\n          value\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n    query workerEnvironment($projectId: GlobalID!) {\n      environment(projectId: $projectId) {\n        ... on Environment {\n          language\n          version\n          platform\n          packages {\n            name\n            version\n          }\n        }\n      }\n    }\n  "
+): typeof documents["\n    query workerEnvironment($projectId: GlobalID!) {\n      environment(projectId: $projectId) {\n        ... on Environment {\n          language\n          version\n          platform\n          packages {\n            name\n            version\n          }\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -953,6 +963,12 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
+  source: "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n"
+): typeof documents["\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
   source: "\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"
 ): typeof documents["\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n"];
 /**
@@ -971,14 +987,14 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n          }\n        }\n      }\n    "
-): typeof documents["\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n          }\n        }\n      }\n    "];
+  source: "\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n            workerSet {\n              ...WorkerSetContent\n            }\n          }\n        }\n      }\n    "
+): typeof documents["\n      query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n        currentRuns(projectId: $projectId, projectVersionId: $projectVersionId) {\n          ...OperationInfoContent\n          ... on SessionState {\n            runs {\n              ...RunContent\n            }\n            workerSet {\n              ...WorkerSetContent\n            }\n          }\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n          }\n        }\n      "
-): typeof documents["\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n          }\n        }\n      "];
+  source: "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      "
+): typeof documents["\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

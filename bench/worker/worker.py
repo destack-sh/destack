@@ -1,7 +1,7 @@
 import asyncio
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-import time
 from typing import Any, Optional
 from uuid import UUID
 
@@ -36,10 +36,12 @@ from bench.msg.messages import (
     ModuleInternalChangedPayload,
     NMessageType,
     RepCancelRunPayload,
+    RepGetEnvironmentPayload,
     RepReadModulePayload,
     RepStartRunPayload,
     RepWriteModulePayload,
     ReqCancelRunPayload,
+    ReqGetEnvironmentPayload,
     ReqReadModulePayload,
     ReqStartRunPayload,
     ReqWriteModulePayload,
@@ -50,6 +52,7 @@ from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
+from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
 
@@ -315,6 +318,12 @@ class WorkerNode:
         self.tasks = []
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
 
+    def __str__(self):
+        return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
+
+    def __repr__(self):
+        return f"<WorkerNode {self}>"
+
     @property
     def client(self):
         return ClientOrigin(type="worker", id=self.worker_node_id, nonce=None)
@@ -333,6 +342,9 @@ class WorkerNode:
             ),
             await handle_reply(f"{NMessageType.START_RUN}.{self.routing_id}", self.start_run),
             await handle_reply(f"{NMessageType.CANCEL_RUN}.{self.routing_id}", self.cancel_run),
+            await handle_reply(
+                f"{NMessageType.GET_ENVIRONMENT}.{self.routing_id}", self.get_environment
+            ),
         ]
         self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
 
@@ -410,6 +422,10 @@ class WorkerNode:
         success = await worker.cancel_run(msg.p.run_id)
         await msg.reply(RepCancelRunPayload(success=success))
 
+    @message_handler
+    async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
+        await msg.reply(RepGetEnvironmentPayload(environment=WORKER_ENVIRONMENT_DATA))
+
     async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
         """Gets a modules wire data"""
         log = logger.bind(ref=ref)
@@ -429,6 +445,6 @@ class WorkerNode:
         return (await self.get_module(ref))[0]
 
     async def stop(self):
-        logger.info("stop", worker_id=self.worker_id)
+        logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
         await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)

@@ -16,7 +16,7 @@ from bench.settings.k8 import (
     KUBERNETES_WORKER_IMAGE,
     KUBERNETES_WORKER_NAMESPACE,
 )
-from bench.utils.utils import LOCAL
+from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
 
@@ -37,47 +37,51 @@ async def init():
     k8_init.set()
 
 
+# :WorkerProfiles
 WORKER_RESOURCES_BY_PROFILE = {
     WorkerProfile.TINY: client.V1ResourceRequirements(
-        requests={"cpu": "500m", "memory": "500Mi"},
+        requests={"cpu": "250m", "memory": "250Mi"},
         limits={"cpu": "500m", "memory": "500Mi"},
     ),
     WorkerProfile.SMALL: client.V1ResourceRequirements(
-        requests={"cpu": "1", "memory": "1Gi"},
-        limits={"cpu": "1", "memory": "1Gi"},
+        requests={"cpu": "0.5", "memory": "1Gi"},
+        limits={"cpu": "1", "memory": "2Gi"},
     ),
     WorkerProfile.MEDIUM: client.V1ResourceRequirements(
-        requests={"cpu": "2", "memory": "4Gi"},
+        requests={"cpu": "1", "memory": "2Gi"},
         limits={"cpu": "2", "memory": "4Gi"},
     ),
     WorkerProfile.LARGE: client.V1ResourceRequirements(
-        requests={"cpu": "4", "memory": "8Gi"},
+        requests={"cpu": "2", "memory": "4Gi"},
         limits={"cpu": "4", "memory": "8Gi"},
     ),
     WorkerProfile.XLARGE_CPU: client.V1ResourceRequirements(
-        requests={"cpu": "8", "memory": "16Gi"},
+        requests={"cpu": "4", "memory": "8Gi"},
         limits={"cpu": "8", "memory": "16Gi"},
     ),
     WorkerProfile.XLARGE_MEM: client.V1ResourceRequirements(
-        requests={"cpu": "4", "memory": "64Gi"},
+        requests={"cpu": "2", "memory": "32Gi"},
         limits={"cpu": "4", "memory": "64Gi"},
     ),
 }
 
 BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
 try:
-    for v in base64.decodestring(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";"):
+    for v in base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";"):
         k, v = v.split("=")
         BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
-except Exception:
-    logger.exception(f"failed to parse worker env vars: {KUBERNETES_WORKER_ENV_VARS_STR}")
-    raise
+except Exception as e:
+    logger.exception(
+        f"failed to parse worker env vars: {KUBERNETES_WORKER_ENV_VARS_STR}", exc_info=e
+    )
+    if not DEBUG:
+        raise
 
 
 def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
+    """Maps K8 deployment status to WorkerSetStatus."""
     if not deployment.status.conditions:
         return WorkerSetStatus.UNKNOWN
-
     for condition in deployment.status.conditions:
         if condition.type == "Progressing":
             if condition.status == "True":
@@ -143,6 +147,13 @@ class Deployment:
             resources=WORKER_RESOURCES_BY_PROFILE[self.profile],
             env=extended_env_vars,
             command=["python", "manageworker.py"],
+            liveness_probe=client.V1Probe(
+                # /healthz on port 80, see :WorkerHealthProbe
+                http_get=client.V1HTTPGetAction(path="/healthz", port=80),
+                initial_delay_seconds=5,
+                period_seconds=10,
+                failure_threshold=3,
+            ),
         )
         labels = {
             "app": "bench-worker",
@@ -158,6 +169,7 @@ class Deployment:
                 image_pull_secrets=[
                     client.V1LocalObjectReference(name=settings.KUBERNETES_IMAGE_PULL_SECRET_NAME)
                 ],
+                termination_grace_period_seconds=20,
             ),
         )
         deployment = client.V1Deployment(

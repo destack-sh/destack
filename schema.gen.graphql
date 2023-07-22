@@ -192,6 +192,16 @@ input DeleteObjectInput {
   id: GlobalID!
 }
 
+type Environment {
+  workerSet: WorkerSet
+  language: String!
+  version: String!
+  platform: String!
+  packages: [Package!]!
+}
+
+union EnvironmentOperationInfo = Environment | OperationInfo
+
 type Field implements CrudModel & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
@@ -924,6 +934,11 @@ interface Owner {
   canWrite: Boolean!
 }
 
+type Package {
+  name: String!
+  version: String!
+}
+
 """Information to aid in pagination."""
 type PageInfo {
   """When paginating forwards, are there more items?"""
@@ -964,6 +979,8 @@ type Project implements Node {
     last: Int = null
     filters: ProjectVersionFilter
   ): ProjectVersionConnection!
+  workerSet: WorkerSet!
+  workerSets: [WorkerSet!]!
   canWrite: Boolean!
   migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
 }
@@ -1125,6 +1142,7 @@ type Query {
     id: GlobalID!
   ): Run @canViewProject(atRoot: true)
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
+  environment(projectId: GlobalID!): EnvironmentOperationInfo!
   runs(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1624,7 +1642,10 @@ type SessionChange {
   runs: [Run!]!
 }
 
+union SessionChangeWorkerChange = SessionChange | WorkerChange
+
 type SessionState {
+  workerSet: WorkerSet
   runs: [Run!]!
 }
 
@@ -1810,7 +1831,7 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChange!
+  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeWorkerChange!
   logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null): LogChange!
 }
 
@@ -2066,4 +2087,46 @@ input UserUpdateInput {
   id: GlobalID!
   name: String!
   description: String!
+}
+
+type WorkerChange {
+  workerSets: [WorkerSet!]!
+}
+
+enum WorkerProfile {
+  TINY
+  SMALL
+  MEDIUM
+  LARGE
+  XLARGE_CPU
+  XLARGE_MEM
+}
+
+enum WorkerRegion {
+  US_CENTRAL
+  EU_CENTRAL
+}
+
+type WorkerSet implements Node {
+  id: GlobalID!
+  project: Project!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  profile: WorkerProfile!
+  region: WorkerRegion!
+  sleeping: Boolean!
+  status: WorkerSetStatus!
+  desiredReplicas: Int!
+  targetReplicas: Int!
+  availableReplicas: Int!
+  readyReplicas: Int!
+}
+
+enum WorkerSetStatus {
+  SLEEPING
+  PENDING
+  UPDATING
+  HEALTHY
+  UNHEALTHY
+  UNKNOWN
 }

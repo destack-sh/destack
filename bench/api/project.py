@@ -35,6 +35,7 @@ from bench.msg.messages import NMessageType, ProjectChangedPayload
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
+    from bench.api.session import WorkerSet
     from bench.api.statement import Statement
     from bench.api.user import User
 
@@ -119,6 +120,8 @@ class Project(gql.Node):
     versions: gql.relay.Connection["ProjectVersion"] = gql.django.connection(
         filters=ProjectVersionFilter
     )
+    worker_set: Annotated["WorkerSet", lazy(".session")]
+    worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
 
     # TODO @Performance: specify only/select_related for can_write field
     @gql.field

@@ -397,9 +397,21 @@ async def subscribe(
         return await nc.subscribe(topic, cb=wrapped_cb)  # noqa: duck typed, but properly typed
     else:
         subscription = NSubscription()
-        sub = await nc.subscribe(topic, cb=subscription._on_msg)
-        subscription.sub = sub
+        subscription.sub = await nc.subscribe(topic, cb=subscription._on_msg)
         return subscription
+
+
+async def subscribe_many(
+    topics: dict[str, Type[PayloadT]],
+) -> NSubscription[PayloadT]:
+    if not nc_init.is_set():
+        raise RuntimeError("nats not initialized")
+
+    log.debug("subscribe_many", topics=topics.keys())
+    subscription = NSubscription()
+    for topic in topics:
+        await nc.subscribe(topic, cb=subscription._on_msg)
+    return subscription
 
 
 class MessageJSONEncoder(json.JSONEncoder):
