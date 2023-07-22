@@ -204,7 +204,7 @@ async function run() {
       preparingRun.value = false;
     }
     // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
-    const ret = await ops.runtime.run(context.statement.value.id, lastRunLocalId.value, lastSessionLocalId.value);
+    const ret = await ops.session.run(context.statement.value.id, lastRunLocalId.value, lastSessionLocalId.value);
     if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
       notifications.show({
         type: "run.fail",
@@ -229,7 +229,7 @@ async function cancel() {
   }
   lastRunLocal.value = null;
   lastRunLocalId.value = null;
-  await ops.runtime.cancel(lastRunId.value);
+  await ops.session.cancel(lastRunId.value);
 }
 
 defineExpose({

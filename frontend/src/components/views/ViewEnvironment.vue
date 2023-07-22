@@ -50,7 +50,7 @@ const environment = computed(() =>
   environmentQuery.value?.environment.__typename == "Environment" ? environmentQuery.value?.environment : undefined
 );
 
-const resources = computed(() => {
+const resourcesInfo = computed(() => {
   if (workerSet.value == null) return undefined;
   const profile = workerSet.value.profile;
   return WORKER_RESOURCES_BY_PROFILE[profile];
@@ -71,37 +71,45 @@ const resources = computed(() => {
       </div>
     </div>
     <!-- Compute -->
-    <div class="mt-0.5 grid grid-cols-3 gap-x-3 gap-y-0.5 px-3 text-sm" v-if="environment != null && resources != null">
+    <div
+      class="mt-0.5 grid grid-cols-3 gap-x-2 gap-y-0.5 px-3 text-sm"
+      v-if="environment != null && resourcesInfo != null && workerSet != null"
+    >
       <!-- Language -->
       <span class="text-gray-500">Language</span>
-      <span class="col-span-2 whitespace-nowrap font-bold text-gray-900">Python {{ environment.version }}</span>
+      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
       <!-- Profile -->
       <span class="text-gray-500">Profile</span>
-      <span class="col-span-2 whitespace-nowrap font-bold text-gray-900">
-        {{ resources?.name }}
-        <span class="font-normal text-gray-500">({{ resources?.cpu }}vCPU, {{ resources?.mem }}GB)</span>
+      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">
+        {{ resourcesInfo.name }}
+        <div class="inline font-light text-gray-500">{{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB</div>
       </span>
       <!-- Nodes -->
       <span class="text-gray-500">Workers</span>
-      <span class="col-span-2 whitespace-nowrap font-bold text-gray-900">
-        {{ workerSet?.readyReplicas }}
-        <span class="font-normal text-gray-500">/ {{ workerSet?.desiredReplicas }}</span>
+      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">
+        {{ workerSet.readyReplicas }}
+        <span class="font-normal text-gray-500">of {{ workerSet.desiredReplicas }}</span>
+        <div
+          class="ml-1.5 inline rounded-sm border border-orange-900 border-opacity-10 bg-orange-100 px-1 py-0.5 text-xs font-semibold uppercase"
+        >
+          {{ workerSet.status }}
+        </div>
       </span>
     </div>
     <!-- Packages -->
     <div class="relative mt-4 w-full flex-1 text-sm" v-if="environment != null">
       <span class="px-3 text-xs font-semibold tracking-wide text-gray-500">Packages</span>
       <div
-        class="mt-1 grid max-w-full grid-cols-2 gap-y-0.5 overflow-y-scroll px-3"
+        class="mt-1 flex max-w-full flex-col gap-y-1 overflow-y-scroll px-3"
         ref="packagesTableRef"
         :style="{
-          maxHeight: containerSize.height.value / 2 + 'px',
+          maxHeight: containerSize.height.value - 180 + 'px',
         }"
       >
-        <template v-for="pkg in environment.packages" :key="pkg.name">
-          <span class="max-w-full truncate whitespace-nowrap text-gray-900">{{ pkg.name }}</span>
-          <span class="text-right text-gray-500">{{ pkg.version }}</span>
-        </template>
+        <div v-for="pkg in environment.packages" :key="pkg.name" class="flex flex-row justify-between">
+          <span class="max-w-full truncate whitespace-nowrap text-gray-900 hover:min-w-fit">{{ pkg.name }}</span>
+          <span class="flex-shrink-0 text-right font-light text-gray-500">{{ pkg.version }}</span>
+        </div>
       </div>
     </div>
   </div>

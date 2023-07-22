@@ -421,17 +421,6 @@ export enum IssueType {
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 
-export type LangserverWakeInput = {
-  projectVersionId: Scalars["GlobalID"];
-};
-
-export type LangserverWakePayload = {
-  __typename?: "LangserverWakePayload";
-  success: Scalars["Boolean"];
-};
-
-export type LangserverWakePayloadOperationInfo = LangserverWakePayload | OperationInfo;
-
 export type LogChange = {
   __typename?: "LogChange";
   logs: Array<LogEntry>;
@@ -590,7 +579,6 @@ export type Mutation = {
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
   deleteTagging: TaggingOperationInfo;
-  langserverWake: LangserverWakePayloadOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -640,6 +628,8 @@ export type Mutation = {
   updateTagging: TaggingOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
+  wakeLangserver: WakeLangserverPayloadOperationInfo;
+  wakeWorkerSet: WakeWorkerSetPayloadOperationInfo;
 };
 
 export type MutationAcceptOrganizationInviteArgs = {
@@ -752,10 +742,6 @@ export type MutationDeleteStatementArgs = {
 
 export type MutationDeleteTaggingArgs = {
   input: TaggingDeleteInput;
-};
-
-export type MutationLangserverWakeArgs = {
-  input: LangserverWakeInput;
 };
 
 export type MutationMarkNotificationArgs = {
@@ -944,6 +930,14 @@ export type MutationUpdateUserArgs = {
 
 export type MutationUpsertClientArgs = {
   input: ClientUpsertInput;
+};
+
+export type MutationWakeLangserverArgs = {
+  input: WakeLangserverInput;
+};
+
+export type MutationWakeWorkerSetArgs = {
+  input: WakeWorkerSetInput;
 };
 
 /** An object with a Globally Unique ID */
@@ -1856,6 +1850,15 @@ export type RunError = {
   type: Scalars["String"];
 };
 
+export enum RunErrorType {
+  InternalError = "INTERNAL_ERROR",
+  InvalidRunconfig = "INVALID_RUNCONFIG",
+  NotReady = "NOT_READY",
+  RuntimeError = "RUNTIME_ERROR",
+  Timeout = "TIMEOUT",
+  Unavailable = "UNAVAILABLE",
+}
+
 export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Boolean"];
@@ -1869,6 +1872,7 @@ export type RunInput = {
 
 export type RunState = {
   __typename?: "RunState";
+  error?: Maybe<RunErrorType>;
   logs?: Maybe<Array<LogEntry>>;
   projectVersionId: Scalars["GlobalID"];
   run?: Maybe<Run>;
@@ -2429,6 +2433,29 @@ export type UserUpdateInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 };
+
+export type WakeLangserverInput = {
+  projectVersionId: Scalars["GlobalID"];
+};
+
+export type WakeLangserverPayload = {
+  __typename?: "WakeLangserverPayload";
+  success: Scalars["Boolean"];
+};
+
+export type WakeLangserverPayloadOperationInfo = OperationInfo | WakeLangserverPayload;
+
+export type WakeWorkerSetInput = {
+  projectId: Scalars["GlobalID"];
+};
+
+export type WakeWorkerSetPayload = {
+  __typename?: "WakeWorkerSetPayload";
+  success: Scalars["Boolean"];
+  workerSet?: Maybe<WorkerSet>;
+};
+
+export type WakeWorkerSetPayloadOperationInfo = OperationInfo | WakeWorkerSetPayload;
 
 export type WorkerChange = {
   __typename?: "WorkerChange";
@@ -3936,73 +3963,6 @@ export type UpdateProjectNameMutation = {
     | { __typename?: "Project"; id: any; name: string };
 };
 
-export type WakeLangserverMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type WakeLangserverMutation = {
-  __typename?: "Mutation";
-  langserverWake:
-    | { __typename?: "LangserverWakePayload" }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
-};
-
-export type RunMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  arguments?: InputMaybe<Scalars["JSON"]>;
-  keyed?: InputMaybe<Scalars["Boolean"]>;
-  block?: InputMaybe<Scalars["Boolean"]>;
-  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
-}>;
-
-export type RunMutation = {
-  __typename?: "Mutation";
-  run:
-    | { __typename?: "OperationInfo" }
-    | {
-        __typename?: "RunState";
-        projectVersionId: any;
-        runnableId?: any | null;
-        success: boolean;
-        run?: ({ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }) | null;
-        logs?: Array<
-          { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
-        > | null;
-      };
-};
-
-export type CancelMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-  runId: Scalars["GlobalID"];
-}>;
-
-export type CancelMutation = {
-  __typename?: "Mutation";
-  cancelRun:
-    | {
-        __typename?: "CancelRunPayload";
-        success: boolean;
-        run?: {
-          __typename?: "Run";
-          id: any;
-          status: RunStatus;
-          startedAt?: any | null;
-          terminatedAt?: any | null;
-          createdAt: any;
-          updatedAt: any;
-          duration?: number | null;
-        } | null;
-      }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
-};
-
 export type CreateSecretMutationVariables = Exact<{
   projectId: Scalars["GlobalID"];
   name?: InputMaybe<Scalars["String"]>;
@@ -4044,6 +4004,87 @@ export type DeleteSecretMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | null;
+};
+
+export type WakeLangserverMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+}>;
+
+export type WakeLangserverMutation = {
+  __typename?: "Mutation";
+  wakeLangserver:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "WakeLangserverPayload" };
+};
+
+export type WakeWorkerSetMutationVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type WakeWorkerSetMutation = {
+  __typename?: "Mutation";
+  wakeWorkerSet:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "WakeWorkerSetPayload" };
+};
+
+export type StartRunMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  arguments?: InputMaybe<Scalars["JSON"]>;
+  keyed?: InputMaybe<Scalars["Boolean"]>;
+  block?: InputMaybe<Scalars["Boolean"]>;
+  timeoutSeconds?: InputMaybe<Scalars["Int"]>;
+}>;
+
+export type StartRunMutation = {
+  __typename?: "Mutation";
+  run:
+    | { __typename?: "OperationInfo" }
+    | {
+        __typename?: "RunState";
+        projectVersionId: any;
+        runnableId?: any | null;
+        success: boolean;
+        error?: RunErrorType | null;
+        run?: ({ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }) | null;
+        logs?: Array<
+          { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
+        > | null;
+      };
+};
+
+export type CancelMutationVariables = Exact<{
+  projectVersionId: Scalars["GlobalID"];
+  runId: Scalars["GlobalID"];
+}>;
+
+export type CancelMutation = {
+  __typename?: "Mutation";
+  cancelRun:
+    | {
+        __typename?: "CancelRunPayload";
+        success: boolean;
+        run?: {
+          __typename?: "Run";
+          id: any;
+          status: RunStatus;
+          startedAt?: any | null;
+          terminatedAt?: any | null;
+          createdAt: any;
+          updatedAt: any;
+          duration?: number | null;
+        } | null;
+      }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
 };
 
 export type CreateStatementMutationVariables = Exact<{
@@ -10612,285 +10653,6 @@ export const UpdateProjectNameDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateProjectNameMutation, UpdateProjectNameMutationVariables>;
-export const WakeLangserverDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "wakeLangserver" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "langserverWake" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "projectVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<WakeLangserverMutation, WakeLangserverMutationVariables>;
-export const RunDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "run" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "block" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "run" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "projectVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "runId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "sessionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "arguments" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "keyed" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "block" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "block" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "timeoutSeconds" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RunState" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
-                      { kind: "Field", name: { kind: "Name", value: "runnableId" } },
-                      { kind: "Field", name: { kind: "Name", value: "success" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "run" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "logs" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "LogEntryContent" } }],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...RunContentFragmentDoc.definitions,
-    ...LogEntryContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<RunMutation, RunMutationVariables>;
-export const CancelDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "cancel" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "cancelRun" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "projectVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "runId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CancelRunPayload" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "success" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "run" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "status" } },
-                            { kind: "Field", name: { kind: "Name", value: "startedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "duration" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<CancelMutation, CancelMutationVariables>;
 export const CreateSecretDocument = {
   kind: "Document",
   definitions: [
@@ -11104,6 +10866,333 @@ export const DeleteSecretDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteSecretMutation, DeleteSecretMutationVariables>;
+export const WakeLangserverDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "wakeLangserver" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "wakeLangserver" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<WakeLangserverMutation, WakeLangserverMutationVariables>;
+export const WakeWorkerSetDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "wakeWorkerSet" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "wakeWorkerSet" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<WakeWorkerSetMutation, WakeWorkerSetMutationVariables>;
+export const StartRunDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "startRun" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "block" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "run" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runnableId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sessionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "arguments" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "keyed" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "keyed" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "block" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "block" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "timeoutSeconds" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "timeoutSeconds" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RunState" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
+                      { kind: "Field", name: { kind: "Name", value: "runnableId" } },
+                      { kind: "Field", name: { kind: "Name", value: "success" } },
+                      { kind: "Field", name: { kind: "Name", value: "error" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "run" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "logs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "LogEntryContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...RunContentFragmentDoc.definitions,
+    ...LogEntryContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<StartRunMutation, StartRunMutationVariables>;
+export const CancelDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "cancel" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "cancelRun" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectVersionId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CancelRunPayload" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "success" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "run" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "status" } },
+                            { kind: "Field", name: { kind: "Name", value: "startedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "terminatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "duration" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CancelMutation, CancelMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [

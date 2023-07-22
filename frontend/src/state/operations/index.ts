@@ -3,7 +3,7 @@ import { useFileOps } from "@/state/operations/file";
 import { useObjectOps } from "@/state/operations/object";
 import { useOrganizationOps } from "@/state/operations/organization";
 import { useProjectOps } from "@/state/operations/project";
-import { useRuntimeOps } from "@/state/operations/runtime";
+import { useSessionOps } from "@/state/operations/session";
 import { useSecretOps } from "@/state/operations/secret";
 import { useStatementOps } from "@/state/operations/statement";
 import { useSymbolContentOps } from "@/state/operations/symbol";
@@ -298,7 +298,7 @@ export function _useOperations() {
     content: useSymbolContentOps(),
     statement: useStatementOps(),
     symbol: useSymbolContentOps(),
-    runtime: useRuntimeOps(),
+    session: useSessionOps(),
     version: useProjectVersionOps(),
     object: useObjectOps(),
     secret: useSecretOps(),

@@ -76,7 +76,7 @@ async function run() {
   editor.value.lastRunId = newRunId();
   editor.value.lastSessionId = newSessionId();
   running.value = true;
-  const ret = await ops.runtime.run(
+  const ret = await ops.session.run(
     editor.value.statementId,
     editor.value.lastRunId,
     editor.value.lastSessionId,
