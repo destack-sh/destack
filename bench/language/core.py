@@ -855,10 +855,9 @@ active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 class SessionContext:
     module_id: UUID
     project_id: UUID
-    worker_id: UUID
     trigger_type: RunTriggerType
     trigger_id: typing.Optional[UUID]
-    root_id: typing.Optional[UUID] = None
+    root_run_id: typing.Optional[UUID] = None
 
 
 class SessionBase(abc.ABC):

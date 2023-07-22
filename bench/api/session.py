@@ -33,7 +33,12 @@ from bench.language.const import RUNNABLE_STATEMENT_TYPES
 from bench.language.session import PENDING_RUN_STATUSES
 from bench.models import packer
 from bench.msg.core import NMessage, subscribe
-from bench.msg.messages import LogsChangedPayload, NMessageType, SessionChangedPayload
+from bench.msg.messages import (
+    LogsChangedPayload,
+    NMessageType,
+    SessionChangedPayload,
+    WorkersChangedPayload,
+)
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -105,7 +110,6 @@ def get_error_nice(root: "Run") -> Optional[RunError]:
 
 WorkerProfile = gql.enum(models.WorkerProfile)
 WorkerRegion = gql.enum(models.WorkerRegion)
-WorkerNodeStatus = gql.enum(models.WorkerNodeStatus)
 WorkerSetStatus = gql.enum(models.WorkerSetStatus)
 
 
@@ -116,9 +120,12 @@ class WorkerSet(gql.Node):
     updated_at: auto
     profile: WorkerProfile
     region: WorkerRegion
+    sleeping: bool
     status: WorkerSetStatus
+    desired_replicas: int
     target_replicas: int
-    actual_replicas: int
+    available_replicas: int
+    ready_replicas: int
 
 
 @gql.django.type(models.Session)
@@ -451,6 +458,9 @@ class SessionSubscription:
         log.info("sessions.subscribe")
         sessions_sub = await subscribe(
             f"{NMessageType.SESSION_CHANGED}.{project_version_id}", payload_t=SessionChangedPayload
+        )
+        workers_sub = await subscribe(
+            f"{NMessageType.WORKERS_CHANGED}.{project_id}", payload_t=WorkersChangedPayload
         )
         while True:
             msg: NMessage[SessionChangedPayload] = await sessions_sub.next_msg()

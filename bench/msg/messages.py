@@ -21,6 +21,7 @@ from bench.language.wire import (
     RunData,
     SecretData,
     SessionData,
+    WorkerSetData,
 )
 from bench.utils.utils import required_field
 
@@ -82,7 +83,6 @@ class NMessageType(StrEnum):
     # worker management/lifecycle
     CONFIGURE_WORKER_SET = "worker.configure"
     CONFIGURE_WORKER_SET_REP = "worker.configure.rep"
-    WORKER_NODE_HEARTBEAT = "worker_node.heartbeat"
     WAKE_WORKER_SET = "worker_set.wake"
     WAKE_WORKER_SET_REP = "worker_set.wake.rep"
     RESTART_WORKER_SET = "worker_set.restart"
@@ -197,12 +197,14 @@ class ProjectChangedPayload(OriginPayload):
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload(OriginPayload):
+    project_id: UUID
     module_id: UUID
     mutations: list[ModuleMutation]
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
 class ModuleInternalChangedPayload(OriginPayload):
+    project_id: UUID
     module_id: UUID
     mutations: list[ModuleMutation]
 
@@ -260,6 +262,12 @@ class SessionChangedPayload:
     module_id: UUID
     session: SessionData
     runs: list[RunData]
+
+
+@payload(NMessageType.WORKERS_CHANGED)
+class WorkersChangedPayload:
+    project_id: Optional[UUID]
+    worker_sets: list[WorkerSetData]
 
 
 @payload(NMessageType.LOGS_CHANGED)
@@ -468,16 +476,6 @@ MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
 
-PROJECT_SCOPED_PAYLOAD_TYPES = (ProjectChangedPayload,)
-
-MODULE_SCOPED_PAYLOAD_TYPES = (
-    ModuleChangedPayload,
-    ModuleInternalChangedPayload,
-    SessionChangedPayload,
-    LogsChangedPayload,
-    RunMarkedDeadPayload,
-)
-
 
 def to_topic(
     message_type: NMessageType,
@@ -487,9 +485,25 @@ def to_topic(
     Gets the default topic for a message type and payload.
     :NATSTopics
     """
-    if isinstance(payload, PROJECT_SCOPED_PAYLOAD_TYPES):
+    if isinstance(payload, (ProjectChangedPayload,)):
         return f"{message_type}.{payload.project_id}"
-    elif isinstance(payload, MODULE_SCOPED_PAYLOAD_TYPES):
+    elif isinstance(payload, (WorkersChangedPayload,)):
+        return f"{message_type}.{payload.project_id or '*'}"
+    elif isinstance(
+        payload,
+        (
+            SessionChangedPayload,
+            LogsChangedPayload,
+            RunMarkedDeadPayload,
+        ),
+    ):
         return f"{message_type}.{payload.module_id}"
-
+    elif isinstance(
+        payload,
+        (
+            ModuleChangedPayload,
+            ModuleInternalChangedPayload,
+        ),
+    ):
+        return f"{message_type}.{payload.project_id}.{payload.module_id}"
     return message_type

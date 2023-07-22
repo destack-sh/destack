@@ -25,6 +25,8 @@ class WorkerProfile(enum.StrEnum):
     SMALL = "SMALL"
     MEDIUM = "MEDIUM"
     LARGE = "LARGE"
+    XLARGE_CPU = "XLARGE_CPU"
+    XLARGE_MEM = "XLARGE_MEM"
 
 
 class WorkerRegion(enum.StrEnum):
@@ -33,18 +35,12 @@ class WorkerRegion(enum.StrEnum):
 
 
 class WorkerSetStatus(enum.StrEnum):
-    PENDING = "PENDING"
     SLEEPING = "SLEEPING"
-    CREATING = "CREATING"
-    RUNNING = "RUNNING"
-
-
-class WorkerNodeStatus(enum.StrEnum):
     PENDING = "PENDING"
-    CREATING = "CREATING"
-    RUNNING = "RUNNING"
-    DELETING = "DELETING"
-    DELETED = "DELETED"
+    UPDATING = "UPDATING"
+    HEALTHY = "HEALTHY"
+    UNHEALTHY = "UNHEALTHY"
+    UNKNOWN = "UNKNOWN"
 
 
 @reflect_enum("RunStatus", "The status of a run")
@@ -158,7 +154,7 @@ class Run:
             self.metadata = {}
         self.metadata[key] = value
 
-    # direct accessors for default metadata
+    # direct accessors for default metadata (not great but good enough for now)
 
     @property
     def cached_duration(self) -> Optional[float]:
