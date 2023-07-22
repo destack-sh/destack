@@ -204,6 +204,17 @@ export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
 
+export type Environment = {
+  __typename?: "Environment";
+  language: Scalars["String"];
+  packages: Array<Package>;
+  platform: Scalars["String"];
+  version: Scalars["String"];
+  workerSet?: Maybe<WorkerSet>;
+};
+
+export type EnvironmentOperationInfo = Environment | OperationInfo;
+
 export type Field = CrudModel &
   ModuleNode &
   Node & {
@@ -1223,6 +1234,12 @@ export type Owner = {
   updatedAt: Scalars["DateTime"];
 };
 
+export type Package = {
+  __typename?: "Package";
+  name: Scalars["String"];
+  version: Scalars["String"];
+};
+
 /** Information to aid in pagination. */
 export type PageInfo = {
   __typename?: "PageInfo";
@@ -1251,6 +1268,8 @@ export type Project = Node & {
   updatedAt: Scalars["DateTime"];
   versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
+  workerSet: WorkerSet;
+  workerSets: Array<WorkerSet>;
 };
 
 export type ProjectMigrationMappingsArgs = {
@@ -1405,6 +1424,7 @@ export type Query = {
   __typename?: "Query";
   clients: ClientConnection;
   currentRuns: SessionStateOperationInfo;
+  environment: EnvironmentOperationInfo;
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
   logs: LogEntryConnection;
@@ -1448,6 +1468,10 @@ export type QueryClientsArgs = {
 export type QueryCurrentRunsArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
+};
+
+export type QueryEnvironmentArgs = {
+  projectId: Scalars["GlobalID"];
 };
 
 export type QueryFeaturedProjectsArgs = {
@@ -1934,9 +1958,12 @@ export type SessionChange = {
   session: Session;
 };
 
+export type SessionChangeWorkerChange = SessionChange | WorkerChange;
+
 export type SessionState = {
   __typename?: "SessionState";
   runs: Array<Run>;
+  workerSet?: Maybe<WorkerSet>;
 };
 
 export type SessionStateOperationInfo = OperationInfo | SessionState;
@@ -2143,7 +2170,7 @@ export type Subscription = {
   logsChanged: LogChange;
   moduleChanged: ModuleChange;
   projectChanged: ProjectChange;
-  sessionsChanged: SessionChange;
+  sessionsChanged: SessionChangeWorkerChange;
 };
 
 export type SubscriptionClientsChangedArgs = {
@@ -2402,6 +2429,50 @@ export type UserUpdateInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
 };
+
+export type WorkerChange = {
+  __typename?: "WorkerChange";
+  workerSets: Array<WorkerSet>;
+};
+
+export enum WorkerProfile {
+  Large = "LARGE",
+  Medium = "MEDIUM",
+  Small = "SMALL",
+  Tiny = "TINY",
+  XlargeCpu = "XLARGE_CPU",
+  XlargeMem = "XLARGE_MEM",
+}
+
+export enum WorkerRegion {
+  EuCentral = "EU_CENTRAL",
+  UsCentral = "US_CENTRAL",
+}
+
+export type WorkerSet = Node & {
+  __typename?: "WorkerSet";
+  availableReplicas: Scalars["Int"];
+  createdAt: Scalars["DateTime"];
+  desiredReplicas: Scalars["Int"];
+  id: Scalars["GlobalID"];
+  profile: WorkerProfile;
+  project: Project;
+  readyReplicas: Scalars["Int"];
+  region: WorkerRegion;
+  sleeping: Scalars["Boolean"];
+  status: WorkerSetStatus;
+  targetReplicas: Scalars["Int"];
+  updatedAt: Scalars["DateTime"];
+};
+
+export enum WorkerSetStatus {
+  Healthy = "HEALTHY",
+  Pending = "PENDING",
+  Sleeping = "SLEEPING",
+  Unhealthy = "UNHEALTHY",
+  Unknown = "UNKNOWN",
+  Updating = "UPDATING",
+}
 
 export type MatchingUsersQueryVariables = Exact<{
   slug?: InputMaybe<Scalars["String"]>;
@@ -2759,6 +2830,23 @@ export type SearchRecordQuery = {
       };
     }>;
   };
+};
+
+export type WorkerEnvironmentQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type WorkerEnvironmentQuery = {
+  __typename?: "Query";
+  environment:
+    | {
+        __typename?: "Environment";
+        language: string;
+        version: string;
+        platform: string;
+        packages: Array<{ __typename?: "Package"; name: string; version: string }>;
+      }
+    | { __typename?: "OperationInfo" };
 };
 
 export type ProjectVersionsQueryVariables = Exact<{
@@ -4799,6 +4887,20 @@ export type RevealSecretQuery = {
   secret?: { __typename?: "Secret"; id: any; sha512: string; valueRevealed: any } | null;
 };
 
+export type WorkerSetContentFragment = {
+  __typename?: "WorkerSet";
+  id: any;
+  region: WorkerRegion;
+  profile: WorkerProfile;
+  sleeping: boolean;
+  status: WorkerSetStatus;
+  desiredReplicas: number;
+  targetReplicas: number;
+  availableReplicas: number;
+  readyReplicas: number;
+  project: { __typename?: "Project"; id: any };
+} & { " $fragmentName"?: "WorkerSetContentFragment" };
+
 export type RunHeaderFragment = {
   __typename?: "Run";
   id: any;
@@ -4877,6 +4979,11 @@ export type CurrentRunsQuery = {
     | {
         __typename?: "SessionState";
         runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+        workerSet?:
+          | ({ __typename?: "WorkerSet" } & {
+              " $fragmentRefs"?: { WorkerSetContentFragment: WorkerSetContentFragment };
+            })
+          | null;
       };
 };
 
@@ -4887,10 +4994,17 @@ export type SessionsChangedSubscriptionVariables = Exact<{
 
 export type SessionsChangedSubscription = {
   __typename?: "Subscription";
-  sessionsChanged: {
-    __typename?: "SessionChange";
-    runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
-  };
+  sessionsChanged:
+    | {
+        __typename?: "SessionChange";
+        runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+      }
+    | {
+        __typename?: "WorkerChange";
+        workerSets: Array<
+          { __typename?: "WorkerSet" } & { " $fragmentRefs"?: { WorkerSetContentFragment: WorkerSetContentFragment } }
+        >;
+      };
 };
 
 export type RunsQueryVariables = Exact<{
@@ -5960,6 +6074,38 @@ export const InterpStatementFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<InterpStatementFragment, unknown>;
+export const WorkerSetContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "WorkerSetContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WorkerSet" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "region" } },
+          { kind: "Field", name: { kind: "Name", value: "profile" } },
+          { kind: "Field", name: { kind: "Name", value: "sleeping" } },
+          { kind: "Field", name: { kind: "Name", value: "status" } },
+          { kind: "Field", name: { kind: "Name", value: "desiredReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "targetReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "availableReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "readyReplicas" } },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<WorkerSetContentFragment, unknown>;
 export const RunHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -7499,6 +7645,67 @@ export const SearchRecordDocument = {
     },
   ],
 } as unknown as DocumentNode<SearchRecordQuery, SearchRecordQueryVariables>;
+export const WorkerEnvironmentDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "workerEnvironment" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "environment" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Environment" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "language" } },
+                      { kind: "Field", name: { kind: "Name", value: "version" } },
+                      { kind: "Field", name: { kind: "Name", value: "platform" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "packages" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "name" } },
+                            { kind: "Field", name: { kind: "Name", value: "version" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<WorkerEnvironmentQuery, WorkerEnvironmentQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [
@@ -14853,6 +15060,14 @@ export const CurrentRunsDocument = {
                           selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
                         },
                       },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "workerSet" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "WorkerSetContent" } }],
+                        },
+                      },
                     ],
                   },
                 },
@@ -14864,6 +15079,7 @@ export const CurrentRunsDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
     ...RunContentFragmentDoc.definitions,
+    ...WorkerSetContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CurrentRunsQuery, CurrentRunsQueryVariables>;
 export const SessionsChangedDocument = {
@@ -14923,6 +15139,23 @@ export const SessionsChangedDocument = {
                     ],
                   },
                 },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WorkerChange" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "workerSets" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "WorkerSetContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
               ],
             },
           },
@@ -14930,6 +15163,7 @@ export const SessionsChangedDocument = {
       },
     },
     ...RunContentFragmentDoc.definitions,
+    ...WorkerSetContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SessionsChangedSubscription, SessionsChangedSubscriptionVariables>;
 export const RunsDocument = {

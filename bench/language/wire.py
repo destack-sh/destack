@@ -37,8 +37,8 @@ from bench.language.session import (
     RunError,
     RunErrorKind,
     RunStatus,
-    WorkerRegion,
     WorkerProfile,
+    WorkerRegion,
     WorkerSetStatus,
 )
 from bench.utils.func import describe_type
@@ -1663,3 +1663,11 @@ class WorkerSetData:
     created_at: datetime
     updated_at: datetime
     last_active_at: Optional[datetime]
+
+
+@dataclass
+class EnvironmentData:
+    language: str
+    version: str
+    platform: str
+    packages: dict[str, str]

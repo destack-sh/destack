@@ -8,14 +8,13 @@ from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
 from bench.models.utils import UUIDModel, get_choices
 
 if TYPE_CHECKING:
-    from bench.models.project import Project
+    pass
 
 
 class WorkerSet(UUIDModel):
     """A desired-state set of homogenous workers for a project. Maps to/from k8 deployments."""
 
-    project: "Project"  # noqa via Project.worker_set
-    project_id = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="worker_sets")
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="worker_sets")
     region = models.CharField(max_length=32, choices=get_choices(WorkerRegion))
     profile = models.CharField(max_length=32, choices=get_choices(WorkerProfile))
     sleeping = models.BooleanField(default=False)

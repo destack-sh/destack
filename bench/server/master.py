@@ -1,12 +1,12 @@
 import asyncio
-from datetime import datetime
 import time
+from datetime import datetime
 from uuid import UUID
 
 import structlog
 
 from bench import models
-from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
+from bench.language.session import WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS
 from bench.msg import nc_init
@@ -15,7 +15,7 @@ from bench.msg.messages import (
     NMessageType,
     RepConfigureWorkerSetPayload,
     ReqConfigureWorkerSetPayload,
-    ReqRestartWorkerNodePayload,
+    ReqRestartWorkerSetPayload,
     ReqWakeWorkerSetPayload,
     WorkersChangedPayload,
 )
@@ -25,6 +25,7 @@ from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.utils import DEBUG, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
+from bench.worker import debug
 
 logger = structlog.get_logger(__name__)
 
@@ -64,22 +65,17 @@ class MasterServer:
             self.tasks.append(asyncio.create_task(self._watch_worker_sets_in_k8()))
         self.tasks.append(asyncio.create_task(self._manage_worker_sets_sleep()))
 
+    async def stop(self):
+        logger.info("stop")
+        for sub in self.subs:
+            sub.unsubscribe()
+        for task in self.tasks:
+            task.cancel()
+        await asyncio.gather(*self.tasks, return_exceptions=True)
+
     async def _update_worker_sets_in_k8(self, worker_sets: list[models.WorkerSet]) -> None:
         deployments = [k8.Deployment.from_model(worker_set) for worker_set in worker_sets]
         await k8.update_deployments(deployments)
-
-    async def _update_worker_sets(self, worker_sets: list[models.WorkerSet]) -> None:
-        if not worker_sets:
-            return
-        await models.WorkerSet.objects.abulk_update(worker_sets, update_fields=WORKER_SET_FIELDS)
-        await self._update_worker_sets_in_k8(worker_sets)
-        await publish(
-            NMessageType.WORKERS_CHANGED,
-            WorkersChangedPayload(
-                project_id=worker_sets[0].project_id if len(worker_sets) == 1 else None,
-                worker_sets=[packer.pack_data(worker_set) for worker_set in worker_sets],
-            ),
-        )
 
     async def _watch_worker_sets_in_k8(self):
         """Watch k8 deployments and update worker sets accordingly."""
@@ -100,6 +96,25 @@ class MasterServer:
                     worker_sest=[packer.pack_data(worker_set)],
                 ),
             )
+
+    async def _update_worker_sets(self, worker_sets: list[models.WorkerSet]) -> None:
+        if not worker_sets:
+            return
+        # save in DB
+        await models.WorkerSet.objects.abulk_update(worker_sets, update_fields=WORKER_SET_FIELDS)
+        # update in orchestrator
+        if K8_AVAILABLE:
+            await self._update_worker_sets_in_k8(worker_sets)
+        else:
+            debug.update_local_workers([packer.pack_data(worker_set) for worker_set in worker_sets])
+        # notify
+        await publish(
+            NMessageType.WORKERS_CHANGED,
+            WorkersChangedPayload(
+                project_id=worker_sets[0].project_id if len(worker_sets) == 1 else None,
+                worker_sets=[packer.pack_data(worker_set) for worker_set in worker_sets],
+            ),
+        )
 
     async def _manage_worker_sets_sleep(self, interval: int = 60):
         """Puts worker sets to sleep after inactivity if needed."""
@@ -147,23 +162,16 @@ class MasterServer:
             worker_set.status = WorkerSetStatus.PENDING
         await self._update_worker_sets(worker_sets)
 
-    async def _get_or_create_project_worker_set(self, project_id: UUID):
-        """Get or create a default worker set for a project."""
+    async def _get_project_worker_set(self, project_id: UUID):
+        """Get default worker set for a project."""
         worker_set = self.worker_sets_by_project_id.get(project_id)
         if worker_set is None:
-            worker_set = await models.WorkerSet.objects.acreate(
-                project_id=project_id,
-                region=WorkerRegion.EU_CENTRAL,
-                profile=WorkerProfile.TINY,
-                sleeping=False,
-                desired_replicas=1,
-                target_replicas=1,
-                status=WorkerSetStatus.PENDING,
-            )
-            project = await models.Project.objects.aget(id=project_id)
-            project.worker_set = worker_set
-            await project.asave()
-        return worker_set
+            # newly created project, get from DB
+            project = await models.Project.objects.select_related("worker_set").aget(id=project_id)
+            self.worker_sets_by_project_id[project_id] = project.worker_set
+            return project.worker_set
+        else:
+            return worker_set
 
     @message_handler
     async def configure_worker_set(self, msg: NMessage[ReqConfigureWorkerSetPayload]) -> None:
@@ -171,7 +179,7 @@ class MasterServer:
             project = await models.Project.objects.select_related("worker_set").aget(
                 id=msg.p.project_id
             )
-            worker_set = await self._get_or_create_project_worker_set(project.id)
+            worker_set = await self._get_project_worker_set(project.id)
             await self._update_worker_sets([worker_set])
             success = True
             logger.info("configure_worker_set", worker_set=worker_set)
@@ -185,7 +193,7 @@ class MasterServer:
     async def wake_worker_set(self, msg: NMessage[ReqWakeWorkerSetPayload]) -> None:
         try:
             if USE_K8:
-                worker_set = await self._get_or_create_project_worker_set(msg.p.project_id)
+                worker_set = await self._get_project_worker_set(msg.p.project_id)
                 await self._wake_worker_sets([worker_set])
                 logger.info("wake_worker_set", worker_set=worker_set)
             success = True
@@ -196,7 +204,7 @@ class MasterServer:
         await msg.reply(RepConfigureWorkerSetPayload(success=success))
 
     @message_handler
-    async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerNodePayload]) -> None:
+    async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerSetPayload]) -> None:
         success = False
         try:
             if not USE_K8:
@@ -204,7 +212,7 @@ class MasterServer:
                 with open("manage.py", "a"):
                     pass
             else:
-                worker_set = await self._get_or_create_project_worker_set(msg.p.project_id)
+                worker_set = await self._get_project_worker_set(msg.p.project_id)
                 if worker_set.status == WorkerSetStatus.HEALTHY:
                     await k8.restart_deployment(k8.Deployment.from_model(worker_set))
                     success = True

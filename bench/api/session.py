@@ -3,10 +3,12 @@ from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Optional
 from uuid import UUID
 
 import django.db.models
+import posthog
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import OuterRef, Subquery
+from nats.errors import NoRespondersError
 from strawberry import auto, lazy
 from strawberry.scalars import JSON
 from strawberry.types import Info
@@ -16,12 +18,18 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import CanViewProject, check_can_read_project, check_can_view_project_by_id
+from bench.api.auth import (
+    CanViewProject,
+    check_can_read_project,
+    check_can_view_project_by_id,
+    check_can_write_project,
+)
 from bench.api.statement import Statement
 from bench.api.utils import (
     QueryOp,
     SearchQuery,
     SearchSort,
+    asafe_mutation,
     asafe_subscription,
     get_user_from_info,
     to_global_id,
@@ -32,10 +40,19 @@ from bench.language import Q, Query, Sort, SortOrder, wire
 from bench.language.const import RUNNABLE_STATEMENT_TYPES
 from bench.language.session import PENDING_RUN_STATUSES
 from bench.models import packer
-from bench.msg.core import NMessage, subscribe
+from bench.msg.core import NMessage, request, subscribe, subscribe_many
 from bench.msg.messages import (
     LogsChangedPayload,
     NMessageType,
+    RepCancelRunPayload,
+    RepGetEnvironmentPayload,
+    RepStartRunPayload,
+    RepWakeLangserverPayload,
+    ReqCancelRunPayload,
+    ReqGetEnvironmentPayload,
+    ReqStartRunPayload,
+    ReqWakeLangserverPayload,
+    RunErrorType,
     SessionChangedPayload,
     WorkersChangedPayload,
 )
@@ -248,6 +265,67 @@ class SessionState:
     runs: list[Run]
 
 
+@gql.input
+class LangserverWakeInput:
+    project_version_id: GlobalID
+
+
+@gql.type
+class LangserverWakePayload:
+    success: bool
+
+
+@gql.input
+class RunInput:
+    project_version_id: GlobalID
+    runnable_id: Optional[GlobalID] = None
+    run_id: Optional[GlobalID] = None
+    session_id: Optional[GlobalID] = None
+    arguments: Optional[JSON] = None
+    block: bool = True
+    keyed: bool = False
+    timeout_seconds: Optional[int] = None
+
+
+ModuleRunErrorType = gql.enum(RunErrorType)
+
+
+@gql.type
+class RunState:
+    project_version_id: GlobalID
+    runnable_id: Optional[GlobalID]
+    success: bool
+    run: Optional[Run]
+    logs: Optional[list[LogEntry]]
+
+
+@gql.input
+class CancelRunInput:
+    project_version_id: GlobalID
+    run_id: GlobalID
+
+
+@gql.type
+class CancelRunPayload:
+    success: bool
+    run: Optional[Run]
+
+
+@gql.type
+class Package:
+    name: str
+    version: str
+
+
+@gql.type
+class Environment:
+    worker_set: Optional[WorkerSet]
+    language: str
+    version: str
+    platform: str
+    packages: list[Package]
+
+
 @gql.type
 class SessionQuery:
     @gql.field
@@ -285,10 +363,41 @@ class SessionQuery:
             django.db.models.Q(id__in=latest_run_ids)
             | django.db.models.Q(status__in=PENDING_RUN_STATUSES)
         )
-        return SessionState(runs=latest_run_instances)
+        return SessionState(worker_set=project.worker_set, runs=latest_run_instances)
 
     session: Optional[Session] = gql.relay.node(directives=[CanViewProject()])
     run: Optional[Run] = gql.relay.node(directives=[CanViewProject()])
+
+    @gql.field
+    @async_safe
+    async def environment(self, info: Info, project_id: GlobalID) -> Environment | OperationInfo:
+        project_id = UUID(project_id.node_id)
+        project = await models.Project.objects.select_related("worker_set").aget(id=project_id)
+        await sync_to_async(check_can_read_project)(info, project)
+        try:
+            rep: NMessage[RepGetEnvironmentPayload] = await request(
+                NMessageType.GET_ENVIRONMENT,
+                ReqGetEnvironmentPayload(project_id=project_id, node_id=None),
+                reply_t=RepGetEnvironmentPayload,
+            )
+            worker_set = rep.p.worker_set
+            environment_data = rep.p.environment
+        except (TimeoutError, RuntimeError, NoRespondersError):
+            # worker unavailable, return default environment
+            from bench.worker.environment import WORKER_ENVIRONMENT_DATA
+
+            worker_set = None
+            environment_data = WORKER_ENVIRONMENT_DATA
+        return Environment(
+            worker_set=worker_set,
+            language=environment_data.language,
+            version=environment_data.version,
+            platform=environment_data.platform,
+            packages=[
+                Package(name=name, version=version)
+                for name, version in environment_data.packages.items()
+            ],
+        )
 
     @gql.relay.connection
     @async_safe
@@ -323,7 +432,7 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
         if root_only:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
-        effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
+        effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
         search = prepare_search(
             type=mirror.DocumentType.RUN,
@@ -419,6 +528,103 @@ class SessionQuery:
 
 
 @gql.type
+class SessionMutation:
+    @asafe_mutation
+    async def langserver_wake(
+        self, info: Info, input: LangserverWakeInput
+    ) -> LangserverWakePayload | OperationInfo:
+        project_version_id = UUID(input.project_version_id.node_id)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        await sync_to_async(check_can_read_project)(info, project_version)
+        await request(
+            NMessageType.WAKE_LANGSERVER,
+            ReqWakeLangserverPayload(module_id=project_version_id),
+            reply_t=RepWakeLangserverPayload,
+        )
+        return LangserverWakePayload(success=True)
+
+    @asafe_mutation
+    async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:
+        project_version_id = UUID(input.project_version_id.node_id)
+        user = get_user_from_info(info)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        # TODO @Auth: should run be a guest-level permission for projects?
+        await sync_to_async(check_can_write_project)(info, project_version)
+
+        run = ReqStartRunPayload(
+            module_id=project_version_id,
+            runnable=to_uuid(input.runnable_id),
+            runnable_type=None,
+            arguments=input.arguments,
+            block=input.block,
+            trigger_type=RunTriggerType.UI,
+            trigger_id=user.id,
+            run_id=to_uuid(input.run_id),
+            session_id=to_uuid(input.session_id),
+            keyed=input.keyed,
+        )
+        try:
+            rep: NMessage[RepStartRunPayload] = await request(
+                NMessageType.START_RUN,
+                run,
+                reply_t=RepStartRunPayload,
+                timeout=input.timeout_seconds,
+            )
+            success = rep.p.error is None
+            error = rep.p.error
+        except TimeoutError:
+            rep = None
+            success = False
+            error = ModuleRunErrorType.TIMEOUT
+        except NoRespondersError:
+            rep = None
+            success = False
+            error = ModuleRunErrorType.UNAVAILABLE
+        posthog.capture(
+            str(user.id),
+            "run",
+            {"project_version_id": str(project_version_id), "success": success, "error": error},
+        )
+        run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
+        logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
+        return RunState(
+            project_version_id=input.project_version_id,
+            runnable_id=input.runnable_id,
+            success=success,
+            run=run,
+            logs=logs,
+        )
+
+    @asafe_mutation
+    async def cancel_run(
+        self, info: Info, input: CancelRunInput
+    ) -> CancelRunPayload | OperationInfo:
+        project_version_id = UUID(input.project_version_id.node_id)
+        user = get_user_from_info(info)
+        project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        await sync_to_async(check_can_write_project)(info, project_version)
+        cancel = ReqCancelRunPayload(
+            module_id=project_version_id,
+            run_id=to_uuid(input.run_id),
+        )
+        try:
+            rep: NMessage[RepCancelRunPayload] = await request(
+                NMessageType.CANCEL_RUN,
+                cancel,
+                reply_t=RepCancelRunPayload,
+            )
+            success = rep.p.success
+        except TimeoutError:
+            success = False
+        posthog.capture(
+            str(user.id),
+            "cancel_run",
+            {"project_version_id": str(project_version_id), "success": success},
+        )
+        return CancelRunPayload(success=success, run=None)
+
+
+@gql.type
 class LogChange:
     logs: list[LogEntry]
 
@@ -431,7 +637,7 @@ class SessionChange:
 
 @gql.type
 class WorkerChange:
-    worker_set: WorkerSet
+    worker_sets: list[WorkerSet]
 
 
 @gql.type
@@ -456,19 +662,36 @@ class SessionSubscription:
             return
 
         log.info("sessions.subscribe")
-        sessions_sub = await subscribe(
-            f"{NMessageType.SESSION_CHANGED}.{project_version_id}", payload_t=SessionChangedPayload
-        )
-        workers_sub = await subscribe(
-            f"{NMessageType.WORKERS_CHANGED}.{project_id}", payload_t=WorkersChangedPayload
+        sub = await subscribe_many(
+            {
+                f"{NMessageType.SESSION_CHANGED}.{project_version_id}": SessionChangedPayload,
+                f"{NMessageType.WORKERS_CHANGED}.{project_version_id}": WorkersChangedPayload,
+                f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
+            },
         )
         while True:
-            msg: NMessage[SessionChangedPayload] = await sessions_sub.next_msg()
-            log.debug("sessions.update", msg=msg)
-            yield SessionChange(
-                session=(packer.unpack_data(msg.p.session)),
-                runs=[packer.unpack_data(r) for r in msg.p.runs],
-            )
+            msg: NMessage[SessionChangedPayload | WorkersChangedPayload] = await sub.next_msg()
+            if isinstance(msg.p, WorkersChangedPayload):
+                if msg.p.project_id is not None:
+                    worker_sets = [
+                        packer.unpack_data(ws)
+                        for ws in msg.p.worker_sets
+                        if ws.project_id == project_id
+                    ]
+                elif msg.p.project_id == project_id:
+                    worker_sets = [packer.unpack_data(ws) for ws in msg.p.worker_sets]
+                else:
+                    continue
+                log.debug("workers.update", msg=msg)
+                yield WorkerChange(worker_sets=worker_sets)
+            elif isinstance(msg.p, SessionChangedPayload):
+                log.debug("sessions.update", msg=msg)
+                yield SessionChange(
+                    session=packer.unpack_data(msg.p.session),
+                    runs=[packer.unpack_data(r) for r in msg.p.runs],
+                )
+            else:
+                raise RuntimeError(f"unexpected message type {msg}")
 
     @asafe_subscription
     async def logs_changed(

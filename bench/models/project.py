@@ -45,6 +45,7 @@ class ProjectManager(models.Manager["Project"]):
         slug: str,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
+        create_worker_set: bool = True,
         create_os_index: bool = True,
         head_version_id: Optional[UUID] = None,
     ):
@@ -62,12 +63,14 @@ class ProjectManager(models.Manager["Project"]):
             visibility=visibility,
         )
         project.head = ProjectVersion.objects.create(id=head_version_id, project=project)
-        project.save()
         if create_onboarding_files:
             # TODO @Broken: re-implement create onboarding files
             pass
+        if create_worker_set:
+            create_default_worker_set(project)
         if create_os_index:
-            create_project_os_index(project)
+            create_per_project_os_index(project)
+        project.save()
         return project
 
     def get_by_slug(self, owner: str, project: str):
@@ -107,9 +110,10 @@ class Project(UUIDModel, CrudModel):
         "User", on_delete=models.CASCADE, related_name="projects", null=True
     )
     remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
-    worker_set = models.OneToOneField(
-        "WorkerSet", on_delete=models.CASCADE, related_name="project", optional=True
+    worker_set = models.OneToOneField(  # only one worker set for now
+        "WorkerSet", on_delete=models.CASCADE, related_name="project+", null=True
     )
+    worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
 
     def __str__(self):
         return f"{self.owner.slug}/{self.slug}"
@@ -181,7 +185,7 @@ class Project(UUIDModel, CrudModel):
         ]
 
 
-def create_project_s3_bucket():
+def create_global_project_s3_bucket():
     """
     Creates a public S3 bucket for all projects.
     """
@@ -227,11 +231,27 @@ def create_project_s3_bucket():
             raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
 
 
-def create_project_os_index(project: Project):
+def create_per_project_os_index(project: Project):
     """Creates OpenSearch indices for the project."""
     from bench.opensearch.index import create_bench_index
 
     create_bench_index(project.id)
+
+
+def create_default_worker_set(project: Project):
+    from bench.models import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
+
+    worker_set = WorkerSet.objects.create(
+        project_id=project.id,
+        region=WorkerRegion.EU_CENTRAL,
+        profile=WorkerProfile.TINY,
+        sleeping=True,
+        desired_replicas=1,
+        target_replicas=1,
+        status=WorkerSetStatus.SLEEPING,
+    )
+    project.worker_set = worker_set
+    project.save()
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):

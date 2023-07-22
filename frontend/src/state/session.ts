@@ -1,6 +1,6 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { graphql, useFragment } from "@/gql";
-import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
+import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { newRunId } from "@/state/module";
 import { useRuntimeOps } from "@/state/operations/runtime";
@@ -24,6 +24,23 @@ import { createSharedComposable } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
+
+export const WorkerSetContentType = graphql(/* GraphQL */ `
+  fragment WorkerSetContent on WorkerSet {
+    id
+    project {
+      id
+    }
+    region
+    profile
+    sleeping
+    status
+    desiredReplicas
+    targetReplicas
+    availableReplicas
+    readyReplicas
+  }
+`);
 
 export const RunHeaderType = graphql(/* GraphQL */ `
   fragment RunHeader on Run {
@@ -116,6 +133,16 @@ export const LogEntryContentType = graphql(/* GraphQL */ `
   }
 `);
 
+// :WorkerProfiles
+export const WORKER_RESOURCES_BY_PROFILE = {
+  [WorkerProfile.Tiny]: { name: "Tiny", cpu: 0.5, mem: 0.5 },
+  [WorkerProfile.Small]: { name: "Small", cpu: 1, mem: 2 },
+  [WorkerProfile.Medium]: { name: "Medium", cpu: 2, mem: 4 },
+  [WorkerProfile.Large]: { name: "Large", cpu: 4, mem: 8 },
+  [WorkerProfile.XlargeCpu]: { name: "XLarge CPU", cpu: 8, mem: 16 },
+  [WorkerProfile.XlargeMem]: { name: "XLarge RAM", cpu: 4, mem: 64 },
+};
+
 export function _useSessions(
   filter: {
     projectId: Ref<string | null>;
@@ -135,6 +162,9 @@ export function _useSessions(
             runs {
               ...RunContent
             }
+            workerSet {
+              ...WorkerSetContent
+            }
           }
         }
       }
@@ -144,11 +174,18 @@ export function _useSessions(
   );
 
   // init from initial query
-  const currentRuns = ref<Record<string, any>>({});
+  const workerSets = ref<Record<string, WorkerSet>>({});
+  const currentRuns = ref<Record<string, Run>>({});
   onInitialLoaded((result) => {
-    if (result?.data?.currentRuns?.__typename == "SessionState" && result.data.currentRuns.runs != null) {
-      for (const run of result.data.currentRuns.runs.map((r) => useFragment(RunContentType, r))) {
-        currentRuns.value[run.id] = run;
+    if (result?.data?.currentRuns?.__typename == "SessionState") {
+      if (result.data.currentRuns.runs != null) {
+        for (const run of result.data.currentRuns.runs.map((r) => useFragment(RunContentType, r))) {
+          currentRuns.value[run.id] = run as Run;
+        }
+      }
+      if (result.data.currentRuns.workerSet != null) {
+        const workerSet = useFragment(WorkerSetContentType, result.data.currentRuns.workerSet);
+        workerSets.value[workerSet.id] = workerSet as WorkerSet;
       }
     }
   });
@@ -165,6 +202,11 @@ export function _useSessions(
                 ...RunContent
               }
             }
+            ... on WorkerChange {
+              workerSets {
+                ...WorkerSetContent
+              }
+            }
           }
         }
       `),
@@ -175,10 +217,15 @@ export function _useSessions(
     onSessionChange((result) => {
       if (result.data?.sessionsChanged?.__typename == "SessionChange" && result.data.sessionsChanged.runs != null) {
         for (const run of result.data.sessionsChanged.runs.map((r) => useFragment(RunContentType, r))) {
-          currentRuns.value[run.id] = run;
+          currentRuns.value[run.id] = run as Run;
           for (const subscriber of onRunChangeSubscribers.value) {
             subscriber(run as Run);
           }
+        }
+      }
+      if (result.data?.sessionsChanged?.__typename == "WorkerSetChange") {
+        for (const ws of result.data.sessionsChanged.workerSets.map((ws) => useFragment(WorkerSetContentType, ws))) {
+          workerSets.value[ws.id] = ws as WorkerSet;
         }
       }
     });
@@ -252,6 +299,7 @@ export function _useSessions(
 
   // utilities
 
+  const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const currentRoots = computed(() => Object.values(currentRuns.value).filter((run) => run.parent == null));
   const activeRuns = computed(() =>
     Object.values(currentRuns.value).filter((run) => !RUN_TERMINAL_STATES.includes(run.status))
@@ -264,6 +312,7 @@ export function _useSessions(
 
   return {
     loading: initialLoading,
+    workerSet,
     currentRuns,
     currentRoots,
     activeRuns,

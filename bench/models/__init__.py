@@ -18,14 +18,7 @@ from .statement import Field, Statement, Tagging
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
 from .utils import CrudModel
-from .worker import (
-    WorkerNode,
-    WorkerNodeStatus,
-    WorkerProfile,
-    WorkerRegion,
-    WorkerSet,
-    WorkerSetStatus,
-)
+from .worker import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
 
 __all__ = [
     "AccessToken",
@@ -70,6 +63,4 @@ __all__ = [
     "WorkerSet",
     "WorkerProfile",
     "WorkerSetStatus",
-    "WorkerNode",
-    "WorkerNodeStatus",
 ]

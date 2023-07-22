@@ -14,6 +14,7 @@ from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
 from bench.language.session import WorkerProfile, WorkerRegion
 from bench.language.wire import (
+    EnvironmentData,
     LogEntryData,
     ModuleTreeData,
     RecordData,
@@ -87,6 +88,8 @@ class NMessageType(StrEnum):
     WAKE_WORKER_SET_REP = "worker_set.wake.rep"
     RESTART_WORKER_SET = "worker_set.restart"
     RESTART_WORKER_SET_REP = "worker_set.restart.rep"
+    GET_ENVIRONMENT = "worker.get_environment"
+    GET_ENVIRONMENT_REP = "worker.get_environment.rep"
     # running (routed via project id)
     START_RUN = "run"
     START_RUN_REP = "run.rep"
@@ -118,6 +121,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.PAUSE_RUN: NMessageType.PAUSE_RUN_REP,
     NMessageType.RESUME_RUN: NMessageType.RESUME_RUN_REP,
     NMessageType.WAKE_LANGSERVER: NMessageType.WAKE_LANGSERVER_REP,
+    NMessageType.GET_ENVIRONMENT: NMessageType.GET_ENVIRONMENT_REP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -458,7 +462,7 @@ class RepWakeWorkerSetPayload:
 
 
 @payload(NMessageType.RESTART_WORKER_SET)
-class ReqRestartWorkerNodePayload:
+class ReqRestartWorkerSetPayload:
     project_id: UUID
     node_id: Optional[UUID]
     block: bool
@@ -468,6 +472,18 @@ class ReqRestartWorkerNodePayload:
 class RepRestartWorkerNodePayload:
     worker_set_id: UUID
     success: bool
+
+
+@payload(NMessageType.GET_ENVIRONMENT)
+class ReqGetEnvironmentPayload:
+    project_id: UUID
+    node_id: Optional[UUID]
+
+
+@payload(NMessageType.GET_ENVIRONMENT_REP)
+class RepGetEnvironmentPayload:
+    worker_set_id: UUID
+    environment: EnvironmentData
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS
@@ -488,7 +504,7 @@ def to_topic(
     if isinstance(payload, (ProjectChangedPayload,)):
         return f"{message_type}.{payload.project_id}"
     elif isinstance(payload, (WorkersChangedPayload,)):
-        return f"{message_type}.{payload.project_id or '*'}"
+        return f"{message_type}.{payload.project_id or 'all'}"
     elif isinstance(
         payload,
         (

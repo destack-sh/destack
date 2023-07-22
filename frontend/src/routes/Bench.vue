@@ -70,6 +70,7 @@ import {
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { XCircleIcon } from "@heroicons/vue/24/solid";
+import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 
 const props = defineProps<{
   owner: string;
@@ -82,15 +83,14 @@ type View = {
   id: ViewId;
   label: string;
   icon: Component;
+  view: Component;
   enabled: boolean;
 };
 const allViews: Ref<View[]> = computed(() => [
-  { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, enabled: true },
-  { id: "search", label: "Search", icon: MagnifyingGlassIcon, enabled: false },
-  { id: "history", label: "History", icon: ClockIcon, enabled: true },
-  { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, enabled: true },
-  { id: "comments", label: "Comments", icon: ChatBubbleLeftIcon, enabled: false },
-  { id: "environment", label: "Environment", icon: CubeIcon, enabled: false },
+  { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, view: ViewExplorer, enabled: true },
+  { id: "history", label: "History", icon: ClockIcon, view: ViewHistory, enabled: true },
+  { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, view: ViewIssues, enabled: true },
+  { id: "environment", label: "Environment", icon: CubeIcon, view: ViewEnvironment, enabled: true },
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
 const activeView: ComputedRef<View> = computed(() => {
@@ -111,30 +111,14 @@ function toggleActiveView(viewId: ViewId, ignoreFocus: boolean) {
     bench.focusView(viewId);
   }
 }
-provideAction({
-  id: "bench.view.openExplorer",
-  label: "View Explorer",
-  shortcuts: ["alt+1"],
-  apply: () => toggleActiveView("explorer", false),
-});
-provideAction({
-  id: "bench.view.openHistory",
-  label: "View History",
-  shortcuts: ["alt+2"],
-  apply: () => toggleActiveView("history", false),
-});
-const openIssues = provideAction({
-  id: "bench.view.openIssues",
-  label: "View Issues",
-  shortcuts: ["alt+3"],
-  apply: () => toggleActiveView("issues", false),
-});
-provideAction({
-  id: "bench.view.openInstruction",
-  label: "View Instruction",
-  shortcuts: ["alt+4"],
-  apply: () => toggleActiveView("instruction", false),
-});
+for (const view of allViews.value) {
+  provideAction({
+    id: `bench.view.open${view.id}`,
+    label: `View ${view.label}`,
+    shortcuts: [`alt+${allViews.value.indexOf(view) + 1}`],
+    apply: () => toggleActiveView(view.id, false),
+  });
+}
 
 // other buttons for sidebar
 type SidebarPopover = {
@@ -617,53 +601,17 @@ onBeforeUnmount(() => {
           class="relative h-full max-h-full max-w-full flex-1 border-r border-orange-900 border-opacity-[12%]"
           v-show="bench.showViewContent"
         >
-          <!-- These must be v-show, not v-if, see note above -->
-          <ViewExplorer
-            v-show="activeView.id == 'explorer'"
-            @show="bench.focusView('explorer')"
-            @blur="bench.blurView('explorer')"
-            :active="bench.activeViewId == 'explorer'"
-            :focused="bench.focusedViewId == 'explorer'"
+          <component
+            :is="activeView.view"
+            @show="bench.focusView(activeView.id)"
+            @blur="bench.blurView(activeView.id)"
+            :active="bench.activeViewId == activeView.id"
+            :focused="bench.focusedViewId == activeView.id"
             :container-size="viewContainerSize"
-            class="scroll-hidden overflow-y-auto"
-            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
-          />
-          <ViewHistory
-            v-show="activeView.id == 'history'"
-            v-if="project != null"
-            @show="bench.focusView('history')"
-            @blur="bench.blurView('history')"
             :project="project"
-            :active="bench.activeViewId == 'history'"
-            :focused="bench.focusedViewId == 'history'"
-            :current-version="version"
-            :container-size="viewContainerSize"
             class="scroll-hidden overflow-y-auto"
             :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
           />
-          <ViewIssues
-            v-show="activeView.id == 'issues'"
-            @show="bench.focusView('issues')"
-            @blur="bench.blurView('issues')"
-            :active="bench.activeViewId == 'issues'"
-            :focused="bench.focusedViewId == 'issues'"
-            :container-size="viewContainerSize"
-            class="scroll-hidden overflow-y-auto"
-            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
-          />
-          <!-- Unknown view -->
-          <div
-            v-if="
-              activeView.id != 'explorer' &&
-              activeView.id != 'history' &&
-              activeView.id != 'issues' &&
-              activeView.id != 'instruction'
-            "
-            class="my-4 flex flex-col items-center justify-center gap-2 px-3 text-center"
-          >
-            <FaceSmileIcon class="h-7 w-7 rotate-180 text-gray-500" />
-            <span class="text-sm text-gray-700">Let's pretend you didn't see this.</span>
-          </div>
         </div>
       </aside>
       <!-- Main editor area -->

@@ -241,7 +241,12 @@ def publish_tracked_mutation(
 
     publish_soon(
         NMessageType.MODULE_CHANGED,
-        ModuleChangedPayload(module_id=project_v.id, origins=[origin], mutations=api_mutations),
+        ModuleChangedPayload(
+            project_id=project_v.project_id,
+            module_id=project_v.id,
+            origins=[origin],
+            mutations=api_mutations,
+        ),
     )
     if internal_mutations:
         publish_soon(

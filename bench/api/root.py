@@ -30,10 +30,9 @@ from bench.api.project import (
     ProjectVersionMutation,
     ProjectVisibility,
 )
-from bench.api.runtime import RuntimeMutation
 from bench.api.secret import Secret, SecretMutation
 from bench.api.sentry import SentryPerformanceExtension
-from bench.api.session import SessionQuery, SessionSubscription
+from bench.api.session import SessionMutation, SessionQuery, SessionSubscription
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
@@ -172,7 +171,7 @@ class Mutation(
     SymbolMutation,
     DatasetMutation,
     FileMutation,
-    RuntimeMutation,
+    SessionMutation,
     ObjectMutation,
     SecretMutation,
 ):
