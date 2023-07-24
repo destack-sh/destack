@@ -1,5 +1,6 @@
 import asyncio
 import os
+import uuid
 from pathlib import Path
 from uuid import UUID
 
@@ -29,7 +30,7 @@ async def _run():
         asyncio.create_task(restart_on_file_changes())
         await init_nats(name="worker-local")
         worker_set_id = None
-        worker_node_id = "local"
+        worker_node_id = uuid.uuid4()
         project_id = None
     else:
         # production mode, one worker per process

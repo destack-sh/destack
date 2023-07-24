@@ -877,7 +877,6 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
         return wire.SessionData(
             id=data.id,
             module_id=data.project_version_id,
-            worker_id=data.worker_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             metadata=data.metadata,
@@ -895,7 +894,6 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
         return models.Session(
             id=data.id,
             project_version_id=data.module_id,
-            worker_id=data.worker_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             metadata=data.metadata,
@@ -911,7 +909,6 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         return wire.RunData(
             id=model.id,
             module_id=model.project_version_id,
-            worker_id=model.worker_id,
             session_id=model.session_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
@@ -932,7 +929,6 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         # additional context
         return models.Run(
             id=data.id,
-            worker_id=data.worker_id,
             project_version_id=data.module_id,
             session_id=data.session_id,
             root_id=data.root_id,

@@ -4,7 +4,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
-import { getStatusIconSolid, useCurrentSessions } from "@/state/session";
+import { getRunStatusIconSolid, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
@@ -14,25 +14,25 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 
 const activeRuns = sessions.activeRoots;
-const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.compareTo(a.createdAt)));
-const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.compareTo(b.createdAt)));
+const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompareTo(a.createdAt)));
+const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localCompareTo(b.createdAt)));
 </script>
 <template>
   <Popover v-slot="{ open }" class="relative">
     <PopoverButton
       v-if="activeRuns.length > 0"
       ref="deployButtonRef"
-      class="relative flex flex-row gap-1 rounded-sm p-1 text-sm focus:outline-none"
+      class="relative flex flex-row items-center rounded-sm px-2 py-1 text-sm focus:outline-none"
       :class="{
-        'text-orange-600 hover:bg-orange-100': true,
+        'hover:bg-orange-100': true,
         'bg-orange-100': open,
       }"
     >
       <BusySpinnerIcon class="h-4 w-4 animate-spin" />
-      <span class="text-gray-900" v-if="activeRuns.length > 0">
+      <span class="ml-1 text-gray-900" v-if="activeRuns.length > 0">
         {{ module.statementOf(activeRunsAsc[0].runnable?.id)?.name }}
       </span>
-      <span v-if="activeRuns.length > 1">+{{ activeRuns.length - 1 }}</span>
+      <span v-if="activeRuns.length > 1" class="ml-1.5 text-gray-400">+{{ activeRuns.length - 1 }}</span>
     </PopoverButton>
 
     <FadeTransition>
@@ -41,14 +41,14 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       >
         <h2 class="font-bold text-gray-900">Active runs</h2>
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
-          <div v-for="run in activeRunsDesc" :key="run.id" class="flex flex-row justify-between gap-1 px-3 py-0.5">
-            <span>
+          <div v-for="run in activeRunsDesc" :key="run.id" class="flex flex-row justify-between gap-1 py-0.5">
+            <span class="flex flex-row items-center">
               <component
-                :is="getStatusIconSolid(run.status)"
+                :is="getRunStatusIconSolid(run.status)"
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
-              <span class="text-gray-900"> {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}</span>
+              <span class="ml-1 text-gray-900"> {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}</span>
             </span>
             <button
               class="p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"

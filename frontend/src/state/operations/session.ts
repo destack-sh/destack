@@ -51,6 +51,28 @@ export function useSessionOps() {
     });
   }
 
+  const { mutate: restartWorkerSetMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation restartWorkerSet($projectId: GlobalID!) {
+        restartWorkerSet(input: { projectId: $projectId }) {
+          ...OperationInfoContent
+        }
+      }
+    `)
+  );
+
+  async function restartWorkerSet(projectId: string) {
+    return await ops.perform({
+      type: "runtime.restart",
+      stateless: true,
+      do: async () => {
+        return await restartWorkerSetMut({
+          projectId,
+        });
+      },
+    });
+  }
+
   const { mutate: startRunMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation startRun(
@@ -157,6 +179,7 @@ export function useSessionOps() {
   return {
     wakeLangserver,
     wakeWorkerSet,
+    restartWorkerSet,
     run,
     cancel,
   };

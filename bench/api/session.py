@@ -46,11 +46,13 @@ from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
     RepGetEnvironmentPayload,
+    RepRestartWorkerSetPayload,
     RepStartRunPayload,
     RepWakeLangserverPayload,
     RepWakeWorkerSetPayload,
     ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
+    ReqRestartWorkerSetPayload,
     ReqStartRunPayload,
     ReqWakeLangserverPayload,
     ReqWakeWorkerSetPayload,
@@ -289,6 +291,17 @@ class WakeWorkerSetPayload:
 
 
 @gql.input
+class RestartWorkerSetInput:
+    project_id: GlobalID
+
+
+@gql.type
+class RestartWorkerSetPayload:
+    worker_set: Optional[WorkerSet]
+    success: bool
+
+
+@gql.input
 class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
@@ -333,7 +346,6 @@ class Package:
 
 @gql.type
 class Environment:
-    worker_set: Optional[WorkerSet]
     language: str
     version: str
     platform: str
@@ -394,16 +406,15 @@ class SessionQuery:
                 ReqGetEnvironmentPayload(project_id=project_id, node_id=None),
                 reply_t=RepGetEnvironmentPayload,
             )
-            worker_set = rep.p.worker_set
             environment_data = rep.p.environment
-        except (TimeoutError, RuntimeError, NoRespondersError):
+        except (TimeoutError, RuntimeError, NoRespondersError) as e:
             # worker unavailable, return default environment
+            logger.debug("environment.failed", project_id=project_id, exc_info=e)
             from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
-            worker_set = None
             environment_data = WORKER_ENVIRONMENT_DATA
+
         return Environment(
-            worker_set=worker_set,
             language=environment_data.language,
             version=environment_data.version,
             platform=environment_data.platform,
@@ -574,6 +585,24 @@ class SessionMutation:
         else:
             worker_set = None
         return WakeWorkerSetPayload(worker_set=worker_set, success=rep.p.success)
+
+    @asafe_mutation
+    async def restart_worker_set(
+        self, info: Info, input: RestartWorkerSetInput
+    ) -> RestartWorkerSetPayload | OperationInfo:
+        project_id = UUID(input.project_id.node_id)
+        project = await models.Project.objects.aget(id=project_id)
+        await sync_to_async(check_can_read_project)(info, project)
+        rep: NMessage[RepRestartWorkerSetPayload] = await request(
+            NMessageType.RESTART_WORKER_SET,
+            ReqRestartWorkerSetPayload(project_id=project_id),
+            reply_t=RepRestartWorkerSetPayload,
+        )
+        if rep.payload.success:
+            worker_set = await models.WorkerSet.objects.aget(id=rep.p.worker_set_id)
+        else:
+            worker_set = None
+        return RestartWorkerSetPayload(worker_set=worker_set, success=rep.p.success)
 
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:

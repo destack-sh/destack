@@ -84,6 +84,10 @@ class RunJob:
         return f"<RunJob {self}>"
 
 
+ACTIVE_TIMEOUT = 30
+ACTIVE_PUBLISH_INTERVAL = 10
+
+
 class ModuleWorker(ModuleWriter):
     """A worker that runs a single module."""
 
@@ -98,6 +102,7 @@ class ModuleWorker(ModuleWriter):
         self.module: Module | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, asyncio.Task] = {}
+        self.last_run: Optional[Run] = None
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=self.node.worker_set_id,
@@ -111,7 +116,11 @@ class ModuleWorker(ModuleWriter):
 
     @property
     def active(self) -> bool:
-        return self.pending_runs or not self.queue.empty()
+        return (
+            self.last_run is not None
+            and self.last_run.created_at.timestamp() > time.time() - ACTIVE_TIMEOUT
+            or not self.queue.empty()
+        )
 
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
@@ -241,6 +250,7 @@ class ModuleWorker(ModuleWriter):
             )
             task = asyncio.create_task(run(job.runnable, arguments, job.session))
             self.pending_runs[job.id] = task
+            self.last_run = job
             await asyncio.wait_for(task, timeout=timeout)
             return None
         except RunError as e:
@@ -311,9 +321,7 @@ class WorkerNode(Monitored):
     For local development a node can host multiple Bench workers
     """
 
-    def __init__(
-        self, worker_node_id: UUID | str | None, worker_set_id: UUID | None, project_id: UUID
-    ):
+    def __init__(self, worker_node_id: UUID | None, worker_set_id: UUID | None, project_id: UUID):
         self.worker_set_id: UUID = worker_set_id
         self.worker_node_id: str | UUID = worker_node_id or UUIDT()
         self.project_id = project_id
@@ -346,16 +354,16 @@ class WorkerNode(Monitored):
             workset_set=self.worker_set_id,
             project_id=self.project_id,
         )
-        routing_id = f"{self.project_id}.>" if self.project_id else ">"
+        # topics for .project.module or just .project
+        m_routing = f"{self.project_id}.*" if self.project_id else ">"
+        p_routing = f"{self.project_id}" if self.project_id else "*"
         self.subs = [
             await subscribe(
-                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{routing_id}", cb=self.module_changed
+                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{m_routing}", cb=self.module_changed
             ),
-            await handle_reply(f"{NMessageType.START_RUN}.{routing_id}", self.start_run),
-            await handle_reply(f"{NMessageType.CANCEL_RUN}.{routing_id}", self.cancel_run),
-            await handle_reply(
-                f"{NMessageType.GET_ENVIRONMENT}.{routing_id}", self.get_environment
-            ),
+            await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
+            await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
+            await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
         ]
         self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
         self._ready.set()
@@ -387,10 +395,11 @@ class WorkerNode(Monitored):
         # :WorkerSetActive
         await redis.set(f"worker_set.{self.worker_set_id}.last_active_at", time.time())
 
-    async def notify_is_active_if_active(self, interval=10):
+    async def notify_is_active_if_active(self, interval=ACTIVE_PUBLISH_INTERVAL):
         while True:
             if any(w.active for w in self.workers.values()):
                 await self._notify_worker_is_active()
+            await asyncio.sleep(interval)
 
     @message_handler
     async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
@@ -407,6 +416,7 @@ class WorkerNode(Monitored):
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
+        logger.debug("run.start", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
         run_job = worker.queue_run(
             runnable=msg.p.runnable,
@@ -430,6 +440,7 @@ class WorkerNode(Monitored):
 
     @message_handler
     async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
+        logger.debug("run.cancel", msg=msg)
         worker = await self._get_ready_worker(msg.p.module_id)
         success = await worker.cancel_run(msg.p.run_id)
         await msg.reply(RepCancelRunPayload(success=success))

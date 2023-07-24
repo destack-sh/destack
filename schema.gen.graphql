@@ -193,7 +193,6 @@ input DeleteObjectInput {
 }
 
 type Environment {
-  workerSet: WorkerSet
   language: String!
   version: String!
   platform: String!
@@ -601,6 +600,7 @@ type Mutation {
   pasteFile(input: FilePasteInput!): FileOperationInfo!
   wakeLangserver(input: WakeLangserverInput!): WakeLangserverPayloadOperationInfo!
   wakeWorkerSet(input: WakeWorkerSetInput!): WakeWorkerSetPayloadOperationInfo!
+  restartWorkerSet(input: RestartWorkerSetInput!): RestartWorkerSetPayloadOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
   cancelRun(input: CancelRunInput!): CancelRunPayloadOperationInfo!
   requestUploadObject(input: RequestUploadObjectInput!): RemoteObjectOperationInfo!
@@ -1470,6 +1470,17 @@ type ResolvedField implements Node {
   statement: Statement
   field: Field!
 }
+
+input RestartWorkerSetInput {
+  projectId: GlobalID!
+}
+
+type RestartWorkerSetPayload {
+  workerSet: WorkerSet
+  success: Boolean!
+}
+
+union RestartWorkerSetPayloadOperationInfo = RestartWorkerSetPayload | OperationInfo
 
 input RestoreInput {
   projectVersionId: GlobalID!

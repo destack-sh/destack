@@ -574,11 +574,14 @@ class LanguageWorker:
 
         await publish(
             NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(module_id=self.module_id, session=session, runs=runs),
+            SessionChangedPayload(
+                project_id=self.project_id, module_id=self.module_id, session=session, runs=runs
+            ),
         )
         if logs:
             await publish(
-                NMessageType.LOGS_CHANGED, LogsChangedPayload(module_id=self.module_id, logs=logs)
+                NMessageType.LOGS_CHANGED,
+                LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
             )
 
     def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, ModuleTree, Module]:
