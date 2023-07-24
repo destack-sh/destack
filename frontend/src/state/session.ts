@@ -192,6 +192,7 @@ export function _useSessions(
   });
 
   // then subscribe to changes as they come if live
+  const onWorkerSetChangeSubscribers = ref<((workerSet: WorkerSet) => void)[]>([]);
   const onRunChangeSubscribers = ref<((run: Run) => void)[]>([]);
   if (options.live) {
     const { onResult: onSessionChange } = useSubscription(
@@ -227,6 +228,9 @@ export function _useSessions(
       if (result.data?.sessionsChanged?.__typename == "WorkerChange") {
         for (const ws of result.data.sessionsChanged.workerSets.map((ws) => useFragment(WorkerSetContentType, ws))) {
           workerSets.value[ws.id] = ws as WorkerSet;
+          for (const subscriber of onWorkerSetChangeSubscribers.value) {
+            subscriber(ws as WorkerSet);
+          }
         }
       }
     });
@@ -234,14 +238,23 @@ export function _useSessions(
   }
 
   function onRunChange(subscriber: (run: Run) => void): () => void {
-    if (!options.live) {
-      throw new Error("onRunChange only makes sense when live");
-    }
+    if (!options.live) throw new Error("onRunChange only makes sense when live");
     onRunChangeSubscribers.value.push(subscriber);
     return () => {
       const index = onRunChangeSubscribers.value.indexOf(subscriber);
       if (index >= 0) {
         onRunChangeSubscribers.value.splice(index, 1);
+      }
+    };
+  }
+
+  function onWorkerSetChange(subscriber: (workerSet: WorkerSet) => void): () => void {
+    if (!options.live) throw new Error("onWorkerSetChange only makes sense when live");
+    onWorkerSetChangeSubscribers.value.push(subscriber);
+    return () => {
+      const index = onWorkerSetChangeSubscribers.value.indexOf(subscriber);
+      if (index >= 0) {
+        onWorkerSetChangeSubscribers.value.splice(index, 1);
       }
     };
   }
@@ -253,24 +266,28 @@ export function _useSessions(
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
   const wakingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently waking the worker set
+  const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
+  whenever(ready, () => (wakingPromise.value = undefined));
 
   function wakeWorkerSet(): Promise<boolean> {
     // only wake if not already waking
     if (wakingPromise.value != null) {
       return wakingPromise.value;
     } else {
-      wakingPromise.value = sessionOps
-        .wakeWorkerSet(filter.projectId.value as string)
-        .then((r) => r?.data?.wakeWorkerSet?.__typename == "WakeWorkerSetPayload" ?? false);
+      sessionOps.wakeWorkerSet(filter.projectId.value as string);
+      wakingPromise.value = new Promise((resolve) => {
+        const unsub = onWorkerSetChange((workerSet) => {
+          if (workerSet.status == WorkerSetStatus.Healthy) {
+            unsub();
+            resolve(true);
+          }
+        });
+      });
       return wakingPromise.value;
     }
   }
 
-  // nocheckin: need some better mechanism for the wake/sleep cycle
-  const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
-  whenever(ready, () => (wakingPromise.value = undefined));
-
-  function withWorkers<T>(fn: () => Promise<T>) {
+  function withWorkers<T>(fn: () => Promise<T>): Promise<T> {
     if (!isWorkerSetReady.value) {
       return wakeWorkerSet().then(fn);
     } else {
@@ -293,6 +310,7 @@ export function _useSessions(
       updatedAt: new Date().toISOString(),
       duration: null,
       inputs: options?.arguments ?? {},
+      runnable,
       outputs: null,
       metadata: null,
       error: null,
@@ -303,16 +321,43 @@ export function _useSessions(
       root: null,
       parent: null,
     } as Run;
-
     currentRuns.value[runId] = run;
 
     const promise = withWorkers(() =>
-      sessionOps.run(runnable.id, run.id, run.session.id, run.inputs, {
-        block: options?.block,
-        keyed: options?.keyed,
-      })
+      sessionOps
+        .run(runnable.id, run.id, run.session.id, run.inputs, {
+          block: options?.block,
+          keyed: options?.keyed,
+        })
+        .then((r) => {
+          if (
+            r?.data?.run?.__typename == "OperationInfo" ||
+            (r?.data?.run?.__typename == "RunState" && !r?.data?.run?.success)
+          ) {
+            currentRuns.value[runId].status = RunStatus.Failed;
+            delete currentRuns.value[runId];
+            notifications.show({
+              kind: "error",
+              type: "run.failed",
+              message: "Run could not start",
+              description: "The worker bots could not be reached",
+            });
+          }
+          return r?.data?.run as Run;
+        })
+        .catch((e) => {
+          currentRuns.value[runId].status = RunStatus.Failed;
+          delete currentRuns.value[runId];
+          notifications.show({
+            kind: "error",
+            type: "run.failed.internal",
+            message: "Run crashed",
+            description: "An internal error occured trying to run this",
+          });
+          throw e;
+        })
     );
-    return { run, promise: promise as Promise<Run> };
+    return { run, promise };
   }
 
   function pause(run: { id: string }) {
@@ -324,7 +369,7 @@ export function _useSessions(
   }
 
   function cancel(run: { id: string }): Promise<boolean> {
-    return withWorkers(() => sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false));
+    return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
   }
 
   // utilities

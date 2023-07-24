@@ -34,8 +34,6 @@ const emit = defineEmits<{ (e: "toggleFold"): void }>();
 
 const context = useStatementContext();
 const editor = useEditorContext();
-const ops = useOperations();
-const notifications = useNotifications();
 
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
@@ -49,12 +47,11 @@ const now = useTimeFromNow(100);
 const bench = useBenchState();
 const sessions = useCurrentSessions();
 const runs = sessions.runsOf(context.statement.value);
+const currentRun = computed(() => runs.value[0]);
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
 const numCodeLines = computed(() => code.value.split("\n").length);
-
-const lastRun = computed(() => runs.value[0]);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
@@ -66,17 +63,17 @@ const addingTypes = ref(false);
 const showOutput: Ref<"logs" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
 
 watch(
-  () => lastRun.value?.status,
+  () => currentRun.value?.status,
   () => {
-    if (lastRun.value?.status == RunStatus.Failed) {
+    if (currentRun.value?.status == RunStatus.Failed) {
       showOutput.value = "error";
     }
   }
 );
 
 const preparingRun = ref(false);
-const runActive = computed(
-  () => preparingRun.value || (lastRun.value != null && !RUN_TERMINAL_STATES.includes(lastRun.value?.status))
+const isCurrentRunActive = computed(
+  () => preparingRun.value || (currentRun.value != null && !RUN_TERMINAL_STATES.includes(currentRun.value?.status))
 );
 
 useActiveScroll(outputRef);
@@ -119,7 +116,7 @@ const extraActions = computed(() => {
     {
       label: "Run",
       icon: PlayIcon,
-      active: runActive.value,
+      active: isCurrentRunActive.value,
       disabled: hasTypes.value, // needs parameters
       action: async () => await run(),
     },
@@ -132,7 +129,7 @@ const extraActions = computed(() => {
       },
     },
   ];
-  if (runActive.value) {
+  if (isCurrentRunActive.value) {
     inlineActions.push({
       label: "Cancel",
       icon: StopIcon,
@@ -141,7 +138,7 @@ const extraActions = computed(() => {
   } else {
     inlineActions.push({
       label: showOutput.value ? "Hide output" : "Show output",
-      disabled: lastRun.value == null,
+      disabled: currentRun.value == null,
       icon: showOutput.value ? EyeIcon : EyeSlashIcon,
       action: async () => {
         if (showOutput.value == null) {
@@ -158,7 +155,7 @@ const extraActions = computed(() => {
 context.setCustomActions(extraActions);
 
 async function run() {
-  if (runActive.value) return;
+  if (isCurrentRunActive.value) return;
   if (hasTypes.value) {
     const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
@@ -176,8 +173,8 @@ async function run() {
 }
 
 async function cancel() {
-  if (!runActive.value) return;
-  await sessions.cancel(lastRun.value);
+  if (!isCurrentRunActive.value) return;
+  await sessions.cancel(currentRun.value);
 }
 
 defineExpose({
@@ -212,30 +209,30 @@ defineExpose({
     <!-- Meta info & controls -->
     <div
       class="group/info flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
-      :class="context.focused.value || runActive ? '' : 'opacity-0'"
+      :class="context.focused.value || isCurrentRunActive ? '' : 'opacity-0'"
     >
       <!-- Run time -->
       <span
-        v-if="!hasTypes && lastRun != null"
-        :class="[lastRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
+        v-if="!hasTypes && currentRun != null"
+        :class="[currentRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
       >
         {{
           formatDurationSeconds(
-            (lastRun?.duration ?? now.now.value.diff(DateTime.fromISO(lastRun.startedAt)).as("seconds")) * 1000
+            (currentRun?.duration ?? now.now.value.diff(DateTime.fromISO(currentRun.startedAt)).as("seconds")) * 1000
           )
         }}
       </span>
       <!-- Cache info -->
-      <RunCacheInfo v-if="!hasTypes && lastRun != null" :run="lastRun" class="relative mr-0.5 py-1" />
+      <RunCacheInfo v-if="!hasTypes && currentRun != null" :run="currentRun" class="relative mr-0.5 py-1" />
       <!-- Age -->
       <span
         v-if="!hasTypes"
         :class="[
-          lastRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
-          lastRun?.updatedAt ? 'opacity-100' : 'opacity-0',
+          currentRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
         ]"
       >
-        {{ now.getTimeFromNowString(lastRun?.updatedAt) }}</span
+        {{ now.getTimeFromNowString(currentRun?.updatedAt) }}</span
       >
       <InlineActions :extraActions="extraActions" />
     </div>
@@ -288,12 +285,12 @@ defineExpose({
   <!-- Last output: logs/trace/error -->
   <RunTile
     ref="runTileRef"
-    v-if="!hasTypes && lastRun != null && !folded && showOutput"
+    v-if="!hasTypes && currentRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
     :project-id="bench.projectId"
     :project-version-id="bench.projectVersionId"
-    :run="lastRun"
-    :key="lastRun?.id"
+    :run="currentRun"
+    :key="currentRun?.id"
     :view="showOutput"
     show-controls
   />

@@ -13,5 +13,5 @@ PROMETHEUS_EXPORT_MIGRATIONS: bool = get_from_env(
     "PROMETHEUS_EXPORT_MIGRATIONS", False, type_cast=str_to_bool
 )
 
-RUN_LANGSERVER = get_from_env("RUN_LANGSERVER", DEBUG, type_cast=str_to_bool)
-RUN_MASTER = get_from_env("RUN_MASTER", DEBUG, type_cast=str_to_bool)
+RUN_LANGUAGE_SERVER = get_from_env("RUN_LANGUAGE_SERVER", DEBUG, type_cast=str_to_bool)
+RUN_ORCHESTRATION_SERVER = get_from_env("RUN_ORCHESTRATION_SERVER", DEBUG, type_cast=str_to_bool)

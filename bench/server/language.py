@@ -64,6 +64,7 @@ from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
 from bench.utils.func import wrap_task
+from bench.utils.monitoring import Monitored
 from bench.utils.utils import sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 from bench.worker.mutate import get_api_mutation_from_internal, trim_record_mutations
@@ -130,9 +131,9 @@ def _unpack_log(log: mirror.LogEntry):
     return log_packer.pack(doc)
 
 
-class LanguageServer:
+class LanguageServer(Monitored):
     """
-    Bench language & runtime server for LSP and runtime DB access.
+    Bench language server for LSP and runtime proxy stuff.
     """
 
     def __init__(self):
@@ -140,6 +141,7 @@ class LanguageServer:
         self.lang_workers: dict[UUID, LanguageWorker] = {}
         self.subs = []
         self.tasks = []
+        self._ready = False
 
     async def run(self):
         await nc_init.wait()
@@ -160,6 +162,11 @@ class LanguageServer:
             await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.*", cb=self.run_marked_dead),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
         ]
+        self._ready = True
+
+    @property
+    def ready(self) -> bool:
+        return self._ready
 
     async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
         worker = self.lang_workers.get(module_id)
@@ -462,11 +469,8 @@ class LanguageServer:
 
     async def stop(self):
         logger.info("stop")
+        self._ready = False
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
-        # update self as worker
-        await models.Worker.objects.filter(id=self.id).aupdate(
-            status=models.WorkerNodeStatus.TERMINATED
-        )
 
 
 COMPLETED_JOBS_BUFFER_SIZE = 128

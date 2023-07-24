@@ -18,14 +18,15 @@ class WorkerSet(UUIDModel):
     region = models.CharField(max_length=32, choices=get_choices(WorkerRegion))
     profile = models.CharField(max_length=32, choices=get_choices(WorkerProfile))
     sleeping = models.BooleanField(default=False)
-    status = models.CharField(max_length=32, choices=get_choices(WorkerSetStatus))
     desired_replicas = models.IntegerField(default=0)
     target_replicas = models.IntegerField(default=0)
-    available_replicas = models.IntegerField(default=0)
-    ready_replicas = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_active_at = models.DateTimeField(null=True, blank=True)
+    # ready from k8 only
+    status = models.CharField(max_length=32, choices=get_choices(WorkerSetStatus))
+    available_replicas = models.IntegerField(default=0)
+    ready_replicas = models.IntegerField(default=0)
 
     def __str__(self):
         return f"{self.project} ({self.region}, {self.profile}, {self.status}, x{self.desired_replicas})"

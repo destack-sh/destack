@@ -511,6 +511,8 @@ def to_topic(
             SessionChangedPayload,
             LogsChangedPayload,
             RunMarkedDeadPayload,
+            ReqStartRunPayload,
+            ReqCancelRunPayload,
         ),
     ):
         return f"{message_type}.{payload.module_id}"

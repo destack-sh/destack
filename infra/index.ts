@@ -548,7 +548,7 @@ const apiDeployment = new k8s.apps.v1.Deployment(
   },
   { provider: eksCluster.provider }
 );
-// master server for k8 worker orchestration and DB migrations
+// master server for language and orchestration
 const serverStatefulSet = new k8s.apps.v1.StatefulSet(
   serverName,
   {
@@ -556,8 +556,8 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
     spec: {
       replicas: 1,
       selector: { matchLabels: { app: serverName } },
-      serviceName: serverName, // The name of the corresponding headless service
-      podManagementPolicy: "Parallel", // or "OrderedReady" if you prefer ordered deployment
+      serviceName: serverName,
+      podManagementPolicy: "Parallel",
       template: {
         metadata: { labels: { app: serverName }, annotations: { "prometheus.io/scrape": "true" } },
         spec: {
@@ -588,9 +588,10 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
                 ...AWS_BACKEND_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 ...KUBERNETES_ENV_VARS,
+                { name: "RUN_LANGUAGE_SERVER", value: "1" },
+                { name: "RUN_ORCHESTRATION_SERVER", value: "1" },
               ],
-              command: ["sh", "-c"],
-              args: ["daphne -b 0.0.0.0 -p 80 bench.asgi:application"],
+              command: ["python", "manageserver.py"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
             },
           ],
