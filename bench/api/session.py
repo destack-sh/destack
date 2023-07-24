@@ -647,7 +647,7 @@ class SessionMutation:
                 reply_t=RepCancelRunPayload,
             )
             success = rep.p.success
-        except TimeoutError:
+        except (NoRespondersError, TimeoutError):
             success = False
         posthog.capture(
             str(user.id),

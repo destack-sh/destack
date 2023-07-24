@@ -1,4 +1,4 @@
-from .langserver import LanguageServer
-from .master import MasterServer
+from .language import LanguageServer
+from .orchestration import OrchestrationServer
 
-__all__ = ["MasterServer", "LanguageServer"]
+__all__ = ["OrchestrationServer", "LanguageServer"]

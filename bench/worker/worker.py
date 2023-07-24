@@ -50,6 +50,7 @@ from bench.msg.messages import (
 )
 from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
+from bench.utils.monitoring import Monitored
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
@@ -86,8 +87,8 @@ class RunJob:
 class ModuleWorker(ModuleWriter):
     """A worker that runs a single module."""
 
-    def __init__(self, module_id: UUID, master: "WorkerNode", timeout: float):
-        self.master = master
+    def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
+        self.node = node
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires langserver fetch)
         self.timeout = timeout
@@ -99,8 +100,8 @@ class ModuleWorker(ModuleWriter):
         self.pending_runs: dict[UUID, asyncio.Task] = {}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
-            worker_set=self.master.worker_set_id,
-            worker_node=self.master.worker_node_id,
+            worker_set=self.node.worker_set_id,
+            worker_node=self.node.worker_node_id,
             module_id=self.module_id,
         )
 
@@ -137,7 +138,7 @@ class ModuleWorker(ModuleWriter):
         req = ReqWriteModulePayload(
             module_id=self.module_id,
             mutations=mutations,
-            client=self.master.client,
+            client=self.node.client,
             wait=False,
         )
         rep: NMessage[RepWriteModulePayload] = await request(
@@ -163,7 +164,7 @@ class ModuleWorker(ModuleWriter):
             session=session_data,
             runs=runs_data,
             logs=logs_data,
-            client=self.master.client,
+            client=self.node.client,
         )
         rep: NMessage[RepWriteSessionPayload] = await request(
             NMessageType.WRITE_SESSION, req, RepWriteSessionPayload
@@ -271,7 +272,7 @@ class ModuleWorker(ModuleWriter):
 
         # first interp
         self.log.info("module.start")
-        source, self.project_id = await self.master.get_module(self.module_id)
+        source, self.project_id = await self.node.get_module(self.module_id)
         try:
             await self.start(source)
         except Exception as e:
@@ -304,10 +305,15 @@ class ModuleWorker(ModuleWriter):
                 self.queue.task_done()
 
 
-class WorkerNode:
-    """A sandboxed runtime worker to execute arbitrary code (community or dedicated)."""
+class WorkerNode(Monitored):
+    """
+    A sandboxed runtime worker to execute arbitrary code, generally one worker process per Bench.
+    For local development a node can host multiple Bench workers
+    """
 
-    def __init__(self, worker_node_id: UUID | str, worker_set_id: UUID, project_id: UUID):
+    def __init__(
+        self, worker_node_id: UUID | str | None, worker_set_id: UUID | None, project_id: UUID
+    ):
         self.worker_set_id: UUID = worker_set_id
         self.worker_node_id: str | UUID = worker_node_id or UUIDT()
         self.project_id = project_id
@@ -317,12 +323,17 @@ class WorkerNode:
         self.subs = []
         self.tasks = []
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
+        self._ready = asyncio.Event()
 
     def __str__(self):
         return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
 
     def __repr__(self):
         return f"<WorkerNode {self}>"
+
+    @property
+    def ready(self):
+        return self._ready.is_set()
 
     @property
     def client(self):
@@ -347,6 +358,7 @@ class WorkerNode:
             ),
         ]
         self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
+        self._ready.set()
 
     async def run_forever(self):
         # run forever until cancelled
@@ -448,3 +460,4 @@ class WorkerNode:
         logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
         await asyncio.gather(task.cancel() for task in self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        self._ready.clear()

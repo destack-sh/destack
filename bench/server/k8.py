@@ -82,6 +82,9 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
     """Maps K8 deployment status to WorkerSetStatus."""
     if not deployment.status.conditions:
         return WorkerSetStatus.UNKNOWN
+    # if target and actual replicas is 0 then the deployment is SLEEPING
+    if deployment.status.replicas == 0 and deployment.status.available_replicas == 0:
+        return WorkerSetStatus.SLEEPING
     for condition in deployment.status.conditions:
         if condition.type == "Progressing":
             if condition.status == "True":
@@ -102,7 +105,6 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
         elif condition.type == "ReplicaFailure":
             if condition.status == "True":
                 return WorkerSetStatus.UNHEALTHY
-
     return WorkerSetStatus.UNKNOWN
 
 

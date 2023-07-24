@@ -20,7 +20,7 @@ from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
-from bench.settings import CORS_ALLOWED_ORIGINS, RUN_LANGSERVER, RUN_MASTER
+from bench.settings import CORS_ALLOWED_ORIGINS, RUN_LANGUAGE_SERVER, RUN_ORCHESTRATION_SERVER
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -55,29 +55,24 @@ application = ProtocolTypeRouter(
     }
 )
 
-# TODO @Cleanup: move 'sidecar' server tasks to proper startup hooks
-#  For now I just couldn't find the appropriate place to run this, so we rely
-#  on the fact that Daphne uses reactor's _asyncioEventLoop to create tasks there.
-
-# start NATS.
+# start NATS
 task = reactor._asyncioEventloop.create_task(wrap_task(init_nats()))
 reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 
 # start 'soon' publish queue
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
-if RUN_LANGSERVER:
+# run servers alongside API server (for development)
+if RUN_LANGUAGE_SERVER:
     from bench.server import LanguageServer
 
     server = LanguageServer()
-    coro = server.run()
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "langserver"))
+    task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "langserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
-if RUN_MASTER:
-    from bench.server import MasterServer
+if RUN_ORCHESTRATION_SERVER:
+    from bench.server import OrchestrationServer
 
-    server = MasterServer()
-    coro = server.run()
-    task = reactor._asyncioEventloop.create_task(wrap_task(coro, "master"))
+    server = OrchestrationServer()
+    task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "master"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
