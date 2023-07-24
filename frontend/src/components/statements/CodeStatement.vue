@@ -73,7 +73,11 @@ watch(
 
 const preparingRun = ref(false);
 const isCurrentRunActive = computed(
-  () => preparingRun.value || (currentRun.value != null && !RUN_TERMINAL_STATES.includes(currentRun.value?.status))
+  () =>
+    preparingRun.value ||
+    (currentRun.value != null &&
+      !RUN_TERMINAL_STATES.includes(currentRun.value?.status) &&
+      currentRun.value?.status != RunStatus.Aborting)
 );
 
 useActiveScroll(outputRef);
@@ -131,7 +135,7 @@ const extraActions = computed(() => {
   ];
   if (isCurrentRunActive.value) {
     inlineActions.push({
-      label: "Cancel",
+      label: "Stop",
       icon: StopIcon,
       action: async () => await cancel(),
     });

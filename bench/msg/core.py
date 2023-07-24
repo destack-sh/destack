@@ -23,7 +23,7 @@ from bench.msg.messages import (
     REGISTERED_MESSAGE_PAYLOADS,
     REPLY_BY_REQUEST_TYPE,
     NMessageType,
-    to_topic,
+    Payload,
 )
 from bench.utils.serialize import from_dict, to_dict
 from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
@@ -71,8 +71,7 @@ async def drain_nats():
     await nc.drain()
 
 
-PayloadT = TypeVar("PayloadT", bound=Any)
-# TODO @Robustness: fix PayloadT checking
+PayloadT = TypeVar("PayloadT", bound=Payload)
 
 VERSION = os.environ.get("VERSION", "dev")
 
@@ -210,27 +209,30 @@ def message_handler(func=None):
 
 async def request(
     type: NMessageType,
-    payload: Any,
+    payload: Payload,
     reply_t: Type[PayloadT],
     *,
-    topic: str = None,
     timeout: float = 10,
 ) -> NMessage[PayloadT]:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
-    if topic is None:
-        topic = to_topic(type, payload)
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
-    log.debug("request", topic=topic, message=message, bytes=len(serialized))
-    reply = await nc.request(topic, serialized, timeout=timeout)
+    log.debug("request", topic=payload.topic, message=message, bytes=len(serialized))
+    reply = await nc.request(payload.topic, serialized, timeout=timeout)
     reply_msg = _parse_message(reply.data)
     if not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")
     reply_msg.msg = reply
-    log.debug("request.reply", topic=topic, message=message, reply=reply_msg, bytes=len(reply.data))
+    log.debug(
+        "request.reply",
+        topic=payload.topic,
+        message=message,
+        reply=reply_msg,
+        bytes=len(reply.data),
+    )
     return reply_msg
 
 
@@ -249,8 +251,6 @@ async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> Non
 
 
 def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
-    if topic is None:
-        topic = to_topic(type, payload)
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
     message = NMessage(type=type, topic=topic, payload=payload, sent_at=datetime.utcnow())

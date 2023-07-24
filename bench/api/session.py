@@ -584,6 +584,7 @@ class SessionMutation:
         await sync_to_async(check_can_write_project)(info, project_version)
 
         run = ReqStartRunPayload(
+            project_id=project_version.project_id,
             module_id=project_version_id,
             runnable=to_uuid(input.runnable_id),
             runnable_type=None,
@@ -637,6 +638,7 @@ class SessionMutation:
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_write_project)(info, project_version)
         cancel = ReqCancelRunPayload(
+            project_id=project_version.project_id,
             module_id=project_version_id,
             run_id=to_uuid(input.run_id),
         )

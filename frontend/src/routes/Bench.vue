@@ -39,18 +39,15 @@ import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
 import {
-  ChatBubbleLeftIcon,
   ClockIcon,
   Cog8ToothIcon,
   CubeIcon,
   DocumentDuplicateIcon,
   ExclamationTriangleIcon,
   EyeIcon,
-  FaceSmileIcon,
   GlobeAltIcon,
   HandRaisedIcon,
   LockClosedIcon,
-  MagnifyingGlassIcon,
   QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -71,6 +68,7 @@ import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { XCircleIcon } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
+import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -525,6 +523,7 @@ onBeforeUnmount(() => {
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Bench-global controls -->
+        <ActiveRunsPopover />
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2 pl-4">
             <DeployPopover :project="project" @show="bench.showGlobalHeader = true" />

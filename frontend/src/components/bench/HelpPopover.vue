@@ -36,7 +36,7 @@ const helpActions = [
     href: "https://discord.gg/BUaeEn8FHN",
   },
   {
-    name: "Get help - message us!",
+    name: "Get help (fast)",
     icon: LifebuoyIcon,
     href: "mailto:florian@symbolx.com?subject=" + encodeURIComponent("Help with " + route.path),
   },

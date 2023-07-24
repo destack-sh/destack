@@ -322,6 +322,7 @@ export function _useSessions(
       parent: null,
     } as Run;
     currentRuns.value[runId] = run;
+    console.debug("run.start", run.id, run.runnable?.name, run.runnable?.id, Object.keys(run.inputs));
 
     const promise = withWorkers(() =>
       sessionOps
@@ -340,7 +341,7 @@ export function _useSessions(
               kind: "error",
               type: "run.failed",
               message: "Run could not start",
-              description: "The worker bots could not be reached",
+              description: "The worker bots are unavailable.",
             });
           }
           return r?.data?.run as Run;
@@ -352,7 +353,7 @@ export function _useSessions(
             kind: "error",
             type: "run.failed.internal",
             message: "Run crashed",
-            description: "An internal error occured trying to run this",
+            description: "An internal error happened somewhere.",
           });
           throw e;
         })
@@ -369,6 +370,8 @@ export function _useSessions(
   }
 
   function cancel(run: { id: string }): Promise<boolean> {
+    console.debug("run.cancel", run.id);
+    currentRuns.value[run.id].status = RunStatus.Aborting;
     return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
   }
 
@@ -381,7 +384,11 @@ export function _useSessions(
   const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
 
   function runsOf(statement: { id: string }) {
-    return computed(() => Object.values(currentRuns.value).filter((run) => run.runnable?.id === statement.id));
+    return computed(() =>
+      Object.values(currentRuns.value)
+        .filter((run) => run.runnable?.id === statement.id)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    );
   }
 
   return {

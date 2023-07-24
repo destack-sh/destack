@@ -159,8 +159,8 @@ class LanguageServer(Monitored):
             await handle_reply(NMessageType.MARK_UPLOADED_OBJECT, self.mark_uploaded_object),
             await handle_reply(NMessageType.READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
-            await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.*", cb=self.run_marked_dead),
-            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.*", cb=self.module_changed),
+            await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.>", cb=self.run_marked_dead),
+            await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
         ]
         self._ready = True
 

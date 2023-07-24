@@ -29,12 +29,19 @@ from bench.utils.utils import required_field
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 
 
+class Payload:
+    @property
+    def topic(self):
+        return self.__class__.type.value
+
+
 def payload(message_type: "NMessageType"):
     def wrapper(cls):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
         cls = dataclass(cls, slots=True)  # noqa: this is fine
         REGISTERED_MESSAGE_PAYLOADS[message_type] = cls
+        cls.type = message_type
         return cls
 
     return wrapper
@@ -91,8 +98,8 @@ class NMessageType(StrEnum):
     GET_ENVIRONMENT = "worker.get_environment"
     GET_ENVIRONMENT_REP = "worker.get_environment.rep"
     # running (routed via project id)
-    START_RUN = "run"
-    START_RUN_REP = "run.rep"
+    START_RUN = "run.start"
+    START_RUN_REP = "run.start.rep"
     CANCEL_RUN = "run.cancel"
     CANCEL_RUN_REP = "run.cancel.rep"
     PAUSE_RUN = "run.pause"
@@ -198,12 +205,20 @@ class ClientChangedPayload:
 class ProjectChangedPayload(OriginPayload):
     project_id: UUID
 
+    @property
+    def topic(self):
+        return f"{self.__class__.type}.{self.project_id}"
+
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload(OriginPayload):
     project_id: UUID
     module_id: UUID
     mutations: list[ModuleMutation]
+
+    @property
+    def topic(self):
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
@@ -212,9 +227,14 @@ class ModuleInternalChangedPayload(OriginPayload):
     module_id: UUID
     mutations: list[ModuleMutation]
 
+    @property
+    def topic(self):
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
+
 
 @payload(NMessageType.START_RUN)
-class ReqStartRunPayload:
+class ReqStartRunPayload(Payload):
+    project_id: UUID
     module_id: UUID
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
@@ -225,6 +245,10 @@ class ReqStartRunPayload:
     trigger_id: Optional[UUID]
     session_id: Optional[UUID]
     run_id: Optional[UUID]
+
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 class RunErrorType(enum.StrEnum):
@@ -237,7 +261,7 @@ class RunErrorType(enum.StrEnum):
 
 
 @payload(NMessageType.START_RUN_REP)
-class RepStartRunPayload:
+class RepStartRunPayload(Payload):
     error: Optional[RunErrorType] = None
     run_id: Optional[UUID] = None
     run: Optional[RunData] = None
@@ -245,54 +269,75 @@ class RepStartRunPayload:
 
 
 @payload(NMessageType.CANCEL_RUN)
-class ReqCancelRunPayload:
+class ReqCancelRunPayload(Payload):
+    project_id: UUID
     module_id: UUID
     run_id: UUID
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
+
 
 @payload(NMessageType.CANCEL_RUN_REP)
-class RepCancelRunPayload:
+class RepCancelRunPayload(Payload):
     success: bool
 
 
 @payload(NMessageType.RUN_MARKED_DEAD)
-class RunMarkedDeadPayload:
+class RunMarkedDeadPayload(Payload):
     module_id: UUID
     run_id: UUID
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.module_id}"
+
 
 @payload(NMessageType.SESSION_CHANGED)
-class SessionChangedPayload:
+class SessionChangedPayload(Payload):
     module_id: UUID
     session: SessionData
     runs: list[RunData]
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.module_id}"
+
 
 @payload(NMessageType.WORKERS_CHANGED)
-class WorkersChangedPayload:
+class WorkersChangedPayload(Payload):
     project_id: Optional[UUID]
     worker_sets: list[WorkerSetData]
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.project_id}"
+
 
 @payload(NMessageType.LOGS_CHANGED)
-class LogsChangedPayload:
+class LogsChangedPayload(Payload):
     module_id: UUID
     logs: list[LogEntryData]
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.module_id}"
+
 
 @payload(NMessageType.READ_MODULE)
-class ReqReadModulePayload:
+class ReqReadModulePayload(Payload):
     ref: typing.Union[ModuleReference, UUID]
 
 
 @payload(NMessageType.READ_MODULE_REP)
-class RepReadModulePayload:
+class RepReadModulePayload(Payload):
     module: ModuleTreeData
     project_id: UUID
 
 
 @payload(NMessageType.WRITE_MODULE)
-class ReqWriteModulePayload:
+class ReqWriteModulePayload(Payload):
     module_id: UUID
     mutations: list[ModuleMutation]
     client: ClientOrigin
@@ -300,12 +345,12 @@ class ReqWriteModulePayload:
 
 
 @payload(NMessageType.WRITE_MODULE_REP)
-class RepWriteModulePayload:
+class RepWriteModulePayload(Payload):
     success: bool
 
 
 @payload(NMessageType.WRITE_SESSION)
-class ReqWriteSessionPayload:
+class ReqWriteSessionPayload(Payload):
     module_id: UUID
     session: SessionData
     runs: list[RunData]
@@ -314,12 +359,12 @@ class ReqWriteSessionPayload:
 
 
 @payload(NMessageType.WRITE_SESSION_REP)
-class RepWriteSessionPayload:
+class RepWriteSessionPayload(Payload):
     success: bool
 
 
 @dataclass
-class ReqSearch(abc.ABC):
+class ReqSearch(abc.ABC, Payload):
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     after: Optional[str] = None
@@ -371,72 +416,72 @@ class RepSearchLogPayload(RepSearch):
 
 
 @payload(NMessageType.READ_OBJECT)
-class ReqReadObjectPayload:
+class ReqReadObjectPayload(Payload):
     objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.READ_OBJECT_REP)
-class RepReadObjectPayload:
+class RepReadObjectPayload(Payload):
     get_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.WRITE_OBJECT)
-class ReqWriteObjectPayload:
+class ReqWriteObjectPayload(Payload):
     module_id: UUID
     objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.WRITE_OBJECT_REP)
-class RepWriteObjectPayload:
+class RepWriteObjectPayload(Payload):
     objects: list[RemoteObjectData]
     post_urls: list[typing.Union[str, None]]
 
 
 @payload(NMessageType.MARK_UPLOADED_OBJECT)
-class ReqMarkUploadedObjectPayload:
+class ReqMarkUploadedObjectPayload(Payload):
     objects: list[RemoteObjectData]
 
 
 @payload(NMessageType.MARK_UPLOADED_OBJECT_REP)
-class RepMarkUploadedObjectPayload:
+class RepMarkUploadedObjectPayload(Payload):
     success: bool
 
 
 @payload(NMessageType.READ_SECRET)
-class ReqReadSecretPayload:
+class ReqReadSecretPayload(Payload):
     secrets: list[SecretData]
 
 
 @payload(NMessageType.READ_SECRET_REP)
-class RepReadSecretPayload:
+class RepReadSecretPayload(Payload):
     secrets: list[SecretData]
 
 
 @payload(NMessageType.RUN_PROXY_INFERENCE)
-class ReqRunInferencePayload:
+class ReqRunInferencePayload(Payload):
     model_path: str
     inputs: typing.Any
     timeout: int
 
 
 @payload(NMessageType.RUN_PROXY_INFERENCE_REP)
-class RepRunInferencePayload:
+class RepRunInferencePayload(Payload):
     outputs: Optional[typing.Any] = None
     timeout: bool = False
 
 
 @payload(NMessageType.WAKE_LANGSERVER)
-class ReqWakeLangserverPayload:
+class ReqWakeLangserverPayload(Payload):
     module_id: UUID
 
 
 @payload(NMessageType.WAKE_LANGSERVER_REP)
-class RepWakeLangserverPayload:
+class RepWakeLangserverPayload(Payload):
     module_id: UUID
 
 
 @payload(NMessageType.CONFIGURE_WORKER_SET)
-class ReqConfigureWorkerSetPayload:
+class ReqConfigureWorkerSetPayload(Payload):
     project_id: UUID
     profile: WorkerProfile
     region: WorkerRegion
@@ -445,43 +490,47 @@ class ReqConfigureWorkerSetPayload:
 
 
 @payload(NMessageType.CONFIGURE_WORKER_SET_REP)
-class RepConfigureWorkerSetPayload:
+class RepConfigureWorkerSetPayload(Payload):
     worker_set_id: UUID
     success: bool
 
 
 @payload(NMessageType.WAKE_WORKER_SET)
-class ReqWakeWorkerSetPayload:
+class ReqWakeWorkerSetPayload(Payload):
     project_id: UUID
 
 
 @payload(NMessageType.WAKE_WORKER_SET_REP)
-class RepWakeWorkerSetPayload:
+class RepWakeWorkerSetPayload(Payload):
     worker_set_id: UUID
     success: bool
 
 
 @payload(NMessageType.RESTART_WORKER_SET)
-class ReqRestartWorkerSetPayload:
+class ReqRestartWorkerSetPayload(Payload):
     project_id: UUID
     node_id: Optional[UUID]
     block: bool
 
 
 @payload(NMessageType.RESTART_WORKER_SET_REP)
-class RepRestartWorkerNodePayload:
+class RepRestartWorkerNodePayload(Payload):
     worker_set_id: UUID
     success: bool
 
 
 @payload(NMessageType.GET_ENVIRONMENT)
-class ReqGetEnvironmentPayload:
+class ReqGetEnvironmentPayload(Payload):
     project_id: UUID
     node_id: Optional[UUID]
 
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.project_id}"
+
 
 @payload(NMessageType.GET_ENVIRONMENT_REP)
-class RepGetEnvironmentPayload:
+class RepGetEnvironmentPayload(Payload):
     worker_set_id: UUID
     environment: EnvironmentData
 
@@ -491,37 +540,3 @@ MESSAGE_TYPE_BY_PAYLOAD_CLASS: dict[typing.Type, "NMessageType"] = {
     payload_class: message_type
     for message_type, payload_class in REGISTERED_MESSAGE_PAYLOADS.items()
 }
-
-
-def to_topic(
-    message_type: NMessageType,
-    payload: NMessageType,
-) -> str:
-    """
-    Gets the default topic for a message type and payload.
-    :NATSTopics
-    """
-    if isinstance(payload, (ProjectChangedPayload,)):
-        return f"{message_type}.{payload.project_id}"
-    elif isinstance(payload, (WorkersChangedPayload,)):
-        return f"{message_type}.{payload.project_id or 'all'}"
-    elif isinstance(
-        payload,
-        (
-            SessionChangedPayload,
-            LogsChangedPayload,
-            RunMarkedDeadPayload,
-            ReqStartRunPayload,
-            ReqCancelRunPayload,
-        ),
-    ):
-        return f"{message_type}.{payload.module_id}"
-    elif isinstance(
-        payload,
-        (
-            ModuleChangedPayload,
-            ModuleInternalChangedPayload,
-        ),
-    ):
-        return f"{message_type}.{payload.project_id}.{payload.module_id}"
-    return message_type
