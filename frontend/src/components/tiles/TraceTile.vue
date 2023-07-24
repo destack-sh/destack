@@ -10,7 +10,7 @@ import { useBenchState } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { RUN_TERMINAL_STATES } from "@/state/session";
-import { getStatusColor, getStatusIconSolid, useRun } from "@/state/session";
+import { getStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref, watch } from "vue";
@@ -204,7 +204,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
       >
         <!-- Status -->
         <component
-          :is="getStatusIconSolid(node.run.status)"
+          :is="getRunStatusIconSolid(node.run.status)"
           class="h-4 w-4"
           :class="[node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '']"
         />
@@ -252,7 +252,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
       >
         <!-- Status -->
         <component
-          :is="getStatusIconSolid(node.run.status)"
+          :is="getRunStatusIconSolid(node.run.status)"
           class="h-4 w-4 flex-shrink-0"
           :class="[
             node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '',

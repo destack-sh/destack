@@ -89,14 +89,14 @@ class NMessageType(StrEnum):
     WAKE_LANGSERVER_REP = "langserver.wake.rep"
 
     # worker management/lifecycle
-    CONFIGURE_WORKER_SET = "worker.configure"
-    CONFIGURE_WORKER_SET_REP = "worker.configure.rep"
+    CONFIGURE_WORKER_SET = "worker_set.configure"
+    CONFIGURE_WORKER_SET_REP = "worker_set.configure.rep"
     WAKE_WORKER_SET = "worker_set.wake"
     WAKE_WORKER_SET_REP = "worker_set.wake.rep"
     RESTART_WORKER_SET = "worker_set.restart"
     RESTART_WORKER_SET_REP = "worker_set.restart.rep"
-    GET_ENVIRONMENT = "worker.get_environment"
-    GET_ENVIRONMENT_REP = "worker.get_environment.rep"
+    GET_ENVIRONMENT = "worker_set.get_environment"
+    GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
     # running (routed via project id)
     START_RUN = "run.start"
     START_RUN_REP = "run.start.rep"
@@ -176,6 +176,25 @@ class OriginPayload:
             return any(c.id == id and c.nonce == nonce for c in self.origins)
 
 
+@dataclass
+class ProjectScoped:
+    project_id: UUID
+
+    @property
+    def topic(self):
+        return f"{self.__class__.type}.{self.project_id}".replace("-", "")
+
+
+@dataclass
+class ModuleScoped:
+    project_id: UUID
+    module_id: UUID
+
+    @property
+    def topic(self):
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}".replace("-", "")
+
+
 @dataclass(repr=False, slots=True)  # not sure where to put this?
 class ClientData:
     id: UUID
@@ -202,40 +221,22 @@ class ClientChangedPayload:
 
 
 @payload(NMessageType.PROJECT_CHANGED)
-class ProjectChangedPayload(OriginPayload):
-    project_id: UUID
-
-    @property
-    def topic(self):
-        return f"{self.__class__.type}.{self.project_id}"
+class ProjectChangedPayload(ProjectScoped, OriginPayload):
+    pass
 
 
 @payload(NMessageType.MODULE_CHANGED)
-class ModuleChangedPayload(OriginPayload):
-    project_id: UUID
-    module_id: UUID
+class ModuleChangedPayload(ModuleScoped, OriginPayload):
     mutations: list[ModuleMutation]
-
-    @property
-    def topic(self):
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
-class ModuleInternalChangedPayload(OriginPayload):
-    project_id: UUID
-    module_id: UUID
+class ModuleInternalChangedPayload(ModuleScoped, OriginPayload):
     mutations: list[ModuleMutation]
-
-    @property
-    def topic(self):
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 @payload(NMessageType.START_RUN)
-class ReqStartRunPayload(Payload):
-    project_id: UUID
-    module_id: UUID
+class ReqStartRunPayload(ModuleScoped, Payload):
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
     arguments: dict[str, typing.Any]
@@ -245,10 +246,6 @@ class ReqStartRunPayload(Payload):
     trigger_id: Optional[UUID]
     session_id: Optional[UUID]
     run_id: Optional[UUID]
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 class RunErrorType(enum.StrEnum):
@@ -269,14 +266,8 @@ class RepStartRunPayload(Payload):
 
 
 @payload(NMessageType.CANCEL_RUN)
-class ReqCancelRunPayload(Payload):
-    project_id: UUID
-    module_id: UUID
+class ReqCancelRunPayload(ModuleScoped, Payload):
     run_id: UUID
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 @payload(NMessageType.CANCEL_RUN_REP)
@@ -295,34 +286,19 @@ class RunMarkedDeadPayload(Payload):
 
 
 @payload(NMessageType.SESSION_CHANGED)
-class SessionChangedPayload(Payload):
-    module_id: UUID
+class SessionChangedPayload(ModuleScoped, Payload):
     session: SessionData
     runs: list[RunData]
 
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.module_id}"
-
 
 @payload(NMessageType.WORKERS_CHANGED)
-class WorkersChangedPayload(Payload):
-    project_id: Optional[UUID]
+class WorkersChangedPayload(ProjectScoped, Payload):
     worker_sets: list[WorkerSetData]
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}"
 
 
 @payload(NMessageType.LOGS_CHANGED)
-class LogsChangedPayload(Payload):
-    module_id: UUID
+class LogsChangedPayload(ModuleScoped, Payload):
     logs: list[LogEntryData]
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.module_id}"
 
 
 @payload(NMessageType.READ_MODULE)
@@ -485,8 +461,7 @@ class ReqConfigureWorkerSetPayload(Payload):
     project_id: UUID
     profile: WorkerProfile
     region: WorkerRegion
-    target_count: int
-    block: bool
+    target_replicas: int
 
 
 @payload(NMessageType.CONFIGURE_WORKER_SET_REP)
@@ -510,28 +485,22 @@ class RepWakeWorkerSetPayload(Payload):
 class ReqRestartWorkerSetPayload(Payload):
     project_id: UUID
     node_id: Optional[UUID]
-    block: bool
 
 
 @payload(NMessageType.RESTART_WORKER_SET_REP)
-class RepRestartWorkerNodePayload(Payload):
+class RepRestartWorkerSetPayload(Payload):
     worker_set_id: UUID
     success: bool
 
 
 @payload(NMessageType.GET_ENVIRONMENT)
-class ReqGetEnvironmentPayload(Payload):
+class ReqGetEnvironmentPayload(ProjectScoped, Payload):
     project_id: UUID
     node_id: Optional[UUID]
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}"
 
 
 @payload(NMessageType.GET_ENVIRONMENT_REP)
 class RepGetEnvironmentPayload(Payload):
-    worker_set_id: UUID
     environment: EnvironmentData
 
 

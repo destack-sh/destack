@@ -1,11 +1,14 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import { useElementSize } from "@/composables/useSize";
 import { graphql } from "@/gql";
+import { WorkerSetStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { useCurrentSessions, WORKER_RESOURCES_BY_PROFILE } from "@/state/session";
+import { ArrowPathIcon, StopIcon } from "@heroicons/vue/24/outline";
+import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, toRef, type Ref } from "vue";
 
@@ -51,6 +54,32 @@ const environment = computed(() =>
   environmentQuery.value?.environment.__typename == "Environment" ? environmentQuery.value?.environment : undefined
 );
 
+const workerStatusColor = computed(() => ({
+  [WorkerSetStatus.Pending]: "text-yellow-700",
+  [WorkerSetStatus.Healthy]: "text-green-700",
+  [WorkerSetStatus.Unhealthy]: "text-red-700",
+  [WorkerSetStatus.Updating]: "text-gray-700",
+  [WorkerSetStatus.Sleeping]: "text-gray-700",
+  [WorkerSetStatus.Unknown]: "text-gray-700",
+}));
+
+const workerStatusIcon = computed(() => ({
+  [WorkerSetStatus.Pending]: BusySpinnerIcon,
+  [WorkerSetStatus.Healthy]: CheckCircleIcon,
+  [WorkerSetStatus.Unhealthy]: XCircleIcon,
+  [WorkerSetStatus.Updating]: BusySpinnerIcon,
+  [WorkerSetStatus.Sleeping]: PauseIcon,
+  [WorkerSetStatus.Unknown]: QuestionMarkCircleIcon,
+}));
+const workerStatusTitle = computed(() => ({
+  [WorkerSetStatus.Pending]: "Pending",
+  [WorkerSetStatus.Healthy]: "Healthy",
+  [WorkerSetStatus.Unhealthy]: "Unhealthy",
+  [WorkerSetStatus.Updating]: "Updating",
+  [WorkerSetStatus.Sleeping]: "Sleeping",
+  [WorkerSetStatus.Unknown]: "Unknown",
+}));
+
 const resourcesInfo = computed(() => {
   if (workerSet.value == null) return undefined;
   const profile = workerSet.value.profile;
@@ -73,29 +102,51 @@ const resourcesInfo = computed(() => {
     </div>
     <!-- Environment -->
     <div
-      class="mt-0.5 grid grid-cols-3 gap-x-2 gap-y-0.5 px-3 text-sm"
+      class="mt-0.5 flex flex-col gap-y-0.5 px-3 text-sm"
       v-if="environment != null && resourcesInfo != null && workerSet != null"
     >
       <!-- Language -->
-      <span class="text-gray-500">Language</span>
-      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
+      <div class="flex flex-row items-center">
+        <span class=""><CodeBracketSquareIcon class="mr-2 h-4 w-4 text-gray-400" /></span>
+        <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
+      </div>
       <!-- Profile -->
-      <span class="text-gray-500">Profile</span>
-      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">
-        {{ resourcesInfo.name }}
-        <div class="inline font-light text-gray-500">{{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB</div>
-      </span>
-      <!-- Nodes -->
-      <span class="text-gray-500">Workers</span>
-      <span class="col-span-2 whitespace-nowrap font-semibold text-gray-900">
-        {{ workerSet.readyReplicas }}
-        <span class="font-normal text-gray-500">of {{ workerSet.desiredReplicas }}</span>
-        <div
-          class="ml-1.5 inline rounded-sm border border-orange-900 border-opacity-10 bg-orange-100 px-1 py-0.5 text-xs font-semibold uppercase"
+      <div class="flex flex-row items-center">
+        <span class=""><ServerStackIcon class="mr-2 h-4 w-4 text-gray-400" /></span>
+        <span class="whitespace-nowrap font-semibold text-gray-900">
+          <span>{{ workerSet.desiredReplicas }}x {{ resourcesInfo.name }}</span>
+          <div class="ml-1.5 inline font-normal text-gray-500">
+            {{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB
+          </div>
+        </span>
+      </div>
+      <!-- Status/actions -->
+      <div class="flex flex-row items-center">
+        <component
+          :is="workerStatusIcon[workerSet.status]"
+          class="mr-2 h-4 w-4"
+          :class="workerStatusColor[workerSet.status]"
+        />
+        <span class="mr-1.5 whitespace-nowrap font-semibold text-gray-900" :class="workerStatusColor[workerSet.status]">
+          {{ workerStatusTitle[workerSet.status] }}
+        </span>
+        <!-- Actions -->
+        <BusySpinnerIcon v-if="session.restarting.value || session.waking.value" class="h-4 w-4 animate-spin" />
+        <button
+          v-else-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
+          class="rounded-sm px-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700"
+          @click="session.restartWorkerSet()"
         >
-          {{ workerSet.status }}
-        </div>
-      </span>
+          Restart
+        </button>
+        <button
+          v-else-if="workerSet.status == WorkerSetStatus.Sleeping"
+          class="rounded-sm px-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-700"
+          @click="session.wakeWorkerSet()"
+        >
+          Wake
+        </button>
+      </div>
       <!-- TODO @UX: view actual nodes, latency and resource usage here -->
       <!-- maybe also show object storage usage, total records, etc.? -->
     </div>

@@ -3,7 +3,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run } from "@/gql/graphql";
-import { useRuns, getStatusColor, getStatusIconSolid } from "@/state/session";
+import { useRuns, getStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
 import { ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
 import { useElementSize, useKeyModifier } from "@vueuse/core";
@@ -116,7 +116,7 @@ function isExpanded(runId: string) {
             <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(run.status)">
               <!-- Status -->
               <component
-                :is="getStatusIconSolid(run.status)"
+                :is="getRunStatusIconSolid(run.status)"
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />

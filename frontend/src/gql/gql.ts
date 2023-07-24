@@ -153,6 +153,8 @@ const documents = {
     types.WakeLangserverDocument,
   "\n      mutation wakeWorkerSet($projectId: GlobalID!) {\n        wakeWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.WakeWorkerSetDocument,
+  "\n      mutation restartWorkerSet($projectId: GlobalID!) {\n        restartWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.RestartWorkerSetDocument,
   "\n      mutation startRun(\n        $projectVersionId: GlobalID!\n        $runnableId: GlobalID\n        $runId: GlobalID\n        $sessionId: GlobalID\n        $arguments: JSON\n        $keyed: Boolean\n        $block: Boolean\n        $timeoutSeconds: Int\n      ) {\n        run(\n          input: {\n            projectVersionId: $projectVersionId\n            runnableId: $runnableId\n            runId: $runId\n            sessionId: $sessionId\n            arguments: $arguments\n            keyed: $keyed\n            block: $block\n            timeoutSeconds: $timeoutSeconds\n          }\n        ) {\n          ... on RunState {\n            projectVersionId\n            runnableId\n            success\n            error\n            run {\n              ...RunContent\n            }\n            logs {\n              ...LogEntryContent\n            }\n          }\n        }\n      }\n    ":
     types.StartRunDocument,
   "\n      mutation cancel($projectVersionId: GlobalID!, $runId: GlobalID!) {\n        cancelRun(input: { projectVersionId: $projectVersionId, runId: $runId }) {\n          ... on CancelRunPayload {\n            success\n            run {\n              id\n              status\n              startedAt\n              terminatedAt\n              createdAt\n              updatedAt\n              duration\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -703,6 +705,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation wakeWorkerSet($projectId: GlobalID!) {\n        wakeWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation wakeWorkerSet($projectId: GlobalID!) {\n        wakeWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation restartWorkerSet($projectId: GlobalID!) {\n        restartWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restartWorkerSet($projectId: GlobalID!) {\n        restartWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

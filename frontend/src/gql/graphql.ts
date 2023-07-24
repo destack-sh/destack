@@ -210,7 +210,6 @@ export type Environment = {
   packages: Array<Package>;
   platform: Scalars["String"];
   version: Scalars["String"];
-  workerSet?: Maybe<WorkerSet>;
 };
 
 export type EnvironmentOperationInfo = Environment | OperationInfo;
@@ -592,6 +591,7 @@ export type Mutation = {
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
   requestUploadObject: RemoteObjectOperationInfo;
+  restartWorkerSet: RestartWorkerSetPayloadOperationInfo;
   restore: CommitPayloadOperationInfo;
   restoreFile: FileOperationInfo;
   restoreRecord: RecordOperationInfo;
@@ -790,6 +790,10 @@ export type MutationRenameStatementArgs = {
 
 export type MutationRequestUploadObjectArgs = {
   input: RequestUploadObjectInput;
+};
+
+export type MutationRestartWorkerSetArgs = {
+  input: RestartWorkerSetInput;
 };
 
 export type MutationRestoreArgs = {
@@ -1783,6 +1787,18 @@ export type ResolvedField = Node & {
   id: Scalars["GlobalID"];
   statement?: Maybe<Statement>;
 };
+
+export type RestartWorkerSetInput = {
+  projectId: Scalars["GlobalID"];
+};
+
+export type RestartWorkerSetPayload = {
+  __typename?: "RestartWorkerSetPayload";
+  success: Scalars["Boolean"];
+  workerSet?: Maybe<WorkerSet>;
+};
+
+export type RestartWorkerSetPayloadOperationInfo = OperationInfo | RestartWorkerSetPayload;
 
 export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
@@ -4030,6 +4046,19 @@ export type WakeWorkerSetMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "WakeWorkerSetPayload" };
+};
+
+export type RestartWorkerSetMutationVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type RestartWorkerSetMutation = {
+  __typename?: "Mutation";
+  restartWorkerSet:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "RestartWorkerSetPayload" };
 };
 
 export type StartRunMutationVariables = Exact<{
@@ -10960,6 +10989,53 @@ export const WakeWorkerSetDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<WakeWorkerSetMutation, WakeWorkerSetMutationVariables>;
+export const RestartWorkerSetDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restartWorkerSet" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restartWorkerSet" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "projectId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestartWorkerSetMutation, RestartWorkerSetMutationVariables>;
 export const StartRunDocument = {
   kind: "Document",
   definitions: [

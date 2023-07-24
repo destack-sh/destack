@@ -259,15 +259,20 @@ export function _useSessions(
     };
   }
 
+  //
   // session ops
+  //
 
   const notifications = useNotifications();
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
   const wakingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently waking the worker set
+  const restartingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently restarting the worker set
   const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
   whenever(ready, () => (wakingPromise.value = undefined));
+
+  // worker sets
 
   function wakeWorkerSet(): Promise<boolean> {
     // only wake if not already waking
@@ -287,6 +292,24 @@ export function _useSessions(
     }
   }
 
+  function restartWorkerSet(): Promise<boolean> {
+    // only restart if not already restarting
+    if (restartingPromise.value != null) {
+      return restartingPromise.value;
+    } else {
+      sessionOps.restartWorkerSet(filter.projectId.value as string);
+      restartingPromise.value = new Promise((resolve) => {
+        const unsub = onWorkerSetChange((workerSet) => {
+          if (workerSet.status == WorkerSetStatus.Healthy) {
+            unsub();
+            resolve(true);
+          }
+        });
+      });
+      return restartingPromise.value;
+    }
+  }
+
   function withWorkers<T>(fn: () => Promise<T>): Promise<T> {
     if (!isWorkerSetReady.value) {
       return wakeWorkerSet().then(fn);
@@ -294,6 +317,8 @@ export function _useSessions(
       return fn();
     }
   }
+
+  // running
 
   function run(
     runnable: { id: string },
@@ -395,6 +420,9 @@ export function _useSessions(
     loading: initialLoading,
     ready,
     waking: computed(() => wakingPromise.value != null),
+    restarting: computed(() => restartingPromise.value != null),
+    wakeWorkerSet,
+    restartWorkerSet,
     workerSet,
     currentRuns,
     currentRoots,
@@ -742,7 +770,7 @@ export function useLogs(
   };
 }
 
-export function getStatusIconOutline(status: RunStatus) {
+export function getRunStatusIconOutline(status: RunStatus) {
   if (status == RunStatus.Queued || status == RunStatus.Running) {
     return BusySpinnerIcon;
   } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
@@ -758,7 +786,7 @@ export function getStatusIconOutline(status: RunStatus) {
   }
 }
 
-export function getStatusIconSolid(status: RunStatus) {
+export function getRunStatusIconSolid(status: RunStatus) {
   if (status == RunStatus.Queued || status == RunStatus.Running) {
     return BusySpinnerIcon;
   } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
