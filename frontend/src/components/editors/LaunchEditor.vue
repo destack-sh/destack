@@ -11,13 +11,11 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
-import { useNotifications } from "@/state/notifications";
-import { useOperations } from "@/state/operations";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { RunContentType } from "@/state/session";
+import { RunContentType, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -26,8 +24,6 @@ const emit = defineEmits<{
 
 const bench = useBenchState();
 const appearance = useAppearance();
-const notifications = useNotifications();
-const ops = useOperations();
 const editor = computed(() => props.editor.editor.value);
 const editorSize = computed(() => props.editor.size.value);
 const now = useTimeFromNow();
@@ -36,6 +32,7 @@ const now = useTimeFromNow();
 
 const running = ref(false);
 const module = useCurrentModule();
+const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.editor.editor.value.statementId));
 const inputFields = computed(
   () =>
@@ -76,48 +73,10 @@ async function run() {
   editor.value.lastRunId = newRunId();
   editor.value.lastSessionId = newSessionId();
   running.value = true;
-  const ret = await ops.session.run(
-    editor.value.statementId,
-    editor.value.lastRunId,
-    editor.value.lastSessionId,
-    editor.value.arguments,
-    {
-      block: true,
-      keyed: true,
-    }
-  );
-  running.value = false;
-  if (ret?.data?.run?.__typename == "RunState") {
-    if (!ret?.data?.run?.success) {
-      notifications.show({
-        kind: "error",
-        type: "run.failed",
-        message: "Run failed",
-        description: `${statement.value.name} could not be run.`,
-      });
-    } else {
-      // notify on success if run took a bit
-      const run = useFragment(RunContentType, ret.data.run.run);
-      if ((run?.duration ?? 0) > 5) {
-        notifications.show({
-          kind: "success",
-          type: "run.success",
-          message: "Run completed",
-          description: `${statement.value.name} finished after ${formatDurationSeconds(
-            (run?.duration ?? 5000) * 1000
-          )}.`,
-        });
-      }
-      editor.value.lastOutput = run?.outputs;
-      editor.value.lastRunTerminatedAt = run?.terminatedAt;
-    }
-  }
+  throw new Error("not implemented (nocheckin)");
 }
 
-// tiling
-
-// TODO @UX: auto scale grid step based on available width
-//  This is just a crude placeholder to experiment.
+// tiling (crude placeholder to play around with)
 const showDots = ref(false);
 const dotSize = ref(1);
 const gridStepX = ref(36); // p-9
@@ -219,9 +178,8 @@ defineExpose({
         >
           <button
             class="flex h-full w-full flex-row items-center justify-center gap-1 rounded-sm bg-orange-500 text-white hover:bg-orange-400 focus:bg-orange-400"
-            @click="run"
+            @click="running ? cancel() : run()"
             @keydown.enter.exact.prevent="run"
-            :disabled="running"
           >
             Run
             <FadeTransition mode="out-in">

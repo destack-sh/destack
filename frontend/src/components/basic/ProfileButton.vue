@@ -36,7 +36,7 @@ const userNavigation = computed(() => [
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
       <MenuButton
-        class="group flex h-full items-center px-2 text-left focus:bg-orange-100 focus:outline-none"
+        class="group flex h-full items-center px-2 text-left hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
         :class="{ 'bg-orange-100': open }"
       >
         <UserAvatar

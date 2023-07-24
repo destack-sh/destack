@@ -317,7 +317,6 @@ class WorkerNode(Monitored):
         self.worker_set_id: UUID = worker_set_id
         self.worker_node_id: str | UUID = worker_node_id or UUIDT()
         self.project_id = project_id
-        self.routing_id = project_id or "*"
         self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
@@ -347,14 +346,15 @@ class WorkerNode(Monitored):
             workset_set=self.worker_set_id,
             project_id=self.project_id,
         )
+        routing_id = f"{self.project_id}.>" if self.project_id else ">"
         self.subs = [
             await subscribe(
-                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{self.routing_id}", cb=self.module_changed
+                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{routing_id}", cb=self.module_changed
             ),
-            await handle_reply(f"{NMessageType.START_RUN}.{self.routing_id}", self.start_run),
-            await handle_reply(f"{NMessageType.CANCEL_RUN}.{self.routing_id}", self.cancel_run),
+            await handle_reply(f"{NMessageType.START_RUN}.{routing_id}", self.start_run),
+            await handle_reply(f"{NMessageType.CANCEL_RUN}.{routing_id}", self.cancel_run),
             await handle_reply(
-                f"{NMessageType.GET_ENVIRONMENT}.{self.routing_id}", self.get_environment
+                f"{NMessageType.GET_ENVIRONMENT}.{routing_id}", self.get_environment
             ),
         ]
         self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))

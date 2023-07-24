@@ -77,14 +77,6 @@ const fontOptions = [
         <!-- Editor headers -->
         <div class="flex flex-row items-center justify-between px-2">
           <span class="flex flex-row items-center gap-2">
-            <MapIcon class="h-5 w-5 text-gray-700" />
-            <span class="text-sm text-gray-900">Global header</span>
-          </span>
-          <Switch v-model="bench.showGlobalHeader" />
-        </div>
-        <!-- Editor headers -->
-        <div class="flex flex-row items-center justify-between px-2">
-          <span class="flex flex-row items-center gap-2">
             <WindowIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Editor tabs</span>
           </span>

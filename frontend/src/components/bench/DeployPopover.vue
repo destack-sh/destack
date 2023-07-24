@@ -36,37 +36,34 @@ function copyApiUrlToClipboard() {
       <PopoverPanel
         class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
-        <!-- Header -->
-        <div class="">
-          <h2 class="font-bold text-gray-900">Integrate your Bench</h2>
-          <p class="pt-2 text-gray-900">
-            The latest version is always deployed (tagged
-            <span class="rounded-sm bg-gray-200 px-0.5 font-mono">x</span>).
-          </p>
-          <p class="pt-0 text-gray-900">
-            Endpoints are available via
-            <router-link
-              to="/symbolx/docs#Deploying"
-              target="_blank"
-              class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
-              >REST</router-link
-            >
-            at:
-          </p>
-          <p class="relative mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
-            <span :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`" class="text-gray-900">
-              api.symbolx.com/<span class="text-orange-600">{{ project.owner.slug }}</span
-              >/<span class="text-orange-600">{{ project.slug }}</span
-              >/run
-            </span>
-            <button
-              class="absolute right-1 top-[4px] rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-900"
-              @click="copyApiUrlToClipboard"
-            >
-              <DocumentDuplicateIcon class="h-4 w-4 text-gray-500" />
-            </button>
-          </p>
-        </div>
+        <h2 class="font-bold text-gray-900">Integrate your Bench</h2>
+        <p class="pt-2 text-gray-900">
+          The current version is tagged
+          <span class="rounded-sm bg-gray-200 px-0.5 font-mono">x</span>).
+        </p>
+        <p class="pt-0 text-gray-900">
+          Endpoints are available via
+          <router-link
+            to="/symbolx/docs#Deploying"
+            target="_blank"
+            class="underline decoration-gray-500 decoration-dashed underline-offset-4 hover:decoration-solid"
+            >REST</router-link
+          >
+          at:
+        </p>
+        <p class="relative mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
+          <span :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`" class="text-gray-900">
+            api.symbolx.com/<span class="text-orange-600">{{ project.owner.slug }}</span
+            >/<span class="text-orange-600">{{ project.slug }}</span
+            >/run
+          </span>
+          <button
+            class="absolute right-1 top-[4px] rounded-sm p-0.5 text-gray-500 hover:bg-orange-100 hover:text-gray-900"
+            @click="copyApiUrlToClipboard"
+          >
+            <DocumentDuplicateIcon class="h-4 w-4 text-gray-500" />
+          </button>
+        </p>
       </PopoverPanel>
     </FadeTransition>
   </Popover>
