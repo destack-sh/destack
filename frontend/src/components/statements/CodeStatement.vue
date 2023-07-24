@@ -54,12 +54,7 @@ const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & Typ
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
 const numCodeLines = computed(() => code.value.split("\n").length);
 
-const lastRunLocal: Ref<Run | null> = ref(null); // triggered in this client session
-const lastRunLocalId: Ref<string | null> = ref(null); // same but optimistic id
-const lastSessionLocalId: Ref<string | null> = ref(null); // same but optimistic id
-const lastRun = computed(() => lastRunLocal.value ?? runs.value[0]);
-const lastRunId = computed(() => lastRunLocalId.value ?? lastRun.value?.id ?? null);
-const lastSessionId = computed(() => lastSessionLocalId.value ?? lastRun.value?.session.id ?? null);
+const lastRun = computed(() => runs.value[0]);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
@@ -69,8 +64,6 @@ const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const showOutput: Ref<"logs" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
-const preparingRun = ref(false);
-const cancelled = ref(false);
 
 watch(
   () => lastRun.value?.status,
@@ -81,11 +74,9 @@ watch(
   }
 );
 
+const preparingRun = ref(false);
 const runActive = computed(
-  () =>
-    preparingRun.value ||
-    ops.state.hasInflightLike({ types: ["runtime.run"], keys: [context.statement.value.id] }) ||
-    (lastRun.value != null && !RUN_TERMINAL_STATES.includes(lastRun.value?.status))
+  () => preparingRun.value || (lastRun.value != null && !RUN_TERMINAL_STATES.includes(lastRun.value?.status))
 );
 
 useActiveScroll(outputRef);
@@ -128,7 +119,7 @@ const extraActions = computed(() => {
     {
       label: "Run",
       icon: PlayIcon,
-      active: runActive.value && !cancelled.value,
+      active: runActive.value,
       disabled: hasTypes.value, // needs parameters
       action: async () => await run(),
     },
@@ -167,69 +158,26 @@ const extraActions = computed(() => {
 context.setCustomActions(extraActions);
 
 async function run() {
-  if (runActive.value && !cancelled.value) {
-    return; // already running
-  }
+  if (runActive.value) return;
   if (hasTypes.value) {
     const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
-    lastRunLocalId.value = newRunId();
-    lastSessionLocalId.value = newSessionId();
-    // nocheckin: move optimistic run/session handling to session.ss (incl. cancellation/suspend etc.)
-    //  .. maybe just make run mut optimistic?
-    // optimistically set last run local
-    lastRunLocal.value = {
-      __typename: "Run",
-      id: lastRunLocalId.value,
-      status: RunStatus.Running,
-      startedAt: now.now.value.toString(),
-      createdAt: now.now.value.toString(),
-      updatedAt: now.now.value.toString(),
-      duration: null,
-      inputs: null,
-      outputs: null,
-      error: null,
-      session: {
-        __typename: "Session",
-        id: lastSessionLocalId.value,
-      },
-    } as Run;
-    cancelled.value = false;
-    showOutput.value = "logs";
-    preparingRun.value = true; // for immediate feedback if flush takes more than few ms
     try {
+      // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
       await codeSync.flushNow(); // flush any pending changes to the code (which is debounced)
+      preparingRun.value = true;
     } finally {
       preparingRun.value = false;
     }
-    // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
-    const ret = await ops.session.run(context.statement.value.id, lastRunLocalId.value, lastSessionLocalId.value);
-    if (ret?.data?.run.__typename != "RunState" || !ret.data.run.success) {
-      notifications.show({
-        type: "run.fail",
-        kind: "error",
-        message: "Run failed",
-        description: `${context.statement.value.name} failed: ${ret?.data?.run?.error ?? "rejected"}`,
-      });
-    }
-    if (ret?.data?.run.__typename == "RunState") {
-      lastRunLocal.value = (ret.data.run.run as Run) ?? null;
-      if (ret.data.run.logs != null) {
-        runTileRef.value?.addLogs(ret.data.run.logs as LogEntry[]);
-      }
-    }
+    await sessions.run(context.statement.value);
+    showOutput.value = "logs";
   }
 }
 
 async function cancel() {
-  cancelled.value = true;
-  if (lastRunId.value == null) {
-    return;
-  }
-  lastRunLocal.value = null;
-  lastRunLocalId.value = null;
-  await ops.session.cancel(lastRunId.value);
+  if (!runActive.value) return;
+  await sessions.cancel(lastRun.value);
 }
 
 defineExpose({

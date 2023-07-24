@@ -3,6 +3,7 @@ import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { newRunId } from "@/state/module";
+import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
@@ -20,7 +21,7 @@ import {
   XCircleIcon as XCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
-import { createSharedComposable } from "@vueuse/core";
+import { createSharedComposable, whenever } from "@vueuse/core";
 import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
@@ -247,20 +248,30 @@ export function _useSessions(
 
   // session ops
 
+  const notifications = useNotifications();
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
+  const wakingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently waking the worker set
 
   function wakeWorkerSet(): Promise<boolean> {
-    return sessionOps
-      .wakeWorkerSet(filter.projectId.value as string)
-      .then(
-        (r) => (r?.data?.wakeWorkerSet?.__typename == "WakeWorkerSetPayload" && r?.data?.wakeWorkerSet.success) ?? false
-      );
+    // only wake if not already waking
+    if (wakingPromise.value != null) {
+      return wakingPromise.value;
+    } else {
+      wakingPromise.value = sessionOps
+        .wakeWorkerSet(filter.projectId.value as string)
+        .then((r) => r?.data?.wakeWorkerSet?.__typename == "WakeWorkerSetPayload" ?? false);
+      return wakingPromise.value;
+    }
   }
 
+  // nocheckin: need some better mechanism for the wake/sleep cycle
+  const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
+  whenever(ready, () => (wakingPromise.value = undefined));
+
   function withWorkers<T>(fn: () => Promise<T>) {
-    if (isWorkerSetReady.value) {
+    if (!isWorkerSetReady.value) {
       return wakeWorkerSet().then(fn);
     } else {
       return fn();
@@ -273,11 +284,10 @@ export function _useSessions(
   ): { run: Run; promise: Promise<Run> } {
     const runId = options?.runId ?? newRunId();
     const sessionId = options?.sessionId ?? newRunId();
-
     const run = {
       __typename: "Run",
       id: runId,
-      status: RunStatus.Running,
+      status: RunStatus.Queued,
       startedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -331,6 +341,8 @@ export function _useSessions(
 
   return {
     loading: initialLoading,
+    ready,
+    waking: computed(() => wakingPromise.value != null),
     workerSet,
     currentRuns,
     currentRoots,

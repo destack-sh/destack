@@ -8,12 +8,13 @@ import structlog
 from bench import models
 from bench.language.session import WorkerSetStatus
 from bench.models import packer
-from bench.models.worker import WORKER_SET_FIELDS
+from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init
 from bench.msg.core import NMessage, handle_reply, message_handler, publish
 from bench.msg.messages import (
     NMessageType,
     RepConfigureWorkerSetPayload,
+    RepWakeWorkerSetPayload,
     ReqConfigureWorkerSetPayload,
     ReqRestartWorkerSetPayload,
     ReqWakeWorkerSetPayload,
@@ -101,7 +102,7 @@ class MasterServer:
         if not worker_sets:
             return
         # save in DB
-        await models.WorkerSet.objects.abulk_update(worker_sets, update_fields=WORKER_SET_FIELDS)
+        await models.WorkerSet.objects.abulk_update(worker_sets, WORKER_SET_FIELDS_NO_ID)
         # update in orchestrator
         if K8_AVAILABLE:
             await self._update_worker_sets_in_k8(worker_sets)
@@ -192,16 +193,20 @@ class MasterServer:
     @message_handler
     async def wake_worker_set(self, msg: NMessage[ReqWakeWorkerSetPayload]) -> None:
         try:
-            if USE_K8:
-                worker_set = await self._get_project_worker_set(msg.p.project_id)
-                await self._wake_worker_sets([worker_set])
-                logger.info("wake_worker_set", worker_set=worker_set)
+            worker_set = await self._get_project_worker_set(msg.p.project_id)
+            await self._wake_worker_sets([worker_set])
+            logger.info("wake_worker_set", worker_set=worker_set)
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
             logger.error("wake_worker_set.failed", msg=msg, exc_info=True)
             success = False
-        await msg.reply(RepConfigureWorkerSetPayload(success=success))
+            worker_set = None
+        await msg.reply(
+            RepWakeWorkerSetPayload(
+                worker_set_id=worker_set.id if worker_set else None, success=success
+            )
+        )
 
     @message_handler
     async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerSetPayload]) -> None:

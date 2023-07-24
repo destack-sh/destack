@@ -71,6 +71,7 @@ const appearance = useAppearance();
 
 defineExpose({
   show: () => popoverButtonRef.value?.$el.click(),
+  open: computed(() => popoverOpenRef.value != null),
 });
 </script>
 <template>
