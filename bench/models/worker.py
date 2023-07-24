@@ -35,3 +35,4 @@ class WorkerSet(UUIDModel):
 
 
 WORKER_SET_FIELDS: list[str] = [f.name for f in WorkerSet._meta.fields]
+WORKER_SET_FIELDS_NO_ID: list[str] = [f for f in WORKER_SET_FIELDS if f != "id"]

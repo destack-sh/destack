@@ -5,13 +5,18 @@ from pathlib import Path
 from typing import Optional
 from uuid import UUID
 
+import structlog
+
 from bench.language.wire import WorkerSetData
 
 #
 # Utilities for managing local workers during debugging.
+# This is quite hacky but it's only used in local development.
 #
 
 LOCAL_WORKERS_CONFIG_PATH = ".local_workers.json"
+
+logger = structlog.get_logger(__name__)
 
 
 @dataclass
@@ -61,3 +66,4 @@ def update_local_workers(worker_sets: list[WorkerSetData]):
         LOCAL_WORKERS.worker_sets[worker_set.id] = worker_set
     LOCAL_WORKERS.updated_at = datetime.now()
     Path(LOCAL_WORKERS_CONFIG_PATH).write_text(json.dumps(LOCAL_WORKERS.to_dict()))
+    logger.info("local_workers.updated", worker_sets=worker_sets)

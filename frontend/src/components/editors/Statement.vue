@@ -449,7 +449,8 @@ defineExpose({
       class="relative min-h-[30px] w-full rounded-sm outline-none transition duration-150 focus:outline-none"
       :class="{
         'focus:bg-orange-100': true,
-        'bg-orange-100': (isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver,
+        'bg-orange-100':
+          (isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver || actionPopoverRef?.open,
         ...appearance.baseClass,
       }"
       :style="{
@@ -519,7 +520,10 @@ defineExpose({
               :class="isActive ? 'opacity-100' : 'opacity-0'"
               @click="(e) => toggleContentFold(e.altKey)"
             >
-              <component :is="isContentFolded ? ChevronRightIcon : ChevronDownIcon" class="h-4 w-4" />
+              <ChevronRightIcon
+                class="h-4 w-4 transition-transform duration-150"
+                :class="[isContentFolded ? '' : 'rotate-90']"
+              />
               <!-- Label (yeah these should be refactored) -->
               <span
                 class="pointer-events-none absolute -left-1 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"

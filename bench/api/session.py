@@ -569,7 +569,11 @@ class SessionMutation:
             ReqWakeWorkerSetPayload(project_id=project_id),
             reply_t=RepWakeWorkerSetPayload,
         )
-        return WakeWorkerSetPayload(success=rep.payload.success)
+        if rep.payload.success:
+            worker_set = await models.WorkerSet.objects.aget(id=rep.p.worker_set_id)
+        else:
+            worker_set = None
+        return WakeWorkerSetPayload(worker_set=worker_set, success=rep.p.success)
 
     @asafe_mutation
     async def run(self, info: Info, input: RunInput) -> RunState | OperationInfo:

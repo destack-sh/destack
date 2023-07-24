@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useActiveScroll } from "@/composables/useScroll";
+import { useElementSize } from "@/composables/useSize";
 import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
@@ -57,7 +58,7 @@ const resourcesInfo = computed(() => {
 });
 </script>
 <template>
-  <div class="flex flex-col pb-10">
+  <div class="flex flex-col">
     <!-- View header -->
     <div
       class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
@@ -70,7 +71,7 @@ const resourcesInfo = computed(() => {
         <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
       </div>
     </div>
-    <!-- Compute -->
+    <!-- Environment -->
     <div
       class="mt-0.5 grid grid-cols-3 gap-x-2 gap-y-0.5 px-3 text-sm"
       v-if="environment != null && resourcesInfo != null && workerSet != null"
@@ -95,20 +96,27 @@ const resourcesInfo = computed(() => {
           {{ workerSet.status }}
         </div>
       </span>
+      <!-- TODO @UX: view actual nodes, latency and resource usage here -->
+      <!-- maybe also show object storage usage, total records, etc.? -->
     </div>
     <!-- Packages -->
     <div class="relative mt-4 w-full flex-1 text-sm" v-if="environment != null">
       <span class="px-3 text-xs font-semibold tracking-wide text-gray-500">Packages</span>
+      <!-- Hacky way to make packages list fit the remaining space -->
       <div
-        class="mt-1 flex max-w-full flex-col gap-y-1 overflow-y-scroll px-3"
-        ref="packagesTableRef"
+        class="relative mt-1 w-full"
         :style="{
-          maxHeight: containerSize.height.value - 180 + 'px',
+          // max height - header height
+          height: 'calc(100% - ' + appearance.editorHeaderHeight + 'px)',
         }"
       >
-        <div v-for="pkg in environment.packages" :key="pkg.name" class="flex flex-row justify-between">
-          <span class="max-w-full truncate whitespace-nowrap text-gray-900 hover:min-w-fit">{{ pkg.name }}</span>
-          <span class="flex-shrink-0 text-right font-light text-gray-500">{{ pkg.version }}</span>
+        <div class="absolute left-0 top-0 h-full w-full overflow-y-scroll" ref="packagesTableRef">
+          <div class="flex max-w-full flex-col gap-y-1 px-3">
+            <div v-for="pkg in environment.packages" :key="pkg.name" class="flex flex-row justify-between">
+              <span class="max-w-full truncate whitespace-nowrap text-gray-900 hover:min-w-fit">{{ pkg.name }}</span>
+              <span class="flex-shrink-0 text-right font-light text-gray-500">{{ pkg.version }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>

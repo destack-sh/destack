@@ -299,3 +299,6 @@ dist
 .vscode/*
 
 *.gpg
+
+# Local files
+.local_workers.json
