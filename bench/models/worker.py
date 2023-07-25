@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
@@ -27,6 +28,7 @@ class WorkerSet(UUIDModel):
     status = models.CharField(max_length=32, choices=get_choices(WorkerSetStatus))
     available_replicas = models.IntegerField(default=0)
     ready_replicas = models.IntegerField(default=0)
+    active_replicas_ids = ArrayField(models.CharField(max_length=64), default=list)
 
     def __str__(self):
         return f"{self.project} ({self.region}, {self.profile}, {self.status}, x{self.desired_replicas})"

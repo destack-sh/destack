@@ -58,6 +58,7 @@ class NMessageType(StrEnum):
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
     SESSION_CHANGED = "session.changed"
+    RUNS_CHANGED_GLOBAL = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"
     RUN_MARKED_DEAD = "run.marked_dead"
@@ -151,7 +152,7 @@ assert not _missing_request_types, f"missing reply types for {_missing_request_t
 
 
 ClientOrigin = typing.NamedTuple(
-    "ClientOrigin", [("type", str), ("id", UUID), ("nonce", Optional[UUID])]
+    "ClientOrigin", [("type", str), ("id", typing.Union[UUID, str]), ("nonce", Optional[UUID])]
 )
 
 
@@ -279,18 +280,18 @@ class RepCancelRunPayload(Payload):
 
 
 @payload(NMessageType.RUN_MARKED_DEAD)
-class RunMarkedDeadPayload(Payload):
-    module_id: UUID
+class RunMarkedDeadPayload(ModuleScoped, Payload):
     run_id: UUID
-
-    @property
-    def topic(self) -> str:
-        return f"{self.__class__.type}.{self.module_id}"
 
 
 @payload(NMessageType.SESSION_CHANGED)
 class SessionChangedPayload(ModuleScoped, Payload):
     session: SessionData
+    runs: list[RunData]
+
+
+@payload(NMessageType.RUNS_CHANGED_GLOBAL)
+class RunsChangedGlobalPayload(Payload):
     runs: list[RunData]
 
 
@@ -510,14 +511,13 @@ class ReqDoRestartWorkerNodePayload(Payload):
 @payload(NMessageType.DO_RESTART_WORKER_NODE_REP)
 class RepDoRestartWorkerNodePayload(Payload):
     worker_set_id: Optional[UUID]
-    worker_node_id: Optional[UUID]
+    worker_node_id: typing.Optional[str]
     success: bool
 
 
 @payload(NMessageType.GET_ENVIRONMENT)
 class ReqGetEnvironmentPayload(ProjectScoped, Payload):
     project_id: UUID
-    node_id: Optional[UUID]
 
 
 @payload(NMessageType.GET_ENVIRONMENT_REP)

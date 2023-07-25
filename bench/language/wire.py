@@ -1514,6 +1514,8 @@ class RunErrorData:
 @dataclass
 class RunData:
     id: UUID
+    worker_node_id: str
+    project_id: UUID
     module_id: UUID
     runnable_id: UUID
     runnable_type: StatementType
@@ -1546,7 +1548,9 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             error = None
         return RunData(
             id=object.id,
+            project_id=object.session.ctx.project_id,
             module_id=object.session.module.id,
+            worker_node_id=object.session.ctx.worker_node_id,
             runnable_id=object.runnable.id,
             runnable_type=object.runnable.type,
             session_id=object.session.id,

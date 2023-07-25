@@ -445,7 +445,7 @@ class LanguageServer(Monitored):
 
     @message_handler
     async def run_marked_dead(self, msg: NMessage[RunMarkedDeadPayload]) -> None:
-        run = await models.Run.objects.filter(id=msg.p.run_id).afirst()
+        run = await models.Run.objects.filter(id=msg.p.run_id).select_related("session").afirst()
         if run is None:
             logger.warning("run_marked_dead.not_found", msg=msg, run_id=msg.p.run_id)
             return
@@ -456,7 +456,12 @@ class LanguageServer(Monitored):
         await run.asave()
         await publish(
             NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(module_id=msg.p.module_id, frames=[packer.pack_data(run)]),
+            SessionChangedPayload(
+                project_id=msg.p.project_id,
+                module_id=msg.p.module_id,
+                session=packer.pack_data(run.session),
+                runs=[packer.pack_data(run)],
+            ),
         )
 
     @message_handler

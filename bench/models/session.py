@@ -25,7 +25,10 @@ class Session(UUIDTModel):
 
 
 class Run(UUIDTModel):
+    # TODO @Cleanup: Run.project should be non null (was added later)
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
+    worker_node_id = models.CharField(max_length=64, null=True, blank=True)
     session = models.ForeignKey("Session", on_delete=models.CASCADE, related_name="runs")
     status = models.CharField(max_length=32, choices=get_choices(RunStatus))
     created_at = models.DateTimeField(auto_now_add=True)
@@ -62,6 +65,7 @@ class Run(UUIDTModel):
             models.Index(fields=["started_at"], name="run_started_at_idx"),
             models.Index(fields=["updated_at"], name="run_updated_at_idx"),
             models.Index(fields=["runnable_id"], name="run_runnable_id_idx"),
+            models.Index(fields=["worker_node_id"], name="run_worker_node_idx"),
             models.Index(
                 fields=["runnable_id", "project_version_id"], name="run_runnable_id_scoped_idx"
             ),

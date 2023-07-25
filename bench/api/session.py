@@ -57,6 +57,7 @@ from bench.msg.messages import (
     ReqWakeLangserverPayload,
     ReqWakeWorkerSetPayload,
     RunErrorType,
+    RunsChangedGlobalPayload,
     SessionChangedPayload,
     WorkersChangedPayload,
 )
@@ -404,7 +405,7 @@ class SessionQuery:
         try:
             rep: NMessage[RepGetEnvironmentPayload] = await request(
                 NMessageType.GET_ENVIRONMENT,
-                ReqGetEnvironmentPayload(project_id=project_id, node_id=None),
+                ReqGetEnvironmentPayload(project_id=project_id),
                 reply_t=RepGetEnvironmentPayload,
             )
             environment_data = rep.p.environment
@@ -678,15 +679,17 @@ class SessionMutation:
                 cancel,
                 reply_t=RepCancelRunPayload,
             )
+            run = await models.Run.objects.filter(id=cancel.run_id).afirst()
             success = rep.p.success
         except (NoRespondersError, TimeoutError):
+            run = None
             success = False
         posthog.capture(
             str(user.id),
             "cancel_run",
             {"project_version_id": str(project_version_id), "success": success},
         )
-        return CancelRunPayload(success=success, run=None)
+        return CancelRunPayload(success=success, run=run)
 
 
 @gql.type
@@ -697,6 +700,11 @@ class LogChange:
 @gql.type
 class SessionChange:
     session: Session
+    runs: list[Run]
+
+
+@gql.type
+class RunsChange:
     runs: list[Run]
 
 
@@ -713,7 +721,7 @@ class SessionSubscription:
         info: Info,
         project_id: GlobalID,
         project_version_id: Optional[GlobalID] = None,
-    ) -> AsyncGenerator[SessionChange | WorkerChange, None]:
+    ) -> AsyncGenerator[SessionChange | RunsChange | WorkerChange, None]:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         user = get_user_from_info(info)
@@ -726,17 +734,28 @@ class SessionSubscription:
             log.debug("sessions.subscribe_denied", exc_info=True)
             return
 
+        def _filter_run(run: wire.RunData) -> bool:
+            if run.project_id != project_id:
+                return False
+            if project_version_id is not None and run.module_id != project_version_id:
+                return False
+            return True
+
         log.info("sessions.subscribe")
         routing_id = f"{project_id}.{project_version_id or '*'}".replace("-", "")
         sub = await subscribe_many(
             {
                 f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
+                f"{NMessageType.SESSION_CHANGED}.all": SessionChangedPayload,
+                f"{NMessageType.RUNS_CHANGED_GLOBAL}": SessionChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.{routing_id}": WorkersChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
             },
         )
         while True:
-            msg: NMessage[SessionChangedPayload | WorkersChangedPayload] = await sub.next_msg()
+            msg: NMessage[
+                SessionChangedPayload | RunsChangedGlobalPayload | WorkersChangedPayload
+            ] = await sub.next_msg()
             if isinstance(msg.p, WorkersChangedPayload):
                 if msg.p.project_id is not None:
                     worker_sets = [
@@ -756,6 +775,12 @@ class SessionSubscription:
                     session=packer.unpack_data(msg.p.session),
                     runs=[packer.unpack_data(r) for r in msg.p.runs],
                 )
+            elif isinstance(msg.p, RunsChangedGlobalPayload):
+                log.debug("runs.update", msg=msg)
+                # filter runs to only those in the project
+                runs = [packer.unpack_data(r) for r in msg.p.runs if _filter_run(r)]
+                if runs:
+                    yield RunsChange(runs=runs)
             else:
                 raise RuntimeError(f"unexpected message type {msg}")
 

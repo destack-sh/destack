@@ -2,6 +2,7 @@ import asyncio
 import base64
 import enum
 import time
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 from uuid import UUID
@@ -108,7 +109,32 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
     return WorkerSetStatus.UNKNOWN
 
 
-DEPLOYMENT_DYNAMIC_FIELDS = ["available_replicas", "ready_replicas", "sleeping", "status"]
+@dataclass
+class Pod:
+    name: str
+    deployment_name: str
+    project_id: UUID
+    worker_set_id: UUID
+    region: WorkerRegion
+    profile: WorkerProfile
+
+    def __str__(self):
+        return f"{self.name} ({self.deployment_name}, {self.region}, {self.profile})"
+
+    def __repr__(self):
+        return f"<Pod {self}>"
+
+    @classmethod
+    def from_k8(cls, pod: client.V1Pod) -> "Pod":
+        labels = pod.metadata.labels
+        return cls(
+            name=pod.metadata.name,
+            deployment_name=labels["deployment"],
+            project_id=UUID(labels["project_id"]),
+            worker_set_id=UUID(labels["worker_set_id"]),
+            region=WorkerRegion(labels["region"]),
+            profile=WorkerProfile(labels["profile"]),
+        )
 
 
 @dataclass
@@ -120,9 +146,16 @@ class Deployment:
     desired_replicas: int
     target_replicas: int
     # read from k8
+    active_replicas_ids: list[str] = None
     available_replicas: Optional[int] = None
     ready_replicas: Optional[int] = None
     status: Optional[WorkerSetStatus] = None
+
+    def __str__(self):
+        return f"{self.name} ({self.ready_replicas}/{self.target_replicas}/{self.desired_replicas}, {self.region}, {self.profile})"
+
+    def __repr__(self):
+        return f"<Deployment {self}>"
 
     @property
     def name(self):
@@ -159,6 +192,7 @@ class Deployment:
         )
         labels = {
             "app": "bench-worker",
+            "deployment": self.name,
             "project_id": str(self.project_id),
             "worker_set_id": str(self.worker_set_id),
             "region": self.region.lower(),
@@ -185,7 +219,7 @@ class Deployment:
         return deployment
 
     @classmethod
-    def from_k8(cls, deployment: client.V1Deployment) -> "Deployment":
+    def from_k8(cls, deployment: client.V1Deployment, pods: list[Pod]) -> "Deployment":
         """Gets partial deployment info from k8."""
         # check conditions (and reasons) for status (updating, healthy, unhealthy)
         labels = deployment.metadata.labels
@@ -196,6 +230,7 @@ class Deployment:
             profile=WorkerProfile(labels["profile"]),
             status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,
+            active_replicas_ids=[pod.name for pod in pods],
             available_replicas=deployment.status.available_replicas,
             ready_replicas=deployment.status.ready_replicas,
         )
@@ -217,8 +252,10 @@ class Deployment:
             region=self.region,
             profile=self.profile,
             target_replicas=self.target_replicas,
+            active_replicas_ids=self.active_replicas_ids,
             available_replicas=self.available_replicas,
             ready_replicas=self.ready_replicas,
+            status=self.status,
         )
 
 
@@ -259,10 +296,13 @@ async def get_all_deployments() -> list[Deployment]:
     """Gets all bench worker set deployments."""
     _check_k8_available()
     api = client.AppsV1Api()
-    deployments = await api.list_deployment_for_all_namespaces(
-        label_selector="app=bench-worker",
-    )
-    return [Deployment.from_k8(d) for d in deployments.items]
+    deployments = await api.list_deployment_for_all_namespaces(label_selector="app=bench-worker")
+    pods = client.CoreV1Api().list_pod_for_all_namespaces(label_selector="app=bench-worker")
+    pods = [Pod.from_k8(p) for p in pods.items]
+    pods_by_deployment = defaultdict(list)
+    for pod in pods:
+        pods_by_deployment[pod.deployment_name].append(pod.name)
+    return [Deployment.from_k8(d, pods_by_deployment[d.metadata.name]) for d in deployments.items]
 
 
 class EventType(enum.StrEnum):
@@ -271,13 +311,12 @@ class EventType(enum.StrEnum):
     DELETED = "DELETED"
 
 
-async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment]]:
+async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment | Pod]]:
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
     v1 = client.CoreV1Api()
     async with watch.Watch().stream(
-        v1.list_event_for_all_namespaces,
-        label_selector="app=bench-worker",
+        v1.list_event_for_all_namespaces, label_selector="app=bench-worker"
     ) as stream:
         async for event in stream:
             # map kubernetes event to EventType
@@ -286,5 +325,8 @@ async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment]]
             if event["object"].get("involvedObject", {}).get("kind") == "Deployment":
                 deployment = client.V1Deployment(**event["object"])
                 yield event_type, Deployment.from_k8(deployment)
+            elif event["object"].get("involvedObject", {}).get("kind") == "Pod":
+                pod = client.V1Pod(**event["object"])
+                yield event_type, Pod.from_k8(pod)
             else:
                 continue  # ignore other events?

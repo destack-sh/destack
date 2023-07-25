@@ -1,7 +1,6 @@
 import asyncio
 import os
 import sys
-import uuid
 from pathlib import Path
 from uuid import UUID
 
@@ -26,7 +25,7 @@ init_sentry(django=False)
 if os.environ.get("DEBUG") == "1":
     # auto reload on file change if in dev mode
     worker_set_id = None
-    worker_node_id = uuid.uuid4()
+    worker_node_id = "local"
     project_id = None
     nats_name = "worker-local"
 else:

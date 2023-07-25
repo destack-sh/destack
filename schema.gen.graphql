@@ -1594,6 +1594,10 @@ enum RunTriggerType {
   UI
 }
 
+type RunsChange {
+  runs: [Run!]!
+}
+
 input SearchQuery {
   op: QueryOp!
   key: String = null
@@ -1654,7 +1658,7 @@ type SessionChange {
   runs: [Run!]!
 }
 
-union SessionChangeWorkerChange = SessionChange | WorkerChange
+union SessionChangeRunsChangeWorkerChange = SessionChange | RunsChange | WorkerChange
 
 type SessionState {
   workerSet: WorkerSet
@@ -1843,7 +1847,7 @@ type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectVersionId: GlobalID!): ModuleChange!
-  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeWorkerChange!
+  sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeRunsChangeWorkerChange!
   logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null): LogChange!
 }
 

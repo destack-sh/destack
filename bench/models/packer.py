@@ -908,6 +908,8 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
     def pack(self, model: models.Run) -> wire.RunData:
         return wire.RunData(
             id=model.id,
+            project_id=model.project_id,
+            worker_node_id=model.worker_node_id,
             module_id=model.project_version_id,
             session_id=model.session_id,
             root_id=model.root_id,
@@ -929,7 +931,9 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
         # additional context
         return models.Run(
             id=data.id,
+            project_id=data.project_id,
             project_version_id=data.module_id,
+            worker_node_id=data.worker_node_id,
             session_id=data.session_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
