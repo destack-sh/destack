@@ -157,12 +157,12 @@ def compact_os_queries(queries: list[dict[str, Any]]) -> dict[str, Any]:
 
 def prepare_search(
     type: "DocumentType",
-    project_version_id: Optional[str],
+    project_version_id: Union[str, list[str], None],
     limit: int,
     count: bool,
-    after: Optional[str],
-    sort: Optional[list[Sort]],
-    query: Optional[Query],
+    after: Optional[str] = None,
+    sort: Optional[list[Sort]] = None,
+    query: Optional[Query] = None,
 ) -> dict:
     combined_query = Q(
         QueryOp.AND,

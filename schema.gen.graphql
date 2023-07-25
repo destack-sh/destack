@@ -972,6 +972,7 @@ type Project implements Node {
   ): ProjectVersionConnection!
   workerSet: WorkerSet!
   workerSets: [WorkerSet!]!
+  usage: ProjectUsage!
   canWrite: Boolean!
   migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
 }
@@ -1026,6 +1027,11 @@ input ProjectUpdateNameInput {
 input ProjectUpdateVisibilityInput {
   id: GlobalID!
   visibility: ProjectVisibility!
+}
+
+type ProjectUsage {
+  recordsActive: Int!
+  objectsBytesTotal: Int!
 }
 
 type ProjectVersion implements CrudModel & ModuleNode & Node {

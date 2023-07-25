@@ -3,7 +3,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusIconSolid, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { StopIcon } from "@heroicons/vue/24/outline";
@@ -12,12 +12,15 @@ import { computed } from "vue";
 const appearance = useAppearance();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
+const nav = useNavigation();
 
 const activeRuns = sessions.activeRoots;
-const activeRunsAsc = computed(() => {
-  console.log("activeRunsAsc", activeRuns.value); // nocheckin
-  return activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompareTo(a.createdAt));
-});
+const activeRunsAsc = computed(() =>
+  activeRuns.value.slice().sort((a, b) => {
+    console.log(b, a); // nocheckin
+    return b.createdAt.localeCompareTo(a.createdAt);
+  })
+);
 const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localCompareTo(b.createdAt)));
 </script>
 <template>

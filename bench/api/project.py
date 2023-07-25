@@ -4,6 +4,7 @@ from uuid import UUID
 
 import pytz
 from django.core.exceptions import ValidationError
+from django.db.models import Sum
 from strawberry import UNSET, lazy
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -32,6 +33,7 @@ from bench.language import const
 from bench.language.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
+from bench.opensearch.query import prepare_search
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -96,6 +98,40 @@ class ProjectMigrationInfo:
     ref_mappings: list["RefMapping"]
 
 
+@gql.type
+class ProjectUsage:
+    records_active: int
+    objects_bytes_total: int
+
+
+def get_project_usage(info: Info) -> ProjectUsage:
+    from bench.opensearch import mirror
+    from bench.opensearch.client import os_client
+    from bench.opensearch.core import IndexType
+
+    project_id = UUID(info.variable_values.get("projectId").node_id)
+    project_head_id = models.Project.objects.only("head_id").get(id=project_id).head_id
+
+    # count total active records
+    records_total_search = prepare_search(
+        type=mirror.DocumentType.RECORD, project_version_id=project_head_id, limit=0, count=True
+    )
+    records_total_results = os_client.search(
+        index=IndexType.BENCH.get_index_name(project_id), body=records_total_search
+    )
+
+    # count total object bytes
+    object_bytes_total = (
+        models.RemoteObject.objects.filter(project_id=project_id)
+        .values("content_length")
+        .aggregate(Sum("content_length"))["content_length__sum"]
+    )
+    return ProjectUsage(
+        records_active=records_total_results["hits"]["total"]["value"],
+        objects_bytes_total=object_bytes_total or 0,
+    )
+
+
 REF_TYPE_TO_TYPE_NAME = {
     MOT.MODULE: "ProjectVersion",
     MOT.FILE: "File",
@@ -122,6 +158,7 @@ class Project(gql.Node):
     )
     worker_set: Annotated["WorkerSet", lazy(".session")]
     worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
+    usage: ProjectUsage = gql.field(resolver=get_project_usage)
 
     # TODO @Performance: specify only/select_related for can_write field
     @gql.field

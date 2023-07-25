@@ -24,6 +24,7 @@ from bench.language.wire import (
     SessionData,
     WorkerSetData,
 )
+from bench.utils.func import try_from_uuid
 from bench.utils.utils import required_field
 
 REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
@@ -172,7 +173,7 @@ class OriginPayload:
         return self.origins[0]
 
     def has_origin(self, id: UUID | str, nonce: Optional[UUID | str] = None) -> bool:
-        id = id if isinstance(id, UUID) else UUID(id)
+        id = try_from_uuid(id)
         if nonce is None:
             return any(c.id == id for c in self.origins)
         else:
