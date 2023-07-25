@@ -243,7 +243,7 @@ const documents = {
     types.RestoreDocument,
   "\n        query revealSecret($secretId: GlobalID!) {\n          secret(id: $secretId) {\n            ... on Secret {\n              id\n              sha512\n              valueRevealed\n            }\n          }\n        }\n      ":
     types.RevealSecretDocument,
-  "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n":
+  "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n    lastActiveAt\n  }\n":
     types.WorkerSetContentFragmentDoc,
   "\n  fragment RunHeader on Run {\n    id\n    createdAt\n    updatedAt\n    startedAt\n    terminatedAt\n    duration\n    status\n    projectVersion {\n      id\n      tag\n      name\n    }\n    session {\n      id\n    }\n    root {\n      id\n    }\n    parent {\n      id\n    }\n    runnable {\n      id\n      name\n    }\n  }\n":
     types.RunHeaderFragmentDoc,
@@ -979,8 +979,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n"
-): typeof documents["\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n  }\n"];
+  source: "\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n    lastActiveAt\n  }\n"
+): typeof documents["\n  fragment WorkerSetContent on WorkerSet {\n    id\n    project {\n      id\n    }\n    region\n    profile\n    sleeping\n    status\n    desiredReplicas\n    targetReplicas\n    availableReplicas\n    readyReplicas\n    lastActiveAt\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

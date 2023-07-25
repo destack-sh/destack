@@ -40,6 +40,7 @@ export const WorkerSetContentType = graphql(/* GraphQL */ `
     targetReplicas
     availableReplicas
     readyReplicas
+    lastActiveAt
   }
 `);
 
@@ -389,6 +390,9 @@ export function _useSessions(
 
   function cancel(run: { id: string }): Promise<boolean> {
     console.debug("run.cancel", run.id);
+    if (currentRuns.value[run.id] == null) {
+      return Promise.resolve(false);
+    }
     currentRuns.value[run.id].status = RunStatus.Aborting;
     return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
   }

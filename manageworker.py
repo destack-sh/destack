@@ -56,7 +56,7 @@ async def _run_host():
     )
     logger.info("start_process_host", host=host)
     if os.environ.get("DEBUG") == "1":
-        asyncio.create_task(restart_on_file_changes(on_restart=host.stop_sync()))
+        asyncio.create_task(restart_on_file_changes(on_restart=host.stop_sync))
     await host.run_forever()
 
 

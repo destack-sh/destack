@@ -147,6 +147,7 @@ class WorkerSet(gql.Node):
     target_replicas: int
     available_replicas: int
     ready_replicas: int
+    last_active_at: auto
 
 
 @gql.django.type(models.Session)
