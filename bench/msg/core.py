@@ -244,8 +244,8 @@ async def handle_reply(type: str, cb, *, group: str = "") -> Subscription:
     return await nc.subscribe(type, cb=cb, queue=group)
 
 
-async def publish(type: NMessageType, payload: Any, *, topic: str = None) -> None:
-    message = prepare_publish(type, payload, topic)
+async def publish(type: NMessageType, payload: Any) -> None:
+    message = prepare_publish(type, payload, payload.topic)
     message.sent_at = datetime.utcnow()
     await do_publish(message, message.topic)
 
@@ -294,14 +294,12 @@ def batch(messages: list[tuple[str, NMessage]]) -> list[NMessage]:
     return batched_messages
 
 
-def publish_soon(
-    type: NMessageType, payload: Any, *, topic: str = None, skip_batch: bool = None
-) -> None:
+def publish_soon(type: NMessageType, payload: Payload, *, skip_batch: bool = None) -> None:
     global _soon_queue_unbatched
     global _soon_queue_batched
     if _soon_queue_batched is None:
         raise RuntimeError("publish_soon called before process_soon_queue started")
-    message = prepare_publish(type, payload, topic)
+    message = prepare_publish(type, payload, payload.topic)
     batch_key = get_batch_key(message)
     if batch_key is None or skip_batch is False:
         _soon_queue_unbatched.sync_q.put_nowait(message)

@@ -366,6 +366,11 @@ class WorkerNode(Monitored):
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
         ]
         self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
+
+        if self.project_id is not None:
+            # preload worker for project
+            await self._get_ready_worker(self.project_id)
+
         self._ready.set()
 
     async def run_forever(self):
@@ -469,6 +474,8 @@ class WorkerNode(Monitored):
 
     async def stop(self):
         logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
-        await asyncio.gather(task.cancel() for task in self.tasks)
+        for task in self.tasks:
+            task.cancel()
+        await asyncio.gather(*self.tasks)
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
         self._ready.clear()

@@ -2,7 +2,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
-import { newRunId } from "@/state/module";
+import { newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
@@ -22,7 +22,7 @@ import {
 } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable, whenever } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, type Ref } from "vue";
+import { computed, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 
@@ -267,47 +267,30 @@ export function _useSessions(
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
   const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
-  const wakingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently waking the worker set
-  const restartingPromise = ref<Promise<boolean> | undefined>(undefined); // if currently restarting the worker set
   const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
-  whenever(ready, () => (wakingPromise.value = undefined));
+  const waking = ref(false);
+  const restarting = ref(false);
 
   // worker sets
 
   function wakeWorkerSet(): Promise<boolean> {
-    // only wake if not already waking
-    if (wakingPromise.value != null) {
-      return wakingPromise.value;
-    } else {
-      sessionOps.wakeWorkerSet(filter.projectId.value as string);
-      wakingPromise.value = new Promise((resolve) => {
-        const unsub = onWorkerSetChange((workerSet) => {
-          if (workerSet.status == WorkerSetStatus.Healthy) {
-            unsub();
-            resolve(true);
-          }
-        });
+    waking.value = true;
+    return sessionOps
+      .wakeWorkerSet(filter.projectId.value as string)
+      .then((r) => r?.data?.wakeWorkerSet?.success ?? false)
+      .finally(() => {
+        waking.value = false;
       });
-      return wakingPromise.value;
-    }
   }
 
   function restartWorkerSet(): Promise<boolean> {
-    // only restart if not already restarting
-    if (restartingPromise.value != null) {
-      return restartingPromise.value;
-    } else {
-      sessionOps.restartWorkerSet(filter.projectId.value as string);
-      restartingPromise.value = new Promise((resolve) => {
-        const unsub = onWorkerSetChange((workerSet) => {
-          if (workerSet.status == WorkerSetStatus.Healthy) {
-            unsub();
-            resolve(true);
-          }
-        });
+    restarting.value = true;
+    return sessionOps
+      .restartWorkerSet(filter.projectId.value as string)
+      .then((r) => r?.data?.restartWorkerSet?.success ?? false)
+      .finally(() => {
+        restarting.value = false;
       });
-      return restartingPromise.value;
-    }
   }
 
   function withWorkers<T>(fn: () => Promise<T>): Promise<T> {
@@ -323,9 +306,9 @@ export function _useSessions(
   function run(
     runnable: { id: string },
     options?: { sessionId?: string; runId?: string; arguments?: any; block?: boolean; keyed?: boolean }
-  ): { run: Run; promise: Promise<Run> } {
+  ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
-    const sessionId = options?.sessionId ?? newRunId();
+    const sessionId = options?.sessionId ?? newSessionId();
     const run = {
       __typename: "Run",
       id: runId,
@@ -349,8 +332,8 @@ export function _useSessions(
     currentRuns.value[runId] = run;
     console.debug("run.start", run.id, run.runnable?.name, run.runnable?.id, Object.keys(run.inputs));
 
-    const promise = withWorkers(() =>
-      sessionOps
+    function doRunWithLogs() {
+      return sessionOps
         .run(runnable.id, run.id, run.session.id, run.inputs, {
           block: options?.block,
           keyed: options?.keyed,
@@ -368,8 +351,17 @@ export function _useSessions(
               message: "Run could not start",
               description: "The worker bots are unavailable.",
             });
+            throw new Error("run could not start");
+          } else if (r?.data?.run.__typename == "RunState") {
+            currentRuns.value[runId] = r?.data.run.run as Run;
           }
-          return r?.data?.run as Run;
+          return {
+            run: currentRuns.value[runId],
+            logs:
+              r?.data?.run.__typename == "RunState"
+                ? r?.data?.run.logs?.map((l) => useFragment(LogEntryContentType, l))
+                : undefined,
+          };
         })
         .catch((e) => {
           currentRuns.value[runId].status = RunStatus.Failed;
@@ -381,9 +373,10 @@ export function _useSessions(
             description: "An internal error happened somewhere.",
           });
           throw e;
-        })
-    );
-    return { run, promise };
+        });
+    }
+
+    return { run, result: withWorkers(doRunWithLogs) };
   }
 
   function pause(run: { id: string }) {
@@ -412,15 +405,15 @@ export function _useSessions(
     return computed(() =>
       Object.values(currentRuns.value)
         .filter((run) => run.runnable?.id === statement.id)
-        .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     );
   }
 
   return {
     loading: initialLoading,
     ready,
-    waking: computed(() => wakingPromise.value != null),
-    restarting: computed(() => restartingPromise.value != null),
+    waking,
+    restarting,
     wakeWorkerSet,
     restartWorkerSet,
     workerSet,

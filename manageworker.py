@@ -1,5 +1,6 @@
 import asyncio
 import os
+import sys
 import uuid
 from pathlib import Path
 from uuid import UUID
@@ -12,6 +13,7 @@ from bench.utils.analytics import init_sentry
 from bench.utils.logging import configure_logging
 from bench.utils.monitoring import restart_on_file_changes
 from bench.worker import WorkerNode
+from bench.worker.host import WorkerHost
 
 logger = structlog.get_logger(__name__)
 
@@ -21,23 +23,23 @@ configure_logging(apply_logging=True, apply_structlog=True)
 
 init_sentry(django=False)
 
+if os.environ.get("DEBUG") == "1":
+    # auto reload on file change if in dev mode
+    worker_set_id = None
+    worker_node_id = uuid.uuid4()
+    project_id = None
+    nats_name = "worker-local"
+else:
+    # production mode, one worker per process
+    worker_set_id = UUID(os.environ["WORKER_SET_ID"])
+    worker_node_id = os.environ["WORKER_NODE_ID"]
+    project_id = UUID(os.environ["WORKER_PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
+    nats_name = f"worker-{worker_set_id}-{worker_node_id}"
 
-async def _run():
+
+async def _run_node():
+    await init_nats(nats_name)
     asyncio.create_task(process_soon_queue())
-
-    if os.environ.get("DEBUG") == "1":
-        # auto reload on file change if in dev mode
-        asyncio.create_task(restart_on_file_changes())
-        await init_nats(name="worker-local")
-        worker_set_id = None
-        worker_node_id = uuid.uuid4()
-        project_id = None
-    else:
-        # production mode, one worker per process
-        worker_set_id = UUID(os.environ["WORKER_SET_ID"])
-        worker_node_id = os.environ["WORKER_NODE_ID"]
-        project_id = UUID(os.environ["WORKER_PROJECT_ID"]) if "PROJECT_ID" in os.environ else None
-        await init_nats(name=f"worker-{worker_set_id}-{worker_node_id}")
     worker = WorkerNode(
         worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
     )
@@ -46,4 +48,25 @@ async def _run():
     await worker.run_forever()
 
 
-asyncio.run(_run())
+async def _run_host():
+    await init_nats(nats_name)
+    asyncio.create_task(process_soon_queue())
+    host = WorkerHost(
+        worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
+    )
+    logger.info("start_process_host", host=host)
+    if os.environ.get("DEBUG") == "1":
+        asyncio.create_task(restart_on_file_changes(on_restart=host.stop_sync()))
+    await host.run_forever()
+
+
+# run node if arg1 is 'worker', run host if arg1 is 'host'
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        raise RuntimeError("missing argument")
+    if sys.argv[1] == "host":
+        asyncio.run(_run_host())
+    elif sys.argv[1] == "worker":
+        asyncio.run(_run_node())
+    else:
+        raise RuntimeError(f"invalid arguments: {sys.argv}")

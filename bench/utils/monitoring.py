@@ -71,7 +71,7 @@ class MonitoringServer:
             self._serve_task = None
 
 
-async def restart_on_file_changes():
+async def restart_on_file_changes(on_restart: callable = None):
     """Restarts the process when a source file changes."""
     from watchdog.events import FileSystemEventHandler  # noqa
     from watchdog.observers import Observer  # noqa
@@ -82,6 +82,8 @@ async def restart_on_file_changes():
                 return
             if event.src_path.endswith(".py"):
                 print(f"{event.src_path} changed, reloading...")
+                if on_restart:
+                    on_restart()
                 os.execv(sys.executable, [sys.executable] + sys.argv)
 
     observer = Observer()
