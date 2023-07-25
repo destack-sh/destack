@@ -1,3 +1,4 @@
+import platform
 import sys
 
 from bench.language.wire import EnvironmentData
@@ -15,11 +16,12 @@ def _collect_environment() -> EnvironmentData:
             name, version = line.split("==")
             packages[name] = version
 
+    osinfo = platform.uname()
     version = f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}"
     return EnvironmentData(
         language="python",
         version=version,
-        platform=sys.platform,
+        platform=f"{osinfo.system} {osinfo.release}",
         packages=packages,
     )
 

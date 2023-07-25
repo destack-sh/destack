@@ -2153,6 +2153,7 @@ type WorkerSet implements Node {
   targetReplicas: Int!
   availableReplicas: Int!
   readyReplicas: Int!
+  lastActiveAt: DateTime
 }
 
 enum WorkerSetStatus {

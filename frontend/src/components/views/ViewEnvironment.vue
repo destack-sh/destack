@@ -117,8 +117,11 @@ const statusIcon = computed(() =>
           class="mr-2 h-4 w-4"
           :class="[workerStatusColor[workerSet.status], statusIcon == BusySpinnerIcon ? 'animate-spin' : '']"
         />
-        <span class="mr-2 whitespace-nowrap font-semibold text-gray-900" :class="workerStatusColor[workerSet.status]">
+        <span class="mr-1.5 whitespace-nowrap font-semibold text-gray-900" :class="workerStatusColor[workerSet.status]">
           {{ workerStatusTitle[workerSet.status] }}
+        </span>
+        <span v-if="workerSet.lastActiveAt" class="text-gray-400">
+          {{ workerSet.lastActiveAt }}
         </span>
         <!-- Actions -->
         <button
@@ -128,7 +131,6 @@ const statusIcon = computed(() =>
           :class="[session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700']"
           :disabled="session.restarting.value"
         >
-          <PowerIcon class="mr-1 h-4 w-4" />
           {{ session.restarting.value ? "Restarting..." : "Restart" }}
         </button>
         <button
@@ -156,6 +158,7 @@ const statusIcon = computed(() =>
       <div class="flex flex-row items-center">
         <span class=""><CodeBracketSquareIcon class="mr-2 h-4 w-4 text-gray-400" /></span>
         <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
+        <span class="ml-2 text-gray-500">{{ environment.platform }}</span>
       </div>
       <!-- TODO @UX: view actual nodes, latency and resource usage here -->
       <!-- maybe also show object storage usage, total records, etc.? -->

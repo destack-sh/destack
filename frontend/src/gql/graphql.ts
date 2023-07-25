@@ -2498,6 +2498,7 @@ export type WorkerSet = Node & {
   createdAt: Scalars["DateTime"];
   desiredReplicas: Scalars["Int"];
   id: Scalars["GlobalID"];
+  lastActiveAt?: Maybe<Scalars["DateTime"]>;
   profile: WorkerProfile;
   project: Project;
   readyReplicas: Scalars["Int"];
@@ -4968,6 +4969,7 @@ export type WorkerSetContentFragment = {
   targetReplicas: number;
   availableReplicas: number;
   readyReplicas: number;
+  lastActiveAt?: any | null;
   project: { __typename?: "Project"; id: any };
 } & { " $fragmentName"?: "WorkerSetContentFragment" };
 
@@ -6171,6 +6173,7 @@ export const WorkerSetContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "targetReplicas" } },
           { kind: "Field", name: { kind: "Name", value: "availableReplicas" } },
           { kind: "Field", name: { kind: "Name", value: "readyReplicas" } },
+          { kind: "Field", name: { kind: "Name", value: "lastActiveAt" } },
         ],
       },
     },
