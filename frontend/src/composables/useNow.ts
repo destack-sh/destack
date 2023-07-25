@@ -92,7 +92,7 @@ export function formatDurationSeconds(diffMs: number, options?: { millis?: boole
   }
 }
 
-export function humanizeNumber(num: number): string {
+export function humanizeNumber(num: number, options?: { round?: boolean }): string {
   // format numbers into their highest 3-exponent of 10 (k, m, b)
   // like 57 -> 57, 7207 -> 7.2k, 2000000 -> 2m
   if (num < 1000) {

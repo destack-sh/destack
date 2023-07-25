@@ -76,6 +76,10 @@ async function run() {
   throw new Error("not implemented (nocheckin)");
 }
 
+async function cancel() {
+  throw new Error("not implemented (nocheckin)");
+}
+
 // tiling (crude placeholder to play around with)
 const showDots = ref(false);
 const dotSize = ref(1);

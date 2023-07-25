@@ -63,13 +63,16 @@ export function isValidObjectRecord(obj: any): boolean {
   return true;
 }
 
-export function humanizeBytes(bytes: number) {
+export function humanizeBytes(bytes: number, options?: { round?: boolean }) {
   /** Shorten bytes into nearest (KB, MB, GB, etc.) */
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   let unit = 0;
   while (bytes >= 1024 && unit < units.length - 1) {
     bytes /= 1024;
     unit++;
+  }
+  if (options?.round) {
+    return `${Math.round(bytes)}${units[unit]}`;
   }
   return `${bytes.toFixed(1)}${units[unit]}`;
 }

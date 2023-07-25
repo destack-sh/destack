@@ -14,12 +14,22 @@ from typing import (
     TypeVar,
     cast,
 )
+from uuid import UUID
 
 import structlog
 
 from bench.utils.utils import sentry_capture_if_enabled
 
 logger = structlog.get_logger(__name__)
+
+
+def try_from_uuid(id: UUID | str) -> UUID | str:
+    if isinstance(id, UUID):
+        return id
+    try:
+        return UUID(id)
+    except ValueError:
+        return id
 
 
 def get_first(obj: dict, keys: Iterable[str]):

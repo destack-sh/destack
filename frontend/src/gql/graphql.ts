@@ -1264,6 +1264,7 @@ export type Project = Node & {
   path: Scalars["String"];
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
+  usage: ProjectUsage;
   versions: ProjectVersionConnection;
   visibility: ProjectVisibility;
   workerSet: WorkerSet;
@@ -1334,6 +1335,12 @@ export type ProjectUpdateNameInput = {
 export type ProjectUpdateVisibilityInput = {
   id: Scalars["GlobalID"];
   visibility: ProjectVisibility;
+};
+
+export type ProjectUsage = {
+  __typename?: "ProjectUsage";
+  objectsBytesTotal: Scalars["Int"];
+  recordsActive: Scalars["Int"];
 };
 
 export type ProjectVersion = CrudModel &
@@ -2881,11 +2888,11 @@ export type SearchRecordQuery = {
   };
 };
 
-export type WorkerEnvironmentQueryVariables = Exact<{
+export type EnvironmentQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
 }>;
 
-export type WorkerEnvironmentQuery = {
+export type EnvironmentQuery = {
   __typename?: "Query";
   environment:
     | {
@@ -2896,6 +2903,11 @@ export type WorkerEnvironmentQuery = {
         packages: Array<{ __typename?: "Package"; name: string; version: string }>;
       }
     | { __typename?: "OperationInfo" };
+  project?: {
+    __typename?: "Project";
+    id: any;
+    usage: { __typename?: "ProjectUsage"; recordsActive: number; objectsBytesTotal: number };
+  } | null;
 };
 
 export type ProjectVersionsQueryVariables = Exact<{
@@ -7727,13 +7739,13 @@ export const SearchRecordDocument = {
     },
   ],
 } as unknown as DocumentNode<SearchRecordQuery, SearchRecordQueryVariables>;
-export const WorkerEnvironmentDocument = {
+export const EnvironmentDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "workerEnvironment" },
+      name: { kind: "Name", value: "environment" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7783,11 +7795,39 @@ export const WorkerEnvironmentDocument = {
               ],
             },
           },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "usage" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "recordsActive" } },
+                      { kind: "Field", name: { kind: "Name", value: "objectsBytesTotal" } },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
         ],
       },
     },
   ],
-} as unknown as DocumentNode<WorkerEnvironmentQuery, WorkerEnvironmentQueryVariables>;
+} as unknown as DocumentNode<EnvironmentQuery, EnvironmentQueryVariables>;
 export const ProjectVersionsDocument = {
   kind: "Document",
   definitions: [

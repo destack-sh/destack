@@ -1,16 +1,18 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { WorkerSetStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
+import { humanizeBytes } from "@/state/object";
 import { useCurrentSessions, WORKER_RESOURCES_BY_PROFILE } from "@/state/session";
-import { ChevronDownIcon, PowerIcon } from "@heroicons/vue/24/outline";
+import { ChevronDownIcon, CircleStackIcon, DocumentIcon, PowerIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
 import { useQuery } from "@vue/apollo-composable";
-import { computed, ref, toRef, type Ref } from "vue";
+import { computed, ref, toRef, type Ref, onBeforeUnmount } from "vue";
 
 const props = defineProps<{
   active: boolean;
@@ -27,9 +29,13 @@ const appearance = useAppearance();
 const packagesTableRef = ref<HTMLDivElement | null>(null);
 useActiveScroll(packagesTableRef);
 
-const { result: environmentQuery, loading } = useQuery(
+const {
+  result: environmentQuery,
+  loading,
+  refetch,
+} = useQuery(
   graphql(/* GraphQL */ `
-    query workerEnvironment($projectId: GlobalID!) {
+    query environment($projectId: GlobalID!) {
       environment(projectId: $projectId) {
         ... on Environment {
           language
@@ -41,6 +47,13 @@ const { result: environmentQuery, loading } = useQuery(
           }
         }
       }
+      project(id: $projectId) {
+        id
+        usage {
+          recordsActive
+          objectsBytesTotal
+        }
+      }
     }
   `),
   {
@@ -48,16 +61,26 @@ const { result: environmentQuery, loading } = useQuery(
   },
   {
     enabled: computed(() => props.active) as any,
+    fetchPolicy: "cache-and-network",
   }
 );
 const environment = computed(() =>
   environmentQuery.value?.environment.__typename == "Environment" ? environmentQuery.value?.environment : undefined
 );
+const projectUsage = computed(() => environmentQuery.value?.project?.usage);
 const resourcesInfo = computed(() => {
   if (workerSet.value == null) return undefined;
   const profile = workerSet.value.profile;
   return WORKER_RESOURCES_BY_PROFILE[profile];
 });
+
+// auto reload environment every minute if active
+const interval = setInterval(() => {
+  if (props.active) {
+    refetch();
+  }
+}, 60 * 1000);
+onBeforeUnmount(() => clearInterval(interval));
 
 const workerStatusColor = {
   [WorkerSetStatus.Pending]: "text-yellow-700",
@@ -107,7 +130,7 @@ const statusIcon = computed(() =>
     <!-- Environment -->
     <div
       class="mt-0.5 flex flex-col gap-y-1 pl-3 pr-5 text-sm"
-      v-if="environment != null && resourcesInfo != null && workerSet != null"
+      v-if="environment != null && resourcesInfo != null && workerSet != null && projectUsage != null"
     >
       <!-- Status/actions -->
       <div class="flex flex-row items-center justify-between">
@@ -160,6 +183,18 @@ const statusIcon = computed(() =>
         </div>
         <div class="ml-1.5 inline font-normal text-gray-500">
           {{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB
+        </div>
+      </div>
+      <!-- Records / files -->
+      <div class="flex flex-row items-center justify-between">
+        <div class="flex flex-row items-center">
+          <CircleStackIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <span class="whitespace-nowrap font-semibold text-gray-900">
+            <span>50k</span> <span class="font-normal text-gray-500">/</span> <span>50GB</span>
+          </span>
+        </div>
+        <div class="ml-1.5 inline font-normal text-gray-500">
+          {{ humanizeNumber(projectUsage.recordsActive) }} / {{ humanizeBytes(projectUsage.objectsBytesTotal) }}
         </div>
       </div>
       <!-- Language -->
