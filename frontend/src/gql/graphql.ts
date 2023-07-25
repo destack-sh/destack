@@ -1915,6 +1915,11 @@ export enum RunTriggerType {
   Ui = "UI",
 }
 
+export type RunsChange = {
+  __typename?: "RunsChange";
+  runs: Array<Run>;
+};
+
 export type SearchQuery = {
   key?: InputMaybe<Scalars["String"]>;
   op: QueryOp;
@@ -1978,7 +1983,7 @@ export type SessionChange = {
   session: Session;
 };
 
-export type SessionChangeWorkerChange = SessionChange | WorkerChange;
+export type SessionChangeRunsChangeWorkerChange = RunsChange | SessionChange | WorkerChange;
 
 export type SessionState = {
   __typename?: "SessionState";
@@ -2190,7 +2195,7 @@ export type Subscription = {
   logsChanged: LogChange;
   moduleChanged: ModuleChange;
   projectChanged: ProjectChange;
-  sessionsChanged: SessionChangeWorkerChange;
+  sessionsChanged: SessionChangeRunsChangeWorkerChange;
 };
 
 export type SubscriptionClientsChangedArgs = {
@@ -5061,12 +5066,16 @@ export type CurrentRunsQuery = {
 
 export type SessionsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
-  projectVersionId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
 export type SessionsChangedSubscription = {
   __typename?: "Subscription";
   sessionsChanged:
+    | {
+        __typename?: "RunsChange";
+        runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
+      }
     | {
         __typename?: "SessionChange";
         runs: Array<{ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }>;
@@ -15266,7 +15275,7 @@ export const SessionsChangedDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
       ],
       selectionSet: {
@@ -15293,6 +15302,23 @@ export const SessionsChangedDocument = {
                 {
                   kind: "InlineFragment",
                   typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SessionChange" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "runs" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "RunContent" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RunsChange" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [

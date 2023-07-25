@@ -4,10 +4,12 @@ from datetime import datetime
 from typing import Collection
 from uuid import UUID
 
+import pytz
 import structlog
+from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.language.session import WorkerSetStatus
+from bench.language.session import PENDING_RUN_STATUSES, RunStatus, WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init
@@ -22,8 +24,10 @@ from bench.msg.messages import (
     ReqDoRestartWorkerNodePayload,
     ReqRestartWorkerSetPayload,
     ReqWakeWorkerSetPayload,
+    RunsChangedGlobalPayload,
     WorkersChangedPayload,
 )
+from bench.opensearch.index import write_runs_to_os
 from bench.server import k8
 from bench.server.k8 import K8_AVAILABLE
 from bench.utils.cache import redis
@@ -60,10 +64,16 @@ class OrchestrationServer(Monitored):
     def ready(self):
         return self._ready
 
+    @property
+    def worker_sets(self) -> Collection[models.WorkerSet]:
+        return self.worker_sets_by_project_id.values()
+
     async def run(self):
         await k8.init()
         await nc_init.wait()
         logger.info("start")
+
+        # load
         worker_sets = [
             ws
             async for ws in models.WorkerSet.objects.select_related(
@@ -74,15 +84,33 @@ class OrchestrationServer(Monitored):
             self.worker_sets_by_project_id[worker_set.project_id] = worker_set
         logger.debug("worker_sets.loaded", worker_sets=self.worker_sets_by_project_id.values())
 
-        #
+        # initial sync
+        if USE_K8:
+            deployments = await k8.get_all_deployments()
+            dead_worker_node_ids = []
+            for deployment in deployments:
+                worker_set = self.worker_sets_by_project_id.get(deployment.project_id)
+                if not worker_set:
+                    continue
+                for node_id in deployment.active_replicas_ids:
+                    if node_id not in worker_set.active_replicas_ids:
+                        dead_worker_node_ids.append(node_id)
+                worker_set.active_replicas_ids = deployment.active_replicas_ids
+            await models.WorkerSet.objects.abulk_update(self.worker_sets, ["active_replicas_ids"])
+        else:  # mark local as deadish (just started)
+            dead_worker_node_ids = ["local"]
+        if dead_worker_node_ids:
+            await self._mark_worker_nodes_as_deadish(dead_worker_node_ids)
+
+        # start
+        if USE_K8:
+            self.tasks.append(asyncio.create_task(self._watch_worker_sets_in_k8_forever()))
+        self.tasks.append(asyncio.create_task(self._manage_worker_lifecycle_forever()))
         self.subs = [
             await handle_reply(NMessageType.CONFIGURE_WORKER_SET, self.configure_worker_set),
             await handle_reply(NMessageType.WAKE_WORKER_SET, self.wake_worker_set),
             await handle_reply(NMessageType.RESTART_WORKER_SET, self.restart_worker_set),
         ]
-        if USE_K8:
-            self.tasks.append(asyncio.create_task(self._watch_worker_sets_in_k8_forever()))
-        self.tasks.append(asyncio.create_task(self._manage_worker_lifecycle_forever()))
         self._ready = True
 
     async def stop(self):
@@ -119,19 +147,55 @@ class OrchestrationServer(Monitored):
             ),
         )
 
+    async def _mark_worker_nodes_as_deadish(self, worker_node_ids: list[str]):
+        """Marks runs on worker nodes as aborted (node may be lost or just restarting)."""
+        dead_runs = [
+            r
+            async for r in models.Run.objects.filter(
+                worker_node_id__in=worker_node_ids, status__in=PENDING_RUN_STATUSES
+            )
+        ]
+        logger.debug(
+            "mark_worker_nodes_as_deadish", worker_node_ids=worker_node_ids, runs=len(dead_runs)
+        )
+        if not dead_runs:
+            return
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        for run in dead_runs:
+            run.terminated_at = now
+            run.status = RunStatus.Aborted
+        await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
+        dead_runs_data = [packer.pack_data(r) for r in dead_runs]
+        await sync_to_async(write_runs_to_os)(dead_runs_data)
+        await publish(
+            NMessageType.RUNS_CHANGED_GLOBAL, RunsChangedGlobalPayload(runs=dead_runs_data)
+        )
+
     async def _watch_worker_sets_in_k8_forever(self):
         """Watch k8 deployments and update worker sets accordingly."""
-        async for event_type, deployment in k8.watch_our_deployments():
-            partial_worker_set = deployment.to_model()
-            worker_set = self.worker_sets_by_project_id.get(partial_worker_set.project_id)
+        async for event_type, object in k8.watch_our_deployments():
+            worker_set = self.worker_sets_by_project_id.get(object.project_id)
             if worker_set is None:
-                logger.warning("worker_set.unknown", worker_set=partial_worker_set)
+                logger.warning("worker_set.unknown", object=object)
                 continue  # delete maybe?
-            # update worker set
-            for field in k8.DEPLOYMENT_DYNAMIC_FIELDS:
-                setattr(worker_set, field, getattr(partial_worker_set, field))
+            if isinstance(object, k8.Deployment):
+                partial_worker_set = object.to_model()
+                worker_set.active_replicas_ids = partial_worker_set.active_replicas_ids
+                worker_set.target_replicas = partial_worker_set.target_replicas
+                worker_set.sleeping = partial_worker_set.sleeping
+                worker_set.status = partial_worker_set.status
+            elif isinstance(object, k8.Pod):
+                if event_type == k8.EventType.ADDED:
+                    worker_set.active_replicas_ids.append(object.name)
+                elif event_type == k8.EventType.DELETED:
+                    worker_set.active_replicas_ids.remove(object.name)
+                    await self._mark_worker_nodes_as_deadish([object.name])
+                else:
+                    continue
+            else:
+                raise TypeError(f"unexpected k8 object type: {type(object)}")
             logger.info("worker_set.update", worker_set=worker_set)
-            await worker_set.asave(force_update=True, update_fields=k8.DEPLOYMENT_DYNAMIC_FIELDS)
+            await worker_set.asave(force_update=True, update_fields=WORKER_SET_FIELDS_NO_ID)
             # notify
             await publish(
                 NMessageType.WORKERS_CHANGED,
@@ -165,7 +229,7 @@ class OrchestrationServer(Monitored):
                     worker_set.sleeping = True
                     worker_set.target_replicas = 0
 
-            await self._write_worker_sets(self.worker_sets_by_project_id.values())
+            await self._write_worker_sets(self.worker_sets)
 
     async def _get_project_worker_set(self, project_id: UUID):
         """Get default worker set for a project."""
@@ -222,6 +286,8 @@ class OrchestrationServer(Monitored):
         worker_set = await self._get_project_worker_set(msg.p.project_id)
         logger.info("worker_sets.restart", worker_set=worker_set)
         success = False
+
+        # restart (if we have any nodes)
         if worker_set.target_replicas > 0:
             try:
                 # TODO @Broken: do restart worker node only works with 1 worker node
@@ -239,6 +305,13 @@ class OrchestrationServer(Monitored):
             if not success and K8_AVAILABLE:
                 await k8.restart_deployment(k8.Deployment.from_model(worker_set))
                 success = True
+
+        # mark all worker set nodes as deadish
+        if USE_K8:
+            await self._mark_worker_nodes_as_deadish(worker_set.active_replicas_ids)
+        else:
+            await self._mark_worker_nodes_as_deadish(["local"])
+
         await msg.reply(
             RepRestartWorkerSetPayload(
                 worker_set_id=worker_set.id if worker_set else None, success=success

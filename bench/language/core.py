@@ -856,6 +856,7 @@ class SessionContext:
     module_id: UUID
     project_id: UUID
     trigger_type: RunTriggerType
+    worker_node_id: str
     trigger_id: typing.Optional[UUID]
     root_run_id: typing.Optional[UUID] = None
 

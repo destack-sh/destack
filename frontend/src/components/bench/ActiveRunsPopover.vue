@@ -14,7 +14,10 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 
 const activeRuns = sessions.activeRoots;
-const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompareTo(a.createdAt)));
+const activeRunsAsc = computed(() => {
+  console.log("activeRunsAsc", activeRuns.value); // nocheckin
+  return activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompareTo(a.createdAt));
+});
 const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localCompareTo(b.createdAt)));
 </script>
 <template>

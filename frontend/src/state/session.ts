@@ -198,9 +198,14 @@ export function _useSessions(
   if (options.live) {
     const { onResult: onSessionChange } = useSubscription(
       graphql(/* GraphQL */ `
-        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {
+        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID) {
           sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {
             ... on SessionChange {
+              runs {
+                ...RunContent
+              }
+            }
+            ... on RunsChange {
               runs {
                 ...RunContent
               }
@@ -218,7 +223,10 @@ export function _useSessions(
       }
     );
     onSessionChange((result) => {
-      if (result.data?.sessionsChanged?.__typename == "SessionChange" && result.data.sessionsChanged.runs != null) {
+      if (
+        result.data?.sessionsChanged?.__typename == "SessionChange" ||
+        (result.data?.sessionsChanged?.__typename == "RunsChange" && result.data.sessionsChanged.runs != null)
+      ) {
         for (const run of result.data.sessionsChanged.runs.map((r) => useFragment(RunContentType, r))) {
           currentRuns.value[run.id] = run as Run;
           for (const subscriber of onRunChangeSubscribers.value) {
@@ -344,7 +352,6 @@ export function _useSessions(
             r?.data?.run?.__typename == "OperationInfo" ||
             (r?.data?.run?.__typename == "RunState" && !r?.data?.run?.success)
           ) {
-            currentRuns.value[runId].status = RunStatus.Failed;
             delete currentRuns.value[runId];
             notifications.show({
               kind: "error",
@@ -365,7 +372,6 @@ export function _useSessions(
           };
         })
         .catch((e) => {
-          currentRuns.value[runId].status = RunStatus.Failed;
           delete currentRuns.value[runId];
           notifications.show({
             kind: "error",
@@ -393,7 +399,6 @@ export function _useSessions(
     if (currentRuns.value[run.id] == null) {
       return Promise.resolve(false);
     }
-    currentRuns.value[run.id].status = RunStatus.Aborting;
     return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
   }
 

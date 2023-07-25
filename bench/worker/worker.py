@@ -205,6 +205,7 @@ class ModuleWorker(ModuleWriter):
             session_ctx = SessionContext(
                 module_id=self.module_id,
                 project_id=self.project_id,
+                worker_node_id=self.node.worker_node_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
                 root_run_id=root_run_id,
@@ -274,7 +275,12 @@ class ModuleWorker(ModuleWriter):
                 job.cancelled = True
         # mark it as dead for everyone
         # (just in case it's still bugging around in some frontend)
-        await publish(NMessageType.RUN_MARKED_DEAD, RunMarkedDeadPayload(self.module_id, run_id))
+        await publish(
+            NMessageType.RUN_MARKED_DEAD,
+            RunMarkedDeadPayload(
+                project_id=self.project_id, module_id=self.module_id, run_id=run_id
+            ),
+        )
         return False
 
     async def run(self):
@@ -321,9 +327,9 @@ class WorkerNode(Monitored):
     For local development a node can host multiple Bench workers
     """
 
-    def __init__(self, worker_node_id: UUID | None, worker_set_id: UUID | None, project_id: UUID):
-        self.worker_set_id: UUID = worker_set_id
-        self.worker_node_id: str | UUID = worker_node_id or UUIDT()
+    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID):
+        self.worker_set_id = worker_set_id
+        self.worker_node_id = worker_node_id
         self.project_id = project_id
         self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
         self.workers: dict[UUID, ModuleWorker] = {}

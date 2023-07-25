@@ -444,7 +444,9 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
 
 @document(DocumentType.RUN)
 class Run(os.Document):
+    project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
+    worker_node_id: Optional[str] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -467,7 +469,9 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
     def unmirror(self, mirror: Run) -> models.Run:
         return models.Run(
             id=mirror.id,
+            project_id=mirror.project_id,
             project_version_id=mirror.project_version_id,
+            worker_node_id=mirror.worker_node_id,
             session_id=mirror.session_id,
             runnable_id=mirror.runnable_id,
             created_at=mirror.created_at,
@@ -485,6 +489,9 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         runnable_type = wire.StatementType(mirror.runnable_type) if mirror.runnable_type else None
         return wire.RunData(
             id=mirror.id,
+            project_id=mirror.project_id,
+            project_version_id=mirror.project_version_id,
+            worker_node_id=mirror.worker_node_id,
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,
             root_id=mirror.root_id,
@@ -502,14 +509,16 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             metadata=mirror.metadata,
         )
 
-    def unpack(self, project_v: models.ProjectVersion, data: wire.RunData, parent: None) -> Run:
+    def unpack(self, project_v: None, data: wire.RunData, parent: None) -> Run:
         if data.started_at and data.terminated_at:
             duration = (data.terminated_at - data.started_at).total_seconds()
         else:
             duration = None
         return Run(
             id=data.id,
-            project_version_id=project_v.id,
+            project_id=data.project_id,
+            project_version_id=data.module_id,
+            worker_node_id=data.worker_node_id,
             session_id=data.session_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
