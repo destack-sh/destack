@@ -11,12 +11,15 @@ from bench.language.session import WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init
-from bench.msg.core import NMessage, handle_reply, message_handler, publish
+from bench.msg.core import NMessage, handle_reply, message_handler, publish, request
 from bench.msg.messages import (
     NMessageType,
     RepConfigureWorkerSetPayload,
+    RepDoRestartWorkerNodePayload,
+    RepRestartWorkerSetPayload,
     RepWakeWorkerSetPayload,
     ReqConfigureWorkerSetPayload,
+    ReqDoRestartWorkerNodePayload,
     ReqRestartWorkerSetPayload,
     ReqWakeWorkerSetPayload,
     WorkersChangedPayload,
@@ -216,19 +219,28 @@ class OrchestrationServer(Monitored):
 
     @message_handler
     async def restart_worker_set(self, msg: NMessage[ReqRestartWorkerSetPayload]) -> None:
+        worker_set = await self._get_project_worker_set(msg.p.project_id)
+        logger.info("worker_sets.restart", worker_set=worker_set)
         success = False
-        try:
-            if not USE_K8:
-                # touch 'manage.py' file to trigger reload in dev mode
-                with open("manage.py", "a"):
-                    success = True
-            else:
-                worker_set = await self._get_project_worker_set(msg.p.project_id)
-                if worker_set.status == WorkerSetStatus.HEALTHY:
-                    await k8.restart_deployment(k8.Deployment.from_model(worker_set))
-                    success = True
-                logger.info("worker_sets.restart", worker_set=worker_set)
-        except Exception as e:
-            sentry_capture_if_enabled(e)
-            logger.error("worker_sets.restart.failed", msg=msg, exc_info=True)
-        await msg.reply(RepConfigureWorkerSetPayload(success=success))
+        if worker_set.target_replicas > 0:
+            try:
+                # TODO @Broken: do restart worker node only works with 1 worker node
+                rep: NMessage[RepDoRestartWorkerNodePayload] = await request(
+                    NMessageType.DO_RESTART_WORKER_NODE,
+                    ReqDoRestartWorkerNodePayload(
+                        project_id=msg.p.project_id, worker_set_id=worker_set.id
+                    ),
+                    reply_t=RepDoRestartWorkerNodePayload,
+                )
+                success = rep.p.success
+            except Exception as e:
+                sentry_capture_if_enabled(e)
+                logger.error("worker_sets.restart.failed", msg=msg, exc_info=True)
+            if not success and K8_AVAILABLE:
+                await k8.restart_deployment(k8.Deployment.from_model(worker_set))
+                success = True
+        await msg.reply(
+            RepRestartWorkerSetPayload(
+                worker_set_id=worker_set.id if worker_set else None, success=success
+            )
+        )

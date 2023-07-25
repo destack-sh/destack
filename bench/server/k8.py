@@ -148,7 +148,7 @@ class Deployment:
             ports=[client.V1ContainerPort(container_port=80, name="http")],
             resources=WORKER_RESOURCES_BY_PROFILE[self.profile],
             env=extended_env_vars,
-            command=["python", "manageworker.py"],
+            command=["python", "manageworker.py", "sidecar"],
             liveness_probe=client.V1Probe(
                 # /healthz on port 80, see :WorkerHealthProbe
                 http_get=client.V1HTTPGetAction(path="/healthz", port=80),

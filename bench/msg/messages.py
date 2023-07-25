@@ -95,6 +95,8 @@ class NMessageType(StrEnum):
     WAKE_WORKER_SET_REP = "worker_set.wake.rep"
     RESTART_WORKER_SET = "worker_set.restart"
     RESTART_WORKER_SET_REP = "worker_set.restart.rep"
+    DO_RESTART_WORKER_NODE = "worker_set.do_restart"
+    DO_RESTART_WORKER_NODE_REP = "worker_set.do_restart.rep"
     GET_ENVIRONMENT = "worker_set.get_environment"
     GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
     # running (routed via project id)
@@ -112,6 +114,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.CONFIGURE_WORKER_SET: NMessageType.CONFIGURE_WORKER_SET_REP,
     NMessageType.WAKE_WORKER_SET: NMessageType.WAKE_WORKER_SET_REP,
     NMessageType.RESTART_WORKER_SET: NMessageType.RESTART_WORKER_SET_REP,
+    NMessageType.DO_RESTART_WORKER_NODE: NMessageType.DO_RESTART_WORKER_NODE_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
@@ -215,7 +218,7 @@ class ClientData:
 
 
 @payload(NMessageType.CLIENT_CHANGED)
-class ClientChangedPayload:
+class ClientChangedPayload(Payload):
     origin: ClientOrigin
     client: ClientData
 
@@ -477,19 +480,37 @@ class ReqWakeWorkerSetPayload(Payload):
 
 @payload(NMessageType.WAKE_WORKER_SET_REP)
 class RepWakeWorkerSetPayload(Payload):
-    worker_set_id: UUID
+    worker_set_id: Optional[UUID]
     success: bool
 
 
 @payload(NMessageType.RESTART_WORKER_SET)
 class ReqRestartWorkerSetPayload(Payload):
     project_id: UUID
-    node_id: Optional[UUID]
 
 
 @payload(NMessageType.RESTART_WORKER_SET_REP)
 class RepRestartWorkerSetPayload(Payload):
-    worker_set_id: UUID
+    worker_set_id: Optional[UUID]
+    success: bool
+
+
+@payload(NMessageType.DO_RESTART_WORKER_NODE)
+class ReqDoRestartWorkerNodePayload(Payload):
+    project_id: UUID
+    worker_set_id: Optional[UUID]
+
+    @property
+    def topic(self) -> str:
+        return f"{self.__class__.type}.{self.project_id}.{self.worker_set_id or 'all'}".replace(
+            "-", ""
+        )
+
+
+@payload(NMessageType.DO_RESTART_WORKER_NODE_REP)
+class RepDoRestartWorkerNodePayload(Payload):
+    worker_set_id: Optional[UUID]
+    worker_node_id: Optional[UUID]
     success: bool
 
 

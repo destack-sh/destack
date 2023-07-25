@@ -598,7 +598,7 @@ class SessionMutation:
             ReqRestartWorkerSetPayload(project_id=project_id),
             reply_t=RepRestartWorkerSetPayload,
         )
-        if rep.payload.success:
+        if rep.payload.success and rep.p.worker_set_id:
             worker_set = await models.WorkerSet.objects.aget(id=rep.p.worker_set_id)
         else:
             worker_set = None
@@ -726,10 +726,11 @@ class SessionSubscription:
             return
 
         log.info("sessions.subscribe")
+        routing_id = f"{project_id}.{project_version_id or '*'}".replace("-", "")
         sub = await subscribe_many(
             {
-                f"{NMessageType.SESSION_CHANGED}.{project_version_id}": SessionChangedPayload,
-                f"{NMessageType.WORKERS_CHANGED}.{project_version_id}": WorkersChangedPayload,
+                f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
+                f"{NMessageType.WORKERS_CHANGED}.{routing_id}": WorkersChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
             },
         )
@@ -794,8 +795,9 @@ class SessionSubscription:
             return True
 
         log.info("logs.subscribe")
+        routing_id = f"{project_id}.{project_version_id or '*'}".replace("-", "")
         logs_sub = await subscribe(
-            f"{NMessageType.LOGS_CHANGED}.{project_version_id}", payload_t=LogsChangedPayload
+            f"{NMessageType.LOGS_CHANGED}.{routing_id}", payload_t=LogsChangedPayload
         )
         while True:
             msg: NMessage[LogsChangedPayload] = await logs_sub.next_msg()

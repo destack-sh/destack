@@ -4,12 +4,10 @@ import StatementDeclaration from "@/components/statements/StatementDeclaration.v
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
+import { RunStatus } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { RUN_TERMINAL_STATES, useCurrentSessions } from "@/state/session";
-import { TypeFlag, newRunId, newSessionId } from "@/state/module";
-import { useNotifications } from "@/state/notifications";
-import { useOperations } from "@/state/operations";
+import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
   PlayIcon,
@@ -171,8 +169,12 @@ async function run() {
     } finally {
       preparingRun.value = false;
     }
-    await sessions.run(context.statement.value);
+    const { result: runPromise } = await sessions.run(context.statement.value);
+    const { logs } = await runPromise;
     showOutput.value = "logs";
+    if (logs != null) {
+      nextTick(() => runTileRef.value?.addLogs(logs));
+    }
   }
 }
 

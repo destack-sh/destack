@@ -546,8 +546,8 @@ onBeforeUnmount(() => {
       <aside
         class="flex h-full resize-x"
         :class="{
-          'w-64 lg:w-80': bench.showViewContent && bench.showViewSelection,
-          'w-48 lg:w-64': bench.showViewContent && !bench.showViewSelection,
+          'w-80': bench.showViewContent && bench.showViewSelection,
+          'w-64': bench.showViewContent && !bench.showViewSelection,
         }"
       >
         <div
