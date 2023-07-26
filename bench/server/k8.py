@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import enum
+import subprocess
 import time
 from collections import defaultdict
 from dataclasses import dataclass
@@ -26,6 +27,15 @@ k8_init = asyncio.Event()
 
 BENCH_WORKER_APP = "bench-worker"
 K8_AVAILABLE = False
+
+if DEBUG:
+    image_name, image_version = KUBERNETES_WORKER_IMAGE.split(":")
+    if image_version == "latest":
+        # use current git commit hash as image version
+        image_version = (
+            subprocess.check_output(["git", "rev-parse", "--short", "HEAD"]).decode("utf-8").strip()
+        )
+    KUBERNETES_WORKER_IMAGE = f"{image_name}:{image_version}"
 
 
 async def init():
@@ -145,8 +155,8 @@ class Pod:
             deployment_name=labels["deployment"],
             project_id=UUID(labels["project_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
-            region=WorkerRegion(labels["region"]),
-            profile=WorkerProfile(labels["profile"]),
+            region=WorkerRegion(labels["region"].upper()),
+            profile=WorkerProfile(labels["profile"].upper()),
         )
 
 
@@ -156,7 +166,6 @@ class Deployment:
     worker_set_id: UUID
     region: WorkerRegion
     profile: WorkerProfile
-    desired_replicas: int
     target_replicas: int
     # read from k8
     active_replicas_ids: list[str] = None
@@ -165,7 +174,7 @@ class Deployment:
     status: Optional[WorkerSetStatus] = None
 
     def __str__(self):
-        return f"{self.name} ({self.ready_replicas}/{self.target_replicas}/{self.desired_replicas}, {self.region}, {self.profile})"
+        return f"{self.name} ({self.ready_replicas}/{self.target_replicas}, {self.region}, {self.profile})"
 
     def __repr__(self):
         return f"<Deployment {self}>"
@@ -175,6 +184,7 @@ class Deployment:
         return f"{BENCH_WORKER_APP}-{self.project_id}-{self.worker_set_id.hex[:6]}"
 
     def to_k8(self: "Deployment") -> client.V1Deployment:
+        namespace = settings.KUBERNETES_WORKER_NAMESPACE
         extended_env_vars = [
             client.V1EnvVar(name="WORKER_PROJECT_ID", value=str(self.project_id)),
             client.V1EnvVar(name="WORKER_SET_ID", value=str(self.worker_set_id)),
@@ -194,7 +204,7 @@ class Deployment:
             ports=[client.V1ContainerPort(container_port=80, name="http")],
             resources=WORKER_RESOURCES_BY_PROFILE[self.profile],
             env=extended_env_vars,
-            command=["python", "manageworker.py", "sidecar"],
+            command=["python", "manageworker.py", "host"],
             liveness_probe=client.V1Probe(
                 # /healthz on port 80, see :WorkerHealthProbe
                 http_get=client.V1HTTPGetAction(path="/healthz", port=80),
@@ -212,17 +222,19 @@ class Deployment:
             "profile": self.profile.lower(),
         }
         template = client.V1PodTemplateSpec(
-            metadata=client.V1ObjectMeta(labels=labels),
+            metadata=client.V1ObjectMeta(namespace=namespace, labels=labels),
             spec=client.V1PodSpec(
                 containers=[container],
                 image_pull_secrets=[
-                    client.V1LocalObjectReference(name=settings.KUBERNETES_IMAGE_PULL_SECRET_NAME)
+                    client.V1LocalObjectReference(
+                        name=settings.KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME
+                    )
                 ],
                 termination_grace_period_seconds=20,
             ),
         )
         deployment = client.V1Deployment(
-            metadata=client.V1ObjectMeta(name=self.name, labels=labels),
+            metadata=client.V1ObjectMeta(namespace=namespace, name=self.name, labels=labels),
             spec=client.V1DeploymentSpec(
                 replicas=self.target_replicas,
                 selector=client.V1LabelSelector(match_labels=labels),
@@ -239,13 +251,13 @@ class Deployment:
         return cls(
             project_id=UUID(labels["project_id"]),
             worker_set_id=UUID(labels["worker_set_id"]),
-            region=WorkerRegion(labels["region"]),
-            profile=WorkerProfile(labels["profile"]),
+            region=WorkerRegion(labels["region"].upper()),
+            profile=WorkerProfile(labels["profile"].upper()),
             status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,
             active_replicas_ids=[pod.name for pod in pods],
-            available_replicas=deployment.status.available_replicas,
-            ready_replicas=deployment.status.ready_replicas,
+            available_replicas=deployment.status.available_replicas or 0,
+            ready_replicas=deployment.status.ready_replicas or 0,
         )
 
     @classmethod
@@ -278,25 +290,37 @@ def _check_k8_available():
 
 
 async def update_deployments(deployments: list[Deployment]) -> None:
+    """Upserts deployments in k8."""
     _check_k8_available()
     async with client.ApiClient() as api:
         for deployment in deployments:
             k8_deployment = deployment.to_k8()
-            await client.AppsV1Api(api).replace_namespaced_deployment(
-                k8_deployment.metadata.name,
-                k8_deployment.metadata.namespace,
-                k8_deployment,
-            )
+            try:
+                logger.info("k8.deployment.update", deployment=deployment)
+                await client.AppsV1Api(api).replace_namespaced_deployment(
+                    name=k8_deployment.metadata.name,
+                    namespace=k8_deployment.metadata.namespace,
+                    body=k8_deployment,
+                )
+            except client.ApiException as e:
+                if e.status == 404:
+                    logger.info("k8.deployment.create", deployment=deployment)
+                    await client.AppsV1Api(api).create_namespaced_deployment(
+                        namespace=k8_deployment.metadata.namespace, body=k8_deployment
+                    )
+                else:
+                    raise
 
 
 async def restart_deployment(deployment: Deployment) -> None:
     _check_k8_available()
+    logger.info("k8.deployment.restart", deployment=deployment)
     async with client.ApiClient() as api:
-        annotations = {"annotations": {"kubectl.kubernetes.io/restartedAt": str(int(time.time()))}}
+        annotations_patch = {"kubectl.kubernetes.io/restartedAt": str(int(time.time()))}
         await client.AppsV1Api(api).patch_namespaced_deployment(
-            deployment.name,
-            KUBERNETES_WORKER_NAMESPACE,
-            {"spec": {"template": {"metadata": annotations}}},
+            name=deployment.name,
+            namespace=KUBERNETES_WORKER_NAMESPACE,
+            body={"spec": {"template": {"metadata": {"annotations": annotations_patch}}}},
         )
 
 
@@ -310,10 +334,13 @@ async def get_all_deployments() -> list[Deployment]:
         deployments = await apps.list_deployment_for_all_namespaces(label_selector=selector)
         pods = await core.list_pod_for_all_namespaces(label_selector=selector)
     pods = [Pod.from_k8(p) for p in pods.items]
-    pods_by_deployment = defaultdict(list)
+    pods_by_deployment: dict[str, list[Pod]] = defaultdict(list)
     for pod in pods:
-        pods_by_deployment[pod.deployment_name].append(pod.name)
-    return [Deployment.from_k8(d, pods_by_deployment[d.metadata.name]) for d in deployments.items]
+        pods_by_deployment[pod.deployment_name].append(pod)
+    deployments = [
+        Deployment.from_k8(d, pods_by_deployment[d.metadata.name]) for d in deployments.items
+    ]
+    return deployments
 
 
 class EventType(enum.StrEnum):
@@ -326,6 +353,7 @@ async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment |
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
     selector = f"app={BENCH_WORKER_APP}"
+    logger.info("k8.deployment.watch", selector=selector)
     async with client.ApiClient() as api:
         async with watch.Watch().stream(
             client.CoreV1Api(api).list_event_for_all_namespaces, label_selector=selector

@@ -85,7 +85,7 @@ class OrchestrationServer(Monitored):
 
         # initial sync
         if KUBERNETES_ENABLED:
-            # load from k8
+            # fetch from k8
             deployments = await k8.get_all_deployments()
             dead_worker_node_ids = []
             for deployment in deployments:
@@ -95,9 +95,11 @@ class OrchestrationServer(Monitored):
                 for node_id in deployment.active_replicas_ids:
                     if node_id not in worker_set.active_replicas_ids:
                         dead_worker_node_ids.append(node_id)
+                worker_set.status = deployment.status
+                worker_set.ready_replicas = deployment.ready_replicas
                 worker_set.active_replicas_ids = deployment.active_replicas_ids
-            await models.WorkerSet.objects.abulk_update(self.worker_sets, ["active_replicas_ids"])
-            # update deployments
+            await self._save_and_notify_worker_sets(self.worker_sets)
+            # update deployments from db
             await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
             dead_worker_node_ids = ["local"]
@@ -145,12 +147,11 @@ class OrchestrationServer(Monitored):
         # save in DB
         await models.WorkerSet.objects.abulk_update(worker_sets, WORKER_SET_FIELDS_NO_ID)
         # notify
+        worker_sets_data = [packer.pack_data(worker_set) for worker_set in worker_sets]
+        project_id = worker_sets_data[0].project_id if len(worker_sets) == 1 else None
         await publish(
             NMessageType.WORKERS_CHANGED,
-            WorkersChangedPayload(
-                project_id=worker_sets[0].project_id if len(worker_sets) == 1 else None,
-                worker_sets=[packer.pack_data(worker_set) for worker_set in worker_sets],
-            ),
+            WorkersChangedPayload(project_id=project_id, worker_sets=worker_sets_data),
         )
 
     async def _mark_worker_nodes_as_deadish(self, worker_node_ids: list[str]):
@@ -188,7 +189,6 @@ class OrchestrationServer(Monitored):
                 partial_worker_set = object.to_model()
                 worker_set.active_replicas_ids = partial_worker_set.active_replicas_ids
                 worker_set.target_replicas = partial_worker_set.target_replicas
-                worker_set.sleeping = partial_worker_set.sleeping
                 worker_set.status = partial_worker_set.status
             elif isinstance(object, k8.Pod):
                 if event_type == k8.EventType.ADDED:
@@ -208,7 +208,7 @@ class OrchestrationServer(Monitored):
         while True:
             await asyncio.sleep(interval)
             idle_cutoff = time.time() - WORKER_SET_IDLE_SLEEP_TIME
-            # scan iter "worker_set.{id}" in redis
+            # scan iter "worker_set.{id}" in redis :WorkerSetActive
             active_keys = await redis.keys("worker_set.*.last_active_at")
             active_values = await redis.mget(active_keys)
 
