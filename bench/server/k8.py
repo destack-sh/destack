@@ -68,8 +68,9 @@ WORKER_RESOURCES_BY_PROFILE = {
 
 BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
 try:
-    for v in base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";"):
-        k, v = v.split("=")
+    decoded_vars = base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode()
+    for part in decoded_vars.split(";"):
+        k, v = part.split("=")
         BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
 except Exception as e:
     logger.exception(

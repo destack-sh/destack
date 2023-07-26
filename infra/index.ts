@@ -503,9 +503,9 @@ const WORKER_ENV_VARS = [
   { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
 ];
 // encode as k1=v1;k2=v2;... and then base64
-const WORKER_ENV_VARS_ENCODED = Buffer.from(
-  WORKER_ENV_VARS.map((env) => `${env.name}=${env.value}`).join(";")
-).toString("base64");
+const WORKER_ENV_VARS_ENCODED = pulumi
+  .all(WORKER_ENV_VARS.map((env) => pulumi.interpolate`${env.name}=${env.value}`))
+  .apply((vars) => Buffer.from(vars.join(";")).toString("base64"));
 const KUBERNETES_ENV_VARS = [
   { name: "KUBERNETES_WORKER_IMAGE", value: `ghcr.io/symbolx/bench-worker:${imageVersion}` },
   { name: "KUBERNETES_WORKER_ENV_VARS", value: WORKER_ENV_VARS_ENCODED },
@@ -591,7 +591,7 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
                 { name: "RUN_LANGUAGE_SERVER", value: "1" },
                 { name: "RUN_ORCHESTRATION_SERVER", value: "1" },
               ],
-              command: ["python", "manageserver.py"],
+              command: ["python", "manageserver.py", "all"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
             },
           ],
