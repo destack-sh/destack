@@ -474,8 +474,6 @@ const serverClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("server-depl
 const SOCIAL_AUTH_ENV_VARS = [
   "SOCIAL_AUTH_GITHUB_KEY",
   "SOCIAL_AUTH_GITHUB_SECRET",
-  "SOCIAL_AUTH_GITLAB_KEY",
-  "SOCIAL_AUTH_GITLAB_SECRET",
   "SOCIAL_AUTH_GOOGLE_OAUTH2_KEY",
   "SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET",
 ].map((name) => ({
