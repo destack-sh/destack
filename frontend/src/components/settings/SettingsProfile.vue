@@ -146,7 +146,7 @@ watchEffect(() => {
         <div class="flex flex-row items-baseline">
           <span
             class="mt-1 rounded-l-sm border border-r-0 border-orange-900 border-opacity-[15%] bg-white px-3 py-1 text-gray-500"
-            >symbolx.com/</span
+            >bench.is/</span
           >
           <input
             ref="slugRef"

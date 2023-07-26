@@ -101,7 +101,7 @@ async function init() {
       integrations: [
         new BrowserTracing({
           routingInstrumentation: Sentry.vueRouterInstrumentation(router),
-          tracePropagationTargets: ["localhost", "127.0.0.1", "api.symbolx.com", /^\//],
+          tracePropagationTargets: ["localhost", "127.0.0.1", "api.bench.is", /^\//],
         }),
       ],
       tracesSampleRate: 1.0,
