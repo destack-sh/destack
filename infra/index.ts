@@ -620,12 +620,11 @@ const apiIngress = new k8s.networking.v1.Ingress(
         "alb.ingress.kubernetes.io/listen-ports": '[{"HTTP": 80}, {"HTTPS":443}]',
         "alb.ingress.kubernetes.io/scheme": "internet-facing",
         // ALB doesn't support cert-manager certs, so we need to provision that cert ACM
-        "certificate-arn": "arn:aws:acm:eu-central-1:163349077661:certificate/6530f4ea-60f6-4a51-ae92-3ea200fa4deb",
+        "certificate-arn": "arn:aws:acm:eu-central-1:163349077661:certificate/8271c03a-0830-4c02-81af-b5add9429291",
       },
       namespace: "default",
     },
     spec: {
-      ingressClassName: "alb",
       tls: [
         {
           hosts: [apiDomain],
