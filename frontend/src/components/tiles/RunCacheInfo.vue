@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
+import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import type { Run } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import { BoltIcon } from "@heroicons/vue/24/solid";
@@ -38,7 +38,7 @@ const cachedPercentage = computed(() => {
       Cached
       {{ now.getTimeFromNowString(cachedGeneratedAt) }} ago<br />
       <template v-if="cachedPercentage > 0">
-        Saved {{ cachedPercentage.toFixed() }}% (~{{ formatDurationSeconds((cachedDuration - run.duration) * 1000) }})
+        Saved {{ cachedPercentage.toFixed() }}% (~{{ formatDuration((cachedDuration - run.duration) * 1000) }})
       </template>
     </span>
   </span>

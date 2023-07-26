@@ -4,7 +4,7 @@ import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
-import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
+import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";

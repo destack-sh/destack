@@ -1,9 +1,7 @@
 from __future__ import annotations
 
-import asyncio
 from asyncio import CancelledError
 from collections import OrderedDict
-from functools import wraps
 from typing import (
     Any,
     Collection,
@@ -89,33 +87,6 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
             "task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture_if_enabled(e)
         )
         raise
-
-
-def debounce(delay: int, max_wait: int = None):
-    """Debounces the async function by the given delay (in seconds) and
-    ensures that the function is called at least once every max_wait seconds
-    if provided"""
-
-    # TODO @Broken: implement debounce max_wait
-
-    def decorator(func):
-        @wraps(func)
-        async def debounced(*args, **kwargs):
-            if debounced._task:
-                debounced._task.cancel()
-
-            async def call_it():
-                await asyncio.sleep(delay)
-                debounced._last_call_time = asyncio.get_event_loop().time()
-                await func(*args, **kwargs)
-
-            debounced._task = asyncio.ensure_future(call_it())
-
-        debounced._task = None
-        debounced._last_call_time = None
-        return debounced
-
-    return decorator
 
 
 def describe_type(obj: Any) -> str:

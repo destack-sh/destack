@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
-import { formatDurationSeconds } from "@/composables/useNow";
+import { formatDuration } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import type { Run } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
@@ -64,7 +64,7 @@ const fields = computed(
           <tr>
             <td class="font-semibold">Duration</td>
             <td class="text-gray-600">
-              {{ props.run.duration == null ? "-" : formatDurationSeconds(props.run.duration) }}
+              {{ props.run.duration == null ? "-" : formatDuration(props.run.duration) }}
             </td>
           </tr>
         </tbody>

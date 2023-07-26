@@ -13,6 +13,7 @@ const props = defineProps<{
   sessionId?: string;
   live?: boolean;
   limit?: number;
+  skipInitialLoad?: boolean;
   focus?: {
     runnableIds?: string[];
     runId?: string;
@@ -33,6 +34,7 @@ const { logs, loading, addLogs } = useLogs(
   {
     live: props.live,
     limit: props.limit,
+    skipInitialLoad: toRef(props, "skipInitialLoad"),
   }
 );
 const logsSorted = computed(() => logs.value?.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)) ?? []);

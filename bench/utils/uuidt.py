@@ -69,7 +69,7 @@ class UUIDT(uuid.UUID):
         if type(candidate) != str:
             return False
         hex = candidate.replace("urn:", "").replace("uuid:", "")
-        hex = hex.strip("{}").replace("-", "")
+        hex = hex.strip("{}")
         if len(hex) != 32:
             return False
         return 0 <= int(hex, 16) < 1 << 128

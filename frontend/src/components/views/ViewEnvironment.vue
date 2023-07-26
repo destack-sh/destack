@@ -145,7 +145,11 @@ const statusIcon = computed(() =>
             class="mr-1.5 whitespace-nowrap font-semibold text-gray-900"
             :class="workerStatusColor[workerSet.status]"
           >
-            {{ workerStatusTitle[workerSet.status] }}
+            {{
+              workerStatusTitle[
+                session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
+              ]
+            }}
           </span>
         </div>
         <!-- Idle / actions -->

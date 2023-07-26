@@ -102,6 +102,9 @@ class Tracer:
     def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
         pass
 
+    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
+        pass
+
     def run_enter(self, statement: Runnable, inputs):
         pass
 
@@ -310,6 +313,10 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.run_queue(statement, inputs, queue_position)
 
+    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
+        for tracer in self.tracers:
+            tracer.run_cancel(statement, inputs)
+
     def run_enter(self, statement: Runnable, inputs):
         for tracer in self.tracers:
             tracer.run_enter(statement, inputs)
@@ -451,7 +458,17 @@ class RunTracer(Tracer):
             queue_position=queue_position,
         )
         self.track(frame)
-        logger.debug("trace.queue", frame=frame)
+        logger.debug("trace.run.queue", frame=frame)
+
+    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
+        # don't trace this because it's not part of the stacktrace
+        frame = self._create_frame(
+            runnable=statement,
+            inputs=strip_py_value(inputs, statement, is_output=False),
+            trace=False,
+        )
+        self.track(frame)
+        logger.debug("trace.run.cancel", frame=frame)
 
     def run_enter(self, statement: Runnable, inputs):
         frame = self._create_frame(
