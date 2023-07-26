@@ -605,7 +605,7 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
 );
 
 // Expose API service via HTTPS ingress
-const apiDomain = "api.symbolx.com";
+const apiDomain = "api.bench.is";
 // TODO @Infra: manage AWS certificate via aws.acm.Certificate
 // (without causing issues with current certificate)
 const apiIngress = new k8s.networking.v1.Ingress(
