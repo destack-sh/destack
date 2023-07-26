@@ -385,6 +385,10 @@ const PUBLIC_BACKEND_VARS = [
     value: config.require("env"),
   },
   {
+    name: "LOCAL_ENV", // should probably merge this with ENVIRONMENT
+    value: config.require("env"),
+  },
+  {
     name: "NOISY_LOG_LEVEL",
     value: "DEBUG",
   },
