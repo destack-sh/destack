@@ -27,7 +27,7 @@ const helpActions = [
   {
     name: "Ask the community",
     icon: UserGroupIcon,
-    href: "https://forum.symbolx.com",
+    href: "https://forum.bench.is",
     soon: true,
   },
   {

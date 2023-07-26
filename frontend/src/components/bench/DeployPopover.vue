@@ -14,7 +14,7 @@ const project = computed(() => useFragment(ProjectHeaderType, props.project));
 
 const clipboard = useClipboard();
 function copyApiUrlToClipboard() {
-  const url = `https://api.symbolx.com/${project.value.owner.slug}/${project.value.slug}/run`;
+  const url = `https://api.bench.is/${project.value.owner.slug}/${project.value.slug}/run`;
   clipboard.copy(url);
 }
 </script>
@@ -52,8 +52,8 @@ function copyApiUrlToClipboard() {
           at:
         </p>
         <p class="relative mt-2 w-full rounded-sm border border-orange-900 border-opacity-[20%] p-1">
-          <span :href="`https://api.symbolx.com/${project.owner.slug}/${project.slug}/run`" class="text-gray-900">
-            api.symbolx.com/<span class="text-orange-600">{{ project.owner.slug }}</span
+          <span :href="`https://api.bench.is/${project.owner.slug}/${project.slug}/run`" class="text-gray-900">
+            api.bench.is/<span class="text-orange-600">{{ project.owner.slug }}</span
             >/<span class="text-orange-600">{{ project.slug }}</span
             >/run
           </span>
