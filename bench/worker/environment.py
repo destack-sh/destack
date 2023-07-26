@@ -21,7 +21,7 @@ def _collect_environment() -> EnvironmentData:
     return EnvironmentData(
         language="python",
         version=version,
-        platform=f"{osinfo.system} {osinfo.release}",
+        platform=f"{osinfo.system} {osinfo.release}".split("-")[0],
         packages=packages,
     )
 
