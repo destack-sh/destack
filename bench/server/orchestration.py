@@ -29,16 +29,15 @@ from bench.msg.messages import (
 )
 from bench.opensearch.index import write_runs_to_os
 from bench.server import k8
-from bench.server.k8 import K8_AVAILABLE
+from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
-from bench.utils.utils import DEBUG, sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
-USE_K8 = K8_AVAILABLE or not DEBUG
 WORKER_SET_IDLE_SLEEP_TIME = 60 * 20  # 20 minutes
 
 
@@ -82,10 +81,11 @@ class OrchestrationServer(Monitored):
         ]
         for worker_set in worker_sets:
             self.worker_sets_by_project_id[worker_set.project_id] = worker_set
-        logger.debug("worker_sets.loaded", worker_sets=self.worker_sets_by_project_id.values())
+        logger.debug("worker_sets.loaded", worker_sets=self.worker_sets)
 
         # initial sync
-        if USE_K8:
+        if KUBERNETES_ENABLED:
+            # load from k8
             deployments = await k8.get_all_deployments()
             dead_worker_node_ids = []
             for deployment in deployments:
@@ -97,13 +97,15 @@ class OrchestrationServer(Monitored):
                         dead_worker_node_ids.append(node_id)
                 worker_set.active_replicas_ids = deployment.active_replicas_ids
             await models.WorkerSet.objects.abulk_update(self.worker_sets, ["active_replicas_ids"])
+            # update deployments
+            await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
             dead_worker_node_ids = ["local"]
         if dead_worker_node_ids:
             await self._mark_worker_nodes_as_deadish(dead_worker_node_ids)
 
-        # start
-        if USE_K8:
+        # start for real
+        if KUBERNETES_ENABLED:
             self.tasks.append(asyncio.create_task(self._watch_worker_sets_in_k8_forever()))
         self.tasks.append(asyncio.create_task(self._manage_worker_lifecycle_forever()))
         self.subs = [
@@ -122,11 +124,12 @@ class OrchestrationServer(Monitored):
             task.cancel()
         await asyncio.gather(*self.tasks, return_exceptions=True)
 
-    async def _write_worker_sets(self, worker_sets: Collection[models.WorkerSet]) -> None:
-        """Write worker sets to DB, update in K8 and notify changes."""
+    async def _deploy_worker_sets(self, worker_sets: Collection[models.WorkerSet]) -> None:
+        """Deploy worker sets in K8 (if available)."""
+        logger.debug("worker_sets.deploy", worker_sets=worker_sets)
         if not worker_sets:
             return
-        if K8_AVAILABLE:  # update k8 deployments
+        if KUBERNETES_ENABLED:  # update k8 deployments
             deployments = [k8.Deployment.from_model(worker_set) for worker_set in worker_sets]
             await k8.update_deployments(deployments)
         else:  # pretend they're all as needed
@@ -136,6 +139,9 @@ class OrchestrationServer(Monitored):
                 worker_set.status = (
                     WorkerSetStatus.SLEEPING if worker_set.sleeping else WorkerSetStatus.HEALTHY
                 )
+
+    async def _save_and_notify_worker_sets(self, worker_sets: Collection[models.WorkerSet]) -> None:
+        logger.debug("worker_sets.save_and_notify", worker_sets=worker_sets)
         # save in DB
         await models.WorkerSet.objects.abulk_update(worker_sets, WORKER_SET_FIELDS_NO_ID)
         # notify
@@ -195,14 +201,7 @@ class OrchestrationServer(Monitored):
             else:
                 raise TypeError(f"unexpected k8 object type: {type(object)}")
             logger.info("worker_set.update", worker_set=worker_set)
-            await worker_set.asave(force_update=True, update_fields=WORKER_SET_FIELDS_NO_ID)
-            # notify
-            await publish(
-                NMessageType.WORKERS_CHANGED,
-                WorkersChangedPayload(
-                    project_id=worker_set.project_id, worker_sest=[packer.pack_data(worker_set)]
-                ),
-            )
+            await self._save_and_notify_worker_sets([worker_set])
 
     async def _manage_worker_lifecycle_forever(self, interval: int = 60):
         """Puts worker sets to sleep after inactivity if needed."""
@@ -213,13 +212,14 @@ class OrchestrationServer(Monitored):
             active_keys = await redis.keys("worker_set.*.last_active_at")
             active_values = await redis.mget(active_keys)
 
+            updated_worker_sets = []
             for key, last_active_at in zip(active_keys, active_values):
                 # update worker set
                 worker_set_id = UUID(key.split(".")[1])
                 last_active_at = float(last_active_at)
                 worker_set = self.worker_sets_by_project_id.get(worker_set_id)
                 if worker_set is None or worker_set.status != WorkerSetStatus.HEALTHY:
-                    await redis.delete(key)  # delete old keys
+                    await redis.delete(key)  # delete stale keys
                     continue
                 worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
 
@@ -228,8 +228,10 @@ class OrchestrationServer(Monitored):
                     logger.info("worker_sets.sleep", worker_set=worker_set)
                     worker_set.sleeping = True
                     worker_set.target_replicas = 0
+                    updated_worker_sets.append(worker_set)
 
-            await self._write_worker_sets(self.worker_sets)
+            await self._save_and_notify_worker_sets(self.worker_sets)
+            await self._deploy_worker_sets(updated_worker_sets)
 
     async def _get_project_worker_set(self, project_id: UUID):
         """Get default worker set for a project."""
@@ -251,7 +253,8 @@ class OrchestrationServer(Monitored):
             worker_set.desired_replicas = msg.p.desired_replicas
             worker_set.profile = msg.p.profile
             worker_set.region = msg.p.region
-            await self._write_worker_sets([worker_set])
+            await self._save_and_notify_worker_sets([worker_set])
+            await self._deploy_worker_sets([worker_set])
             success = True
             logger.info("worker_sets.configure", worker_set=worker_set)
         except Exception as e:
@@ -268,7 +271,8 @@ class OrchestrationServer(Monitored):
             worker_set.target_replicas = worker_set.desired_replicas
             worker_set.status = WorkerSetStatus.PENDING
             logger.info("worker_sets.wake", worker_sets=worker_set)
-            await self._write_worker_sets([worker_set])
+            await self._save_and_notify_worker_sets([worker_set])
+            await self._deploy_worker_sets([worker_set])
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
@@ -302,12 +306,12 @@ class OrchestrationServer(Monitored):
             except Exception as e:
                 sentry_capture_if_enabled(e)
                 logger.error("worker_sets.restart.failed", msg=msg, exc_info=True)
-            if not success and K8_AVAILABLE:
+            if not success and KUBERNETES_ENABLED:
                 await k8.restart_deployment(k8.Deployment.from_model(worker_set))
                 success = True
 
         # mark all worker set nodes as deadish
-        if USE_K8:
+        if KUBERNETES_ENABLED:
             await self._mark_worker_nodes_as_deadish(worker_set.active_replicas_ids)
         else:
             await self._mark_worker_nodes_as_deadish(["local"])

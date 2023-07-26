@@ -7,11 +7,11 @@ import django
 import dotenv
 import structlog
 
-from bench.msg.core import process_soon_queue
+from bench.msg.core import init_nats, process_soon_queue
 from bench.utils.analytics import init_sentry
 from bench.utils.logging import configure_logging
 from bench.utils.monitoring import MonitoringServer
-from bench.utils.utils import get_from_env
+from bench.utils.utils import DEBUG, get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -36,6 +36,7 @@ django.setup()
 
 async def _run(names: list[str]):
     asyncio.create_task(process_soon_queue())
+    await init_nats("server")
 
     servers = []
     if "language" in names or "all" in names:
@@ -52,7 +53,10 @@ async def _run(names: list[str]):
         servers.append(server)
     if not servers:
         raise RuntimeError("no servers to run (pass arguments 'all', 'language', 'orchestration')")
-    await MonitoringServer(servers).launch("0.0.0.0", 80, daemon=True)
+    if not DEBUG:
+        await MonitoringServer(servers).launch("0.0.0.0", 80, daemon=False)  # keep running forever
+    else:
+        await asyncio.Event().wait()
 
 
 asyncio.run(_run(sys.argv[1:]))
