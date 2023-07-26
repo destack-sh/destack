@@ -20,7 +20,11 @@ from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
-from bench.settings import CORS_ALLOWED_ORIGINS, RUN_LANGUAGE_SERVER, RUN_ORCHESTRATION_SERVER
+from bench.settings import (
+    CORS_ALLOWED_ORIGINS,
+    RUN_LANGUAGE_SERVER_IN_API,
+    RUN_ORCHESTRATION_SERVER_IN_API,
+)
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -63,14 +67,14 @@ reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
 
 # run servers alongside API server (for development)
-if RUN_LANGUAGE_SERVER:
+if RUN_LANGUAGE_SERVER_IN_API:
     from bench.server import LanguageServer
 
     server = LanguageServer()
     task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "langserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
-if RUN_ORCHESTRATION_SERVER:
+if RUN_ORCHESTRATION_SERVER_IN_API:
     from bench.server import OrchestrationServer
 
     server = OrchestrationServer()

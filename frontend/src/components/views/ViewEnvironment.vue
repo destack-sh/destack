@@ -86,9 +86,9 @@ const workerStatusColor = {
   [WorkerSetStatus.Pending]: "text-yellow-700",
   [WorkerSetStatus.Healthy]: "text-green-700",
   [WorkerSetStatus.Unhealthy]: "text-red-700",
-  [WorkerSetStatus.Updating]: "text-gray-700",
-  [WorkerSetStatus.Sleeping]: "text-gray-700",
-  [WorkerSetStatus.Unknown]: "text-gray-700",
+  [WorkerSetStatus.Updating]: "text-gray-500",
+  [WorkerSetStatus.Sleeping]: "text-gray-500",
+  [WorkerSetStatus.Unknown]: "text-gray-500",
 };
 const workerStatusIcon = {
   [WorkerSetStatus.Pending]: BusySpinnerIcon,
@@ -141,10 +141,7 @@ const statusIcon = computed(() =>
             class="mr-2 h-4 w-4"
             :class="[workerStatusColor[workerSet.status], statusIcon == BusySpinnerIcon ? 'animate-spin' : '']"
           />
-          <span
-            class="mr-1.5 whitespace-nowrap font-semibold text-gray-900"
-            :class="workerStatusColor[workerSet.status]"
-          >
+          <span class="mr-1.5 whitespace-nowrap font-semibold" :class="workerStatusColor[workerSet.status]">
             {{
               workerStatusTitle[
                 session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
@@ -202,12 +199,12 @@ const statusIcon = computed(() =>
         </div>
       </div>
       <!-- Language -->
-      <div class="flex flex-row items-center justify-between">
-        <span class="flex flex-row items-center">
+      <div class="flex max-w-full flex-row items-center justify-between">
+        <span class="flex flex-shrink-0 flex-row items-center">
           <CodeBracketSquareIcon class="mr-2 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
         </span>
-        <span class="ml-2 text-gray-500">{{ environment.platform }}</span>
+        <span class="ml-2 max-w-full truncate whitespace-nowrap text-gray-500">{{ environment.platform }}</span>
       </div>
       <!-- TODO @UX: view actual nodes, latency and resource usage here -->
       <!-- maybe also show object storage usage, total records, etc.? -->
