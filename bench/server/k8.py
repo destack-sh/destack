@@ -8,6 +8,7 @@ from typing import AsyncIterator, Optional
 from uuid import UUID
 
 import structlog
+from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
 from bench import models, settings
@@ -23,18 +24,29 @@ logger = structlog.get_logger(__name__)
 
 k8_init = asyncio.Event()
 
+BENCH_WORKER_APP = "bench-worker"
 K8_AVAILABLE = False
 
 
 async def init():
+    # TODO @Cleanup: somehow kubernetes asyncio sometimes stalls while authenticating
+    # so we use the sync kubernetes client, then patch the config into the async client
     global K8_AVAILABLE
     if settings.KUBERNETES_KUBECONFIG_PATH is not None:
-        await config.load_kube_config(settings.KUBERNETES_KUBECONFIG_PATH)
+        sync_config.load_kube_config(
+            settings.KUBERNETES_KUBECONFIG_PATH, settings.KUBERNETES_KUBECONFIG_CTX
+        )
         K8_AVAILABLE = True
     elif not LOCAL:
-        await config.load_incluster_config()
+        sync_config.load_incluster_config()
         K8_AVAILABLE = True
 
+    if K8_AVAILABLE:
+        config.kube_config.Configuration.set_default(
+            sync_config.kube_config.Configuration.get_default_copy()
+        )
+
+    logger.info("k8_init", K8_AVAILABLE=K8_AVAILABLE)
     k8_init.set()
 
 
@@ -68,8 +80,8 @@ WORKER_RESOURCES_BY_PROFILE = {
 
 BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
 try:
-    decoded_vars = base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode()
-    for part in decoded_vars.split(";"):
+    decoded_vars = base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";")
+    for part in decoded_vars:
         k, v = part.split("=")
         BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
 except Exception as e:
@@ -160,7 +172,7 @@ class Deployment:
 
     @property
     def name(self):
-        return f"bench-worker-{self.project_id}-{self.worker_set_id.hex[:6]}"
+        return f"{BENCH_WORKER_APP}-{self.project_id}-{self.worker_set_id.hex[:6]}"
 
     def to_k8(self: "Deployment") -> client.V1Deployment:
         extended_env_vars = [
@@ -192,7 +204,7 @@ class Deployment:
             ),
         )
         labels = {
-            "app": "bench-worker",
+            "app": BENCH_WORKER_APP,
             "deployment": self.name,
             "project_id": str(self.project_id),
             "worker_set_id": str(self.worker_set_id),
@@ -267,38 +279,36 @@ def _check_k8_available():
 
 async def update_deployments(deployments: list[Deployment]) -> None:
     _check_k8_available()
-    api = client.AppsV1Api()
-    for deployment in deployments:
-        k8_deployment = deployment.to_k8()
-        await api.replace_namespaced_deployment(
-            k8_deployment.metadata.name, k8_deployment.metadata.namespace, k8_deployment
-        )
+    async with client.ApiClient() as api:
+        for deployment in deployments:
+            k8_deployment = deployment.to_k8()
+            await client.AppsV1Api(api).replace_namespaced_deployment(
+                k8_deployment.metadata.name,
+                k8_deployment.metadata.namespace,
+                k8_deployment,
+            )
 
 
 async def restart_deployment(deployment: Deployment) -> None:
     _check_k8_available()
-    api = client.AppsV1Api()
-    await api.patch_namespaced_deployment(
-        deployment.name,
-        KUBERNETES_WORKER_NAMESPACE,
-        {
-            "spec": {
-                "template": {
-                    "metadata": {
-                        "annotations": {"kubectl.kubernetes.io/restartedAt": str(int(time.time()))}
-                    }
-                }
-            }
-        },
-    )
+    async with client.ApiClient() as api:
+        annotations = {"annotations": {"kubectl.kubernetes.io/restartedAt": str(int(time.time()))}}
+        await client.AppsV1Api(api).patch_namespaced_deployment(
+            deployment.name,
+            KUBERNETES_WORKER_NAMESPACE,
+            {"spec": {"template": {"metadata": annotations}}},
+        )
 
 
 async def get_all_deployments() -> list[Deployment]:
     """Gets all bench worker set deployments."""
     _check_k8_available()
-    api = client.AppsV1Api()
-    deployments = await api.list_deployment_for_all_namespaces(label_selector="app=bench-worker")
-    pods = client.CoreV1Api().list_pod_for_all_namespaces(label_selector="app=bench-worker")
+    selector = f"app={BENCH_WORKER_APP}"
+    async with client.ApiClient() as api:
+        apps = client.AppsV1Api(api)
+        core = client.CoreV1Api(api)
+        deployments = await apps.list_deployment_for_all_namespaces(label_selector=selector)
+        pods = await core.list_pod_for_all_namespaces(label_selector=selector)
     pods = [Pod.from_k8(p) for p in pods.items]
     pods_by_deployment = defaultdict(list)
     for pod in pods:
@@ -315,19 +325,20 @@ class EventType(enum.StrEnum):
 async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment | Pod]]:
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
-    v1 = client.CoreV1Api()
-    async with watch.Watch().stream(
-        v1.list_event_for_all_namespaces, label_selector="app=bench-worker"
-    ) as stream:
-        async for event in stream:
-            # map kubernetes event to EventType
-            event_type = EventType(event["type"])
-            # map kubernetes event to deployment or pod
-            if event["object"].get("involvedObject", {}).get("kind") == "Deployment":
-                deployment = client.V1Deployment(**event["object"])
-                yield event_type, Deployment.from_k8(deployment)
-            elif event["object"].get("involvedObject", {}).get("kind") == "Pod":
-                pod = client.V1Pod(**event["object"])
-                yield event_type, Pod.from_k8(pod)
-            else:
-                continue  # ignore other events?
+    selector = f"app={BENCH_WORKER_APP}"
+    async with client.ApiClient() as api:
+        async with watch.Watch().stream(
+            client.CoreV1Api(api).list_event_for_all_namespaces, label_selector=selector
+        ) as stream:
+            async for event in stream:
+                # map kubernetes event to EventType
+                event_type = EventType(event["type"])
+                # map kubernetes event to deployment or pod
+                if event["object"].get("involvedObject", {}).get("kind") == "Deployment":
+                    deployment = client.V1Deployment(**event["object"])
+                    yield event_type, Deployment.from_k8(deployment)
+                elif event["object"].get("involvedObject", {}).get("kind") == "Pod":
+                    pod = client.V1Pod(**event["object"])
+                    yield event_type, Pod.from_k8(pod)
+                else:
+                    continue  # ignore other events?
