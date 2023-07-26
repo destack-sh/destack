@@ -22,6 +22,8 @@ FROM base as bench-api
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# (also worker requirements for inspection)
+COPY requirements-worker.txt .
 
 # Copy the application code into the container
 COPY bench/ bench/
@@ -46,8 +48,7 @@ RUN pip install --no-cache-dir -r requirements-worker.txt
 
 # Copy the specific directories and files for the worker
 COPY bench/utils bench/utils
-COPY bench/runtime/common bench/runtime/common
-COPY bench/runtime/worker bench/runtime/worker
+COPY bench/worker bench/worker
 COPY bench/language bench/language
 COPY bench/msg bench/msg
 COPY manageworker.py .
