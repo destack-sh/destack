@@ -25,7 +25,7 @@ config:
   bench:SOCIAL_AUTH_GOOGLE_OAUTH2_SECRET:
     secure: AAABAFDcESm6OkHD9XtpeEsTK7tNRSrIb5zQfb9zIuB83lLcu0vZ7dg+R5RNo5RWud1dwLaGccaBs9UtgTy8PzvKiw==
   bench:apiAllowedHosts: "*"
-  bench:apiAllowedOrigins: https://api.symbolx.com,https://bench.symbolx.com
+  bench:apiAllowedOrigins: https://api.bench.is,https://bench.is
   bench:awsRegion: eu-central-1
   bench:bench: ""
   bench:dbPassword:
@@ -43,5 +43,5 @@ config:
     secure: AAABAPl+GtM/VYhHJdq0JN8+PYbCvpolc3HQVSIDDNMmpZd8vedXQLmFYRJxV8ZfHx9sDwFqdG6L+U+yjT2m6cHPIJmI1du7EK6b0nqb7ZbIBw==
   bench:version: "current"
   bench:vpcNetworkCidr: 10.0.0.0/16
-  bench:webappUrl: https://bench.symbolx.com
+  bench:webappUrl: https://bench.is
   pulumi:template: kubernetes-aws-typescript
