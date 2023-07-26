@@ -9,7 +9,6 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.api.utils import to_global_id
 from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.opensearch import mirror
@@ -161,6 +160,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     The returned input is already jsonable (not the original input class).
     """
     from bench.api.sync import INPUT_CLASS_BY_TYPE
+    from bench.api.utils import to_global_id
 
     input_cls = INPUT_CLASS_BY_TYPE.get(mutation.type)
     if input_cls is None:
