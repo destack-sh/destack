@@ -62,7 +62,6 @@ class NMessageType(StrEnum):
     RUNS_CHANGED_GLOBAL = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"
-    RUN_MARKED_DEAD = "run.marked_dead"
 
     # read/write via server
     READ_MODULE = "module.read"
@@ -187,7 +186,7 @@ class ProjectScoped:
 
     @property
     def topic(self):
-        return f"{self.__class__.type}.{self.project_id}".replace("-", "")
+        return f"{self.__class__.type}.{self.project_id}"
 
 
 @dataclass
@@ -197,7 +196,7 @@ class ModuleScoped:
 
     @property
     def topic(self):
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}".replace("-", "")
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
 
 
 @dataclass(repr=False, slots=True)  # not sure where to put this?
@@ -245,7 +244,7 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     runnable: Optional[UUID | str]
     runnable_type: Optional[str]
     arguments: dict[str, typing.Any]
-    block: bool
+    block: Optional[float]
     keyed: bool
     trigger_type: RunTriggerType
     trigger_id: Optional[UUID]
@@ -278,11 +277,6 @@ class ReqCancelRunPayload(ModuleScoped, Payload):
 @payload(NMessageType.CANCEL_RUN_REP)
 class RepCancelRunPayload(Payload):
     success: bool
-
-
-@payload(NMessageType.RUN_MARKED_DEAD)
-class RunMarkedDeadPayload(ModuleScoped, Payload):
-    run_id: UUID
 
 
 @payload(NMessageType.SESSION_CHANGED)

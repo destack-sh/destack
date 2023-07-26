@@ -3,7 +3,7 @@ import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
-import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
+import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
 import { RUN_TERMINAL_STATES, useCurrentSessions } from "@/state/session";
@@ -21,11 +21,12 @@ import {
   EyeSlashIcon,
 } from "@heroicons/vue/24/outline";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
-import { DateTime } from "luxon";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import RunTile from "@/components/tiles/RunTile.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
+import { getStatusColor } from "@/state/session";
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void }>();
@@ -115,21 +116,6 @@ const extraActions = computed(() => {
       },
       hideInline: true,
     },
-    {
-      label: "Run",
-      icon: PlayIcon,
-      active: isCurrentRunActive.value,
-      disabled: hasTypes.value, // needs parameters
-      action: async () => await run(),
-    },
-    {
-      label: "Launch",
-      icon: WindowIcon,
-      action: () => {
-        const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
-        bench.openRun(context.statement.value, { group: nextGroup, focus: true });
-      },
-    },
   ];
   if (isCurrentRunActive.value) {
     inlineActions.push({
@@ -139,18 +125,32 @@ const extraActions = computed(() => {
     });
   } else {
     inlineActions.push({
-      label: showOutput.value ? "Hide output" : "Show output",
-      disabled: currentRun.value == null,
-      icon: showOutput.value ? EyeIcon : EyeSlashIcon,
-      action: async () => {
-        if (showOutput.value == null) {
-          showOutput.value = "logs";
-        } else {
-          showOutput.value = null;
-        }
-      },
+      label: "Run",
+      icon: PlayIcon,
+      disabled: hasTypes.value, // needs parameters
+      action: async () => await run(),
     });
   }
+  inlineActions.push({
+    label: showOutput.value ? "Hide output" : "Show output",
+    disabled: currentRun.value == null,
+    icon: showOutput.value ? EyeIcon : EyeSlashIcon,
+    action: async () => {
+      if (showOutput.value == null) {
+        showOutput.value = "logs";
+      } else {
+        showOutput.value = null;
+      }
+    },
+  });
+  inlineActions.push({
+    label: "Launch",
+    icon: WindowIcon,
+    action: () => {
+      const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+      bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+    },
+  });
 
   return inlineActions;
 });
@@ -220,13 +220,10 @@ defineExpose({
       <!-- Run time -->
       <span
         v-if="!hasTypes && currentRun != null"
-        :class="[currentRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600']"
+        :class="[preparingRun ? 'text-gray-400' : getStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
       >
-        {{
-          formatDurationSeconds(
-            (currentRun?.duration ?? now.now.value.diff(DateTime.fromISO(currentRun.startedAt)).as("seconds")) * 1000
-          )
-        }}
+        <BusySpinnerIcon v-if="preparingRun || currentRun.status == RunStatus.Queued" class="h-4 w-4 animate-spin" />
+        <span v-else>{{ sessions.getDurationFormatted(currentRun) }}</span>
       </span>
       <!-- Cache info -->
       <RunCacheInfo v-if="!hasTypes && currentRun != null" :run="currentRun" class="relative mr-0.5 py-1" />
@@ -234,7 +231,7 @@ defineExpose({
       <span
         v-if="!hasTypes"
         :class="[
-          currentRun?.status != RunStatus.Failed || preparingRun ? 'text-gray-400' : 'text-red-600',
+          preparingRun ? 'text-gray-400' : getStatusColor(currentRun?.status, { gray: 'text-gray-400' }),
           currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
         ]"
       >
@@ -285,7 +282,7 @@ defineExpose({
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
-    class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-75"
+    class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-150"
     :class="[showOutput != null ? '' : 'rounded-b-sm']"
   />
   <!-- Last output: logs/trace/error -->

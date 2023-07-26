@@ -1,13 +1,11 @@
 import asyncio
 import json
 import typing
-from datetime import datetime
 from functools import partial
 from itertools import chain
 from typing import Optional
 from uuid import UUID
 
-import pytz
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
@@ -56,7 +54,6 @@ from bench.msg.messages import (
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
-    RunMarkedDeadPayload,
     SessionChangedPayload,
 )
 from bench.opensearch import mirror
@@ -159,7 +156,6 @@ class LanguageServer(Monitored):
             await handle_reply(NMessageType.MARK_UPLOADED_OBJECT, self.mark_uploaded_object),
             await handle_reply(NMessageType.READ_SECRET, self.read_secret),
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
-            await subscribe(f"{NMessageType.RUN_MARKED_DEAD}.>", cb=self.run_marked_dead),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
         ]
         self._ready = True
@@ -444,28 +440,8 @@ class LanguageServer(Monitored):
         await msg.reply(RepWakeLangserverPayload(module_id=msg.p.module_id))
 
     @message_handler
-    async def run_marked_dead(self, msg: NMessage[RunMarkedDeadPayload]) -> None:
-        run = await models.Run.objects.filter(id=msg.p.run_id).select_related("session").afirst()
-        if run is None:
-            logger.warning("run_marked_dead.not_found", msg=msg, run_id=msg.p.run_id)
-            return
-        if run.terminated_at is not None:
-            return
-        run.status = models.RunStatus.Aborted
-        run.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        await run.asave()
-        await publish(
-            NMessageType.SESSION_CHANGED,
-            SessionChangedPayload(
-                project_id=msg.p.project_id,
-                module_id=msg.p.module_id,
-                session=packer.pack_data(run.session),
-                runs=[packer.pack_data(run)],
-            ),
-        )
-
-    @message_handler
     async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]) -> None:
+        logger.debug("module.changed", msg=msg)
         if msg.p.has_origin(self.id):
             return  # ignore own changes
         # update language worker

@@ -4,9 +4,10 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { getRunStatusIconSolid, useCurrentSessions } from "@/state/session";
+import { getRunStatusIconSolid, getStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { StopIcon } from "@heroicons/vue/24/outline";
+import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
 
 const appearance = useAppearance();
@@ -14,14 +15,11 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const nav = useNavigation();
 
+const altKey = useKeyModifier("Alt");
+
 const activeRuns = sessions.activeRoots;
-const activeRunsAsc = computed(() =>
-  activeRuns.value.slice().sort((a, b) => {
-    console.log(b, a); // nocheckin
-    return b.createdAt.localeCompareTo(a.createdAt);
-  })
-);
-const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localCompareTo(b.createdAt)));
+const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
 </script>
 <template>
   <Popover v-slot="{ open }" class="relative">
@@ -54,7 +52,16 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
-              <span class="ml-1 text-gray-900"> {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}</span>
+              <span class="ml-1.5" :class="[getStatusColor(run.status)]">
+                {{ run.status == RunStatus.Queued ? "..." : sessions.getDurationFormatted(run) }}
+              </span>
+              <span
+                class="ml-1 text-gray-900 decoration-gray-700 underline-offset-4"
+                :class="[altKey ? 'cursor-pointer hover:underline' : '']"
+                @click="() => (altKey ? nav.focusStatement(run.runnable?.id) : null)"
+              >
+                {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}
+              </span>
             </span>
             <button
               class="p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"

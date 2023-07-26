@@ -196,8 +196,9 @@ class MultiplayerSubscription:
             return
 
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
+        routing_key = f"{project_version.project_id}.{project_version_id}"
         module_sub = await subscribe(
-            f"{NMessageType.MODULE_CHANGED}.{project_version_id}", payload_t=ModuleChangedPayload
+            f"{NMessageType.MODULE_CHANGED}.{routing_key}", payload_t=ModuleChangedPayload
         )
         log.info("module.subscribe")
         while True:

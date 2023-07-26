@@ -57,11 +57,11 @@ class WorkerHost:
             )
             logger.info("host.start", worker_process=self.worker_process)
             while self.worker_process.poll() is None:
-                if quick_restarts > 0 and time_started < time.time() - 10:
+                if quick_restarts > 0 and time_started < time.time() - 2:
                     quick_restarts = 0  # success, reset
                 await asyncio.sleep(0.1)
             quick_restarts += 1
-            if quick_restarts > 5:
+            if quick_restarts > 10:
                 logger.critical("host.too_many_failures", worker_process=self.worker_process)
                 sys.exit(1)
             logger.info(

@@ -82,7 +82,7 @@ export function useSessionOps() {
         $sessionId: GlobalID
         $arguments: JSON
         $keyed: Boolean
-        $block: Boolean
+        $block: Float
         $timeoutSeconds: Int
       ) {
         run(
@@ -119,7 +119,7 @@ export function useSessionOps() {
     runId?: string,
     sessionId?: string,
     arguments_?: Record<string, any>,
-    options?: { block?: boolean; keyed?: boolean; timeoutSeconds?: number }
+    options?: { block?: number; keyed?: boolean; timeoutSeconds?: number }
   ) {
     return await ops.perform({
       type: "runtime.run",

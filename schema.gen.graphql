@@ -1567,7 +1567,7 @@ input RunInput {
   runId: GlobalID = null
   sessionId: GlobalID = null
   arguments: JSON = null
-  block: Boolean! = true
+  block: Float! = 1
   keyed: Boolean! = false
   timeoutSeconds: Int = null
 }

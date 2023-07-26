@@ -22,15 +22,7 @@ from bench.language.core import (
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import Run, RunError
 from bench.language.type import instantiate_py_value_flat, map_value
-from bench.msg.core import (
-    NMessage,
-    handle_reply,
-    message_handler,
-    nc_init,
-    publish,
-    request,
-    subscribe,
-)
+from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (
     ClientOrigin,
     ModuleInternalChangedPayload,
@@ -46,7 +38,6 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqWriteModulePayload,
     RunErrorType,
-    RunMarkedDeadPayload,
 )
 from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
@@ -74,6 +65,8 @@ class RunJob:
     run: Optional[Run] = None
     logs: Optional[list[LogEntry]] = None
     error: Optional[RunError] = None
+    started: asyncio.Event = field(default_factory=asyncio.Event)
+    task: asyncio.Task | None = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
     id: UUID = field(default_factory=UUIDT)
 
@@ -101,7 +94,7 @@ class ModuleWorker(ModuleWriter):
         self.source: wire.ModuleTreeData | None = None
         self.module: Module | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
-        self.pending_runs: dict[UUID, asyncio.Task] = {}
+        self.pending_runs: dict[UUID, RunJob] = {}
         self.last_run: Optional[Run] = None
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
@@ -249,10 +242,10 @@ class ModuleWorker(ModuleWriter):
                 map_v=instantiate_py_value_flat,
                 is_output=False,
             )
-            task = asyncio.create_task(run(job.runnable, arguments, job.session))
-            self.pending_runs[job.id] = task
+            job.task = asyncio.create_task(run(job.runnable, arguments, job.session))
+            self.pending_runs[job.id] = job
             self.last_run = job
-            await asyncio.wait_for(task, timeout=timeout)
+            await asyncio.wait_for(job.task, timeout=timeout)
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
@@ -266,22 +259,26 @@ class ModuleWorker(ModuleWriter):
                 del self.pending_runs[job.id]
 
     async def cancel_run(self, run_id: UUID) -> bool:
-        if run_id in self.pending_runs:
-            self.pending_runs[run_id].cancel()
-            return True
-        # maybe check if it's in the queue?
-        for job in self.queue._queue:
-            if job.id == run_id:
-                job.cancelled = True
-        # mark it as dead for everyone
-        # (just in case it's still bugging around in some frontend)
-        await publish(
-            NMessageType.RUN_MARKED_DEAD,
-            RunMarkedDeadPayload(
-                project_id=self.project_id, module_id=self.module_id, run_id=run_id
-            ),
-        )
-        return False
+        job = self.pending_runs.get(run_id)
+        if not job:
+            for j in self.queue._queue:
+                if j.id == run_id:
+                    job = j
+                    break
+        if not job:
+            return False
+
+        job.cancelled = True
+        job.run.session.tracer.run_cancel(job.runnable, job.arguments)
+
+        if job.task:
+            # this doesn't really work, but we're not using this cancellation yet
+            # we need some better mechanism for targeted :RunCancellation
+            # maybe another thread? multiprocessing?
+            job.task.cancel()
+            # send keybord interrupt to self (this causes all sorts of unintended cancels)
+            # os.kill(os.getpid(), signal.SIGINT)
+        return True
 
     async def run(self):
         """Runs the module worker main processing loop"""
@@ -305,6 +302,7 @@ class ModuleWorker(ModuleWriter):
 
             try:
                 self.log.debug("run", job=job, timeout=self.timeout)
+                job.started.set()
                 await self.do_run(job, self.timeout)
                 if job.session.tracer.run.runs:
                     job.run = job.session.tracer.run.runs[job.id]
@@ -442,8 +440,12 @@ class WorkerNode(Monitored):
         if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepStartRunPayload(error=run_job))
         else:
-            if msg.p.block:
-                await run_job.terminated.wait()
+            if msg.p.block is not None:
+                try:
+                    await run_job.started.wait()
+                    await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
+                except asyncio.TimeoutError:
+                    run_job.run = run_job.session.tracer.run.runs[run_job.id]
             run = wire.pack_data(run_job.run) if run_job.run else None
             logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
             rep = RepStartRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)

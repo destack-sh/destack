@@ -12,7 +12,8 @@ import {
   Squares2X2Icon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
-import { ref, watch } from "vue";
+import { DateTime } from "luxon";
+import { computed, ref, watch } from "vue";
 
 type View = "logs" | "tracebars" | "tracelist" | "error" | "metadata";
 
@@ -27,6 +28,9 @@ const props = defineProps<{
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
 
 const now = useTimeFromNow(100);
+const wasJustCreated = computed(
+  () => now.now.value.diff(DateTime.fromISO(props.run.createdAt)).as("milliseconds") < 100
+);
 const activeView = ref<View>(props.view ?? "logs");
 
 // sync props view into activeView on change
@@ -96,6 +100,7 @@ defineExpose({
         :project-id="(projectId as string)"
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session.id"
+        :skip-initial-load="wasJustCreated"
         :focus="{
           runnableIds: run.runnable != null ? [run.runnable.id] : undefined,
         }"

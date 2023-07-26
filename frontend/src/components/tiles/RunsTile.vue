@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useElementRefs } from "@/composables/useGrid";
-import { formatDurationSeconds, useTimeFromNow } from "@/composables/useNow";
+import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run } from "@/gql/graphql";
 import { useRuns, getStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
@@ -136,9 +136,7 @@ function isExpanded(runId: string) {
               <span class="group/cache ml-1 flex flex-row flex-nowrap items-center">
                 <span class="font-semibold">
                   {{
-                    run.duration != null
-                      ? formatDurationSeconds(run.duration * 1000)
-                      : now.getTimeFromNowString(run.startedAt)
+                    run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt)
                   }}
                 </span>
                 <RunCacheInfo :run="run" />

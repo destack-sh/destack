@@ -3,7 +3,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import { formatDurationSeconds, useNow } from "@/composables/useNow";
+import { formatDuration, useNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
@@ -222,10 +222,10 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         >
         <!-- Duration -->
         <span class="ml-1">
-          <span class="font-semibold">{{ formatDurationSeconds(node.duration * 1000) }}</span>
+          <span class="font-semibold">{{ formatDuration(node.duration * 1000) }}</span>
           <template v-if="node.children.length > 0">
             /
-            <span class="font-light">{{ formatDurationSeconds(node.durationSelf * 1000) }}</span>
+            <span class="font-light">{{ formatDuration(node.durationSelf * 1000) }}</span>
           </template>
         </span>
       </div>
@@ -279,10 +279,10 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
           class="ml-1 flex flex-shrink-0 flex-row flex-nowrap items-center"
           :class="[getStatusColor(node.run.status)]"
         >
-          <span class="font-semibold">{{ formatDurationSeconds(node.duration * 1000) }}</span>
+          <span class="font-semibold">{{ formatDuration(node.duration * 1000) }}</span>
           <template v-if="node.children.length > 0">
             /
-            <span class="font-light">{{ formatDurationSeconds(node.durationSelf * 1000) }}</span>
+            <span class="font-light">{{ formatDuration(node.durationSelf * 1000) }}</span>
           </template>
           <RunCacheInfo :run="node.run" class="px-1" />
         </span>

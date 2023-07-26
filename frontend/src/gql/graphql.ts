@@ -1884,7 +1884,7 @@ export enum RunErrorType {
 
 export type RunInput = {
   arguments?: InputMaybe<Scalars["JSON"]>;
-  block?: Scalars["Boolean"];
+  block?: Scalars["Float"];
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
   runId?: InputMaybe<Scalars["GlobalID"]>;
@@ -4086,7 +4086,7 @@ export type StartRunMutationVariables = Exact<{
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   arguments?: InputMaybe<Scalars["JSON"]>;
   keyed?: InputMaybe<Scalars["Boolean"]>;
-  block?: InputMaybe<Scalars["Boolean"]>;
+  block?: InputMaybe<Scalars["Float"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 }>;
 
@@ -11129,7 +11129,7 @@ export const StartRunDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "block" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Float" } },
         },
         {
           kind: "VariableDefinition",

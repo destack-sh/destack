@@ -310,7 +310,7 @@ class RunInput:
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
     arguments: Optional[JSON] = None
-    block: bool = True
+    block: float = 1.0
     keyed: bool = False
     timeout_seconds: Optional[int] = None
 
@@ -742,7 +742,7 @@ class SessionSubscription:
             return True
 
         log.info("sessions.subscribe")
-        routing_id = f"{project_id}.{project_version_id or '*'}".replace("-", "")
+        routing_id = f"{project_id}.{project_version_id or '*'}"
         sub = await subscribe_many(
             {
                 f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
@@ -821,7 +821,7 @@ class SessionSubscription:
             return True
 
         log.info("logs.subscribe")
-        routing_id = f"{project_id}.{project_version_id or '*'}".replace("-", "")
+        routing_id = f"{project_id}.{project_version_id or '*'}"
         logs_sub = await subscribe(
             f"{NMessageType.LOGS_CHANGED}.{routing_id}", payload_t=LogsChangedPayload
         )

@@ -880,7 +880,7 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             metadata=data.metadata,
-            trigger_id=data.trigger_id,
+            trigger_id=data.user_id or data.access_token_id,
             trigger_type=data.trigger_type,
         )
 

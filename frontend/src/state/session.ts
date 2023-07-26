@@ -1,4 +1,5 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
@@ -21,8 +22,9 @@ import {
   XCircleIcon as XCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
-import { createSharedComposable, whenever } from "@vueuse/core";
-import { computed, onBeforeUnmount, ref, watchEffect, type Ref } from "vue";
+import { createSharedComposable } from "@vueuse/core";
+import { DateTime } from "luxon";
+import { computed, onBeforeUnmount, ref, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 
@@ -314,7 +316,7 @@ export function _useSessions(
 
   function run(
     runnable: { id: string },
-    options?: { sessionId?: string; runId?: string; arguments?: any; block?: boolean; keyed?: boolean }
+    options?: { sessionId?: string; runId?: string; arguments?: any; block?: number; keyed?: boolean }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
     const sessionId = options?.sessionId ?? newSessionId();
@@ -322,7 +324,7 @@ export function _useSessions(
       __typename: "Run",
       id: runId,
       status: RunStatus.Queued,
-      startedAt: new Date().toISOString(),
+      startedAt: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       duration: null,
@@ -350,7 +352,7 @@ export function _useSessions(
         .then((r) => {
           if (
             r?.data?.run?.__typename == "OperationInfo" ||
-            (r?.data?.run?.__typename == "RunState" && !r?.data?.run?.success)
+            (r?.data?.run?.__typename == "RunState" && (!r?.data?.run?.success || r?.data?.run.run == null))
           ) {
             delete currentRuns.value[runId];
             notifications.show({
@@ -399,7 +401,11 @@ export function _useSessions(
     if (currentRuns.value[run.id] == null) {
       return Promise.resolve(false);
     }
-    return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
+    // TODO @Robustness @UX: cancel should not restart the entire worker
+    //  Proper cancellation is annoying on the backend, we only have one concurrent run at a time right now,
+    //  so while this isn't great, it works until we have proper concurrency. :RunCancellation
+    return restartWorkerSet();
+    // return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
   }
 
   // utilities
@@ -418,6 +424,16 @@ export function _useSessions(
     );
   }
 
+  const now = useNow(100);
+  function getDurationSeconds(run: { duration?: number; startedAt?: string; createdAt: string }): number {
+    if (run.duration != null) return run.duration;
+    return now.value.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
+  }
+
+  function getDurationFormatted(run: { duration?: number; startedAt?: string; createdAt: string }): string {
+    return formatDuration(getDurationSeconds(run) * 1000);
+  }
+
   return {
     loading: initialLoading,
     ready,
@@ -431,11 +447,14 @@ export function _useSessions(
     activeRuns,
     activeRoots,
     onRunChange,
+    onWorkerSetChange,
     runsOf,
     run,
     pause,
     resume,
     cancel,
+    getDurationSeconds,
+    getDurationFormatted,
   };
 }
 
@@ -658,7 +677,7 @@ export function useLogs(
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
   },
-  options?: { live?: boolean; limit?: number; count?: boolean }
+  options?: { live?: boolean; limit?: number; count?: boolean; skipInitialLoad?: Ref<boolean> }
 ) {
   /**
    * Gets all logs that match the given filter
@@ -714,6 +733,7 @@ export function useLogs(
     subscribeToMore,
   } = useQuery(LOGS_QUERY, combinedVariables as any, {
     fetchPolicy: "network-only",
+    enabled: computed(() => !options?.skipInitialLoad?.value) as any,
   });
 
   const client = useApolloClient();
@@ -804,16 +824,17 @@ export function getRunStatusIconSolid(status: RunStatus) {
   }
 }
 
-export function getStatusColor(status: RunStatus) {
+export function getStatusColor(status: RunStatus, options?: { gray?: string }) {
+  const gray = options?.gray ?? "text-gray-700";
   if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
-    return "text-gray-700";
+    return gray;
   } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
-    return "text-gray-700";
+    return "text-yellow-600";
   } else if (status == RunStatus.Failed) {
     return "text-red-600";
   } else if (status == RunStatus.Completed) {
-    return "text-green-700";
+    return "text-green-600";
   } else {
-    return "text-gray-700";
+    return gray;
   }
 }
