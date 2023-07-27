@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { humanizeNumber } from "@/composables/useNow";
+import { humanizeNumber, useTimeFromNow } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
 import { WorkerSetStatus } from "@/gql/graphql";
@@ -8,7 +8,7 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes } from "@/state/object";
 import { useCurrentSessions, WORKER_RESOURCES_BY_PROFILE } from "@/state/session";
-import { BoltIcon, ChevronDownIcon, CircleStackIcon, DocumentIcon, PowerIcon } from "@heroicons/vue/24/solid";
+import { BoltIcon, ChevronDownIcon, CircleStackIcon, PowerIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
 import { useQuery } from "@vue/apollo-composable";
@@ -25,6 +25,7 @@ const bench = useBenchState();
 const session = useCurrentSessions();
 const workerSet = session.workerSet;
 const appearance = useAppearance();
+const now = useTimeFromNow(100);
 
 const packagesTableRef = ref<HTMLDivElement | null>(null);
 useActiveScroll(packagesTableRef);
@@ -151,7 +152,11 @@ const statusIcon = computed(() =>
           </span>
         </div>
         <!-- Idle / actions -->
-        <div class="flex flex-row items-center">
+        <div class="flex flex-row items-center whitespace-nowrap">
+          <span v-if="workerSet.lastActiveAt" class="mr-1.5 flex flex-row items-center text-gray-500">
+            <BoltIcon class="mr-1 h-4 w-4 text-gray-400" />
+            {{ now.getTimeFromNowString(workerSet.lastActiveAt) }}
+          </span>
           <button
             v-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
             class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
