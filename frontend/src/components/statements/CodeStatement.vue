@@ -169,9 +169,9 @@ async function run() {
     } finally {
       preparingRun.value = false;
     }
+    showOutput.value = "logs";
     const { result: runPromise } = await sessions.run(context.statement.value);
     const { logs } = await runPromise;
-    showOutput.value = "logs";
     if (logs != null) {
       nextTick(() => runTileRef.value?.addLogs(logs));
     }

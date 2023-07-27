@@ -95,7 +95,7 @@ defineExpose({
 <template>
   <div ref="containerRef" class="relative" @scroll="disableAutoscrollIfUser">
     <!-- Actual logs -->
-    <div ref="logsRef" class="flex w-full flex-col">
+    <div ref="logsRef" class="flex w-full flex-col" v-if="!loading">
       <span
         v-for="log in logsSorted"
         :key="log.id"
@@ -113,8 +113,9 @@ defineExpose({
       </span>
     </div>
     <!-- Loading -->
-    <BusySpinnerIcon v-if="loading" class="h-4 w-4 animate-spin self-center text-gray-400" />
+    <div v-if="loading" class="h-4 w-full animate-pulse rounded-sm bg-gray-200 opacity-80" />
     <button
+      v-if="!loading"
       v-show="containerHeight && logsBounding.height.value > containerHeight"
       class="fixed z-20 rounded-xl bg-white p-1 text-gray-400 shadow-md ring-1 ring-gray-300 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700"
       :class="[autoscroll ? 'opacity-100' : 'opacity-40 hover:opacity-80']"

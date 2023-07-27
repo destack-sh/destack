@@ -48,10 +48,8 @@ defineExpose({
 <template>
   <div class="relative">
     <!-- Controls -->
-    <div v-if="showControls" class="flex flex-row justify-between">
-      <span class="text-xs font-semibold uppercase text-gray-400"
-        >{{ activeView }} <span class="font-normal">({{ now.getTimeFromNowString(run.updatedAt) }})</span></span
-      >
+    <div v-if="showControls" class="flex flex-row items-center justify-between">
+      <span class="text-xs font-semibold uppercase text-gray-400">{{ activeView }}</span>
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
@@ -102,7 +100,6 @@ defineExpose({
         :project-id="(projectId as string)"
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session.id"
-        :skip-initial-load="session.localRunsIds.has(run.id)"
         :focus="{
           runnableIds: run.runnable != null ? [run.runnable.id] : undefined,
         }"
