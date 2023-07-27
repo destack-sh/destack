@@ -12,12 +12,12 @@ import msgpack
 import pytz
 import structlog
 
+from bench.language.cache import CacheAsync
 from bench.language.const import StatementType
 from bench.language.core import Scope, Statement, node
 from bench.language.tag import HasTags
 from bench.language.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
-from bench.language.utils import Runnable, get_run_cache_key
-from bench.utils.cache import redis
+from bench.language.utils import Runnable, get_run_cache_subkey
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
@@ -41,6 +41,7 @@ class Model(HasType, HasTags, Runnable, Statement):
     _endpoint_impl: typing.Optional[typing.Callable] = None
     _compiler_impl: typing.Optional[typing.Callable] = None
     _api_key: typing.Optional[str] = None
+    _has_vector_io: bool = False  # we only cache models without vector inputs/outputs
 
     def _clear(self) -> None:
         Scope._clear(self)
@@ -50,6 +51,7 @@ class Model(HasType, HasTags, Runnable, Statement):
         self._remote = True
         self._endpoint_impl = None
         self._compiler_impl = None
+        self._has_vector_io = False
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -59,17 +61,26 @@ class Model(HasType, HasTags, Runnable, Statement):
         if ALLOW_KEY_FROM_ENV:
             self._api_key = os.environ.get(f"{provider.upper()}_API_KEY")
         self._remote = self._api_key is None
+        self._has_vector_io = False
+        for t in self.walk_type():
+            if t.tag == TypeTag.VECTOR:
+                self._has_vector_io = True
+                break
+
+    @property
+    def should_cache(self) -> bool:
+        return not self._has_vector_io
 
     async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
         inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
-        cache_key = get_run_cache_key(self.path, inputs_raw)
-        log = logger.bind(model=self, inputs=describe_type(inputs), cache_key=cache_key)
+        cache_subkey = get_run_cache_subkey(self.path, inputs_raw)
+        log = logger.bind(model=self, inputs=describe_type(inputs), cache_subkey=cache_subkey)
         log.debug("inference.enter.pre")
 
         # try to read from cache if enabled
-        if cache is not False and self.session.cache_inferences:
+        if cache is not False and self.should_cache and self.session.cache_inferences:
             # TODO @Performance: use leases to cooperatively inference endpoints
-            cached_inference = await redis.get(cache_key)
+            cached_inference = await self.cache.get(cache_subkey)
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_bytes(cached_inference)
@@ -99,6 +110,7 @@ class Model(HasType, HasTags, Runnable, Statement):
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
                 req = ReqRunInferencePayload(
+                    project_id=self.module.session.ctx.project_id,
                     model_path=self.path,
                     inputs=inputs_raw,
                     timeout=timeout,
@@ -123,7 +135,10 @@ class Model(HasType, HasTags, Runnable, Statement):
                 self.session.tracer.run_enter(self, inputs)
                 timeout = timeout if timeout is not None else self.session.inference_timeout
                 outputs = await asyncio.wait_for(
-                    asyncio.shield(self._inference(inputs, cache_key, log)), timeout
+                    asyncio.shield(
+                        self._inference(inputs, cache_subkey, log, write_to_cache=cache)
+                    ),
+                    timeout,
                 )
                 self.session.tracer.run_exit(self, outputs)
                 return outputs
@@ -134,20 +149,20 @@ class Model(HasType, HasTags, Runnable, Statement):
     async def _inference(
         self,
         inputs: Any,
-        cache_key: str,
+        cache_subkey: str,
+        cache: CacheAsync | None,
         log: Logger = logger,
-        write_to_cache: bool = True,
     ) -> Any:
         """
         Runs inference on the given endpoint without timeout.
-        This should be asyncio.shield-ed to ensure we write the result to cache.
+        This should be asyncio.shield-ed to ensure we write the result to cache (if enabled).
         """
         started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
         log.debug("inference.enter")
         output = await self._endpoint_resolved(**inputs)
         now = datetime.utcnow().replace(tzinfo=pytz.utc)
         duration = (now - started_at).total_seconds()
-        if write_to_cache:
+        if cache and self.should_cache:
             # result is assumed to be JSON serializable, will obviously error here if not
             inference = Inference(
                 generated_at=now,
@@ -155,12 +170,8 @@ class Model(HasType, HasTags, Runnable, Statement):
                 inputs=strip_py_value(inputs, self, is_output=False, ignore_outer_map=True),
                 outputs=strip_py_value(output, self, is_output=True, ignore_outer_map=True),
             )
-            await redis.set(cache_key, inference.to_json_bytes(), ex=INFERENCE_CACHE_EXPIRY)
-        log.debug(
-            "inference.exit",
-            ret=describe_type(output),
-            write_to_cache_key=cache_key if write_to_cache else None,
-        )
+            await cache.set(cache_subkey, inference.to_json_bytes(), expire=INFERENCE_CACHE_EXPIRY)
+        log.debug("inference.exit", ret=describe_type(output))
         return output
 
     @property

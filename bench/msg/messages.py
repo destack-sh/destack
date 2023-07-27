@@ -434,6 +434,7 @@ class RepReadSecretPayload(Payload):
 
 @payload(NMessageType.RUN_PROXY_INFERENCE)
 class ReqRunInferencePayload(Payload):
+    project_id: UUID
     model_path: str
     inputs: typing.Any
     timeout: int

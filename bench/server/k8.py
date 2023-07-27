@@ -28,7 +28,7 @@ k8_init = asyncio.Event()
 BENCH_WORKER_APP = "bench-worker"
 K8_AVAILABLE = False
 
-if DEBUG:
+if KUBERNETES_WORKER_IMAGE is not None and DEBUG:
     image_name, image_version = KUBERNETES_WORKER_IMAGE.split(":")
     if image_version == "latest":
         # use current git commit hash as image version

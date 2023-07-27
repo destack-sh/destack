@@ -915,6 +915,7 @@ class Session:
         mode: SessionMode = SessionMode.READ_ONLY,
         executor: Executor = None,
     ):
+        from bench.language.cache import CacheAsync, CacheSync
         from bench.language.mutate import ModuleMutator
         from bench.language.tracing import SessionTracer
 
@@ -931,6 +932,8 @@ class Session:
         self.inference_retries = inference_retries
         self.mode = mode
         self.writer = writer
+        self.cache_sync = CacheSync(module, project_id=ctx.project_id)
+        self.cache_async = CacheAsync(module, project_id=ctx.project_id)
 
         self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)

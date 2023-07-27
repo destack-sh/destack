@@ -1339,6 +1339,7 @@ export type ProjectUpdateVisibilityInput = {
 
 export type ProjectUsage = {
   __typename?: "ProjectUsage";
+  cacheBytesTotal: Scalars["Int"];
   objectsBytesTotal: Scalars["Int"];
   recordsActive: Scalars["Int"];
 };
@@ -2906,7 +2907,7 @@ export type EnvironmentQuery = {
   project?: {
     __typename?: "Project";
     id: any;
-    usage: { __typename?: "ProjectUsage"; recordsActive: number; objectsBytesTotal: number };
+    usage: { __typename?: "ProjectUsage"; recordsActive: number; objectsBytesTotal: number; cacheBytesTotal: number };
   } | null;
 };
 
@@ -7817,6 +7818,7 @@ export const EnvironmentDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "recordsActive" } },
                       { kind: "Field", name: { kind: "Name", value: "objectsBytesTotal" } },
+                      { kind: "Field", name: { kind: "Name", value: "cacheBytesTotal" } },
                     ],
                   },
                 },

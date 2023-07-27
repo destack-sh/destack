@@ -12,11 +12,12 @@ from django.core.exceptions import ValidationError
 
 from bench import models
 from bench.language import HasType, Issue, Q, Query, QueryOp, ResolvedField, wire
+from bench.language.cache import CacheAsync
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import instantiate_py_value, strip_py_value
-from bench.language.utils import get_run_cache_key
+from bench.language.utils import get_run_cache_subkey
 from bench.language.wire import ModuleTree
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
@@ -417,10 +418,11 @@ class LanguageServer(Monitored):
             # :LibImplementation
             module = DEFAULT_MODULES[module_name]
             model = module.lookup(localized_path)
-            cache_key = get_run_cache_key(model.path, msg.p.inputs)
+            cache_subkey = get_run_cache_subkey(model.path, msg.p.inputs)
+            cache = CacheAsync(subkey=model.id.hex, project_id=msg.p.project_id)
             inputs = instantiate_py_value(msg.p.inputs, model, is_output=False)
             output = await asyncio.wait_for(
-                asyncio.shield(model._inference(inputs, cache_key, log)), msg.p.timeout
+                asyncio.shield(model._inference(inputs, cache_subkey, log, cache)), msg.p.timeout
             )
             timeout = False
         except Exception as e:

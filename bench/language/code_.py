@@ -23,8 +23,7 @@ from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
 from bench.language.type import HasType, check_type, instantiate_py_value, strip_py_value
-from bench.language.utils import Runnable, get_run_cache_key
-from bench.utils.cache import redis, redis_sync
+from bench.language.utils import Runnable, get_run_cache_subkey
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -130,8 +129,8 @@ class Code(HasType, HasTags, Runnable, Statement):
         inputs = self._inputs_from_args(args, kwargs)
         if self.cached:
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_key = get_run_cache_key(self.id, inputs_raw, content_id=self._code_hash)
-            cached_run = await redis.get(cache_key)
+            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
+            cached_run = await self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
@@ -143,7 +142,7 @@ class Code(HasType, HasTags, Runnable, Statement):
             if self.cached:
                 outputs_raw = strip_py_value(result, self, is_output=True)
                 run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
-                await redis.set(cache_key, run_bytes)
+                await self.cache.set(cache_subkey, run_bytes)
             return self._to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
@@ -156,8 +155,8 @@ class Code(HasType, HasTags, Runnable, Statement):
         inputs = self._inputs_from_args(args, kwargs)
         if self.cached:
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_key = get_run_cache_key(self.id, inputs_raw, content_id=self._code_hash)
-            cached_run = redis_sync.get(cache_key)
+            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
+            cached_run = self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
@@ -169,7 +168,7 @@ class Code(HasType, HasTags, Runnable, Statement):
             if self.cached:
                 outputs_raw = strip_py_value(result, self, is_output=True)
                 run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
-                redis_sync.set(cache_key, run_bytes)
+                self.cache.set(cache_subkey, run_bytes)
             return self._to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
@@ -260,6 +259,30 @@ class CodeProxy:  # :SyncProxy
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]
 SyncCodeCallable = typing.Callable[..., Any]
 
+STATIC_BUILTINS: dict[str, Any] = {
+    # primitive types
+    "string": str,
+    "text": str,
+    "number": float,
+    "boolean": bool,
+    # querying
+    "Q": Q,
+    "Query": Query,
+    "QueryOp": QueryOp,
+    "Sort": Sort,
+    "SortOrder": SortOrder,
+    "SortMode": SortMode,
+    # remote
+    "Object": RemoteObject,
+    "ObjectSatus": RemoteObjectStatus,
+    # functional builtins
+    "first": first,
+    "last": last,
+    "chain": itertools.chain,
+}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "cache", "random", "self"}
+ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
+
 
 def instantiate_callable(
     code: Code, session: Session
@@ -278,6 +301,7 @@ def instantiate_callable(
     dynamic_context = {
         "session": session,
         "context": {symbol.name: symbol for symbol in context.values()},  # by name
+        "cache": session.cache_async if code._parse.is_async else session.cache_sync,
         **context,  # inlined
         "random": Random(code.id.hex.encode()),
         "self": code,
@@ -289,7 +313,7 @@ def instantiate_callable(
     else:
         raise ValueError(f"unexpected code language: {code}")
 
-    # stub fake lines
+    # stub fake lines (temporary, Bench imports will be real imports later)
     python_code_lines = python_code.splitlines()
     for i in code._parse.fake_line_numbers:
         python_code_lines[i] = "pass # " + python_code_lines[i]
@@ -321,31 +345,6 @@ def instantiate_callable(
         method_name=func_name,
     )
     return transform, callable
-
-
-STATIC_BUILTINS: dict[str, Any] = {
-    # primitive types
-    "string": str,
-    "text": str,
-    "number": float,
-    "boolean": bool,
-    # querying
-    "Q": Q,
-    "Query": Query,
-    "QueryOp": QueryOp,
-    "Sort": Sort,
-    "SortOrder": SortOrder,
-    "SortMode": SortMode,
-    # remote
-    "Object": RemoteObject,
-    "ObjectSatus": RemoteObjectStatus,
-    # functional builtins
-    "first": first,
-    "last": last,
-    "chain": itertools.chain,
-}
-DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "random", "self"}
-ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 
 def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
