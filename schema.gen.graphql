@@ -1032,6 +1032,7 @@ input ProjectUpdateVisibilityInput {
 type ProjectUsage {
   recordsActive: Int!
   objectsBytesTotal: Int!
+  cacheBytesTotal: Int!
 }
 
 type ProjectVersion implements CrudModel & ModuleNode & Node {

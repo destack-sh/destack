@@ -8,7 +8,7 @@ import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes } from "@/state/object";
 import { useCurrentSessions, WORKER_RESOURCES_BY_PROFILE } from "@/state/session";
-import { ChevronDownIcon, CircleStackIcon, DocumentIcon, PowerIcon } from "@heroicons/vue/24/solid";
+import { BoltIcon, ChevronDownIcon, CircleStackIcon, DocumentIcon, PowerIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
 import { useQuery } from "@vue/apollo-composable";
@@ -52,6 +52,7 @@ const {
         usage {
           recordsActive
           objectsBytesTotal
+          cacheBytesTotal
         }
       }
     }
@@ -196,6 +197,18 @@ const statusIcon = computed(() =>
         </div>
         <div class="ml-1.5 inline font-normal text-gray-500">
           {{ humanizeNumber(projectUsage.recordsActive) }} / {{ humanizeBytes(projectUsage.objectsBytesTotal) }}
+        </div>
+      </div>
+      <!-- Runs / cache -->
+      <div class="flex flex-row items-center justify-between">
+        <div class="flex flex-row items-center">
+          <BoltIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <span class="whitespace-nowrap font-semibold text-gray-900">
+            <span>500MB</span>
+          </span>
+        </div>
+        <div class="ml-1.5 inline font-normal text-gray-500">
+          {{ humanizeBytes(projectUsage.cacheBytesTotal) }}
         </div>
       </div>
       <!-- Language -->

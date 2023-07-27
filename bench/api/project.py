@@ -30,10 +30,12 @@ from bench.api.utils import (
     safe_mutation,
 )
 from bench.language import const
+from bench.language.cache import _get_usage_key
 from bench.language.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
 from bench.opensearch.query import prepare_search
+from bench.utils.cache import redis_sync
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -102,6 +104,7 @@ class ProjectMigrationInfo:
 class ProjectUsage:
     records_active: int
     objects_bytes_total: int
+    cache_bytes_total: int
 
 
 def get_project_usage(info: Info) -> ProjectUsage:
@@ -126,9 +129,13 @@ def get_project_usage(info: Info) -> ProjectUsage:
         .values("content_length")
         .aggregate(Sum("content_length"))["content_length__sum"]
     )
+
+    # get cache bytes total
+    cache_bytes_total = redis_sync.get(_get_usage_key(project_id))
     return ProjectUsage(
         records_active=records_total_results["hits"]["total"]["value"],
         objects_bytes_total=object_bytes_total or 0,
+        cache_bytes_total=cache_bytes_total or 0,
     )
 
 
