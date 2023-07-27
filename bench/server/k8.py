@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import AsyncIterator, Optional
 from uuid import UUID
 
+import aiostream
 import structlog
 from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
@@ -90,10 +91,11 @@ WORKER_RESOURCES_BY_PROFILE = {
 
 BASE_WORKER_ENV_VARS: list[client.V1EnvVar] = []
 try:
-    decoded_vars = base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";")
-    for part in decoded_vars:
-        k, v = part.split("=")
-        BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
+    if KUBERNETES_WORKER_ENV_VARS_STR is not None:
+        decoded_vars = base64.b64decode(KUBERNETES_WORKER_ENV_VARS_STR).decode().split(";")
+        for part in decoded_vars:
+            k, v = part.split("=")
+            BASE_WORKER_ENV_VARS.append(client.V1EnvVar(name=k, value=v))
 except Exception as e:
     logger.exception(
         f"failed to parse worker env vars: {KUBERNETES_WORKER_ENV_VARS_STR}", exc_info=e
@@ -107,7 +109,7 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
     if not deployment.status.conditions:
         return WorkerSetStatus.UNKNOWN
     # if target and actual replicas is 0 then the deployment is SLEEPING
-    if deployment.status.replicas == 0 and deployment.status.available_replicas == 0:
+    if (deployment.status.replicas or 0) == 0 and (deployment.status.available_replicas or 0) == 0:
         return WorkerSetStatus.SLEEPING
     for condition in deployment.status.conditions:
         if condition.type == "Progressing":
@@ -174,7 +176,7 @@ class Deployment:
     status: Optional[WorkerSetStatus] = None
 
     def __str__(self):
-        return f"{self.name} ({self.ready_replicas}/{self.target_replicas}, {self.region}, {self.profile})"
+        return f"{self.name} ({self.status}, {self.ready_replicas}/{self.target_replicas}, {self.region}, {self.profile})"
 
     def __repr__(self):
         return f"<Deployment {self}>"
@@ -244,7 +246,7 @@ class Deployment:
         return deployment
 
     @classmethod
-    def from_k8(cls, deployment: client.V1Deployment, pods: list[Pod]) -> "Deployment":
+    def from_k8(cls, deployment: client.V1Deployment, pods: list[Pod] | None) -> "Deployment":
         """Gets partial deployment info from k8."""
         # check conditions (and reasons) for status (updating, healthy, unhealthy)
         labels = deployment.metadata.labels
@@ -255,7 +257,7 @@ class Deployment:
             profile=WorkerProfile(labels["profile"].upper()),
             status=_get_deployment_status(deployment),
             target_replicas=deployment.spec.replicas,
-            active_replicas_ids=[pod.name for pod in pods],
+            active_replicas_ids=[pod.name for pod in pods] if pods is not None else None,
             available_replicas=deployment.status.available_replicas or 0,
             ready_replicas=deployment.status.ready_replicas or 0,
         )
@@ -324,8 +326,14 @@ async def restart_deployment(deployment: Deployment) -> None:
         )
 
 
-async def get_all_deployments() -> list[Deployment]:
-    """Gets all bench worker set deployments."""
+@dataclass
+class VersionMarker:
+    deployment_resource_version: str
+    pod_resource_version: str
+
+
+async def get_all_deployments() -> tuple[list[Deployment], VersionMarker]:
+    """Gets all bench worker set deployments at the latest version."""
     _check_k8_available()
     selector = f"app={BENCH_WORKER_APP}"
     async with client.ApiClient() as api:
@@ -333,6 +341,10 @@ async def get_all_deployments() -> list[Deployment]:
         core = client.CoreV1Api(api)
         deployments = await apps.list_deployment_for_all_namespaces(label_selector=selector)
         pods = await core.list_pod_for_all_namespaces(label_selector=selector)
+    mark = VersionMarker(
+        deployment_resource_version=deployments.metadata.resource_version,
+        pod_resource_version=pods.metadata.resource_version,
+    )
     pods = [Pod.from_k8(p) for p in pods.items]
     pods_by_deployment: dict[str, list[Pod]] = defaultdict(list)
     for pod in pods:
@@ -340,7 +352,7 @@ async def get_all_deployments() -> list[Deployment]:
     deployments = [
         Deployment.from_k8(d, pods_by_deployment[d.metadata.name]) for d in deployments.items
     ]
-    return deployments
+    return deployments, mark
 
 
 class EventType(enum.StrEnum):
@@ -349,24 +361,32 @@ class EventType(enum.StrEnum):
     DELETED = "DELETED"
 
 
-async def watch_our_deployments() -> AsyncIterator[tuple[EventType, Deployment | Pod]]:
+async def watch_our_deployments(
+    version_info: VersionMarker,
+) -> AsyncIterator[tuple[EventType, Deployment | Pod]]:
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
     selector = f"app={BENCH_WORKER_APP}"
     logger.info("k8.deployment.watch", selector=selector)
-    async with client.ApiClient() as api:
-        async with watch.Watch().stream(
-            client.CoreV1Api(api).list_event_for_all_namespaces, label_selector=selector
-        ) as stream:
-            async for event in stream:
-                # map kubernetes event to EventType
-                event_type = EventType(event["type"])
-                # map kubernetes event to deployment or pod
-                if event["object"].get("involvedObject", {}).get("kind") == "Deployment":
-                    deployment = client.V1Deployment(**event["object"])
-                    yield event_type, Deployment.from_k8(deployment)
-                elif event["object"].get("involvedObject", {}).get("kind") == "Pod":
-                    pod = client.V1Pod(**event["object"])
-                    yield event_type, Pod.from_k8(pod)
-                else:
-                    continue  # ignore other events?
+    async with client.ApiClient() as api, watch.Watch().stream(
+        client.CoreV1Api(api).list_pod_for_all_namespaces,
+        label_selector=selector,
+        resource_version=version_info.pod_resource_version,
+    ) as pod_stream, watch.Watch().stream(
+        client.AppsV1Api(api).list_deployment_for_all_namespaces,
+        label_selector=selector,
+        resource_version=version_info.deployment_resource_version,
+    ) as deployment_stream, aiostream.stream.merge(
+        pod_stream, deployment_stream
+    ).stream() as combined_stream:
+        # combine streams
+        async for event in combined_stream:
+            # map kubernetes event to EventType
+            event_type = EventType(event["type"])
+            # map kubernetes event to deployment or pod
+            if event["object"].kind == "Deployment":
+                yield event_type, Deployment.from_k8(event["object"], None)
+            elif event["object"].kind == "Pod":
+                yield event_type, Pod.from_k8(event["object"])
+            else:
+                continue  # ignore other events?

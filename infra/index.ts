@@ -5,6 +5,8 @@ import * as k8s from "@pulumi/kubernetes";
 import * as pulumi from "@pulumi/pulumi";
 import { getBenchUserS3AccessKey, makeALBController, makeEbsCsiDriver } from "./aws";
 import * as random from "@pulumi/random";
+import * as fs from "fs";
+import * as yaml from "js-yaml";
 
 // configuration
 const config = new pulumi.Config();
@@ -656,4 +658,22 @@ const apiIngress = new k8s.networking.v1.Ingress(
     },
   },
   { provider: eksCluster.provider }
+);
+
+// BetterStack Logs (Vector Helm chart)
+const vectorNamespace = new k8s.core.v1.Namespace("vector", {}, { provider: eksCluster.provider });
+// read vector config from .vector.yaml file
+const vectorValuesPath = config.require("vectorValuesPath");
+const vectorConfig = yaml.load(fs.readFileSync(vectorValuesPath, "utf8")) as Record<string, unknown>;
+const vector = new k8s.helm.v3.Chart(
+  "vector",
+  {
+    namespace: vectorNamespace.metadata.name,
+    chart: "vector",
+    fetchOpts: {
+      repo: "https://helm.vector.dev",
+    },
+    values: vectorConfig,
+  },
+  { provider: eksCluster.provider, dependsOn: [vectorNamespace] }
 );

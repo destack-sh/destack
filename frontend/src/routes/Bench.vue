@@ -491,7 +491,7 @@ onBeforeUnmount(() => {
             <button
               class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
               v-if="module.issues.value?.length || 0 > 0"
-              @click="openIssues.apply"
+              @click="toggleActiveView('issues', true)"
             >
               <XCircleIcon class="h-5 w-5 text-red-600" />
               <span class="text-sm font-semibold text-gray-700">{{ module.issues.value?.length }}</span>

@@ -748,7 +748,7 @@ class SessionSubscription:
                 f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
                 f"{NMessageType.SESSION_CHANGED}.all": SessionChangedPayload,
                 f"{NMessageType.RUNS_CHANGED_GLOBAL}": SessionChangedPayload,
-                f"{NMessageType.WORKERS_CHANGED}.{routing_id}": WorkersChangedPayload,
+                f"{NMessageType.WORKERS_CHANGED}.{project_id}": WorkersChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
             },
         )

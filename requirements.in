@@ -1,6 +1,7 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
 aiohttp==3.8.3
+aiostream==0.4.5
 anthropic==0.2.9
 boto3==1.26.125
 botocore==1.29.125
