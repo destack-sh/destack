@@ -200,7 +200,8 @@ const statusIcon = computed(() =>
         </div>
       </div>
       <!-- Runs / cache -->
-      <div class="flex flex-row items-center justify-between">
+      <!-- .cacheBytesTotal hangs in prod, so omit this for now -->
+      <!-- <div class="flex flex-row items-center justify-between">
         <div class="flex flex-row items-center">
           <BoltIcon class="mr-2 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">
@@ -210,7 +211,7 @@ const statusIcon = computed(() =>
         <div class="ml-1.5 inline font-normal text-gray-500">
           {{ humanizeBytes(projectUsage.cacheBytesTotal) }}
         </div>
-      </div>
+      </div> -->
       <!-- Language -->
       <div class="flex max-w-full flex-row items-center justify-between">
         <span class="flex flex-shrink-0 flex-row items-center">
