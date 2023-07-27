@@ -935,7 +935,7 @@ class Session:
         self.writer = writer
         self.cache_sync = CacheSync(module, project_id=ctx.project_id)
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
-        self.storage = Storage(module, project_id=ctx.project_id)
+        self.storage = Storage(module)
 
         self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
