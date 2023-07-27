@@ -66,7 +66,7 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
-import { XCircleIcon } from "@heroicons/vue/24/solid";
+import { SignalIcon, SignalSlashIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
 
@@ -486,7 +486,7 @@ onBeforeUnmount(() => {
         </div>
         <!-- Comments, issues -->
         <div class="ml-2 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
-          <FadeTransition>
+          <FadeTransition appear>
             <!-- Errors -->
             <button
               class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
@@ -498,19 +498,23 @@ onBeforeUnmount(() => {
             </button>
           </FadeTransition>
         </div>
-        <!-- Status -->
+        <!-- Status (saving, connecting, etc.) -->
         <div v-if="versionLoaded" class="ml-2 flex items-center">
-          <!-- Operations status -->
-          <span class="flex items-center gap-1 p-1 transition-opacity" v-show="hasStaleInflightStateOps">
-            <span class="text-sm text-gray-500">saving</span>
-          </span>
-          <!-- Runtime status -->
           <span class="flex items-center gap-1">
-            <Transition appear>
-              <span class="text-sm text-gray-500" v-show="!WS_CONNECTED">
-                {{ WS_CONNECTED ? "connected" : "connecting" }}
+            <FadeTransition appear :duration="500">
+              <span
+                class="text-sm transition-all duration-150"
+                :class="[
+                  !(WS_CONNECTED || hasStaleInflightStateOps) ? 'animate-pulse text-yellow-600' : 'text-green-700',
+                ]"
+                v-show="!(WS_CONNECTED || hasStaleInflightStateOps)"
+              >
+                <component
+                  :is="WS_CONNECTED || hasStaleInflightStateOps ? SignalIcon : SignalSlashIcon"
+                  class="h-4 w-4"
+                />
               </span>
-            </Transition>
+            </FadeTransition>
           </span>
         </div>
       </template>
