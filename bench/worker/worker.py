@@ -369,7 +369,8 @@ class WorkerNode(Monitored):
             await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
         ]
-        self.tasks.append(asyncio.create_task(self.notify_is_active_if_active()))
+        if self.worker_set_id is not None:  # only mark as active if not a local worker
+            self.tasks.append(asyncio.create_task(self.mark_as_active_if_active_forever()))
 
         if self.project_id is not None:
             # preload worker for project
@@ -407,7 +408,7 @@ class WorkerNode(Monitored):
             f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at", time.time()
         )
 
-    async def notify_is_active_if_active(self, interval=ACTIVE_PUBLISH_INTERVAL):
+    async def mark_as_active_if_active_forever(self, interval=ACTIVE_PUBLISH_INTERVAL):
         while True:
             if any(w.active for w in self.workers.values()):
                 await self._mark_worker_as_active()
@@ -439,7 +440,6 @@ class WorkerNode(Monitored):
             trigger_id=msg.p.trigger_id,
             keyed=msg.p.keyed,
         )
-        await self._mark_worker_as_active()
         if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepStartRunPayload(error=run_job))
         else:

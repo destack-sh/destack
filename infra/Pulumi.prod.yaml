@@ -37,6 +37,7 @@ config:
   bench:minClusterSize: "2"
   bench:opensearchPassword:
     secure: AAABAPl+GtM/VYhHJdq0JN8+PYbCvpolc3HQVSIDDNMmpZd8vedXQLmFYRJxV8ZfHx9sDwFqdG6L+U+yjT2m6cHPIJmI1du7EK6b0nqb7ZbIBw==
+  bench:vectorValuesPath: .vector.prod.yaml
   bench:version: "current"
   bench:vpcNetworkCidr: 10.0.0.0/16
   bench:webappUrl: https://bench.is

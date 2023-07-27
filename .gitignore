@@ -299,3 +299,5 @@ dist
 .vscode/*
 
 *.gpg
+
+infra/.vector.prod.yaml
