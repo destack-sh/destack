@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 import pytz
+from asgiref.sync import async_to_sync
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from strawberry import UNSET, lazy
@@ -35,7 +36,7 @@ from bench.language.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
 from bench.opensearch.query import prepare_search
-from bench.utils.cache import redis_sync
+from bench.utils.cache import redis
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization
@@ -131,7 +132,8 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
     # get cache bytes total
-    cache_bytes_total = redis_sync.get(_get_usage_key(project_id))
+    # (can't use redis_sync here because it blocks somehow)
+    cache_bytes_total = async_to_sync(redis.get)(_get_usage_key(project_id))
     return ProjectUsage(
         records_active=records_total_results["hits"]["total"]["value"],
         objects_bytes_total=object_bytes_total or 0,

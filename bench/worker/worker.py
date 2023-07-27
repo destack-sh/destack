@@ -402,7 +402,9 @@ class WorkerNode(Monitored):
 
     async def _notify_worker_is_active(self):
         # :WorkerSetActive
-        await redis.set(f"worker_set.{self.worker_set_id}.last_active_at", time.time())
+        await redis.set(
+            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at", time.time()
+        )
 
     async def notify_is_active_if_active(self, interval=ACTIVE_PUBLISH_INTERVAL):
         while True:
