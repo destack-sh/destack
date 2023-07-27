@@ -24,7 +24,7 @@ import {
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, onBeforeUnmount, ref, type Ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 
@@ -180,6 +180,7 @@ export function _useSessions(
   // init from initial query
   const workerSets = ref<Record<string, WorkerSet>>({});
   const currentRuns = ref<Record<string, Run>>({});
+  const localRunsIds = reactive(new Set<string>());
   onInitialLoaded((result) => {
     if (result?.data?.currentRuns?.__typename == "SessionState") {
       if (result.data.currentRuns.runs != null) {
@@ -341,6 +342,7 @@ export function _useSessions(
       parent: null,
     } as Run;
     currentRuns.value[runId] = run;
+    localRunsIds.add(runId);
     console.debug("run.start", run.id, run.runnable?.name, run.runnable?.id, Object.keys(run.inputs));
 
     function doRunWithLogs() {
@@ -444,6 +446,7 @@ export function _useSessions(
     workerSet,
     currentRuns,
     currentRoots,
+    localRunsIds,
     activeRuns,
     activeRoots,
     onRunChange,
@@ -683,6 +686,7 @@ export function useLogs(
    * Gets all logs that match the given filter
    */
   filter = wrapValueRefs(filter);
+  const client = useApolloClient();
   const combinedVariables = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
@@ -727,19 +731,44 @@ export function useLogs(
       }
     }
   `);
-  const {
-    result: initialResult,
-    loading: initialLoading,
-    subscribeToMore,
-  } = useQuery(LOGS_QUERY, combinedVariables as any, {
-    fetchPolicy: "network-only",
+  // separate useQuery to read cache since useQuery doesn't react properly if not enabled
+  const { result: logs } = useQuery(LOGS_QUERY, combinedVariables as any, {
+    fetchPolicy: "cache-only",
+  });
+  // only load if not skipping initial load
+  const { loading: initialLoading } = useQuery(LOGS_QUERY, combinedVariables as any, {
     enabled: computed(() => !options?.skipInitialLoad?.value) as any,
   });
 
-  const client = useApolloClient();
+  // if not enabled, write empty result to cache
+  watch(
+    () => [combinedVariables.value, options?.skipInitialLoad?.value],
+    () => {
+      if (!options?.skipInitialLoad?.value) return;
+      client.client.cache.writeQuery({
+        query: LOGS_QUERY,
+        variables: combinedVariables.value as any,
+        data: {
+          logs: {
+            totalCount: 0,
+            pageInfo: {
+              hasNextPage: false,
+              hasPreviousPage: false,
+              startCursor: null,
+              endCursor: null,
+            },
+            edges: [],
+          },
+        },
+      });
+    },
+    { immediate: true, deep: true }
+  );
+
   if (options?.live) {
-    subscribeToMore({
-      document: graphql(/* GraphQL */ `
+    // use useSubscription because subscribeToMore doesn't work properly if the query is not enabled
+    const { onResult: onLogsAdded } = useSubscription(
+      graphql(/* GraphQL */ `
         subscription logsChanged(
           $projectId: GlobalID!
           $projectVersionId: GlobalID!
@@ -760,15 +789,9 @@ export function useLogs(
           }
         }
       `),
-      variables: combinedVariables as any,
-      updateQuery: (prev, { subscriptionData }) => {
-        if (!subscriptionData.data) return prev;
-        const logs = subscriptionData.data.logsChanged.logs.map((l) => useFragment(LogEntryContentType, l));
-        return {
-          logs: getUpdatedConnectionQueryMany(logs, prev.logs as Connection<LogEntry>),
-        };
-      },
-    });
+      combinedVariables as any
+    );
+    onLogsAdded((logs) => addLogs(logs.data?.logsChanged?.logs?.map((l) => useFragment(LogEntryContentType, l)) ?? []));
   }
 
   function addLogs(logs: LogEntry[]) {
@@ -787,7 +810,7 @@ export function useLogs(
 
   return {
     loading: initialLoading,
-    logs: computed(() => initialResult.value?.logs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
+    logs: computed(() => logs.value?.logs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
     addLogs,
   };
 }
