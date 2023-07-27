@@ -71,14 +71,16 @@ class Model(HasType, HasTags, Runnable, Statement):
     def should_cache(self) -> bool:
         return not self._has_vector_io
 
-    async def __call__(self, timeout: int = None, cache: bool = True, **inputs):
+    async def __call__(self, timeout: int = None, cache: bool = None, **inputs):
+        if cache is None:
+            cache = self.should_cache
         inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
         cache_subkey = get_run_cache_subkey(self.path, inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_subkey=cache_subkey)
         log.debug("inference.enter.pre")
 
         # try to read from cache if enabled
-        if cache is not False and self.should_cache and self.session.cache_inferences:
+        if cache and self.session.cache_inferences:
             # TODO @Performance: use leases to cooperatively inference endpoints
             cached_inference = await self.cache.get(cache_subkey)
             if cached_inference is not None:

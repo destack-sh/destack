@@ -400,8 +400,9 @@ class WorkerNode(Monitored):
             await worker.ready.wait()
         return worker
 
-    async def _notify_worker_is_active(self):
+    async def _mark_worker_as_active(self):
         # :WorkerSetActive
+        logger.debug("worker.mark_active", worker_set=self.worker_set_id)
         await redis.set(
             f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at", time.time()
         )
@@ -409,7 +410,7 @@ class WorkerNode(Monitored):
     async def notify_is_active_if_active(self, interval=ACTIVE_PUBLISH_INTERVAL):
         while True:
             if any(w.active for w in self.workers.values()):
-                await self._notify_worker_is_active()
+                await self._mark_worker_as_active()
             await asyncio.sleep(interval)
 
     @message_handler
@@ -438,7 +439,7 @@ class WorkerNode(Monitored):
             trigger_id=msg.p.trigger_id,
             keyed=msg.p.keyed,
         )
-        await self._notify_worker_is_active()
+        await self._mark_worker_as_active()
         if isinstance(run_job, RunErrorType):  # couldn't queue run
             await msg.reply(RepStartRunPayload(error=run_job))
         else:
