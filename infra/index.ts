@@ -511,7 +511,7 @@ const WORKER_ENV_VARS_ENCODED = pulumi
 const KUBERNETES_ENV_VARS = [
   { name: "KUBERNETES_WORKER_IMAGE", value: `ghcr.io/symbolx/bench-worker:${imageVersion}` },
   { name: "KUBERNETES_WORKER_ENV_VARS", value: WORKER_ENV_VARS_ENCODED },
-  { name: "KUBERNETES_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
+  { name: "KUBERNETES_WORKER_IMAGE_PULL_SECRET_NAME", value: imagePullSecret.metadata.name },
 ];
 
 // deployment for API service (ASGI Django with Daphne)
@@ -595,6 +595,11 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
               ],
               command: ["python", "manageserver.py", "all"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
+              livenessProbe: {
+                httpGet: { path: "/healthz", port: 80 },
+                initialDelaySeconds: 10,
+                periodSeconds: 10,
+              },
             },
           ],
           imagePullSecrets: [{ name: imagePullSecret.metadata.name }],

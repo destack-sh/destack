@@ -273,14 +273,14 @@ STATIC_BUILTINS: dict[str, Any] = {
     "SortOrder": SortOrder,
     "SortMode": SortMode,
     # remote
-    "Object": RemoteObject,
-    "ObjectSatus": RemoteObjectStatus,
+    "RemoteObject": RemoteObject,
+    "RemoteObjectSatus": RemoteObjectStatus,
     # functional builtins
     "first": first,
     "last": last,
     "chain": itertools.chain,
 }
-DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "cache", "random", "self"}
+DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "cache", "random", "self"}
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 
@@ -302,6 +302,7 @@ def instantiate_callable(
         "session": session,
         "context": {symbol.name: symbol for symbol in context.values()},  # by name
         "cache": session.cache_async if code._parse.is_async else session.cache_sync,
+        "storage": session.storage,
         **context,  # inlined
         "random": Random(code.id.hex.encode()),
         "self": code,

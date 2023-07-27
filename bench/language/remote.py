@@ -13,7 +13,7 @@ import structlog
 from asgiref.sync import async_to_sync
 
 from bench.language.const import RemoteObjectStatus
-from bench.language.core import HasSession, Session, node
+from bench.language.core import HasSession, Module, Session, node
 from bench.utils.utils import required_field
 
 logger = structlog.get_logger(__name__)
@@ -40,7 +40,7 @@ class RemoteObject(HasSession):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
     def __repr__(self):
-        return f"<Object {self}>"
+        return f"<RemoteObject {self}>"
 
     def __getitem__(self, item):
         return self.__dict__[item]
@@ -211,6 +211,33 @@ class RemoteObject(HasSession):
         obj._validate()
         obj._do_upload(content)
         return obj
+
+
+class Storage:
+    """Convenience wrapper around a module's object storage."""
+
+    def __init__(self, module: Module):
+        self.module = module
+
+    def __str__(self):
+        return f"{self.module} storage"
+
+    def __repr__(self):
+        return f"<Storage {self}>"
+
+    def upload(
+        self, file: typing.BinaryIO, name: str = None, content_type: str = None
+    ) -> RemoteObject:
+        """Upload a file to object storage."""
+        return RemoteObject.from_file(file, name=name, content_type=content_type)
+
+    def upload_from_url(self, url: str, name: str = None, timeout: int = None) -> RemoteObject:
+        """Upload a file to object storage."""
+        return RemoteObject.from_url(url, self.module.session, name=name, timeout=timeout)
+
+    def upload_from_requests(self, response: requests.Response, name: str = None) -> RemoteObject:
+        """Upload a file to object storage."""
+        return RemoteObject.from_requests(response, self.module.session, name=name)
 
 
 SecretValueT = typing.TypeVar("SecretValueT")

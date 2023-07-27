@@ -917,6 +917,7 @@ class Session:
     ):
         from bench.language.cache import CacheAsync, CacheSync
         from bench.language.mutate import ModuleMutator
+        from bench.language.remote import Storage
         from bench.language.tracing import SessionTracer
 
         self.id = id or uuid4()
@@ -934,6 +935,7 @@ class Session:
         self.writer = writer
         self.cache_sync = CacheSync(module, project_id=ctx.project_id)
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
+        self.storage = Storage(module, project_id=ctx.project_id)
 
         self.anonymous_scope = Scope(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
