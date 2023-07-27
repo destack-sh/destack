@@ -28,7 +28,7 @@ class MonitoringServer:
         self.monitors = monitors
         self._serve_task = None
 
-    async def asgi(self, scope, receive, send):
+    async def __call__(self, scope, receive, send):
         if scope["type"] == "http" and scope["path"] == "/healthz":
             healthy = all(m.healthy for m in self.monitors)
             await send(
@@ -57,7 +57,7 @@ class MonitoringServer:
         if self._serve_task:
             raise RuntimeError("already launched")
         config = uvicorn.Config(
-            app=self.asgi, host=host, port=port, log_level="warning", access_log=False
+            app=self, host=host, port=port, log_level="warning", access_log=False
         )
         server = uvicorn.Server(config=config)
         server.install_signal_handlers = lambda *args: None
