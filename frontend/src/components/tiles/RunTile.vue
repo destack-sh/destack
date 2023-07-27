@@ -5,6 +5,7 @@ import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
+import { useCurrentSessions } from "@/state/session";
 import {
   Bars3Icon,
   DocumentChartBarIcon,
@@ -12,8 +13,7 @@ import {
   Squares2X2Icon,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
-import { DateTime } from "luxon";
-import { computed, ref, watch } from "vue";
+import { ref, watch } from "vue";
 
 type View = "logs" | "tracebars" | "tracelist" | "error" | "metadata";
 
@@ -28,9 +28,7 @@ const props = defineProps<{
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
 
 const now = useTimeFromNow(100);
-const wasJustCreated = computed(
-  () => now.now.value.diff(DateTime.fromISO(props.run.createdAt)).as("milliseconds") < 100
-);
+const session = useCurrentSessions();
 const activeView = ref<View>(props.view ?? "logs");
 
 // sync props view into activeView on change
@@ -51,7 +49,9 @@ defineExpose({
   <div class="relative">
     <!-- Controls -->
     <div v-if="showControls" class="flex flex-row justify-between">
-      <span class="text-gray-400">{{ activeView }} from {{ now.getTimeFromNowLongString(run.updatedAt) }}</span>
+      <span class="text-xs font-semibold uppercase text-gray-400"
+        >{{ activeView }} <span class="font-normal">({{ now.getTimeFromNowString(run.updatedAt) }})</span></span
+      >
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
@@ -85,7 +85,7 @@ defineExpose({
       </div>
     </div>
     <!-- View container (scrollable) -->
-    <div ref="outputRef" class="mt-1 max-h-[300px] overflow-auto">
+    <div ref="outputRef" class="mt-1">
       <!-- Output views -->
       <TraceTile
         v-if="activeView == 'tracebars' || activeView == 'tracelist'"
@@ -97,10 +97,12 @@ defineExpose({
       <LogsTile
         v-else-if="activeView == 'logs'"
         ref="logsTileRef"
+        class="max-h-[300px] overflow-auto"
+        :containerHeight="300"
         :project-id="(projectId as string)"
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session.id"
-        :skip-initial-load="wasJustCreated"
+        :skip-initial-load="session.localRunsIds.has(run.id)"
         :focus="{
           runnableIds: run.runnable != null ? [run.runnable.id] : undefined,
         }"

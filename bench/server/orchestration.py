@@ -159,7 +159,7 @@ class OrchestrationServer(Monitored):
                 worker_node_id__in=worker_node_ids, status__in=PENDING_RUN_STATUSES
             )
         ]
-        logger.debug(
+        logger.debug(  #
             "mark_worker_nodes_as_deadish", worker_node_ids=worker_node_ids, runs=len(dead_runs)
         )
         if not dead_runs:
@@ -243,6 +243,7 @@ class OrchestrationServer(Monitored):
                     worker_set.target_replicas = 0
                     updated_worker_sets.append(worker_set)
 
+            logger.debug("worker_sets.update_lifecycle", worker_sets=updated_worker_sets)
             await self._save_and_notify_worker_sets(self.worker_sets)
             if updated_worker_sets:
                 await self._deploy_worker_sets(updated_worker_sets)
