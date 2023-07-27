@@ -17,3 +17,7 @@ RUN_LANGUAGE_SERVER_IN_API = get_from_env("RUN_LANGUAGE_SERVER", DEBUG, type_cas
 RUN_ORCHESTRATION_SERVER_IN_API = get_from_env(
     "RUN_ORCHESTRATION_SERVER", DEBUG, type_cast=str_to_bool
 )
+if not DEBUG and (RUN_LANGUAGE_SERVER_IN_API or RUN_ORCHESTRATION_SERVER_IN_API):
+    raise RuntimeError(
+        "RUN_LANGUAGE_SERVER and RUN_ORCHESTRATION_SERVER can only be enabled in DEBUG mode"
+    )

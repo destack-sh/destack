@@ -1,6 +1,5 @@
 import asyncio
-import time
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Collection
 from uuid import UUID
 
@@ -206,25 +205,29 @@ class OrchestrationServer(Monitored):
     async def _manage_worker_lifecycle_forever(self, interval: int = 60):
         """Puts worker sets to sleep after inactivity if needed."""
         while True:
-            await asyncio.sleep(interval)
-            idle_cutoff = time.time() - WORKER_SET_IDLE_SLEEP_TIME
             # scan iter "worker_set.{id}" in redis :WorkerSetActive
-            active_keys = await redis.keys("worker_set.*.last_active_at")
+            active_keys = [k async for k in redis.scan_iter("worker_set.*.*.last_active_at")]
             active_values = await redis.mget(active_keys)
-
             updated_worker_sets = []
+            keys_to_delete = []
             for key, last_active_at in zip(active_keys, active_values):
                 # update worker set
                 worker_set_id = UUID(key.split(".")[1])
                 last_active_at = float(last_active_at)
                 worker_set = self.worker_sets_by_project_id.get(worker_set_id)
                 if worker_set is None or worker_set.status != WorkerSetStatus.HEALTHY:
-                    await redis.delete(key)  # delete stale keys
-                    continue
+                    keys_to_delete.append(key)  # delete stale keys
                 worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
+            if keys_to_delete:
+                await redis.delete(*keys_to_delete)
 
+            # put any idle worker sets to sleep as needed
+            idle_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
+                seconds=WORKER_SET_IDLE_SLEEP_TIME
+            )
+            for worker_set in self.worker_sets:
                 # put to sleep if idle for too long
-                if last_active_at < idle_cutoff:
+                if worker_set.last_active_at < idle_cutoff:
                     logger.info("worker_sets.sleep", worker_set=worker_set)
                     worker_set.sleeping = True
                     worker_set.target_replicas = 0
@@ -232,6 +235,8 @@ class OrchestrationServer(Monitored):
 
             await self._save_and_notify_worker_sets(self.worker_sets)
             await self._deploy_worker_sets(updated_worker_sets)
+
+            await asyncio.sleep(interval)
 
     async def _get_project_worker_set(self, project_id: UUID):
         """Get default worker set for a project."""

@@ -590,8 +590,6 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
                 ...AWS_BACKEND_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 ...KUBERNETES_ENV_VARS,
-                { name: "RUN_LANGUAGE_SERVER", value: "1" },
-                { name: "RUN_ORCHESTRATION_SERVER", value: "1" },
               ],
               command: ["python", "manageserver.py", "all"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
