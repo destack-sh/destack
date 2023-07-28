@@ -499,9 +499,7 @@ class ReqDoRestartWorkerNodePayload(Payload):
 
     @property
     def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}.{self.worker_set_id or 'all'}".replace(
-            "-", ""
-        )
+        return f"{self.__class__.type}.{self.project_id}.{self.worker_set_id or 'all'}"
 
 
 @payload(NMessageType.DO_RESTART_WORKER_NODE_REP)
