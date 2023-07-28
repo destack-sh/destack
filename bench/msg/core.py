@@ -63,7 +63,7 @@ async def init_nats(name: str = "bench"):
         reconnected_cb=nats_reconnected_cb,
         closed_cb=nats_closed_cb,
     )
-    log.info("nats.connected", connected=nc.is_connected)
+    log.info("nats.connected", connected=nc.is_connected, name=name)
     nc_init.set()
 
 
