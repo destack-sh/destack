@@ -87,7 +87,8 @@ onBeforeUnmount(() => clearInterval(interval));
 const workerStatusColor = {
   [WorkerSetStatus.Pending]: "text-yellow-700",
   [WorkerSetStatus.Healthy]: "text-green-700",
-  [WorkerSetStatus.Unhealthy]: "text-red-700",
+  [WorkerSetStatus.Unavailable]: "text-red-700",
+  [WorkerSetStatus.Unhealthy]: "text-yellow-700",
   [WorkerSetStatus.Updating]: "text-gray-500",
   [WorkerSetStatus.Sleeping]: "text-gray-500",
   [WorkerSetStatus.Unknown]: "text-gray-500",
@@ -95,6 +96,7 @@ const workerStatusColor = {
 const workerStatusIcon = {
   [WorkerSetStatus.Pending]: BusySpinnerIcon,
   [WorkerSetStatus.Healthy]: CheckCircleIcon,
+  [WorkerSetStatus.Unavailable]: XCircleIcon,
   [WorkerSetStatus.Unhealthy]: XCircleIcon,
   [WorkerSetStatus.Updating]: BusySpinnerIcon,
   [WorkerSetStatus.Sleeping]: PauseIcon,
@@ -103,7 +105,8 @@ const workerStatusIcon = {
 const workerStatusTitle = {
   [WorkerSetStatus.Pending]: "Starting",
   [WorkerSetStatus.Healthy]: "Ready",
-  [WorkerSetStatus.Unhealthy]: "Unavailable",
+  [WorkerSetStatus.Unavailable]: "Unavailable",
+  [WorkerSetStatus.Unhealthy]: "Unhealthy",
   [WorkerSetStatus.Updating]: "Updating",
   [WorkerSetStatus.Sleeping]: "Sleeping",
   [WorkerSetStatus.Unknown]: "Unknown",

@@ -111,26 +111,30 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
     # if target and actual replicas is 0 then the deployment is SLEEPING
     if (deployment.status.replicas or 0) == 0 and (deployment.status.available_replicas or 0) == 0:
         return WorkerSetStatus.SLEEPING
+    if (deployment.status.available_replicas or 0) == deployment.status.replicas:
+        return WorkerSetStatus.HEALTHY
     for condition in deployment.status.conditions:
         if condition.type == "Progressing":
             if condition.status == "True":
                 if condition.reason in [
                     "NewReplicaSetCreated",
+                    "NewReplicaSetAvailable",
                     "FoundNewReplicaSet",
                     "ReplicaSetUpdated",
                 ]:
                     return WorkerSetStatus.UPDATING
-                elif condition.reason == "NewReplicaSetAvailable":
-                    return WorkerSetStatus.HEALTHY
-            elif condition.status == "False":
-                if condition.reason == "ProgressDeadlineExceeded":
-                    return WorkerSetStatus.UNHEALTHY
+            elif condition.status == "False" and condition.reason == "ProgressDeadlineExceeded":
+                return WorkerSetStatus.UNHEALTHY
         elif condition.type == "Available":
             if condition.status == "False":
                 return WorkerSetStatus.PENDING
         elif condition.type == "ReplicaFailure":
             if condition.status == "True":
                 return WorkerSetStatus.UNHEALTHY
+    if (deployment.status.unavailable_replicas or 0) == deployment.status.replicas:
+        return WorkerSetStatus.UNAVAILABLE
+    if (deployment.status.unavailable_replicas or 0) > 0:
+        return WorkerSetStatus.UNHEALTHY
     return WorkerSetStatus.UNKNOWN
 
 
