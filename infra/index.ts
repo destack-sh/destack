@@ -595,9 +595,14 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
               ],
               command: ["python", "manageserver.py", "all"],
               resources: { requests: { cpu: "1000m", memory: "2000Mi" } },
+              readinessProbe: {
+                httpGet: { path: "/ready", port: 80 },
+                initialDelaySeconds: 15,
+                periodSeconds: 10,
+              },
               livenessProbe: {
                 httpGet: { path: "/healthz", port: 80 },
-                initialDelaySeconds: 10,
+                initialDelaySeconds: 15,
                 periodSeconds: 10,
               },
             },
