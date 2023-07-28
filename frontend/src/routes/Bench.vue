@@ -505,7 +505,7 @@ onBeforeUnmount(() => {
               <span
                 class="text-sm transition-all duration-150"
                 :class="[
-                  !(WS_CONNECTED || hasStaleInflightStateOps) ? 'animate-pulse text-yellow-600' : 'text-green-700',
+                  !(WS_CONNECTED || hasStaleInflightStateOps) ? 'animate-pulse text-yellow-700' : 'text-green-700',
                 ]"
                 v-show="!(WS_CONNECTED || hasStaleInflightStateOps)"
               >

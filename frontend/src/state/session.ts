@@ -2,6 +2,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
 import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
+import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
 import { newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
@@ -275,6 +276,7 @@ export function _useSessions(
   // session ops
   //
 
+  const auth = useAuth();
   const notifications = useNotifications();
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
@@ -282,6 +284,9 @@ export function _useSessions(
   const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
   const waking = ref(false);
   const restarting = ref(false);
+
+  // TODO @UX: auto wake worker set if user is logged in and not idle?
+  // (especially when we get to proper LSP)
 
   // worker sets
 

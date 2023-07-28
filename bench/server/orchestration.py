@@ -37,7 +37,7 @@ from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
-WORKER_SET_IDLE_SLEEP_TIME = 3 * 1  # 20 minutes (nocheckin)
+WORKER_SET_IDLE_SLEEP_TIME = 20 * 60  # 20 minutes
 
 
 class OrchestrationServer(Monitored):
@@ -86,10 +86,12 @@ class OrchestrationServer(Monitored):
         if KUBERNETES_ENABLED:
             # fetch from k8
             deployments, k8_marker = await k8.get_all_deployments()
+            deployments_to_delete = []
             dead_worker_node_ids = []
             for deployment in deployments:
                 worker_set = self.worker_sets_by_project_id.get(deployment.project_id)
                 if not worker_set:
+                    deployments_to_delete.append(deployment)
                     continue
                 for node_id in deployment.active_replicas_ids:
                     if node_id not in worker_set.active_replicas_ids:
@@ -97,6 +99,9 @@ class OrchestrationServer(Monitored):
                 worker_set.status = deployment.status
                 worker_set.ready_replicas = deployment.ready_replicas
                 worker_set.active_replicas_ids = deployment.active_replicas_ids
+
+            if deployments_to_delete:
+                await k8.delete_deployments(deployments_to_delete)
 
             # and re-deploy as needed
             await self._mark_last_active_from_redis()
@@ -191,8 +196,7 @@ class OrchestrationServer(Monitored):
                 worker_set.target_replicas = partial_worker_set.target_replicas
                 worker_set.status = partial_worker_set.status
                 if not worker_set.sleeping:
-                    # bump last_active_at for worker set on any change (is this a good idea?)
-                    worker_set.last_active_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+                    worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             elif isinstance(object, k8.Pod):
                 if event_type == k8.EventType.ADDED:
                     worker_set.active_replicas_ids.append(object.name)
@@ -253,7 +257,9 @@ class OrchestrationServer(Monitored):
         )
         for worker_set in self.worker_sets:
             # put to sleep if idle for too long
-            if worker_set.last_active_at and worker_set.last_active_at < idle_cutoff:
+            if (worker_set.last_active_at and worker_set.last_active_at < idle_cutoff) and not (
+                worker_set.last_bumped_at and worker_set.last_bumped_at > idle_cutoff
+            ):
                 logger.info("worker_sets.sleep", worker_set=worker_set)
                 worker_set.sleeping = True
                 worker_set.target_replicas = 0
@@ -280,6 +286,7 @@ class OrchestrationServer(Monitored):
             worker_set.desired_replicas = msg.p.desired_replicas
             worker_set.profile = msg.p.profile
             worker_set.region = msg.p.region
+            worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             await self._save_and_notify_worker_sets([worker_set])
             await self._deploy_worker_sets([worker_set])
             success = True
@@ -299,7 +306,7 @@ class OrchestrationServer(Monitored):
                 worker_set.sleeping = False
                 worker_set.target_replicas = worker_set.desired_replicas
                 worker_set.status = WorkerSetStatus.PENDING
-            worker_set.last_active_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
             logger.info("worker_sets.wake", worker_sets=worker_set)
             await self._save_and_notify_worker_sets([worker_set])
             if was_sleeping:

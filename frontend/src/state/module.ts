@@ -309,7 +309,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  // wake langserver as needed & possible
+  // wake langserver as needed if possible
   const wokeLangserver = ref(false);
   const ops = useOperations();
   const auth = useAuth();
