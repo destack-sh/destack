@@ -74,7 +74,11 @@ export function humanizeBytes(bytes: number, options?: { round?: boolean }) {
   if (options?.round) {
     return `${Math.round(bytes)}${units[unit]}`;
   }
-  return `${bytes.toFixed(1)}${units[unit]}`;
+  if (unit == 0) {
+    return `${bytes.toFixed(0)}${units[unit]}`;
+  } else {
+    return `${bytes.toFixed(1)}${units[unit]}`;
+  }
 }
 
 export function useObjects() {

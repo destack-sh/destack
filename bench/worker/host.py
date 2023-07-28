@@ -42,6 +42,7 @@ class WorkerHost:
 
     async def run_forever(self):
         await nc_init.wait()
+        logger.info("host.start", worker_process=self.worker_process, host=self)
         routing_id = self.project_id or ">"
         self.subs = [
             await handle_reply(
@@ -49,7 +50,7 @@ class WorkerHost:
             )
         ]
         # launch worker process
-        quick_restarts = 0
+        suspiciously_rapid_restarts = 0
         while not self._stopped:
             time_started = time.time()
             self.worker_process = subprocess.Popen(
@@ -57,11 +58,11 @@ class WorkerHost:
             )
             logger.info("host.start", worker_process=self.worker_process)
             while self.worker_process.poll() is None:
-                if quick_restarts > 0 and time_started < time.time() - 2:
-                    quick_restarts = 0  # success, reset
+                if suspiciously_rapid_restarts > 0 and time_started < time.time() - 2:
+                    suspiciously_rapid_restarts = 0  # success, reset
                 await asyncio.sleep(0.1)
-            quick_restarts += 1
-            if quick_restarts > 10:
+            suspiciously_rapid_restarts += 1
+            if suspiciously_rapid_restarts > 10:
                 logger.critical("host.too_many_failures", worker_process=self.worker_process)
                 sys.exit(1)
             logger.info(
@@ -69,7 +70,7 @@ class WorkerHost:
                 worker_process=self.worker_process,
                 returncode=self.worker_process.returncode,
             )
-        logger.info("host.stopped", worker_process=self.worker_process)
+        logger.info("host.stopped", worker_process=self.worker_process, host=self)
 
     def _terminate_worker(self):
         # see https://stackoverflow.com/questions/4789837/how-to-terminate-a-python-subprocess-launched-with-shell-true/4791612#4791612
