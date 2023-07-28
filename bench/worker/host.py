@@ -43,11 +43,18 @@ class WorkerHost:
     async def run_forever(self):
         await nc_init.wait()
         logger.info("host.start", worker_process=self.worker_process, host=self)
-        routing_id = self.project_id or ">"
+        if self.project_id:
+            routing_ids = {
+                f"{self.project_id}.{self.worker_set_id or 'all'}",
+                f"{self.project_id}.all",
+            }
+        else:
+            routing_ids = (">",)
         self.subs = [
             await handle_reply(
-                f"{NMessageType.DO_RESTART_WORKER_NODE}.{routing_id}", self.do_restart_worker_node
+                f"{NMessageType.DO_RESTART_WORKER_NODE}.{r}", self.do_restart_worker_node
             )
+            for r in routing_ids
         ]
         # launch worker process
         suspiciously_rapid_restarts = 0
