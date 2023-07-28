@@ -209,9 +209,9 @@ def write_mutations_to_os(
                 ops.append({"delete": {"_index": bench_index, "_id": str(m.data.id)}})
             elif m.type.kind == MMK.TRUNCATE:
                 _flush()  # unfortunately can't be batched with the other operations
-                backend_id = statement.dataset.backend_id
+                key = statement.dataset.key
                 os_client.delete_by_query(
-                    index=bench_index, body={"query": {"term": {"dataset_id": backend_id}}}
+                    index=bench_index, body={"query": {"term": {"dataset_id": key}}}
                 )
 
         # secondary mirror for search

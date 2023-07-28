@@ -127,7 +127,7 @@ def _get_deployment_status(deployment: client.V1Deployment) -> WorkerSetStatus:
                     return WorkerSetStatus.UNHEALTHY
         elif condition.type == "Available":
             if condition.status == "False":
-                return WorkerSetStatus.UNHEALTHY
+                return WorkerSetStatus.PENDING
         elif condition.type == "ReplicaFailure":
             if condition.status == "True":
                 return WorkerSetStatus.UNHEALTHY

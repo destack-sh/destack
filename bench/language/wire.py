@@ -11,14 +11,7 @@ from uuid import UUID
 
 from bench import language as lang
 from bench.language import StatementType
-from bench.language.const import (
-    DatasetBackend,
-    RemoteObjectStatus,
-    RunTriggerType,
-    TypeFlag,
-    TypeHint,
-    TypeTag,
-)
+from bench.language.const import RemoteObjectStatus, RunTriggerType, TypeFlag, TypeHint, TypeTag
 from bench.language.core import (
     CRUD_PROPERTIES,
     MOT,
@@ -1025,8 +1018,7 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 class DatasetData(StatementData):
     description: Optional[str]
     versioned: bool
-    backend: DatasetBackend
-    backend_id: str
+    key: str
 
 
 @node_packer(MOT.STATEMENT, DatasetData, lang.Dataset)
@@ -1044,8 +1036,7 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             **statement_data.__dict__,
             description=symbol.description,
             versioned=symbol.versioned,
-            backend=symbol.backend,
-            backend_id=symbol.backend_id,
+            key=symbol.key,
         )
 
     def unpack(
@@ -1058,8 +1049,7 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             versioned=symbol.versioned,
             fields=[],
             tags=[],
-            backend=symbol.backend,
-            backend_id=symbol.backend_id,
+            key=symbol.key,
         )
 
     def unwalk(self, symbol: lang.Dataset, tree: ModuleTree):

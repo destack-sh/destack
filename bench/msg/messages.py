@@ -360,7 +360,7 @@ class RepSearch(abc.ABC):
 class ReqSearchRecordPayload(ReqSearch):
     module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
-    backend_ids: Optional[list[str]] = None
+    keys: Optional[list[str]] = None
 
 
 @payload(NMessageType.SEARCH_RECORD_REP)

@@ -20,7 +20,7 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import DatasetBackend, RemoteObjectStatus, RunTriggerType, TypeFlag
+from bench.language.const import RemoteObjectStatus, RunTriggerType, TypeFlag
 from bench.language.core import InterpScope, ModuleObjectType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
@@ -629,8 +629,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
             **statement_data.__dict__,
             description=statement.description,
             versioned=statement.dataset.versioned,
-            backend=DatasetBackend(statement.dataset.backend),
-            backend_id=statement.dataset.backend_id,
+            key=statement.dataset.key,
         )
 
     def unpack(
@@ -642,8 +641,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
             id=uuid5(statement.id, "dataset"),
             versioned=data.versioned,
             statement=statement,
-            backend=data.backend.value,
-            backend_id=data.backend_id,
+            key=data.key,
         )
         return [statement, statement.dataset]
 
