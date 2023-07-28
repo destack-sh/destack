@@ -60,7 +60,7 @@ class OrchestrationServer(Monitored):
 
     @property
     def healthy(self):
-        return self.tasks.healthy
+        return self.tasks.healthy and self.ready
 
     @property
     def worker_sets(self) -> Collection[models.WorkerSet]:
@@ -80,12 +80,12 @@ class OrchestrationServer(Monitored):
         ]
         for worker_set in worker_sets:
             self.worker_sets_by_project_id[worker_set.project_id] = worker_set
-        logger.debug("worker_sets.loaded", worker_sets=self.worker_sets)
+        logger.debug("worker_sets.loaded_from_db", worker_sets=self.worker_sets)
 
         # initial sync
         if KUBERNETES_ENABLED:
             # fetch from k8
-            deployments, k8_marker = await k8.get_all_deployments()
+            deployments, k8_revision_mark = await k8.get_all_deployments()
             deployments_to_delete = []
             dead_worker_node_ids = []
             for deployment in deployments:
@@ -115,7 +115,7 @@ class OrchestrationServer(Monitored):
 
         # start for real
         if KUBERNETES_ENABLED:
-            self.tasks.start(self._watch_worker_sets_in_k8_forever(k8_marker))
+            self.tasks.start(self._watch_worker_sets_in_k8_forever(k8_revision_mark))
         self.tasks.start(self._manage_worker_lifecycle_forever())
         self.subs = [
             await handle_reply(NMessageType.CONFIGURE_WORKER_SET, self.configure_worker_set),
@@ -123,6 +123,7 @@ class OrchestrationServer(Monitored):
             await handle_reply(NMessageType.RESTART_WORKER_SET, self.restart_worker_set),
         ]
         self._ready = True
+        logger.info("ready")
 
     async def stop(self):
         logger.info("stop")
@@ -229,6 +230,7 @@ class OrchestrationServer(Monitored):
         Fetches last_active_at state for each worker set from redis WITHOUT writing to DB.
         """
         # scan iter "worker_set.{id}" in redis :WorkerSetActive
+        logger.debug("worker_sets.mark_last_active_from_redis")
         active_keys = [k async for k in redis.scan_iter("worker_set.*.*.last_active_at")]
         active_values = await redis.mget(active_keys)
         keys_to_delete = []
@@ -251,6 +253,7 @@ class OrchestrationServer(Monitored):
 
     async def _mark_tired_worker_sets(self) -> list[models.WorkerSet]:
         """Marks worker sets as sleeping if they are idle for too long WITHOUT writing to DB."""
+        logger.debug("worker_sets.mark_tired")
         tired_worker_sets = []
         idle_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
             seconds=WORKER_SET_IDLE_SLEEP_TIME
@@ -267,7 +270,7 @@ class OrchestrationServer(Monitored):
         return tired_worker_sets
 
     async def _get_project_worker_set(self, project_id: UUID):
-        """Get default worker set for a project."""
+        """Get worker set for a project (load if not already loaded, may have just been created)."""
         worker_set = self.worker_sets_by_project_id.get(project_id)
         if worker_set is None:
             # newly created project, get from DB

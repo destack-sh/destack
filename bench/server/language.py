@@ -159,6 +159,7 @@ class LanguageServer(Monitored):
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
         ]
+        logger.info("ready")
         self._ready = True
 
     @property

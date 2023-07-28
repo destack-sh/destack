@@ -207,6 +207,13 @@ class Deployment:
             resources=WORKER_RESOURCES_BY_PROFILE[self.profile],
             env=extended_env_vars,
             command=["python", "manageworker.py", "host"],
+            readiness_probe=client.V1Probe(
+                # /healthz on port 80, see :WorkerHealthProbe
+                http_get=client.V1HTTPGetAction(path="/ready", port=80),
+                initial_delay_seconds=5,
+                period_seconds=10,
+                failure_threshold=3,
+            ),
             liveness_probe=client.V1Probe(
                 # /healthz on port 80, see :WorkerHealthProbe
                 http_get=client.V1HTTPGetAction(path="/healthz", port=80),
@@ -353,6 +360,7 @@ class VersionMarker:
 async def get_all_deployments() -> tuple[list[Deployment], VersionMarker]:
     """Gets all bench worker set deployments at the latest version."""
     _check_k8_available()
+    logger.info("k8.deployment.get_all")
     selector = f"app={BENCH_WORKER_APP}"
     async with client.ApiClient() as api:
         apps = client.AppsV1Api(api)

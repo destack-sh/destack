@@ -13,7 +13,7 @@ class Monitored(abc.ABC):
 
     @property
     def healthy(self) -> bool:
-        return True
+        return self.ready
 
     async def launch_monitoring_server(self, host: str, port: int, daemon: bool = True) -> None:
         """Launches a monitoring server for this monitored thing."""
