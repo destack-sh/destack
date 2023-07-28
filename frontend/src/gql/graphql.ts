@@ -2526,6 +2526,7 @@ export enum WorkerSetStatus {
   Healthy = "HEALTHY",
   Pending = "PENDING",
   Sleeping = "SLEEPING",
+  Unavailable = "UNAVAILABLE",
   Unhealthy = "UNHEALTHY",
   Unknown = "UNKNOWN",
   Updating = "UPDATING",

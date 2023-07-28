@@ -2173,5 +2173,6 @@ enum WorkerSetStatus {
   UPDATING
   HEALTHY
   UNHEALTHY
+  UNAVAILABLE
   UNKNOWN
 }
