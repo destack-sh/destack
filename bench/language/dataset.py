@@ -10,7 +10,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language.const import DatasetBackend, DatasetViewLayout, StatementType, TypeFlag, TypeTag
+from bench.language.const import DatasetViewLayout, StatementType, TypeFlag, TypeTag
 from bench.language.core import (
     HasCrud,
     HasSession,
@@ -35,7 +35,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def new_dataset_backend_id():
+def new_dataset_key():
     """Gets a random alphabetic key as a persistent key."""
     return "".join(random.choices(string.ascii_letters, k=DATASET_BACKEND_KEY_LENGTH))
 
@@ -159,8 +159,7 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
     views: Optional[list[DatasetView]] = None
-    backend: DatasetBackend = DatasetBackend.OPENSEARCH
-    backend_id: str = field(default_factory=new_dataset_backend_id)
+    key: str = field(default_factory=new_dataset_key)
 
     def _clear(self) -> None:
         HasType._clear(self)
@@ -296,16 +295,16 @@ class RecordSearch(Search["RecordData", Record]):
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
             statement_ids = [dataset.id for dataset in self.datasets]
-            backend_ids = [dataset.backend_id for dataset in self.datasets]
+            keys = [dataset.key for dataset in self.datasets]
         else:
             statement_ids = None
-            backend_ids = None
+            keys = None
         rep: NMessage[RepSearchRecordPayload] = await request(
             NMessageType.SEARCH_RECORD,
             ReqSearchRecordPayload(
                 module_id=self.module.id,
                 statement_ids=statement_ids,
-                backend_ids=backend_ids,
+                keys=keys,
                 query=self._query,
                 sort=self._sort,
                 after=after,

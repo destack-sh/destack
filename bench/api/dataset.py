@@ -25,8 +25,7 @@ from bench.opensearch.query import encode_cursor, prepare_search
 
 @gql.django.type(models.Dataset)
 class Dataset(gql.Node):
-    backend: str
-    backend_id: str
+    key: str
     versioned: bool
 
 
@@ -142,7 +141,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.backend_id,
+            dataset_id=statement.dataset.key,
             created_at=now,
             created_by_id=None,  # not handled yet
             updated_at=now,
@@ -163,7 +162,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.backend_id,
+            dataset_id=statement.dataset.key,
             value=input.value,
             updated_at=now,
             last_edited_at=now,
@@ -178,7 +177,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.backend_id,
+            dataset_id=statement.dataset.key,
             order_key=input.order_key,
             updated_at=now,
             last_edited_at=now,
@@ -193,7 +192,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.backend_id,
+            dataset_id=statement.dataset.key,
             deleted_at=now,
             updated_at=now,
         )
@@ -207,7 +206,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.backend_id,
+            dataset_id=statement.dataset.key,
             deleted_at="-",  # invalid value to set to null
             updated_at=now,
         )
@@ -231,7 +230,7 @@ class DatasetMutation:
                 id=UUID(i.node_id),
                 project_version_id=project_v.id,
                 statement_id=statement.id,
-                dataset_id=statement.dataset.backend_id,
+                dataset_id=statement.dataset.key,
                 deleted_at=now,
                 updated_at=now,
             )
@@ -251,7 +250,7 @@ class DatasetMutation:
                 id=UUID(i.node_id),
                 project_version_id=project_v.id,
                 statement_id=statement.id,
-                dataset_id=statement.dataset.backend_id,
+                dataset_id=statement.dataset.key,
                 deleted_at="-",  # invalid value to set to null
                 updated_at=now,
             )
@@ -282,9 +281,7 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         check_can_read_project(info, statement.project_version)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(
-            Q(QueryOp.EQUALS, "dataset_id", statement.dataset.backend_id), query
-        )
+        query = Query.and_if_set(Q(QueryOp.EQUALS, "dataset_id", statement.dataset.key), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by dataset

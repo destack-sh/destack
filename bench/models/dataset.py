@@ -6,8 +6,8 @@ from uuid import UUID, uuid5
 
 from django.db import models
 
-from bench.language.const import DatasetBackend, DatasetViewLayout
-from bench.models.utils import CrudModel, ModuleNode, UUIDModel, get_choices
+from bench.language.const import DatasetViewLayout
+from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, get_choices
 
 if TYPE_CHECKING:
     from bench.models.statement import Statement
@@ -17,8 +17,7 @@ class Dataset(UUIDModel, ModuleNode):
     """A user created dataset."""
 
     statement: Statement  # noqa via Statement.dataset
-    backend = models.CharField(max_length=64, choices=get_choices(DatasetBackend))
-    backend_id = models.CharField(max_length=64)
+    key = models.CharField(max_length=64)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     versioned = models.BooleanField(default=True)
@@ -63,3 +62,35 @@ class DatasetViewField(UUIDModel, CrudModel, ModuleNode):
     @property
     def parent(self) -> Optional["DatasetView"]:
         return self.view
+
+
+class Record(UUIDModel, CrudModel, ModuleNode, Revisioned):
+    """
+    A record in a dataset (may be untethered if the dataset is not versioned).
+    We may choose not to store the actual record value here later, but for now it's convenient.
+    """
+
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="records", null=True
+    )
+    dataset_key = models.CharField(max_length=64)
+    value = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        indexes = [models.Index(fields=["dataset_key"], name="bench_record_dataset_key_idx")]
+
+
+class RecordRelation(UUIDModel):
+    """
+    Relation between a Record and something (another Record, a Statement, a Run, etc.).
+    (Not actually used yet, this is just me thinking out loud.)
+    """
+
+    parent = models.ForeignKey("Record", on_delete=models.CASCADE, related_name="+")
+    type = models.CharField(max_length=64)
+    record = models.ForeignKey("Record", on_delete=models.CASCADE, null=True, related_name="+")
+    statement = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, null=True, related_name="+"
+    )
+    run = models.ForeignKey("Run", on_delete=models.CASCADE, null=True, related_name="+")
+    path = models.CharField(max_length=128, null=True, blank=True)

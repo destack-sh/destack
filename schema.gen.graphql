@@ -180,8 +180,7 @@ interface CrudModel {
 
 type Dataset implements Node {
   id: GlobalID!
-  backend: String!
-  backendId: String!
+  key: String!
   versioned: Boolean!
 }
 

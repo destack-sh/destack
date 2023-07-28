@@ -400,7 +400,7 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             id=data.id,
             project_version_id=project_v.id,
             statement_id=data.parent_id,
-            dataset_id=parent.dataset.backend_id,
+            dataset_id=parent.dataset.key,
             order_key=data.order_key,
             value=data.value,
             revision=data.revision,

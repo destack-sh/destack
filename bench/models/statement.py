@@ -12,8 +12,8 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import DatasetBackend, TypeFlag
-from bench.language.dataset import new_dataset_backend_id
+from bench.language.const import TypeFlag
+from bench.language.dataset import new_dataset_key
 from bench.language.tag import new_tag_key
 from bench.language.type import new_field_key
 from bench.models.utils import (
@@ -137,11 +137,11 @@ class StatementManager(models.Manager["Statement"]):
         from bench.models import Dataset
         from bench.opensearch.index import batch_duplicate_records
 
-        new_dataset_ids = {d.backend_id: new_dataset_backend_id() for d in datasets}
+        new_dataset_ids = {d.key: new_dataset_key() for d in datasets}
         batch_duplicate_records(source, target, new_dataset_ids)
         for dataset in datasets:
-            dataset.backend_id = new_dataset_ids[dataset.backend_id]
-        Dataset.objects.bulk_update(datasets, ["backend_id"])
+            dataset.key = new_dataset_ids[dataset.key]
+        Dataset.objects.bulk_update(datasets, ["key"])
 
     def copy(
         self,
@@ -273,8 +273,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
             self.dataset = Dataset.objects.create(
                 id=Dataset.get_id(self),
                 statement=self,
-                backend=DatasetBackend.OPENSEARCH,
-                backend_id=new_dataset_backend_id(),
+                key=new_dataset_key(),
             )
 
     @property

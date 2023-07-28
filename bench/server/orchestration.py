@@ -37,7 +37,7 @@ from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
-WORKER_SET_IDLE_SLEEP_TIME = 20 * 1  # 20 minutes
+WORKER_SET_IDLE_SLEEP_TIME = 3 * 1  # 20 minutes (nocheckin)
 
 
 class OrchestrationServer(Monitored):
@@ -97,8 +97,11 @@ class OrchestrationServer(Monitored):
                 worker_set.status = deployment.status
                 worker_set.ready_replicas = deployment.ready_replicas
                 worker_set.active_replicas_ids = deployment.active_replicas_ids
+
+            # and re-deploy as needed
+            await self._mark_last_active_from_redis()
+            await self._mark_tired_worker_sets()
             await self._save_and_notify_worker_sets(self.worker_sets)
-            # update deployments from db
             await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
             dead_worker_node_ids = ["local"]
@@ -209,46 +212,53 @@ class OrchestrationServer(Monitored):
     async def _manage_worker_lifecycle_forever(self, interval: int = 60):
         """Puts worker sets to sleep after inactivity if needed."""
         while True:
-            # scan iter "worker_set.{id}" in redis :WorkerSetActive
-            active_keys = [k async for k in redis.scan_iter("worker_set.*.*.last_active_at")]
-            active_values = await redis.mget(active_keys)
-            updated_worker_sets = []
-            keys_to_delete = []
-            for key, last_active_at in zip(active_keys, active_values):
-                # update worker set
-                try:
-                    worker_set_id = UUID(key.split(".")[1])
-                    last_active_at = float(last_active_at)
-                except (ValueError, IndexError, TypeError) as e:
-                    logger.warning("worker_set.last_active_at.invalid", key=key, error=e)
-                    keys_to_delete.append(key)  # delete invalid keys
-                    continue
-
-                worker_set = self.worker_sets_by_project_id.get(worker_set_id)
-                if worker_set is None or worker_set.status != WorkerSetStatus.HEALTHY:
-                    keys_to_delete.append(key)  # delete stale keys
-                worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
-            if keys_to_delete:
-                await redis.delete(*keys_to_delete)
-
-            # put any idle worker sets to sleep as needed
-            idle_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
-                seconds=WORKER_SET_IDLE_SLEEP_TIME
-            )
-            for worker_set in self.worker_sets:
-                # put to sleep if idle for too long
-                if worker_set.last_active_at and worker_set.last_active_at < idle_cutoff:
-                    logger.info("worker_sets.sleep", worker_set=worker_set)
-                    worker_set.sleeping = True
-                    worker_set.target_replicas = 0
-                    updated_worker_sets.append(worker_set)
-
-            logger.debug("worker_sets.update_lifecycle", worker_sets=updated_worker_sets)
+            await self._mark_last_active_from_redis()
+            tired_worker_sets = await self._mark_tired_worker_sets()
+            logger.debug("worker_sets.update_lifecycle", worker_sets=tired_worker_sets)
             await self._save_and_notify_worker_sets(self.worker_sets)
-            if updated_worker_sets:
-                await self._deploy_worker_sets(updated_worker_sets)
-
+            if tired_worker_sets:
+                await self._deploy_worker_sets(tired_worker_sets)
             await asyncio.sleep(interval)
+
+    async def _mark_last_active_from_redis(self):
+        """
+        Fetches last_active_at state for each worker set from redis WITHOUT writing to DB.
+        """
+        # scan iter "worker_set.{id}" in redis :WorkerSetActive
+        active_keys = [k async for k in redis.scan_iter("worker_set.*.*.last_active_at")]
+        active_values = await redis.mget(active_keys)
+        keys_to_delete = []
+        for key, last_active_at in zip(active_keys, active_values):
+            # update worker set
+            try:
+                worker_set_id = UUID(key.split(".")[1])
+                last_active_at = float(last_active_at)
+            except (ValueError, IndexError, TypeError) as e:
+                logger.warning("worker_set.last_active_at.invalid", key=key, error=e)
+                keys_to_delete.append(key)  # delete invalid keys
+                continue
+
+            worker_set = self.worker_sets_by_project_id.get(worker_set_id)
+            if worker_set is None or worker_set.status != WorkerSetStatus.HEALTHY:
+                keys_to_delete.append(key)  # delete stale keys
+            worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
+        if keys_to_delete:
+            await redis.delete(*keys_to_delete)
+
+    async def _mark_tired_worker_sets(self) -> list[models.WorkerSet]:
+        """Marks worker sets as sleeping if they are idle for too long WITHOUT writing to DB."""
+        tired_worker_sets = []
+        idle_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
+            seconds=WORKER_SET_IDLE_SLEEP_TIME
+        )
+        for worker_set in self.worker_sets:
+            # put to sleep if idle for too long
+            if worker_set.last_active_at and worker_set.last_active_at < idle_cutoff:
+                logger.info("worker_sets.sleep", worker_set=worker_set)
+                worker_set.sleeping = True
+                worker_set.target_replicas = 0
+                tired_worker_sets.append(worker_set)
+        return tired_worker_sets
 
     async def _get_project_worker_set(self, project_id: UUID):
         """Get default worker set for a project."""

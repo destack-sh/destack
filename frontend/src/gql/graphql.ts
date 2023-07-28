@@ -194,9 +194,8 @@ export type CrudModel = {
 
 export type Dataset = Node & {
   __typename?: "Dataset";
-  backend: Scalars["String"];
-  backendId: Scalars["String"];
   id: Scalars["GlobalID"];
+  key: Scalars["String"];
   versioned: Scalars["Boolean"];
 };
 

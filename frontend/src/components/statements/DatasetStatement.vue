@@ -1091,7 +1091,7 @@ defineExpose({
         @click.stop="refetch()"
       >
         <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
-        {{ recordsError.message }}
+        <span class="max-w-full truncate">{{ recordsError.message }}</span>
       </button>
       <!-- Load more/loading -->
       <button
