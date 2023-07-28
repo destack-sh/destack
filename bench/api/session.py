@@ -148,6 +148,7 @@ class WorkerSet(gql.Node):
     target_replicas: int
     available_replicas: int
     ready_replicas: int
+    last_bumped_at: auto
     last_active_at: auto
 
 

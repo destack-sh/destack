@@ -2163,6 +2163,7 @@ type WorkerSet implements Node {
   targetReplicas: Int!
   availableReplicas: Int!
   readyReplicas: Int!
+  lastBumpedAt: DateTime
   lastActiveAt: DateTime
 }
 

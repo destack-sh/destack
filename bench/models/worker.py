@@ -23,6 +23,7 @@ class WorkerSet(UUIDModel):
     target_replicas = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    last_bumped_at = models.DateTimeField(null=True, blank=True)
     last_active_at = models.DateTimeField(null=True, blank=True)
     # ready from k8 only
     status = models.CharField(max_length=32, choices=get_choices(WorkerSetStatus))

@@ -314,6 +314,24 @@ async def update_deployments(deployments: list[Deployment]) -> None:
                     raise
 
 
+async def delete_deployments(deployments: list[Deployment]) -> None:
+    """Deletes deployments in k8."""
+    _check_k8_available()
+    async with client.ApiClient() as api:
+        for deployment in deployments:
+            logger.info("k8.deployment.delete", deployment=deployment)
+            try:
+                await client.AppsV1Api(api).delete_namespaced_deployment(
+                    name=deployment.name, namespace=KUBERNETES_WORKER_NAMESPACE
+                )
+            except client.ApiException as e:
+                logger.warning("k8.deployment.delete.failed", deployment=deployment, error=e)
+                if e.status == 404:
+                    pass
+                else:
+                    raise
+
+
 async def restart_deployment(deployment: Deployment) -> None:
     _check_k8_available()
     logger.info("k8.deployment.restart", deployment=deployment)

@@ -2511,6 +2511,7 @@ export type WorkerSet = Node & {
   desiredReplicas: Scalars["Int"];
   id: Scalars["GlobalID"];
   lastActiveAt?: Maybe<Scalars["DateTime"]>;
+  lastBumpedAt?: Maybe<Scalars["DateTime"]>;
   profile: WorkerProfile;
   project: Project;
   readyReplicas: Scalars["Int"];
