@@ -373,7 +373,7 @@ class WorkerNode(Monitored):
             self.tasks.append(asyncio.create_task(self.mark_as_active_if_active_forever()))
 
         if self.project_id is not None:
-            # preload worker for project
+            # preload worker for project (assumes it's at head)
             await self._get_ready_worker(self.project_id)
 
         self._ready.set()
