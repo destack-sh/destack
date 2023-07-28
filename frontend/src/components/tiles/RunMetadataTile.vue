@@ -6,7 +6,7 @@ import { useFragment } from "@/gql";
 import type { Run } from "@/gql/graphql";
 import { FieldType } from "@/state/fragments";
 import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
-import { getStatusColor } from "@/state/session";
+import { getRunStatusColor } from "@/state/session";
 import { DateTime } from "luxon";
 import { computed } from "vue";
 
@@ -39,7 +39,7 @@ const fields = computed(
           </tr>
           <tr>
             <td class="font-semibold">Status</td>
-            <td class="" :class="[getStatusColor(props.run.status)]">{{ props.run.status.toLowerCase() }}</td>
+            <td class="" :class="[getRunStatusColor(props.run.status)]">{{ props.run.status.toLowerCase() }}</td>
           </tr>
           <tr>
             <td class="font-semibold">Started</td>

@@ -19,7 +19,7 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { ProjectVisibility } from "@/gql/graphql";
+import { ProjectVisibility, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
@@ -66,9 +66,10 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
-import { SignalIcon, SignalSlashIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import { CubeIcon as CubeIconSolid, SignalIcon, SignalSlashIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
+import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{
   owner: string;
@@ -240,11 +241,17 @@ watch(versionError, () => {
 const actions = useActions();
 const operationsStore = useOperationsStore();
 const module = useCurrentModule();
-const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
+const sessions = useCurrentSessions();
 const auth = useAuth();
 // syncs need to instantiated for the Bench lifetime
 useModuleSync(versionToViewId);
 useProjectSync(toRef(bench, "projectId"));
+
+// status
+const workerSet = sessions.workerSet;
+const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
+const connectionHealthy = computed(() => WS_CONNECTED.value && !hasStaleInflightStateOps.value);
+const workerSetHealthy = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
 
 // routing
 const consideredUrl = ref(false);
@@ -475,17 +482,16 @@ onBeforeUnmount(() => {
           <!-- Read-only project notice -->
           <div
             v-if="project != null && bench.readonly"
-            class="ml-2 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
+            class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIcon class="absolute top-0.5 h-4 w-4" />
               <span class="ml-5 select-none">Viewer</span>
             </span>
-            <!-- <button>fork</button> -->
           </div>
         </div>
         <!-- Comments, issues -->
-        <div class="ml-2 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
+        <div class="ml-1.5 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
           <FadeTransition appear>
             <!-- Errors -->
             <button
@@ -498,30 +504,36 @@ onBeforeUnmount(() => {
             </button>
           </FadeTransition>
         </div>
-        <!-- Status (saving, connecting, etc.) -->
-        <div v-if="versionLoaded" class="ml-2 flex items-center">
-          <span class="flex items-center gap-1">
-            <FadeTransition appear :duration="500">
-              <span
-                class="text-sm transition-all duration-150"
-                :class="[
-                  !(WS_CONNECTED || hasStaleInflightStateOps) ? 'animate-pulse text-yellow-700' : 'text-green-700',
-                ]"
-                v-show="!(WS_CONNECTED || hasStaleInflightStateOps)"
-              >
-                <component
-                  :is="WS_CONNECTED || hasStaleInflightStateOps ? SignalIcon : SignalSlashIcon"
-                  class="h-4 w-4"
-                />
-              </span>
-            </FadeTransition>
-          </span>
+        <!-- Connection status -->
+        <div v-if="versionLoaded" class="ml-1.5 flex">
+          <FadeTransition appear :duration="500">
+            <span
+              class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+              :class="[!connectionHealthy ? 'animate-pulse text-yellow-700' : 'text-green-700']"
+              v-show="!connectionHealthy"
+            >
+              <component :is="connectionHealthy ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
+            </span>
+          </FadeTransition>
         </div>
-      </template>
-
-      <!-- Center: main metrics -->
-      <template v-slot:center>
-        <!-- No metrics right now :BuildEvaluate -->
+        <!-- Worker status -->
+        <div v-if="workerSet != null" class="ml-1 flex">
+          <FadeTransition appear :duration="500">
+            <span
+              class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+              :class="[
+                workerSet.status == WorkerSetStatus.Pending || workerSet.status == WorkerSetStatus.Updating
+                  ? 'animate-pulse '
+                  : '',
+                WORKER_STATUS_COLOR[workerSet.status],
+              ]"
+              @click="toggleActiveView('environment', true)"
+              v-show="!workerSetHealthy"
+            >
+              <CubeIconSolid class="h-4 w-4" />
+            </span>
+          </FadeTransition>
+        </div>
       </template>
 
       <!-- Right side: controls & profile -->

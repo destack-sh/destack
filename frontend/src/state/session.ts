@@ -852,7 +852,7 @@ export function getRunStatusIconSolid(status: RunStatus) {
   }
 }
 
-export function getStatusColor(status: RunStatus, options?: { gray?: string }) {
+export function getRunStatusColor(status: RunStatus, options?: { gray?: string }) {
   const gray = options?.gray ?? "text-gray-700";
   if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
     return gray;
@@ -866,3 +866,41 @@ export function getStatusColor(status: RunStatus, options?: { gray?: string }) {
     return gray;
   }
 }
+
+export const WORKER_STATUS_COLOR = {
+  [WorkerSetStatus.Pending]: "text-yellow-700",
+  [WorkerSetStatus.Healthy]: "text-green-700",
+  [WorkerSetStatus.Unavailable]: "text-red-700",
+  [WorkerSetStatus.Unhealthy]: "text-yellow-700",
+  [WorkerSetStatus.Updating]: "text-gray-500",
+  [WorkerSetStatus.Sleeping]: "text-gray-500",
+  [WorkerSetStatus.Unknown]: "text-gray-500",
+};
+export const WORKER_STATUS_ICON_SOLID = {
+  [WorkerSetStatus.Pending]: BusySpinnerIcon,
+  [WorkerSetStatus.Healthy]: CheckCircleIconSolid,
+  [WorkerSetStatus.Unavailable]: XCircleIconSolid,
+  [WorkerSetStatus.Unhealthy]: XCircleIconSolid,
+  [WorkerSetStatus.Updating]: BusySpinnerIcon,
+  [WorkerSetStatus.Sleeping]: PauseCircleIconSolid,
+  [WorkerSetStatus.Unknown]: QuestionMarkCircleIconSolid,
+};
+export const WORKER_STATUS_ICON_OUTLINE = {
+  [WorkerSetStatus.Pending]: BusySpinnerIcon,
+  [WorkerSetStatus.Healthy]: CheckCircleIconOutline,
+  [WorkerSetStatus.Unavailable]: XCircleIconOutline,
+  [WorkerSetStatus.Unhealthy]: XCircleIconOutline,
+  [WorkerSetStatus.Updating]: BusySpinnerIcon,
+  [WorkerSetStatus.Sleeping]: PauseCircleIconOutline,
+  [WorkerSetStatus.Unknown]: QuestionMarkCircleIconOutline,
+};
+
+export const WORKER_STATUS_TITLE = {
+  [WorkerSetStatus.Pending]: "Starting",
+  [WorkerSetStatus.Healthy]: "Ready",
+  [WorkerSetStatus.Unavailable]: "Unavailable",
+  [WorkerSetStatus.Unhealthy]: "Unhealthy",
+  [WorkerSetStatus.Updating]: "Updating",
+  [WorkerSetStatus.Sleeping]: "Sleeping",
+  [WorkerSetStatus.Unknown]: "Unknown",
+};

@@ -10,7 +10,7 @@ import { useBenchState } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { RUN_TERMINAL_STATES } from "@/state/session";
-import { getStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
+import { getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref, watch } from "vue";
@@ -194,7 +194,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         :key="node.id"
         class="flex flex-row items-center rounded-sm p-1 hover:cursor-pointer hover:bg-orange-100"
         :class="[
-          getStatusColor(node.run.status),
+          getRunStatusColor(node.run.status),
           focusedNode?.id == node.id ? 'ring-inset-1 ring-1 ring-orange-600 ring-opacity-40' : '',
         ]"
         :style="{
@@ -256,7 +256,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
           class="h-4 w-4 flex-shrink-0"
           :class="[
             node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '',
-            getStatusColor(node.run.status),
+            getRunStatusColor(node.run.status),
           ]"
         />
         <!-- Runnable -->
@@ -264,7 +264,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
           class="ml-1 max-w-full flex-shrink-0 whitespace-nowrap font-semibold underline-offset-4"
           :class="[
             altKey && node.runnable != null ? 'cursor-pointer hover:underline' : '',
-            getStatusColor(node.run.status),
+            getRunStatusColor(node.run.status),
           ]"
           @click="
             (e) =>
@@ -277,7 +277,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         <!-- Duration -->
         <span
           class="ml-1 flex flex-shrink-0 flex-row flex-nowrap items-center"
-          :class="[getStatusColor(node.run.status)]"
+          :class="[getRunStatusColor(node.run.status)]"
         >
           <span class="font-semibold">{{ formatDuration(node.duration * 1000) }}</span>
           <template v-if="node.children.length > 0">

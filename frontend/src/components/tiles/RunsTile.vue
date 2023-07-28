@@ -3,7 +3,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run } from "@/gql/graphql";
-import { useRuns, getStatusColor, getRunStatusIconSolid } from "@/state/session";
+import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
 import { ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
 import { useElementSize, useKeyModifier } from "@vueuse/core";
@@ -113,7 +113,7 @@ function isExpanded(runId: string) {
           <!-- Metadata -->
           <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
             <!-- Status & timing -->
-            <span class="transtion flex max-w-full flex-row items-center" :class="getStatusColor(run.status)">
+            <span class="transtion flex max-w-full flex-row items-center" :class="getRunStatusColor(run.status)">
               <!-- Status -->
               <component
                 :is="getRunStatusIconSolid(run.status)"

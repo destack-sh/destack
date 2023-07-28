@@ -25,7 +25,7 @@ import StatementTags from "@/components/statements/StatementTags.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import RunTile from "@/components/tiles/RunTile.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
-import { getStatusColor } from "@/state/session";
+import { getRunStatusColor } from "@/state/session";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ folded?: boolean }>();
@@ -220,7 +220,7 @@ defineExpose({
       <!-- Run time -->
       <span
         v-if="!hasTypes && currentRun != null"
-        :class="[preparingRun ? 'text-gray-400' : getStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
+        :class="[preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
       >
         <BusySpinnerIcon v-if="preparingRun || currentRun.status == RunStatus.Queued" class="h-4 w-4 animate-spin" />
         <span v-else>{{ sessions.getDurationFormatted(currentRun) }}</span>
@@ -231,7 +231,7 @@ defineExpose({
       <span
         v-if="!hasTypes"
         :class="[
-          preparingRun ? 'text-gray-400' : getStatusColor(currentRun?.status, { gray: 'text-gray-400' }),
+          preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun?.status, { gray: 'text-gray-400' }),
           currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
         ]"
       >
