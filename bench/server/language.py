@@ -80,10 +80,12 @@ async def get_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, 
     # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
     if ref in _cached_modules:
         return _cached_modules[ref]
-    if isinstance(ref, UUID):
-        project_version = await ProjectVersion.objects.aget(id=ref)
-    elif ref.id is not None:
-        project_version = await ProjectVersion.objects.aget(id=ref.id)
+    id = ref if isinstance(ref, UUID) else ref.id
+    if id:
+        try:
+            project_version = await ProjectVersion.objects.aget(id=id)
+        except ProjectVersion.DoesNotExist:
+            project_version = (await Project.objects.select_related("head").aget(id=id)).head
     else:
         owner, project = ref.name.split(".")
         if ref.version != "x":

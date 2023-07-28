@@ -900,7 +900,7 @@ export const WORKER_STATUS_TITLE = {
   [WorkerSetStatus.Healthy]: "Ready",
   [WorkerSetStatus.Unavailable]: "Unavailable",
   [WorkerSetStatus.Unhealthy]: "Unhealthy",
-  [WorkerSetStatus.Updating]: "Updating",
+  [WorkerSetStatus.Updating]: "Starting",
   [WorkerSetStatus.Sleeping]: "Sleeping",
   [WorkerSetStatus.Unknown]: "Unknown",
 };
