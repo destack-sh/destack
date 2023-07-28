@@ -319,8 +319,10 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
   subnetGroupName: redisSubnetGroup.id,
   transitEncryptionEnabled: true,
 });
+const REDIS_MASTER_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
+const REDIS_RESTRICTED_URL = pulumi.interpolate`rediss://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 
-// NATS: Helm chart
+// NATS (HELM)
 const nats = new k8s.helm.v3.Release("nats", {
   namespace: "default",
   chart: "nats",
@@ -492,18 +494,11 @@ const BASE_PRIVATE_BACKEND_ENV_VARS = [
   { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
   { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
   { name: "WEBAPP_URL", value: config.require("webappUrl") },
-  {
-    name: "REDIS_URL",
-    value: pulumi.interpolate`redis://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
-  },
+  { name: "REDIS_URL", value: REDIS_MASTER_URL },
 ];
-
 const WORKER_ENV_VARS = [
   ...PUBLIC_BACKEND_VARS,
-  {
-    name: "REDIS_URL",
-    value: pulumi.interpolate`redis://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`,
-  },
+  { name: "REDIS_URL", value: REDIS_RESTRICTED_URL },
   { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
 ];
 // encode as k1=v1;k2=v2;... and then base64
