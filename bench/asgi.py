@@ -25,6 +25,7 @@ from bench.settings import (
     RUN_LANGUAGE_SERVER_IN_API,
     RUN_ORCHESTRATION_SERVER_IN_API,
 )
+from bench.utils.cache import test_redis_connection
 from bench.utils.func import wrap_task
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "bench.settings")
@@ -65,6 +66,7 @@ reactor.addSystemEventTrigger("before", "shutdown", drain_nats)
 
 # start 'soon' publish queue
 task = reactor._asyncioEventloop.create_task(wrap_task(process_soon_queue()))
+reactor._asyncioEventloop.create_task(test_redis_connection())
 
 # run servers alongside API server (for development)
 if RUN_LANGUAGE_SERVER_IN_API:

@@ -9,6 +9,7 @@ import structlog
 
 from bench.msg.core import init_nats, process_soon_queue
 from bench.utils.analytics import init_sentry
+from bench.utils.cache import test_redis_connection
 from bench.utils.logging import configure_logging
 from bench.utils.monitoring import restart_on_file_changes
 from bench.worker import WorkerNode
@@ -38,6 +39,7 @@ else:
 
 async def _run_node():
     await init_nats(nats_name)
+    await test_redis_connection()
     asyncio.create_task(process_soon_queue())
     worker = WorkerNode(
         worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id
@@ -49,6 +51,7 @@ async def _run_node():
 
 async def _run_host():
     await init_nats(nats_name)
+    await test_redis_connection()
     asyncio.create_task(process_soon_queue())
     host = WorkerHost(
         worker_set_id=worker_set_id, worker_node_id=worker_node_id, project_id=project_id

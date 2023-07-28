@@ -231,7 +231,7 @@ class OrchestrationServer(Monitored):
         """
         # scan iter "worker_set.{id}" in redis :WorkerSetActive
         logger.debug("worker_sets.mark_last_active_from_redis")
-        active_keys = await asyncio.wait_for(redis.keys("worker_set.*.*.last_active_at"), 5)
+        active_keys = await redis.keys("worker_set.*.*.last_active_at")
         active_values = await redis.mget(active_keys)
         keys_to_delete = []
         for key, last_active_at in zip(active_keys, active_values):

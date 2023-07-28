@@ -9,6 +9,7 @@ import structlog
 
 from bench.msg.core import init_nats, process_soon_queue
 from bench.utils.analytics import init_sentry
+from bench.utils.cache import test_redis_connection
 from bench.utils.logging import configure_logging
 from bench.utils.monitoring import MonitoringServer
 from bench.utils.utils import DEBUG, get_from_env
@@ -37,6 +38,7 @@ django.setup()
 async def _run(names: list[str]):
     asyncio.create_task(process_soon_queue())
     await init_nats("server")
+    await test_redis_connection()
 
     servers = []
     if "language" in names or "all" in names:
