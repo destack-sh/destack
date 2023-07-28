@@ -293,9 +293,9 @@ const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPasswo
   length: 32,
   special: false,
 });
-const redisRestrictedUser = new aws.elasticache.User("redisRestrictedUser", {
+const redisWorkerUser = new aws.elasticache.User("redisRestrictedUser", {
   engine: "REDIS",
-  accessString: "on ~* -@all +get +set",
+  accessString: "on ~* -@all +get +set +ping",
   userId: "worker",
   userName: "worker",
   passwords: [redisRestrictedPassword.result],
@@ -304,7 +304,7 @@ const redisRestrictedUser = new aws.elasticache.User("redisRestrictedUser", {
 const redisUserGroup = new aws.elasticache.UserGroup("redisUserGroup", {
   engine: "REDIS",
   userGroupId: "redis-user-group",
-  userIds: ["default", redisRootUser.userId, redisRestrictedUser.userId],
+  userIds: ["default", redisRootUser.userId, redisWorkerUser.userId],
 });
 // replication group with user ids
 const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
@@ -319,8 +319,8 @@ const redisReplicationGroup = new aws.elasticache.ReplicationGroup("redis", {
   subnetGroupName: redisSubnetGroup.id,
   transitEncryptionEnabled: true,
 });
-const REDIS_MASTER_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
-const REDIS_RESTRICTED_URL = pulumi.interpolate`rediss://${redisRestrictedUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
+const REDIS_ROOT_URL = pulumi.interpolate`rediss://${redisRootUser.userName}:${redisRootPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
+const REDIS_WORKER_URL = pulumi.interpolate`rediss://${redisWorkerUser.userName}:${redisRestrictedPassword.result}@${redisReplicationGroup.primaryEndpointAddress}:${redisReplicationGroup.port}`;
 
 // NATS (HELM)
 const nats = new k8s.helm.v3.Release("nats", {
@@ -494,11 +494,11 @@ const BASE_PRIVATE_BACKEND_ENV_VARS = [
   { name: "ALLOWED_HOSTS", value: config.require("apiAllowedHosts") },
   { name: "CORS_ALLOWED_ORIGINS", value: config.require("apiAllowedOrigins") },
   { name: "WEBAPP_URL", value: config.require("webappUrl") },
-  { name: "REDIS_URL", value: REDIS_MASTER_URL },
+  { name: "REDIS_URL", value: REDIS_ROOT_URL },
 ];
 const WORKER_ENV_VARS = [
   ...PUBLIC_BACKEND_VARS,
-  { name: "REDIS_URL", value: REDIS_RESTRICTED_URL },
+  { name: "REDIS_URL", value: REDIS_WORKER_URL },
   { name: "ALLOW_UNTRUSTED_CODE", value: "true" },
 ];
 // encode as k1=v1;k2=v2;... and then base64
