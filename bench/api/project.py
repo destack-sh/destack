@@ -137,7 +137,7 @@ def get_project_usage(info: Info) -> ProjectUsage:
     return ProjectUsage(
         records_active=records_total_results["hits"]["total"]["value"],
         objects_bytes_total=object_bytes_total or 0,
-        cache_bytes_total=cache_bytes_total,
+        cache_bytes_total=cache_bytes_total or 0,
     )
 
 

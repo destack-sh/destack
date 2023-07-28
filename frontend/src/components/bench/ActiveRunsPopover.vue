@@ -4,7 +4,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { getRunStatusIconSolid, getStatusColor, useCurrentSessions } from "@/state/session";
+import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
@@ -52,7 +52,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
                 class="h-4 w-4"
                 :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
               />
-              <span class="ml-1.5" :class="[getStatusColor(run.status)]">
+              <span class="ml-1.5" :class="[getRunStatusColor(run.status)]">
                 {{ run.status == RunStatus.Queued ? "..." : sessions.getDurationFormatted(run) }}
               </span>
               <span

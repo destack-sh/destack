@@ -7,7 +7,13 @@ import { WorkerSetStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { humanizeBytes } from "@/state/object";
-import { useCurrentSessions, WORKER_RESOURCES_BY_PROFILE } from "@/state/session";
+import {
+  useCurrentSessions,
+  WORKER_RESOURCES_BY_PROFILE,
+  WORKER_STATUS_COLOR,
+  WORKER_STATUS_ICON_SOLID,
+  WORKER_STATUS_TITLE,
+} from "@/state/session";
 import { BoltIcon, ChevronDownIcon, CircleStackIcon, PowerIcon } from "@heroicons/vue/24/solid";
 import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
@@ -84,38 +90,10 @@ const interval = setInterval(() => {
 }, 60 * 1000);
 onBeforeUnmount(() => clearInterval(interval));
 
-const workerStatusColor = {
-  [WorkerSetStatus.Pending]: "text-yellow-700",
-  [WorkerSetStatus.Healthy]: "text-green-700",
-  [WorkerSetStatus.Unavailable]: "text-red-700",
-  [WorkerSetStatus.Unhealthy]: "text-yellow-700",
-  [WorkerSetStatus.Updating]: "text-gray-500",
-  [WorkerSetStatus.Sleeping]: "text-gray-500",
-  [WorkerSetStatus.Unknown]: "text-gray-500",
-};
-const workerStatusIcon = {
-  [WorkerSetStatus.Pending]: BusySpinnerIcon,
-  [WorkerSetStatus.Healthy]: CheckCircleIcon,
-  [WorkerSetStatus.Unavailable]: XCircleIcon,
-  [WorkerSetStatus.Unhealthy]: XCircleIcon,
-  [WorkerSetStatus.Updating]: BusySpinnerIcon,
-  [WorkerSetStatus.Sleeping]: PauseIcon,
-  [WorkerSetStatus.Unknown]: QuestionMarkCircleIcon,
-};
-const workerStatusTitle = {
-  [WorkerSetStatus.Pending]: "Starting",
-  [WorkerSetStatus.Healthy]: "Ready",
-  [WorkerSetStatus.Unavailable]: "Unavailable",
-  [WorkerSetStatus.Unhealthy]: "Unhealthy",
-  [WorkerSetStatus.Updating]: "Updating",
-  [WorkerSetStatus.Sleeping]: "Sleeping",
-  [WorkerSetStatus.Unknown]: "Unknown",
-};
-
-const statusIcon = computed(() =>
+const statusIconSolid = computed(() =>
   session.waking.value || session.restarting.value
     ? BusySpinnerIcon
-    : workerStatusIcon[workerSet.value?.status ?? WorkerSetStatus.Unknown]
+    : WORKER_STATUS_ICON_SOLID[workerSet.value?.status ?? WorkerSetStatus.Unknown]
 );
 </script>
 <template>
@@ -142,13 +120,13 @@ const statusIcon = computed(() =>
         <!-- Status -->
         <div class="flex flex-row items-center">
           <component
-            :is="statusIcon"
+            :is="statusIconSolid"
             class="mr-2 h-4 w-4"
-            :class="[workerStatusColor[workerSet.status], statusIcon == BusySpinnerIcon ? 'animate-spin' : '']"
+            :class="[WORKER_STATUS_COLOR[workerSet.status], statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '']"
           />
-          <span class="mr-1.5 whitespace-nowrap font-semibold" :class="workerStatusColor[workerSet.status]">
+          <span class="mr-1.5 whitespace-nowrap font-semibold" :class="WORKER_STATUS_COLOR[workerSet.status]">
             {{
-              workerStatusTitle[
+              WORKER_STATUS_TITLE[
                 session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
               ]
             }}
