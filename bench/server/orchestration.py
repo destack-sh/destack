@@ -231,7 +231,7 @@ class OrchestrationServer(Monitored):
         """
         # scan iter "worker_set.{id}" in redis :WorkerSetActive
         logger.debug("worker_sets.mark_last_active_from_redis")
-        active_keys = [k async for k in redis.scan_iter("worker_set.*.*.last_active_at")]
+        active_keys = await redis.keys("worker_set.*.*.last_active_at")
         active_values = await redis.mget(active_keys)
         keys_to_delete = []
         for key, last_active_at in zip(active_keys, active_values):
@@ -250,6 +250,11 @@ class OrchestrationServer(Monitored):
             worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
         if keys_to_delete:
             await redis.delete(*keys_to_delete)
+        logger.debug(
+            "worker_sets.mark_last_active_from_redis.done",
+            active_keys=len(active_keys),
+            keys_to_delete=len(keys_to_delete),
+        )
 
     async def _mark_tired_worker_sets(self) -> list[models.WorkerSet]:
         """Marks worker sets as sleeping if they are idle for too long WITHOUT writing to DB."""
@@ -267,6 +272,7 @@ class OrchestrationServer(Monitored):
                 worker_set.sleeping = True
                 worker_set.target_replicas = 0
                 tired_worker_sets.append(worker_set)
+        logger.debug("worker_sets.mark_tired.done", worker_sets=len(tired_worker_sets))
         return tired_worker_sets
 
     async def _get_project_worker_set(self, project_id: UUID):
@@ -285,6 +291,7 @@ class OrchestrationServer(Monitored):
     @message_handler
     async def configure_worker_set(self, msg: NMessage[ReqConfigureWorkerSetPayload]) -> None:
         try:
+            logger.info("worker_sets.configure", msg=msg)
             worker_set = await self._get_project_worker_set(msg.p.project_id)
             worker_set.desired_replicas = msg.p.desired_replicas
             worker_set.profile = msg.p.profile
@@ -293,7 +300,7 @@ class OrchestrationServer(Monitored):
             await self._save_and_notify_worker_sets([worker_set])
             await self._deploy_worker_sets([worker_set])
             success = True
-            logger.info("worker_sets.configure", worker_set=worker_set)
+            logger.info("worker_sets.configure.done", msg=msg, worker_set=worker_set)
         except Exception as e:
             sentry_capture_if_enabled(e)
             logger.error("worker_sets.configure.failed", msg=msg, exc_info=True)
@@ -303,6 +310,7 @@ class OrchestrationServer(Monitored):
     @message_handler
     async def wake_worker_set(self, msg: NMessage[ReqWakeWorkerSetPayload]) -> None:
         try:
+            logger.info("worker_sets.wake", msg=msg)
             worker_set = await self._get_project_worker_set(msg.p.project_id)
             was_sleeping = worker_set.sleeping
             if was_sleeping:
@@ -310,10 +318,10 @@ class OrchestrationServer(Monitored):
                 worker_set.target_replicas = worker_set.desired_replicas
                 worker_set.status = WorkerSetStatus.PENDING
             worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-            logger.info("worker_sets.wake", worker_sets=worker_set)
             await self._save_and_notify_worker_sets([worker_set])
             if was_sleeping:
                 await self._deploy_worker_sets([worker_set])
+            logger.info("worker_sets.wake.done", msg=msg, worker_sets=worker_set)
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
@@ -344,6 +352,7 @@ class OrchestrationServer(Monitored):
                     reply_t=RepDoRestartWorkerNodePayload,
                 )
                 success = rep.p.success
+                logger.info("worker_sets.restart.done", msg=msg, worker_set=worker_set)
             except Exception as e:
                 sentry_capture_if_enabled(e)
                 logger.error("worker_sets.restart.failed", msg=msg, exc_info=True)
