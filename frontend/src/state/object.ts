@@ -64,7 +64,7 @@ export function isValidObjectRecord(obj: any): boolean {
 }
 
 export function humanizeBytes(bytes: number, options?: { round?: boolean }) {
-  /** Shorten bytes into nearest (KB, MB, GB, etc.) */
+  /** Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits */
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   let unit = 0;
   while (bytes >= 1024 && unit < units.length - 1) {
@@ -76,8 +76,10 @@ export function humanizeBytes(bytes: number, options?: { round?: boolean }) {
   }
   if (unit == 0) {
     return `${bytes.toFixed(0)}${units[unit]}`;
-  } else {
+  } else if (bytes < 10) {
     return `${bytes.toFixed(1)}${units[unit]}`;
+  } else {
+    return `${bytes.toFixed(0)}${units[unit]}`;
   }
 }
 
