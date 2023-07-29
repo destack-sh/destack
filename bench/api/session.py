@@ -74,7 +74,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 RunStatus = gql.enum(models.RunStatus)
-RunTriggerType = gql.enum(models.RunTriggerType)
+TriggerType = gql.enum(models.TriggerType)
 
 
 @gql.type
@@ -162,7 +162,7 @@ class Session(gql.Node):
     metadata: Optional[JSON]
     runs: list["Run"]
     # trigger
-    trigger_type: RunTriggerType
+    trigger_type: TriggerType
     user: Optional[Annotated["User", lazy(".user")]]
     access_token: Optional[Annotated["AccessToken", lazy(".token")]]
 
@@ -622,7 +622,7 @@ class SessionMutation:
             runnable_type=None,
             arguments=input.arguments,
             block=input.block,
-            trigger_type=RunTriggerType.UI,
+            trigger_type=TriggerType.USER,
             trigger_id=user.id,
             run_id=to_uuid(input.run_id),
             session_id=to_uuid(input.session_id),

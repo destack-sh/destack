@@ -15,6 +15,7 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.const import StatementType
 from bench.language.core import Scope, Statement, node
+from bench.language.flow import IsFlowable
 from bench.language.tag import HasTags
 from bench.language.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
 from bench.language.utils import Runnable, get_run_cache_subkey
@@ -31,7 +32,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class Model(HasType, HasTags, Runnable, Statement):
+class Model(HasType, HasTags, IsFlowable, Runnable, Statement):
     external_name: typing.Optional[str] = None
     description: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION

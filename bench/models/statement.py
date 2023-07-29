@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import TypeFlag
+from bench.language.const import TriggerType, TypeFlag
 from bench.language.dataset import new_dataset_key
 from bench.language.tag import new_tag_key
 from bench.language.type import new_field_key
@@ -96,6 +96,41 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
                 condition=Q(deleted_at__isnull=True),
             ),
         ]
+
+
+class TriggerManager(models.Manager["Trigger"]):
+    def get_queryset(self):
+        # soft-deleted statements are not returned by default
+        return super().get_queryset().select_related("statement")
+
+
+class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
+    """
+    A trigger to a runnable.
+    """
+
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="triggers")
+    type = models.CharField(max_length=32, choices=get_choices(TriggerType))
+    active = models.BooleanField(default=True)
+    mapping = models.JSONField(null=True, blank=True)
+    timezone = models.CharField(max_length=64, null=True, blank=True)
+    cron = models.CharField(max_length=64, null=True, blank=True)
+    runnable = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+    )
+    scope = models.ForeignKey(
+        "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+    )
+
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.statement_id
+
+    def soft_delete(self):
+        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+
+    def restore(self):
+        self.deleted_at = None
 
 
 class TaggingManager(models.Manager["Tagging"]):
@@ -257,6 +292,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     dataset = models.OneToOneField("Dataset", on_delete=models.SET_NULL, null=True, blank=True)
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement
+    triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement
     # interp state
     issues: models.QuerySet["Issue"]  # noqa via Issue.statement
     resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")

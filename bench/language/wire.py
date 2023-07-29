@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bench import language as lang
 from bench.language import StatementType
-from bench.language.const import RemoteObjectStatus, RunTriggerType, TypeFlag, TypeHint, TypeTag
+from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag, TypeHint, TypeTag
 from bench.language.core import (
     CRUD_PROPERTIES,
     MOT,
@@ -673,6 +673,7 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
 
 @dataclass
 class ReferenceData(StatementData):
+    description: Optional[str]
     reference_id: Optional[UUID]
 
 
@@ -682,10 +683,15 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
 
     def walk(self, statement: lang.Reference, tree: PackContext):
         tree.visit_all(statement.tags)
+        tree.visit_all(statement.triggers)
 
     def pack(self, symbol: lang.Reference) -> "ReferenceData":
         statement_data = super().pack(symbol)
-        return ReferenceData(**statement_data.__dict__, reference_id=symbol.reference_id)
+        return ReferenceData(
+            **statement_data.__dict__,
+            description=symbol.description,
+            reference_id=symbol.reference_id,
+        )
 
     def unpack(
         self,
@@ -694,10 +700,13 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
         session: Optional[Session],
     ) -> lang.Reference:
         statement = super().unpack(symbol, parent, session)
-        return lang.Reference(**statement.__dict__, reference=symbol.reference_id)
+        return lang.Reference(
+            **statement.__dict__, description=symbol.description, reference=symbol.reference_id
+        )
 
     def unwalk(self, statement: lang.Reference, tree: ModuleTree):
         statement.tags = tree.get_descendants(statement.id, lang.Tag)
+        statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
 
 
 @dataclass
@@ -827,6 +836,7 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
         super().walk(symbol, tree)
         tree.visit_all(symbol.fields)
         tree.visit_all(symbol.tags)
+        tree.visit_all(symbol.triggers)
 
     def pack(self, symbol: lang.Task) -> "TaskData":
         statement_data = super().pack(symbol)
@@ -850,6 +860,7 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
         super().unwalk(symbol, tree)
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
+        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
 
 
 @dataclass
@@ -904,6 +915,7 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         super().walk(symbol, tree)
         tree.visit_all(symbol.fields)
         tree.visit_all(symbol.tags)
+        tree.visit_all(symbol.triggers)
 
     def pack(self, symbol: lang.Code) -> "CodeData":
         statement_data = super().pack(symbol)
@@ -931,6 +943,42 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         super().unwalk(symbol, tree)
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
+        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
+
+
+@dataclass
+class FlowData(StatementData):
+    description: Optional[str]
+
+
+@node_packer(MOT.STATEMENT, FlowData, lang.Flow)
+class FlowPacker(StatementPacker, NodePacker[FlowData, lang.Flow]):
+    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+
+    def walk(self, symbol: lang.Flow, tree: PackContext):
+        super().walk(symbol, tree)
+        tree.visit_all(symbol.fields)
+        tree.visit_all(symbol.tags)
+        tree.visit_all(symbol.triggers)
+
+    def pack(self, symbol: lang.Flow) -> "FlowData":
+        statement_data = super().pack(symbol)
+        return FlowData(
+            **statement_data.__dict__,
+            description=symbol.description,
+        )
+
+    def unpack(
+        self, symbol: FlowData, parent: lang.File | lang.Statement, session: Optional[Session]
+    ) -> lang.Flow:
+        statement = super().unpack(symbol, parent, session)
+        return lang.Flow(**statement.__dict__, description=symbol.description, fields=[], tags=[])
+
+    def unwalk(self, symbol: lang.Flow, tree: ModuleTree):
+        super().unwalk(symbol, tree)
+        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
+        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
+        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
 
 
 @dataclass
@@ -1063,6 +1111,7 @@ STATEMENT_DATA_CLASS_BY_TYPE: dict[StatementType, NodeData] = {
     StatementType.TEXT: TextData,
     StatementType.TAG: TagData,
     StatementType.TYPE: TypeData,
+    StatementType.FLOW: FlowData,
     StatementType.TASK: TaskData,
     StatementType.EXPECTATION: ExpectationData,
     StatementType.CODE: CodeData,
@@ -1099,7 +1148,7 @@ class FieldData(NodeData, HasOrder, HasCrud):
 
 @node_packer(MOT.FIELD, FieldData, lang.Field)
 class FieldPacker(NodePacker[FieldData, lang.Field]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, field: lang.Field) -> "FieldData":
         reference = field.reference.id if isinstance(field.reference, lang.Statement) else None
@@ -1146,6 +1195,55 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
     def patch(self, field: FieldData, references: dict[UUID, UUID]) -> None:
         field.reference_id = references.get(field.reference_id, field.reference_id)
+
+
+@dataclass
+class TriggerData(NodeData, HasCrud):
+    type: TriggerType
+    active: bool
+    mapping: Optional[list[tuple[str, str]]]
+    timezone: Optional[str]
+    cron: Optional[str]
+    runnable_id: Optional[UUID]
+    scope_id: Optional[UUID]
+
+
+@node_packer(MOT.TRIGGER, TriggerData, lang.Trigger)
+class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
+    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+
+    def pack(self, trigger: lang.Trigger) -> "TriggerData":
+        return TriggerData(
+            id=trigger.id,
+            parent_id=trigger.parent_id,
+            type=trigger.type,
+            active=trigger.active,
+            mapping=trigger.mapping,
+            timezone=trigger.timezone,
+            cron=trigger.cron,
+            runnable_id=trigger.runnable.id if trigger.runnable else None,
+            scope_id=trigger.scope.id if trigger.scope else None,
+        )
+
+    def unpack(
+        self, trigger: TriggerData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.Trigger:
+        return lang.Trigger(
+            parent=parent,
+            id=trigger.id,
+            type=trigger.type,
+            active=trigger.active,
+            mapping=trigger.mapping,
+            timezone=trigger.timezone,
+            cron=trigger.cron,
+            runnable=trigger.runnable_id,
+            scope=trigger.scope_id,
+            _session=session,
+        )
+
+    def patch(self, node: TriggerData, references: dict[UUID, UUID]) -> None:
+        node.runnable_id = references.get(node.runnable_id, node.runnable_id)
+        node.scope_id = references.get(node.scope_id, node.scope_id)
 
 
 @dataclass
@@ -1465,7 +1563,7 @@ class SessionData:
     closed_at: Optional[datetime]
     metadata: Optional[dict[str, Any]]
     trigger_id: Optional[UUID]
-    trigger_type: RunTriggerType
+    trigger_type: TriggerType
 
 
 @data_packer(SessionData, lang.Session)

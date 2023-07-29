@@ -20,7 +20,7 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import RemoteObjectStatus, RunTriggerType, TypeFlag
+from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
 from bench.language.core import InterpScope, ModuleObjectType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
@@ -500,6 +500,7 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
             *super().walk(nodes, tree),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
+            models.Trigger.objects.filter(statement__in=nodes),
         ]
 
     def pack(self, statement: models.Statement) -> wire.TaskData:
@@ -511,6 +512,31 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
 
     def unpack(
         self, data: wire.TaskData, parent: models.File | models.Statement
+    ) -> models.Statement:
+        statement = super().unpack(data, parent)
+        statement.description = data.description
+        return statement
+
+
+@node_packer(MOT.STATEMENT, wire.FlowData, models.Statement, StatementType.FLOW)
+class FlowPacker(StatementPacker, NodePacker[wire.FlowData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
+        return [
+            *super().walk(nodes, tree),
+            models.Field.objects.filter(statement__in=nodes),
+            models.Tagging.objects.filter(statement__in=nodes),
+            models.Trigger.objects.filter(statement__in=nodes),
+        ]
+
+    def pack(self, statement: models.Statement) -> wire.FlowData:
+        statement_data = super().pack(statement)
+        return wire.FlowData(
+            **statement_data.__dict__,
+            description=statement.description,
+        )
+
+    def unpack(
+        self, data: wire.FlowData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
@@ -541,6 +567,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
             *super().walk(nodes, tree),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
+            models.Trigger.objects.filter(statement__in=nodes),
         ]
 
     def pack(self, statement: models.Statement) -> wire.CodeData:
@@ -569,6 +596,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
             *super().walk(nodes, tree),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
+            models.Trigger.objects.filter(statement__in=nodes),
         ]
 
     def pack(self, statement: models.Statement) -> wire.ModelData:
@@ -681,6 +709,40 @@ class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
             flags=data.flags,
             reference_id=data.reference_id,
             metadata=data.metadata,
+        )
+
+
+@node_packer(MOT.TRIGGER, wire.TriggerData, models.Trigger)
+class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
+    def pack(self, node: models.Trigger) -> wire.TriggerData:
+        return wire.TriggerData(
+            id=node.id,
+            parent_id=node.statement_id,
+            type=node.type,
+            active=node.active,
+            mapping=node.mapping,
+            timezone=node.timezone,
+            cron=node.cron,
+            runnable_id=node.runnable_id,
+            scope_id=node.scope_id,
+            revision=node.revision,
+            created_at=node.created_at,
+            updated_at=node.updated_at,
+            last_edited_at=node.last_edited_at,
+            last_changed_at=node.last_changed_at,
+        )
+
+    def unpack(self, data: wire.TriggerData, parent: models.Statement) -> models.Trigger:
+        return models.Trigger(
+            id=data.id,
+            statement_id=data.parent_id,
+            type=data.type,
+            active=data.active,
+            mapping=data.mapping,
+            timezone=data.timezone,
+            cron=data.cron,
+            runnable_id=data.runnable_id,
+            scope_id=data.scope_id,
         )
 
 
@@ -885,9 +947,9 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
     def unpack(self, data: wire.SessionData) -> models.Session:
         user_id = None
         access_token_id = None
-        if data.trigger_type == RunTriggerType.API:
+        if data.trigger_type == TriggerType.API:
             access_token_id = data.trigger_id
-        elif data.trigger_type == RunTriggerType.UI:
+        elif data.trigger_type == TriggerType.USER:
             user_id = data.trigger_id
         return models.Session(
             id=data.id,

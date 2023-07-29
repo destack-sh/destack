@@ -18,7 +18,7 @@ import pytz
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 
-from bench.language.const import RunTriggerType, StatementType
+from bench.language.const import StatementType, TriggerType
 from bench.language.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
@@ -37,6 +37,7 @@ class ModuleObjectType(enum.StrEnum):
     MODULE = "MODULE"
     FILE = "FILE"
     STATEMENT = "STATEMENT"
+    TRIGGER = "TRIGGER"
     TAGGING = "TAGGING"
     FIELD = "FIELD"
     RECORD = "RECORD"
@@ -855,10 +856,10 @@ active_session: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 class SessionContext:
     module_id: UUID
     project_id: UUID
-    trigger_type: RunTriggerType
     worker_node_id: str
+    trigger_type: TriggerType
     trigger_id: typing.Optional[UUID]
-    root_run_id: typing.Optional[UUID] = None
+    first_run_id: typing.Optional[UUID] = None
 
 
 class SessionBase(abc.ABC):

@@ -2,6 +2,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language.core import Scope, Statement, StatementReference, StatementType, node
+from bench.language.flow import IsFlowable
 from bench.language.issue import IssueType
 from bench.language.tag import HasTags
 
@@ -24,13 +25,19 @@ class Text(Statement):
 
 
 @node(tracked=["reference"])
-class Reference(Statement, HasTags):
+class Reference(Statement, HasTags, IsFlowable):
     """A reference to another statement."""
 
     type: StatementType = StatementType.REFERENCE
     reference: Statement | StatementReference = None
 
+    def _clear(self) -> None:
+        HasTags._clear(self)
+        IsFlowable._clear(self)
+
     def _interp(self, scope: Scope) -> None:
+        HasTags._interp(self, scope)
+        IsFlowable._interp(self, scope)
         if self.reference is None:
             pass
         elif not isinstance(self.reference, Statement):

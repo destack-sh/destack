@@ -82,8 +82,12 @@ export function useStatementContext() {
     actions.apply("statement.deleteCurrent");
   }
 
-  function tryDeleteLeft() {
+  function deleteSelfLeft() {
     actions.apply("statement.deleteCurrentLeft");
+  }
+
+  function deleteLeft() {
+    actions.apply("statement.deleteLeft");
   }
 
   function insertBelow() {
@@ -420,7 +424,8 @@ export function useStatementContext() {
     syncCode,
     syncDescription,
     deleteSelf,
-    tryDeleteLeft,
+    deleteSelfLeft,
+    deleteLeft,
     insertAbove,
     insertBelow,
     // tagging

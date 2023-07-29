@@ -5,14 +5,14 @@ from typing import Optional
 from django.db import models
 from strawberry_django_plus import gql
 
-from bench.language.const import RunTriggerType
+from bench.language.const import TriggerType
 from bench.language.session import RunStatus
 from bench.models.utils import UUIDTModel, get_choices
 
 
 class Session(UUIDTModel):
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
-    trigger_type = models.CharField(max_length=32, choices=get_choices(RunTriggerType))
+    trigger_type = models.CharField(max_length=32, choices=get_choices(TriggerType))
     user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
     access_token = models.ForeignKey(
         "AccessToken", null=True, blank=True, on_delete=models.SET_NULL

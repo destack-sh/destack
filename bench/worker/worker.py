@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 
 from bench.language import Code, LogEntry, Task, wire
 from bench.language.code_ import run
-from bench.language.const import RunTriggerType, WorkerTenancy
+from bench.language.const import TriggerType
 from bench.language.core import (
     Module,
     ModuleReference,
@@ -181,7 +181,7 @@ class ModuleWorker(ModuleWriter):
         keyed: bool,
         run_id: Optional[UUID],
         session_id: Optional[UUID],
-        trigger_type: RunTriggerType,
+        trigger_type: TriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | RunErrorType:
         if not self.interpreted:
@@ -192,7 +192,7 @@ class ModuleWorker(ModuleWriter):
         if runnable is None:
             return RunErrorType.INVALID_RUNCONFIG
 
-        root_run_id = run_id or UUIDT()
+        first_run_id = run_id or UUIDT()
         # instantiate
         try:
             session_ctx = SessionContext(
@@ -201,7 +201,7 @@ class ModuleWorker(ModuleWriter):
                 worker_node_id=self.node.worker_node_id,
                 trigger_type=trigger_type,
                 trigger_id=trigger_id,
-                root_run_id=root_run_id,
+                first_run_id=first_run_id,
             )
             session = Session(
                 id=session_id or UUIDT(),
@@ -219,7 +219,7 @@ class ModuleWorker(ModuleWriter):
             arguments = map_value(
                 arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident), is_output=False
             )
-        job = RunJob(id=root_run_id, session=session, runnable=runnable, arguments=arguments)
+        job = RunJob(id=first_run_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))
         session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
         return job
@@ -329,7 +329,6 @@ class WorkerNode(Monitored):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
-        self.tenancy = WorkerTenancy.DEDICATED if project_id else WorkerTenancy.COMMUNITY
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
         self.tasks = []

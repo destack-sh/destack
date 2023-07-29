@@ -17,6 +17,7 @@ class StatementType(enum.StrEnum):
     TASK = "task"
     EXPECTATION = "expectation"
     CODE = "code"
+    FLOW = "flow"
     MODEL = "model"
     VALUE = "value"
     DATASET = "dataset"
@@ -28,11 +29,8 @@ RUNNABLE_STATEMENT_TYPES = {
     StatementType.CODE,
     StatementType.MODEL,
     StatementType.TASK,
+    StatementType.FLOW,
 }
-
-
-class DatasetBackend(enum.StrEnum):
-    OPENSEARCH = "os"
 
 
 class DatasetViewLayout(enum.StrEnum):
@@ -105,7 +103,8 @@ class TypeFlag(enum.IntFlag):
     IsArray = 2**1
     IsOptional = 2**2
     IsUnionWith = 2**3
-    IsSecret = 2**4  # TODO @Cleanup: IsSecret shouldn't be a flag
+    # TODO @Cleanup: IsSecret shouldn't be a flag
+    IsSecret = 2**4
     IsStoreOnly = 2**5
     IsArrayable = 2**6
 
@@ -141,11 +140,13 @@ class RemoteObjectStatus(enum.StrEnum):
     AVAILABLE = "available"
 
 
-class WorkerTenancy(enum.StrEnum):
-    COMMUNITY = "COMMUNITY"
-    DEDICATED = "DEDICATED"
+class TriggerType(enum.StrEnum):
+    """Triggers for runnables (for both actual runs and pre-defined triggers)."""
 
-
-class RunTriggerType(enum.StrEnum):
-    API = "rest"
-    UI = "ui"
+    INVOKE = "invoke"
+    TIME = "time"
+    RUN = "run"
+    EDIT = "edit"
+    MESSAGE = "message"
+    USER = "user"
+    API = "api"

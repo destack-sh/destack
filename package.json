@@ -1,6 +1,6 @@
 {
   "name": "bench",
-  "version": "0.6.29",
+  "version": "0.6.30",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=16.x"
@@ -38,6 +38,7 @@
     "@vueuse/core": "^9.12.0",
     "apollo-upload-client": "^17.0.0",
     "axios": "^0.27.2",
+    "cron-parser": "^4.8.1",
     "dompurify": "^2.4.4",
     "graphql": "^16.6.0",
     "graphql-config": "^4.4.1",

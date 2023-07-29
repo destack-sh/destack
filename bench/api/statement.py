@@ -31,6 +31,16 @@ log = structlog.get_logger(__name__)
 StatementType = gql.enum(const.StatementType)
 
 
+@gql.django.filter(models.Trigger)
+class TriggerFilter:
+    is_visible: Optional[bool] = True
+
+    def filter(self, queryset):
+        if self.is_visible is not UNSET and self.is_visible is not None:
+            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
+        return queryset
+
+
 @gql.django.filter(models.Tagging)
 class TaggingFilter:
     is_visible: Optional[bool] = True
@@ -53,7 +63,20 @@ class FieldFilter:
 
 TypeStorageFormat = gql.enum(language.TypeStorageFormat)
 TypeTag = gql.enum(language.TypeTag)
+TriggerType = gql.enum(language.TriggerType)
 TypeHint = gql.enum(language.TypeHint)
+
+
+@gql.django.type(models.Trigger)
+class Trigger(CrudModel, ModuleNode, Revisioned, gql.Node):
+    parent: "Statement" = gql.django.field(field_name="statement")
+    type: TriggerType
+    active: bool
+    mapping: auto
+    timezone: auto
+    cron: auto
+    runnable: Optional["Statement"]
+    scope: Optional["Statement"]
 
 
 @gql.django.type(models.Tagging)
@@ -98,6 +121,7 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     tags: list[Tagging] = gql.django.field(filters=TaggingFilter)
+    triggers: list[Trigger] = gql.django.field(filters=TriggerFilter)
     fields: list[Field] = gql.django.field(filters=FieldFilter)
     lang: auto
     code: auto

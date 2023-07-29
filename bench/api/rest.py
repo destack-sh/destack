@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.models import Project, ProjectVersion, RunTriggerType
+from bench.models import Project, ProjectVersion, TriggerType
 from bench.models.token import AccessTokenScope, digest_raw_token
 from bench.msg.core import request
 from bench.msg.messages import NMessageType, RepStartRunPayload, ReqStartRunPayload
@@ -168,7 +168,7 @@ async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
         build=data["build"],
         arguments=data["inputs"],
         block=data["block"],
-        trigger_type=RunTriggerType.API,
+        trigger_type=TriggerType.API,
         trigger_id=access.access_token_id,
     )
     rep = await request(NMessageType.START_RUN, run, RepStartRunPayload, timeout=60)

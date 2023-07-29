@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import RunTriggerType
+from bench.language.const import TriggerType
 from bench.language.core import ModuleReference
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
@@ -246,7 +246,7 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     arguments: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
-    trigger_type: RunTriggerType
+    trigger_type: TriggerType
     trigger_id: Optional[UUID]
     session_id: Optional[UUID]
     run_id: Optional[UUID]
