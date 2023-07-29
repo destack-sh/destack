@@ -16,6 +16,8 @@ const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "escape"): void;
+  (e: "enterStart"): void;
+  (e: "deleteStart"): void;
   (e: "enter"): void;
   (e: "execute"): void;
 }>();
@@ -26,6 +28,20 @@ const focused: Ref<boolean> = ref(false);
 const shortcutsExtension = Extension.create({
   addKeyboardShortcuts() {
     return {
+      Enter: ({ editor }) => {
+        if (editor.state.selection.$from.pos === 1) {
+          emit("enterStart");
+          return true;
+        }
+        return false;
+      },
+      Backspace: ({ editor }) => {
+        if (editor.state.selection.$from.pos === 1) {
+          emit("deleteStart");
+          return true;
+        }
+        return false;
+      },
       "Shift-Enter": () => {
         emit("enter");
         return true;
@@ -64,7 +80,7 @@ function onKeyDown(event: KeyboardEvent) {
 
 const appearance = useAppearance();
 function getEditorClass(): string {
-  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl prose-a:text-gray-500 w-full"];
+  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl  prose-a:text-gray-500 w-full"];
   if (appearance.fontMono) {
     classes.push("font-mono");
   }

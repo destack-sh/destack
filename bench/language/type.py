@@ -342,7 +342,7 @@ class _FieldAccessor:
 
 @node
 class HasType(TypeBase, StatementBase):
-    """A symbol that has (but is not) a type"""
+    """A symbol that has (but may not be) a type"""
 
     type: StatementType = StatementType.TYPE
     tag: TypeTag = required_field()

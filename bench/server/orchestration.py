@@ -37,7 +37,7 @@ from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
-WORKER_SET_IDLE_SLEEP_TIME = 20 * 60  # 20 minutes
+WORKER_SET_IDLE_SLEEP_TIME = 10 * 60  # 10 minutes
 
 
 class OrchestrationServer(Monitored):
@@ -281,7 +281,10 @@ class OrchestrationServer(Monitored):
         if worker_set is None:
             # newly created project, get from DB
             project = await models.Project.objects.select_related(
-                "worker_set", "worker_set__project"
+                "worker_set",
+                "worker_set__project",
+                "worker_set__project__user",
+                "worker_set__project__organization",
             ).aget(id=project_id)
             self.worker_sets_by_project_id[project_id] = project.worker_set
             return project.worker_set
@@ -341,6 +344,7 @@ class OrchestrationServer(Monitored):
         success = False
 
         # restart (if we have any nodes)
+        active_replicas_ids = worker_set.active_replicas_ids  # may change during restart
         if worker_set.target_replicas > 0:
             try:
                 # TODO @Broken: do restart worker node only works with 1 worker node
@@ -362,7 +366,7 @@ class OrchestrationServer(Monitored):
 
         # mark all worker set nodes as deadish
         if KUBERNETES_ENABLED:
-            await self._mark_worker_nodes_as_deadish(worker_set.active_replicas_ids)
+            await self._mark_worker_nodes_as_deadish(active_replicas_ids)
         else:
             await self._mark_worker_nodes_as_deadish(["local"])
 

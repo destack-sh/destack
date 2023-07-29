@@ -299,7 +299,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     },
   });
 
-  const deleteAbove = provideGlobalAction({
+  const deleteCurrentLeft = provideGlobalAction({
     id: "statement.deleteCurrentLeft",
     label: "Delete current statement and move to end of above statement",
     shortcuts: [],
@@ -311,6 +311,19 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
         file.value?.statementsComponents[cur.value?.above.id]?.focus("last");
       }
       await ops.statement.softDelete(null, current);
+    },
+  });
+
+  const deleteLeft = provideGlobalAction({
+    id: "statement.deleteLeft",
+    label: "Delete to the left of current statement (the one above)",
+    shortcuts: [],
+    enabled: computed(() => cur.value?.statement != null && cur.value?.above != null),
+    apply: async () => {
+      const current = cur.value?.statement?.id;
+      if (cur.value?.above) {
+        await ops.statement.softDelete(null, cur.value?.above.id);
+      }
     },
   });
 
@@ -474,7 +487,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     stopEditing,
     delete: delete_,
     deleteSelection,
-    deleteAbove,
+    deleteCurrentLeft,
+    deleteLeft,
     insertStart,
     insertEnd,
     insertAbove,

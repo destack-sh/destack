@@ -13,8 +13,8 @@ from .organization import (
 from .owner import OwnerSlug
 from .project import File, Project, ProjectVersion, ProjectVisibility, RefMapping, RefMappingKind
 from .secret import Secret
-from .session import Run, RunStatus, RunTriggerType, Session
-from .statement import Field, Statement, Tagging
+from .session import Run, RunStatus, Session
+from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
 from .utils import CrudModel
@@ -54,7 +54,8 @@ __all__ = [
     "ResolvedField",
     "Run",
     "RunStatus",
-    "RunTriggerType",
+    "Trigger",
+    "TriggerType",
     "Secret",
     "Session",
     "Statement",

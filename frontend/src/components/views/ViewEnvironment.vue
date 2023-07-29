@@ -14,8 +14,14 @@ import {
   WORKER_STATUS_ICON_SOLID,
   WORKER_STATUS_TITLE,
 } from "@/state/session";
-import { BoltIcon, ChevronDownIcon, CircleStackIcon, PowerIcon } from "@heroicons/vue/24/solid";
-import { CheckCircleIcon, PauseIcon, QuestionMarkCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import {
+  ClockIcon,
+  DocumentIcon,
+  BoltIcon,
+  ChevronDownIcon,
+  CircleStackIcon,
+  PowerIcon,
+} from "@heroicons/vue/24/solid";
 import { CodeBracketSquareIcon, ServerStackIcon } from "@heroicons/vue/24/solid";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, toRef, type Ref, onBeforeUnmount } from "vue";
@@ -82,6 +88,11 @@ const resourcesInfo = computed(() => {
   return WORKER_RESOURCES_BY_PROFILE[profile];
 });
 
+// hardcoded quotas for now
+const maxRecordsActive = 50000;
+const maxObjectsBytesTotal = 50 * 1024 * 1024 * 1024; // 50GB
+const maxCacheBytesTotal = 500 * 1024 * 1024; // 500MB
+
 // auto reload environment every minute if active
 const interval = setInterval(() => {
   if (props.active) {
@@ -89,6 +100,19 @@ const interval = setInterval(() => {
   }
 }, 60 * 1000);
 onBeforeUnmount(() => clearInterval(interval));
+
+function getNicePercentage(value: number, total: number): string {
+  // format percentage with up to 2 significant digits
+  // so 0.00073 is 0.0%, 0.0073 is 0.7%, 0.07326 is 7.3%, 0.7348 is 73%
+  const percentage = (value / total) * 100;
+  if (percentage < 0.1) {
+    return percentage.toFixed(1);
+  } else if (percentage < 1) {
+    return percentage.toFixed(2);
+  } else {
+    return percentage.toFixed(0);
+  }
+}
 
 const statusIconSolid = computed(() =>
   session.waking.value || session.restarting.value
@@ -121,7 +145,7 @@ const statusIconSolid = computed(() =>
         <div class="flex flex-row items-center">
           <component
             :is="statusIconSolid"
-            class="mr-2 h-4 w-4"
+            class="mr-1.5 h-4 w-4"
             :class="[WORKER_STATUS_COLOR[workerSet.status], statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '']"
           />
           <span class="mr-1.5 whitespace-nowrap font-semibold" :class="WORKER_STATUS_COLOR[workerSet.status]">
@@ -163,7 +187,7 @@ const statusIconSolid = computed(() =>
       <!-- Profile -->
       <div class="flex flex-row items-center justify-between">
         <div class="flex flex-row items-center">
-          <ServerStackIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <ServerStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">
             <span>{{ workerSet.desiredReplicas }}x {{ resourcesInfo.name }}</span>
           </span>
@@ -176,32 +200,46 @@ const statusIconSolid = computed(() =>
       <!-- Records / files -->
       <div class="flex flex-row items-center justify-between">
         <div class="flex flex-row items-center">
-          <CircleStackIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <CircleStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">
-            <span>50k</span> <span class="font-normal text-gray-500">/</span> <span>50GB</span>
+            <span>{{ humanizeNumber(maxRecordsActive) }}</span>
+            <span class="ml-1 font-normal text-gray-500"
+              >{{ getNicePercentage(projectUsage.recordsActive, maxRecordsActive) }}%</span
+            >
           </span>
         </div>
-        <div class="ml-1.5 inline font-normal text-gray-500">
-          {{ humanizeNumber(projectUsage.recordsActive) }} / {{ humanizeBytes(projectUsage.objectsBytesTotal) }}
+        <div class="flex flex-row items-center">
+          <DocumentIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+          <span class="whitespace-nowrap font-semibold text-gray-900">
+            <span>{{ humanizeBytes(maxObjectsBytesTotal) }}</span>
+            <span class="ml-1 font-normal text-gray-500"
+              >{{ getNicePercentage(projectUsage.objectsBytesTotal, maxObjectsBytesTotal) }}%</span
+            >
+          </span>
         </div>
       </div>
-      <!-- Runs / cache -->
-      <!-- .cacheBytesTotal hangs in prod, so omit this for now -->
-      <!-- <div class="flex flex-row items-center justify-between">
+      <!-- Retention / cache -->
+      <div class="flex flex-row items-center justify-between">
         <div class="flex flex-row items-center">
-          <BoltIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <BoltIcon class="mr-1.5 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">
-            <span>500MB</span>
+            <span>{{ humanizeBytes(maxCacheBytesTotal) }}</span>
+            <span class="ml-1 font-normal text-gray-500"
+              >{{ getNicePercentage(projectUsage.cacheBytesTotal, maxCacheBytesTotal) }}%</span
+            >
           </span>
         </div>
-        <div class="ml-1.5 inline font-normal text-gray-500">
-          {{ humanizeBytes(projectUsage.cacheBytesTotal) }}
+        <div class="flex flex-row items-center">
+          <ClockIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+          <span class="whitespace-nowrap text-gray-500">
+            <span>15d</span>
+          </span>
         </div>
-      </div> -->
-      <!-- Language -->
+      </div>
+      <!-- Runtime -->
       <div class="flex max-w-full flex-row items-center justify-between">
         <span class="flex flex-shrink-0 flex-row items-center">
-          <CodeBracketSquareIcon class="mr-2 h-4 w-4 text-gray-400" />
+          <CodeBracketSquareIcon class="mr-1.5 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
         </span>
         <span class="ml-2 max-w-full truncate whitespace-nowrap text-gray-500">{{ environment.platform }}</span>

@@ -1,8 +1,9 @@
 from .basic import Blank, Block, Expectation, Reference, Text
 from .code_ import Code
-from .const import DatasetViewLayout, RunTriggerType, StatementType, TypeHint, TypeTag
+from .const import DatasetViewLayout, StatementType, TriggerType, TypeHint, TypeTag
 from .core import File, Module, Scope, Session, Statement
 from .dataset import Dataset, DatasetView, Record, Value
+from .flow import Flow, HasFlow, Trigger
 from .issue import Issue, IssueType
 from .model import Model
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
@@ -23,10 +24,13 @@ __all__ = [
     "Expectation",
     "Field",
     "File",
+    "Flow",
+    "HasFlow",
     "HasTags",
     "HasType",
     "Issue",
     "IssueType",
+    "LogEntry",
     "Model",
     "Module",
     "Q",
@@ -36,23 +40,23 @@ __all__ = [
     "Reference",
     "RemoteObject",
     "ResolvedField",
+    "Run",
+    "RunError",
+    "RunMetadata",
     "Scope",
     "Secret",
+    "Session",
     "Sort",
     "SortMode",
     "SortOrder",
     "Statement",
     "StatementType",
-    "Session",
     "Tag",
     "Tagging",
     "Task",
     "Text",
-    "Run",
-    "RunError",
-    "RunMetadata",
-    "RunTriggerType",
-    "LogEntry",
+    "Trigger",
+    "TriggerType",
     "Type",
     "TypeBase",
     "TypeHint",

@@ -366,7 +366,7 @@ export function _useSessions(
               kind: "error",
               type: "run.failed",
               message: "Run could not start",
-              description: "The worker bots are unavailable.",
+              description: "Your workers are unavailable.",
             });
             throw new Error("run could not start");
           } else if (r?.data?.run.__typename == "RunState") {
@@ -382,12 +382,15 @@ export function _useSessions(
         })
         .catch((e) => {
           delete currentRuns.value[runId];
-          notifications.show({
-            kind: "error",
-            type: "run.failed.internal",
-            message: "Run crashed",
-            description: "An internal error happened somewhere.",
-          });
+          if (e.message !== "run could not start") {
+            // damnit, some other error
+            notifications.show({
+              kind: "error",
+              type: "run.failed.internal",
+              message: "Run crashed",
+              description: "An internal error happened somewhere.",
+            });
+          }
           throw e;
         });
     }

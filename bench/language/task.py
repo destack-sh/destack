@@ -9,6 +9,7 @@ from bench.language.basic import Expectation
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import Scope, Statement, node
+from bench.language.flow import HasFlow, IsFlowable
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.tag import HasTags
@@ -60,7 +61,7 @@ class TaskMetadata:
 
 
 @node(tracked=["description"])
-class Task(HasType, HasTags, Runnable, Statement):
+class Task(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
@@ -124,41 +125,15 @@ class Task(HasType, HasTags, Runnable, Statement):
                 if not model:
                     raise RuntimeError(f"{self} has no default models and none were specified")
                 # TODO @Robustness: rotate models (on failure?)
-                ret = await self._run_task_block(model[0], inputs, is_batched)
+                runner = TaskRunner(
+                    self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
+                )
+                ret = await runner(model[0], inputs, is_batched)
             self.session.tracer.run_exit(self, ret)
             return ret
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
-
-    async def _run_task_block(self, model: Model, inputs: dict, is_batched: bool) -> DotDict:
-        """Runs a single contiguous 'block' of a task on a single model."""
-
-        # compile
-        compiler = model.compile(self, inputs, is_batched)
-        for function in self.get_children_by_type(Code, Task, Model):
-            compiler.add_function(function)
-        for expectation in self.get_children_by_type(Expectation):
-            compiler.add_expectation(expectation)
-        for step in self.get_children_by_tag(self.module.lookup("symbolx.lib.builtins.step")):
-            if not isinstance(step, Task):
-                continue  # report issue?
-            compiler.add_step(step)
-
-        # TODO @Broken: add all type instruction
-        # TODO @Broken: add code and dataset instructions
-
-        # run
-        # should probably track task runner state in run metadata?
-        runner = TaskRunner(
-            self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
-        )
-        ret = await compiler.run(model, runner)
-        if isinstance(ret, TaskError):
-            raise ret
-        elif not isinstance(ret, DotDict):
-            ret = DotDict(ret)
-        return ret
 
     def to_async(self) -> "Self":
         return self
@@ -214,6 +189,37 @@ class TaskRunner(abc.ABC):
         self.num_function_calls = 0
         self.num_errors = 0
         self.num_model_errors = 0
+
+    async def __call__(self, model: Model, inputs: dict, is_batched: bool):
+        """Runs a single contiguous 'block' of a task on a single model."""
+
+        # compile
+        compiler = model.compile(self.task, inputs, is_batched)
+        for function in self.task.get_children_by_type(Code, Task, Model):
+            compiler.add_function(function)
+        for expectation in self.task.get_children_by_type(Expectation):
+            compiler.add_expectation(expectation)
+        for step in self.task.get_children_by_tag(
+            self.task.module.lookup("symbolx.lib.builtins.step")
+        ):
+            if not isinstance(step, Task):
+                continue  # report issue?
+            compiler.add_step(step)
+
+        # TODO @Broken: add all type instruction
+        # TODO @Broken: add code and dataset instructions
+
+        # run
+        # should probably track task runner state in run metadata?
+        runner = TaskRunner(
+            self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
+        )
+        ret = await compiler.run(model, runner)
+        if isinstance(ret, TaskError):
+            raise ret
+        elif not isinstance(ret, DotDict):
+            ret = DotDict(ret)
+        return ret
 
     async def step(self):
         self.num_steps += 1

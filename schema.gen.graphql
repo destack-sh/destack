@@ -496,6 +496,12 @@ enum ModuleMutationType {
   RESTORE_TAGGING
   MOVE_TAGGING
   UPDATE_TAGGING_METADATA
+  TRUNCATE_TRIGGERS
+  CREATE_TRIGGER
+  UPDATE_TRIGGER
+  DELETE_TRIGGER
+  SOFT_DELETE_TRIGGER
+  RESTORE_TRIGGER
   TRUNCATE_FIELDS
   CREATE_FIELD
   UPDATE_FIELD
@@ -1595,11 +1601,6 @@ enum RunStatus {
   Completed
 }
 
-enum RunTriggerType {
-  API
-  UI
-}
-
 type RunsChange {
   runs: [Run!]!
 }
@@ -1654,7 +1655,7 @@ type Session implements Node {
   closedAt: DateTime
   metadata: JSON
   runs: [Run!]!
-  triggerType: RunTriggerType!
+  triggerType: TriggerType!
   user: User
   accessToken: AccessToken
 }
@@ -1710,6 +1711,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   rootTypeTag: TypeTag
   rootTypeFlags: Int
   tags(filters: TaggingFilter): [Tagging!]!
+  triggers(filters: TriggerFilter): [Trigger!]!
   fields(filters: FieldFilter): [Field!]!
   lang: String
   code: String
@@ -1815,6 +1817,7 @@ enum StatementType {
   TASK
   EXPECTATION
   CODE
+  FLOW
   MODEL
   VALUE
   DATASET
@@ -1918,6 +1921,42 @@ input TaggingRestoreInput {
 input TaggingUpdateInput {
   id: GlobalID!
   metadata: JSON = null
+}
+
+type Trigger implements CrudModel & ModuleNode & Node {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+  parent: Statement!
+  revision: Int!
+  type: TriggerType!
+  active: Boolean!
+  mapping: JSON
+  timezone: String
+  cron: String
+  runnable: Statement
+  scope: Statement
+}
+
+input TriggerFilter {
+  isVisible: Boolean = true
+}
+
+"""
+Triggers for runnables (for both actual runs and pre-defined triggers).
+"""
+enum TriggerType {
+  INVOKE
+  TIME
+  RUN
+  EDIT
+  MESSAGE
+  USER
+  API
 }
 
 """Extra representation/semantics of a field/type."""

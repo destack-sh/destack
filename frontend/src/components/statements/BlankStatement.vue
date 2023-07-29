@@ -174,7 +174,7 @@ defineExpose({
       @navigate-right="emit('navigateRight')"
       @enter="context.insertBelow"
       @escape="emit('escape')"
-      @delete-left="context.tryDeleteLeft"
+      @delete-left="context.deleteSelfLeft"
     />
     <!-- Command selection -->
     <Combobox

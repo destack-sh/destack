@@ -19,6 +19,7 @@ from more_itertools import first, last
 
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
+from bench.language.flow import HasFlow, IsFlowable
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
@@ -45,7 +46,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, HasTags, Runnable, Statement):
+class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
@@ -61,6 +62,8 @@ class Code(HasType, HasTags, Runnable, Statement):
         Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
+        IsFlowable._clear(self)
+        HasFlow._clear(self)
         self._parse = None
         self._references = None
         self._transform = None
@@ -69,6 +72,8 @@ class Code(HasType, HasTags, Runnable, Statement):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
+        IsFlowable._interp(self, scope)
+        HasFlow._interp(self, scope)
 
         # parse and resolve code references
         input_idents = {input.py_ident for input in self.inputs}
@@ -106,7 +111,7 @@ class Code(HasType, HasTags, Runnable, Statement):
 
     def _get_cached_output(self, inputs: dict, cached_run: bytes) -> Optional[dict]:
         try:
-            run = CachedExecution.from_json_bytes(cached_run)
+            run = CachedRun.from_json_bytes(cached_run)
             outputs = instantiate_py_value(run.outputs, self, ignore_outer_map=True, is_output=True)
             check_type(outputs, self, is_output=True)
             self.session.tracer.run_cached(self, inputs, outputs, run.generated_at, run.duration)
@@ -141,7 +146,7 @@ class Code(HasType, HasTags, Runnable, Statement):
             self.session.tracer.run_exit(self, result)
             if self.cached:
                 outputs_raw = strip_py_value(result, self, is_output=True)
-                run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
+                run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
                 await self.cache.set(cache_subkey, run_bytes)
             return self._to_result_dict(result)
         except Exception as exception:
@@ -167,7 +172,7 @@ class Code(HasType, HasTags, Runnable, Statement):
             self.session.tracer.run_exit(self, result)
             if self.cached:
                 outputs_raw = strip_py_value(result, self, is_output=True)
-                run_bytes = CachedExecution.bytes_from_run(inputs_raw, outputs_raw, started_at)
+                run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
                 self.cache.set(cache_subkey, run_bytes)
             return self._to_result_dict(result)
         except Exception as exception:
@@ -183,46 +188,6 @@ class Code(HasType, HasTags, Runnable, Statement):
         if self._is_async:
             return self
         return CodeProxy.to_async(self)
-
-
-@dataclass(slots=True)
-class CachedExecution:
-    """A cached run of a code statement."""
-
-    generated_at: datetime
-    duration: float
-    inputs: dict[str, Any]
-    outputs: dict[str, Any]
-
-    @staticmethod
-    def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
-        now = datetime.utcnow().replace(tzinfo=pytz.utc)
-        run = CachedExecution(
-            generated_at=now,
-            duration=(now - started_at).total_seconds(),
-            inputs=inputs,
-            outputs=outputs,
-        )
-        return run.to_json_bytes()
-
-    def to_json_bytes(self) -> bytes:
-        run_json = {
-            "generated_at": self.generated_at.isoformat(),
-            "duration": self.duration,
-            "inputs": self.inputs,
-            "outputs": self.outputs,
-        }
-        return msgpack.packb(run_json, use_bin_type=True)
-
-    @staticmethod
-    def from_json_bytes(json_bytes: bytes) -> "CachedExecution":
-        run_json = msgpack.unpackb(json_bytes, raw=False)
-        return CachedExecution(
-            generated_at=datetime.fromisoformat(run_json["generated_at"]),
-            duration=run_json["duration"],
-            inputs=run_json["inputs"],
-            outputs=run_json["outputs"],
-        )
 
 
 class CodeProxy:  # :SyncProxy
@@ -254,6 +219,46 @@ class CodeProxy:  # :SyncProxy
         proxy = cls(code, is_async=True)
         proxy.__call_async__ = code.session.sync_to_async(code.__call_sync__)
         return typing.cast(Code, proxy)
+
+
+@dataclass(slots=True)
+class CachedRun:
+    """A cached run of a code statement."""
+
+    generated_at: datetime
+    duration: float
+    inputs: dict[str, Any]
+    outputs: dict[str, Any]
+
+    @staticmethod
+    def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
+        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        run = CachedRun(
+            generated_at=now,
+            duration=(now - started_at).total_seconds(),
+            inputs=inputs,
+            outputs=outputs,
+        )
+        return run.to_json_bytes()
+
+    def to_json_bytes(self) -> bytes:
+        run_json = {
+            "generated_at": self.generated_at.isoformat(),
+            "duration": self.duration,
+            "inputs": self.inputs,
+            "outputs": self.outputs,
+        }
+        return msgpack.packb(run_json, use_bin_type=True)
+
+    @staticmethod
+    def from_json_bytes(json_bytes: bytes) -> "CachedRun":
+        run_json = msgpack.unpackb(json_bytes, raw=False)
+        return CachedRun(
+            generated_at=datetime.fromisoformat(run_json["generated_at"]),
+            duration=run_json["duration"],
+            inputs=run_json["inputs"],
+            outputs=run_json["outputs"],
+        )
 
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]

@@ -6,7 +6,7 @@ import pytest
 
 from bench.language import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
 from bench.language.code_ import _parse_code
-from bench.language.const import RunTriggerType, TypeFlag
+from bench.language.const import TriggerType, TypeFlag
 from bench.language.core import LookupBy, Module, Session, SessionContext, StatementPath
 from bench.language.issue import BenchError, IssueType
 from bench.utils.utils import IdentifierType, to_pyidentifier
@@ -19,8 +19,7 @@ import asyncio
 await asyncio.sleep("ban")
 for doc in some_documents:
     doc["name"] = doc.file.name
-    doc["title"] = doc.file.name
-    
+    doc["title"] = doc.file.name    
 # and some lambda stuff
 my_lambda = lambda x: (p * 2 for p in x)
     """
@@ -80,8 +79,8 @@ MOCK_SESSION_CONTEXT = SessionContext(
     module_id=UUID("00000000-0000-0000-0000-000000000000"),
     worker_id=UUID("00000000-0000-0000-0000-000000000000"),
     trigger_id=UUID("00000000-0000-0000-0000-000000000000"),
-    root_run_id=UUID("00000000-0000-0000-0000-000000000000"),
-    trigger_type=RunTriggerType.API,
+    first_run_id=UUID("00000000-0000-0000-0000-000000000000"),
+    trigger_type=TriggerType.API,
 )
 
 

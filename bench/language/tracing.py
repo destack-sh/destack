@@ -430,7 +430,7 @@ class RunTracer(Tracer):
             root = None
             parent = None
         frame = Run(
-            id=self.session.ctx.root_run_id if root is None else UUIDT(),
+            id=self.session.ctx.first_run_id if root is None else UUIDT(),
             module=self.session.module,
             runnable=runnable,
             session=self.session,

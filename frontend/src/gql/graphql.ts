@@ -489,12 +489,14 @@ export enum ModuleMutationType {
   CreateResolvedField = "CREATE_RESOLVED_FIELD",
   CreateStatement = "CREATE_STATEMENT",
   CreateTagging = "CREATE_TAGGING",
+  CreateTrigger = "CREATE_TRIGGER",
   DeleteField = "DELETE_FIELD",
   DeleteFile = "DELETE_FILE",
   DeleteIssue = "DELETE_ISSUE",
   DeleteRecord = "DELETE_RECORD",
   DeleteStatement = "DELETE_STATEMENT",
   DeleteTagging = "DELETE_TAGGING",
+  DeleteTrigger = "DELETE_TRIGGER",
   MorphStatement = "MORPH_STATEMENT",
   MoveField = "MOVE_FIELD",
   MoveFile = "MOVE_FILE",
@@ -511,11 +513,13 @@ export enum ModuleMutationType {
   RestoreRecord = "RESTORE_RECORD",
   RestoreStatement = "RESTORE_STATEMENT",
   RestoreTagging = "RESTORE_TAGGING",
+  RestoreTrigger = "RESTORE_TRIGGER",
   SoftDeleteField = "SOFT_DELETE_FIELD",
   SoftDeleteFile = "SOFT_DELETE_FILE",
   SoftDeleteRecord = "SOFT_DELETE_RECORD",
   SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
   SoftDeleteTagging = "SOFT_DELETE_TAGGING",
+  SoftDeleteTrigger = "SOFT_DELETE_TRIGGER",
   TruncateFields = "TRUNCATE_FIELDS",
   TruncateFiles = "TRUNCATE_FILES",
   TruncateIssues = "TRUNCATE_ISSUES",
@@ -523,6 +527,7 @@ export enum ModuleMutationType {
   TruncateResolvedFields = "TRUNCATE_RESOLVED_FIELDS",
   TruncateStatements = "TRUNCATE_STATEMENTS",
   TruncateTaggings = "TRUNCATE_TAGGINGS",
+  TruncateTriggers = "TRUNCATE_TRIGGERS",
   UpdateField = "UPDATE_FIELD",
   UpdateFieldDescription = "UPDATE_FIELD_DESCRIPTION",
   UpdateFieldMetadata = "UPDATE_FIELD_METADATA",
@@ -539,6 +544,7 @@ export enum ModuleMutationType {
   UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
   UpdateTagging = "UPDATE_TAGGING",
   UpdateTaggingMetadata = "UPDATE_TAGGING_METADATA",
+  UpdateTrigger = "UPDATE_TRIGGER",
 }
 
 export type ModuleNode = {
@@ -1917,11 +1923,6 @@ export enum RunStatus {
   Suspended = "Suspended",
 }
 
-export enum RunTriggerType {
-  Api = "API",
-  Ui = "UI",
-}
-
 export type RunsChange = {
   __typename?: "RunsChange";
   runs: Array<Run>;
@@ -1979,7 +1980,7 @@ export type Session = Node & {
   openedAt?: Maybe<Scalars["DateTime"]>;
   project: Project;
   runs: Array<Run>;
-  triggerType: RunTriggerType;
+  triggerType: TriggerType;
   updatedAt: Scalars["DateTime"];
   user?: Maybe<User>;
 };
@@ -2044,6 +2045,7 @@ export type Statement = CrudModel &
     rootTypeTag?: Maybe<TypeTag>;
     tags: Array<Tagging>;
     text?: Maybe<Scalars["String"]>;
+    triggers: Array<Trigger>;
     type: StatementType;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
@@ -2063,6 +2065,10 @@ export type StatementResolvedFieldsArgs = {
 
 export type StatementTagsArgs = {
   filters?: InputMaybe<TaggingFilter>;
+};
+
+export type StatementTriggersArgs = {
+  filters?: InputMaybe<TriggerFilter>;
 };
 
 export type StatementBatch = {
@@ -2160,6 +2166,7 @@ export enum StatementType {
   Code = "CODE",
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
+  Flow = "FLOW",
   Model = "MODEL",
   Reference = "REFERENCE",
   Tag = "TAG",
@@ -2297,6 +2304,43 @@ export type TaggingUpdateInput = {
   id: Scalars["GlobalID"];
   metadata?: InputMaybe<Scalars["JSON"]>;
 };
+
+export type Trigger = CrudModel &
+  ModuleNode &
+  Node & {
+    __typename?: "Trigger";
+    active: Scalars["Boolean"];
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    cron?: Maybe<Scalars["String"]>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    id: Scalars["GlobalID"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    mapping?: Maybe<Scalars["JSON"]>;
+    parent: Statement;
+    revision: Scalars["Int"];
+    runnable?: Maybe<Statement>;
+    scope?: Maybe<Statement>;
+    timezone?: Maybe<Scalars["String"]>;
+    type: TriggerType;
+    updatedAt: Scalars["DateTime"];
+  };
+
+export type TriggerFilter = {
+  isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+/** Triggers for runnables (for both actual runs and pre-defined triggers). */
+export enum TriggerType {
+  Api = "API",
+  Edit = "EDIT",
+  Invoke = "INVOKE",
+  Message = "MESSAGE",
+  Run = "RUN",
+  Time = "TIME",
+  User = "USER",
+}
 
 /** Extra representation/semantics of a field/type. */
 export enum TypeHint {
@@ -3375,13 +3419,25 @@ type CrudModelContent_Tagging_Fragment = {
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "CrudModelContent_Tagging_Fragment" };
 
+type CrudModelContent_Trigger_Fragment = {
+  __typename?: "Trigger";
+  id: any;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "CrudModelContent_Trigger_Fragment" };
+
 export type CrudModelContentFragment =
   | CrudModelContent_Field_Fragment
   | CrudModelContent_File_Fragment
   | CrudModelContent_ProjectVersion_Fragment
   | CrudModelContent_Record_Fragment
   | CrudModelContent_Statement_Fragment
-  | CrudModelContent_Tagging_Fragment;
+  | CrudModelContent_Tagging_Fragment
+  | CrudModelContent_Trigger_Fragment;
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -3432,7 +3488,8 @@ export type FileHeaderFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement" }
-    | { __typename?: "Tagging" };
+    | { __typename?: "Tagging" }
+    | { __typename?: "Trigger" };
   projectVersion: { __typename?: "ProjectVersion"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3455,6 +3512,7 @@ export type StatementHeaderFragment = {
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
+    | { __typename?: "Trigger" }
     | null;
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
@@ -3521,6 +3579,7 @@ export type StatementContentFragment = {
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
+    | { __typename?: "Trigger" }
     | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
@@ -3568,7 +3627,8 @@ export type InterpFileFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement" }
-    | { __typename?: "Tagging" };
+    | { __typename?: "Tagging" }
+    | { __typename?: "Trigger" };
   issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
 } & { " $fragmentName"?: "InterpFileFragment" };
 
@@ -3594,6 +3654,7 @@ export type InterpStatementFragment = {
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
+    | { __typename?: "Trigger" }
     | null;
   reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
@@ -4185,6 +4246,7 @@ export type CreateStatementMutation = {
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
+          | { __typename?: "Trigger" }
           | null;
         reference?: { __typename?: "Statement"; id: any } | null;
         tags: Array<{ __typename?: "Tagging"; id: any }>;
@@ -4286,6 +4348,7 @@ export type MoveStatementMutation = {
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
+          | { __typename?: "Trigger" }
           | null;
       };
 };
@@ -4317,6 +4380,7 @@ export type BatchMoveStatementMutation = {
             | { __typename?: "ProjectVersion" }
             | { __typename?: "Statement"; id: any }
             | { __typename?: "Tagging" }
+            | { __typename?: "Trigger" }
             | null;
         }>;
       };

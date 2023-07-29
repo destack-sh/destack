@@ -127,11 +127,6 @@ type SidebarPopover = {
 };
 const sidebarPopovers: SidebarPopover[] = [
   {
-    component: FeedbackPopover,
-    icon: HandRaisedIcon,
-    label: "Give Feedback",
-  },
-  {
     component: HelpPopover,
     icon: QuestionMarkCircleIcon,
     label: "Help",

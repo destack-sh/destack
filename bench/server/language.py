@@ -133,7 +133,7 @@ def _unpack_log(log: mirror.LogEntry):
 
 class LanguageServer(Monitored):
     """
-    Bench language server for LSP and runtime proxy stuff.
+    Bench language server to proxy worker module access (read/write).
     """
 
     def __init__(self):
