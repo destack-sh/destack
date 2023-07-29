@@ -537,7 +537,7 @@ onBeforeUnmount(() => {
         <ActiveRunsPopover />
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2 pl-4">
-            <DeployPopover :project="project" @show="bench.showGlobalHeader = true" />
+            <!-- <DeployPopover :project="project" @show="bench.showGlobalHeader = true" /> -->
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />
           </div>

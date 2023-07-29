@@ -106,9 +106,9 @@ function getNicePercentage(value: number, total: number): string {
   // so 0.00073 is 0.0%, 0.0073 is 0.7%, 0.07326 is 7.3%, 0.7348 is 73%
   const percentage = (value / total) * 100;
   if (percentage < 0.1) {
-    return percentage.toFixed(1);
+    return "0";
   } else if (percentage < 1) {
-    return percentage.toFixed(2);
+    return percentage.toFixed(1);
   } else {
     return percentage.toFixed(0);
   }

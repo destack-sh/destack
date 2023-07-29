@@ -199,7 +199,7 @@ const sort: Ref<DatasetSort[] | null> = computed(() => {
 });
 
 const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchRecord(
+  query searchDataset(
     $statementId: GlobalID!
     $query: SearchQuery
     $sort: [SearchSort!]

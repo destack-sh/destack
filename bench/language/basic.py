@@ -30,6 +30,7 @@ class Reference(Statement, HasTags, IsFlowable):
 
     type: StatementType = StatementType.REFERENCE
     reference: Statement | StatementReference = None
+    description: str | None = None
 
     def _clear(self) -> None:
         HasTags._clear(self)

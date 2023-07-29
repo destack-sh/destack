@@ -297,7 +297,7 @@ class Scope:
         """Find the statement recursively in this scope and its parents."""
         scope = self._find_scope(name, by)
         if scope is not None and not isinstance(scope, Statement):
-            raise TypeError(f"expected symbol, got {type(scope)}")
+            return None
         return scope
 
     def lookup(

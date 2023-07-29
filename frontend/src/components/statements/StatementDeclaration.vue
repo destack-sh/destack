@@ -64,7 +64,7 @@ defineExpose({
       tabindex="-1"
       v-if="!hasName"
       @click="nameRef?.focus()"
-      class="-ml-0.5 -mt-0.5 w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      class="-ml-0.5 w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
       unnamed
     </button>

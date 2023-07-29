@@ -2896,7 +2896,7 @@ export type UpdateUserMutation = {
     | { __typename?: "User"; id: any; name: string; description?: string | null };
 };
 
-export type SearchRecordQueryVariables = Exact<{
+export type SearchDatasetQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort> | SearchSort>;
@@ -2905,7 +2905,7 @@ export type SearchRecordQueryVariables = Exact<{
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type SearchRecordQuery = {
+export type SearchDatasetQuery = {
   __typename?: "Query";
   searchDataset: {
     __typename?: "RecordConnection";
@@ -7674,13 +7674,13 @@ export const UpdateUserDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
-export const SearchRecordDocument = {
+export const SearchDatasetDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "searchRecord" },
+      name: { kind: "Name", value: "searchDataset" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7804,7 +7804,7 @@ export const SearchRecordDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<SearchRecordQuery, SearchRecordQueryVariables>;
+} as unknown as DocumentNode<SearchDatasetQuery, SearchDatasetQueryVariables>;
 export const EnvironmentDocument = {
   kind: "Document",
   definitions: [

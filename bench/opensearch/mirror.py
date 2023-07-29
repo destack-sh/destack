@@ -490,7 +490,6 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
         return wire.RunData(
             id=mirror.id,
             project_id=mirror.project_id,
-            project_version_id=mirror.project_version_id,
             worker_node_id=mirror.worker_node_id,
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,

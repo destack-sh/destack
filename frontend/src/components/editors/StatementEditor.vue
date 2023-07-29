@@ -91,26 +91,12 @@ watch(
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
     <!-- Statement content -->
-    <div class="flex flex-col bg-white" v-if="statement" v-show="statementComponentLoaded">
+    <div class="mt-8 flex flex-col bg-white" v-if="statement" v-show="statementComponentLoaded">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="statement?.deletedAt != null" class="absolute inset-0 z-20 flex justify-center opacity-100" />
       <!-- Editor inline header -->
       <!-- Title -->
-      <!-- TODO @UX: parse and enrich statement editor title & prettify statements in this view -->
-      <!-- also see how we currently assume unnested statements and parse editor paths -->
-      <TitleBanner
-        class="relative mx-auto w-full justify-between pt-14"
-        :class="appearance.baseClass"
-        :style="{
-          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
-          paddingLeft: `${editor.contentMarginX + 6}px`, // + for :StatementPadding
-          paddingRight: `${editor.contentMarginX + 6}px`,
-        }"
-        :readonly="true"
-        :thing="statement"
-        :model-value="statement.name"
-        :actions="[]"
-      />
+      <!-- TODO @UX: parse and enrich statement editor title & use larger space for statements in standalone editor -->
       <!-- Statement -->
       <Statement
         ref="statementComponentRef"
