@@ -222,9 +222,8 @@ export function _useSessions(
           }
         }
       `),
-      {
-        ...filter,
-      }
+      { ...filter } as any,
+      { enabled: computed(() => filter.projectId.value != null) as any }
     );
     onSessionChange((result) => {
       if (
