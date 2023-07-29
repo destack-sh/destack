@@ -491,8 +491,10 @@ defineExpose({
                   class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
                 >
                   <strong>Click</strong> for actions
-                  <br />
-                  <strong>Drag</strong> to move
+                  <template v-if="!props.standalone">
+                    <br />
+                    <strong>Drag</strong> to move
+                  </template>
                 </span>
               </div>
             </ActionPopover>

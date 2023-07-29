@@ -402,6 +402,7 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
         statement_data = super().pack(statement)
         return wire.ReferenceData(
             **statement_data.__dict__,
+            description=statement.description,
             reference_id=statement.reference_id,
         )
 
@@ -410,6 +411,7 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.reference_id = data.reference_id
+        statement.description = data.description
         return statement
 
 

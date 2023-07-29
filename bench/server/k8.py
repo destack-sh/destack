@@ -26,7 +26,7 @@ logger = structlog.get_logger(__name__)
 
 k8_init = asyncio.Event()
 
-BENCH_WORKER_APP = "bench-worker"
+WORKER_APP_LABEL = "user-worker"
 K8_AVAILABLE = False
 
 if KUBERNETES_WORKER_IMAGE is not None and DEBUG:
@@ -187,7 +187,7 @@ class Deployment:
 
     @property
     def name(self):
-        return f"{BENCH_WORKER_APP}-{self.project_id}-{self.worker_set_id.hex[:6]}"
+        return f"{WORKER_APP_LABEL}-{self.project_id}-{self.worker_set_id.hex[:6]}"
 
     def to_k8(self: "Deployment") -> client.V1Deployment:
         namespace = settings.KUBERNETES_WORKER_NAMESPACE
@@ -227,7 +227,7 @@ class Deployment:
             ),
         )
         labels = {
-            "app": BENCH_WORKER_APP,
+            "app": WORKER_APP_LABEL,
             "deployment": self.name,
             "project_id": str(self.project_id),
             "worker_set_id": str(self.worker_set_id),
@@ -365,7 +365,7 @@ async def get_all_deployments() -> tuple[list[Deployment], VersionMarker]:
     """Gets all bench worker set deployments at the latest version."""
     _check_k8_available()
     logger.info("k8.deployment.get_all")
-    selector = f"app={BENCH_WORKER_APP}"
+    selector = f"app={WORKER_APP_LABEL}"
     async with client.ApiClient() as api:
         apps = client.AppsV1Api(api)
         core = client.CoreV1Api(api)
@@ -396,7 +396,7 @@ async def watch_our_deployments(
 ) -> AsyncIterator[tuple[EventType, Deployment | Pod]]:
     """Watches all bench worker set deployments and their nodes."""
     _check_k8_available()
-    selector = f"app={BENCH_WORKER_APP}"
+    selector = f"app={WORKER_APP_LABEL}"
     logger.info("k8.deployment.watch", selector=selector)
     async with client.ApiClient() as api, watch.Watch().stream(
         client.CoreV1Api(api).list_pod_for_all_namespaces,

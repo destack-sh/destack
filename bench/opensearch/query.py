@@ -175,6 +175,9 @@ def prepare_search(
         combined_query &= Q(QueryOp.EQUALS, key="project_version_id", value=project_version_id)
     if query is not None:
         combined_query &= query
+    # add id to sort as tiebreaker if not already present
+    if sort and not any(s.key == "_id" for s in sort):
+        sort = sort + [Sort(key="_id", order=SortOrder.ASCENDING)]
     compilation = CompilationInfo(root_limit=limit)
     compiled_query = compile_to_os(compilation, combined_query)
     compiled_sort = compile_to_os(compilation, sort or get_default_sort(combined_query))
