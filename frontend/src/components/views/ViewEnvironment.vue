@@ -14,6 +14,7 @@ import {
   WORKER_STATUS_ICON_SOLID,
   WORKER_STATUS_TITLE,
 } from "@/state/session";
+import { PlayIcon } from "@heroicons/vue/24/outline";
 import {
   ClockIcon,
   DocumentIcon,
@@ -146,9 +147,21 @@ const statusIconSolid = computed(() =>
           <component
             :is="statusIconSolid"
             class="mr-1.5 h-4 w-4"
-            :class="[WORKER_STATUS_COLOR[workerSet.status], statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '']"
+            :class="[
+              WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                ? 'text-gray-400'
+                : WORKER_STATUS_COLOR[workerSet.status],
+              statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '',
+            ]"
           />
-          <span class="mr-1.5 whitespace-nowrap font-semibold" :class="WORKER_STATUS_COLOR[workerSet.status]">
+          <span
+            class="mr-1.5 whitespace-nowrap font-semibold"
+            :class="
+              WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                ? 'text-gray-900'
+                : WORKER_STATUS_COLOR[workerSet.status]
+            "
+          >
             {{
               WORKER_STATUS_TITLE[
                 session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
@@ -159,7 +172,7 @@ const statusIconSolid = computed(() =>
         <!-- Idle / actions -->
         <div class="flex flex-row items-center whitespace-nowrap">
           <span v-if="workerSet.lastActiveAt" class="mr-1.5 flex flex-row items-center text-gray-500">
-            <BoltIcon class="mr-1 h-4 w-4 text-gray-400" />
+            <PlayIcon class="mr-1 h-4 w-4 text-gray-400" />
             {{ now.getTimeFromNowString(workerSet.lastActiveAt) }}
           </span>
           <button
