@@ -296,7 +296,13 @@ export function _useSessions(
     return sessionOps
       .wakeWorkerSet(filter.projectId.value as string)
       .then((r) => r?.data?.wakeWorkerSet?.success ?? false)
-      .finally(() => {
+      .then((success) => {
+        if (!success) {
+          waking.value = false;
+        }
+        return success;
+      })
+      .catch(() => {
         waking.value = false;
       });
   }
@@ -311,9 +317,30 @@ export function _useSessions(
       });
   }
 
-  function withWorkers<T>(fn: () => Promise<T>): Promise<T> {
+  function withWorkers<T>(fn: () => Promise<T>, options?: { timeout?: number }): Promise<T> {
     if (!isWorkerSetReady.value) {
-      return wakeWorkerSet().then(fn);
+      return wakeWorkerSet().then(() => {
+        // if workers are ready now, just run function
+        if (isWorkerSetReady.value) {
+          return fn();
+        } else {
+          // otherwise wait until they're ready
+          return new Promise((resolve, reject) => {
+            const unsub = onWorkerSetChange((ws) => {
+              if (ws.status === WorkerSetStatus.Healthy) {
+                unsub();
+                resolve(fn());
+              }
+            });
+            if (options?.timeout) {
+              setTimeout(() => {
+                unsub();
+                reject(new Error("timed out waiting for workers"));
+              }, options?.timeout);
+            }
+          });
+        }
+      });
     } else {
       return fn();
     }
