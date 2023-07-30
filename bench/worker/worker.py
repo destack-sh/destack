@@ -2,6 +2,7 @@ import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
@@ -42,6 +43,7 @@ from bench.msg.messages import (
 from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
 from bench.utils.monitoring import Monitored
+from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
@@ -65,6 +67,7 @@ class RunJob:
     run: Optional[Run] = None
     logs: Optional[list[LogEntry]] = None
     error: Optional[RunError] = None
+    created_at: datetime = field(default_factory=datetime.utcnow)
     started: asyncio.Event = field(default_factory=asyncio.Event)
     task: asyncio.Task | None = None
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
@@ -95,7 +98,7 @@ class ModuleWorker(ModuleWriter):
         self.module: Module | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
         self.pending_runs: dict[UUID, RunJob] = {}
-        self.last_run: Optional[Run] = None
+        self.last_run: Optional[RunJob] = None
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=self.node.worker_set_id,
@@ -109,11 +112,11 @@ class ModuleWorker(ModuleWriter):
 
     @property
     def active(self) -> bool:
-        return (
+        last_run_recent = (
             self.last_run is not None
-            and self.last_run.created_at.timestamp() > time.time() - ACTIVE_TIMEOUT
-            or not self.queue.empty()
+            and self.last_run.created_at > datetime.utcnow() - timedelta(seconds=ACTIVE_TIMEOUT)
         )
+        return last_run_recent or not self.queue.empty()
 
     async def start(self, source: wire.ModuleTreeData):
         self.log.debug("module.init")
@@ -331,7 +334,7 @@ class WorkerNode(Monitored):
         self.project_id = project_id
         self.workers: dict[UUID, ModuleWorker] = {}
         self.subs = []
-        self.tasks = []
+        self.tasks = TaskManager()
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
         self._ready = asyncio.Event()
 
@@ -369,7 +372,7 @@ class WorkerNode(Monitored):
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
         ]
         if self.worker_set_id is not None:  # only mark as active if not a local worker
-            self.tasks.append(asyncio.create_task(self.mark_as_active_if_active_forever()))
+            self.tasks.start(self.mark_as_active_if_active_forever())
 
         if self.project_id is not None:
             # preload worker for project (assumes it's at head)
@@ -404,7 +407,9 @@ class WorkerNode(Monitored):
         # :WorkerSetActive
         logger.debug("worker.mark_active", worker_set=self.worker_set_id)
         await redis.set(
-            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at", time.time()
+            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at",
+            value=str(time.time()),
+            ex=24 * 60 * 60,  # keep for 1 day
         )
 
     async def mark_as_active_if_active_forever(self, interval=ACTIVE_PUBLISH_INTERVAL):
@@ -484,8 +489,6 @@ class WorkerNode(Monitored):
 
     async def stop(self):
         logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
-        for task in self.tasks:
-            task.cancel()
-        await asyncio.gather(*self.tasks)
+        await self.tasks.stop()
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
         self._ready.clear()
