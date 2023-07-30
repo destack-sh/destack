@@ -17,13 +17,12 @@ from strawberry_django_plus.relay import GlobalID
 from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.dataset import DataQuery, DatasetMutation
+from bench.api.file import File, FileMutation
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.object import ObjectMutation, RemoteObject
 from bench.api.organization import Organization, OrganizationMutation
 from bench.api.project import (
-    File,
-    FileMutation,
     Project,
     ProjectMutation,
     ProjectVersion,

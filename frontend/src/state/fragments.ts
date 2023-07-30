@@ -338,10 +338,44 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       id
     }
     tags(filters: { isVisible: true }) {
-      ...TaggingContent
+      # :TaggingContent
+      id
+      revision
+      key
+      parent {
+        id
+      }
+      reference {
+        id
+      }
+      metadata
+      # crud
+      createdAt
+      updatedAt
+      deletedAt
     }
     fields(filters: { isVisible: true }) {
-      ...FieldContent
+      # :FieldContent
+      id
+      revision
+      name
+      key
+      tag
+      hint
+      flags
+      description
+      orderKey
+      reference {
+        id
+      }
+      parent {
+        id
+      }
+      metadata
+      # crud
+      createdAt
+      updatedAt
+      deletedAt
     }
     createdAt
     updatedAt

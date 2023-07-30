@@ -106,7 +106,7 @@ class Field(CrudModel, ModuleNode, Revisioned, gql.Node):
 @gql.django.type(models.Statement)
 class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
-    file: Annotated["File", lazy(".project")]
+    file: Annotated["File", lazy(".file")]
     parent: Optional["ModuleNode"]
     type: StatementType
     name: auto
@@ -253,11 +253,6 @@ class StatementBatchPasteInput:
     target_file_id: GlobalID
     target_parent_ids: list[Optional[GlobalID]]
     target_order_keys: list[str]
-
-
-@gql.input
-class StatementUpdateTextInput(gql.NodeInput):
-    text: Optional[str] = None
 
 
 @gql.type
@@ -467,16 +462,15 @@ class StatementMutation:
             )
         return StatementBatch(statements=target_statements)
 
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT_TEXT)
-    def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.text = input.text
-        return statement
-
 
 #
 # Statement content / symbol mutations
 #
+
+
+@gql.input
+class StatementUpdateTextInput(gql.NodeInput):
+    text: Optional[str] = None
 
 
 @gql.input
@@ -594,7 +588,12 @@ class FieldRestoreInput(gql.NodeInput):
 
 @gql.type
 class SymbolMutation:
-    # TODO @Cleanup @Architecture: 'normalize' statement mutations alongside Statement
+    @tracked_db_mutation(MMT.UPDATE_STATEMENT_TEXT)
+    def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.text = input.text
+        return statement
+
     @tracked_db_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
     def update_statement_reference(
         self, input: StatementUpdateReferenceInput
@@ -658,41 +657,6 @@ class SymbolMutation:
         field.name = input.name
         return field
 
-    @tracked_db_mutation(MMT.CREATE_TAGGING)
-    def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging(
-            id=UUID(input.id.node_id),
-            statement_id=UUID(input.statement_id.node_id),
-            key=input.key,
-            reference_id=UUID(input.reference_id.node_id),
-            metadata=input.metadata,
-        )
-        return tagging
-
-    @tracked_db_mutation(MMT.UPDATE_TAGGING)
-    def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.metadata = input.metadata
-        return tagging
-
-    @tracked_db_mutation(MMT.DELETE_TAGGING)
-    def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.delete()
-        return tagging
-
-    @tracked_db_mutation(MMT.SOFT_DELETE_TAGGING)
-    def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.soft_delete()
-        return tagging
-
-    @tracked_db_mutation(MMT.RESTORE_TAGGING)
-    def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
-        tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.restore()
-        return tagging
-
     @tracked_db_mutation(MMT.UPDATE_FIELD_DESCRIPTION)
     def update_field_description(self, input: FieldUpdateDescriptionInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
@@ -732,3 +696,38 @@ class SymbolMutation:
         field = models.Field.objects.get(id=input.id.node_id)
         field.restore()
         return field
+
+    @tracked_db_mutation(MMT.CREATE_TAGGING)
+    def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging(
+            id=UUID(input.id.node_id),
+            statement_id=UUID(input.statement_id.node_id),
+            key=input.key,
+            reference_id=UUID(input.reference_id.node_id),
+            metadata=input.metadata,
+        )
+        return tagging
+
+    @tracked_db_mutation(MMT.UPDATE_TAGGING)
+    def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.metadata = input.metadata
+        return tagging
+
+    @tracked_db_mutation(MMT.DELETE_TAGGING)
+    def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.delete()
+        return tagging
+
+    @tracked_db_mutation(MMT.SOFT_DELETE_TAGGING)
+    def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.soft_delete()
+        return tagging
+
+    @tracked_db_mutation(MMT.RESTORE_TAGGING)
+    def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
+        tagging = models.Tagging.objects.get(id=input.id.node_id)
+        tagging.restore()
+        return tagging

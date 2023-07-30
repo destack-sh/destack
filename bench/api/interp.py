@@ -24,7 +24,7 @@ class Issue(gql.Node):
     scope: InterpScope
     kind: IssueKind
     type: IssueType
-    file: Optional[Annotated["File", lazy(".project")]]
+    file: Optional[Annotated["File", lazy(".file")]]
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     message: Optional[str]
 

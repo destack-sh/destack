@@ -14,18 +14,10 @@ from strawberry_django_plus.types import OperationInfo
 from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
-from bench.api.auth import (
-    can_write_project,
-    check_can_read_project,
-    check_can_write_project,
-    is_owner_or_member,
-)
-from bench.api.interp import Issue, IssueFilter
-from bench.api.sync import MMT, tracked_db_mutation
+from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.utils import (
     CrudModel,
     ModuleNode,
-    Revisioned,
     get_client_origin_from_info,
     get_user_from_info,
     safe_mutation,
@@ -39,9 +31,9 @@ from bench.opensearch.query import prepare_search
 from bench.utils.cache import redis_sync
 
 if TYPE_CHECKING:
+    from bench.api.file import File
     from bench.api.organization import Organization
     from bench.api.session import WorkerSet
-    from bench.api.statement import Statement
     from bench.api.user import User
 
 StatementType = gql.enum(const.StatementType)
@@ -68,16 +60,6 @@ class ProjectVersionFilter:
         elif self.from_id is not None or self.to_id is not None:
             raise ValidationError("from_id and to_id must be set together")
         return queryset.order_by("created_at")
-
-
-@gql.django.filter(models.Statement)
-class StatementFilter:
-    is_visible: Optional[bool] = True
-
-    def filter(self, queryset):
-        if self.is_visible is not UNSET and self.is_visible is not None:
-            queryset = queryset.filter(deleted_at__isnull=self.is_visible)
-        return queryset
 
 
 @gql.django.filter(models.File)
@@ -261,22 +243,11 @@ class ProjectVersion(CrudModel, ModuleNode, gql.Node):
     children: list["ProjectVersion"]
     committed: auto
     committed_at: auto
-    files: gql.relay.Connection["File"] = gql.django.connection(filters=FileFilter)
+    files: gql.relay.Connection[Annotated["File", lazy(".file")]] = gql.django.connection(
+        filters=FileFilter
+    )
     child_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
     parent_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
-
-
-@gql.django.type(models.File)
-class File(CrudModel, ModuleNode, Revisioned, gql.Node):
-    project_version: ProjectVersion
-    name: auto
-    directory: auto
-    files: list["File"]  # if folder
-    parent: ModuleNode
-    statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
-        filters=StatementFilter
-    )
-    issues: list[Annotated["Issue", lazy(".interp")]] = gql.django.field(filters=IssueFilter)
 
 
 @gql.input
@@ -467,114 +438,3 @@ class ProjectVersionMutation:
             committed_version=old_head,
             new_working_version=new_head,
         )
-
-
-@gql.input
-class FileCreateInput:
-    id: Optional[GlobalID] = None
-    project_version_id: GlobalID
-    name: str
-    parent_id: Optional[GlobalID] = None
-    directory: bool = False
-
-
-@gql.input
-class FileDeleteInput(gql.NodeInput):
-    pass
-
-
-@gql.input
-class FileRenameInput(gql.NodeInput):
-    name: str
-
-
-@gql.input
-class FileMoveInput(gql.NodeInput):
-    parent_id: Optional[GlobalID] = None
-
-
-@gql.input
-class FilePasteInput:
-    source_id: GlobalID
-    target_version_id: GlobalID
-    target_id: Optional[GlobalID] = None
-    parent_id: Optional[GlobalID] = None
-
-
-@gql.type
-class FileMutation:
-    @tracked_db_mutation(MMT.CREATE_FILE)
-    def create_file(self, input: FileCreateInput) -> File | OperationInfo:
-        id = input.id.node_id if input.id else None
-        return models.File(
-            id=id,
-            project_version_id=input.project_version_id.node_id,
-            name=input.name,
-            parent_file_id=input.parent_id.node_id if input.parent_id else None,
-            directory=input.directory,
-        )
-
-    @tracked_db_mutation(MMT.UPDATE_FILE)
-    def update_file(self, input: FileCreateInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.name = input.name
-        file.parent_file_id = input.parent_id.node_id if input.parent_id else None
-        file.directory = input.directory
-        return file
-
-    @tracked_db_mutation(MMT.DELETE_FILE, atomic=True)
-    def delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.delete()
-        return file
-
-    @tracked_db_mutation(MMT.SOFT_DELETE_FILE, atomic=True)
-    def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.soft_delete()
-        return file
-
-    @tracked_db_mutation(MMT.RESTORE_FILE, atomic=True)
-    def restore_file(self, input: gql.NodeInput) -> File | OperationInfo:
-        # use _base_manager since soft deleted files are not visible
-        file = models.File._base_manager.get(id=input.id.node_id)
-        file.restore()
-        return file
-
-    @tracked_db_mutation(MMT.MOVE_FILE)
-    def move_file(self, input: FileMoveInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.parent_file_id = input.parent_id.node_id if input.parent_id else None
-        return file
-
-    @tracked_db_mutation(MMT.RENAME_FILE)
-    def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
-        file = models.File.objects.get(id=input.id.node_id)
-        file.name = input.name
-        return file
-
-    @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_auth_check=True)
-    def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
-        # get and check source/target
-        source_file = models.File.objects.get(id=input.source_id.node_id)
-        check_can_read_project(info, source_file)
-        target_version = models.ProjectVersion.objects.get(id=input.target_version_id.node_id)
-        check_can_write_project(info, target_version.project)
-        parent_file = (
-            models.File.objects.get(id=input.parent_id.node_id) if input.parent_id else None
-        )
-        if parent_file is not None and parent_file.project_version_id != target_version.id:
-            raise ValidationError("target version does not match parent file version")
-        if input.target_id and models.File.objects.filter(id=input.target_id.node_id).exists():
-            raise ValidationError("target file already exists")
-
-        # copy file
-        target_id = UUID(input.target_id.node_id) if input.target_id else None
-        target_file = models.File.objects.copy(
-            file=source_file,
-            source=source_file.project_version,
-            target=target_version,
-            target_id=target_id,
-            kind=RefMappingKind.PASTE,
-        )
-        return target_file
