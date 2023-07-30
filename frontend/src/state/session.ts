@@ -231,6 +231,7 @@ export function _useSessions(
         (result.data?.sessionsChanged?.__typename == "RunsChange" && result.data.sessionsChanged.runs != null)
       ) {
         for (const run of result.data.sessionsChanged.runs.map((r) => useFragment(RunContentType, r))) {
+          console.debug("run.change", run);
           currentRuns.value[run.id] = run as Run;
           for (const subscriber of onRunChangeSubscribers.value) {
             subscriber(run as Run);
@@ -239,6 +240,7 @@ export function _useSessions(
       }
       if (result.data?.sessionsChanged?.__typename == "WorkerChange") {
         for (const ws of result.data.sessionsChanged.workerSets.map((ws) => useFragment(WorkerSetContentType, ws))) {
+          console.debug("workerSet.change", ws);
           workerSets.value[ws.id] = ws as WorkerSet;
           for (const subscriber of onWorkerSetChangeSubscribers.value) {
             subscriber(ws as WorkerSet);

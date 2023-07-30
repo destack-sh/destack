@@ -265,9 +265,9 @@ class OrchestrationServer(Monitored):
         )
         for worker_set in self.worker_sets:
             # put to sleep if idle for too long
-            if (worker_set.last_active_at and worker_set.last_active_at < idle_cutoff) and not (
-                worker_set.last_bumped_at and worker_set.last_bumped_at > idle_cutoff
-            ):
+            if (
+                worker_set.last_active_at is None or worker_set.last_active_at < idle_cutoff
+            ) and not (worker_set.last_bumped_at and worker_set.last_bumped_at > idle_cutoff):
                 logger.info("worker_sets.sleep", worker_set=worker_set)
                 worker_set.sleeping = True
                 worker_set.target_replicas = 0
