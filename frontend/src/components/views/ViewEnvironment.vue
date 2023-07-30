@@ -168,13 +168,12 @@ const statusIconSolid = computed(() =>
               ]
             }}
           </span>
+          <span v-if="workerSet.lastActiveAt" class="mr-1.5 flex flex-row items-center text-gray-500">
+            {{ now.getTimeFromNowString(workerSet.lastActiveAt) }}
+          </span>
         </div>
         <!-- Idle / actions -->
         <div class="flex flex-row items-center whitespace-nowrap">
-          <span v-if="workerSet.lastActiveAt" class="mr-1.5 flex flex-row items-center text-gray-500">
-            <PlayIcon class="mr-1 h-4 w-4 text-gray-400" />
-            {{ now.getTimeFromNowString(workerSet.lastActiveAt) }}
-          </span>
           <button
             v-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
             class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"

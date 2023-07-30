@@ -104,7 +104,7 @@ class OrchestrationServer(Monitored):
                 await k8.delete_deployments(deployments_to_delete)
 
             # and re-deploy as needed
-            await self._mark_last_active_from_redis()
+            await self._update_last_active_from_redis()
             await self._mark_tired_worker_sets()
             await self._save_and_notify_worker_sets(self.worker_sets)
             await self._deploy_worker_sets(self.worker_sets)
@@ -217,7 +217,7 @@ class OrchestrationServer(Monitored):
     async def _manage_worker_lifecycle_forever(self, interval: int = 60):
         """Puts worker sets to sleep after inactivity if needed."""
         while True:
-            await self._mark_last_active_from_redis()
+            await self._update_last_active_from_redis()
             tired_worker_sets = await self._mark_tired_worker_sets()
             logger.debug("worker_sets.update_lifecycle", worker_sets=tired_worker_sets)
             await self._save_and_notify_worker_sets(self.worker_sets)
@@ -225,12 +225,12 @@ class OrchestrationServer(Monitored):
                 await self._deploy_worker_sets(tired_worker_sets)
             await asyncio.sleep(interval)
 
-    async def _mark_last_active_from_redis(self):
+    async def _update_last_active_from_redis(self):
         """
-        Fetches last_active_at state for each worker set from redis WITHOUT writing to DB.
+        Updates last_active_at state for each worker set from redis WITHOUT writing to DB.
         """
-        # scan iter "worker_set.{id}" in redis :WorkerSetActive
-        logger.debug("worker_sets.mark_last_active_from_redis")
+        # scan "worker_set.{set_id}.{node_id}.<val>" :WorkerSetActive
+        logger.debug("worker_sets.update_last_active_from_redis")
         active_keys = await redis.keys("worker_set.*.*.last_active_at")
         active_values = await redis.mget(active_keys)
         keys_to_delete = []
@@ -241,7 +241,7 @@ class OrchestrationServer(Monitored):
                 last_active_at = float(last_active_at)
             except (ValueError, IndexError, TypeError) as e:
                 logger.warning("worker_set.last_active_at.invalid", key=key, error=e)
-                keys_to_delete.append(key)  # delete invalid keys
+                keys_to_delete.append(key)  # delete invalid/stale keys
                 continue
 
             worker_set = self.worker_sets_by_project_id.get(worker_set_id)
