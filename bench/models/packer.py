@@ -1088,7 +1088,7 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MMK.UPDATE
-                # can probably optimize this (e.g. group by updated properties)
+                # should probably optimize this (i.e. compile into single query)
                 for m, node in zip(batch, nodes):
                     node._state.adding = False  # ensure update
                     node.save(force_update=True, update_fields=m.properties)

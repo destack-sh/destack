@@ -576,17 +576,17 @@ type Mutation {
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
-  createTagging(input: TaggingCreateInput!): TaggingOperationInfo!
-  updateTagging(input: TaggingUpdateInput!): TaggingOperationInfo!
-  deleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
-  softDeleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
-  restoreTagging(input: TaggingRestoreInput!): TaggingOperationInfo!
   updateFieldDescription(input: FieldUpdateDescriptionInput!): FieldOperationInfo!
   updateFieldType(input: FieldUpdateTypeInput!): FieldOperationInfo!
   moveField(input: FieldMoveInput!): FieldOperationInfo!
   softDeleteField(input: FieldDeleteInput!): FieldOperationInfo!
   deleteField(input: FieldDeleteInput!): FieldOperationInfo!
   restoreStatementField(input: FieldRestoreInput!): FieldOperationInfo!
+  createTagging(input: TaggingCreateInput!): TaggingOperationInfo!
+  updateTagging(input: TaggingUpdateInput!): TaggingOperationInfo!
+  deleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
+  softDeleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
+  restoreTagging(input: TaggingRestoreInput!): TaggingOperationInfo!
   createRecord(input: RecordCreateInput!): RecordOperationInfo!
   updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
   moveRecord(input: RecordMoveInput!): RecordOperationInfo!

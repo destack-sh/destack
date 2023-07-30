@@ -3657,8 +3657,36 @@ export type InterpStatementFragment = {
     | { __typename?: "Trigger" }
     | null;
   reference?: { __typename?: "Statement"; id: any } | null;
-  tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
-  fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
+  tags: Array<{
+    __typename?: "Tagging";
+    id: any;
+    revision: number;
+    key: string;
+    metadata?: any | null;
+    createdAt: any;
+    updatedAt: any;
+    deletedAt?: any | null;
+    parent: { __typename?: "Statement"; id: any };
+    reference: { __typename?: "Statement"; id: any };
+  }>;
+  fields: Array<{
+    __typename?: "Field";
+    id: any;
+    revision: number;
+    name?: string | null;
+    key: string;
+    tag: TypeTag;
+    hint?: TypeHint | null;
+    flags: number;
+    description?: string | null;
+    orderKey: string;
+    metadata?: any | null;
+    createdAt: any;
+    updatedAt: any;
+    deletedAt?: any | null;
+    reference?: { __typename?: "Statement"; id: any } | null;
+    parent: { __typename?: "Statement"; id: any };
+  }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
 export type ModuleQueryVariables = Exact<{
@@ -6197,7 +6225,31 @@ export const InterpStatementFragmentDoc = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "revision" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "parent" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+              ],
             },
           },
           {
@@ -6221,7 +6273,37 @@ export const InterpStatementFragmentDoc = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "revision" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "key" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+                { kind: "Field", name: { kind: "Name", value: "hint" } },
+                { kind: "Field", name: { kind: "Name", value: "flags" } },
+                { kind: "Field", name: { kind: "Name", value: "description" } },
+                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "reference" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "parent" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -9126,8 +9208,6 @@ export const ModuleDocument = {
     ...InterpFileFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
-    ...TaggingContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleQuery, ModuleQueryVariables>;
 export const NewNotificationsDocument = {
