@@ -8,8 +8,6 @@ import HomeButton from "@/components/basic/HomeButton.vue";
 import NotificationArea from "@/components/basic/NotificationArea.vue";
 import OmniCreate from "@/components/basic/OmniCreate.vue";
 import ProfileButton from "@/components/basic/ProfileButton.vue";
-import DeployPopover from "@/components/bench/DeployPopover.vue";
-import FeedbackPopover from "@/components/bench/FeedbackPopover.vue";
 import HelpPopover from "@/components/bench/HelpPopover.vue";
 import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import ProjectPopover from "@/components/bench/ProjectPopover.vue";
@@ -19,7 +17,7 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { ProjectVisibility, WorkerSetStatus } from "@/gql/graphql";
+import { WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
@@ -44,10 +42,6 @@ import {
   CubeIcon,
   DocumentDuplicateIcon,
   ExclamationTriangleIcon,
-  EyeIcon,
-  GlobeAltIcon,
-  HandRaisedIcon,
-  LockClosedIcon,
   QuestionMarkCircleIcon,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -66,7 +60,13 @@ import {
 } from "vue";
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
-import { CubeIcon as CubeIconSolid, SignalIcon, SignalSlashIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import {
+  EyeIcon as EyeIconSolid,
+  CubeIcon as CubeIconSolid,
+  SignalIcon,
+  SignalSlashIcon,
+  XCircleIcon,
+} from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
@@ -429,12 +429,6 @@ onBeforeUnmount(() => {
                 :class="{ 'bg-orange-100 focus:bg-orange-100': open }"
               >
                 <span class="truncate text-sm font-bold">{{ props.project }}</span>
-                <FadeTransition mode="out-in">
-                  <component
-                    :is="project.visibility != ProjectVisibility.Public ? LockClosedIcon : GlobeAltIcon"
-                    class="ml-1.5 h-4 w-4 text-gray-700"
-                  />
-                </FadeTransition>
               </PopoverButton>
             </template>
           </ProjectPopover>
@@ -456,8 +450,8 @@ onBeforeUnmount(() => {
               class="ml-1 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-600 px-3 py-1 text-sm text-white"
             >
               <span class="relative">
-                <ClockIconSolid class="absolute top-0.5 h-4 w-4 text-white" />
-                <span class="ml-5 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
+                <ClockIconSolid class="absolute top-0 h-5 w-5 text-white" />
+                <span class="ml-6 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
               </span>
               <router-link
                 :to="{ hash: router.currentRoute.value.hash }"
@@ -480,8 +474,8 @@ onBeforeUnmount(() => {
             class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
-              <EyeIcon class="absolute top-0.5 h-4 w-4" />
-              <span class="ml-5 select-none">Viewer</span>
+              <EyeIconSolid class="top-0.0 absolute h-5 w-5 text-gray-500" />
+              <span class="ml-6 select-none">Viewer</span>
             </span>
           </div>
         </div>
@@ -525,7 +519,7 @@ onBeforeUnmount(() => {
               @click="toggleActiveView('environment', true)"
               v-show="!workerSetHealthy"
             >
-              <CubeIconSolid class="h-4 w-4" />
+              <CubeIconSolid class="h-5 w-5" />
             </span>
           </FadeTransition>
         </div>

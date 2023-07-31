@@ -5,7 +5,7 @@ import { graphql } from "@/gql";
 import { NotificationStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { BellIcon } from "@heroicons/vue/24/outline";
+import { BellIcon } from "@heroicons/vue/20/solid";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, type Ref } from "vue";
 

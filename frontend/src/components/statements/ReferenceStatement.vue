@@ -3,7 +3,7 @@ import StatementActions from "@/components/statements/StatementActions.vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import type { StatementAction } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { getStatementIcon, useStatementContext } from "@/state/statement";
+import { getStatementIconSolid, useStatementContext } from "@/state/statement";
 import { TagIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref } from "vue";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -35,11 +35,11 @@ const popoverPin = pinAbsoluteElement(
 const selectingReference = ref(false);
 const query = ref("");
 const resolvedReference = computed(() => module.statementOf(context.statement.value.reference?.id));
-const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
+const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
 const referenceIcon = computed(() =>
   resolvedReference.value == null
     ? null
-    : getStatementIcon(resolvedReference.value?.type, resolvedReference.value?.rootTypeTag)
+    : getStatementIconSolid(resolvedReference.value?.type, resolvedReference.value?.rootTypeTag)
 );
 
 onStartTyping(() => {
@@ -191,7 +191,7 @@ defineExpose({
               <div class="flex items-baseline justify-between">
                 <span class="flex flex-row items-center">
                   <component
-                    :is="getStatementIcon(reference.type, reference.rootTypeTag)"
+                    :is="getStatementIconSolid(reference.type, reference.rootTypeTag)"
                     class="h-4 w-4 text-orange-600"
                   />
                   <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>

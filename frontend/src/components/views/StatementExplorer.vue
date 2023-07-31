@@ -3,7 +3,7 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
 import { orderStatements, useCurrentModule, useNavigation, type InterpStatement } from "@/state/module";
-import { getStatementIcon } from "@/state/statement";
+import { getStatementIconSolid } from "@/state/statement";
 import { computed, nextTick } from "vue";
 
 const props = defineProps<{ showAllStatements?: boolean }>();
@@ -96,8 +96,8 @@ defineExpose({
     >
       <span class="text rounded-sm font-mono">
         <component
-          :is="getStatementIcon(ordered.statement.type, ordered.statement.rootTypeTag)"
-          class="mt-0.5 h-4 w-4"
+          :is="getStatementIconSolid(ordered.statement.type, ordered.statement.rootTypeTag)"
+          class="mt-0.5 h-4 w-4 text-gray-400"
         />
       </span>
       <span class="">{{ getStatementName(ordered.statement) }}</span>

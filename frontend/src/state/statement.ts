@@ -18,18 +18,29 @@ import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { getFieldNameFromTypeName } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import {
-  AdjustmentsHorizontalIcon,
+  AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconOutline,
   ArrowUpRightIcon,
-  CircleStackIcon,
-  CodeBracketSquareIcon,
+  CircleStackIcon as CircleStackIconOutline,
+  CodeBracketSquareIcon as CodeBracketSquareIconOutline,
   PlayCircleIcon,
   QueueListIcon,
-  RectangleGroupIcon,
-  ServerStackIcon,
-  SparklesIcon,
-  TableCellsIcon,
-  TagIcon,
+  RectangleGroupIcon as RectangleGroupIconOutline,
+  ServerStackIcon as ServerStackIconOutline,
+  SparklesIcon as SparklesIconOutline,
+  TableCellsIcon as TableCellsIconOutline,
+  TagIcon as TagIconOutline,
 } from "@heroicons/vue/24/outline";
+import {
+  TagIcon as TagIconSolid,
+  SparklesIcon as SparklesIconSolid,
+  TableCellsIcon as TableCellsIconSolid,
+  CircleStackIcon as CircleStackIconSolid,
+  CodeBracketSquareIcon as CodeBracketSquareIconSolid,
+  ServerStackIcon as ServerStackIconSolid,
+  AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
+  RectangleGroupIcon as RectangleGroupIconSolid,
+  PlayCircleIcon as PlayCircleIconSolid,
+} from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
 // not using Symbol here to improve hotreload experience (Symbol is not a constant)
@@ -557,23 +568,45 @@ export function getEnumColor(type: { key: string }) {
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
-const icons: Partial<Record<StatementType, any>> = {
-  [StatementType.Tag]: TagIcon,
-  [StatementType.Task]: SparklesIcon,
-  [StatementType.Value]: TableCellsIcon,
-  [StatementType.Dataset]: CircleStackIcon,
-  [StatementType.Code]: CodeBracketSquareIcon,
-  [StatementType.Model]: ServerStackIcon,
-  [StatementType.Expectation]: AdjustmentsHorizontalIcon,
+export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
+  [StatementType.Tag]: TagIconOutline,
+  [StatementType.Task]: SparklesIconOutline,
+  [StatementType.Value]: TableCellsIconOutline,
+  [StatementType.Dataset]: CircleStackIconOutline,
+  [StatementType.Code]: CodeBracketSquareIconOutline,
+  [StatementType.Model]: ServerStackIconOutline,
+  [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
   [StatementType.Block]: QueueListIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
-export function getStatementIcon(type: StatementType, rootTypeTag?: TypeTag | null) {
+export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
+  [StatementType.Tag]: TagIconSolid,
+  [StatementType.Task]: SparklesIconSolid,
+  [StatementType.Value]: TableCellsIconSolid,
+  [StatementType.Dataset]: CircleStackIconSolid,
+  [StatementType.Code]: CodeBracketSquareIconSolid,
+  [StatementType.Model]: ServerStackIconSolid,
+  [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
+  [StatementType.Block]: QueueListIcon,
+  [StatementType.Reference]: ArrowUpRightIcon,
+};
+
+export function getStatementIconOutline(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
-    return RectangleGroupIcon;
+    return RectangleGroupIconOutline;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
     return PlayCircleIcon;
   } else {
-    return icons[type];
+    return STATEMENT_ICONS_OUTLINE[type];
+  }
+}
+
+export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag | null) {
+  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+    return RectangleGroupIconSolid;
+  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+    return PlayCircleIconSolid;
+  } else {
+    return STATEMENT_ICONS_SOLID[type];
   }
 }
