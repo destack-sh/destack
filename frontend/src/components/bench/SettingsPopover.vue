@@ -3,6 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
+import { VERSION } from "@/utils/globals";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { ArrowsPointingOutIcon, Bars3BottomLeftIcon, MapIcon, MoonIcon, WindowIcon } from "@heroicons/vue/24/outline";
 
@@ -37,8 +38,10 @@ const fontOptions = [
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute bottom-1 left-14 z-40 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute bottom-1 left-11 z-40 flex w-60 flex-col gap-2 rounded-sm bg-white px-2 py-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
+        <!-- Version -->
+        <span class="px-2 text-center text-xs text-gray-700">Bench {{ VERSION }}</span>
         <!-- Font style -->
         <div class="w-full px-2 pb-1">
           <!-- <span class="text-xs text-gray-500">Style</span> -->

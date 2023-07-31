@@ -245,9 +245,25 @@ useProjectSync(toRef(bench, "projectId"));
 
 // status
 const workerSet = sessions.workerSet;
-const hasStaleInflightStateOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
-const connectionHealthy = computed(() => WS_CONNECTED.value && !hasStaleInflightStateOps.value);
+const hasStaleInflightOps = computed(() => operationsStore.hasInflightLike({ stateless: false, stale: true }));
+const hasInflightOps = computed(() => operationsStore.hasInflightLike({ stateless: false }));
+const connectionHealthy = computed(() => WS_CONNECTED.value && !hasStaleInflightOps.value);
 const workerSetHealthy = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
+
+// prevent close if there are inflight ops
+// TODO @UX @Robustness: prompt if unsaved changes doesn't always work
+const confirmDiscardUnsaved = (e: Event) => {
+  if (hasInflightOps.value) {
+    e.preventDefault();
+    return "Your Bench has unsaved changes. Are you sure you want to leave?";
+  } else {
+    return undefined;
+  }
+};
+window.addEventListener("beforeunload", confirmDiscardUnsaved);
+onBeforeUnmount(() => {
+  document.body.removeEventListener("beforeunload", confirmDiscardUnsaved);
+});
 
 // routing
 const consideredUrl = ref(false);
@@ -572,8 +588,12 @@ onBeforeUnmount(() => {
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="group relative rounded-sm border-l-2 border-gray-50 px-3 py-2.5 text-gray-600 hover:bg-orange-100"
-              :class="view.id == activeView.id && bench.showViewContent ? 'border-orange-600 text-orange-600' : ''"
+              class="group relative border-l-2 border-gray-50 px-2 py-2 text-gray-600 hover:bg-orange-100"
+              :class="
+                view.id == activeView.id && bench.showViewContent
+                  ? 'border-orange-600 text-orange-600'
+                  : 'hover:border-orange-100'
+              "
               v-for="view in availableViews"
               :key="view.id"
               @click="toggleActiveView(view.id, true)"
@@ -593,8 +613,8 @@ onBeforeUnmount(() => {
           <component v-for="popover in sidebarPopovers" :key="popover.label" :is="popover.component">
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="group relative rounded-sm border-l-2 px-3 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
-                :class="open ? 'border-orange-600 text-orange-600' : ''"
+                class="group relative border-l-2 px-2 py-2 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
+                :class="open ? 'border-orange-600 text-orange-600' : 'hover:border-orange-100'"
               >
                 <span class="sr-only">{{ popover.label }}</span>
                 <component :is="popover.icon" class="h-6 w-6" aria-hidden="true" />
