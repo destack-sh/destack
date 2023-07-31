@@ -72,11 +72,6 @@ const commands = computed(() => {
       action: () => (context.morpthToSymbol({ type: StatementType.Task }), emit("morphed")),
     },
     {
-      label: "expectation",
-      description: "Specify desired behaviour.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
-    },
-    {
       label: "type",
       description: "A structure type with multiple fields.",
       action: () => (
@@ -87,11 +82,6 @@ const commands = computed(() => {
       label: "choice",
       description: "A choice type with multiple options.",
       action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
-    },
-    {
-      label: "value",
-      description: "A bit of configuration, secrets or flags.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
       label: "dataset",
@@ -106,6 +96,16 @@ const commands = computed(() => {
       action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
     },
     {
+      label: "flow",
+      description: "Pipe and connect code and tasks and triggers.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Flow }), emit("morphed")),
+    },
+    {
+      label: "value",
+      description: "A bit of configuration, secrets or flags.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
+    },
+    {
       label: "reference",
       description: "Reuse another statement.",
       action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
@@ -114,6 +114,11 @@ const commands = computed(() => {
       label: "block",
       description: "A group of related statements.",
       action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
+    },
+    {
+      label: "expectation",
+      description: "Tune desired behaviour.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
     },
   ];
 

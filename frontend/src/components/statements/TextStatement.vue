@@ -5,7 +5,7 @@ import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
 const editorRef = ref<InstanceType<typeof TiptapEditor> | null>(null);
@@ -33,7 +33,6 @@ function focus(position: "first" | "last" = "first") {
   const focusEnd = context.statement.value.revision < 0 || position == "last";
   // not sure why we need both, but acquiring focus doesn't always succeed otherwise
   editorRef.value?.focus(focusEnd);
-  nextTick(() => editorRef.value?.focus(focusEnd));
 }
 
 // morph back to blank if it's empty for smooth back and forth
@@ -67,6 +66,7 @@ defineExpose({
     @escape="context.escape"
     @enter-start="context.insertAbove"
     @enter="context.insertBelow"
+    @toggle-actions="emit('toggleActions')"
     @delete-start="context.deleteLeft"
     @delete-if-empty="context.deleteSelf"
     :focused="context.focused.value"

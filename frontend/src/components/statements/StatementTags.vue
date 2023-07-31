@@ -72,16 +72,16 @@ defineExpose({
     <button
       v-for="tagging in context.tags.value"
       :key="tagging.id"
-      class="flex flex-row rounded-xl bg-yellow-200 px-1 ring-1 ring-inset ring-orange-900 ring-opacity-0 hover:bg-yellow-300 hover:ring-opacity-60"
+      class="flex flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200"
       @click="deleteTagging(tagging)"
     >
-      <TagIconSolid class="mt-0.5 h-4 w-4 text-orange-900" />
+      <TagIconSolid class="mt-0.5 h-4 w-4" />
       <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
     <button
       v-if="!context.readonly.value"
-      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-yellow-200 hover:text-gray-700 group-hover/add:ring-1"
+      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-yellow-100 hover:text-gray-700 group-hover/add:ring-1"
       :class="
         context.focused.value
           ? ''

@@ -136,7 +136,7 @@ const statementInterface: Ref<StatementInterface> = computed(() => {
     return {
       component: TypeStatement,
     };
-  } else if (statement.value.type == StatementType.Task) {
+  } else if (statement.value.type == StatementType.Task || statement.value.type == StatementType.Flow) {
     return {
       component: TaskStatement,
       props: { isTyped: true },
@@ -566,6 +566,7 @@ defineExpose({
           v-bind="statementInterface.props"
           :folded="isContentFolded"
           @toggle-fold="toggleContentFold"
+          @toggleActions="showActionsPopover"
         />
       </div>
       <!-- Issues in right gutter -->

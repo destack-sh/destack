@@ -67,7 +67,7 @@ import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -942,6 +942,7 @@ defineExpose({
               :readonly="context.readonly.value"
               :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
               is-view
+              hide-outline
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"

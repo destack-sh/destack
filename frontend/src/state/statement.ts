@@ -29,6 +29,7 @@ import {
   SparklesIcon as SparklesIconOutline,
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
+  ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -40,6 +41,7 @@ import {
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   PlayCircleIcon as PlayCircleIconSolid,
+  ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -574,6 +576,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Value]: TableCellsIconOutline,
   [StatementType.Dataset]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
+  [StatementType.Flow]: ArrowPathRoundedSquareIconOutline,
   [StatementType.Model]: ServerStackIconOutline,
   [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
   [StatementType.Block]: QueueListIcon,
@@ -585,6 +588,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Value]: TableCellsIconSolid,
   [StatementType.Dataset]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
+  [StatementType.Flow]: ArrowPathRoundedSquareIconSolid,
   [StatementType.Model]: ServerStackIconSolid,
   [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
   [StatementType.Block]: QueueListIcon,

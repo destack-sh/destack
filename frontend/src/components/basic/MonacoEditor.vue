@@ -20,6 +20,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
   (e: "escape"): void;
   (e: "enter"): void;
+  (e: "toggleActions"): void;
   (e: "execute"): void;
 }>();
 
@@ -159,6 +160,7 @@ function initMonaco(monaco: Monaco) {
     editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
+    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("toggleActions"));
     editor.value.addCommand(monaco.KeyCode.Escape, () => {
       emit("escape");
       document.activeElement?.blur();

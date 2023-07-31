@@ -31,6 +31,7 @@ const props = defineProps<{
   tupleName?: string;
   isEnum?: boolean;
   isView?: boolean;
+  hideOutline?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
 }>();
@@ -278,7 +279,7 @@ defineExpose({
         <div
           ref="previewRef"
           class="flex max-w-full flex-row items-center rounded-sm text-left"
-          :class="[isEnum ? 'bg-stone-100 px-2' : '']"
+          :class="[isEnum || !hideOutline ? 'bg-stone-100 px-2 py-[1px] ring-1 ring-inset ring-stone-500/10' : '']"
         >
           <!-- :EnumStyle -->
           <svg

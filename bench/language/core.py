@@ -815,6 +815,7 @@ class StatementBase(abc.ABC):
     session: "Session"
     resolved_children: list["Statement"]
     _scopes_by_name: dict[str, Scope] | None
+    _names_by_py_ident: dict[str, str] | None
 
     def _clear(self) -> None:
         raise NotImplementedError

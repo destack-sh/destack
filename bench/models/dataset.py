@@ -93,4 +93,6 @@ class RecordRelation(UUIDModel):
         "Statement", on_delete=models.CASCADE, null=True, related_name="+"
     )
     run = models.ForeignKey("Run", on_delete=models.CASCADE, null=True, related_name="+")
+    remote_object = models.ForeignKey("RemoteObject", on_delete=models.CASCADE, null=True)
+    secret = models.ForeignKey("Secret", on_delete=models.CASCADE, null=True)
     path = models.CharField(max_length=128, null=True, blank=True)

@@ -29,7 +29,7 @@ import { getRunStatusColor } from "@/state/session";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
 const editor = useEditorContext();
@@ -279,6 +279,7 @@ defineExpose({
     @escape="context.escape"
     @enter="context.insertBelow"
     @execute="run"
+    @toggle-actions="emit('toggleActions')"
     language="python"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
