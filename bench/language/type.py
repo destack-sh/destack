@@ -454,6 +454,8 @@ class HasType(TypeBase, StatementBase):
         field_ = self.get_field(item)
         if field_ is not None:
             return field_
+        if item in self._names_by_py_ident:
+            item = self._names_by_py_ident.get(item)
         statement = self._scopes_by_name.get(item)
         if statement is not None:
             return statement

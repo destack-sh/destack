@@ -16,6 +16,7 @@ const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "escape"): void;
+  (e: "toggleActions"): void;
   (e: "enterStart"): void;
   (e: "deleteStart"): void;
   (e: "enter"): void;
@@ -29,8 +30,17 @@ const shortcutsExtension = Extension.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
+        // if at start
         if (editor.state.selection.$from.pos === 1) {
           emit("enterStart");
+          return true;
+        }
+        // if at end of a heading
+        if (
+          editor.state.selection.$from.parent.type.name === "heading" &&
+          editor.state.selection.$from.parentOffset === editor.state.selection.$from.parent.content.size
+        ) {
+          emit("enter");
           return true;
         }
         return false;
@@ -44,6 +54,10 @@ const shortcutsExtension = Extension.create({
       },
       "Shift-Enter": () => {
         emit("enter");
+        return true;
+      },
+      "Alt-Enter": () => {
+        emit("toggleActions");
         return true;
       },
       "Ctrl-Enter": () => {
@@ -80,7 +94,9 @@ function onKeyDown(event: KeyboardEvent) {
 
 const appearance = useAppearance();
 function getEditorClass(): string {
-  const classes = ["prose prose-h1:text-3xl prose-h2:text-xl  prose-a:text-gray-500 w-full"];
+  const classes = [
+    "prose prose-h1:text-3xl prose-h2:text-xl prose-h1:font-semibold prose-h2:font-semibold prose-h3:font-semibold prose-h4:font-semibold prose-a:text-gray-500 w-full",
+  ];
   if (appearance.fontMono) {
     classes.push("font-mono");
   }
@@ -159,9 +175,9 @@ defineExpose({
 <template>
   <div>
     <BubbleMenu
+      v-if="editor"
       :editor="editor"
       :tippy-options="{ duration: 100 }"
-      v-if="editor"
       class="z-20 flex flex-row gap-1 rounded-sm border border-orange-900 border-opacity-20 bg-white p-1"
     >
       <button

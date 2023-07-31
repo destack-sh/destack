@@ -18,7 +18,7 @@ import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const bench = useBenchState();
 const editor = useEditorContext();

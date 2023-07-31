@@ -15,7 +15,7 @@ import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);

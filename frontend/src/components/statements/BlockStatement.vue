@@ -6,7 +6,7 @@ import { useStatementContext } from "@/state/statement";
 import { ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const declarationRef = ref<InstanceType<typeof StatementDeclaration> | null>(null);
 const tagsRef = ref<InstanceType<typeof StatementTags> | null>(null);

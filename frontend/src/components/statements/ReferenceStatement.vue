@@ -15,7 +15,7 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { onStartTyping, useKeyModifier } from "@vueuse/core";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 const context = useStatementContext();
 const module = useCurrentModule();
 const ops = useOperations();

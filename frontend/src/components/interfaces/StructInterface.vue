@@ -12,6 +12,7 @@ type StructAppearance = {
   minRowHeight?: number;
   maxRowHeight?: number;
   rowPadding?: number;
+  hideFieldOutline?: boolean;
 };
 
 const DEFAULT_APPEARANCE = {
@@ -19,6 +20,7 @@ const DEFAULT_APPEARANCE = {
   minRowHeight: 32, // incl. padding
   maxRowHeight: 220,
   rowPadding: 4,
+  hideFieldOutline: true,
 };
 
 const props = defineProps<{
@@ -120,6 +122,7 @@ defineExpose({
           :readonly="(readonly ?? false) || (readonlyType ?? false)"
           orientation="vertical"
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+          :hide-outline="appearance.hideFieldOutline"
           :model-value="field"
           @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key })"
           @delete-self="emit('delete:field', field)"
