@@ -1,11 +1,11 @@
 <script lang="ts" setup>
-import type { IssueContentFragment } from "@/gql/graphql";
+import { IssueKind, type IssueContentFragment } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { FaceSmileIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { XCircleIcon } from "@heroicons/vue/24/solid";
+import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 
 const appearance = useAppearance();
 const module = useCurrentModule();
@@ -49,8 +49,17 @@ function focusIssue(issue: IssueContentFragment) {
         <div v-else-if="issue.file != null" class="px-3">
           <span class="pl-1 text-gray-900">{{ module.pathOf(issue.file) }}</span>
         </div>
-        <span class="flex flex-row gap-1 px-3 text-red-600">
-          <XCircleIcon class="mt-0.5 h-4 w-4" />
+        <span
+          class="flex flex-row gap-1 px-3"
+          :class="{
+            'text-orange-600': issue.kind == IssueKind.Error,
+            'text-yellow-600': issue.kind == IssueKind.Warning,
+          }"
+        >
+          <component
+            :is="issue.kind == IssueKind.Error ? XCircleIcon : ExclamationTriangleIcon"
+            class="mt-0.5 h-4 w-4"
+          />
           <span>{{ issue.message }}</span>
         </span>
       </li>

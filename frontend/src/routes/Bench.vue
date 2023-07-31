@@ -17,7 +17,7 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { WorkerSetStatus } from "@/gql/graphql";
+import { IssueKind, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
@@ -41,8 +41,8 @@ import {
   Cog8ToothIcon,
   CubeIcon,
   DocumentDuplicateIcon,
-  ExclamationTriangleIcon,
   QuestionMarkCircleIcon,
+  ExclamationTriangleIcon as ExclamationTriangleIconOutline,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { useElementSize, useTitle } from "@vueuse/core";
@@ -66,6 +66,7 @@ import {
   SignalIcon,
   SignalSlashIcon,
   XCircleIcon,
+  ExclamationTriangleIcon as ExclamationTriangleIconSolid,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
@@ -88,7 +89,7 @@ type View = {
 const allViews: Ref<View[]> = computed(() => [
   { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, view: ViewExplorer, enabled: true },
   { id: "history", label: "History", icon: ClockIcon, view: ViewHistory, enabled: true },
-  { id: "issues", label: "Issues", icon: ExclamationTriangleIcon, view: ViewIssues, enabled: true },
+  { id: "issues", label: "Issues", icon: ExclamationTriangleIconOutline, view: ViewIssues, enabled: true },
   { id: "environment", label: "Environment", icon: CubeIcon, view: ViewEnvironment, enabled: true },
 ]);
 const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
@@ -482,14 +483,23 @@ onBeforeUnmount(() => {
         <!-- Comments, issues -->
         <div class="ml-1.5 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
           <FadeTransition appear>
-            <!-- Errors -->
+            <!-- Warnings -->
             <button
               class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-              v-if="module.issues.value?.length || 0 > 0"
+              v-if="module.errors.value?.length || 0 > 0"
               @click="toggleActiveView('issues', true)"
             >
               <XCircleIcon class="h-5 w-5 text-red-600" />
-              <span class="text-sm font-semibold text-gray-700">{{ module.issues.value?.length }}</span>
+              <span class="text-sm font-semibold text-gray-700">{{ module.errors.value?.length }}</span>
+            </button>
+            <!-- Errors -->
+            <button
+              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+              v-if="module.warnings.value?.length || 0 > 0"
+              @click="toggleActiveView('issues', true)"
+            >
+              <ExclamationTriangleIconSolid class="h-5 w-5 text-yellow-600" />
+              <span class="text-sm font-semibold text-gray-700">{{ module.warnings.value?.length }}</span>
             </button>
           </FadeTransition>
         </div>

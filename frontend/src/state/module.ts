@@ -1,5 +1,11 @@
 import { graphql, useFragment } from "@/gql";
-import { StatementType, TypeTag, type InterpFileFragment, type InterpStatementFragment } from "@/gql/graphql";
+import {
+  StatementType,
+  TypeTag,
+  type InterpFileFragment,
+  type InterpStatementFragment,
+  IssueKind,
+} from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
 import { FieldType, InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
@@ -134,6 +140,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
 
   const { loading, module, idx, issues } = _useModuleFlat(projectVersionId);
+
+  const errors = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Error));
+  const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
 
   // TODO @Performance: cache symbolx lib (and other default module dependencies)
   // TODO @Broken: don't hardcode symbolx.lib id
@@ -337,6 +346,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     name: computed(() => module.value?.projectVersion?.project.name),
     path: computed(() => module.value?.projectVersion?.project.path),
     issues,
+    errors,
+    warnings,
     idx,
     symbolxLib,
     dependenciesIndex,

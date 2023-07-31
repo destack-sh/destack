@@ -352,13 +352,25 @@ class HasType(TypeBase, StatementBase):
     resolved_fields: list[Field | ResolvedField] | None = None
     key: str = None
     reference = None
+    _fields_by_ident: dict[str, Field] | None = None
 
     def _clear(self) -> None:
         self.resolved_fields = None
+        self._fields_by_ident = None
 
     def _interp(self, scope: Scope) -> None:
         # sort fields by order key
         self.fields.sort(key=lambda f: f.order_key)
+
+        # index fields
+        self._fields_by_ident = {}
+        for field_ in self.fields:
+            if field_.py_ident in self._fields_by_ident:
+                self._on_issue(
+                    type=IssueType.AMBIGUOUS_DEFINITION, subject=self, path=field_.py_ident
+                )
+                continue
+            self._fields_by_ident[field_.py_ident] = field_
 
         # resolve references
         for n in self.walk_type():
@@ -518,8 +530,6 @@ class Type(HasType, HasTags, Statement):
     # not directly configurable for types
     hint = None
     reference = None
-    _fields_by_ident: dict[str, Field] | None = None
-    _fields_by_key: dict[str, Field] | None = None
 
     @cached_property
     def py_type(self) -> type | enum.Enum:
@@ -528,16 +538,9 @@ class Type(HasType, HasTags, Statement):
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
-        self._fields_by_ident = None
-        self._fields_by_key = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
-        self._fields_by_ident = {}
-        self._fields_by_key = {}
-        for field_ in self.fields:
-            self._fields_by_ident[field_.py_ident] = field_
-            self._fields_by_key[field_.key] = field_
 
     def __call__(self, *args, **kwargs):
         return self.py_type(*args, **kwargs)
