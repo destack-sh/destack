@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { getStatementIcon, useStatementContext } from "@/state/statement";
+import { getStatementIconSolid, useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
 import { useEditorContext, type StatementHeader } from "@/state/bench";
@@ -20,7 +20,7 @@ context.syncName(
   computed(() => nameRef.value?.focused)
 );
 const hasName = computed(() => name.value.trim().length > 0);
-const icon = computed(() => getStatementIcon(context.statement.value.type, context.statement.value.rootTypeTag));
+const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
 
 const altKey = useKeyModifier("Alt");
 const editor = useEditorContext();

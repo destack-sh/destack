@@ -72,16 +72,16 @@ defineExpose({
     <button
       v-for="tagging in context.tags.value"
       :key="tagging.id"
-      class="flex flex-row rounded-xl bg-yellow-100 px-1 ring-1 ring-inset ring-orange-600 ring-opacity-0 hover:bg-yellow-200 hover:ring-opacity-60"
+      class="flex flex-row rounded-xl bg-yellow-200 px-1 ring-1 ring-inset ring-orange-900 ring-opacity-0 hover:bg-yellow-300 hover:ring-opacity-60"
       @click="deleteTagging(tagging)"
     >
-      <TagIconOutline class="mt-0.5 h-4 w-4 text-orange-600" />
-      <span class="ml-0.5 text-orange-600">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
+      <TagIconSolid class="mt-0.5 h-4 w-4 text-orange-900" />
+      <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
     <button
       v-if="!context.readonly.value"
-      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-yellow-100 hover:text-gray-700 group-hover/add:ring-1"
+      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-yellow-200 hover:text-gray-700 group-hover/add:ring-1"
       :class="
         context.focused.value
           ? ''
@@ -136,14 +136,14 @@ defineExpose({
               :class="[
                 'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
                 active ? 'bg-orange-100' : '',
-                selected ? 'text-orange-600' : '',
+                selected ? 'text-orange-900' : '',
               ]"
             >
               <!-- Tag path -->
               <div class="flex items-baseline justify-between">
                 <span class="flex flex-row items-center">
-                  <TagIconOutline class="h-4 w-4 text-orange-600" />
-                  <span class="ml-1 font-semibold text-orange-600">{{ tag.name }}</span>
+                  <TagIconSolid class="h-4 w-4 text-orange-900" />
+                  <span class="ml-1 font-semibold text-orange-900">{{ tag.name }}</span>
                 </span>
                 <!-- Source -->
                 <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">(builtin)</span>
