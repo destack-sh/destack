@@ -24,6 +24,8 @@ class IssueType(enum.StrEnum):
     CIRCULAR_UNION = "CIRCULAR_UNION"
     MISMATCHED_UNION = "MISMATCHED_UNION"
     # warnings
+    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
+    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
     AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
 
     @property
@@ -40,6 +42,8 @@ _ISSUE_MESSAGES = {
     IssueType.CIRCULAR_UNION.value: "circular union via {path}",
     IssueType.MISMATCHED_UNION.value: "mismatched union at {subject} vs {other}",
     # warnings
+    IssueType.CODE_NOT_EXPORTABLE.value: "{subject} is not exportable",
+    IssueType.CODE_REFERENCE_NOT_EXPORTED.value: "{path} is not exported",
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
 }
 
@@ -53,6 +57,8 @@ _ISSUE_KIND_BY_TYPE = {
     IssueType.MISMATCHED_UNION.value: IssueKind.ERROR,
     # warnings
     IssueType.AMBIGUOUS_DEFINITION: IssueKind.WARNING,
+    IssueType.CODE_NOT_EXPORTABLE: IssueKind.WARNING,
+    IssueType.CODE_REFERENCE_NOT_EXPORTED: IssueKind.WARNING,
 }
 
 
@@ -74,7 +80,13 @@ class Issue:
     def __init__(
         self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
     ):
-        from bench.language.core import File, InterpScope, Statement, StatementPath
+        from bench.language.core import (
+            File,
+            InterpScope,
+            Statement,
+            StatementPath,
+            statement_path_as_str,
+        )
 
         # auto convert kwargs
         for key, value in kwargs.items():

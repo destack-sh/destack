@@ -107,7 +107,7 @@ const { getTimeFromNowString } = useTimeFromNow();
     <PopoverButton
       class="rounded-sm p-1 text-sm outline-none transition-colors"
       :class="{
-        'text-gray-500 hover:bg-orange-100': !hasUnreadNotifications,
+        'text-gray-400 hover:bg-orange-100': !hasUnreadNotifications,
         'text-orange-600 hover:bg-orange-100': hasUnreadNotifications,
         'bg-orange-100': open,
       }"

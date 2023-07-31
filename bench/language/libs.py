@@ -101,6 +101,13 @@ def transcribe(audio: RemoteObject) -> TranscriptionOutput:
     raise UnreachableError()  # stub
 
 
+@x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)
+class Export:
+    # this should be further up but order_keys are assigned in order of definition
+    # and there is no conflict resolution for that yet
+    pass
+
+
 @x_enum("JsonSchemaElementType", "The type of a JSON Schema element", file=_symbolx_utils)
 class JsonSchemaElementType(enum.StrEnum):
     string = "string"
