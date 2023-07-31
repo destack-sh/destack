@@ -36,7 +36,12 @@ class Command(BaseCommand):
         elif action == "delete":
             if slug == "all":
                 for project in models.Project.objects.all():
-                    os_client.indices.delete(index=IndexType.BENCH.get_index_name(project.id))
+                    try:
+                        logger.info("opensearch.delete", project=project)
+                        os_client.indices.delete(index=IndexType.BENCH.get_index_name(project.id))
+                    except Exception as e:
+                        logger.error("opensearch.delete.error", project=project, error=e)
             else:
                 project = self.get_project(slug)
+                logger.info("opensearch.delete", project=project)
                 os_client.indices.delete(index=IndexType.BENCH.get_index_name(project.id))

@@ -131,8 +131,9 @@ register_mapper(
     hints=[TypeHint.NAME, TypeHint.EMAIL],
 )
 register_mapper(os.Field(os.FT.KEYWORD), hints=[TypeHint.UUID, TypeHint.KEY])
+register_mapper(os.Field(os.FT.DATE), hints=[TypeHint.DATE, TypeHint.DATETIME])
 # number
-register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER])
+register_mapper(os.Field(os.FT.DOUBLE), tags=[TypeTag.NUMBER], hints=[TypeHint.DURATION])
 register_mapper(os.Field(os.FT.LONG), hints=[TypeHint.INTEGER])
 # boolean
 register_mapper(os.Field(os.FT.BOOLEAN), tags=[TypeTag.BOOLEAN])

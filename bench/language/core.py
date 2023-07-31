@@ -1020,6 +1020,7 @@ class Session:
                 mutations_str = str(mutations)
             raise RuntimeError(f"failed to write {len(mutations)} mutations {mutations_str}")
         logger.debug("session.flush.done", session=self, mutator=self.mutator)
+        return success
 
     async def aflush(self, optimistic: bool = False):
         """

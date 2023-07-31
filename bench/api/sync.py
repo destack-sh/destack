@@ -135,7 +135,8 @@ def tracked_os_mutation(
     """
     A module out-of-DB mutations that uses OpenSearch as the source of truth.
     Does NOT handle auth, revision bumping or mutation pub. To be used as a decorator.
-    Currently only used for Record mutations.
+    Currently only used for Record mutations, will need to consolidate/remove this
+    when we put records into the DB (again) for :DbRecord
     """
 
     def make_resolver(func):
