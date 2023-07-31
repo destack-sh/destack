@@ -17,7 +17,7 @@ from bench.language.mutate import MMT
 
 if TYPE_CHECKING:
     from bench.api.interp import Issue
-    from bench.api.project import ProjectVersion, RefMappingKind
+    from bench.api.project import ProjectVersion
     from bench.api.statement import Statement
 
 
@@ -130,6 +130,8 @@ class FileMutation:
 
     @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_auth_check=True)
     def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
+        from bench.models import RefMappingKind
+
         # get and check source/target
         source_file = models.File.objects.get(id=input.source_id.node_id)
         check_can_read_project(info, source_file)

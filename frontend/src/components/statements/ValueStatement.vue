@@ -124,7 +124,7 @@ defineExpose({
         <TypedStatementDeclaration
           ref="declarationRef"
           @navigate-up="context.navigateUp"
-          @navigate-down="gridRef?.focus"
+          @navigate-down="context.fields.value.length > 0 ? gridRef?.focus('first') : addFieldRef?.focus()"
         />
         <StatementTags ref="tagsRef" class="ml-1.5" />
       </div>
