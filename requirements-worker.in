@@ -71,4 +71,6 @@ unstructured==0.6.6
 uvicorn==0.23.1
 watchdog==3.0.0
 wikipedia-api==0.6.0
+linkedin_scraper==2.11.2
+PyGithub==1.59.0
 yarl==1.8.1
