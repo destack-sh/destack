@@ -97,7 +97,8 @@ defineExpose({
       <span class="text rounded-sm font-mono">
         <component
           :is="getStatementIconSolid(ordered.statement.type, ordered.statement.rootTypeTag)"
-          class="mt-0.5 h-4 w-4 text-gray-400"
+          class="mt-0.5 h-4 w-4"
+          :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
       <span class="">{{ getStatementName(ordered.statement) }}</span>

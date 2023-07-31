@@ -11,7 +11,7 @@ import TextStatement from "@/components/statements/TextStatement.vue";
 import TypeStatement from "@/components/statements/TypeStatement.vue";
 import ValueStatement from "@/components/statements/ValueStatement.vue";
 import { useFragment, type FragmentType } from "@/gql";
-import { StatementType } from "@/gql/graphql";
+import { IssueKind, StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -37,7 +37,7 @@ import {
   Square2StackIcon,
   TrashIcon,
 } from "@heroicons/vue/24/outline";
-import { XCircleIcon } from "@heroicons/vue/24/solid";
+import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
@@ -423,6 +423,7 @@ function showActionsPopover() {
 // runtime
 const issues = module.localIssuesOf(statement);
 const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
+const hasErrors = computed(() => issues.value?.find((i) => i.kind == IssueKind.Error));
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
@@ -567,33 +568,38 @@ defineExpose({
           @toggle-fold="toggleContentFold"
         />
       </div>
-      <!-- Gutter indicators on the right margin -->
+      <!-- Issues in right gutter -->
       <div
-        class="absolute left-full top-[6px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
+        class="group/issues absolute left-full top-[5px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,
           'text-sm': bench.textSmall,
         }"
       >
-        <!-- Issues -->
-        <div class="group/issues">
-          <!-- Errors -->
-          <button
-            v-if="hasIssues"
-            class="flex rounded-sm font-bold text-red-600 underline-offset-4 hover:bg-red-100 hover:text-red-800"
-            @click="actions.apply('bench.view.openIssues')"
+        <button
+          class="flex rounded-sm p-0.5 font-bold text-red-600 underline-offset-4 transition duration-75 hover:bg-orange-100"
+          :class="[hasIssues ? 'opacity-100' : 'opacity-0']"
+          @click="actions.apply('bench.view.openIssues')"
+        >
+          <XCircleIcon v-if="hasErrors" class="h-5 w-5 text-red-600" />
+          <ExclamationTriangleIcon v-else class="h-5 w-5 text-yellow-600" />
+        </button>
+        <!-- Preview on hover -->
+        <div
+          v-if="hasIssues"
+          class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+        >
+          <span
+            v-for="issue in issues"
+            :key="issue.id"
+            class="text-xs"
+            :class="{
+              'text-red-600': issue.kind == IssueKind.Error,
+              'text-yellow-600': issue.kind == IssueKind.Warning,
+            }"
           >
-            <XCircleIcon class="h-5 w-5" />
-          </button>
-          <!-- Preview on hover -->
-          <div
-            v-if="hasIssues"
-            class="invisible absolute right-0 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
-          >
-            <span v-for="issue in issues" :key="issue.id" class="text-xs text-red-600">
-              {{ issue.message }}
-            </span>
-          </div>
+            {{ issue.message }}
+          </span>
         </div>
       </div>
     </div>
