@@ -583,7 +583,8 @@ def check_type(
 ):
     """
     Checks whether the given value has the expected type (recursively).
-    Raises TypeError if not at the first issue.
+    Raises TypeError if not.
+    TODO @Cleanup: move/merge check_type into TypeMapping constructs (incl. coercion)
     """
 
     _suberrors = []
@@ -627,6 +628,8 @@ def check_type(
             )
     elif expected.flags & TypeFlag.IsSecret:
         _check(isinstance(value, Secret), "expected secret")
+    elif expected.hint == TypeHint.DATETIME:
+        _check(isinstance(value, datetime), "expected datetime")
     elif expected.effective_tag == TypeTag.STRING:
         _check(isinstance(value, str), "expected string")
     elif expected.effective_tag == TypeTag.NUMBER:
@@ -648,15 +651,17 @@ def check_type(
             for f in expected.resolved_fields or expected.fields:
                 if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                     continue
-                alt_name = to_pyidentifier(f.name, IdentifierType.VARIABLE)
                 if is_dataclass:
-                    subvalue = getattr(value, f.py_ident, getattr(value, alt_name))
+                    subvalue = getattr(value, f.py_ident)
                 else:
-                    subvalue = value.get(f.name, value.get(alt_name))
+                    subvalue = value.get(f.name, value.get(f.py_ident))
                 if subvalue is None:
                     _check(bool(f.flags & TypeFlag.IsOptional), "expected required value")
                 else:
                     check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
+            for key in value.keys():
+                if not expected.has_field(key):
+                    _check(False, f"extraneous field {key}")
     elif expected.effective_tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.effective_tag == TypeTag.UNION:

@@ -1068,7 +1068,7 @@ def write_mutations(
 
     for mmt, batch in mut.batched_apply(module, module_data):
         if mmt.mot == MOT.RECORD:
-            continue  # stored in OpenSearch only (for now) (see below)
+            continue  # stored in OpenSearch only (for now) (see below) :DbRecord
         elif mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]

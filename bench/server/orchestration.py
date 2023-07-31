@@ -38,6 +38,7 @@ from bench.utils.uuidt import UUIDT
 logger = structlog.get_logger(__name__)
 
 WORKER_SET_IDLE_SLEEP_TIME = 10 * 60  # 10 minutes
+WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 
 class OrchestrationServer(Monitored):
@@ -147,6 +148,7 @@ class OrchestrationServer(Monitored):
                 worker_set.status = (
                     WorkerSetStatus.SLEEPING if worker_set.sleeping else WorkerSetStatus.HEALTHY
                 )
+            await self._save_and_notify_worker_sets(worker_sets)
 
     async def _save_and_notify_worker_sets(self, worker_sets: Collection[models.WorkerSet]) -> None:
         logger.debug("worker_sets.save_and_notify", worker_sets=worker_sets)
@@ -354,6 +356,7 @@ class OrchestrationServer(Monitored):
                         project_id=msg.p.project_id, worker_set_id=worker_set.id
                     ),
                     reply_t=RepDoRestartWorkerNodePayload,
+                    timeout=WORKER_SET_GENTLE_RESTART_TIMEOUT,
                 )
                 success = rep.p.success
                 logger.info("worker_sets.restart.done", msg=msg, worker_set=worker_set)

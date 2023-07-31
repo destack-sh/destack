@@ -66,7 +66,7 @@ class DatasetViewField(UUIDModel, CrudModel, ModuleNode):
 
 class Record(UUIDModel, CrudModel, ModuleNode, Revisioned):
     """
-    A record in a dataset (may be untethered if the dataset is not versioned).
+    A record in a dataset (may be untethered if the dataset is not versioned). Currently unused :DbRecord
     We may choose not to store the actual record value here later, but for now it's convenient.
     """
 

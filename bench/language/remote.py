@@ -14,6 +14,7 @@ from asgiref.sync import async_to_sync
 
 from bench.language.const import RemoteObjectStatus
 from bench.language.core import HasSession, Module, Session, node
+from bench.utils.func import did_you_mean_str
 from bench.utils.utils import required_field
 
 logger = structlog.get_logger(__name__)
@@ -252,10 +253,17 @@ class Secret(HasSession, typing.Generic[SecretValueT]):
     value: Optional[SecretValueT] = None
 
     def __str__(self):
-        return f"{self.id} ({self.sha512})"
+        return f"{self.id} ({self.sha512[:8]})"
 
     def __repr__(self):
         return f"<Secret {self}>"
+
+    def __getattr__(self, item):
+        try:
+            return self.__getattribute__(item)
+        except AttributeError:
+            did_you_mean = did_you_mean_str({"reveal": self.reveal, "areveal": self.areveal}, item)
+            raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
     async def areveal(self) -> SecretValueT:
         if self.value is not None:

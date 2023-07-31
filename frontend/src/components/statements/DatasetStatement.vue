@@ -516,7 +516,7 @@ function duplicateField(fieldId: string) {
   }
 }
 
-function updateFieldType(key: string, changed: Field) {
+function updateField(key: string, changed: Field) {
   // we use key instead of id here because of the module.runtimeTypeOf hack (has different id, see above)
   // note: this was changed, not sure if it's still needed
   const old = context.fields.value.find((n) => n.key == key);
@@ -945,7 +945,7 @@ defineExpose({
               orientation="horizontal"
               class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :model-value="field"
-              @update:model-value="(node: any) => updateFieldType(field.key, node)"
+              @update:model-value="(node: any) => updateField(field.key, node)"
               @navigate-left="grid.navigateLeft('', field.key as string)"
               @navigate-right="grid.navigateRight('', field.key as string)"
               @navigate-up="grid.navigateUp('', field.key as string)"
