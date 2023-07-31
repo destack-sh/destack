@@ -263,7 +263,7 @@ class RunCodeFrame:
                     frame.line = code._transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - code._transform.start_offset
                     frame.locals = frame.locals or {}
-                    for ident, var in code._references.items():
+                    for ident, var in code._statement_references.items():
                         if ident not in frame.locals and var.id in session.instances:
                             frame.locals[ident] = repr(session.instances[var.id])
             if found_start:

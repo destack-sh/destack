@@ -413,6 +413,8 @@ export enum IssueType {
   AmbiguousDefinition = "AMBIGUOUS_DEFINITION",
   CircularAncestry = "CIRCULAR_ANCESTRY",
   CircularUnion = "CIRCULAR_UNION",
+  CodeNotExportable = "CODE_NOT_EXPORTABLE",
+  CodeReferenceNotExported = "CODE_REFERENCE_NOT_EXPORTED",
   Internal = "INTERNAL",
   MismatchedUnion = "MISMATCHED_UNION",
   MissingReference = "MISSING_REFERENCE",

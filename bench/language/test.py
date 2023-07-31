@@ -60,6 +60,7 @@ def test_extract_code_references_imported():
 from x.symbolx.lib.nlp import EntityType
 from x.notion.sdk import Client as NotionClient
 from .x.cooking import Recipe, Ingredient, notion_recipes
+from .utils import test_utils
 print(bananas)
 """,
     )
@@ -70,6 +71,7 @@ print(bananas)
         "Ingredient": StatementPath(".cooking", "Ingredient"),
         "notion_recipes": StatementPath(".cooking", "notion_recipes"),
         "bananas": StatementPath(".", "bananas"),
+        "test_utils": StatementPath(".utils", "test_utils"),
     }
     assert not analysis.is_async
 
