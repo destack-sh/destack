@@ -4,7 +4,7 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { makeField, useStatementContext } from "@/state/statement";
-import type { Field } from "@/gql/graphql";
+import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
@@ -160,6 +160,8 @@ defineExpose({
           :model-value="readColumn(field as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('input', field.id, 'type', val)"
           :readonly="context.readonly.value"
+          :ref-types="[TypeTag.Struct, TypeTag.Enum]"
+          :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
           tuple-name="input"
           @navigate-left="inputGrid.navigateLeft(field.id, 'type')"
           @navigate-right="inputGrid.navigateRight(field.id, 'type')"
@@ -205,6 +207,7 @@ defineExpose({
           :model-value="readColumn(field as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', field.id, 'type', val)"
           :readonly="context.readonly.value"
+          :ref-types="[TypeTag.Struct, TypeTag.Enum]"
           :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
           tuple-name="output"
           @navigate-left="outputGrid.navigateLeft(field.id, 'type')"

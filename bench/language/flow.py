@@ -12,16 +12,9 @@ from bench.language.core import (
     StatementBase,
     node,
 )
-from bench.language.type import HasTags, HasType, IssueType
+from bench.language.type import HasTags, HasType, IssueType, Mapping
 from bench.language.utils import Runnable
 from bench.utils.utils import required_field
-
-
-@node
-class Mapping:
-    """Mapping fields for runnables (or other keyed connections)."""
-
-    connected_keys: Optional[list[tuple[str, str]]] = None
 
 
 @node
@@ -30,7 +23,7 @@ class Trigger(ModuleNode, HasCrud, HasSession):
 
     type: TriggerType = required_field()
     active: bool = True
-    mapping: Optional[list[tuple[str, str]]] = None
+    mapping: Optional[Mapping] = None
     timezone: Optional[str] = None
     cron: Optional[str] = None
     runnable: Union[Runnable, UUID, None] = None

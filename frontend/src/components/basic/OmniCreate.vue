@@ -2,7 +2,8 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActions } from "@/state/actions";
 import { Menu, MenuButton, MenuItem, MenuItems } from "@headlessui/vue";
-import { DocumentPlusIcon, PlusIcon, SparklesIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { DocumentPlusIcon, SparklesIcon, UserGroupIcon } from "@heroicons/vue/24/outline";
+import { PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const actions = useActions();
@@ -35,11 +36,11 @@ const addables = computed(() =>
       class="flex items-center p-1 text-left hover:bg-orange-100 focus:bg-gray-100 focus:outline-none"
       :class="{ 'bg-orange-100': open }"
     >
-      <PlusIcon class="h-5 w-5 text-orange-600" />
+      <PlusCircleIcon class="h-5 w-5 text-orange-600" />
     </MenuButton>
     <FadeTransition>
       <MenuItems
-        class="absolute right-1 top-12 z-30 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute right-1 top-10 z-30 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <MenuItem v-for="item in addables" :key="item.name" v-slot="{ active }">
           <router-link

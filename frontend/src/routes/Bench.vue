@@ -35,7 +35,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
-import { ClockIcon as ClockIconSolid } from "@heroicons/vue/20/solid";
+import { ClockIcon as ClockIconSolid } from "@heroicons/vue/24/outline";
 import {
   ClockIcon,
   Cog8ToothIcon,
@@ -69,7 +69,7 @@ import {
   ExclamationTriangleIcon as ExclamationTriangleIconSolid,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
-import ActiveRunsPopover from "@/components/bench/ActiveRunsPopover.vue";
+import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{
@@ -545,7 +545,7 @@ onBeforeUnmount(() => {
               @click="toggleActiveView('environment', true)"
               v-show="!workerSetHealthy"
             >
-              <CubeIconSolid class="h-5 w-5" />
+              <CubeIcon class="h-5 w-5" />
             </span>
           </FadeTransition>
         </div>
@@ -554,10 +554,9 @@ onBeforeUnmount(() => {
       <!-- Right side: controls & profile -->
       <template v-slot:right>
         <!-- Bench-global controls -->
-        <ActiveRunsPopover />
         <FadeTransition>
-          <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2 pl-4">
-            <!-- <DeployPopover :project="project" @show="bench.showGlobalHeader = true" /> -->
+          <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
+            <CurrentRunsPopover />
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />
           </div>

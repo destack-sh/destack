@@ -6,7 +6,7 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { StopIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
 
@@ -24,15 +24,15 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
 <template>
   <Popover v-slot="{ open }" class="relative">
     <PopoverButton
-      v-if="activeRuns.length > 0"
       ref="deployButtonRef"
-      class="relative flex flex-row items-center rounded-sm px-2 py-1 text-sm focus:outline-none"
+      class="relative flex flex-row items-center rounded-sm px-1 py-1 text-sm focus:outline-none"
       :class="{
         'hover:bg-orange-100': true,
         'bg-orange-100': open,
       }"
     >
-      <BusySpinnerIcon class="h-4 w-4 animate-spin" />
+      <BusySpinnerIcon v-if="activeRuns.length > 0" class="h-5 w-5 animate-spin text-gray-700" />
+      <PlayIcon v-else class="h-5 w-5 text-orange-600" />
       <span class="ml-1 text-gray-900" v-if="activeRuns.length > 0">
         {{ module.statementOf(activeRunsAsc[0].runnable?.id)?.name }}
       </span>
@@ -43,7 +43,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       <PopoverPanel
         class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
-        <h2 class="font-bold text-gray-900">Active runs</h2>
+        <h2 class="font-bold text-gray-900">Current runs</h2>
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
           <div v-for="run in activeRunsDesc" :key="run.id" class="flex flex-row justify-between gap-1 py-0.5">
             <span class="flex flex-row items-center">

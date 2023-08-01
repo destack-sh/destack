@@ -1,16 +1,12 @@
 <script lang="ts" setup>
 import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
 import Statement from "@/components/editors/Statement.vue";
-import TitleBanner from "@/components/editors/TitleBanner.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
-import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementEditor } from "@/state/bench";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
-import { useOperations } from "@/state/operations";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -20,10 +16,7 @@ const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const appearance = useAppearance();
-const actions = useActions();
 const editor = computed(() => props.editor.editor.value);
-const now = useTimeFromNow();
-const ops = useOperations();
 
 // statement state
 
@@ -73,7 +66,7 @@ watch(
   <div class="overflow-x-hidden bg-white">
     <FixedInlineHeader
       :thing="statement"
-      :actions="[]"
+      :actions="statementComponentRef?.allActions ?? []"
       :editing="false /* not sure */"
       :readonly="bench.readonly"
       :path="editor.path"
