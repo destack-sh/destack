@@ -7,8 +7,9 @@ import { makeField, useStatementContext } from "@/state/statement";
 import type { Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
-import { ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
+import { useEditorContext } from "@/state/bench";
 
 const context = useStatementContext();
 
@@ -48,6 +49,8 @@ const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
 const createInputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const addOutputRef: Ref<HTMLButtonElement | null> = ref(null);
 const createOutputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
+const editor = useEditorContext();
+const isHorizontal = computed(() => editor.size.value.width > 700);
 
 function readColumn(member: Field, column: ColumnType) {
   if (column == "type") {
@@ -148,9 +151,9 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex w-full flex-row flex-wrap items-start gap-4">
+  <div class="flex w-full" :class="isHorizontal ? 'flex-row items-start gap-4' : 'flex-col items-start gap-2'">
     <!-- Inputs -->
-    <div class="-mx-1 flex h-fit w-fit flex-1 flex-col gap-0.5">
+    <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
       <template v-for="member of inputNodes" :key="member.id">
         <FieldInterface
           :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
@@ -188,10 +191,13 @@ defineExpose({
       </button>
     </div>
     <!-- Lil' arrow -->
-    <ArrowLongRightIcon class="mt-1 h-5 w-5 text-gray-700" />
+    <component
+      :is="isHorizontal ? ArrowLongRightIcon : ArrowLongDownIcon"
+      class="mt-1 h-5 w-5 self-center text-gray-700"
+    />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication -->
-    <div class="-mx-1 flex h-fit w-fit flex-1 flex-col gap-0.5">
+    <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
       <template v-for="member of outputNodes" :key="member.id">
         <FieldInterface
           :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"

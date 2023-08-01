@@ -139,7 +139,12 @@ class Model(HasType, HasTags, IsFlowable, Runnable, Statement):
                 timeout = timeout if timeout is not None else self.session.inference_timeout
                 outputs = await asyncio.wait_for(
                     asyncio.shield(
-                        self._inference(inputs, cache_subkey, log, write_to_cache=cache)
+                        self._inference(
+                            inputs=inputs,
+                            cache_subkey=cache_subkey,
+                            log=log,
+                            cache=self.cache if cache else None,
+                        )
                     ),
                     timeout,
                 )

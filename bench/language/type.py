@@ -661,9 +661,10 @@ def check_type(
                     _check(bool(f.flags & TypeFlag.IsOptional), "expected required value")
                 else:
                     check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
-            for key in value.keys():
-                if not expected.has_field(key):
-                    _check(False, f"extraneous field {key}")
+            if isinstance(value, Mapping):
+                for key in value.keys():
+                    if not expected.has_field(key):
+                        _check(False, f"extraneous field {key}")
     elif expected.effective_tag in (TypeTag.FILE,):
         _check(isinstance(value, RemoteObject), "expected remote object")
     elif expected.effective_tag == TypeTag.UNION:

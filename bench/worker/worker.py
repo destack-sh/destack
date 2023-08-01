@@ -220,7 +220,11 @@ class ModuleWorker(ModuleWriter):
 
         if keyed:  # unkey
             arguments = map_value(
-                arguments, runnable, map_k=lambda f: (f.typed_key, f.py_ident), is_output=False
+                arguments,
+                runnable,
+                map_k=lambda f: (f.typed_key, f.py_ident),
+                map_v=instantiate_py_value_flat,
+                is_output=False,
             )
         job = RunJob(id=first_run_id, session=session, runnable=runnable, arguments=arguments)
         self.queue.put_nowait((job.priority, job))

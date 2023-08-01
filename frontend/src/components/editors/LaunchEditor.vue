@@ -6,7 +6,7 @@ import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
-import { StatementType } from "@/gql/graphql";
+import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
@@ -15,7 +15,7 @@ import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { RunContentType, useCurrentSessions } from "@/state/session";
+import { RUN_TERMINAL_STATES, RunContentType, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -30,7 +30,6 @@ const now = useTimeFromNow();
 
 // state
 
-const running = ref(false);
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.editor.editor.value.statementId));
@@ -43,7 +42,6 @@ const outputFields = computed(
 );
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [];
-
   return actions;
 });
 
@@ -68,16 +66,33 @@ watch(path, () => {
   editor.value.updatePath(statement.value, module.idx.value);
 });
 
+// running
+
+const runs = sessions.runsOf({ id: editor.value.statementId });
+const currentRun = computed(() => runs.value[0]);
+const isCurrentRunActive = computed(
+  () =>
+    currentRun.value != null &&
+    !RUN_TERMINAL_STATES.includes(currentRun.value?.status) &&
+    currentRun.value?.status != RunStatus.Aborting
+);
+
 async function run() {
   if (statement.value == null) return;
   editor.value.lastRunId = newRunId();
   editor.value.lastSessionId = newSessionId();
-  running.value = true;
-  throw new Error("not implemented (nocheckin)");
+  editor.value.lastOutput = undefined;
+  const { result: resultPromise } = await sessions.run(
+    { id: editor.value.statementId },
+    { arguments: editor.value.arguments, keyed: true }
+  );
+  const result = await resultPromise;
+  editor.value.lastOutput = result?.run.outputs;
 }
 
 async function cancel() {
-  throw new Error("not implemented (nocheckin)");
+  if (!isCurrentRunActive.value) return;
+  await sessions.cancel(currentRun.value);
 }
 
 // tiling (crude placeholder to play around with)
@@ -182,15 +197,15 @@ defineExpose({
         >
           <button
             class="flex h-full w-full flex-row items-center justify-center gap-1 rounded-sm bg-orange-500 text-white hover:bg-orange-400 focus:bg-orange-400"
-            @click="running ? cancel() : run()"
+            @click="isCurrentRunActive ? cancel() : run()"
             @keydown.enter.exact.prevent="run"
           >
             Run
             <FadeTransition mode="out-in">
               <component
-                :is="running ? BusySpinnerIcon : PlayIcon"
+                :is="isCurrentRunActive ? BusySpinnerIcon : PlayIcon"
                 class="h-4 w-4"
-                :class="[running ? 'animate-spin' : '']"
+                :class="[isCurrentRunActive ? 'animate-spin' : '']"
               />
             </FadeTransition>
           </button>
