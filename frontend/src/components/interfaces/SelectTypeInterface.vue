@@ -13,7 +13,8 @@ import uFuzzy from "@leeoniya/ufuzzy";
 const props = defineProps<{
   modelValue?: Field;
   inlined?: boolean;
-  refOnly?: boolean | TypeTag;
+  refOnly?: boolean;
+  refTypes?: TypeTag[];
   hideFlags?: boolean;
 }>();
 
@@ -54,7 +55,9 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
 });
 
 const availableSymbols = module.statementsLike({
-  types: [StatementType.Type, StatementType.Flow, StatementType.Task, StatementType.Code, StatementType.Dataset],
+  types: [StatementType.Type, StatementType.Flow, StatementType.Task],
+  // TODO @UX @Feature: also support code & dataset type references
+  //  (right now this is too noisy and confusing, too much code & 'does database mean relation?', also see :DbRecord)
 });
 const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
@@ -66,14 +69,18 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   for (const symbol of availableSymbols.value) {
     if (symbol.name == null) continue;
 
-    // hacky way to exclude symbols based on reverse :TypeTagMapping
-    if (
-      props.refOnly == TypeTag.Function &&
-      ![StatementType.Code, StatementType.Task, StatementType.Flow].includes(symbol.type)
-    )
-      continue;
-    if (props.refOnly == TypeTag.Struct && (symbol.type != StatementType.Type || symbol.rootTypeTag != TypeTag.Struct))
-      continue;
+    // filter references
+    if (props.refTypes != null) {
+      let refType: TypeTag | undefined = undefined;
+      if (symbol.type == StatementType.Type) {
+        refType = symbol.rootTypeTag;
+      } else if (symbol.type == StatementType.Dataset) {
+        refType = TypeTag.Struct;
+      } else {
+        refType = TypeTag.Function;
+      }
+      if (!props.refTypes.includes(refType as TypeTag)) continue;
+    }
 
     types.push(
       makeField({

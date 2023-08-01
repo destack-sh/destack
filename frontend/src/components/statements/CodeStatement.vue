@@ -35,6 +35,7 @@ const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }
 
 const context = useStatementContext();
 const editor = useEditorContext();
+const standalone = context.standalone;
 
 const code: Ref<string> = ref(context.statement.value.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);

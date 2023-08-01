@@ -25,7 +25,8 @@ const props = defineProps<{
   modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
-  refOnly?: boolean | TypeTag;
+  refOnly?: boolean;
+  refTypes?: TypeTag[];
   hideFlags?: boolean;
   extraActions?: TypeAction[];
   tupleName?: string;
@@ -350,6 +351,8 @@ defineExpose({
             <SelectTypeInterface
               :model-value="value"
               @update:model-value="emit('update:modelValue', $event)"
+              :ref-only="refOnly"
+              :ref-types="refTypes"
               class="w-full"
               @escape="
                 editingType = false;

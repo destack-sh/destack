@@ -892,7 +892,7 @@ defineExpose({
         <XMarkIcon class="h-3 w-3 text-gray-400" />
       </button>
     </span>
-    <!-- Filter pills (if simple) -->
+    <!-- Filter pills (for simple/single field filters) -->
     <!-- (soon) -->
   </div>
   <!-- Table (in table form but manually sized) -->
@@ -917,7 +917,7 @@ defineExpose({
           width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
           height: minRowHeight - 1 + 'px',
         }"
-      ></div>
+      />
       <!-- Header (with types) -->
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
       <div
@@ -940,6 +940,7 @@ defineExpose({
               :key="field?.id + '.header'"
               :type="field"
               :readonly="context.readonly.value"
+              :ref-types="[TypeTag.Struct, TypeTag.Enum]"
               :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
               is-view
               hide-outline

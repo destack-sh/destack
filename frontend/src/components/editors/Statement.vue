@@ -434,13 +434,15 @@ defineExpose({
   bounding: containerBounding,
   loading: computed(() => statementRef.value == null || (statementRef.value?.loading ?? false)),
   showActionsPopover,
+  context,
+  allActions,
 });
 </script>
 <template>
   <!-- Statement wrapper -->
   <div
     class="group/statement relative w-full max-w-full"
-    :style="editor.editor.value.contentMarginXAsPaddingX"
+    :style="standalone ? {} : editor.editor.value.contentMarginXAsPaddingX"
     @click="onClickContainer"
   >
     <!-- Statement main -->
@@ -461,8 +463,8 @@ defineExpose({
       }"
     >
       <!-- Left gutter -->
-      <!-- Small positioning hack to get content right-aligned on absolute left offset -->
-      <div class="absolute top-1">
+      <div v-if="!standalone" class="absolute top-1">
+        <!-- Small positioning hack to get content right-aligned on absolute left offset -->
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
             <!-- Actions / drag handle -->
@@ -492,10 +494,8 @@ defineExpose({
                   class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
                 >
                   <strong>Click</strong> for actions
-                  <template v-if="!props.standalone">
-                    <br />
-                    <strong>Drag</strong> to move
-                  </template>
+                  <br />
+                  <strong>Drag</strong> to move
                 </span>
               </div>
             </ActionPopover>
@@ -541,12 +541,12 @@ defineExpose({
       </div>
       <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
       <div
-        v-if="!readonly"
+        v-if="!readonly && !standalone"
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
         :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
       />
       <div
-        v-if="!readonly"
+        v-if="!readonly && !standalone"
         class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
         :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
@@ -571,6 +571,7 @@ defineExpose({
       </div>
       <!-- Issues in right gutter -->
       <div
+        v-if="!standalone"
         class="group/issues absolute left-full top-[5px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,

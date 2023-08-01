@@ -98,7 +98,14 @@ const iconsByHint: Partial<Record<TypeHint, any>> = {
 };
 
 const icon = computed(() => {
-  if (props.type.hint != null && iconsByHint[props.type.hint] != null) {
+  if (
+    resolvedReference.value != null &&
+    [StatementType.Code, StatementType.Flow, StatementType.Task, StatementType.Dataset].includes(
+      resolvedReference.value?.type
+    )
+  ) {
+    return getStatementIconOutline(resolvedReference.value?.type);
+  } else if (props.type.hint != null && iconsByHint[props.type.hint] != null) {
     return iconsByHint[props.type.hint];
   } else if (iconsByTag[resolvedTag.value] != null) {
     return iconsByTag[resolvedTag.value];
@@ -111,7 +118,7 @@ const icon = computed(() => {
   <div class="relative inline-flex flex-row items-center gap-2">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <span v-if="icon && !hideIcon && resolvedTag != TypeTag.TypeReference" class="h-4 w-4">
+    <span v-if="icon && !hideIcon" class="h-4 w-4">
       <span class="opacity-0">t</span>
       <component :is="icon" class="absolute left-0 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
     </span>

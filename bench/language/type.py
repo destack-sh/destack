@@ -9,13 +9,14 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from functools import cached_property
-from typing import Any, Callable, Collection, Mapping, Optional, Self, Union
+from typing import Any, Callable, Collection, Optional, Self, Union
 from uuid import UUID, uuid4
 
 import structlog
 from more_itertools import first
 
 from bench.language.const import (
+    FieldReferenceMask,
     RemoteObjectStatus,
     StatementType,
     TypeFlag,
@@ -228,7 +229,7 @@ class TypeBase(abc.ABC):
             return []
         return [
             child
-            for child in self.fields
+            for child in (self.resolved_fields or self.fields)
             if not child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
         ]
 
@@ -238,7 +239,7 @@ class TypeBase(abc.ABC):
             return []
         return [
             child
-            for child in self.fields
+            for child in (self.resolved_fields or self.fields)
             if child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
         ]
 
@@ -286,6 +287,7 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
+    reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
     def __str__(self):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
@@ -326,7 +328,7 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     @property
     def resolved_fields(self) -> list["Field"]:
         if isinstance(self.reference, Type):
-            return self.reference.fields
+            return self.reference.resolved_fields
         return []
 
     fields = resolved_fields  # the same by default
@@ -336,6 +338,13 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
 class ResolvedField(Field):
     parent: Statement = required_field()
     field: Field = required_field()
+
+
+@node
+class Mapping:
+    """Mapping fields between statements (or other keyed connections)."""
+
+    connections: Optional[list[tuple[str, str]]] = None
 
 
 class _FieldAccessor:
@@ -517,6 +526,8 @@ class HasType(TypeBase, StatementBase):
                     # TODO @Robustness: check union type compatibility properly/deeply
                     type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
                     continue
+                if isinstance(child, ResolvedField):
+                    child = child.field  # point directly to the field
                 resolved = ResolvedField(
                     id=uuid.uuid5(child.id, type.id.hex),
                     parent=type,
@@ -656,7 +667,9 @@ def check_type(
     elif expected.effective_tag == TypeTag.STRUCT or expected.effective_tag == TypeTag.FUNCTION:
         if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
             value = value or {}  # None is allowed for empty outputs
-        if _check(isinstance(value, Mapping) or dataclasses.is_dataclass(value), "expected struct"):
+        if _check(
+            isinstance(value, typing.Mapping) or dataclasses.is_dataclass(value), "expected struct"
+        ):
             is_dataclass = dataclasses.is_dataclass(value)  # used for model internals
             for f in expected.resolved_fields or expected.fields:
                 if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
@@ -669,7 +682,7 @@ def check_type(
                     _check(bool(f.flags & TypeFlag.IsOptional), "expected required value")
                 else:
                     check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
-            if isinstance(value, Mapping):
+            if isinstance(value, typing.Mapping):
                 for key in value.keys():
                     if not expected.has_field(key):
                         _check(False, f"extraneous field {key}")
@@ -743,7 +756,7 @@ def map_value(
         return value  # nothing to do ?
     elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise TypeError(value, type, "expected struct-like")
-    if not isinstance(value, Mapping) and not dataclasses.is_dataclass(value):
+    if not isinstance(value, typing.Mapping) and not dataclasses.is_dataclass(value):
         return value  # type error, ignore here
     mapped = {}
     if type.fields and type.resolved_fields is None:

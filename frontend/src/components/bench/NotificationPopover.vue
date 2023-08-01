@@ -5,7 +5,7 @@ import { graphql } from "@/gql";
 import { NotificationStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { BellIcon } from "@heroicons/vue/20/solid";
+import { BellIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, type Ref } from "vue";
 
@@ -105,10 +105,10 @@ const { getTimeFromNowString } = useTimeFromNow();
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
     <PopoverButton
-      class="rounded-sm p-1 text-sm outline-none transition-colors"
+      class="rounded-sm p-1 text-sm text-orange-600 outline-none transition-colors hover:bg-orange-100"
       :class="{
-        'text-gray-400 hover:bg-orange-100': !hasUnreadNotifications,
-        'text-orange-600 hover:bg-orange-100': hasUnreadNotifications,
+        '': !hasUnreadNotifications,
+        '': hasUnreadNotifications,
         'bg-orange-100': open,
       }"
     >

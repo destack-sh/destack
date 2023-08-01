@@ -134,6 +134,15 @@ class TypeStorageFormat(enum.StrEnum):
     RELATION = "rel"
 
 
+class FieldReferenceMask(enum.IntFlag):
+    """Per-key mask for field unions"""
+
+    Pick = 2**0
+    Omit = 2**1
+    ToInput = 2**2
+    ToOutput = 2**3
+
+
 class RemoteObjectStatus(enum.StrEnum):
     PREPARED = "prepared"
     UPLOADING = "uploading"
