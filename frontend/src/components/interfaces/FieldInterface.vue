@@ -18,14 +18,14 @@ import {
 } from "@heroicons/vue/24/outline";
 import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
-import { SortOrder } from "@/gql/graphql";
+import { SortOrder, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
 
 const props = defineProps<{
   modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
-  structrefOnly?: boolean;
+  refOnly?: boolean | TypeTag;
   hideFlags?: boolean;
   extraActions?: TypeAction[];
   tupleName?: string;

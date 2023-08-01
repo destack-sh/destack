@@ -329,7 +329,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in statement.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field)
-        elif isinstance(statement, (lang.Task, lang.Code)):
+        elif isinstance(statement, lang.Runnable):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in statement.inputs:
                 inputs_mappings[field.typed_key] = map_to_os_field(field)

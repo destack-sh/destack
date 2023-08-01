@@ -5,6 +5,7 @@ import { computed, ref, type Ref } from "vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import { ArrowRightIcon } from "@heroicons/vue/24/outline";
+import { StatementType, TypeTag } from "@/gql/graphql";
 
 const context = useStatementContext();
 
@@ -18,6 +19,20 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
   (e: "addBase"): void;
 }>();
+
+// this should probably go into statement utils/context :TypeTagMapping
+const rootTypeTag = computed(() => {
+  const type = context.statement.value.type;
+  if (type == StatementType.Code || type == StatementType.Task || type == StatementType.Flow) {
+    return TypeTag.Function;
+  } else if (type == StatementType.Dataset) {
+    return TypeTag.Struct;
+  } else if (type == StatementType.Type) {
+    return context.statement.value.rootTypeTag;
+  } else {
+    return null;
+  }
+});
 
 defineExpose({
   focus: () => {
@@ -60,7 +75,7 @@ defineExpose({
         :active="context.focused.value || context.editing.value"
         :key="field.id"
         :readonly="context.readonly.value"
-        structref-only
+        :ref-only="rootTypeTag"
         hide-flags
         hide-icon
         class="w-full rounded-sm border border-transparent border-opacity-[15%] text-orange-600 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100"

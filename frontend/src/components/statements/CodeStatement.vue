@@ -19,6 +19,7 @@ import {
   TagIcon,
   EyeIcon,
   EyeSlashIcon,
+  CubeTransparentIcon,
 } from "@heroicons/vue/24/outline";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
@@ -27,6 +28,7 @@ import RunTile from "@/components/tiles/RunTile.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { getRunStatusColor } from "@/state/session";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -113,6 +115,15 @@ const extraActions = computed(() => {
         unfoldIfFolded();
         addingTypes.value = true;
         nextTick(() => typeRef.value?.createOutput());
+      },
+      hideInline: true,
+    },
+    {
+      label: "Include type",
+      icon: CubeTransparentIcon,
+      action: () => {
+        unfoldIfFolded();
+        context.createUnionField();
       },
       hideInline: true,
     },
@@ -205,9 +216,8 @@ defineExpose({
   <div class="flex flex-row justify-between">
     <!-- Declaration -->
     <div class="flex flex-row items-center">
-      <StatementDeclaration
+      <TypedStatementDeclaration
         ref="declarationRef"
-        class="inline-flex"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
       <StatementTags ref="tagsRef" class="ml-1.5" />

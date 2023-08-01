@@ -13,6 +13,7 @@ import {
   WindowIcon,
   Bars3Icon,
   TagIcon,
+  CubeTransparentIcon,
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
@@ -81,6 +82,15 @@ const extraActions = computed(() => {
       icon: ArrowUpRightIcon,
       action: () => {
         nextTick(() => (unfoldIfFolded(), typeRef.value?.createOutput()));
+      },
+      hideInline: true,
+    },
+    {
+      label: "Include type",
+      icon: CubeTransparentIcon,
+      action: () => {
+        unfoldIfFolded();
+        context.createUnionField();
       },
       hideInline: true,
     },
