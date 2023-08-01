@@ -13,7 +13,7 @@ import uFuzzy from "@leeoniya/ufuzzy";
 const props = defineProps<{
   modelValue?: Field;
   inlined?: boolean;
-  structrefOnly?: boolean /* crutch until we have proper filtering */;
+  refOnly?: boolean | TypeTag;
   hideFlags?: boolean;
 }>();
 
@@ -53,18 +53,28 @@ const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
   }
 });
 
-const availableSymbols = module.statementsLike({ types: [StatementType.Type] });
+const availableSymbols = module.statementsLike({
+  types: [StatementType.Type, StatementType.Flow, StatementType.Task, StatementType.Code, StatementType.Dataset],
+});
 const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
   const types = [];
   // builtin types
-  if (!props.structrefOnly) {
+  if (!props.refOnly) {
     types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, flags: getDefaultFlags(t.hint ?? t.tag) })));
   }
   // references
   for (const symbol of availableSymbols.value) {
-    if (symbol.name == null || (symbol.rootTypeTag != TypeTag.Struct && props.structrefOnly)) {
+    if (symbol.name == null) continue;
+
+    // hacky way to exclude symbols based on reverse :TypeTagMapping
+    if (
+      props.refOnly == TypeTag.Function &&
+      ![StatementType.Code, StatementType.Task, StatementType.Flow].includes(symbol.type)
+    )
       continue;
-    }
+    if (props.refOnly == TypeTag.Struct && (symbol.type != StatementType.Type || symbol.rootTypeTag != TypeTag.Struct))
+      continue;
+
     types.push(
       makeField({
         tag: TypeTag.TypeReference,

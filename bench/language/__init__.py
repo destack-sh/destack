@@ -12,6 +12,7 @@ from .session import LogEntry, Run, RunError, RunMetadata
 from .tag import HasTags, Tag, Tagging
 from .task import Task
 from .type import Field, HasType, ResolvedField, Type, TypeBase, TypeStorageFormat
+from .utils import Runnable
 
 __all__ = [
     "Aggregation",
@@ -41,6 +42,7 @@ __all__ = [
     "RemoteObject",
     "ResolvedField",
     "Run",
+    "Runnable",
     "RunError",
     "RunMetadata",
     "Scope",

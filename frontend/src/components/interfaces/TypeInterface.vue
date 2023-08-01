@@ -3,14 +3,14 @@ import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue
 import TypePreview from "@/components/interfaces/TypePreview.vue";
 import { ANY_FIELD } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { Field } from "@/gql/graphql";
+import type { Field, TypeTag } from "@/gql/graphql";
 import { nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
-  structrefOnly?: boolean;
+  refOnly?: boolean | TypeTag;
   hideFlags?: boolean;
   hideIcon?: boolean;
 }>();
@@ -122,7 +122,7 @@ defineExpose({
         @update:model-value="writeValue($event), close()"
         @escape="close"
         :inlined="inlined"
-        :structref-only="structrefOnly"
+        :ref-only="refOnly"
         :hide-flags="hideFlags"
       />
     </div>

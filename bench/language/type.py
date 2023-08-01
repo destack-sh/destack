@@ -226,13 +226,21 @@ class TypeBase(abc.ABC):
     def inputs(self) -> list["TypeBase"]:
         if self.tag != TypeTag.FUNCTION:
             return []
-        return [child for child in self.fields if not child.flags & TypeFlag.IsOutput]
+        return [
+            child
+            for child in self.fields
+            if not child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
+        ]
 
     @property
     def outputs(self) -> list["TypeBase"]:
         if self.tag != TypeTag.FUNCTION:
             return []
-        return [child for child in self.fields if child.flags & TypeFlag.IsOutput]
+        return [
+            child
+            for child in self.fields
+            if child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
+        ]
 
     def get_field(self, some_id: str) -> Optional["Field"]:
         for field_ in self.resolved_fields or self.fields:

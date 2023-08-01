@@ -21,23 +21,23 @@ const emit = defineEmits<{
 }>();
 
 const nodes = computed(() => context.fields.value ?? []);
-const inputNodes = computed(
-  () => context.fields.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as Field) ?? []
+const inputs = computed(
+  () => context.allFields.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as Field) ?? []
 );
-const outputNodes = computed(
-  () => context.fields.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as Field) ?? []
+const outputs = computed(
+  () => context.allFields.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as Field) ?? []
 );
 
 type ColumnType = "type";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);
-const inputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, inputNodes, {
+const inputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, inputs, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addInputRef.value?.focus(),
   gridNavigateRight: (rowIdx) => focusColumn("output", rowIdx, 0),
   nowrapLeft: true,
   nowrapRight: true,
 });
-const outputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, outputNodes, {
+const outputGrid = useNavigationGrid<string, InstanceType<typeof FieldInterface>>(columnsInOrder, outputs, {
   gridNavigateUp: () => emit("navigateUp"),
   gridNavigateDown: () => addOutputRef.value?.focus(),
   gridNavigateLeft: (rowIdx) => focusColumn("input", rowIdx, -1),
@@ -89,7 +89,7 @@ function insertBelow(
 }
 
 function deleteMember(kind: "input" | "output", memberId: string) {
-  const members = kind == "input" ? inputNodes.value : outputNodes.value;
+  const members = kind == "input" ? inputs.value : outputs.value;
   const memberIdx = members.findIndex((m) => m.id === memberId);
   if (memberIdx == null || memberIdx < 0) {
     return;
@@ -100,7 +100,7 @@ function deleteMember(kind: "input" | "output", memberId: string) {
 }
 
 function focus(what: "first" | "last", kind: "input" | "output") {
-  const nodes = kind == "input" ? inputNodes.value : outputNodes.value;
+  const nodes = kind == "input" ? inputs.value : outputs.value;
   if (nodes.length == 0) {
     // focus add button
     (kind == "input" ? addInputRef : addOutputRef).value?.focus();
@@ -115,7 +115,7 @@ function focusColumn(kind: "input" | "output", rowIdx: number, columnIdx: number
     // wrap
     columnIdx = columnIdx + columnsInOrder.value.length;
   }
-  const nodes = kind == "input" ? inputNodes.value : outputNodes.value;
+  const nodes = kind == "input" ? inputs.value : outputs.value;
   if (rowIdx < nodes.length) {
     (kind == "input" ? inputGrid : outputGrid).focus(rowIdx, columnsInOrder.value[columnIdx]);
   } else if (rowIdx == nodes.length) {
@@ -154,19 +154,19 @@ defineExpose({
   <div class="flex w-full" :class="isHorizontal ? 'flex-row items-start gap-4' : 'flex-col items-start gap-2'">
     <!-- Inputs -->
     <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
-      <template v-for="member of inputNodes" :key="member.id">
+      <template v-for="field of inputs" :key="field.id">
         <FieldInterface
-          :ref="(el: any) => inputGrid.registerColumnRef(member.id, 'type', el)"
-          :model-value="readColumn(member as Field, 'type')"
-          @update:model-value="(val: any) => writeColumn('input', member.id, 'type', val)"
+          :ref="(el: any) => inputGrid.registerColumnRef(field.id, 'type', el)"
+          :model-value="readColumn(field as Field, 'type')"
+          @update:model-value="(val: any) => writeColumn('input', field.id, 'type', val)"
           :readonly="context.readonly.value"
           tuple-name="input"
-          @navigate-left="inputGrid.navigateLeft(member.id, 'type')"
-          @navigate-right="inputGrid.navigateRight(member.id, 'type')"
-          @navigate-up="inputGrid.navigateUp(member.id, 'type')"
-          @navigate-down="inputGrid.navigateDown(member.id, 'type')"
-          @delete-left="deleteMember('input', member.id)"
-          @delete-self="deleteMember('input', member.id)"
+          @navigate-left="inputGrid.navigateLeft(field.id, 'type')"
+          @navigate-right="inputGrid.navigateRight(field.id, 'type')"
+          @navigate-up="inputGrid.navigateUp(field.id, 'type')"
+          @navigate-down="inputGrid.navigateDown(field.id, 'type')"
+          @delete-left="deleteMember('input', field.id)"
+          @delete-self="deleteMember('input', field.id)"
           class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
@@ -178,7 +178,7 @@ defineExpose({
         class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createInputRef?.show()"
         @enter="createInputRef?.show()"
-        @keydown.up.exact.prevent="inputNodes.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
+        @keydown.up.exact.prevent="inputs.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
@@ -198,20 +198,21 @@ defineExpose({
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication -->
     <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
-      <template v-for="member of outputNodes" :key="member.id">
+      <template v-for="field of outputs" :key="field.id">
         <FieldInterface
-          :ref="(el: any) => outputGrid.registerColumnRef(member.id, 'type', el)"
+          :ref="(el: any) => outputGrid.registerColumnRef(field.id, 'type', el)"
           :is="'type' == 'type' ? FieldInterface : ValueInterface"
-          :model-value="readColumn(member as Field, 'type')"
-          @update:model-value="(val: any) => writeColumn('output', member.id, 'type', val)"
+          :model-value="readColumn(field as Field, 'type')"
+          @update:model-value="(val: any) => writeColumn('output', field.id, 'type', val)"
           :readonly="context.readonly.value"
+          :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
           tuple-name="output"
-          @navigate-left="outputGrid.navigateLeft(member.id, 'type')"
-          @navigate-right="outputGrid.navigateRight(member.id, 'type')"
-          @navigate-up="outputGrid.navigateUp(member.id, 'type')"
-          @navigate-down="outputGrid.navigateDown(member.id, 'type')"
-          @delete-left="deleteMember('output', member.id)"
-          @delete-self="deleteMember('output', member.id)"
+          @navigate-left="outputGrid.navigateLeft(field.id, 'type')"
+          @navigate-right="outputGrid.navigateRight(field.id, 'type')"
+          @navigate-up="outputGrid.navigateUp(field.id, 'type')"
+          @navigate-down="outputGrid.navigateDown(field.id, 'type')"
+          @delete-left="deleteMember('output', field.id)"
+          @delete-self="deleteMember('output', field.id)"
           class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
@@ -223,7 +224,7 @@ defineExpose({
         class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createOutputRef?.show()"
         @enter="createOutputRef?.show()"
-        @keydown.up.exact.prevent="outputNodes.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
+        @keydown.up.exact.prevent="outputs.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
         @keydown.down.exact.prevent="context.navigateDown"
         @keydown.left.exact.prevent="addInputRef?.focus"
       >
