@@ -270,11 +270,10 @@ class OrchestrationServer(Monitored):
             if (
                 worker_set.last_active_at is None or worker_set.last_active_at < idle_cutoff
             ) and not (worker_set.last_bumped_at and worker_set.last_bumped_at > idle_cutoff):
-                logger.info("worker_sets.sleep", worker_set=worker_set)
                 worker_set.sleeping = True
                 worker_set.target_replicas = 0
                 tired_worker_sets.append(worker_set)
-        logger.debug("worker_sets.mark_tired.done", worker_sets=len(tired_worker_sets))
+        logger.debug("worker_sets.mark_tired.done", worker_sets=tired_worker_sets)
         return tired_worker_sets
 
     async def _get_project_worker_set(self, project_id: UUID):

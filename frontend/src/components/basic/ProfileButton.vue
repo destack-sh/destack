@@ -42,7 +42,7 @@ const userNavigation = computed(() => [
         <UserAvatar
           :client-id="auth.me.value.id"
           :user="auth.me.value"
-          class="h-5 w-5 transition-transform duration-150 group-hover:scale-110"
+          class="h-5 w-5 transition-transform duration-150"
         />
       </MenuButton>
       <FadeTransition>

@@ -95,11 +95,11 @@ const commands = computed(() => {
       description: "Custom logic in Python.",
       action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
     },
-    {
-      label: "flow",
-      description: "Pipe and connect code and tasks and triggers.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Flow }), emit("morphed")),
-    },
+    // {
+    //   label: "flow",
+    //   description: "Pipe and connect code and tasks and triggers.",
+    //   action: () => (context.morpthToSymbol({ type: StatementType.Flow }), emit("morphed")),
+    // },
     {
       label: "value",
       description: "A bit of configuration, secrets or flags.",

@@ -35,7 +35,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
-import { ClockIcon as ClockIconSolid } from "@heroicons/vue/24/outline";
+import { ClockIcon as ClockIconSolid, CommandLineIcon } from "@heroicons/vue/24/outline";
 import {
   ClockIcon,
   Cog8ToothIcon,
@@ -71,6 +71,7 @@ import {
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
+import CurrentLogsPopover from "@/components/bench/CurrentLogsPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -556,6 +557,11 @@ onBeforeUnmount(() => {
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
+            <!-- Terminal (soon) -->
+            <button class="p-1" disabled>
+              <CommandLineIcon class="h-5 w-5 text-gray-400" />
+            </button>
+            <CurrentLogsPopover />
             <CurrentRunsPopover />
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />

@@ -43,7 +43,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       <PopoverPanel
         class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
-        <h2 class="font-bold text-gray-900">Current runs</h2>
+        <h2 class="font-bold text-gray-900">Runs</h2>
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
           <div v-for="run in activeRunsDesc" :key="run.id" class="flex flex-row justify-between gap-1 py-0.5">
             <span class="flex flex-row items-center">

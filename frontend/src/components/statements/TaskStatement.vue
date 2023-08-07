@@ -17,6 +17,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
+import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 
 const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -136,6 +137,7 @@ defineExpose({
         "
         @navigate-right="typeRef?.focus"
       />
+      <StatementTriggers />
       <StatementTags ref="tagsRef" />
     </div>
     <InlineActions

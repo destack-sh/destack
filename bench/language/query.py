@@ -172,6 +172,7 @@ class CompoundQuery(Query):
     QueryOp.GREATER_THAN,
     QueryOp.GREATER_THAN_OR_EQUALS,
     QueryOp.LESS_THAN,
+    QueryOp.LESS_THAN_OR_EQUALS,
     QueryOp.MATCHES,
     QueryOp.STARTS_WITH,
 )

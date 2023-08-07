@@ -29,6 +29,7 @@ import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { getRunStatusColor } from "@/state/session";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
+import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -221,6 +222,7 @@ defineExpose({
         ref="declarationRef"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
+      <StatementTriggers class="ml-1.5" />
       <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Meta info & controls -->
