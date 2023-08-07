@@ -67,7 +67,7 @@ export function humanizeBytes(bytes: number, options?: { round?: boolean }) {
   /** Shorten bytes into nearest (KB, MB, GB, etc.), keep up to 3 significant digits */
   const units = ["B", "KB", "MB", "GB", "TB", "PB"];
   let unit = 0;
-  while (bytes >= 1024 && unit < units.length - 1) {
+  while (bytes >= 100 && unit < units.length - 1) {
     bytes /= 1024;
     unit++;
   }

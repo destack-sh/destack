@@ -11,7 +11,7 @@ const module = useCurrentModule();
 const appearance = useAppearance();
 const ops = useOperations();
 
-const addingTag = ref(false);
+const adding = ref(false);
 </script>
 <template>
   <div class="group relative flex flex-row gap-1.5">
