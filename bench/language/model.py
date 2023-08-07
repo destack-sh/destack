@@ -76,7 +76,7 @@ class Model(HasType, HasTags, IsFlowable, Runnable, Statement):
         if cache is None:
             cache = self.should_cache
         inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
-        cache_subkey = get_run_cache_subkey(self.path, inputs_raw)
+        cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_subkey=cache_subkey)
         log.debug("inference.enter.pre")
 
@@ -179,7 +179,7 @@ class Model(HasType, HasTags, IsFlowable, Runnable, Statement):
                 outputs=strip_py_value(output, self, is_output=True, ignore_outer_map=True),
             )
             await cache.set(cache_subkey, inference.to_json_bytes(), expire=INFERENCE_CACHE_EXPIRY)
-        log.debug("inference.exit", ret=describe_type(output))
+        log.debug("inference.exit", ret=describe_type(output), duration=duration)
         return output
 
     @property
