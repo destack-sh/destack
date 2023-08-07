@@ -259,7 +259,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
         def _wrapped_sync(*args, **kwargs):
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
+            cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
@@ -274,7 +274,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             # yes this is annoyingly duplicated...
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
+            cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = await self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
