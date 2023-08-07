@@ -5,7 +5,7 @@ import { graphql } from "@/gql";
 import { NotificationStatus } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { BellIcon } from "@heroicons/vue/24/outline";
+import { BellIcon, PlusCircleIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, type Ref } from "vue";
 
@@ -104,8 +104,9 @@ const { getTimeFromNowString } = useTimeFromNow();
 </script>
 <template>
   <Popover v-slot="{ open }" as="div" class="relative">
+    <!-- TODO @Cleanup: no idea why mt-1 is necessary on notifications popover button for horizontal alignment with other buttons -->
     <PopoverButton
-      class="rounded-sm p-1 text-sm text-orange-600 outline-none transition-colors hover:bg-orange-100"
+      class="mt-1 rounded-sm p-1 text-sm text-orange-600 outline-none transition-colors hover:bg-orange-100"
       :class="{
         '': !hasUnreadNotifications,
         '': hasUnreadNotifications,
