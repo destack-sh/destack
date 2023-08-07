@@ -92,7 +92,7 @@ const resourcesInfo = computed(() => {
 // hardcoded quotas for now
 const maxRecordsActive = 50000;
 const maxObjectsBytesTotal = 50 * 1024 * 1024 * 1024; // 50GB
-const maxCacheBytesTotal = 500 * 1024 * 1024; // 500MB
+const maxCacheBytesTotal = 50 * 1024 * 1024; // 50MB
 
 // auto reload environment every minute if active
 const interval = setInterval(() => {

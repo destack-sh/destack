@@ -260,8 +260,8 @@ class RunCodeFrame:
                         from_statement.file.name, from_statement.name, type=IdentifierType.PATH
                     )
                     frame.name = from_statement.name
-                    frame.line = code._transform.transformed_code.splitlines()[frame.lineno - 1]
                     frame.lineno = frame.lineno - code._transform.start_offset
+                    frame.line = code.code.splitlines()[frame.lineno - 1]
                     frame.locals = frame.locals or {}
                     for ident, var in code._statement_references.items():
                         if ident not in frame.locals and var.id in session.instances:

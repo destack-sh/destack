@@ -18,16 +18,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.const import StatementType, TypeTag
-from bench.language.core import (
-    IssueType,
-    LookupBy,
-    Scope,
-    Session,
-    Statement,
-    StatementPath,
-    node,
-    statement_path_as_str,
-)
+from bench.language.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
 from bench.language.flow import HasFlow, IsFlowable
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
@@ -45,13 +36,14 @@ class CodeTransformation:
     transformed_code: str
     method_name: str
     start_offset: int
+    end_offset: int
 
 
 @node
 class CodeParse:
-    references: dict[str, "StatementPath"] = field(default_factory=dict)
+    references: dict[str, StatementPath] = field(default_factory=dict)
     is_async: bool = False
-    fake_line_numbers: list[int] = field(default_factory=list)
+    x_imports: dict[int, dict[str, StatementPath]] = field(default_factory=dict)
 
 
 @node(tracked=["language", "code"])
@@ -63,10 +55,11 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
     code: Optional[str] = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
-    _statement_references: dict[str, Statement] | None = None
-    _code_export_references: dict[str, tuple[Code, str]] | None = None
     _transform: Optional[CodeTransformation] = None
-    _callable: AsyncCodeCallable | SyncCodeCallable | None = None
+    _statement_references: dict[str, Statement] | None = None
+    _callable_inner: AsyncCodeCallable | SyncCodeCallable | None = None
+    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = None
+    _cached_exports: dict[str, Any] | None = None
 
     def _clear(self) -> None:
         Statement._clear(self)
@@ -75,10 +68,11 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
         IsFlowable._clear(self)
         HasFlow._clear(self)
         self._parse = None
-        self._statement_references = None
-        self._code_export_references = None
         self._transform = None
-        self._callable = None
+        self._statement_references = None
+        self._callable_inner = None
+        self._callable_wrapped = None
+        self._cached_exports = None
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -86,30 +80,14 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
         IsFlowable._interp(self, scope)
         HasFlow._interp(self, scope)
 
-        # parse and resolve code references
-        input_idents = {input.py_ident for input in self.inputs}
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._statement_references = {}
         self._code_export_references = {}
         for key, reference in self._parse.references.items():
-            if key in input_idents:
-                continue  # input arguments are not context
             resolved = scope.lookup(reference, by=LookupBy.PyIdent)
             if resolved is not None:
                 self._statement_references[key] = resolved
-            else:
-                resolved = scope.lookup(reference.path, by=LookupBy.PyIdent)
-                if resolved is not None:
-                    if not isinstance(resolved, Code) or not resolved.exported:
-                        self._on_issue(
-                            type=IssueType.CODE_REFERENCE_NOT_EXPORTED, subject=self, path=reference
-                        )
-                    else:
-                        reference_str = statement_path_as_str(reference)
-                        self._code_export_references[reference_str] = (resolved, reference.name)
-                else:
-                    pass  # ignore for now until we have proper LSP support
 
         # check if code is exportable if marked as such
         if self.exported:
@@ -150,11 +128,48 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             # ignore, will be overwritten on success
             return None
 
-    def _prep_callable(self) -> None:
-        """Creates a callable wrapping this code for execution with the required context."""
-        if self._callable is not None:
-            return
+    def _do_import_sync(self, path: str, name: str) -> tuple[Any, ...]:
+        """Import a statement or exported Python object at runtime."""
+        reference = StatementPath(path, name)
+        resolved = self.lookup(reference, by=LookupBy.PyIdent)
+        if resolved is None:
+            # fall back to code object import
+            resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
+            if not isinstance(resolved, Code) or not resolved.exported:
+                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
+            ret = resolved.to_sync()()
+            if name not in ret:
+                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (no such export)")
+            return ret[name]
+        return resolved
 
+    async def _do_import_async(self, path: str, name: str) -> tuple[Any, ...]:
+        """Import a statement or exported Python object at runtime."""
+        reference = StatementPath(path, name)
+        resolved = self.lookup(reference, by=LookupBy.PyIdent)
+        if resolved is None:
+            # fall back to code object import
+            resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
+            if not isinstance(resolved, Code) or not resolved.exported:
+                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
+            ret = await resolved.to_async()()
+            if name not in ret:
+                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (no such export)")
+            return ret[name]
+        return resolved
+
+    def _import_sync(self, path: str, *names: str) -> tuple[Any, ...]:
+        if len(names) == 1:
+            return self._do_import_sync(path, names[0])
+        return tuple(self._do_import_sync(path, name) for name in names)
+
+    async def _import_async(self, path: str, *names: str) -> tuple[Any, ...]:
+        if len(names) == 1:
+            return await self._do_import_async(path, names[0])
+        return tuple(await self._do_import_async(path, name) for name in names)
+
+    def _prep_locals(self) -> dict[str, Any]:
+        """Gets the locals required for the code to run."""
         # assemble context
         context = {**self._statement_references}
         if not self._parse.is_async:
@@ -170,70 +185,79 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             **context,  # inlined
             "random": Random(self.id.hex.encode()),
             "self": self,
+            "ximport": self._import_sync if not self._parse.is_async else self._import_async,
         }
-        python_code = self.code or "pass"
         locals = {**STATIC_BUILTINS, **dynamic_context}
+        return locals
 
-        # stub fake lines (temporary, Bench imports will be real imports later)
-        python_code_lines = python_code.splitlines()
-        for i in self._parse.fake_line_numbers:
-            python_code_lines[i] = "pass # " + python_code_lines[i]
-        python_code = "\n".join(python_code_lines)
+    def _prep_func_body(self) -> tuple[str, int, int]:
+        """Prepares the function body of this code with all modifications."""
+        func_body_lines = (self.code or "pass").splitlines()
+        # replace real python x imports with _ximport
+        # e.g. replace `from .utils import a, b` with `a, b = _ximport(".utils", "a", "b")`
+        await_str = "await " if self._parse.is_async else ""
+        for i, x_refs in self._parse.x_imports.items():
+            x_paths = list(x_refs.values())
+            path = x_paths[0].path
+            keys_str = ", ".join(repr(k) for k in x_refs)
+            line = f"{', '.join(x_refs)} = {await_str}ximport({path!r}, {keys_str})"
+            func_body_lines[i] = line
 
-        # create python function from python code
-        input_keys = [i.name for i in self.inputs]
+        if self.exported:
+            # capture all locals at the end of the function
+            # remember locals at the start of the function to exclude them
+            func_body_lines.insert(0, "__locals_start = locals().copy()")
+            func_body_lines.append("__locals_end = locals().copy()")
+            func_body_lines.append(
+                "return {k: v for k, v in __locals_end.items() if k not in __locals_start}"
+            )
+            return "\n".join(func_body_lines), 1, 2
+        else:
+            return "\n".join(func_body_lines), 0, 0
+
+    def _prep_callable(self) -> None:
+        """Creates a callable wrapping this code for execution with the required context."""
+        if self._callable_inner is not None:
+            return
+
+        locals = self._prep_locals()
+        func_body, start_offset, end_offset = self._prep_func_body()
         func_name = self.py_ident or "_anon" + self.id.hex[:6]
-        async_str = "async " if self._parse.is_async else ""
         func_params = ", ".join(
-            to_pyidentifier(key, IdentifierType.VARIABLE) + "=None" for key in input_keys
+            to_pyidentifier(i.name, IdentifierType.VARIABLE) + "=None" for i in self.inputs
         )
-        indented_code = textwrap.indent(python_code, " " * 4)
         try:
-            method_str = f"{async_str}def {func_name}({func_params}):\n{indented_code}"
-            self._callable = do_execute_arbitrary_code(method_str, locals)[func_name]
+            method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"
+            if self._parse.is_async:
+                method_str = f"async {method_str}"
+            self._callable_inner = do_execute_arbitrary_code(method_str, locals)[func_name]
+            self._callable_wrapped = self._wrap_callable(self._callable_inner)
         except SyntaxError as e:
             # raise error in code when called for proper reporting
             err_str = e.args[1][3] or str(e)
             raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {err_str})"
             indented_raise = textwrap.indent(raise_str, " " * 4)
-            method_str = f"{async_str}def {func_name}({func_params}):\n{indented_raise}"
-            self._callable = do_execute_arbitrary_code(method_str, locals)[func_name]
+            method_str = f"def {func_name}({func_params}):\n{indented_raise}"
+            self._callable_inner = do_execute_arbitrary_code(method_str, locals)[func_name]
+            self._callable_wrapped = self._callable_inner
         self._transform = CodeTransformation(
             original_code=self.code,
             transformed_code=method_str,
-            start_offset=1,  # for method signature
+            start_offset=start_offset + 1,  # for method signature
+            end_offset=end_offset,
             method_name=func_name,
         )
 
-    async def __call_async__(self, *args, **kwargs):
-        inputs = self._inputs_from_args(args, kwargs)
-        if self.cached:
-            inputs_raw = strip_py_value(inputs, self, is_output=False)
-            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
-            cached_run = await self.cache.get(cache_subkey)
-            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
-            if cached_output is not None:
-                return cached_output
-            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
-        try:
-            self.session.tracer.run_enter(self, inputs)
-            self._prep_callable()
-            result = await self._callable(*args, **kwargs)
-            self.session.tracer.run_exit(self, result)
-            if self.cached:
-                outputs_raw = strip_py_value(result, self, is_output=True)
-                run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
-                await self.cache.set(cache_subkey, run_bytes)
-            return _to_result_dict(result)
-        except Exception as exception:
-            self.session.tracer.run_exception(self, exception)
-            raise
+    def _wrap_callable(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        if self.exported:
+            callable = self._wrap_exported(callable)
+        elif self.cached:
+            callable = self._wrap_cached(callable)
+        return callable
 
-    def __call_sync__(self, *args, **kwargs):
-        # the duplication here is obvious and a bit unfortunate,
-        # but I can't think of a way to avoid it without complex and unnecessary intermediates
-        inputs = self._inputs_from_args(args, kwargs)
-        if self.cached:
+    def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        def _wrapped_sync(*args, **kwargs):
+            inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = strip_py_value(inputs, self, is_output=False)
             cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
             cached_run = self.cache.get(cache_subkey)
@@ -241,15 +265,64 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             if cached_output is not None:
                 return cached_output
             started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            result = callable(*args, **kwargs)
+            outputs_raw = strip_py_value(result, self, is_output=True)
+            run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
+            self.cache.set(cache_subkey, run_bytes)
+
+        async def _wrapped_async(*args, **kwargs):
+            # yes this is annoyingly duplicated...
+            inputs = self._inputs_from_args(args, kwargs)
+            inputs_raw = strip_py_value(inputs, self, is_output=False)
+            cache_subkey = get_run_cache_subkey(self.id, inputs_raw, content_id=self._code_hash)
+            cached_run = await self.cache.get(cache_subkey)
+            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
+            if cached_output is not None:
+                return cached_output
+            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            result = await callable(*args, **kwargs)
+            outputs_raw = strip_py_value(result, self, is_output=True)
+            run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
+            await self.cache.set(cache_subkey, run_bytes)
+
+        return _wrapped_async if self._parse.is_async else _wrapped_sync
+
+    def _wrap_exported(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        def _wrapped_sync(*args, **kwargs):
+            if self._cached_exports is not None:
+                return self._cached_exports
+            result = callable(*args, **kwargs)
+            self._cached_exports = result
+            return result
+
+        async def _wrapped_async(*args, **kwargs):
+            if self._cached_exports is not None:
+                return self._cached_exports
+            result = await callable(*args, **kwargs)
+            self._cached_exports = result
+            return result
+
+        return _wrapped_async if self._parse.is_async else _wrapped_sync
+
+    async def __call_async__(self, *args, **kwargs):
+        inputs = self._inputs_from_args(args, kwargs)
         try:
             self.session.tracer.run_enter(self, inputs)
             self._prep_callable()
-            result = self._callable(*args, **kwargs)
-            self.session.tracer.run_exit(self, result)
-            if self.cached:
-                outputs_raw = strip_py_value(result, self, is_output=True)
-                run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
-                self.cache.set(cache_subkey, run_bytes)
+            result = await self._callable_wrapped(*args, **kwargs)
+            self.session.tracer.run_exit(self, result if not self.exported else None)
+            return _to_result_dict(result)
+        except Exception as exception:
+            self.session.tracer.run_exception(self, exception)
+            raise
+
+    def __call_sync__(self, *args, **kwargs):
+        inputs = self._inputs_from_args(args, kwargs)
+        try:
+            self.session.tracer.run_enter(self, inputs)
+            self._prep_callable()
+            result = self._callable_wrapped(*args, **kwargs)
+            self.session.tracer.run_exit(self, result if not self.exported else None)
             return _to_result_dict(result)
         except Exception as exception:
             self.session.tracer.run_exception(self, exception)
@@ -444,7 +517,7 @@ def _parse_code(code: str | None) -> "CodeParse":
             self.imports = set()
             self.is_async = False
             self.codelines = code.splitlines()
-            self.x_import_lines: list[int] = []
+            self.x_imports: dict[int, dict[str, StatementPath]] = {}
 
         def visit_Import(self, node):
             for alias in node.names:
@@ -459,20 +532,20 @@ def _parse_code(code: str | None) -> "CodeParse":
                 module = sourceline[node.col_offset : node.end_col_offset].split(" ")[1]
                 if module.startswith("x."):
                     reference = module.split(".", maxsplit=1)[1]
-                    self.x_import_lines.append(node.lineno - 1)
                 elif module.startswith(".x."):
                     reference = "." + module.split(".", maxsplit=2)[2]
-                    self.x_import_lines.append(node.lineno - 1)
                 elif module.startswith("."):
                     reference = module[1:]
-                    self.x_import_lines.append(node.lineno - 1)
                 else:
                     reference = None
                 if reference is not None:
+                    local_references = {}
                     for alias in node.names:
-                        self.references[alias.asname or alias.name] = StatementPath(
+                        local_references[alias.asname or alias.name] = StatementPath(
                             reference, alias.name
                         )
+                    self.x_imports[node.lineno - 1] = local_references
+                    self.references.update(local_references)
             for alias in node.names:
                 self.imports.add(alias.name)
             self.generic_visit(node)
@@ -597,9 +670,7 @@ def _parse_code(code: str | None) -> "CodeParse":
     # remove references to builtins
 
     return CodeParse(
-        references=extractor.references,
-        is_async=extractor.is_async,
-        fake_line_numbers=extractor.x_import_lines,
+        references=extractor.references, is_async=extractor.is_async, x_imports=extractor.x_imports
     )
 
 

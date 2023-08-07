@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from bench.language.core import File, InterpScope, Statement, statement_path_as_str
+    from bench.language.core import File, InterpScope, Statement
 
 
 class IssueKind(enum.StrEnum):
@@ -25,6 +25,7 @@ class IssueType(enum.StrEnum):
     MISMATCHED_UNION = "MISMATCHED_UNION"
     # warnings
     CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
+    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
     CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
     AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
 

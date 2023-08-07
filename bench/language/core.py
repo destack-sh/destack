@@ -935,6 +935,7 @@ class Session:
         self.inference_retries = inference_retries
         self.mode = mode
         self.writer = writer
+
         self.cache_sync = CacheSync(module, project_id=ctx.project_id)
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
