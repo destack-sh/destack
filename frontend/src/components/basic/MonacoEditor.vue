@@ -161,10 +161,6 @@ function initMonaco(monaco: Monaco) {
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("toggleActions"));
-    editor.value.addCommand(monaco.KeyCode.Escape, () => {
-      emit("escape");
-      document.activeElement?.blur();
-    });
     editor.value.onKeyDown((e) => {
       if (e.keyCode === monaco.KeyCode.Backspace) {
         if (editor.value?.getValue() === "") {
@@ -181,6 +177,22 @@ function initMonaco(monaco: Monaco) {
           editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()
         ) {
           emit("navigateDown");
+        }
+      } else if (e.keyCode == monaco.KeyCode.Escape) {
+        // trigger outer escape if no widget is open and visible
+        const widgetClasses = [".monaco-menu-container", ".monaco-dropdown", ".monaco-editor-hover", ".editor-widget"];
+        const openWidget = widgetClasses.find((c) => {
+          const els = document.querySelectorAll(c);
+          for (let i = 0; i < els.length; i++) {
+            const el = els[i] as HTMLElement;
+            if (el.style.display != "none" && el.getAttribute("aria-hidden") != "true") {
+              return true;
+            }
+          }
+        });
+        if (!openWidget) {
+          emit("escape");
+          document.activeElement?.blur();
         }
       }
     });
