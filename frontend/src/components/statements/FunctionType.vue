@@ -52,23 +52,23 @@ const createOutputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = r
 const editor = useEditorContext();
 const isHorizontal = computed(() => editor.size.value.width > 700);
 
-function readColumn(member: Field, column: ColumnType) {
+function readColumn(field: Field, column: ColumnType) {
   if (column == "type") {
-    return member;
+    return field;
   } else {
-    return member[column];
+    return field[column];
   }
 }
-function writeColumn(kind: "input" | "output", memberId: string, column: ColumnType, value: any) {
-  const member = nodes.value?.find((m) => m.id === memberId);
-  if (!member) {
+function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnType, value: any) {
+  const field = nodes.value?.find((m) => m.id === fieldId);
+  if (!field) {
     return;
   }
   const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    context.updateField(member as Field, { ...value, flags } as Field);
+    context.updateField(field as Field, { ...value, flags } as Field);
   } else {
-    context.updateField(member as Field, { ...member, [column]: value, flags } as Field);
+    context.updateField(field as Field, { ...field, [column]: value, flags } as Field);
   }
 }
 
@@ -76,27 +76,46 @@ function insertBelow(
   kind: "input" | "output",
   template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">
 ) {
-  const lastMember = nodes.value[nodes.value.length - 1];
-  const orderKey = generateKeyBetween(lastMember?.orderKey ?? null, null);
-  const newMemberNode = makeField({
+  const lastField = nodes.value[nodes.value.length - 1];
+  const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
+  const newFieldNode = makeField({
     ...template,
     reference: template.reference as any,
     orderKey,
     flags: (kind == "output" ? TypeFlag.IsOutput : 0) | (template.flags ?? 0),
   });
-  context.createNewField(newMemberNode);
+  context.createNewField(newFieldNode);
   nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "type"));
 }
 
-function deleteMember(kind: "input" | "output", memberId: string) {
-  const members = kind == "input" ? inputs.value : outputs.value;
-  const memberIdx = members.findIndex((m) => m.id === memberId);
-  if (memberIdx == null || memberIdx < 0) {
+function moveField(node: Field, position: "before" | "after", other: Field) {
+  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
+  if (position == "before") {
+    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    context.moveField(node, orderKey);
+  } else {
+    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    context.moveField(node, orderKey);
+  }
+}
+
+function dropField(droppedId: string, position: "above" | "below", fieldId: string) {
+  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
+  const field = context.selfFields.value.find((n) => n.id == fieldId);
+  if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
+  if ((dropped.flags & TypeFlag.IsOutput) != (field.flags & TypeFlag.IsOutput)) return; // ignore drops between input/output (requires transaction)
+  moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
+}
+
+function deleteField(kind: "input" | "output", fieldId: string) {
+  const fields = kind == "input" ? inputs.value : outputs.value;
+  const fieldIdx = fields.findIndex((m) => m.id === fieldId);
+  if (fieldIdx == null || fieldIdx < 0) {
     return;
   }
-  const member = members[memberIdx];
-  context.deleteField(member as any); // must exist
-  (kind == "input" ? inputGrid : outputGrid).focus(memberIdx - 1, "type"); // move focus above
+  const field = fields[fieldIdx];
+  context.deleteField(field as any); // must exist
+  (kind == "input" ? inputGrid : outputGrid).focus(fieldIdx - 1, "type"); // move focus above
 }
 
 function focus(what: "first" | "last", kind: "input" | "output") {
@@ -163,12 +182,14 @@ defineExpose({
           :ref-types="[TypeTag.Struct, TypeTag.Enum]"
           :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
           tuple-name="input"
+          orientation="vertical"
           @navigate-left="inputGrid.navigateLeft(field.id, 'type')"
           @navigate-right="inputGrid.navigateRight(field.id, 'type')"
           @navigate-up="inputGrid.navigateUp(field.id, 'type')"
           @navigate-down="inputGrid.navigateDown(field.id, 'type')"
-          @delete-left="deleteMember('input', field.id)"
-          @delete-self="deleteMember('input', field.id)"
+          @delete-left="deleteField('input', field.id)"
+          @delete-self="deleteField('input', field.id)"
+          @drop="(p, v) => dropField(v.id, p, field.id)"
           class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
@@ -210,12 +231,14 @@ defineExpose({
           :ref-types="[TypeTag.Struct, TypeTag.Enum]"
           :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
           tuple-name="output"
+          orientation="vertical"
           @navigate-left="outputGrid.navigateLeft(field.id, 'type')"
           @navigate-right="outputGrid.navigateRight(field.id, 'type')"
           @navigate-up="outputGrid.navigateUp(field.id, 'type')"
           @navigate-down="outputGrid.navigateDown(field.id, 'type')"
-          @delete-left="deleteMember('output', field.id)"
-          @delete-self="deleteMember('output', field.id)"
+          @delete-left="deleteField('output', field.id)"
+          @delete-self="deleteField('output', field.id)"
+          @drop="(p, v) => dropField(v.id, p, field.id)"
           class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
         />
       </template>
