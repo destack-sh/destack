@@ -24,7 +24,6 @@ import {
   MinusSmallIcon,
   PhoneIcon,
   PhotoIcon,
-  QuestionMarkCircleIcon,
   SparklesIcon,
   SpeakerWaveIcon,
   StarIcon,
