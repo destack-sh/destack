@@ -20,7 +20,7 @@ import { whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { newFileId } from "@/state/operations/file";
-import { useConnectedClients, useCurrentClients } from "@/state/client";
+import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 
 const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();

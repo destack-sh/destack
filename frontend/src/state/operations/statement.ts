@@ -51,6 +51,12 @@ export function newTaggingId(): string {
   return btoa(`Tagging:${nodeId}`);
 }
 
+export function newTriggerId(): string {
+  /* Generates a new trigger global id (as in relay) with a new uuid4 */
+  const nodeId = uuidv4();
+  return btoa(`Trigger:${nodeId}`);
+}
+
 export function useStatementOps() {
   const ops = useOperationsStore();
   const registry = new OpRegistry();
@@ -130,6 +136,9 @@ export function useStatementOps() {
             fields(filters: { isVisible: true }) {
               id
             }
+            triggers(filters: { isVisible: true }) {
+              id
+            }
             # interp
             resolvedFields {
               id
@@ -198,6 +207,7 @@ export function useStatementOps() {
             rootTypeFlags: vars.rootTypeFlags,
             tags: [],
             fields: [],
+            triggers: [],
             lang: vars.lang,
             // interp
             resolvedFields: [],

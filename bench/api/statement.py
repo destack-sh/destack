@@ -108,11 +108,10 @@ class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".file")]
     parent: Optional["ModuleNode"]
+    descendants: list["Statement"]
     type: StatementType
     name: auto
     key: auto
-    children: list["Statement"]
-    descendants: list["Statement"]
     order_key: auto
     text: auto
     # symbol contents
@@ -528,6 +527,44 @@ class TaggingRestoreInput(gql.NodeInput):
 
 
 @gql.input
+class TriggerCreateInput:
+    id: GlobalID
+    statement_id: GlobalID
+    type: TriggerType
+    active: bool
+    mapping: Optional[JSON] = None
+    timezone: Optional[str] = None
+    cron: Optional[str] = None
+    runnable_id: Optional[GlobalID] = None
+    scope_id: Optional[GlobalID] = None
+
+
+@gql.input
+class TriggerUpdateInput(gql.NodeInput):
+    active: Optional[bool] = None
+    mapping: Optional[JSON] = None
+    timezone: Optional[str] = None
+    cron: Optional[str] = None
+    runnable_id: Optional[GlobalID] = None
+    scope_id: Optional[GlobalID] = None
+
+
+@gql.input
+class TriggerDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class TriggerSoftDeleteInput(gql.NodeInput):
+    pass
+
+
+@gql.input
+class TriggerRestoreInput(gql.NodeInput):
+    pass
+
+
+@gql.input
 class FieldCreateInput:
     id: GlobalID
     key: str
@@ -731,3 +768,48 @@ class SymbolMutation:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.restore()
         return tagging
+
+    @tracked_db_mutation(MMT.CREATE_TRIGGER)
+    def create_trigger(self, input: TriggerCreateInput) -> Trigger | OperationInfo:
+        trigger = models.Trigger(
+            id=UUID(input.id.node_id),
+            statement_id=UUID(input.statement_id.node_id),
+            type=input.type,
+            active=input.active,
+            mapping=input.mapping,
+            timezone=input.timezone,
+            cron=input.cron,
+            runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
+            scope_id=UUID(input.scope_id.node_id) if input.scope_id else None,
+        )
+        return trigger
+
+    @tracked_db_mutation(MMT.UPDATE_TRIGGER)
+    def update_trigger(self, input: TriggerUpdateInput) -> Trigger | OperationInfo:
+        trigger = models.Trigger.objects.get(id=input.id.node_id)
+        trigger.type = input.type
+        trigger.active = input.active
+        trigger.mapping = input.mapping
+        trigger.timezone = input.timezone
+        trigger.cron = input.cron
+        trigger.runnable_id = UUID(input.runnable_id.node_id) if input.runnable_id else None
+        trigger.scope_id = UUID(input.scope_id.node_id) if input.scope_id else None
+        return trigger
+
+    @tracked_db_mutation(MMT.DELETE_TRIGGER)
+    def delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
+        trigger = models.Trigger.objects.get(id=input.id.node_id)
+        trigger.delete()
+        return trigger
+
+    @tracked_db_mutation(MMT.SOFT_DELETE_TRIGGER)
+    def soft_delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
+        trigger = models.Trigger.objects.get(id=input.id.node_id)
+        trigger.soft_delete()
+        return trigger
+
+    @tracked_db_mutation(MMT.RESTORE_TRIGGER)
+    def restore_trigger(self, input: TriggerRestoreInput) -> Trigger | OperationInfo:
+        trigger = models.Trigger.objects.get(id=input.id.node_id)
+        trigger.restore()
+        return trigger

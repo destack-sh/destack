@@ -307,7 +307,6 @@ export type File = CrudModel &
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
-    files: Array<File>;
     id: Scalars["GlobalID"];
     issues: Array<Issue>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -577,6 +576,7 @@ export type Mutation = {
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
   createTagging: TaggingOperationInfo;
+  createTrigger: TriggerOperationInfo;
   deleteField: FieldOperationInfo;
   deleteFile: FileOperationInfo;
   deleteObject: RemoteObjectOperationInfo;
@@ -584,6 +584,7 @@ export type Mutation = {
   deleteSecret?: Maybe<OperationInfo>;
   deleteStatement: StatementOperationInfo;
   deleteTagging: TaggingOperationInfo;
+  deleteTrigger: TriggerOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -604,6 +605,7 @@ export type Mutation = {
   restoreStatement: StatementOperationInfo;
   restoreStatementField: FieldOperationInfo;
   restoreTagging: TaggingOperationInfo;
+  restoreTrigger: TriggerOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
@@ -612,6 +614,7 @@ export type Mutation = {
   softDeleteRecord: RecordOperationInfo;
   softDeleteStatement: StatementOperationInfo;
   softDeleteTagging: TaggingOperationInfo;
+  softDeleteTrigger: TriggerOperationInfo;
   updateField: FieldOperationInfo;
   updateFieldDescription: FieldOperationInfo;
   updateFieldName: FieldOperationInfo;
@@ -632,6 +635,7 @@ export type Mutation = {
   updateSymbolDescription: StatementOperationInfo;
   updateSymbolValue: StatementOperationInfo;
   updateTagging: TaggingOperationInfo;
+  updateTrigger: TriggerOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
   wakeLangserver: WakeLangserverPayloadOperationInfo;
@@ -722,6 +726,10 @@ export type MutationCreateTaggingArgs = {
   input: TaggingCreateInput;
 };
 
+export type MutationCreateTriggerArgs = {
+  input: TriggerCreateInput;
+};
+
 export type MutationDeleteFieldArgs = {
   input: FieldDeleteInput;
 };
@@ -748,6 +756,10 @@ export type MutationDeleteStatementArgs = {
 
 export type MutationDeleteTaggingArgs = {
   input: TaggingDeleteInput;
+};
+
+export type MutationDeleteTriggerArgs = {
+  input: TriggerDeleteInput;
 };
 
 export type MutationMarkNotificationArgs = {
@@ -826,6 +838,10 @@ export type MutationRestoreTaggingArgs = {
   input: TaggingRestoreInput;
 };
 
+export type MutationRestoreTriggerArgs = {
+  input: TriggerRestoreInput;
+};
+
 export type MutationRevokeAccessTokenArgs = {
   id: Scalars["GlobalID"];
 };
@@ -856,6 +872,10 @@ export type MutationSoftDeleteStatementArgs = {
 
 export type MutationSoftDeleteTaggingArgs = {
   input: TaggingDeleteInput;
+};
+
+export type MutationSoftDeleteTriggerArgs = {
+  input: TriggerDeleteInput;
 };
 
 export type MutationUpdateFieldArgs = {
@@ -932,6 +952,10 @@ export type MutationUpdateSymbolValueArgs = {
 
 export type MutationUpdateTaggingArgs = {
   input: TaggingUpdateInput;
+};
+
+export type MutationUpdateTriggerArgs = {
+  input: TriggerUpdateInput;
 };
 
 export type MutationUpdateUserArgs = {
@@ -2019,7 +2043,6 @@ export type Statement = CrudModel &
   ModuleNode &
   Node & {
     __typename?: "Statement";
-    children: Array<Statement>;
     code?: Maybe<Scalars["String"]>;
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
@@ -2328,8 +2351,30 @@ export type Trigger = CrudModel &
     updatedAt: Scalars["DateTime"];
   };
 
+export type TriggerCreateInput = {
+  active: Scalars["Boolean"];
+  cron?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  mapping?: InputMaybe<Scalars["JSON"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId: Scalars["GlobalID"];
+  timezone?: InputMaybe<Scalars["String"]>;
+  type: TriggerType;
+};
+
+export type TriggerDeleteInput = {
+  id: Scalars["GlobalID"];
+};
+
 export type TriggerFilter = {
   isVisible?: InputMaybe<Scalars["Boolean"]>;
+};
+
+export type TriggerOperationInfo = OperationInfo | Trigger;
+
+export type TriggerRestoreInput = {
+  id: Scalars["GlobalID"];
 };
 
 /** Triggers for runnables (for both actual runs and pre-defined triggers). */
@@ -2342,6 +2387,16 @@ export enum TriggerType {
   Time = "TIME",
   User = "USER",
 }
+
+export type TriggerUpdateInput = {
+  active?: InputMaybe<Scalars["Boolean"]>;
+  cron?: InputMaybe<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  mapping?: InputMaybe<Scalars["JSON"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  timezone?: InputMaybe<Scalars["String"]>;
+};
 
 /** Extra representation/semantics of a field/type. */
 export enum TypeHint {
@@ -3554,6 +3609,26 @@ export type TaggingContentFragment = {
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "TaggingContentFragment" };
 
+export type TriggerContentFragment = {
+  __typename?: "Trigger";
+  id: any;
+  revision: number;
+  type: TriggerType;
+  active: boolean;
+  mapping?: any | null;
+  timezone?: string | null;
+  cron?: string | null;
+  createdAt: any;
+  updatedAt: any;
+  deletedAt?: any | null;
+  lastEditedAt?: any | null;
+  parent: { __typename?: "Statement"; id: any };
+  runnable?: { __typename?: "Statement"; id: any } | null;
+  scope?: { __typename?: "Statement"; id: any } | null;
+  createdBy?: { __typename?: "User"; id: any } | null;
+  lastEditedBy?: { __typename?: "User"; id: any } | null;
+} & { " $fragmentName"?: "TriggerContentFragment" };
+
 export type StatementContentFragment = {
   __typename?: "Statement";
   id: any;
@@ -3584,6 +3659,9 @@ export type StatementContentFragment = {
   reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
+  triggers: Array<
+    { __typename?: "Trigger" } & { " $fragmentRefs"?: { TriggerContentFragment: TriggerContentFragment } }
+  >;
   resolvedFields?: Array<
     { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
   > | null;
@@ -4292,6 +4370,7 @@ export type CreateStatementMutation = {
         reference?: { __typename?: "Statement"; id: any } | null;
         tags: Array<{ __typename?: "Tagging"; id: any }>;
         fields: Array<{ __typename?: "Field"; id: any }>;
+        triggers: Array<{ __typename?: "Trigger"; id: any }>;
         resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
         createdBy?: { __typename?: "User"; id: any } | null;
@@ -4690,7 +4769,7 @@ export type RestoreRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Record"; id: any; deletedAt?: any | null };
+    | { __typename?: "Record"; id: any; deletedAt?: any | null; revision: number };
 };
 
 export type BatchSoftDeleteRecordMutationVariables = Exact<{
@@ -4932,6 +5011,113 @@ export type UpdateTaggingMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Tagging"; id: any; updatedAt: any; revision: number; metadata?: any | null };
+};
+
+export type CreateTriggerMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  statementId: Scalars["GlobalID"];
+  type: TriggerType;
+  active: Scalars["Boolean"];
+  mapping?: InputMaybe<Scalars["JSON"]>;
+  timezone?: InputMaybe<Scalars["String"]>;
+  cron?: InputMaybe<Scalars["String"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type CreateTriggerMutation = {
+  __typename?: "Mutation";
+  createTrigger:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Trigger";
+        id: any;
+        revision: number;
+        type: TriggerType;
+        active: boolean;
+        mapping?: any | null;
+        timezone?: string | null;
+        cron?: string | null;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        lastEditedAt?: any | null;
+        runnable?: { __typename?: "Statement"; id: any } | null;
+        scope?: { __typename?: "Statement"; id: any } | null;
+        createdBy?: { __typename?: "User"; id: any } | null;
+        lastEditedBy?: { __typename?: "User"; id: any } | null;
+      };
+};
+
+export type DeleteTriggerMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type DeleteTriggerMutation = {
+  __typename?: "Mutation";
+  deleteTrigger:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Trigger"; id: any; deletedAt?: any | null };
+};
+
+export type SoftDeleteTriggerMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type SoftDeleteTriggerMutation = {
+  __typename?: "Mutation";
+  softDeleteTrigger:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Trigger"; id: any; deletedAt?: any | null };
+};
+
+export type RestoreTriggerMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+}>;
+
+export type RestoreTriggerMutation = {
+  __typename?: "Mutation";
+  restoreTrigger:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | { __typename?: "Trigger"; id: any; deletedAt?: any | null };
+};
+
+export type UpdateTriggerMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  active: Scalars["Boolean"];
+  mapping?: InputMaybe<Scalars["JSON"]>;
+  timezone?: InputMaybe<Scalars["String"]>;
+  cron?: InputMaybe<Scalars["String"]>;
+  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type UpdateTriggerMutation = {
+  __typename?: "Mutation";
+  updateTrigger:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Trigger";
+        id: any;
+        updatedAt: any;
+        revision: number;
+        active: boolean;
+        mapping?: any | null;
+        timezone?: string | null;
+        cron?: string | null;
+        runnable?: { __typename?: "Statement"; id: any } | null;
+        scope?: { __typename?: "Statement"; id: any } | null;
+      };
 };
 
 export type LogoutMutationVariables = Exact<{ [key: string]: never }>;
@@ -5855,6 +6041,72 @@ export const FieldContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<FieldContentFragment, unknown>;
+export const TriggerContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "TriggerContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "revision" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "parent" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "type" } },
+          { kind: "Field", name: { kind: "Name", value: "active" } },
+          { kind: "Field", name: { kind: "Name", value: "mapping" } },
+          { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "cron" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "runnable" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "scope" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+          { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+          { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createdBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "lastEditedBy" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<TriggerContentFragment, unknown>;
 export const IssueContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5993,6 +6245,30 @@ export const StatementContentFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggers" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "isVisible" },
+                      value: { kind: "BooleanValue", value: true },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TriggerContent" } }],
             },
           },
           {
@@ -6994,6 +7270,7 @@ export const FileContentByIdDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
@@ -7056,6 +7333,7 @@ export const StatementContentByIdDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<StatementContentByIdQuery, StatementContentByIdQueryVariables>;
@@ -9898,6 +10176,7 @@ export const CreateFileDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
@@ -10285,6 +10564,7 @@ export const PasteFileDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...TriggerContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<PasteFileMutation, PasteFileMutationVariables>;
@@ -11804,6 +12084,30 @@ export const CreateStatementDocument = {
                       },
                       {
                         kind: "Field",
+                        name: { kind: "Name", value: "triggers" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
                         name: { kind: "Name", value: "resolvedFields" },
                         selectionSet: {
                           kind: "SelectionSet",
@@ -12975,6 +13279,7 @@ export const BatchPasteStatementDocument = {
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
+    ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
@@ -13715,6 +14020,7 @@ export const RestoreRecordDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },
@@ -14895,6 +15201,508 @@ export const UpdateTaggingDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateTaggingMutation, UpdateTaggingMutationVariables>;
+export const CreateTriggerDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "createTrigger" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "TriggerType" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "active" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "mapping" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "cron" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "createTrigger" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "active" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "active" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "mapping" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "mapping" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "timezone" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "cron" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "cron" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runnableId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "scopeId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
+                      { kind: "Field", name: { kind: "Name", value: "active" } },
+                      { kind: "Field", name: { kind: "Name", value: "mapping" } },
+                      { kind: "Field", name: { kind: "Name", value: "timezone" } },
+                      { kind: "Field", name: { kind: "Name", value: "cron" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "runnable" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "scope" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "createdBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "lastEditedBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<CreateTriggerMutation, CreateTriggerMutationVariables>;
+export const DeleteTriggerDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "deleteTrigger" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "deleteTrigger" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<DeleteTriggerMutation, DeleteTriggerMutationVariables>;
+export const SoftDeleteTriggerDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "softDeleteTrigger" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "softDeleteTrigger" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<SoftDeleteTriggerMutation, SoftDeleteTriggerMutationVariables>;
+export const RestoreTriggerDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "restoreTrigger" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "restoreTrigger" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RestoreTriggerMutation, RestoreTriggerMutationVariables>;
+export const UpdateTriggerDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateTrigger" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "active" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "mapping" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "cron" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateTrigger" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "active" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "active" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "mapping" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "mapping" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "timezone" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "cron" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "cron" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "runnableId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "scopeId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "active" } },
+                      { kind: "Field", name: { kind: "Name", value: "mapping" } },
+                      { kind: "Field", name: { kind: "Name", value: "timezone" } },
+                      { kind: "Field", name: { kind: "Name", value: "cron" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "runnable" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "scope" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateTriggerMutation, UpdateTriggerMutationVariables>;
 export const LogoutDocument = {
   kind: "Document",
   definitions: [

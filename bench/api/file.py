@@ -35,7 +35,6 @@ class StatementFilter:
 class File(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     name: auto
-    files: list["File"]  # if folder
     parent: ModuleNode
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter

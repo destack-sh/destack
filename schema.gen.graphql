@@ -296,7 +296,6 @@ type File implements CrudModel & ModuleNode & Node {
   revision: Int!
   projectVersion: ProjectVersion!
   name: String!
-  files: [File!]!
   statements(filters: StatementFilter): [Statement!]!
   issues(filters: IssueFilter): [Issue!]!
 }
@@ -588,6 +587,11 @@ type Mutation {
   deleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
   softDeleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
   restoreTagging(input: TaggingRestoreInput!): TaggingOperationInfo!
+  createTrigger(input: TriggerCreateInput!): TriggerOperationInfo!
+  updateTrigger(input: TriggerUpdateInput!): TriggerOperationInfo!
+  deleteTrigger(input: TriggerDeleteInput!): TriggerOperationInfo!
+  softDeleteTrigger(input: TriggerDeleteInput!): TriggerOperationInfo!
+  restoreTrigger(input: TriggerRestoreInput!): TriggerOperationInfo!
   createRecord(input: RecordCreateInput!): RecordOperationInfo!
   updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
   moveRecord(input: RecordMoveInput!): RecordOperationInfo!
@@ -1700,11 +1704,10 @@ type Statement implements CrudModel & ModuleNode & Node {
   revision: Int!
   projectVersion: ProjectVersion!
   file: File!
+  descendants: [Statement!]!
   type: StatementType!
   name: String
   key: String
-  children: [Statement!]!
-  descendants: [Statement!]!
   orderKey: String!
   text: String
   reference: Statement
@@ -1943,8 +1946,30 @@ type Trigger implements CrudModel & ModuleNode & Node {
   scope: Statement
 }
 
+input TriggerCreateInput {
+  id: GlobalID!
+  statementId: GlobalID!
+  type: TriggerType!
+  active: Boolean!
+  mapping: JSON = null
+  timezone: String = null
+  cron: String = null
+  runnableId: GlobalID = null
+  scopeId: GlobalID = null
+}
+
+input TriggerDeleteInput {
+  id: GlobalID!
+}
+
 input TriggerFilter {
   isVisible: Boolean = true
+}
+
+union TriggerOperationInfo = Trigger | OperationInfo
+
+input TriggerRestoreInput {
+  id: GlobalID!
 }
 
 """
@@ -1958,6 +1983,16 @@ enum TriggerType {
   MESSAGE
   USER
   API
+}
+
+input TriggerUpdateInput {
+  id: GlobalID!
+  active: Boolean = null
+  mapping: JSON = null
+  timezone: String = null
+  cron: String = null
+  runnableId: GlobalID = null
+  scopeId: GlobalID = null
 }
 
 """Extra representation/semantics of a field/type."""

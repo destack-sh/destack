@@ -64,51 +64,6 @@ class ModuleChange(Change):
     mutations: list[ModuleMutation]
 
 
-# some (yet unused) scaffolding to understand project change sync interface
-
-
-@gql.type
-class CommentMutation:
-    project_version_id: GlobalID
-    comment_id: GlobalID
-    file_id: Optional[GlobalID]
-    statement_id: Optional[GlobalID]
-    screen_id: Optional[GlobalID]
-    tile_id: Optional[GlobalID]
-    revision: Optional[int]
-    input: Optional[JSON]
-
-
-@gql.type
-class CommentChange(Change):
-    id: UUID
-    client_id: Optional[GlobalID]
-    mutations: list[CommentMutation]
-
-
-@gql.type
-class ScreenMutation:
-    project_version_id: GlobalID
-    screen_id: GlobalID
-    tile_id: Optional[GlobalID]
-    revision: Optional[int]
-    input: Optional[JSON]
-
-
-@gql.type
-class ScreenChange(Change):
-    id: UUID
-    client_id: Optional[GlobalID]
-    mutations: list[ScreenMutation]
-
-
-def unpack_project_mutation(mutation: ProjectMutation) -> ProjectMutation:
-    return ProjectMutation(
-        type=mutation.type,
-        project_version_id=to_global_id("ProjectVersion", mutation.project_version_id),
-    )
-
-
 async def unpack_module_mutations(
     mutations: list[mutate.ModuleMutation], project_v: models.ProjectVersion
 ) -> list[ModuleMutation]:

@@ -203,6 +203,39 @@ export const TaggingType = graphql(/* GraphQL */ `
   }
 `);
 
+export const TriggerType = graphql(/* GraphQL */ `
+  fragment TriggerContent on Trigger {
+    # :TriggerContent
+    id
+    revision
+    parent {
+      id
+    }
+    type
+    active
+    mapping
+    timezone
+    cron
+    runnable {
+      id
+    }
+    scope {
+      id
+    }
+    # crud
+    createdAt
+    updatedAt
+    deletedAt
+    createdBy {
+      id
+    }
+    lastEditedAt
+    lastEditedBy {
+      id
+    }
+  }
+`);
+
 export const StatementContentType = graphql(/* GraphQL */ `
   fragment StatementContent on Statement {
     id
@@ -235,6 +268,9 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     fields(filters: { isVisible: true }) {
       ...FieldContent
+    }
+    triggers(filters: { isVisible: true }) {
+      ...TriggerContent
     }
     # interp
     resolvedFields {

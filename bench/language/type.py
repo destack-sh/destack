@@ -516,7 +516,7 @@ class HasType(TypeBase, StatementBase):
                 continue  # ignore unresolved
             Type._resolve_unions(maybe_union.reference, path)
             if not maybe_union.reference.resolved_fields:
-                continue  # couldn't resolve
+                continue  # couldn't resolve *that* union
             # inline child's type nodes
             for child in maybe_union.reference.resolved_fields:
                 existing = first((n for n in resolved_fields if n.name == child.name), None)
