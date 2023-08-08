@@ -24,6 +24,8 @@ import {
   type UpdateSymbolValueMutation,
   type Tagging,
   type UpdateStatementReferenceMutation,
+  TriggerType,
+  type Trigger,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { OpRegistry, PENDING_REVISION } from "@/state/sync";
@@ -377,6 +379,7 @@ export function useSymbolContentOps() {
           ... on Record {
             id
             deletedAt
+            revision
           }
           ...OperationInfoContent
         }
@@ -390,6 +393,10 @@ export function useSymbolContentOps() {
             __typename: "Record",
             id: vars.id,
             deletedAt: null,
+            // NOTE: revision is not actually needed here, but it seems the specific way we query for records in datasets (with searchDataset)
+            // doesn't (always?) trigger reactivity through Apollo's cache properly if deletedAt is reset to null optimistically.
+            // i.e. if we don't change something - like the pending revision - the record will still appear deleted on this client (only, it's just a local UX issue).
+            revision: PENDING_REVISION,
           },
         } as RestoreRecordMutation),
     }
@@ -806,7 +813,7 @@ export function useSymbolContentOps() {
   ) {
     await ops.perform({
       tx,
-      type: "symbol.createField",
+      type: "statement.createField",
       do: async () => {
         return await createFieldMut(_toFieldInput(statementId, field));
       },
@@ -822,7 +829,7 @@ export function useSymbolContentOps() {
   async function deleteField(tx: Transaction | null, statementId: string, field: Pick<Field, "id">) {
     await ops.perform({
       tx,
-      type: "symbol.deleteField",
+      type: "statement.deleteField",
       do: async () => {
         return await deleteFieldMut({ id: field.id });
       },
@@ -832,7 +839,7 @@ export function useSymbolContentOps() {
   async function softDeleteField(tx: Transaction | null, statementId: string, field: Pick<Field, "id">) {
     await ops.perform({
       tx,
-      type: "symbol.softDeleteField",
+      type: "statement.softDeleteField",
       do: async () => {
         return await softDeleteFieldMut({ id: field.id });
       },
@@ -918,7 +925,7 @@ export function useSymbolContentOps() {
   async function updateField(tx: Transaction | null, oldField: FieldUpdateInput, newField: FieldUpdateInput) {
     await ops.perform({
       tx,
-      type: "symbol.updateField",
+      type: "statement.updateField",
       do: async () => {
         return await updateFieldMut(newField);
       },
@@ -956,7 +963,7 @@ export function useSymbolContentOps() {
   async function moveField(tx: Transaction | null, id: string, oldOrderKey: string, newOrderKey: string) {
     await ops.perform({
       tx,
-      type: "symbol.moveField",
+      type: "statement.moveField",
       do: async () => {
         return await moveFieldMut({ id, orderKey: newOrderKey });
       },
@@ -1141,7 +1148,7 @@ export function useSymbolContentOps() {
   ) {
     await ops.perform({
       tx,
-      type: "symbol.createTagging",
+      type: "statement.createTagging",
       do: async () => {
         return await createTaggingMut({
           id: tagging.id,
@@ -1163,7 +1170,7 @@ export function useSymbolContentOps() {
   async function deleteTagging(tx: Transaction | null, statementId: string, tagging: Pick<Tagging, "id">) {
     await ops.perform({
       tx,
-      type: "symbol.deleteTagging",
+      type: "statement.deleteTagging",
       do: async () => {
         return await deleteTaggingMut({ id: tagging.id });
       },
@@ -1173,7 +1180,7 @@ export function useSymbolContentOps() {
   async function softDeleteTagging(tx: Transaction | null, statementId: string, tagging: Pick<Tagging, "id">) {
     await ops.perform({
       tx,
-      type: "symbol.softDeleteTagging",
+      type: "statement.softDeleteTagging",
       do: async () => {
         return await softDeleteTaggingMut({ id: tagging.id });
       },
@@ -1220,12 +1227,343 @@ export function useSymbolContentOps() {
   ) {
     await ops.perform({
       tx,
-      type: "symbol.updateTaggingMetadata",
+      type: "statement.updateTaggingMetadata",
       do: async () => {
         return await updateTaggingMut(newTagging);
       },
       undo: async () => {
         return await updateTaggingMut(oldTagging);
+      },
+    });
+  }
+
+  const { mutate: createTriggerMut } = registry.useMutation(
+    ModuleMutationType.CreateTrigger,
+    graphql(/* GraphQL */ `
+      mutation createTrigger(
+        $id: GlobalID!
+        $statementId: GlobalID!
+        $type: TriggerType!
+        $active: Boolean!
+        $mapping: JSON
+        $timezone: String
+        $cron: String
+        $runnableId: GlobalID
+        $scopeId: GlobalID
+      ) {
+        createTrigger(
+          input: {
+            id: $id
+            statementId: $statementId
+            type: $type
+            active: $active
+            mapping: $mapping
+            timezone: $timezone
+            cron: $cron
+            runnableId: $runnableId
+            scopeId: $scopeId
+          }
+        ) {
+          ... on Trigger {
+            id
+            revision
+            type
+            active
+            mapping
+            timezone
+            cron
+            runnable {
+              id
+            }
+            scope {
+              id
+            }
+            # crud
+            createdAt
+            updatedAt
+            deletedAt
+            createdBy {
+              id
+            }
+            lastEditedAt
+            lastEditedBy {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        statementId: string;
+        type: TriggerType;
+        active: boolean;
+        mapping: any;
+        timezone: string;
+        cron: string;
+        runnableId: string;
+        scopeId: string;
+      }) =>
+        ({
+          __typename: "Mutation",
+          createTrigger: {
+            __typename: "Trigger",
+            id: vars.id,
+            revision: PENDING_REVISION,
+            type: vars.type,
+            active: vars.active,
+            mapping: vars.mapping ?? null,
+            timezone: vars.timezone ?? null,
+            cron: vars.cron ?? null,
+            runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
+            scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
+            // crud
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString(),
+            deletedAt: null,
+            createdBy: null,
+            lastEditedAt: null,
+            lastEditedBy: null,
+          },
+        } as any),
+      update(cache, { data }) {
+        const createTrigger = data?.createTrigger;
+        if (createTrigger?.__typename != "Trigger") {
+          return; // error
+        }
+        // extend Statement.triggers with (ref to) new trigger
+        cache.modify({
+          id: cache.identify(createTrigger.parent),
+          fields: {
+            triggers(existingTriggers = []) {
+              const newRef = cache.identify(createTrigger);
+              return [
+                ...existingTriggers.filter((t: any) => t.__ref != newRef), // remove old trigger if exists
+                { __ref: newRef },
+              ];
+            },
+          },
+          optimistic: true,
+        });
+      },
+    }
+  );
+
+  const { mutate: deleteTriggerMut } = registry.useMutation(
+    ModuleMutationType.DeleteTrigger,
+    graphql(/* GraphQL */ `
+      mutation deleteTrigger($id: GlobalID!) {
+        deleteTrigger(input: { id: $id }) {
+          ... on Trigger {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          deleteTrigger: {
+            __typename: "Trigger",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as any),
+    }
+  );
+
+  const { mutate: softDeleteTriggerMut } = registry.useMutation(
+    ModuleMutationType.SoftDeleteTrigger,
+    graphql(/* GraphQL */ `
+      mutation softDeleteTrigger($id: GlobalID!) {
+        softDeleteTrigger(input: { id: $id }) {
+          ... on Trigger {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          softDeleteTrigger: {
+            __typename: "Trigger",
+            id: vars.id,
+            deletedAt: new Date().toISOString(),
+          },
+        } as any),
+    }
+  );
+
+  const { mutate: restoreTriggerMut } = registry.useMutation(
+    ModuleMutationType.RestoreTrigger,
+    graphql(/* GraphQL */ `
+      mutation restoreTrigger($id: GlobalID!) {
+        restoreTrigger(input: { id: $id }) {
+          ... on Trigger {
+            id
+            deletedAt
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string }) =>
+        ({
+          restoreTrigger: {
+            __typename: "Trigger",
+            id: vars.id,
+            deletedAt: null,
+          },
+        } as any),
+    }
+  );
+
+  async function createTrigger(
+    tx: Transaction | null,
+    statementId: string,
+    trigger: Pick<Trigger, "id" | "type" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">
+  ) {
+    await ops.perform({
+      tx,
+      type: "statement.createTrigger",
+      do: async () => {
+        return await createTriggerMut({
+          id: trigger.id,
+          statementId: statementId,
+          type: trigger.type,
+          active: trigger.active,
+          mapping: trigger.mapping ?? null,
+          timezone: trigger.timezone ?? null,
+          cron: trigger.cron ?? null,
+          runnableId: trigger.runnable?.id ?? null,
+          scopeId: trigger.scope?.id ?? null,
+        });
+      },
+      undo: async () => {
+        return await softDeleteTriggerMut({ id: trigger.id });
+      },
+      redo: async () => {
+        return await restoreTriggerMut({ id: trigger.id });
+      },
+    });
+  }
+
+  async function softDeleteTrigger(tx: Transaction | null, statementId: string, trigger: Pick<Trigger, "id">) {
+    await ops.perform({
+      tx,
+      type: "statement.softDeleteTrigger",
+      do: async () => {
+        return await softDeleteTriggerMut({ id: trigger.id });
+      },
+      undo: async () => {
+        return await restoreTriggerMut({ id: trigger.id });
+      },
+    });
+  }
+
+  async function restoreTrigger(tx: Transaction | null, statementId: string, trigger: Pick<Trigger, "id">) {
+    await ops.perform({
+      tx,
+      type: "statement.restoreTrigger",
+      do: async () => {
+        return await restoreTriggerMut({ id: trigger.id });
+      },
+      undo: async () => {
+        return await softDeleteTriggerMut({ id: trigger.id });
+      },
+    });
+  }
+
+  const { mutate: updateTriggerMut } = registry.useMutation(
+    ModuleMutationType.UpdateTrigger,
+    graphql(/* GraphQL */ `
+      mutation updateTrigger(
+        $id: GlobalID!
+        $active: Boolean!
+        $mapping: JSON
+        $timezone: String
+        $cron: String
+        $runnableId: GlobalID
+        $scopeId: GlobalID
+      ) {
+        updateTrigger(
+          input: {
+            id: $id
+            active: $active
+            mapping: $mapping
+            timezone: $timezone
+            cron: $cron
+            runnableId: $runnableId
+            scopeId: $scopeId
+          }
+        ) {
+          ... on Trigger {
+            id
+            updatedAt
+            revision
+            active
+            mapping
+            timezone
+            cron
+            runnable {
+              id
+            }
+            scope {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        active: boolean;
+        mapping: any;
+        timezone: string;
+        cron: string;
+        runnableId: string;
+        scopeId: string;
+      }) =>
+        ({
+          updateTrigger: {
+            __typename: "Trigger",
+            id: vars.id,
+            updatedAt: new Date().toISOString(),
+            revision: PENDING_REVISION,
+            active: vars.active,
+            mapping: vars.mapping ?? null,
+            timezone: vars.timezone ?? null,
+            cron: vars.cron ?? null,
+            runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
+            scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
+          },
+        } as any),
+    }
+  );
+
+  async function updateTrigger(
+    tx: Transaction | null,
+    oldTrigger: Pick<Trigger, "id" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">,
+    newTrigger: Pick<Trigger, "id" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">
+  ) {
+    await ops.perform({
+      tx,
+      type: "statement.updateTrigger",
+      do: async () => {
+        return await updateTriggerMut(newTrigger);
+      },
+      undo: async () => {
+        return await updateTriggerMut(oldTrigger);
       },
     });
   }
@@ -1252,5 +1590,9 @@ export function useSymbolContentOps() {
     updateTaggingMetadata,
     deleteTagging,
     softDeleteTagging,
+    createTrigger,
+    softDeleteTrigger,
+    restoreTrigger,
+    updateTrigger,
   };
 }
