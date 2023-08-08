@@ -16,7 +16,7 @@ import {
   type UpdateStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
-import { OpRegistry, PENDING_REVISION } from "@/state/sync";
+import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
@@ -59,11 +59,11 @@ export function newTriggerId(): string {
 
 export function useStatementOps() {
   const ops = useOperationsStore();
-  const registry = new OpRegistry();
+  const registry = new ModuleMutationRegistry();
 
   // yeah there's some annoying redundance here, see :BE-114
 
-  const { mutate: createStatementMut } = registry.useMutation(
+  const { mutate: createStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateStatement,
     graphql(/* GraphQL */ `
       mutation createStatement(
@@ -331,7 +331,7 @@ export function useStatementOps() {
   }
 
   /* not used in client, just for registration as a sync op */
-  registry.useMutation(
+  registry.defineModuleMutation(
     ModuleMutationType.UpdateStatement,
     graphql(/* GraphQL */ `
       mutation updateStatement(
@@ -425,7 +425,7 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: morphStatementMut } = registry.useMutation(
+  const { mutate: morphStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.MorphStatement,
     graphql(/* GraphQL */ `
       mutation morphStatement(
@@ -513,7 +513,7 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: moveStatementMut } = registry.useMutation(
+  const { mutate: moveStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.MoveStatement,
     graphql(/* GraphQL */ `
       mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
@@ -671,7 +671,7 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: renameStatementMut } = registry.useMutation(
+  const { mutate: renameStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.RenameStatement,
     graphql(/* GraphQL */ `
       mutation renameStatement($id: GlobalID!, $name: String) {
@@ -711,7 +711,7 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: deleteStatementMut } = registry.useMutation(
+  const { mutate: deleteStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.DeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
@@ -738,7 +738,7 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: softDeleteStatementMut } = registry.useMutation(
+  const { mutate: softDeleteStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.SoftDeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
@@ -794,7 +794,7 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: restoreStatementMut } = registry.useMutation(
+  const { mutate: restoreStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.RestoreStatement,
     graphql(/* GraphQL */ `
       mutation restoreStatement($id: GlobalID!) {

@@ -21,7 +21,7 @@ import { computed, onUnmounted, type Ref } from "vue";
 
 export const PENDING_REVISION = -1;
 
-type MutationOp = {
+type GqlMutation = {
   type: ModuleMutationType; // later other change types will be supported
   name: string;
   fragment: DocumentNode | TypedDocumentNode;
@@ -29,7 +29,7 @@ type MutationOp = {
   updateCache?: MutationUpdaterFunction<any, any, any, any>;
 };
 
-function applyOpLocally(client: ApolloClient<any>, op: MutationOp, vars: any, revision: number | null) {
+function applyGqlMutation(client: ApolloClient<any>, op: GqlMutation, vars: any, revision: number | null) {
   /* Apply the mutation operation */
 
   // first, get the expected response for the input vars
@@ -57,21 +57,21 @@ function applyOpLocally(client: ApolloClient<any>, op: MutationOp, vars: any, re
 declare type DocumentParameter<TResult, TVariables> = DocumentNode | TypedDocumentNode<TResult, TVariables>;
 declare type OptionsParameter<TResult, TVariables> = UseMutationOptions<TResult, TVariables>;
 
-export class OpRegistry {
-  public ops: Partial<Record<ModuleMutationType, MutationOp>> = {};
+export class ModuleMutationRegistry {
+  public mutations: Partial<Record<ModuleMutationType, GqlMutation>> = {};
 
-  public merge(registry: OpRegistry) {
-    for (const [type, op] of Object.entries(registry.ops)) {
+  public merge(registry: ModuleMutationRegistry) {
+    for (const [type, op] of Object.entries(registry.mutations)) {
       // error if already registered
-      if (this.ops[type as ModuleMutationType] != null) {
+      if (this.mutations[type as ModuleMutationType] != null) {
         throw new Error(`type ${type} already registered`);
       }
-      this.ops[type as ModuleMutationType] = op;
+      this.mutations[type as ModuleMutationType] = op;
     }
   }
 
-  static mergeAll(registries: OpRegistry[]) {
-    const registry = new OpRegistry();
+  static mergeAll(registries: ModuleMutationRegistry[]) {
+    const registry = new ModuleMutationRegistry();
     for (const r of registries) {
       registry.merge(r);
     }
@@ -82,14 +82,14 @@ export class OpRegistry {
   //  For one, optimistic responses and even cache updates could be auto-generated with some relatively simple rules.
   //  Also, because the underline mutations are currently 'opaque' to the operations system ('ops.perform(...)'), we can't simply
   //  collect and batch multiple mutations without sending them off. This further prevents any reasonable offline support,
-  //  and coincidentally, makes it hard to walk all ancestors of a mutated object (e.g. to bump on change).
+  //  and, coincidentally, makes it hard to walk a module node (e.g. to bump up on change, delete down).
   //
   //  We probably want to keep GQL mutations (many reasons; they're nicely typed, debuggable and optimistic, auto-multiplayer, etc.),
   //  but we can simplify multiplayer module mutations - some thoughts on a potential refactor:
   //   1. useMutation passes in only the graphql mutation/fragment (no optimistic response or cache update)
   //   2. update operation store Operation to also accept a set of native GQL mutation objects (somehow)
-  //   3. have a global way to collect mutations instead of sending them (for offline, also for client-side 'transactions')
-  public useMutation<TResult = any, TVariables extends OperationVariables = OperationVariables>(
+  //   3. have a global way to collect mutations instead of sending them immediately (for offline, also for client-side 'transactions')
+  public defineModuleMutation<TResult = any, TVariables extends OperationVariables = OperationVariables>(
     type: ModuleMutationType,
     document: DocumentParameter<TResult, TVariables>,
     options?: OptionsParameter<TResult, TVariables>
@@ -109,14 +109,14 @@ export class OpRegistry {
     if (options?.optimisticResponse == null || typeof options?.optimisticResponse != "function") {
       throw new Error(`optimisticResponse function is required: ${type}`);
     }
-    const op: MutationOp = {
+    const op: GqlMutation = {
       type,
       name: operationName,
       fragment: parse(fragment),
       optimisticResponse: options?.optimisticResponse as (vars: any) => any,
       updateCache: options?.update,
     };
-    this.ops[type] = op;
+    this.mutations[type] = op;
 
     return useMutation(document, options);
   }
@@ -253,17 +253,17 @@ export function useProjectSync(projectId: Ref<string | null>) {
 function useSyncedOps() {
   const ops = useOperations();
   const { client } = useApolloClient();
-  const opRegistry = OpRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
+  const opRegistry = ModuleMutationRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
 
   function applyApiMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
     // mutations that we just pass through to the regular op with the original input
-    const registeredOp = opRegistry.ops[mutation.type];
+    const registeredOp = opRegistry.mutations[mutation.type];
     if (registeredOp == null) {
       console.warn(`cannot apply unknown input mutation: ${mutation.type}`);
       return;
     }
     console.debug("apply api sync mutation", mutation);
-    applyOpLocally(client, registeredOp, mutation.input, mutation.revision as number | null);
+    applyGqlMutation(client, registeredOp, mutation.input, mutation.revision as number | null);
   }
 
   function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {

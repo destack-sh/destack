@@ -61,7 +61,7 @@ export function closeTransaction(tx: Transaction) {
 }
 
 const COMPLETED_STACK_SIZE = 500;
-const STALE_TIME_SECONDS = 1;
+const STALE_TIME_SECONDS = 2;
 
 // keep reactive now (can't use useNow because it attaches to component)
 const now: Ref<DateTime> = ref(DateTime.now());
@@ -91,13 +91,13 @@ export const useOperationsStore = defineStore("operations", {
       stateless?: boolean;
     }) => Operation<unknown>[] {
       return (filters) => {
-        const oneSecondAgo = filters.stale ? now.value.minus({ seconds: STALE_TIME_SECONDS }) : null;
+        const stalenessCutoff = filters.stale ? now.value.minus({ seconds: STALE_TIME_SECONDS }) : null;
         return state.inflight.filter(
           (op) =>
             (!filters.types || filters.types.includes(op.type)) &&
             (!filters.typesNot || !filters.typesNot.includes(op.type)) &&
             (!filters.keys || (op.key != null && JSON.stringify(op.key).match(new RegExp(filters.keys.join("|"))))) &&
-            (!filters.stale || (op.startedAt != null && op.startedAt < oneSecondAgo)) &&
+            (!filters.stale || (op.startedAt != null && stalenessCutoff != null && op.startedAt < stalenessCutoff)) &&
             (filters.stateless === undefined || (op.stateless ?? false) == filters.stateless)
         );
       };
