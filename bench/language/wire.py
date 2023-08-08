@@ -478,6 +478,10 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
+# TODO @Cleanup @Architecture: auto-generated wire format and module data packers
+#  I have a strong hunch that this is possible, and it seems like a good idea. Less code.
+
+
 @node_packer(MOT.MODULE, ModuleData, lang.Module)
 class ModulePacker(NodePacker[ModuleData, lang.Module]):
     PARENTS: ClassVar[ParentsT] = set()
@@ -1203,6 +1207,7 @@ class TriggerData(NodeData, HasCrud):
     active: bool
     mapping: Optional[list[tuple[str, str]]]
     timezone: Optional[str]
+    interval_seconds: Optional[int]
     cron: Optional[str]
     runnable_id: Optional[UUID]
     scope_id: Optional[UUID]
@@ -1220,6 +1225,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             active=trigger.active,
             mapping=trigger.mapping,
             timezone=trigger.timezone,
+            interval_seconds=trigger.interval_seconds,
             cron=trigger.cron,
             runnable_id=trigger.runnable.id if trigger.runnable else None,
             scope_id=trigger.scope.id if trigger.scope else None,
@@ -1235,6 +1241,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             active=trigger.active,
             mapping=trigger.mapping,
             timezone=trigger.timezone,
+            interval_seconds=trigger.interval_seconds,
             cron=trigger.cron,
             runnable=trigger.runnable_id,
             scope=trigger.scope_id,

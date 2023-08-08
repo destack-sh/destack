@@ -18,6 +18,7 @@ import {
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import StatementTriggers from "@/components/statements/StatementTriggers.vue";
+import { StatementType } from "@/gql/graphql";
 
 const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -137,8 +138,8 @@ defineExpose({
         "
         @navigate-right="typeRef?.focus"
       />
-      <StatementTriggers />
       <StatementTags ref="tagsRef" />
+      <StatementTriggers v-if="context.statement.value.type == StatementType.Task" />
     </div>
     <InlineActions
       class="transition duration-150 group-hover/statement:opacity-100"

@@ -6,10 +6,11 @@ import {
   type FieldCreateInput,
   type FieldUpdateInput,
   type Field,
+  TriggerType,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { StatementAction } from "@/state/bench";
-import { FieldType, FileHeaderType, StatementContentType, TaggingType } from "@/state/fragments";
+import { FieldType, FileHeaderType, StatementContentType, TaggingType, TriggerContentType } from "@/state/fragments";
 import { TypeFlag, getSymbolSubtype, useCurrentModule } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
@@ -22,7 +23,7 @@ import {
   ArrowUpRightIcon,
   CircleStackIcon as CircleStackIconOutline,
   CodeBracketSquareIcon as CodeBracketSquareIconOutline,
-  PlayCircleIcon,
+  PlayCircleIcon as PlayCircleIconOutline,
   QueueListIcon,
   RectangleGroupIcon as RectangleGroupIconOutline,
   ServerStackIcon as ServerStackIconOutline,
@@ -30,6 +31,11 @@ import {
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
+  LinkIcon as LinkIconOutline,
+  PencilSquareIcon as PencilSquareIconOutline,
+  EnvelopeIcon as EnvelopeIconOutline,
+  ClockIcon as ClockIconOutline,
+  UserCircleIcon as UserCircleIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -40,8 +46,13 @@ import {
   ServerStackIcon as ServerStackIconSolid,
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
-  PlayCircleIcon as PlayCircleIconSolid,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
+  LinkIcon as LinkIconSolid,
+  PencilSquareIcon as PencilSquareIconSolid,
+  PlayCircleIcon as PlayCircleIconSolid,
+  EnvelopeIcon as EnvelopeIconSolid,
+  ClockIcon as ClockIconSolid,
+  UserCircleIcon as UserCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -445,6 +456,11 @@ export function useStatementContext() {
     tags: computed(
       () => statement.value.tags.map((t) => useFragment(TaggingType, t)).filter((t) => t.deletedAt == null) ?? []
     ),
+    // triggers
+    triggers: computed(
+      () =>
+        statement.value.triggers.map((t) => useFragment(TriggerContentType, t)).filter((t) => t.deletedAt == null) ?? []
+    ),
     // typing
     fields,
     fieldsByName,
@@ -597,7 +613,7 @@ export function getStatementIconOutline(type: StatementType, rootTypeTag?: TypeT
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIconOutline;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return PlayCircleIcon;
+    return PlayCircleIconOutline;
   } else {
     return STATEMENT_ICONS_OUTLINE[type];
   }
@@ -612,3 +628,31 @@ export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag
     return STATEMENT_ICONS_SOLID[type];
   }
 }
+
+export const TRIGGER_ICONS_OUTLINE: Partial<Record<TriggerType, any>> = {
+  [TriggerType.Api]: LinkIconOutline,
+  [TriggerType.Edit]: PencilSquareIconOutline,
+  [TriggerType.Invoke]: PlayCircleIconOutline,
+  [TriggerType.Message]: EnvelopeIconOutline,
+  [TriggerType.Run]: PlayCircleIconOutline,
+  [TriggerType.Time]: ClockIconOutline,
+  [TriggerType.User]: UserCircleIconOutline,
+};
+
+export const TRIGGER_ICONS_SOLID: Partial<Record<TriggerType, any>> = {
+  [TriggerType.Api]: LinkIconSolid,
+  [TriggerType.Edit]: PencilSquareIconSolid,
+  [TriggerType.Invoke]: PlayCircleIconSolid,
+  [TriggerType.Message]: EnvelopeIconSolid,
+  [TriggerType.Run]: PlayCircleIconSolid,
+  [TriggerType.Time]: ClockIconSolid,
+  [TriggerType.User]: UserCircleIconSolid,
+};
+
+export const CONFIGURABLE_TRIGGER_TYPES = [
+  TriggerType.Api,
+  TriggerType.Time,
+  TriggerType.Edit,
+  TriggerType.Message,
+  TriggerType.Run,
+];

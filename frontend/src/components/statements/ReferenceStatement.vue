@@ -13,6 +13,7 @@ import type { Statement } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { onStartTyping, useKeyModifier } from "@vueuse/core";
+import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -123,6 +124,7 @@ defineExpose({
         {{ resolvedReference?.name ?? (context.statement.value.reference == null ? "..." : "???") }}
       </button>
       <StatementTags ref="tagsRef" class="ml-0.5" />
+      <StatementTriggers ref="tagsRef" class="ml-0.5" />
     </div>
     <!-- Controls -->
     <div

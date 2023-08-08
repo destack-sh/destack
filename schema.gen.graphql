@@ -1941,6 +1941,7 @@ type Trigger implements CrudModel & ModuleNode & Node {
   active: Boolean!
   mapping: JSON
   timezone: String
+  intervalSeconds: Int
   cron: String
   runnable: Statement
   scope: Statement
@@ -1953,6 +1954,7 @@ input TriggerCreateInput {
   active: Boolean!
   mapping: JSON = null
   timezone: String = null
+  intervalSeconds: Int = null
   cron: String = null
   runnableId: GlobalID = null
   scopeId: GlobalID = null
@@ -1990,6 +1992,7 @@ input TriggerUpdateInput {
   active: Boolean = null
   mapping: JSON = null
   timezone: String = null
+  intervalSeconds: Int = null
   cron: String = null
   runnableId: GlobalID = null
   scopeId: GlobalID = null

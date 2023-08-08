@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
@@ -56,7 +55,7 @@ const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & Typ
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
 const numCodeLines = computed(() => code.value.split("\n").length);
 
-const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
+const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 const outputRef = ref<HTMLDivElement | null>(null);
@@ -222,8 +221,8 @@ defineExpose({
         ref="declarationRef"
         @navigate-down="(typeRef?.focus ?? monacoRef?.focus ?? context.navigateDown)()"
       />
-      <StatementTriggers class="ml-1.5" />
       <StatementTags ref="tagsRef" class="ml-1.5" />
+      <StatementTriggers class="ml-1.5" />
     </div>
     <!-- Meta info & controls -->
     <div

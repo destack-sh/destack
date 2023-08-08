@@ -2339,6 +2339,7 @@ export type Trigger = CrudModel &
     cron?: Maybe<Scalars["String"]>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
     id: Scalars["GlobalID"];
+    intervalSeconds?: Maybe<Scalars["Int"]>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
     mapping?: Maybe<Scalars["JSON"]>;
@@ -2355,6 +2356,7 @@ export type TriggerCreateInput = {
   active: Scalars["Boolean"];
   cron?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
+  intervalSeconds?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2392,6 +2394,7 @@ export type TriggerUpdateInput = {
   active?: InputMaybe<Scalars["Boolean"]>;
   cron?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
+  intervalSeconds?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -3617,6 +3620,7 @@ export type TriggerContentFragment = {
   active: boolean;
   mapping?: any | null;
   timezone?: string | null;
+  intervalSeconds?: number | null;
   cron?: string | null;
   createdAt: any;
   updatedAt: any;
@@ -5020,6 +5024,7 @@ export type CreateTriggerMutationVariables = Exact<{
   active: Scalars["Boolean"];
   mapping?: InputMaybe<Scalars["JSON"]>;
   timezone?: InputMaybe<Scalars["String"]>;
+  intervalSeconds?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -5039,6 +5044,7 @@ export type CreateTriggerMutation = {
         active: boolean;
         mapping?: any | null;
         timezone?: string | null;
+        intervalSeconds?: number | null;
         cron?: string | null;
         createdAt: any;
         updatedAt: any;
@@ -5095,6 +5101,7 @@ export type UpdateTriggerMutationVariables = Exact<{
   active: Scalars["Boolean"];
   mapping?: InputMaybe<Scalars["JSON"]>;
   timezone?: InputMaybe<Scalars["String"]>;
+  intervalSeconds?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -5114,6 +5121,7 @@ export type UpdateTriggerMutation = {
         active: boolean;
         mapping?: any | null;
         timezone?: string | null;
+        intervalSeconds?: number | null;
         cron?: string | null;
         runnable?: { __typename?: "Statement"; id: any } | null;
         scope?: { __typename?: "Statement"; id: any } | null;
@@ -6065,6 +6073,7 @@ export const TriggerContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "active" } },
           { kind: "Field", name: { kind: "Name", value: "mapping" } },
           { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
           { kind: "Field", name: { kind: "Name", value: "cron" } },
           {
             kind: "Field",
@@ -15241,6 +15250,11 @@ export const CreateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "cron" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -15300,6 +15314,11 @@ export const CreateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "intervalSeconds" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "cron" },
                       value: { kind: "Variable", name: { kind: "Name", value: "cron" } },
                     },
@@ -15332,6 +15351,7 @@ export const CreateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "active" } },
                       { kind: "Field", name: { kind: "Name", value: "mapping" } },
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
+                      { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
                       {
                         kind: "Field",
@@ -15592,6 +15612,11 @@ export const UpdateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "cron" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
@@ -15641,6 +15666,11 @@ export const UpdateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "intervalSeconds" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "cron" },
                       value: { kind: "Variable", name: { kind: "Name", value: "cron" } },
                     },
@@ -15673,6 +15703,7 @@ export const UpdateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "active" } },
                       { kind: "Field", name: { kind: "Name", value: "mapping" } },
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
+                      { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
                       {
                         kind: "Field",

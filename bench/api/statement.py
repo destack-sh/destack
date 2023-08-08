@@ -74,6 +74,7 @@ class Trigger(CrudModel, ModuleNode, Revisioned, gql.Node):
     active: bool
     mapping: auto
     timezone: auto
+    interval_seconds: auto
     cron: auto
     runnable: Optional["Statement"]
     scope: Optional["Statement"]
@@ -534,6 +535,7 @@ class TriggerCreateInput:
     active: bool
     mapping: Optional[JSON] = None
     timezone: Optional[str] = None
+    interval_seconds: Optional[int] = None
     cron: Optional[str] = None
     runnable_id: Optional[GlobalID] = None
     scope_id: Optional[GlobalID] = None
@@ -544,6 +546,7 @@ class TriggerUpdateInput(gql.NodeInput):
     active: Optional[bool] = None
     mapping: Optional[JSON] = None
     timezone: Optional[str] = None
+    interval_seconds: Optional[int] = None
     cron: Optional[str] = None
     runnable_id: Optional[GlobalID] = None
     scope_id: Optional[GlobalID] = None
@@ -778,6 +781,7 @@ class SymbolMutation:
             active=input.active,
             mapping=input.mapping,
             timezone=input.timezone,
+            interval_seconds=input.interval_seconds,
             cron=input.cron,
             runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
             scope_id=UUID(input.scope_id.node_id) if input.scope_id else None,
@@ -791,6 +795,7 @@ class SymbolMutation:
         trigger.active = input.active
         trigger.mapping = input.mapping
         trigger.timezone = input.timezone
+        trigger.interval_seconds = input.interval_seconds
         trigger.cron = input.cron
         trigger.runnable_id = UUID(input.runnable_id.node_id) if input.runnable_id else None
         trigger.scope_id = UUID(input.scope_id.node_id) if input.scope_id else None

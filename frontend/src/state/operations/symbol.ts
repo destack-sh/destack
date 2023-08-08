@@ -1247,6 +1247,7 @@ export function useSymbolContentOps() {
         $active: Boolean!
         $mapping: JSON
         $timezone: String
+        $intervalSeconds: Int
         $cron: String
         $runnableId: GlobalID
         $scopeId: GlobalID
@@ -1259,6 +1260,7 @@ export function useSymbolContentOps() {
             active: $active
             mapping: $mapping
             timezone: $timezone
+            intervalSeconds: $intervalSeconds
             cron: $cron
             runnableId: $runnableId
             scopeId: $scopeId
@@ -1271,6 +1273,7 @@ export function useSymbolContentOps() {
             active
             mapping
             timezone
+            intervalSeconds
             cron
             runnable {
               id
@@ -1302,6 +1305,7 @@ export function useSymbolContentOps() {
         active: boolean;
         mapping: any;
         timezone: string;
+        intervalSeconds: number;
         cron: string;
         runnableId: string;
         scopeId: string;
@@ -1316,6 +1320,7 @@ export function useSymbolContentOps() {
             active: vars.active,
             mapping: vars.mapping ?? null,
             timezone: vars.timezone ?? null,
+            intervalSeconds: vars.intervalSeconds ?? null,
             cron: vars.cron ?? null,
             runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
             scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
@@ -1429,7 +1434,10 @@ export function useSymbolContentOps() {
   async function createTrigger(
     tx: Transaction | null,
     statementId: string,
-    trigger: Pick<Trigger, "id" | "type" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">
+    trigger: Pick<
+      Trigger,
+      "id" | "type" | "active" | "mapping" | "intervalSeconds" | "timezone" | "cron" | "runnable" | "scope"
+    >
   ) {
     await ops.perform({
       tx,
@@ -1442,6 +1450,7 @@ export function useSymbolContentOps() {
           active: trigger.active,
           mapping: trigger.mapping ?? null,
           timezone: trigger.timezone ?? null,
+          intervalSeconds: trigger.intervalSeconds ?? null,
           cron: trigger.cron ?? null,
           runnableId: trigger.runnable?.id ?? null,
           scopeId: trigger.scope?.id ?? null,
@@ -1490,6 +1499,7 @@ export function useSymbolContentOps() {
         $active: Boolean!
         $mapping: JSON
         $timezone: String
+        $intervalSeconds: Int
         $cron: String
         $runnableId: GlobalID
         $scopeId: GlobalID
@@ -1500,6 +1510,7 @@ export function useSymbolContentOps() {
             active: $active
             mapping: $mapping
             timezone: $timezone
+            intervalSeconds: $intervalSeconds
             cron: $cron
             runnableId: $runnableId
             scopeId: $scopeId
@@ -1512,6 +1523,7 @@ export function useSymbolContentOps() {
             active
             mapping
             timezone
+            intervalSeconds
             cron
             runnable {
               id
@@ -1530,6 +1542,7 @@ export function useSymbolContentOps() {
         active: boolean;
         mapping: any;
         timezone: string;
+        intervalSeconds: number;
         cron: string;
         runnableId: string;
         scopeId: string;
@@ -1543,6 +1556,7 @@ export function useSymbolContentOps() {
             active: vars.active,
             mapping: vars.mapping ?? null,
             timezone: vars.timezone ?? null,
+            intervalSeconds: vars.intervalSeconds ?? null,
             cron: vars.cron ?? null,
             runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
             scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
@@ -1553,8 +1567,14 @@ export function useSymbolContentOps() {
 
   async function updateTrigger(
     tx: Transaction | null,
-    oldTrigger: Pick<Trigger, "id" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">,
-    newTrigger: Pick<Trigger, "id" | "active" | "mapping" | "timezone" | "cron" | "runnable" | "scope">
+    oldTrigger: Pick<
+      Trigger,
+      "id" | "active" | "mapping" | "timezone" | "intervalSeconds" | "cron" | "runnable" | "scope"
+    >,
+    newTrigger: Pick<
+      Trigger,
+      "id" | "active" | "mapping" | "timezone" | "intervalSeconds" | "cron" | "runnable" | "scope"
+    >
   ) {
     await ops.perform({
       tx,
