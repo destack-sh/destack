@@ -15,11 +15,11 @@ import { graphql, useFragment } from "@/gql";
 import {
   QueryOp,
   SortOrder,
-  type SearchDatasetQueryVariables,
-  type DatasetSort,
-  type DatasetQuery,
+  type SearchSearchQueryVariables,
   ModuleMutationType,
   TypeHint,
+  type SearchSort,
+  type SearchQuery,
 } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -97,8 +97,8 @@ type DatasetStatementProperties = {
   inlineQuery?: string;
   wrapColumns: boolean;
   // local 'view' (because we don't have proper module dataset view yet, this is the only view)
-  sorts?: DatasetSort[];
-  query?: DatasetQuery;
+  sorts?: SearchSort[];
+  query?: SearchQuery;
 };
 
 const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
@@ -127,7 +127,7 @@ const enumFields = computed(() =>
 );
 // TODO @UX: apply inline search to local records immediately/optmistically
 // update search query on inline query change
-const inlineQuery: Ref<DatasetQuery | undefined> = ref(undefined);
+const inlineQuery: Ref<SearchQuery | undefined> = ref(undefined);
 function getInlineQuery() {
   if ((properties.inlineQuery ?? "").trim().length == 0) return undefined;
   const subqueries = [
@@ -137,7 +137,7 @@ function getInlineQuery() {
           op: QueryOp.Matches,
           key: "value." + module.getTypedKey(f),
           value: properties.inlineQuery,
-        } as DatasetQuery)
+        } as SearchQuery)
     ),
     ...nameFields.value.map(
       (f) =>
@@ -145,7 +145,7 @@ function getInlineQuery() {
           op: QueryOp.StartsWith,
           key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
           value: properties.inlineQuery,
-        } as DatasetQuery)
+        } as SearchQuery)
     ),
   ];
   // filter for enum fields members that match the query
@@ -159,11 +159,11 @@ function getInlineQuery() {
       key: "value." + module.getTypedKey(enumField),
       op: QueryOp.Equals,
       value: matchingMembers.map((m) => m.key),
-    } as DatasetQuery);
+    } as SearchQuery);
   }
 
   if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
-  return { op: QueryOp.Or, queries: subqueries } as DatasetQuery;
+  return { op: QueryOp.Or, queries: subqueries } as SearchQuery;
 }
 function updateInlineQuery() {
   inlineQuery.value = getInlineQuery();
@@ -193,7 +193,7 @@ function clearSort() {
 function removeSort(sort: { key: string }) {
   properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
 }
-const sort: Ref<DatasetSort[] | null> = computed(() => {
+const sort: Ref<SearchSort[] | null> = computed(() => {
   if (properties.sorts == null || properties.sorts.length == 0) return null;
   return properties.sorts;
 });
@@ -230,7 +230,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     }
   }
 `);
-const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
+const searchQueryVariables: Ref<SearchSearchQueryVariables> = computed(
   () =>
     ({
       statementId: context.statement.value.id,
@@ -239,7 +239,7 @@ const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
       sort: sort.value,
       limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
       count: true,
-    } as SearchDatasetQueryVariables)
+    } as SearchSearchQueryVariables)
 );
 const {
   loading: recordsLoading,

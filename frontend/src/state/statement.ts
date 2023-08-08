@@ -3,9 +3,9 @@ import {
   StatementType,
   TypeHint,
   TypeTag,
-  type Field,
   type FieldCreateInput,
   type FieldUpdateInput,
+  type Field,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { StatementAction } from "@/state/bench";
@@ -549,8 +549,6 @@ export function makeField(data: {
   };
   return fieldData;
 }
-
-export type Field = Omit<Field, "revision" | "statement" | "createdAt" | "updatedAt" | "__typename">;
 
 export const NAME_FIELD = makeField({ tag: TypeTag.String, hint: TypeHint.Name });
 export const ANY_FIELD = makeField({ tag: TypeTag.Any });

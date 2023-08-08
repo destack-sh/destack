@@ -65,7 +65,7 @@ const wrap = true;
 watchEffect(() => {
   lastScrollY.value = containerScroll.y.value;
 });
-function disableAutoscrollIfUser(e: Event) {
+function disableAutoscrollIfUser() {
   // disable it only if the user actually scrolled up
   if (autoscroll.value && containerRef.value != null && containerRef.value.scrollTop < lastScrollY.value) {
     autoscroll.value = false;

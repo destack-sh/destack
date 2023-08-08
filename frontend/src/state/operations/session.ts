@@ -34,6 +34,9 @@ export function useSessionOps() {
       mutation wakeWorkerSet($projectId: GlobalID!) {
         wakeWorkerSet(input: { projectId: $projectId }) {
           ...OperationInfoContent
+          ... on WakeWorkerSetPayload {
+            success
+          }
         }
       }
     `)

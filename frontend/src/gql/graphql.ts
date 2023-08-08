@@ -4167,7 +4167,7 @@ export type WakeWorkerSetMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "WakeWorkerSetPayload" };
+    | { __typename?: "WakeWorkerSetPayload"; success: boolean };
 };
 
 export type RestartWorkerSetMutationVariables = Exact<{
@@ -11226,7 +11226,17 @@ export const WakeWorkerSetDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "WakeWorkerSetPayload" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "success" } }],
+                  },
+                },
+              ],
             },
           },
         ],
