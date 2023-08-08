@@ -296,7 +296,6 @@ type File implements CrudModel & ModuleNode & Node {
   revision: Int!
   projectVersion: ProjectVersion!
   name: String!
-  directory: Boolean!
   files: [File!]!
   statements(filters: StatementFilter): [Statement!]!
   issues(filters: IssueFilter): [Issue!]!
@@ -319,7 +318,6 @@ input FileCreateInput {
   projectVersionId: GlobalID!
   name: String!
   parentId: GlobalID = null
-  directory: Boolean! = false
 }
 
 """An edge in a connection."""

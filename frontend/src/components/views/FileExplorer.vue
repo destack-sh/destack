@@ -17,7 +17,7 @@ const filesSorted = computed(() => {
   if (module.idx.value == null) {
     return [];
   }
-  const files = Object.values(module.idx.value.filesById)?.filter((f) => f.deletedAt == null && !f.directory);
+  const files = Object.values(module.idx.value.filesById)?.filter((f) => f.deletedAt == null);
   return files.sort((a, b) => {
     return a.name.localeCompare(b.name);
   });

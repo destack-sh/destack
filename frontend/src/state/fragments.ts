@@ -103,7 +103,6 @@ export const FileHeaderType = graphql(/* GraphQL */ `
         id
       }
     }
-    directory
     projectVersion {
       id
     }
@@ -292,7 +291,6 @@ export const InterpFileType = graphql(/* GraphQL */ `
     id
     revision
     name
-    directory
     parent {
       ... on File {
         id

@@ -22,7 +22,6 @@ import {
   type UpdateFieldMutation,
   type Field,
   type UpdateSymbolValueMutation,
-  type TaggingUpdateInput,
   type Tagging,
   type UpdateStatementReferenceMutation,
 } from "@/gql/graphql";

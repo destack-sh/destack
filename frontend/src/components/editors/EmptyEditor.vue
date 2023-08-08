@@ -22,7 +22,6 @@ const { result: suggestedFiles } = useQuery(
               id
               name
               deletedAt
-              directory
             }
           }
         }
@@ -40,7 +39,7 @@ const { result: suggestedFiles } = useQuery(
 const files = computed(() =>
   suggestedFiles.value?.projectVersion?.files.edges
     .map((edge) => edge.node)
-    .filter((file) => file.deletedAt == null && !file.directory && file.name.trim() !== "")
+    .filter((file) => file.deletedAt == null && file.name.trim() !== "")
 );
 const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.totalCount);
 
