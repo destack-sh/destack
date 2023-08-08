@@ -490,6 +490,9 @@ class HasType(TypeBase, StatementBase):
 
     @staticmethod
     def _resolve_unions(type: "Type", path: list[TypeBase]) -> None:
+        """
+        Resolves (and inlines) the union-ed fields of any union types in the type tree.
+        """
         if any(n.id == type.id for n in path):
             type._on_issue(
                 type=IssueType.CIRCULAR_UNION,
@@ -509,12 +512,12 @@ class HasType(TypeBase, StatementBase):
             if not maybe_union.flags & TypeFlag.IsUnionWith:
                 resolved_fields.append(maybe_union)
                 continue
-            if not isinstance(maybe_union.reference, Type):
+            if not isinstance(maybe_union.reference, HasType):
                 continue  # ignore unresolved
-            # inline child's type nodes
             Type._resolve_unions(maybe_union.reference, path)
             if not maybe_union.reference.resolved_fields:
                 continue  # couldn't resolve
+            # inline child's type nodes
             for child in maybe_union.reference.resolved_fields:
                 existing = first((n for n in resolved_fields if n.name == child.name), None)
                 # check if type is compatible if overlapping

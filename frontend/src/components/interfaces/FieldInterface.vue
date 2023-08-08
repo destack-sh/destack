@@ -293,7 +293,7 @@ defineExpose({
             <circle cx="3" cy="3" r="3" />
           </svg>
           <span
-            class="mr-2 max-w-full truncate text-gray-900"
+            class="mr-1.5 max-w-full truncate text-gray-900"
             :class="[
               inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '',
               isEnum ? 'ml-4 ' : '',
@@ -351,12 +351,13 @@ defineExpose({
             class="z-10 flex w-72 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
             :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
           >
+            <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="editingType = false" />
             <SelectTypeInterface
               :model-value="value"
               @update:model-value="emit('update:modelValue', $event)"
               :ref-only="refOnly"
               :ref-types="refTypes"
-              class="w-full"
+              class="z-50 w-full"
               @escape="
                 editingType = false;
                 typeButtonRef?.focus();

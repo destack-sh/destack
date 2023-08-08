@@ -323,7 +323,7 @@ function useSyncedOps() {
         id: `Statement:${mutation.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
-            return [...existingResolvedFields, mutation.data?.field];
+            return [...existingResolvedFields, { __ref: `Field:${mutation.data?.field.id}` }];
           },
         },
       });
