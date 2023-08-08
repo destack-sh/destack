@@ -84,7 +84,12 @@ async function run() {
   editor.value.lastOutput = undefined;
   const { result: resultPromise } = await sessions.run(
     { id: editor.value.statementId },
-    { arguments: editor.value.arguments, keyed: true }
+    {
+      arguments: editor.value.arguments,
+      keyed: true,
+      runId: editor.value.lastRunId,
+      sessionId: editor.value.lastSessionId,
+    }
   );
   const result = await resultPromise;
   editor.value.lastOutput = result?.run.outputs;
