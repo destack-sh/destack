@@ -276,16 +276,16 @@ defineExpose({
     >
       <!-- Inner div so we can keep the button at the right height without the items-center below centering everything vertically -->
       <!-- And measure the inner preview ref size correctly -->
-      <div class="flex max-w-full flex-row">
+      <div class="flex max-w-full flex-row items-baseline">
         <div
           ref="previewRef"
-          class="flex max-w-full flex-row items-center rounded-sm text-left"
+          class="relative flex max-w-full flex-row items-center rounded-sm text-left"
           :class="[isEnum || !hideOutline ? 'bg-stone-100 px-2 py-[1px] ring-1 ring-inset ring-stone-500/10' : '']"
         >
           <!-- :EnumStyle -->
           <svg
             v-if="isEnum"
-            class="mr-1.5 h-1.5 w-1.5"
+            class="absolute left-2.5 top-2 h-1.5 w-1.5"
             :style="{ fill: getEnumColor(value) }"
             viewBox="0 0 6 6"
             aria-hidden="true"
@@ -294,7 +294,10 @@ defineExpose({
           </svg>
           <span
             class="mr-2 max-w-full truncate text-gray-900"
-            :class="[inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '']"
+            :class="[
+              inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '',
+              isEnum ? 'ml-4 ' : '',
+            ]"
             >{{ value.name }}</span
           >
           <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
