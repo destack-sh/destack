@@ -203,7 +203,7 @@ export const TaggingType = graphql(/* GraphQL */ `
   }
 `);
 
-export const TriggerType = graphql(/* GraphQL */ `
+export const TriggerContentType = graphql(/* GraphQL */ `
   fragment TriggerContent on Trigger {
     # :TriggerContent
     id
@@ -215,6 +215,7 @@ export const TriggerType = graphql(/* GraphQL */ `
     active
     mapping
     timezone
+    intervalSeconds
     cron
     runnable {
       id

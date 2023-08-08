@@ -681,6 +681,7 @@ class FileManager(models.Manager):
             target_ids={file.id: target_id},
             kind=kind,
         )
+        assert len(packed.roots) == 1, "expected exactly one root in packed nodes"
         packed.roots[0].parent_id = target_parent.id if target_parent else target.id
 
         # unpack and save

@@ -114,6 +114,7 @@ class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
     active = models.BooleanField(default=True)
     mapping = models.JSONField(null=True, blank=True)
     timezone = models.CharField(max_length=64, null=True, blank=True)
+    interval_seconds = models.IntegerField(null=True, blank=True)
     cron = models.CharField(max_length=64, null=True, blank=True)
     runnable = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True

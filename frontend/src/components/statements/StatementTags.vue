@@ -90,7 +90,7 @@ defineExpose({
       @click="open"
     >
       <TagIconOutline class="mt-0.5 h-4 w-4" />
-      <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" />
+      <!-- <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" /> -->
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />

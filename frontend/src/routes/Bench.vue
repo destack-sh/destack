@@ -557,12 +557,12 @@ onBeforeUnmount(() => {
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
+            <CurrentRunsPopover />
+            <CurrentLogsPopover />
             <!-- Terminal (soon) -->
             <button class="p-1" disabled>
               <CommandLineIcon class="h-5 w-5 text-gray-400" />
             </button>
-            <CurrentLogsPopover />
-            <CurrentRunsPopover />
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />
           </div>
