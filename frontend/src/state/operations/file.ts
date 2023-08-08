@@ -28,29 +28,37 @@ export function useFileOps() {
   const { mutate: createFileMut } = registry.useMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
-      mutation createFile(
-        $id: GlobalID
-        $projectVersionId: GlobalID!
-        $name: String!
-        $directory: Boolean
-        $parentId: GlobalID
-      ) {
-        createFile(
-          input: {
-            id: $id
-            projectVersionId: $projectVersionId
-            parentId: $parentId
-            name: $name
-            directory: $directory
-          }
-        ) {
+      mutation createFile($id: GlobalID, $projectVersionId: GlobalID!, $name: String!, $parentId: GlobalID) {
+        createFile(input: { id: $id, projectVersionId: $projectVersionId, parentId: $parentId, name: $name }) {
           ... on File {
             # :fileContentById
+            # unfortunately can't use FileHeader here for.. error reasons?
             id
             projectVersion {
               id
             }
-            ...FileHeader
+            revision
+            name
+            parent {
+              ... on File {
+                id
+              }
+              ... on ProjectVersion {
+                id
+              }
+            }
+            deletedAt
+            id
+            createdAt
+            updatedAt
+            deletedAt
+            createdBy {
+              id
+            }
+            lastEditedAt
+            lastEditedBy {
+              id
+            }
             # :InterpFile :InterpStatement
             statements(filters: { isVisible: true }) {
               ...StatementContent
@@ -67,13 +75,7 @@ export function useFileOps() {
       }
     `),
     {
-      optimisticResponse: (vars: {
-        id: string;
-        projectVersionId: string;
-        parentId: string | null;
-        name: string;
-        directory: boolean;
-      }) =>
+      optimisticResponse: (vars: { id: string; projectVersionId: string; parentId: string | null; name: string }) =>
         ({
           __typename: "Mutation",
           createFile: {
@@ -89,7 +91,6 @@ export function useFileOps() {
             id: vars.id,
             name: vars.name,
             revision: -1,
-            directory: vars.directory,
             statements: [],
             issues: [],
             // crud
@@ -238,14 +239,13 @@ export function useFileOps() {
     id: string,
     projectVersionId: string,
     name: string,
-    parentId: string | null,
-    directory?: boolean
+    parentId: string | null
   ) {
     return await ops.perform({
       tx,
       type: "file.create",
       do: async () => {
-        return await createFileMut({ id, projectVersionId, name, parentId, directory: directory ?? false });
+        return await createFileMut({ id, projectVersionId, name, parentId });
       },
       undo: async () => {
         return await softDeleteFileMut({ id });

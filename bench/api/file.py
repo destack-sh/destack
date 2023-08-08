@@ -35,7 +35,6 @@ class StatementFilter:
 class File(CrudModel, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     name: auto
-    directory: auto
     files: list["File"]  # if folder
     parent: ModuleNode
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
@@ -50,7 +49,6 @@ class FileCreateInput:
     project_version_id: GlobalID
     name: str
     parent_id: Optional[GlobalID] = None
-    directory: bool = False
 
 
 @gql.input
@@ -86,7 +84,6 @@ class FileMutation:
             project_version_id=input.project_version_id.node_id,
             name=input.name,
             parent_file_id=input.parent_id.node_id if input.parent_id else None,
-            directory=input.directory,
         )
 
     @tracked_db_mutation(MMT.UPDATE_FILE)
@@ -94,7 +91,6 @@ class FileMutation:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
-        file.directory = input.directory
         return file
 
     @tracked_db_mutation(MMT.DELETE_FILE, atomic=True)

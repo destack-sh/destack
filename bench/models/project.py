@@ -729,8 +729,6 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
     )
     revision = models.IntegerField(default=0)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
-    directory = models.BooleanField(default=False)
-    generated = models.BooleanField(default=False)
     parent_file = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"
     )

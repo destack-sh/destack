@@ -307,7 +307,6 @@ export type File = CrudModel &
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
-    directory: Scalars["Boolean"];
     files: Array<File>;
     id: Scalars["GlobalID"];
     issues: Array<Issue>;
@@ -341,7 +340,6 @@ export type FileConnection = {
 };
 
 export type FileCreateInput = {
-  directory?: Scalars["Boolean"];
   id?: InputMaybe<Scalars["GlobalID"]>;
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
@@ -2657,7 +2655,7 @@ export type EmptyEditorSuggestedFilesQuery = {
       totalCount?: number | null;
       edges: Array<{
         __typename?: "FileEdge";
-        node: { __typename?: "File"; id: any; name: string; deletedAt?: any | null; directory: boolean };
+        node: { __typename?: "File"; id: any; name: string; deletedAt?: any | null };
       }>;
     };
   } | null;
@@ -3481,7 +3479,6 @@ export type FileHeaderFragment = {
   id: any;
   revision: number;
   name: string;
-  directory: boolean;
   deletedAt?: any | null;
   createdAt: any;
   updatedAt: any;
@@ -3620,7 +3617,6 @@ export type InterpFileFragment = {
   id: any;
   revision: number;
   name: string;
-  directory: boolean;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3839,17 +3835,31 @@ export type CreateFileMutationVariables = Exact<{
   id?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
   name: Scalars["String"];
-  directory?: InputMaybe<Scalars["Boolean"]>;
   parentId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
 
 export type CreateFileMutation = {
   __typename?: "Mutation";
   createFile:
-    | ({
+    | {
         __typename?: "File";
         id: any;
+        revision: number;
+        name: string;
+        deletedAt?: any | null;
+        createdAt: any;
+        updatedAt: any;
+        lastEditedAt?: any | null;
         projectVersion: { __typename?: "ProjectVersion"; id: any };
+        parent:
+          | { __typename?: "Field" }
+          | { __typename?: "File"; id: any }
+          | { __typename?: "ProjectVersion"; id: any }
+          | { __typename?: "Statement" }
+          | { __typename?: "Tagging" }
+          | { __typename?: "Trigger" };
+        createdBy?: { __typename?: "User"; id: any } | null;
+        lastEditedBy?: { __typename?: "User"; id: any } | null;
         statements: Array<
           {
             __typename?: "Statement";
@@ -3859,7 +3869,7 @@ export type CreateFileMutation = {
           } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
         >;
         issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
-      } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } })
+      }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -5645,7 +5655,6 @@ export const FileHeaderFragmentDoc = {
               ],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "directory" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "projectVersion" },
@@ -6088,7 +6097,6 @@ export const InterpFileFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
-          { kind: "Field", name: { kind: "Name", value: "directory" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -6879,7 +6887,6 @@ export const EmptyEditorSuggestedFilesDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "id" } },
                                   { kind: "Field", name: { kind: "Name", value: "name" } },
                                   { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                                  { kind: "Field", name: { kind: "Name", value: "directory" } },
                                 ],
                               },
                             },
@@ -9696,11 +9703,6 @@ export const CreateFileDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "directory" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
-        },
-        {
-          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -9738,11 +9740,6 @@ export const CreateFileDocument = {
                       name: { kind: "Name", value: "name" },
                       value: { kind: "Variable", name: { kind: "Name", value: "name" } },
                     },
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "directory" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "directory" } },
-                    },
                   ],
                 },
               },
@@ -9765,7 +9762,55 @@ export const CreateFileDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
-                      { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "InlineFragment",
+                              typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "createdBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                      { kind: "Field", name: { kind: "Name", value: "lastEditedAt" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "lastEditedBy" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "statements" },
@@ -9850,7 +9895,6 @@ export const CreateFileDocument = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
