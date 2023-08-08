@@ -8,7 +8,7 @@ import {
   type SoftDeleteFileMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
-import { OpRegistry } from "@/state/sync";
+import { ModuleMutationRegistry } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
@@ -20,12 +20,12 @@ export function newFileId(): string {
 
 export function useFileOps() {
   const ops = useOperationsStore();
-  const registry = new OpRegistry();
+  const registry = new ModuleMutationRegistry();
 
   // for the annoying redundancy see :BE-114
 
   // TODO @Broken @UX: optimistic create file & paste file does not work optimistically (causes reload)
-  const { mutate: createFileMut } = registry.useMutation(
+  const { mutate: createFileMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
       mutation createFile($id: GlobalID, $projectVersionId: GlobalID!, $name: String!, $parentId: GlobalID) {
@@ -124,7 +124,7 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: deleteFileMut } = registry.useMutation(
+  const { mutate: deleteFileMut } = registry.defineModuleMutation(
     ModuleMutationType.DeleteFile,
     graphql(/* GraphQL */ `
       mutation deleteFile($id: GlobalID!) {
@@ -150,7 +150,7 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: softDeleteFileMut } = registry.useMutation(
+  const { mutate: softDeleteFileMut } = registry.defineModuleMutation(
     ModuleMutationType.SoftDeleteFile,
     graphql(/* GraphQL */ `
       mutation softDeleteFile($id: GlobalID!) {
@@ -176,7 +176,7 @@ export function useFileOps() {
     }
   );
 
-  const { mutate: restoreFileMut } = registry.useMutation(
+  const { mutate: restoreFileMut } = registry.defineModuleMutation(
     ModuleMutationType.RestoreFile,
     graphql(/* GraphQL */ `
       mutation restoreFile($id: GlobalID!) {
@@ -256,7 +256,7 @@ export function useFileOps() {
     });
   }
 
-  const { mutate: renameFileMut } = registry.useMutation(
+  const { mutate: renameFileMut } = registry.defineModuleMutation(
     ModuleMutationType.RenameFile,
     graphql(/* GraphQL */ `
       mutation renameFile($id: GlobalID!, $name: String!) {
