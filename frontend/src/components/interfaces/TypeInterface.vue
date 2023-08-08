@@ -10,7 +10,8 @@ const props = defineProps<{
   modelValue?: Field;
   readonly: boolean;
   inlined?: boolean;
-  refOnly?: boolean | TypeTag;
+  refOnly?: boolean;
+  refTypes?: TypeTag[];
   hideFlags?: boolean;
   hideIcon?: boolean;
 }>();
@@ -123,6 +124,7 @@ defineExpose({
         @escape="close"
         :inlined="inlined"
         :ref-only="refOnly"
+        :ref-types="refTypes"
         :hide-flags="hideFlags"
       />
     </div>

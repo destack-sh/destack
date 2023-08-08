@@ -110,24 +110,25 @@ const icon = computed(() => {
   } else if (iconsByTag[resolvedTag.value] != null) {
     return iconsByTag[resolvedTag.value];
   } else {
-    return QuestionMarkCircleIcon;
+    return null;
   }
 });
 </script>
 <template>
-  <div class="relative inline-flex flex-row items-center gap-2">
+  <div class="relative whitespace-nowrap">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <span v-if="icon && !hideIcon" class="h-4 w-4">
-      <span class="opacity-0">t</span>
-      <component :is="icon" class="absolute left-0 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
+    <div v-if="icon && !hideIcon" class="inline-block h-4 w-6">
+      &nbsp;
+      <component :is="icon" class="absolute left-0 top-0.5 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
+    </div>
+    <span v-if="!icon || (showTypeName && type.reference == null)">
+      {{ renderBuiltinType(resolvedTag, type.hint ?? null) }}
     </span>
-    <span v-if="!icon || (showTypeName && type.reference == null)">{{
-      renderBuiltinType(resolvedTag, type.hint ?? null)
-    }}</span>
     <span
       v-if="(resolvedTag == TypeTag.TypeReference || type.reference) && !hideReference"
-      :class="altState ? 'decoration-gray-500 underline-offset-4 hover:underline' : ''"
+      class="mx-1"
+      :class="[altState ? 'decoration-gray-500 underline-offset-4 hover:underline' : '']"
       @click="
         (e) => {
           if (altState && resolvedReference != null) {
@@ -140,14 +141,10 @@ const icon = computed(() => {
     >
       {{ resolvedReference?.name ?? "???" }}
     </span>
-    <!-- Not optional flag ("underline") -->
-    <!-- TODO @UX: improve required type look (underline is a bit clumsy) -->
-    <!-- This is also used in select type flag menu -->
-    <!-- <span
-      class="absolute -bottom-0.5 h-0.5 w-full bg-gray-300"
-      v-if="!(type.flags & TypeFlag.IsOptional) && !(type.flags & TypeFlag.IsArray) && !hideFlags"
-    /> -->
+    <!-- TODO @UX: show required type flag -->
     <!-- Flags -->
-    <ListBulletIcon v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="-ml-1 h-4 w-4" />
+    <div v-if="type.flags & TypeFlag.IsArray && !hideFlags" class="relative left-1 mr-1 inline-block h-4 w-4">
+      <ListBulletIcon class="absolute left-0 top-0.5 h-4 w-4" />
+    </div>
   </div>
 </template>

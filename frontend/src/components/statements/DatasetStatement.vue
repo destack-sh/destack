@@ -786,7 +786,7 @@ defineExpose({
       />
       <!-- Views (soon) -->
       <!-- Count -->
-      <span class="ml-1 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
+      <span class="ml-1.5 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
       <StatementTags ref="tagsRef" class="ml-1.5" />
     </div>
     <!-- Inline actions -->

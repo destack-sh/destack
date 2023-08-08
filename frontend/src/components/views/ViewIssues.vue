@@ -52,8 +52,8 @@ function focusIssue(issue: IssueContentFragment) {
         <span
           class="flex flex-row gap-1 px-3"
           :class="{
-            'text-orange-600': issue.kind == IssueKind.Error,
-            'text-yellow-600': issue.kind == IssueKind.Warning,
+            'text-red-600': issue.kind == IssueKind.Error,
+            'text-yellow-700': issue.kind == IssueKind.Warning,
           }"
         >
           <component
