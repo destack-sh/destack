@@ -42,9 +42,9 @@ async def _run(names: list[str]):
 
     servers = []
     if "language" in names or "all" in names:
-        from bench.server import LanguageServer
+        from bench.server import RuntimeServer
 
-        server = LanguageServer()
+        server = RuntimeServer()
         asyncio.create_task(server.run())
         servers.append(server)
     if "orchestration" in names or "all" in names:
