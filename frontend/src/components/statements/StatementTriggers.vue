@@ -4,17 +4,14 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementRefs } from "@/composables/useGrid";
 import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
-import { useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newTriggerId } from "@/state/operations/statement";
-import { TRIGGER_ICONS_SOLID, useStatementContext } from "@/state/statement";
-import { PlusIcon, BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { useStatementContext } from "@/state/statement";
+import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
+import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
-const module = useCurrentModule();
-const appearance = useAppearance();
 const ops = useOperations();
 
 const editing = ref<string | null>(null);
@@ -90,6 +87,7 @@ const actions = computed(() => [
       v-for="trigger in context.triggers.value"
       :key="trigger.id"
       class="flex flex-row items-center rounded-xl bg-orange-100 px-1.5 text-orange-900 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
+      :class="[trigger.active ? 'ring-solid' : 'ring-']"
       @click="editTrigger(trigger)"
     >
       <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="mr-1 h-4 w-4" />
@@ -107,7 +105,6 @@ const actions = computed(() => [
       @click="addNew"
     >
       <BoltIcon class="mt-0.5 h-4 w-4" />
-      <!-- <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" /> -->
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
@@ -115,7 +112,7 @@ const actions = computed(() => [
     <div
       v-if="editing && currentTrigger != null"
       ref="editablePopoverRef"
-      class="z-50 flex w-64 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="z-50 flex w-96 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
       @keydown.escape.exact.prevent.stop="close()"
     >

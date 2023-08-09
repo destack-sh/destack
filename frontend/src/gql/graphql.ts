@@ -3630,6 +3630,7 @@ export type TriggerContentFragment = {
   active: boolean;
   mapping?: any | null;
   timezone?: string | null;
+  scheduleType: ScheduleType;
   interval?: number | null;
   cron?: string | null;
   createdAt: any;
@@ -6077,6 +6078,7 @@ export const TriggerContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "active" } },
           { kind: "Field", name: { kind: "Name", value: "mapping" } },
           { kind: "Field", name: { kind: "Name", value: "timezone" } },
+          { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
           { kind: "Field", name: { kind: "Name", value: "interval" } },
           { kind: "Field", name: { kind: "Name", value: "cron" } },
           {

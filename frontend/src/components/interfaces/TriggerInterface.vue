@@ -1,37 +1,33 @@
 <script lang="ts" setup>
 import Switch from "@/components/basic/Switch.vue";
 import { TriggerType, type Trigger, ScheduleType } from "@/gql/graphql";
-import { TRIGGER_ICONS_SOLID } from "@/state/statement";
+import {
+  TRIGGER_ICONS_SOLID,
+  useTriggerSchedule,
+  type INTERVAL_UNIT,
+  INTERVAL_UNITS,
+  getTriggerIntervalUnit,
+} from "@/state/trigger";
 import { toCamelCase } from "@/utils/functools";
-import { ArrowPathRoundedSquareIcon, StarIcon } from "@heroicons/vue/24/outline";
-import { computed, ref, watch, type Ref } from "vue";
-import cronInterval from "cron-parser";
-import cronHunaize from "cronstrue";
-import { syncProperty } from "@/utils/sync";
+import { computed, ref, watch, toRef } from "vue";
 import { DateTime } from "luxon";
-import { useTimeFromNow } from "@/composables/useNow";
-
-const INTERVAL_UNITS = {
-  minute: 60,
-  hour: 60 * 60,
-  day: 60 * 60 * 24,
-  week: 60 * 60 * 24 * 7,
-};
-type INTERVAL_UNIT = keyof typeof INTERVAL_UNITS;
-const OCCURENCES_PREVIEW = 2;
 
 const props = defineProps<{ modelValue: Trigger; readonly: boolean }>();
-const emit = defineEmits<{ (e: "update:modelValue", value: Trigger): void }>();
+const emit = defineEmits<{
+  (e: "update:modelValue", value: Trigger): void;
+  (e: "navigateDown"): void;
+  (e: "navigateUp"): void;
+}>();
 
-const now = useTimeFromNow(1000);
-
-const scheduleType = computed(() => props.modelValue.scheduleType);
+const scheduleType = computed(() => props.modelValue.scheduleType ?? ScheduleType.Interval);
 const cron = ref(props.modelValue.cron ?? "");
-const intervalUnit = ref<INTERVAL_UNIT>("minute");
-const valid: Ref<boolean | null> = ref(null);
-const humanized: Ref<string> = ref("");
-const lastOccurence: Ref<DateTime | null> = ref(null);
-const nextOccurences: Ref<DateTime[]> = ref([]);
+const intervalDisplayUnit = ref<INTERVAL_UNIT>(getTriggerIntervalUnit(props.modelValue.interval ?? 60 * 60));
+const schedule = useTriggerSchedule(
+  computed(() => ({
+    ...props.modelValue,
+    cron: cron.value,
+  }))
+);
 
 // sync model value cron into cron
 watch(
@@ -41,52 +37,12 @@ watch(
   }
 );
 
-// sync interval unit
+// update cron value if schedule is valid
 watch(
-  () => props.modelValue.interval,
+  () => [cron.value],
   () => {
-    // get first round match
-    const unit = Object.entries(INTERVAL_UNITS).find(([, v]) => (props.modelValue.interval ?? 60 * 60) % v == 0);
-    if (unit != null) {
-      intervalUnit.value = unit[0] as INTERVAL_UNIT;
-    }
-  },
-  {
-    immediate: true,
-  }
-);
-
-// update validity / intervals / etc.
-watch(
-  () => [scheduleType.value, cron.value, props.modelValue.interval, now.now.value],
-  () => {
-    console.log("update validity");
-    valid.value = false;
-
-    if (scheduleType.value == ScheduleType.Interval) {
-      valid.value = true;
-      humanized.value = `Every ${props.modelValue.interval} ${intervalUnit.value}`;
-      nextOccurences.value = [];
-      for (let i = 0; i < OCCURENCES_PREVIEW; i++) {
-        nextOccurences.value.push(now.now.value.plus({ [intervalUnit.value]: props.modelValue.interval }));
-      }
-      lastOccurence.value = now.now.value.minus({ [intervalUnit.value]: props.modelValue.interval });
-    } else {
-      try {
-        const interval = cronInterval.parseExpression(cron.value);
-        valid.value = true;
-        humanized.value = cronHunaize.toString(cron.value);
-
-        lastOccurence.value = DateTime.fromMillis(interval.prev().getTime());
-        nextOccurences.value = [];
-        for (let i = 0; i < OCCURENCES_PREVIEW; i++) {
-          const next = interval.next();
-          if (next == null) break;
-          nextOccurences.value.push(DateTime.fromMillis(next.getTime()));
-        }
-      } catch (e) {
-        // nothing to do
-      }
+    if (schedule.value?.valid) {
+      update({ cron: cron.value });
     }
   }
 );
@@ -94,8 +50,10 @@ watch(
 function toggleScheduleType() {
   if (scheduleType.value == ScheduleType.Cron) {
     update({ scheduleType: ScheduleType.Interval });
-  } else {
+  } else if (scheduleType.value == ScheduleType.Interval) {
     update({ scheduleType: ScheduleType.Cron });
+  } else {
+    throw new Error(`unexpected schedule type ${scheduleType.value}`);
   }
 }
 
@@ -110,6 +68,7 @@ function update(properties: Partial<Trigger>) {
       <span class="inline-flex flex-row items-center">
         <component :is="TRIGGER_ICONS_SOLID[props.modelValue.type]" class="mr-1 h-4 w-4 text-orange-900" />
         <span class="font-bold text-orange-900">{{ toCamelCase(props.modelValue.type) }} trigger</span>
+        <span v-if="!props.modelValue.active" class="ml-1 text-gray-400">(inactive)</span>
       </span>
       <Switch :model-value="props.modelValue.active" @update:model-value="update({ active: $event })" />
     </div>
@@ -119,13 +78,9 @@ function update(properties: Partial<Trigger>) {
       <div class="flex flex-row items-center gap-2">
         <!-- Type -->
         <button
-          class="inline-flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] p-1 hover:bg-orange-100 focus:outline-none focus:ring-0"
+          class="inline-flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 hover:bg-orange-100 focus:outline-none focus:ring-0"
           @click="toggleScheduleType()"
         >
-          <component
-            :is="scheduleType == ScheduleType.Interval ? ArrowPathRoundedSquareIcon : StarIcon"
-            class="mr-1 h-4 w-4 text-gray-400"
-          />
           <span class="text-gray-900">
             {{ scheduleType == ScheduleType.Interval ? "Every" : "Cron" }}
           </span>
@@ -138,34 +93,62 @@ function update(properties: Partial<Trigger>) {
             type="number"
             min="1"
             max="60"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-sm text-gray-900 focus:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="w-full max-w-full flex-grow scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 px-1 text-right text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            :value="(props.modelValue.interval ?? 0) / INTERVAL_UNITS[intervalDisplayUnit]"
+            @input="update({ interval: $event.target?.value * INTERVAL_UNITS[intervalDisplayUnit] })"
           />
-          <span ref="intervalUnitRef" class="text-gray-900">minutes</span>
+          <span
+            ref="intervalUnitRef"
+            class="w-full flex-grow rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 font-bold text-gray-900 hover:bg-orange-100"
+          >
+            {{ intervalDisplayUnit }}s
+          </span>
         </template>
         <template v-else>
           <!-- Cron -->
           <input
             ref="cronInputRef"
             type="text"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-sm text-gray-900 focus:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 px-1 text-center text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
             v-model="cron"
           />
         </template>
+        <!-- Timezone -->
+        <span class="rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 text-gray-900">UTC</span>
       </div>
       <!-- Human readable -->
-      <div class="mt-1.5 text-center">
-        <span v-if="valid" class="text-sm font-bold italic text-gray-900">"{{ humanized }}"</span>
-        <span v-else-if="valid === false" class="text-sm font-bold text-red-600">invalid cron</span>
-        <span v-else-if="valid === null" class="text-sm text-gray-600">parsing...</span>
+      <div class="mt-1.5 py-1 text-center" v-if="scheduleType == ScheduleType.Cron">
+        <span v-if="schedule?.valid" class="text-sm font-bold italic text-gray-900">"{{ schedule.humanized }}"</span>
+        <span v-else-if="schedule?.valid === false" class="text-sm font-bold text-red-600">invalid cron</span>
+        <span v-else-if="schedule?.valid === null" class="text-sm text-gray-600">parsing...</span>
       </div>
-      <!-- Next occurrences of tirgger  -->
-      <div class="mt-1 py-0.5" v-if="valid">
-        <span class="text-xs uppercase text-gray-400"
-          >next up <template v-if="!props.modelValue.active">(inactive)</template></span
-        >
-        <div class="flex flex-col text-sm">
-          <div v-for="(occurence, i) in [lastOccurence, ...nextOccurences]" :key="i">
-            {{ occurence }}
+      <!-- Occurrences of  -->
+      <div class="my-1.5 w-full" v-if="schedule?.valid">
+        <div class="flex flex-col gap-1 py-0.5 text-sm">
+          <!-- Previous -->
+          <div class="flex flex-row justify-between gap-2 px-1 py-0.5">
+            <span class="rounded-xl bg-stone-50 px-2 text-stone-700 ring-1 ring-inset ring-stone-500/20">last 1</span>
+            <span>{{ schedule?.lastOccurrence?.toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}</span>
+          </div>
+          <!-- Next -->
+          <div
+            v-for="(occurence, i) in schedule?.nextOccurrences"
+            :key="i"
+            class="flex w-full flex-row items-center justify-between gap-2 px-1 py-0.5"
+          >
+            <span
+              class="rounded-xl"
+              :class="[
+                i == 0
+                  ? 'bg-orange-50 px-2 text-orange-700 ring-1 ring-inset ring-orange-700/10'
+                  : 'bg-stone-50 px-2 text-stone-700 ring-1 ring-inset ring-stone-500/20',
+              ]"
+            >
+              next {{ i + 1 }}
+            </span>
+            <span class="max-w-full truncate" :class="[i == 0 ? 'text-orange-600' : 'text-gray-900']">
+              {{ occurence.toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
+            </span>
           </div>
         </div>
       </div>
