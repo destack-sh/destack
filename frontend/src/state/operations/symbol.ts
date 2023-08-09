@@ -1575,7 +1575,10 @@ export function useSymbolContentOps() {
   );
 
   function _toTriggerInput(
-    input: Pick<Trigger, "id" | "type" | "active" | "mapping" | "timezone" | "interval" | "cron" | "runnable" | "scope">
+    input: Pick<
+      Trigger,
+      "id" | "type" | "active" | "scheduleType" | "mapping" | "timezone" | "interval" | "cron" | "runnable" | "scope"
+    >
   ) {
     return {
       ...input,

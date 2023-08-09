@@ -31,11 +31,6 @@ import {
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
-  LinkIcon as LinkIconOutline,
-  PencilSquareIcon as PencilSquareIconOutline,
-  EnvelopeIcon as EnvelopeIconOutline,
-  ClockIcon as ClockIconOutline,
-  UserCircleIcon as UserCircleIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -47,12 +42,6 @@ import {
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
-  LinkIcon as LinkIconSolid,
-  PencilSquareIcon as PencilSquareIconSolid,
-  PlayCircleIcon as PlayCircleIconSolid,
-  EnvelopeIcon as EnvelopeIconSolid,
-  ClockIcon as ClockIconSolid,
-  UserCircleIcon as UserCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -628,31 +617,3 @@ export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag
     return STATEMENT_ICONS_SOLID[type];
   }
 }
-
-export const TRIGGER_ICONS_OUTLINE: Partial<Record<TriggerType, any>> = {
-  [TriggerType.Api]: LinkIconOutline,
-  [TriggerType.Edit]: PencilSquareIconOutline,
-  [TriggerType.Invoke]: PlayCircleIconOutline,
-  [TriggerType.Message]: EnvelopeIconOutline,
-  [TriggerType.Run]: PlayCircleIconOutline,
-  [TriggerType.Time]: ClockIconOutline,
-  [TriggerType.User]: UserCircleIconOutline,
-};
-
-export const TRIGGER_ICONS_SOLID: Partial<Record<TriggerType, any>> = {
-  [TriggerType.Api]: LinkIconSolid,
-  [TriggerType.Edit]: PencilSquareIconSolid,
-  [TriggerType.Invoke]: PlayCircleIconSolid,
-  [TriggerType.Message]: EnvelopeIconSolid,
-  [TriggerType.Run]: PlayCircleIconSolid,
-  [TriggerType.Time]: ClockIconSolid,
-  [TriggerType.User]: UserCircleIconSolid,
-};
-
-export const CONFIGURABLE_TRIGGER_TYPES = [
-  TriggerType.Api,
-  TriggerType.Time,
-  TriggerType.Edit,
-  TriggerType.Message,
-  TriggerType.Run,
-];

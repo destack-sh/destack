@@ -1,4 +1,5 @@
-from dataclasses import field
+from dataclasses import field, dataclass
+from datetime import datetime
 from typing import Optional, Union, cast
 from uuid import UUID
 
@@ -145,3 +146,23 @@ class FlowProxy:  # :SyncProxy
         proxy = cls(flow, is_async=True)
         proxy.__call_async__ = flow.session.sync_to_async(flow.__call_sync__)
         return cast(Flow, proxy)
+
+
+# :TriggerSchedule
+TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0)
+
+
+@dataclass
+class TriggerSchedule:
+    type: ScheduleType
+    timezone: str
+    now: datetime
+    last_occurrence: Optional[datetime]
+    next_occurrences: list[datetime] = field(default_factory=list)
+
+
+def get_trigger_schedule(
+    trigger: Trigger, now: datetime, next_occurrences: int = 2
+) -> TriggerSchedule:
+    # :TriggerSchedule
+    raise NotImplementedError  # nocheckin
