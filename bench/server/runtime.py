@@ -131,14 +131,14 @@ def _unpack_log(log: mirror.LogEntry):
     return log_packer.pack(doc)
 
 
-class LanguageServer(Monitored):
+class RuntimeServer(Monitored):
     """
-    Bench language server to proxy worker module access (read/write).
+    Bench language runtime server to proxy worker module access (read/write).
     """
 
     def __init__(self):
         self.id = UUIDT()
-        self.lang_workers: dict[UUID, LanguageWorker] = {}
+        self.lang_workers: dict[UUID, RuntimeWorker] = {}
         self.subs = []
         self.tasks = []
         self._ready = False
@@ -168,7 +168,7 @@ class LanguageServer(Monitored):
     def ready(self) -> bool:
         return self._ready
 
-    async def _get_ready_worker(self, module_id: UUID) -> "LanguageWorker":
+    async def _get_ready_worker(self, module_id: UUID) -> "RuntimeWorker":
         worker = self.lang_workers.get(module_id)
         if worker is None:
             # start language worker if not already started
@@ -176,7 +176,7 @@ class LanguageServer(Monitored):
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = LanguageWorker(self.id, project_version)
+            worker = RuntimeWorker(self.id, project_version)
             self.lang_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         if not worker.ready.is_set():
@@ -466,8 +466,12 @@ class LanguageServer(Monitored):
 COMPLETED_JOBS_BUFFER_SIZE = 128
 
 
-class LanguageWorker:
-    """Language server worker for a single module"""
+class RuntimeWorker:
+    """
+    Runtime worker for a single module (singleton, only one active runtime worker per module).
+    (mainly to ensure triggers are processed with exactly once semantics, later also OTs,
+     so we may separate those parts into some master worker later for scalability)
+    """
 
     def __init__(self, worker_id: UUID, project_version: models.ProjectVersion):
         self.worker_id = worker_id

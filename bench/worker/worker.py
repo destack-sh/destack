@@ -84,8 +84,180 @@ ACTIVE_TIMEOUT = 30
 ACTIVE_PUBLISH_INTERVAL = 10
 
 
+class WorkerNode(Monitored):
+    """
+    A sandboxed runtime worker to host user code, generally one worker process per Bench.
+    For local development a node can host multiple Benches.
+    """
+
+    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID):
+        self.worker_set_id = worker_set_id
+        self.worker_node_id = worker_node_id
+        self.project_id = project_id
+        self.workers: dict[UUID, ModuleWorker] = {}
+        self.subs = []
+        self.tasks = TaskManager()
+        self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
+        self._ready = asyncio.Event()
+
+    def __str__(self):
+        return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
+
+    def __repr__(self):
+        return f"<WorkerNode {self}>"
+
+    @property
+    def ready(self):
+        return self._ready.is_set()
+
+    @property
+    def client(self):
+        return ClientOrigin(type="worker", id=self.worker_node_id, nonce=None)
+
+    async def run(self):
+        await nc_init.wait()
+        logger.info(
+            "start",
+            worker_node=self.worker_node_id,
+            workset_set=self.worker_set_id,
+            project_id=self.project_id,
+        )
+        # topics for .project.module or just .project
+        m_routing = f"{self.project_id}.*" if self.project_id else ">"
+        p_routing = f"{self.project_id}" if self.project_id else "*"
+        self.subs = [
+            await subscribe(
+                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{m_routing}", cb=self.module_changed
+            ),
+            await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
+            await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
+            await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
+        ]
+        if self.worker_set_id is not None:  # only mark as active if not a local worker
+            self.tasks.start(self.mark_as_active_if_active_forever())
+
+        if self.project_id is not None:
+            # preload worker for project (assumes it's at head)
+            await self._get_ready_worker(self.project_id)
+
+        self._ready.set()
+
+    async def run_forever(self):
+        # run forever until cancelled
+        try:
+            asyncio.create_task(self.run())
+            await asyncio.Event().wait()
+        finally:
+            await self.stop()
+
+    def _get_worker(self, module_id: UUID) -> "ModuleWorker":
+        if module_id not in self.workers:
+            # start module worker if not already started
+            # TODO @Broken: assign workers to deployments
+            worker = ModuleWorker(module_id, self, timeout=WORKER_RUN_TIMEOUT)
+            self.workers[module_id] = worker
+            asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
+        return self.workers[module_id]
+
+    async def _get_ready_worker(self, module_id: UUID) -> "ModuleWorker":
+        worker = self._get_worker(module_id)
+        if not worker.ready.is_set():
+            await worker.ready.wait()
+        return worker
+
+    async def _mark_worker_as_active(self):
+        # :WorkerSetActive
+        logger.debug("worker.mark_active", worker_set=self.worker_set_id)
+        await redis.set(
+            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at",
+            value=str(time.time()),
+            ex=24 * 60 * 60,  # keep for 1 day
+        )
+
+    async def mark_as_active_if_active_forever(self, interval=ACTIVE_PUBLISH_INTERVAL):
+        while True:
+            if any(w.active for w in self.workers.values()):
+                await self._mark_worker_as_active()
+            await asyncio.sleep(interval)
+
+    @message_handler
+    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
+        if msg.p.module_id not in self.workers:
+            # ignore if we don't have a worker for this module
+            return
+        if not msg.p.has_origin(self.client.id):
+            is_semantic = any(m.type.semantic for m in msg.p.mutations)
+            if not is_semantic:
+                # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
+                return
+            worker = await self._get_ready_worker(msg.p.module_id)
+            await worker.do_interp_on_change(msg.p.mutations)
+
+    @message_handler
+    async def start_run(self, msg: NMessage[ReqStartRunPayload]):
+        logger.debug("run.start", msg=msg)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        run_job = worker.queue_run(
+            runnable=msg.p.runnable,
+            arguments=msg.p.arguments,
+            run_id=msg.p.run_id,
+            session_id=msg.p.session_id,
+            trigger_type=msg.p.trigger_type,
+            trigger_id=msg.p.trigger_id,
+            keyed=msg.p.keyed,
+        )
+        if isinstance(run_job, RunErrorType):  # couldn't queue run
+            await msg.reply(RepStartRunPayload(error=run_job))
+        else:
+            if msg.p.block is not None:
+                try:
+                    await run_job.started.wait()
+                    await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
+                except asyncio.TimeoutError:
+                    run_job.run = run_job.session.tracer.run.runs[run_job.id]
+            run = wire.pack_data(run_job.run) if run_job.run else None
+            logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
+            rep = RepStartRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
+            await msg.reply(rep)
+
+    @message_handler
+    async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
+        logger.debug("run.cancel", msg=msg)
+        worker = await self._get_ready_worker(msg.p.module_id)
+        success = await worker.cancel_run(msg.p.run_id)
+        await msg.reply(RepCancelRunPayload(success=success))
+
+    @message_handler
+    async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
+        await msg.reply(RepGetEnvironmentPayload(environment=WORKER_ENVIRONMENT_DATA))
+
+    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
+        """Gets a modules wire data"""
+        log = logger.bind(ref=ref)
+        cached = self.cached_committed_modules.get(ref)
+        if cached is not None:
+            log.debug("module.fetch", cached=True)
+            return cached
+        module_rep = await request(
+            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
+        )
+        if module_rep.p.module.committed:
+            self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
+        log.debug("module.fetch", cached=False)
+        return module_rep.p.module, module_rep.p.project_id
+
+    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
+        return (await self.get_module(ref))[0]
+
+    async def stop(self):
+        logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
+        await self.tasks.stop()
+        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        self._ready.clear()
+
+
 class ModuleWorker(ModuleWriter):
-    """A worker that runs a single module."""
+    """A worker that helps run a specific module."""
 
     def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
         self.node = node
@@ -324,175 +496,3 @@ class ModuleWorker(ModuleWriter):
             finally:
                 job.terminated.set()
                 self.queue.task_done()
-
-
-class WorkerNode(Monitored):
-    """
-    A sandboxed runtime worker to execute arbitrary code, generally one worker process per Bench.
-    For local development a node can host multiple Bench workers
-    """
-
-    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID):
-        self.worker_set_id = worker_set_id
-        self.worker_node_id = worker_node_id
-        self.project_id = project_id
-        self.workers: dict[UUID, ModuleWorker] = {}
-        self.subs = []
-        self.tasks = TaskManager()
-        self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
-        self._ready = asyncio.Event()
-
-    def __str__(self):
-        return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
-
-    def __repr__(self):
-        return f"<WorkerNode {self}>"
-
-    @property
-    def ready(self):
-        return self._ready.is_set()
-
-    @property
-    def client(self):
-        return ClientOrigin(type="worker", id=self.worker_node_id, nonce=None)
-
-    async def run(self):
-        await nc_init.wait()
-        logger.info(
-            "start",
-            worker_node=self.worker_node_id,
-            workset_set=self.worker_set_id,
-            project_id=self.project_id,
-        )
-        # topics for .project.module or just .project
-        m_routing = f"{self.project_id}.*" if self.project_id else ">"
-        p_routing = f"{self.project_id}" if self.project_id else "*"
-        self.subs = [
-            await subscribe(
-                f"{NMessageType.MODULE_INTERNAL_CHANGED}.{m_routing}", cb=self.module_changed
-            ),
-            await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
-            await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
-            await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
-        ]
-        if self.worker_set_id is not None:  # only mark as active if not a local worker
-            self.tasks.start(self.mark_as_active_if_active_forever())
-
-        if self.project_id is not None:
-            # preload worker for project (assumes it's at head)
-            await self._get_ready_worker(self.project_id)
-
-        self._ready.set()
-
-    async def run_forever(self):
-        # run forever until cancelled
-        try:
-            asyncio.create_task(self.run())
-            await asyncio.Event().wait()
-        finally:
-            await self.stop()
-
-    def _get_worker(self, module_id: UUID) -> ModuleWorker:
-        if module_id not in self.workers:
-            # start module worker if not already started
-            # TODO @Broken: assign workers to deployments
-            worker = ModuleWorker(module_id, self, timeout=WORKER_RUN_TIMEOUT)
-            self.workers[module_id] = worker
-            asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
-        return self.workers[module_id]
-
-    async def _get_ready_worker(self, module_id: UUID) -> ModuleWorker:
-        worker = self._get_worker(module_id)
-        if not worker.ready.is_set():
-            await worker.ready.wait()
-        return worker
-
-    async def _mark_worker_as_active(self):
-        # :WorkerSetActive
-        logger.debug("worker.mark_active", worker_set=self.worker_set_id)
-        await redis.set(
-            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at",
-            value=str(time.time()),
-            ex=24 * 60 * 60,  # keep for 1 day
-        )
-
-    async def mark_as_active_if_active_forever(self, interval=ACTIVE_PUBLISH_INTERVAL):
-        while True:
-            if any(w.active for w in self.workers.values()):
-                await self._mark_worker_as_active()
-            await asyncio.sleep(interval)
-
-    @message_handler
-    async def module_changed(self, msg: NMessage[ModuleInternalChangedPayload]):
-        if msg.p.module_id not in self.workers:
-            # ignore if we don't have a worker for this module
-            return
-        if not msg.p.has_origin(self.client.id):
-            is_semantic = any(m.type.semantic for m in msg.p.mutations)
-            if not is_semantic:
-                # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-                return
-            worker = await self._get_ready_worker(msg.p.module_id)
-            await worker.do_interp_on_change(msg.p.mutations)
-
-    @message_handler
-    async def start_run(self, msg: NMessage[ReqStartRunPayload]):
-        logger.debug("run.start", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
-        run_job = worker.queue_run(
-            runnable=msg.p.runnable,
-            arguments=msg.p.arguments,
-            run_id=msg.p.run_id,
-            session_id=msg.p.session_id,
-            trigger_type=msg.p.trigger_type,
-            trigger_id=msg.p.trigger_id,
-            keyed=msg.p.keyed,
-        )
-        if isinstance(run_job, RunErrorType):  # couldn't queue run
-            await msg.reply(RepStartRunPayload(error=run_job))
-        else:
-            if msg.p.block is not None:
-                try:
-                    await run_job.started.wait()
-                    await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
-                except asyncio.TimeoutError:
-                    run_job.run = run_job.session.tracer.run.runs[run_job.id]
-            run = wire.pack_data(run_job.run) if run_job.run else None
-            logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
-            rep = RepStartRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
-            await msg.reply(rep)
-
-    @message_handler
-    async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
-        logger.debug("run.cancel", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
-        success = await worker.cancel_run(msg.p.run_id)
-        await msg.reply(RepCancelRunPayload(success=success))
-
-    @message_handler
-    async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
-        await msg.reply(RepGetEnvironmentPayload(environment=WORKER_ENVIRONMENT_DATA))
-
-    async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
-        """Gets a modules wire data"""
-        log = logger.bind(ref=ref)
-        cached = self.cached_committed_modules.get(ref)
-        if cached is not None:
-            log.debug("module.fetch", cached=True)
-            return cached
-        module_rep = await request(
-            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
-        )
-        if module_rep.p.module.committed:
-            self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
-        log.debug("module.fetch", cached=False)
-        return module_rep.p.module, module_rep.p.project_id
-
-    async def fetch(self, ref: ModuleReference) -> wire.ModuleTreeData:
-        return (await self.get_module(ref))[0]
-
-    async def stop(self):
-        logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
-        await self.tasks.stop()
-        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
-        self._ready.clear()

@@ -70,9 +70,9 @@ reactor._asyncioEventloop.create_task(test_redis_connection())
 
 # run servers alongside API server (for development)
 if RUN_LANGUAGE_SERVER_IN_API:
-    from bench.server import LanguageServer
+    from bench.server import RuntimeServer
 
-    server = LanguageServer()
+    server = RuntimeServer()
     task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "langserver"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
