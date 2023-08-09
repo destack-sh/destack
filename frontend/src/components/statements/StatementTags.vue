@@ -79,7 +79,8 @@ defineExpose({
       <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
     </button>
     <!-- Add tag button -->
-    <button
+    <!-- Hidden for now because it interferes with triggers (makes spacing weird) -->
+    <!-- <button
       v-if="!context.readonly.value"
       class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-yellow-100 hover:text-gray-700 group-hover/add:ring-1"
       :class="
@@ -90,8 +91,8 @@ defineExpose({
       @click="open"
     >
       <TagIconOutline class="mt-0.5 h-4 w-4" />
-      <!-- <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" /> -->
-    </button>
+      <PlusIcon class="ml-1 mt-0.5 h-4 w-4 opacity-0 transition-opacity duration-150 group-hover/add:opacity-100" />
+    </button> -->
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
     <!-- Add tag popover -->

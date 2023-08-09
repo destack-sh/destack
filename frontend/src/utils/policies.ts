@@ -20,6 +20,8 @@ export const TYPE_POLICIES = {
   Statement: {
     fields: {
       fields: useIncoming,
+      triggers: useIncoming,
+      tags: useIncoming,
       descendants: useIncoming,
       children: useIncoming,
       referencedBy: useIncoming,

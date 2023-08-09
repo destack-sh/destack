@@ -1,6 +1,6 @@
 from .basic import Blank, Block, Expectation, Reference, Text
 from .code_ import Code
-from .const import DatasetViewLayout, StatementType, TriggerType, TypeHint, TypeTag
+from .const import DatasetViewLayout, ScheduleType, StatementType, TriggerType, TypeHint, TypeTag
 from .core import File, Module, Scope, Session, Statement
 from .dataset import Dataset, DatasetView, Record, Value
 from .flow import Flow, HasFlow, Trigger
@@ -42,9 +42,10 @@ __all__ = [
     "RemoteObject",
     "ResolvedField",
     "Run",
-    "Runnable",
     "RunError",
     "RunMetadata",
+    "Runnable",
+    "ScheduleType",
     "Scope",
     "Secret",
     "Session",

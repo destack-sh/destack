@@ -215,7 +215,7 @@ export const TriggerContentType = graphql(/* GraphQL */ `
     active
     mapping
     timezone
-    intervalSeconds
+    interval
     cron
     runnable {
       id

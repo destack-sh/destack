@@ -2,7 +2,7 @@ from dataclasses import field
 from typing import Optional, Union, cast
 from uuid import UUID
 
-from bench.language.const import StatementType, TriggerType, TypeTag
+from bench.language.const import ScheduleType, StatementType, TriggerType, TypeTag
 from bench.language.core import (
     HasCrud,
     HasSession,
@@ -24,7 +24,9 @@ class Trigger(ModuleNode, HasCrud, HasSession):
     type: TriggerType = required_field()
     active: bool = True
     mapping: Optional[Mapping] = None
+    schedule_type: Optional[ScheduleType] = None
     timezone: Optional[str] = None
+    interval: Optional[int] = None
     cron: Optional[str] = None
     runnable: Union[Runnable, UUID, None] = None
     scope: Union["HasFlow", UUID, None] = None

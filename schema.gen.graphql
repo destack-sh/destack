@@ -1610,6 +1610,12 @@ type RunsChange {
   runs: [Run!]!
 }
 
+"""Schedules for runnables."""
+enum ScheduleType {
+  INTERVAL
+  CRON
+}
+
 input SearchQuery {
   op: QueryOp!
   key: String = null
@@ -1940,8 +1946,9 @@ type Trigger implements CrudModel & ModuleNode & Node {
   type: TriggerType!
   active: Boolean!
   mapping: JSON
+  scheduleType: ScheduleType!
   timezone: String
-  intervalSeconds: Int
+  interval: Int
   cron: String
   runnable: Statement
   scope: Statement
@@ -1953,8 +1960,9 @@ input TriggerCreateInput {
   type: TriggerType!
   active: Boolean!
   mapping: JSON = null
+  scheduleType: ScheduleType = null
   timezone: String = null
-  intervalSeconds: Int = null
+  interval: Int = null
   cron: String = null
   runnableId: GlobalID = null
   scopeId: GlobalID = null
@@ -1989,10 +1997,12 @@ enum TriggerType {
 
 input TriggerUpdateInput {
   id: GlobalID!
-  active: Boolean = null
+  type: TriggerType!
+  active: Boolean!
   mapping: JSON = null
+  scheduleType: ScheduleType = null
   timezone: String = null
-  intervalSeconds: Int = null
+  interval: Int = null
   cron: String = null
   runnableId: GlobalID = null
   scopeId: GlobalID = null

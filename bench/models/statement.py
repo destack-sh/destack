@@ -12,7 +12,7 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import TriggerType, TypeFlag
+from bench.language.const import ScheduleType, TriggerType, TypeFlag
 from bench.language.dataset import new_dataset_key
 from bench.language.tag import new_tag_key
 from bench.language.type import new_field_key
@@ -113,8 +113,11 @@ class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
     type = models.CharField(max_length=32, choices=get_choices(TriggerType))
     active = models.BooleanField(default=True)
     mapping = models.JSONField(null=True, blank=True)
+    schedule_type = models.CharField(
+        max_length=32, null=True, blank=True, choices=get_choices(ScheduleType)
+    )
     timezone = models.CharField(max_length=64, null=True, blank=True)
-    interval_seconds = models.IntegerField(null=True, blank=True)
+    interval = models.IntegerField(null=True, blank=True)
     cron = models.CharField(max_length=64, null=True, blank=True)
     runnable = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True

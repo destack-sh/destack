@@ -97,7 +97,6 @@ const extraActions = computed(() => {
         unfoldIfFolded();
         tagsRef.value?.open();
       },
-      hideInline: true,
     },
     {
       label: "Add input",

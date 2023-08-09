@@ -164,7 +164,7 @@ class BatchablePayload(abc.ABC):
 
 
 @dataclass
-class OriginPayload:
+class HasOrigin:
     origins: list[ClientOrigin]
 
     @property
@@ -225,17 +225,17 @@ class ClientChangedPayload(Payload):
 
 
 @payload(NMessageType.PROJECT_CHANGED)
-class ProjectChangedPayload(ProjectScoped, OriginPayload):
+class ProjectChangedPayload(ProjectScoped, HasOrigin, Payload):
     pass
 
 
 @payload(NMessageType.MODULE_CHANGED)
-class ModuleChangedPayload(ModuleScoped, OriginPayload):
+class ModuleChangedPayload(ModuleScoped, HasOrigin, Payload):
     mutations: list[ModuleMutation]
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
-class ModuleInternalChangedPayload(ModuleScoped, OriginPayload):
+class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
     mutations: list[ModuleMutation]
 
 
