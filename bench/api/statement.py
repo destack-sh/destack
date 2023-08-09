@@ -64,6 +64,7 @@ class FieldFilter:
 TypeStorageFormat = gql.enum(language.TypeStorageFormat)
 TypeTag = gql.enum(language.TypeTag)
 TriggerType = gql.enum(language.TriggerType)
+ScheduleType = gql.enum(language.ScheduleType)
 TypeHint = gql.enum(language.TypeHint)
 
 
@@ -73,8 +74,9 @@ class Trigger(CrudModel, ModuleNode, Revisioned, gql.Node):
     type: TriggerType
     active: bool
     mapping: auto
+    schedule_type: ScheduleType
     timezone: auto
-    interval_seconds: auto
+    interval: auto
     cron: auto
     runnable: Optional["Statement"]
     scope: Optional["Statement"]
@@ -534,8 +536,9 @@ class TriggerCreateInput:
     type: TriggerType
     active: bool
     mapping: Optional[JSON] = None
+    schedule_type: Optional[ScheduleType] = None
     timezone: Optional[str] = None
-    interval_seconds: Optional[int] = None
+    interval: Optional[int] = None
     cron: Optional[str] = None
     runnable_id: Optional[GlobalID] = None
     scope_id: Optional[GlobalID] = None
@@ -543,10 +546,12 @@ class TriggerCreateInput:
 
 @gql.input
 class TriggerUpdateInput(gql.NodeInput):
-    active: Optional[bool] = None
+    type: TriggerType
+    active: bool
     mapping: Optional[JSON] = None
+    schedule_type: Optional[ScheduleType] = None
     timezone: Optional[str] = None
-    interval_seconds: Optional[int] = None
+    interval: Optional[int] = None
     cron: Optional[str] = None
     runnable_id: Optional[GlobalID] = None
     scope_id: Optional[GlobalID] = None
@@ -780,8 +785,9 @@ class SymbolMutation:
             type=input.type,
             active=input.active,
             mapping=input.mapping,
+            schedule_type=input.schedule_type,
             timezone=input.timezone,
-            interval_seconds=input.interval_seconds,
+            interval=input.interval,
             cron=input.cron,
             runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
             scope_id=UUID(input.scope_id.node_id) if input.scope_id else None,
@@ -794,8 +800,9 @@ class SymbolMutation:
         trigger.type = input.type
         trigger.active = input.active
         trigger.mapping = input.mapping
+        trigger.schedule_type = input.schedule_type
         trigger.timezone = input.timezone
-        trigger.interval_seconds = input.interval_seconds
+        trigger.interval = input.interval
         trigger.cron = input.cron
         trigger.runnable_id = UUID(input.runnable_id.node_id) if input.runnable_id else None
         trigger.scope_id = UUID(input.scope_id.node_id) if input.scope_id else None

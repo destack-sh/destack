@@ -1953,6 +1953,12 @@ export type RunsChange = {
   runs: Array<Run>;
 };
 
+/** Schedules for runnables. */
+export enum ScheduleType {
+  Cron = "CRON",
+  Interval = "INTERVAL",
+}
+
 export type SearchQuery = {
   key?: InputMaybe<Scalars["String"]>;
   op: QueryOp;
@@ -2339,13 +2345,14 @@ export type Trigger = CrudModel &
     cron?: Maybe<Scalars["String"]>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
     id: Scalars["GlobalID"];
-    intervalSeconds?: Maybe<Scalars["Int"]>;
+    interval?: Maybe<Scalars["Int"]>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
     mapping?: Maybe<Scalars["JSON"]>;
     parent: Statement;
     revision: Scalars["Int"];
     runnable?: Maybe<Statement>;
+    scheduleType: ScheduleType;
     scope?: Maybe<Statement>;
     timezone?: Maybe<Scalars["String"]>;
     type: TriggerType;
@@ -2356,9 +2363,10 @@ export type TriggerCreateInput = {
   active: Scalars["Boolean"];
   cron?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
-  intervalSeconds?: InputMaybe<Scalars["Int"]>;
+  interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scheduleType?: InputMaybe<ScheduleType>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
   statementId: Scalars["GlobalID"];
   timezone?: InputMaybe<Scalars["String"]>;
@@ -2391,14 +2399,16 @@ export enum TriggerType {
 }
 
 export type TriggerUpdateInput = {
-  active?: InputMaybe<Scalars["Boolean"]>;
+  active: Scalars["Boolean"];
   cron?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
-  intervalSeconds?: InputMaybe<Scalars["Int"]>;
+  interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  scheduleType?: InputMaybe<ScheduleType>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
   timezone?: InputMaybe<Scalars["String"]>;
+  type: TriggerType;
 };
 
 /** Extra representation/semantics of a field/type. */
@@ -3620,7 +3630,7 @@ export type TriggerContentFragment = {
   active: boolean;
   mapping?: any | null;
   timezone?: string | null;
-  intervalSeconds?: number | null;
+  interval?: number | null;
   cron?: string | null;
   createdAt: any;
   updatedAt: any;
@@ -5023,8 +5033,9 @@ export type CreateTriggerMutationVariables = Exact<{
   type: TriggerType;
   active: Scalars["Boolean"];
   mapping?: InputMaybe<Scalars["JSON"]>;
+  scheduleType?: InputMaybe<ScheduleType>;
   timezone?: InputMaybe<Scalars["String"]>;
-  intervalSeconds?: InputMaybe<Scalars["Int"]>;
+  interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -5043,31 +5054,20 @@ export type CreateTriggerMutation = {
         type: TriggerType;
         active: boolean;
         mapping?: any | null;
+        scheduleType: ScheduleType;
         timezone?: string | null;
-        intervalSeconds?: number | null;
+        interval?: number | null;
         cron?: string | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
         lastEditedAt?: any | null;
+        parent: { __typename?: "Statement"; id: any };
         runnable?: { __typename?: "Statement"; id: any } | null;
         scope?: { __typename?: "Statement"; id: any } | null;
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
       };
-};
-
-export type DeleteTriggerMutationVariables = Exact<{
-  id: Scalars["GlobalID"];
-}>;
-
-export type DeleteTriggerMutation = {
-  __typename?: "Mutation";
-  deleteTrigger:
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      })
-    | { __typename?: "Trigger"; id: any; deletedAt?: any | null };
 };
 
 export type SoftDeleteTriggerMutationVariables = Exact<{
@@ -5098,10 +5098,12 @@ export type RestoreTriggerMutation = {
 
 export type UpdateTriggerMutationVariables = Exact<{
   id: Scalars["GlobalID"];
+  type: TriggerType;
   active: Scalars["Boolean"];
   mapping?: InputMaybe<Scalars["JSON"]>;
+  scheduleType?: InputMaybe<ScheduleType>;
   timezone?: InputMaybe<Scalars["String"]>;
-  intervalSeconds?: InputMaybe<Scalars["Int"]>;
+  interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   scopeId?: InputMaybe<Scalars["GlobalID"]>;
@@ -5117,11 +5119,13 @@ export type UpdateTriggerMutation = {
         __typename?: "Trigger";
         id: any;
         updatedAt: any;
+        type: TriggerType;
         revision: number;
         active: boolean;
         mapping?: any | null;
+        scheduleType: ScheduleType;
         timezone?: string | null;
-        intervalSeconds?: number | null;
+        interval?: number | null;
         cron?: string | null;
         runnable?: { __typename?: "Statement"; id: any } | null;
         scope?: { __typename?: "Statement"; id: any } | null;
@@ -6073,7 +6077,7 @@ export const TriggerContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "active" } },
           { kind: "Field", name: { kind: "Name", value: "mapping" } },
           { kind: "Field", name: { kind: "Name", value: "timezone" } },
-          { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
+          { kind: "Field", name: { kind: "Name", value: "interval" } },
           { kind: "Field", name: { kind: "Name", value: "cron" } },
           {
             kind: "Field",
@@ -15245,12 +15249,17 @@ export const CreateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scheduleType" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "ScheduleType" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "interval" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
         {
@@ -15309,13 +15318,18 @@ export const CreateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "scheduleType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scheduleType" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "timezone" },
                       value: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "intervalSeconds" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+                      name: { kind: "Name", value: "interval" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "interval" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15346,12 +15360,21 @@ export const CreateTriggerDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "active" } },
                       { kind: "Field", name: { kind: "Name", value: "mapping" } },
+                      { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
-                      { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
+                      { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
                       {
                         kind: "Field",
@@ -15402,66 +15425,6 @@ export const CreateTriggerDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateTriggerMutation, CreateTriggerMutationVariables>;
-export const DeleteTriggerDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "deleteTrigger" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "deleteTrigger" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "id" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Trigger" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "id" } },
-                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<DeleteTriggerMutation, DeleteTriggerMutationVariables>;
 export const SoftDeleteTriggerDocument = {
   kind: "Document",
   definitions: [
@@ -15597,6 +15560,11 @@ export const UpdateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "type" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "TriggerType" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "active" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
         },
@@ -15607,12 +15575,17 @@ export const UpdateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "scheduleType" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "ScheduleType" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "interval" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
         {
@@ -15651,6 +15624,11 @@ export const UpdateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "type" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "type" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "active" },
                       value: { kind: "Variable", name: { kind: "Name", value: "active" } },
                     },
@@ -15661,13 +15639,18 @@ export const UpdateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "scheduleType" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scheduleType" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "timezone" },
                       value: { kind: "Variable", name: { kind: "Name", value: "timezone" } },
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "intervalSeconds" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "intervalSeconds" } },
+                      name: { kind: "Name", value: "interval" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "interval" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15699,11 +15682,13 @@ export const UpdateTriggerDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "active" } },
                       { kind: "Field", name: { kind: "Name", value: "mapping" } },
+                      { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
-                      { kind: "Field", name: { kind: "Name", value: "intervalSeconds" } },
+                      { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
                       {
                         kind: "Field",

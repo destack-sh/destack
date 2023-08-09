@@ -11,7 +11,14 @@ from uuid import UUID
 
 from bench import language as lang
 from bench.language import StatementType
-from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag, TypeHint, TypeTag
+from bench.language.const import (
+    RemoteObjectStatus,
+    ScheduleType,
+    TriggerType,
+    TypeFlag,
+    TypeHint,
+    TypeTag,
+)
 from bench.language.core import (
     CRUD_PROPERTIES,
     MOT,
@@ -1206,8 +1213,9 @@ class TriggerData(NodeData, HasCrud):
     type: TriggerType
     active: bool
     mapping: Optional[list[tuple[str, str]]]
+    schedule_type: Optional[ScheduleType]
     timezone: Optional[str]
-    interval_seconds: Optional[int]
+    interval: Optional[int]
     cron: Optional[str]
     runnable_id: Optional[UUID]
     scope_id: Optional[UUID]
@@ -1224,11 +1232,17 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             type=trigger.type,
             active=trigger.active,
             mapping=trigger.mapping,
+            schedule_type=trigger.schedule_type,
             timezone=trigger.timezone,
-            interval_seconds=trigger.interval_seconds,
+            interval=trigger.interval,
             cron=trigger.cron,
             runnable_id=trigger.runnable.id if trigger.runnable else None,
             scope_id=trigger.scope.id if trigger.scope else None,
+            revision=trigger.revision,
+            created_at=trigger.created_at,
+            updated_at=trigger.updated_at,
+            last_edited_at=trigger.last_edited_at,
+            last_changed_at=trigger.last_changed_at,
         )
 
     def unpack(
@@ -1240,11 +1254,17 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             type=trigger.type,
             active=trigger.active,
             mapping=trigger.mapping,
+            schedule_type=trigger.schedule_type,
             timezone=trigger.timezone,
-            interval_seconds=trigger.interval_seconds,
+            interval=trigger.interval,
             cron=trigger.cron,
             runnable=trigger.runnable_id,
             scope=trigger.scope_id,
+            revision=trigger.revision,
+            created_at=trigger.created_at,
+            updated_at=trigger.updated_at,
+            last_edited_at=trigger.last_edited_at,
+            last_changed_at=trigger.last_changed_at,
             _session=session,
         )
 

@@ -26,6 +26,9 @@ import {
   type UpdateStatementReferenceMutation,
   TriggerType,
   type Trigger,
+  type TaggingCreateInput,
+  type TaggingUpdateInput,
+  ScheduleType,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
@@ -1219,6 +1222,14 @@ export function useSymbolContentOps() {
     }
   );
 
+  function _toTaggingInput(input: Pick<Tagging, "id" | "key" | "reference" | "metadata">) {
+    return {
+      ...input,
+      // set optional values to null if not provided
+      referenceId: input.reference?.id ?? null,
+    };
+  }
+
   async function updateTaggingMetadata(
     tx: Transaction | null,
     statementId: string,
@@ -1229,10 +1240,10 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateTaggingMetadata",
       do: async () => {
-        return await updateTaggingMut(newTagging);
+        return await updateTaggingMut(_toTaggingInput(newTagging));
       },
       undo: async () => {
-        return await updateTaggingMut(oldTagging);
+        return await updateTaggingMut(_toTaggingInput(oldTagging));
       },
     });
   }
@@ -1246,8 +1257,9 @@ export function useSymbolContentOps() {
         $type: TriggerType!
         $active: Boolean!
         $mapping: JSON
+        $scheduleType: ScheduleType
         $timezone: String
-        $intervalSeconds: Int
+        $interval: Int
         $cron: String
         $runnableId: GlobalID
         $scopeId: GlobalID
@@ -1259,8 +1271,9 @@ export function useSymbolContentOps() {
             type: $type
             active: $active
             mapping: $mapping
+            scheduleType: $scheduleType
             timezone: $timezone
-            intervalSeconds: $intervalSeconds
+            interval: $interval
             cron: $cron
             runnableId: $runnableId
             scopeId: $scopeId
@@ -1268,12 +1281,16 @@ export function useSymbolContentOps() {
         ) {
           ... on Trigger {
             id
+            parent {
+              id
+            }
             revision
             type
             active
             mapping
+            scheduleType
             timezone
-            intervalSeconds
+            interval
             cron
             runnable {
               id
@@ -1304,8 +1321,9 @@ export function useSymbolContentOps() {
         type: TriggerType;
         active: boolean;
         mapping: any;
+        scheduleType: ScheduleType | null;
         timezone: string;
-        intervalSeconds: number;
+        interval: number;
         cron: string;
         runnableId: string;
         scopeId: string;
@@ -1315,12 +1333,17 @@ export function useSymbolContentOps() {
           createTrigger: {
             __typename: "Trigger",
             id: vars.id,
+            parent: {
+              __typename: "Statement",
+              id: vars.statementId,
+            },
             revision: PENDING_REVISION,
             type: vars.type,
             active: vars.active,
             mapping: vars.mapping ?? null,
+            scheduleType: vars.scheduleType ?? null,
             timezone: vars.timezone ?? null,
-            intervalSeconds: vars.intervalSeconds ?? null,
+            interval: vars.interval ?? null,
             cron: vars.cron ?? null,
             runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
             scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
@@ -1353,31 +1376,6 @@ export function useSymbolContentOps() {
           optimistic: true,
         });
       },
-    }
-  );
-
-  const { mutate: deleteTriggerMut } = registry.defineModuleMutation(
-    ModuleMutationType.DeleteTrigger,
-    graphql(/* GraphQL */ `
-      mutation deleteTrigger($id: GlobalID!) {
-        deleteTrigger(input: { id: $id }) {
-          ... on Trigger {
-            id
-            deletedAt
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string }) =>
-        ({
-          deleteTrigger: {
-            __typename: "Trigger",
-            id: vars.id,
-            deletedAt: new Date().toISOString(),
-          },
-        } as any),
     }
   );
 
@@ -1436,7 +1434,7 @@ export function useSymbolContentOps() {
     statementId: string,
     trigger: Pick<
       Trigger,
-      "id" | "type" | "active" | "mapping" | "intervalSeconds" | "timezone" | "cron" | "runnable" | "scope"
+      "id" | "type" | "active" | "mapping" | "scheduleType" | "interval" | "timezone" | "cron" | "runnable" | "scope"
     >
   ) {
     await ops.perform({
@@ -1449,8 +1447,9 @@ export function useSymbolContentOps() {
           type: trigger.type,
           active: trigger.active,
           mapping: trigger.mapping ?? null,
+          scheduleType: trigger.scheduleType ?? null,
           timezone: trigger.timezone ?? null,
-          intervalSeconds: trigger.intervalSeconds ?? null,
+          interval: trigger.interval ?? null,
           cron: trigger.cron ?? null,
           runnableId: trigger.runnable?.id ?? null,
           scopeId: trigger.scope?.id ?? null,
@@ -1496,10 +1495,12 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation updateTrigger(
         $id: GlobalID!
+        $type: TriggerType!
         $active: Boolean!
         $mapping: JSON
+        $scheduleType: ScheduleType
         $timezone: String
-        $intervalSeconds: Int
+        $interval: Int
         $cron: String
         $runnableId: GlobalID
         $scopeId: GlobalID
@@ -1507,10 +1508,12 @@ export function useSymbolContentOps() {
         updateTrigger(
           input: {
             id: $id
+            type: $type
             active: $active
             mapping: $mapping
+            scheduleType: $scheduleType
             timezone: $timezone
-            intervalSeconds: $intervalSeconds
+            interval: $interval
             cron: $cron
             runnableId: $runnableId
             scopeId: $scopeId
@@ -1519,11 +1522,13 @@ export function useSymbolContentOps() {
           ... on Trigger {
             id
             updatedAt
+            type
             revision
             active
             mapping
+            scheduleType
             timezone
-            intervalSeconds
+            interval
             cron
             runnable {
               id
@@ -1539,13 +1544,15 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: {
         id: string;
+        type: TriggerType;
         active: boolean;
         mapping: any;
-        timezone: string;
-        intervalSeconds: number;
-        cron: string;
-        runnableId: string;
-        scopeId: string;
+        scheduleType: ScheduleType | null;
+        timezone: string | null;
+        interval: number | null;
+        cron: string | null;
+        runnableId: string | null;
+        scopeId: string | null;
       }) =>
         ({
           updateTrigger: {
@@ -1553,10 +1560,12 @@ export function useSymbolContentOps() {
             id: vars.id,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
+            type: vars.type,
             active: vars.active,
             mapping: vars.mapping ?? null,
+            scheduleType: vars.scheduleType ?? null,
             timezone: vars.timezone ?? null,
-            intervalSeconds: vars.intervalSeconds ?? null,
+            interval: vars.interval ?? null,
             cron: vars.cron ?? null,
             runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
             scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
@@ -1565,25 +1574,35 @@ export function useSymbolContentOps() {
     }
   );
 
+  function _toTriggerInput(
+    input: Pick<Trigger, "id" | "type" | "active" | "mapping" | "timezone" | "interval" | "cron" | "runnable" | "scope">
+  ) {
+    return {
+      ...input,
+      runnableId: input.runnable?.id ?? null,
+      scopeId: input.scope?.id ?? null,
+    };
+  }
+
   async function updateTrigger(
     tx: Transaction | null,
     oldTrigger: Pick<
       Trigger,
-      "id" | "active" | "mapping" | "timezone" | "intervalSeconds" | "cron" | "runnable" | "scope"
+      "id" | "type" | "active" | "mapping" | "scheduleType" | "timezone" | "interval" | "cron" | "runnable" | "scope"
     >,
     newTrigger: Pick<
       Trigger,
-      "id" | "active" | "mapping" | "timezone" | "intervalSeconds" | "cron" | "runnable" | "scope"
+      "id" | "type" | "active" | "mapping" | "scheduleType" | "timezone" | "interval" | "cron" | "runnable" | "scope"
     >
   ) {
     await ops.perform({
       tx,
       type: "statement.updateTrigger",
       do: async () => {
-        return await updateTriggerMut(newTrigger);
+        return await updateTriggerMut(_toTriggerInput(newTrigger));
       },
       undo: async () => {
-        return await updateTriggerMut(oldTrigger);
+        return await updateTriggerMut(_toTriggerInput(oldTrigger));
       },
     });
   }

@@ -159,3 +159,10 @@ class TriggerType(enum.StrEnum):
     MESSAGE = "message"
     USER = "user"
     API = "api"
+
+
+class ScheduleType(enum.StrEnum):
+    """Schedules for runnables."""
+
+    INTERVAL = "interval"
+    CRON = "cron"

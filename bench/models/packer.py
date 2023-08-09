@@ -93,6 +93,7 @@ DEFAULT_PACK_FILTERS = [
     (models.Statement, lambda qs: qs.filter(deleted_at__isnull=True)),
     (models.Field, lambda qs: qs.filter(deleted_at__isnull=True)),
     (models.Tagging, lambda qs: qs.filter(deleted_at__isnull=True)),
+    (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
 
@@ -723,8 +724,9 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             type=node.type,
             active=node.active,
             mapping=node.mapping,
+            schedule_type=node.schedule_type,
             timezone=node.timezone,
-            interval_seconds=node.interval_seconds,
+            interval=node.interval,
             cron=node.cron,
             runnable_id=node.runnable_id,
             scope_id=node.scope_id,
@@ -742,8 +744,9 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             type=data.type,
             active=data.active,
             mapping=data.mapping,
+            schedule_type=data.schedule_type,
             timezone=data.timezone,
-            interval_seconds=data.interval_seconds,
+            interval=data.interval,
             cron=data.cron,
             runnable_id=data.runnable_id,
             scope_id=data.scope_id,
