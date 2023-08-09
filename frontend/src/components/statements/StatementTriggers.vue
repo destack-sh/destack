@@ -2,12 +2,13 @@
 import TriggerInterface from "@/components/interfaces/TriggerInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementRefs } from "@/composables/useGrid";
+import { useNow } from "@/composables/useNow";
 import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newTriggerId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
-import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
+import { TRIGGER_ICONS_SOLID, getTriggerSchedule } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, type Ref } from "vue";
 
@@ -63,8 +64,9 @@ function close() {
   editing.value = null;
 }
 
+const now = useNow(1000);
 function renderTrigger(trigger: Trigger): string {
-  return "every 1h"; // nocheckin
+  return getTriggerSchedule(trigger, now.value)?.humanized ?? "???";
 }
 
 const actions = computed(() => [
@@ -86,12 +88,18 @@ const actions = computed(() => [
     <button
       v-for="trigger in context.triggers.value"
       :key="trigger.id"
-      class="flex flex-row items-center rounded-xl bg-orange-100 px-1.5 text-orange-900 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
+      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 text-orange-900 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
       :class="[trigger.active ? 'ring-solid' : 'ring-']"
       @click="editTrigger(trigger)"
     >
       <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="mr-1 h-4 w-4" />
-      <span class="text-sm">{{ renderTrigger(trigger) }}</span>
+      <span class="max-w-[120px] truncate whitespace-nowrap text-sm">{{ renderTrigger(trigger) }}</span>
+      <!-- Full trigger rendered on hover -->
+      <span
+        class="pointer-events-none absolute left-0 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-gray-700 opacity-0 transition duration-150 group-hover/trigger:opacity-100"
+      >
+        {{ renderTrigger(trigger) }}
+      </span>
     </button>
     <!-- Add trigger button -->
     <button
@@ -123,24 +131,20 @@ const actions = computed(() => [
         :model-value="currentTrigger"
         @update:model-value="updateTrigger($event)"
         @navigate-down="actionRefs.focus(actions[0].label)"
-      />
-      <!-- Actions -->
-      <div class="mt-1.5 flex flex-col border-t border-orange-900 border-opacity-[12%] pt-1.5">
-        <button
-          v-for="(action, i) in actions"
-          :key="action.label"
-          class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
-          @click.prevent.stop="action.action(currentTrigger as Trigger)"
-          @keydown.enter.prevent.stop="action.action(currentTrigger as Trigger)"
-          @keydown.up.exact.stop.prevent="
-            i == 0 ? triggerInterfaceRef?.focus() : actionRefs.focus(actions[i - 1].label)
-          "
-          @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
-        >
-          <component :is="action.icon" class="h-4 w-4 text-gray-500" />
-          <span class="text-gray-700">{{ action.label }}</span>
-        </button>
-      </div>
+      >
+        <template v-slot:actions>
+          <div class="flex flex-row items-center gap-1 px-1">
+            <button
+              v-for="action in actions"
+              :key="action.label"
+              class="p-0.5 text-gray-400 hover:bg-orange-100"
+              @click="action.action(currentTrigger)"
+            >
+              <component :is="action.icon" class="h-4 w-4" />
+            </button>
+          </div>
+        </template>
+      </TriggerInterface>
     </div>
   </div>
 </template>

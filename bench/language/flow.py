@@ -1,4 +1,4 @@
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Union, cast
 from uuid import UUID
@@ -31,6 +31,16 @@ class Trigger(ModuleNode, HasCrud, HasSession):
     cron: Optional[str] = None
     runnable: Union[Runnable, UUID, None] = None
     scope: Union["HasFlow", UUID, None] = None
+
+    def __str__(self):
+        if self.type == TriggerType.TIME:
+            schedule_str = (
+                self.interval if self.schedule_type == ScheduleType.INTERVAL else self.cron
+            )
+            content_str = f"{self.schedule_type} {self.timezone} {schedule_str}"
+        else:
+            content_str = None
+        return f"{self.type} {content_str or '<none>'}"
 
 
 @node
@@ -165,4 +175,11 @@ def get_trigger_schedule(
     trigger: Trigger, now: datetime, next_occurrences: int = 2
 ) -> TriggerSchedule:
     # :TriggerSchedule
+    if trigger.schedule_type == ScheduleType.INTERVAL:
+        raise NotImplementedError
+    elif trigger.schedule_type == ScheduleType.CRON:
+        raise NotImplementedError
+    else:
+        raise ValueError(f"unexpected schedule type in {trigger}: {trigger.schedule_type}")
+
     raise NotImplementedError  # nocheckin
