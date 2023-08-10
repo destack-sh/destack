@@ -1,6 +1,9 @@
 import asyncio
 import json
 import typing
+from collections import deque
+from dataclasses import dataclass, field
+from datetime import datetime
 from functools import partial
 from itertools import chain
 from typing import Optional
@@ -11,9 +14,20 @@ from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 
 from bench import models
-from bench.language import HasType, Issue, Q, Query, QueryOp, ResolvedField, wire
+from bench.language import (
+    HasType,
+    Issue,
+    Q,
+    Query,
+    QueryOp,
+    ResolvedField,
+    Trigger,
+    TriggerType,
+    wire,
+)
 from bench.language.cache import CacheAsync
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
+from bench.language.flow import TriggerSchedule, get_time_trigger_schedule
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import instantiate_py_value, strip_py_value
@@ -138,7 +152,7 @@ class RuntimeServer(Monitored):
 
     def __init__(self):
         self.id = UUIDT()
-        self.lang_workers: dict[UUID, RuntimeWorker] = {}
+        self.workers: dict[UUID, RuntimeWorker] = {}
         self.subs = []
         self.tasks = []
         self._ready = False
@@ -169,16 +183,15 @@ class RuntimeServer(Monitored):
         return self._ready
 
     async def _get_ready_worker(self, module_id: UUID) -> "RuntimeWorker":
-        worker = self.lang_workers.get(module_id)
+        worker = self.workers.get(module_id)
         if worker is None:
             # start language worker if not already started
-            # TODO @Broken: assign workers to deployments
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
             worker = RuntimeWorker(self.id, project_version)
-            self.lang_workers[module_id] = worker
-            asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
+            self.workers[module_id] = worker
+            asyncio.create_task(wrap_task(worker.run(), f"worker-{module_id}"))
         if not worker.ready.is_set():
             await worker.ready.wait()
         return worker
@@ -463,7 +476,50 @@ class RuntimeServer(Monitored):
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
 
 
-COMPLETED_JOBS_BUFFER_SIZE = 128
+TIME_TRIGGER_PRE_SEND_WINDOW = 60  # 1 minute before
+TIME_TRIGGER_LOOKAHEAD = 2  # occurrences
+
+
+async def run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime) -> None:
+    """Run a function at a given time."""
+    delay = (at - datetime.utcnow()).total_seconds()
+    if delay < 0:
+        delay = 0
+    await asyncio.sleep(delay)
+    await func()
+
+
+def schedule_run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime) -> None:
+    """Schedule a function to run at a given time."""
+    asyncio.create_task(run_at(func, at))
+
+
+@dataclass
+class ActiveTrigger:
+    trigger: Trigger
+    schedule: TriggerSchedule
+    next_occurrences: typing.Deque[tuple[datetime, asyncio.Task]] = field(default_factory=deque)
+
+    async def _do_trigger(self):
+        pass  # nocheckin
+
+    async def schedule_occurrences(self):
+        next_occurrences = []
+        for occurrence in self.schedule.next_occurrences:
+            # schedule events for the next occurrences
+            event = asyncio.Event()
+            event.scheduled_time = occurrence
+            next_occurrences.append((occurrence, event))
+
+    async def clear_tasks(self):
+        for _, task in self.next_occurrences:
+            task.cancel()
+
+    @staticmethod
+    async def from_trigger(trigger: Trigger, now: datetime):
+        if trigger.type != TriggerType.TIME:
+            raise ValueError(f"trigger is not a time trigger: {trigger}")
+        schedule = get_time_trigger_schedule(trigger, now, next_occurrences=TIME_TRIGGER_LOOKAHEAD)
 
 
 class RuntimeWorker:
@@ -484,7 +540,7 @@ class RuntimeWorker:
         self.source: wire.ModuleTreeData | None = None
         self.module: Optional[Module] = None
         self.module_tree: Optional[ModuleTree] = None
-        self.last_module: Optional[Module] = None
+        self.active_time_triggers: dict[UUID, ActiveTrigger] = {}
 
     @property
     def client(self) -> ClientOrigin:
@@ -504,8 +560,10 @@ class RuntimeWorker:
     def project_id(self) -> UUID:
         return self.project_version.project_id
 
-    def mutate(self) -> ModuleMutator:
-        return ModuleMutator(self.module)
+    async def run(self) -> None:
+        source, project = await get_module(self.module_ref)
+        await self.do_interp(source)
+        self.ready.set()
 
     async def on_module_changed(self, mutations: list[ModuleMutation]):
         is_semantic = any(m.type.semantic for m in mutations)
@@ -584,6 +642,7 @@ class RuntimeWorker:
         old_tree = self.module_tree
         self.module = Module.interp_from(module=new_source, session=None)
         self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
+
         return old, old_tree, self.module
 
     async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
@@ -642,8 +701,3 @@ class RuntimeWorker:
                     mutations=interp_mut.mutations,
                 ),
             )
-
-    async def run(self) -> None:
-        source, project = await get_module(self.module_ref)
-        await self.do_interp(source)
-        self.ready.set()

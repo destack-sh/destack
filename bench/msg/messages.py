@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import TriggerType
+from bench.language.const import StatementType, TriggerType
 from bench.language.core import ModuleReference
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
@@ -242,12 +242,13 @@ class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
 @payload(NMessageType.START_RUN)
 class ReqStartRunPayload(ModuleScoped, Payload):
     runnable: Optional[UUID | str]
-    runnable_type: Optional[str]
+    runnable_type: Optional[StatementType]
     arguments: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
+    schedule_at: Optional[datetime]
     session_id: Optional[UUID]
     run_id: Optional[UUID]
 

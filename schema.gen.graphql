@@ -1595,7 +1595,6 @@ type RunState {
 union RunStateOperationInfo = RunState | OperationInfo
 
 enum RunStatus {
-  Created
   Scheduled
   Queued
   Running

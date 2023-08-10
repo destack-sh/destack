@@ -8,8 +8,9 @@ import { ScheduleType, TriggerType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newTriggerId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
-import { TRIGGER_ICONS_SOLID, getTriggerSchedule } from "@/state/trigger";
+import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { DateTime } from "luxon";
 import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
@@ -65,9 +66,7 @@ function close() {
 }
 
 const now = useNow(1000);
-function renderTrigger(trigger: Trigger): string {
-  return getTriggerSchedule(trigger, now.value)?.humanized ?? "???";
-}
+const triggerSchedules = computed(() => context.triggers.value.map((t) => getTriggerSchedule(t, now.value)));
 
 const actions = computed(() => [
   {
@@ -86,20 +85,39 @@ const actions = computed(() => [
   <div class="group relative flex flex-row gap-1.5">
     <!-- Existing triggers -->
     <button
-      v-for="trigger in context.triggers.value"
+      v-for="(trigger, i) in context.triggers.value"
       :key="trigger.id"
       class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 text-orange-900 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
       :class="[trigger.active ? 'ring-solid' : 'ring-']"
       @click="editTrigger(trigger)"
     >
       <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="mr-1 h-4 w-4" />
-      <span class="max-w-[120px] truncate whitespace-nowrap text-sm">{{ renderTrigger(trigger) }}</span>
-      <!-- Full trigger rendered on hover -->
-      <span
+      <span class="max-w-[120px] truncate whitespace-nowrap text-sm">
+        {{ triggerSchedules[i]?.humanized ?? "???" }}
+      </span>
+      <!-- Full trigger + schedule on hover -->
+      <div
         class="pointer-events-none absolute left-0 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-gray-700 opacity-0 transition duration-150 group-hover/trigger:opacity-100"
       >
-        {{ renderTrigger(trigger) }}
-      </span>
+        <span class="text-center font-bold">{{ triggerSchedules[i]?.humanized ?? "Invalid schedule" }}</span>
+        <!-- Occurrences -->
+        <div
+          v-if="triggerSchedules[i].lastOccurrence != null && triggerSchedules[i].nextOccurrences != null"
+          class="mt-1 flex flex-col"
+        >
+          <span
+            v-for="(occurrence, offset) in [triggerSchedules[i].lastOccurrence, ...triggerSchedules[i].nextOccurrences]"
+            :key="offset"
+            class="flex flex-row justify-between gap-2.5"
+            :class="[offset == 1 ? 'text-orange-600' : 'text-gray-400']"
+          >
+            <span>{{ offset == 0 ? "last" : "next" }}</span>
+            <span>
+              {{ occurrence?.setZone(trigger.timezone ?? "UTC").toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
+            </span>
+          </span>
+        </div>
+      </div>
     </button>
     <!-- Add trigger button -->
     <button
