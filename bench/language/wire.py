@@ -1639,6 +1639,7 @@ class RunData:
     parent_id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
+    scheduled_at: Optional[datetime]
     started_at: datetime
     terminated_at: Optional[datetime]
     status: RunStatus
@@ -1673,6 +1674,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             parent_id=object.parent.id if object.parent else None,
             created_at=object.created_at,
             updated_at=object.updated_at,
+            scheduled_at=object.scheduled_at,
             started_at=object.started_at,
             terminated_at=object.terminated_at,
             status=object.status,
@@ -1706,6 +1708,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             runnable=runnable,
             created_at=data.created_at,
             updated_at=data.updated_at,
+            scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             inputs=data.inputs,

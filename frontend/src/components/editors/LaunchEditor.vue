@@ -15,7 +15,7 @@ import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { RUN_TERMINAL_STATES, useCurrentSessions } from "@/state/session";
+import { RUN_ACTIVE_STATES, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -73,7 +73,7 @@ const currentRun = computed(() => runs.value[0]);
 const isCurrentRunActive = computed(
   () =>
     currentRun.value != null &&
-    !RUN_TERMINAL_STATES.includes(currentRun.value?.status) &&
+    RUN_ACTIVE_STATES.includes(currentRun.value?.status) &&
     currentRun.value?.status != RunStatus.Aborting
 );
 

@@ -454,6 +454,7 @@ class Run(os.Document):
     runnable_type: str = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     updated_at: datetime = os.field(os.FT.DATE)
+    scheduled_at: Optional[datetime] = os.field(os.FT.DATE)
     started_at: Optional[datetime] = os.field(os.FT.DATE)
     terminated_at: Optional[datetime] = os.field(os.FT.DATE)
     duration: Optional[float] = os.field(os.FT.FLOAT)
@@ -476,6 +477,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             runnable_id=mirror.runnable_id,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
+            scheduled_at=mirror.scheduled_at,
             started_at=mirror.started_at,
             terminated_at=mirror.terminated_at,
             status=mirror.status,
@@ -499,6 +501,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             runnable_type=runnable_type,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
+            scheduled_at=mirror.scheduled_at,
             started_at=mirror.started_at,
             terminated_at=mirror.terminated_at,
             status=wire.RunStatus(mirror.status),
@@ -525,6 +528,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             runnable_type=data.runnable_type,
             created_at=data.created_at,
             updated_at=data.updated_at,
+            scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             duration=duration,

@@ -41,7 +41,7 @@ numpy<2,>=1.20.0
 openai==0.27.2
 opensearch-py[async]==2.2.0
 Pillow==9.4.0
-posthog==2.3.1
+posthog==3.0.1
 psycopg2==2.9.5
 pydub==0.25.1
 python-dotenv==0.21.0

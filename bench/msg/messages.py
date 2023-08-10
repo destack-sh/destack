@@ -248,7 +248,7 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     keyed: bool
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
-    schedule_at: Optional[datetime]
+    scheduled_at: Optional[datetime]
     session_id: Optional[UUID]
     run_id: Optional[UUID]
 

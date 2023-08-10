@@ -112,7 +112,7 @@ class WorkerNode(Monitored):
 
     @property
     def client(self):
-        return ClientOrigin(type="worker", id=self.worker_node_id, nonce=None)
+        return ClientOrigin(type="user-worker", id=self.worker_node_id, nonce=None)
 
     async def run(self):
         await nc_init.wait()

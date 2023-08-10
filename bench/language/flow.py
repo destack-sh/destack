@@ -1,6 +1,6 @@
 import typing
 from collections import deque
-from dataclasses import dataclass, field
+from dataclasses import field
 from datetime import datetime
 from typing import Optional, Union, cast
 from uuid import UUID
@@ -171,16 +171,6 @@ TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.u
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
 
 
-@dataclass
-class TriggerSchedule:
-    """Schedule for a time trigger."""
-
-    type: ScheduleType
-    timezone: str
-    now: datetime
-    iter: "TriggerScheduleIterator"
-
-
 class TriggerScheduleIterator:
     """Iterator for a time trigger schedule."""
 
@@ -193,12 +183,20 @@ class TriggerScheduleIterator:
         # iter state
         self._next: int | None = None
         self._croniter: croniter | None = None
+        self._init()
 
     @property
     def type(self) -> ScheduleType:
         return self.trigger.schedule_type
 
     def _init(self):
+        """Reset the iterator to its initial now."""
+
+        self.offset = 0
+        self.last_occurrence_initial = None
+        self.next_occurrences_buffer.clear()
+
+        # :TriggerSchedule
         if self.type == ScheduleType.INTERVAL:
             self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
             previous = self._next
@@ -238,6 +236,10 @@ class TriggerScheduleIterator:
 
         return next_occurrences
 
+    def next(self) -> datetime:
+        """Return the next occurrence."""
+        return self.advance(n=1)[0]
+
 
 def is_time_trigger_identical(a: Trigger, b: Trigger) -> bool:
     """Checks if two time triggers are identical (as pertaining to their schedule)."""
@@ -251,15 +253,3 @@ def is_time_trigger_identical(a: Trigger, b: Trigger) -> bool:
     if a.schedule_type == ScheduleType.CRON:
         return a.cron == b.cron
     return False
-
-
-def get_time_trigger_schedule(trigger: Trigger, now: datetime) -> TriggerSchedule:
-    """Gets the current schedule for a time-based trigger."""
-
-    # :TriggerSchedule
-    return TriggerSchedule(
-        type=trigger.schedule_type,
-        timezone=trigger.timezone,
-        now=now,
-        iter=TriggerScheduleIterator(trigger, now),
-    )

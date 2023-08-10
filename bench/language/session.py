@@ -87,6 +87,7 @@ class Run:
     session: Session
     root: Optional["Run"]
     parent: Optional["Run"]
+    scheduled_at: datetime
     started_at: datetime
     terminated_at: Optional[datetime]
     status: RunStatus = field(init=False)

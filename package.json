@@ -51,7 +51,7 @@
     "monaco-languageclient": "^4.0.3",
     "mousetrap": "^1.6.5",
     "pinia": "^2.0.30",
-    "posthog-js": "^1.50.0",
+    "posthog-js": "^1.76.0",
     "qs": "^6.11.0",
     "uuid": "^9.0.0",
     "vue": "^3.3.4",

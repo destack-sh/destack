@@ -1,9 +1,8 @@
 import asyncio
 import json
 import typing
-from collections import deque
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import datetime, timedelta
 from functools import partial
 from itertools import chain
 from typing import Optional
@@ -12,6 +11,7 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
+from django.db import transaction
 
 from bench import models
 from bench.language import (
@@ -21,13 +21,14 @@ from bench.language import (
     Query,
     QueryOp,
     ResolvedField,
+    Run,
     Trigger,
     TriggerType,
     wire,
 )
 from bench.language.cache import CacheAsync
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
-from bench.language.flow import TriggerSchedule, get_time_trigger_schedule
+from bench.language.flow import IsFlowable, TriggerScheduleIterator
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.type import instantiate_py_value, strip_py_value
@@ -36,7 +37,7 @@ from bench.language.wire import ModuleTree
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
-from bench.msg.core import handle_reply, message_handler, nc_init, publish, subscribe
+from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
     ClientOrigin,
     LogsChangedPayload,
@@ -65,6 +66,7 @@ from bench.msg.messages import (
     ReqSearchLogPayload,
     ReqSearchRecordPayload,
     ReqSearchRunPayload,
+    ReqStartRunPayload,
     ReqWakeLangserverPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
@@ -77,6 +79,7 @@ from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
+from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 from bench.worker.mutate import get_api_mutation_from_internal, trim_record_mutations
@@ -154,7 +157,7 @@ class RuntimeServer(Monitored):
         self.id = UUIDT()
         self.workers: dict[UUID, RuntimeWorker] = {}
         self.subs = []
-        self.tasks = []
+        self.tasks = TaskManager()
         self._ready = False
 
     async def run(self):
@@ -175,12 +178,17 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.RUN_PROXY_INFERENCE, self.run_inference),
             await subscribe(f"{NMessageType.MODULE_INTERNAL_CHANGED}.>", cb=self.module_changed),
         ]
+        # nocheckin: load all workers for module heads (only with active time triggers?)
         logger.info("ready")
         self._ready = True
 
     @property
     def ready(self) -> bool:
         return self._ready
+
+    @property
+    def healthy(self):
+        return self.ready and self.tasks.healthy
 
     async def _get_ready_worker(self, module_id: UUID) -> "RuntimeWorker":
         worker = self.workers.get(module_id)
@@ -189,7 +197,7 @@ class RuntimeServer(Monitored):
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = RuntimeWorker(self.id, project_version)
+            worker = RuntimeWorker(self.id, self.tasks, project_version)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), f"worker-{module_id}"))
         if not worker.ready.is_set():
@@ -497,54 +505,38 @@ def schedule_run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datet
 @dataclass
 class ActiveTrigger:
     trigger: Trigger
-    schedule: TriggerSchedule
-    next_occurrences: typing.Deque[tuple[datetime, asyncio.Task]] = field(default_factory=deque)
-
-    async def _do_trigger(self):
-        pass  # nocheckin
-
-    async def schedule_occurrences(self):
-        next_occurrences = []
-        for occurrence in self.schedule.next_occurrences:
-            # schedule events for the next occurrences
-            event = asyncio.Event()
-            event.scheduled_time = occurrence
-            next_occurrences.append((occurrence, event))
-
-    async def clear_tasks(self):
-        for _, task in self.next_occurrences:
-            task.cancel()
-
-    @staticmethod
-    async def from_trigger(trigger: Trigger, now: datetime):
-        if trigger.type != TriggerType.TIME:
-            raise ValueError(f"trigger is not a time trigger: {trigger}")
-        schedule = get_time_trigger_schedule(trigger, now, next_occurrences=TIME_TRIGGER_LOOKAHEAD)
+    processed_up_to: Optional[datetime]
+    next_occurrence: Optional[datetime]
+    iter: TriggerScheduleIterator
 
 
 class RuntimeWorker:
     """
-    Runtime worker for a single module (singleton, only one active runtime worker per module).
-    (mainly to ensure triggers are processed with exactly once semantics, later also OTs,
-     so we may separate those parts into some master worker later for scalability)
+    Runtime worker for a single module.
+    Assumed to run as a singleton per module, mainly to ensure time triggers are processed
+     with hopefully exactly once / definitely at least once semantics (later also OTs).
+     We may separate those parts into some elected 'main' worker later for scalability.
     """
 
-    def __init__(self, worker_id: UUID, project_version: models.ProjectVersion):
-        self.worker_id = worker_id
+    def __init__(self, host_id: UUID, tasks: TaskManager, project_version: models.ProjectVersion):
+        self.server_id = host_id
+        self.tasks = tasks
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
-            module_id=self.module_id, project_id=self.project_id, worker_id=self.worker_id
+            module_id=self.module_id, project_id=self.project_id, worker_id=self.server_id
         )
         # module data
         self.source: wire.ModuleTreeData | None = None
         self.module: Optional[Module] = None
         self.module_tree: Optional[ModuleTree] = None
+        # time triggers
         self.active_time_triggers: dict[UUID, ActiveTrigger] = {}
+        self.active_trigger_process: asyncio.Event = asyncio.Event()
 
     @property
     def client(self) -> ClientOrigin:
-        return ClientOrigin("worker", self.worker_id, None)
+        return ClientOrigin("runtime-worker", self.server_id, None)
 
     @property
     def module_id(self) -> UUID:
@@ -561,9 +553,192 @@ class RuntimeWorker:
         return self.project_version.project_id
 
     async def run(self) -> None:
+        # fetch and interp module
         source, project = await get_module(self.module_ref)
-        await self.do_interp(source)
+        await self.interp(source)
+
         self.ready.set()
+
+    async def process_time_triggers_forever(self) -> None:
+        """
+        Process all time triggers for this module forever.
+        As noted above, this is assumed to run once per module.
+        """
+
+        # cancel already scheduled runs that no longer have an active trigger
+        # nocheckin: do this
+
+        triggers_to_fire: set[UUID] = set()
+
+        # backfill time triggers on first go
+        for trigger in self.active_time_triggers.values():
+            if (
+                trigger.processed_up_to is not None
+                and trigger.iter.last_occurrence_initial > trigger.processed_up_to
+            ):
+                triggers_to_fire.add(trigger.trigger.id)
+
+        # enter forever loop
+        while True:
+            process_up_to = datetime.utcnow() + timedelta(seconds=TIME_TRIGGER_PRE_SEND_WINDOW)
+
+            # collect triggers that are due to fire within the send window
+            for trigger in self.active_time_triggers.values():
+                if trigger.next_occurrence is None:
+                    trigger.next_occurrence = trigger.iter.next()
+                if trigger.next_occurrence <= process_up_to:
+                    triggers_to_fire.add(trigger.trigger.id)
+
+            runs_to_start = self._process_triggers(self.active_time_triggers, triggers_to_fire)
+            # send out
+            for run in runs_to_start:
+                req = ReqStartRunPayload(
+                    runnable=run.runnable.id,
+                    runnable_type=run.runnable.type,
+                    arguments=run.inputs,
+                    block=False,
+                    keyed=True,
+                    trigger_type=TriggerType.TIME,
+                    trigger_id=None,  # nocheckin: set this
+                    scheduled_at=run.scheduled_at,
+                )
+                await request(req)
+
+            # reset next occurrence for all triggers that fired
+            for trigger in [self.active_time_triggers[id] for id in triggers_to_fire]:
+                trigger.next_occurrence = trigger.iter.next()
+            triggers_to_fire.clear()
+
+            # wait until change or until next earliest trigger
+            await self.active_trigger_process.wait()
+
+    @transaction.atomic
+    def _process_triggers(
+        self,
+        triggers: dict[UUID, ActiveTrigger],
+        processed_up_to: datetime,
+        triggers_to_fire: set[UUID],
+    ) -> list[Run]:
+        """
+        Atomically update processed_up_to for all triggers and create Runs for firing triggers.
+        """
+
+        # update processed_up_to for all triggers
+        for trigger in triggers:
+            trigger.processed_up_to = processed_up_to
+        models.Trigger.objects.filter(id__in=triggers.keys()).update(
+            processed_up_to=processed_up_to
+        )
+
+        # create runs for fired triggers
+        runs = []
+        for trigger_id in triggers_to_fire:
+            fired_trigger = triggers[trigger_id]
+            runnable = fired_trigger.trigger.parent
+            # nocheckin: also track proper trigger info (incl. trigger key)
+            run = Run(
+                id=UUIDT(),
+                module=self.module,
+                runnable=runnable,
+                root=None,
+                parent=None,
+                scheduled_at=fired_trigger.next_occurrence,
+                stated_at=None,
+                terminated_at=None,
+                inputs={},
+                outputs=None,
+                error=None,
+                metadata=None,
+            )
+            runs.append(run)
+        runs_models = [packer.pack_data(wire.pack_data(run)) for run in runs]
+        models.Run.objects.bulk_create(runs_models)
+
+        return runs
+
+    def _update_triggers(self):
+        """Update active time triggers when the module changes."""
+
+        new_triggers = {}
+        for statement in self.module._statements_by_id.values():
+            if isinstance(statement, IsFlowable) and not statement.errors:
+                for trigger in statement.triggers:
+                    if trigger.active and trigger.type == TriggerType.TIME:
+                        new_triggers[trigger.id] = trigger
+
+        self.active_trigger_process.set()
+
+    async def interp(self, new_source: wire.ModuleTreeData) -> None:
+        """Interprets the new module source, updating the interpreted state."""
+
+        interp_mut = await asyncio.get_event_loop().run_in_executor(
+            None, partial(self._do_interp, new_source)
+        )
+        # save and notify interp changes
+        if interp_mut.mutations:
+            await sync_to_async(write_mutations)(
+                self.project_version, self.module_tree, interp_mut.mutations, wait_for_os=False
+            )
+            await publish(
+                NMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(
+                    project_id=self.project_id,
+                    module_id=self.module_id,
+                    origins=(self.client,),
+                    mutations=interp_mut.mutations,
+                ),
+            )
+
+    def _do_interp(self, new_source: wire.ModuleTreeData) -> ModuleMutator:
+        """
+        Re-interpret the module from the given source in place.
+        Return any interpreted module state changes.
+        """
+
+        self.source = new_source
+        old_module = self.module
+        old_tree = self.module_tree
+        self.module = Module.interp_from(module=new_source, session=None)
+        self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
+
+        # check for any interp changes
+        interp_mut = ModuleMutator(new_source)
+        # resolved fields
+        interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
+        if old_module is None:
+            interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
+        for statement in self.module._statements_by_id.values():
+            old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
+            if not isinstance(statement, HasType):
+                continue
+            if (
+                not isinstance(old_statement, HasType)
+                or old_statement.resolved_fields != statement.resolved_fields
+            ):
+                if old_statement is not None:
+                    interp_mut.truncate(statement, MOT.RESOLVED_FIELD)
+                for resolved in statement.resolved_fields:
+                    if isinstance(resolved, ResolvedField):
+                        interp_mut.create(resolved)
+        # issues
+        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues}
+        old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
+        if old_module is None:
+            interp_mut.truncate(new_source.module, MOT.ISSUE)
+        else:
+            for issue in old_module.issues:
+                if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
+                    interp_mut.delete(issue, apply=False)  # only track, doesn't exist
+        for issue in new_issues.values():
+            if issue.id not in old_issues:
+                if old_module and issue.subject_id not in old_tree:
+                    interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
+                interp_mut.create(issue)
+
+        # update triggers
+        self._update_triggers()
+
+        return interp_mut
 
     async def on_module_changed(self, mutations: list[ModuleMutation]):
         is_semantic = any(m.type.semantic for m in mutations)
@@ -572,7 +747,7 @@ class RuntimeWorker:
             return
         mutator = ModuleMutator(self.source, mutations)
         new_source = mutator.to_module()
-        await self.do_interp(new_source)
+        await self.interp(new_source)
 
     async def write_module(
         self,
@@ -634,70 +809,4 @@ class RuntimeWorker:
             await publish(
                 NMessageType.LOGS_CHANGED,
                 LogsChangedPayload(project_id=self.project_id, module_id=self.module_id, logs=logs),
-            )
-
-    def _do_interp_sync(self, new_source: wire.ModuleTreeData) -> tuple[Module, ModuleTree, Module]:
-        self.source = new_source
-        old = self.module
-        old_tree = self.module_tree
-        self.module = Module.interp_from(module=new_source, session=None)
-        self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
-
-        return old, old_tree, self.module
-
-    async def do_interp(self, new_source: wire.ModuleTreeData) -> None:
-        """Interprets the new module source, fetching deps and firing reactivity jobs"""
-        old_module, old_tree, new_module = await asyncio.get_event_loop().run_in_executor(
-            None, partial(self._do_interp_sync, new_source)
-        )
-
-        # check for any interp changes
-        interp_mut = ModuleMutator(new_source)
-
-        # resolved fields
-        # prune existing interp data from mut tree to track changes
-        interp_mut.tree.prune(wire.ResolvedFieldData)
-        if old_module is None:
-            interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
-        for statement in new_module._statements_by_id.values():
-            old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
-            if not isinstance(statement, HasType):
-                continue
-            if (
-                not isinstance(old_statement, HasType)
-                or old_statement.resolved_fields != statement.resolved_fields
-            ):
-                if old_statement is not None:
-                    interp_mut.truncate(statement, MOT.RESOLVED_FIELD)
-                for resolved in statement.resolved_fields:
-                    if isinstance(resolved, ResolvedField):
-                        interp_mut.create(resolved)
-        # issues
-        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in new_module.issues}
-        old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
-        if old_module is None:
-            interp_mut.truncate(new_source.module, MOT.ISSUE)
-        else:
-            for issue in old_module.issues:
-                if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
-                    interp_mut.delete(issue, apply=False)  # only track, doesn't exist
-        for issue in new_issues.values():
-            if issue.id not in old_issues:
-                if old_module and issue.subject_id not in old_tree:
-                    interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
-                interp_mut.create(issue)
-
-        # save and notify
-        if interp_mut.mutations:
-            await sync_to_async(write_mutations)(
-                self.project_version, self.module_tree, interp_mut.mutations, wait_for_os=False
-            )
-            await publish(
-                NMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(
-                    project_id=self.project_id,
-                    module_id=self.module_id,
-                    origins=(self.client,),
-                    mutations=interp_mut.mutations,
-                ),
             )
