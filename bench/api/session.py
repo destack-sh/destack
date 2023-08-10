@@ -48,13 +48,13 @@ from bench.msg.messages import (
     RepGetEnvironmentPayload,
     RepRestartWorkerSetPayload,
     RepStartRunPayload,
-    RepWakeLangserverPayload,
+    RepWakeRuntimePayload,
     RepWakeWorkerSetPayload,
     ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
     ReqRestartWorkerSetPayload,
     ReqStartRunPayload,
-    ReqWakeLangserverPayload,
+    ReqWakeRuntimePayload,
     ReqWakeWorkerSetPayload,
     RunErrorType,
     RunsChangedGlobalPayload,
@@ -273,12 +273,12 @@ class SessionState:
 
 
 @gql.input
-class WakeLangserverInput:
+class WakeRuntimeInput:
     project_version_id: GlobalID
 
 
 @gql.type
-class WakeLangserverPayload:
+class WakeRuntimePayload:
     success: bool
 
 
@@ -558,18 +558,18 @@ class SessionQuery:
 @gql.type
 class SessionMutation:
     @asafe_mutation
-    async def wake_langserver(
-        self, info: Info, input: WakeLangserverInput
-    ) -> WakeLangserverPayload | OperationInfo:
+    async def wake_runtime(
+        self, info: Info, input: WakeRuntimeInput
+    ) -> WakeRuntimePayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_read_project)(info, project_version)
         await request(
-            NMessageType.WAKE_LANGSERVER,
-            ReqWakeLangserverPayload(module_id=project_version_id),
-            reply_t=RepWakeLangserverPayload,
+            NMessageType.WAKE_RUNTIME,
+            ReqWakeRuntimePayload(module_id=project_version_id),
+            reply_t=RepWakeRuntimePayload,
         )
-        return WakeLangserverPayload(success=True)
+        return WakeRuntimePayload(success=True)
 
     @asafe_mutation
     async def wake_worker_set(
@@ -621,6 +621,7 @@ class SessionMutation:
             runnable=to_uuid(input.runnable_id),
             runnable_type=None,
             arguments=input.arguments,
+            scheduled_at=None,
             block=input.block,
             trigger_type=TriggerType.USER,
             trigger_id=user.id,
@@ -748,7 +749,7 @@ class SessionSubscription:
             {
                 f"{NMessageType.SESSION_CHANGED}.{routing_id}": SessionChangedPayload,
                 f"{NMessageType.SESSION_CHANGED}.all": SessionChangedPayload,
-                f"{NMessageType.RUNS_CHANGED_GLOBAL}": SessionChangedPayload,
+                f"{NMessageType.RUNS_CHANGED}": SessionChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.{project_id}": WorkersChangedPayload,
                 f"{NMessageType.WORKERS_CHANGED}.all": WorkersChangedPayload,
             },

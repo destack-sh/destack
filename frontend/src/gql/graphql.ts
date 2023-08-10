@@ -638,7 +638,7 @@ export type Mutation = {
   updateTrigger: TriggerOperationInfo;
   updateUser: UserOperationInfo;
   upsertClient: ClientOperationInfo;
-  wakeLangserver: WakeLangserverPayloadOperationInfo;
+  wakeRuntime: WakeRuntimePayloadOperationInfo;
   wakeWorkerSet: WakeWorkerSetPayloadOperationInfo;
 };
 
@@ -966,8 +966,8 @@ export type MutationUpsertClientArgs = {
   input: ClientUpsertInput;
 };
 
-export type MutationWakeLangserverArgs = {
-  input: WakeLangserverInput;
+export type MutationWakeRuntimeArgs = {
+  input: WakeRuntimeInput;
 };
 
 export type MutationWakeWorkerSetArgs = {
@@ -1940,7 +1940,6 @@ export enum RunStatus {
   Aborted = "Aborted",
   Aborting = "Aborting",
   Completed = "Completed",
-  Created = "Created",
   Failed = "Failed",
   Queued = "Queued",
   Running = "Running",
@@ -2575,16 +2574,16 @@ export type UserUpdateInput = {
   name: Scalars["String"];
 };
 
-export type WakeLangserverInput = {
+export type WakeRuntimeInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
-export type WakeLangserverPayload = {
-  __typename?: "WakeLangserverPayload";
+export type WakeRuntimePayload = {
+  __typename?: "WakeRuntimePayload";
   success: Scalars["Boolean"];
 };
 
-export type WakeLangserverPayloadOperationInfo = OperationInfo | WakeLangserverPayload;
+export type WakeRuntimePayloadOperationInfo = OperationInfo | WakeRuntimePayload;
 
 export type WakeWorkerSetInput = {
   projectId: Scalars["GlobalID"];
@@ -4237,17 +4236,17 @@ export type DeleteSecretMutation = {
     | null;
 };
 
-export type WakeLangserverMutationVariables = Exact<{
+export type WakeRuntimeMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type WakeLangserverMutation = {
+export type WakeRuntimeMutation = {
   __typename?: "Mutation";
-  wakeLangserver:
+  wakeRuntime:
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "WakeLangserverPayload" };
+    | { __typename?: "WakeRuntimePayload" };
 };
 
 export type WakeWorkerSetMutationVariables = Exact<{
@@ -11436,13 +11435,13 @@ export const DeleteSecretDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<DeleteSecretMutation, DeleteSecretMutationVariables>;
-export const WakeLangserverDocument = {
+export const WakeRuntimeDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "wakeLangserver" },
+      name: { kind: "Name", value: "wakeRuntime" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -11455,7 +11454,7 @@ export const WakeLangserverDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "wakeLangserver" },
+            name: { kind: "Name", value: "wakeRuntime" },
             arguments: [
               {
                 kind: "Argument",
@@ -11482,7 +11481,7 @@ export const WakeLangserverDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<WakeLangserverMutation, WakeLangserverMutationVariables>;
+} as unknown as DocumentNode<WakeRuntimeMutation, WakeRuntimeMutationVariables>;
 export const WakeWorkerSetDocument = {
   kind: "Document",
   definitions: [

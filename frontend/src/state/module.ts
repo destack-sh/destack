@@ -318,24 +318,24 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  // wake langserver as needed if possible
-  const wokeLangserver = ref(false);
+  // wake runtime as needed if possible
+  const wokeRuntime = ref(false);
   const ops = useOperations();
   const auth = useAuth();
   watch([module, WS_CONNECTED, () => auth.loggedIn.value], async () => {
     if (!WS_CONNECTED.value) {
-      wokeLangserver.value = false; // reset woken state
+      wokeRuntime.value = false; // reset woken state
     }
     if (
       WS_CONNECTED.value &&
-      !wokeLangserver.value &&
+      !wokeRuntime.value &&
       projectVersionId.value != null &&
       module.value != null &&
       !module.value?.projectVersion?.committed &&
       auth.loggedIn.value
     ) {
-      wokeLangserver.value = true;
-      await ops.session.wakeLangserver(projectVersionId.value);
+      wokeRuntime.value = true;
+      await ops.session.wakeRuntime(projectVersionId.value);
     }
   });
 

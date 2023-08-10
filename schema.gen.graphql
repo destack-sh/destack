@@ -608,7 +608,7 @@ type Mutation {
   moveFile(input: FileMoveInput!): FileOperationInfo!
   renameFile(input: FileRenameInput!): FileOperationInfo!
   pasteFile(input: FilePasteInput!): FileOperationInfo!
-  wakeLangserver(input: WakeLangserverInput!): WakeLangserverPayloadOperationInfo!
+  wakeRuntime(input: WakeRuntimeInput!): WakeRuntimePayloadOperationInfo!
   wakeWorkerSet(input: WakeWorkerSetInput!): WakeWorkerSetPayloadOperationInfo!
   restartWorkerSet(input: RestartWorkerSetInput!): RestartWorkerSetPayloadOperationInfo!
   run(input: RunInput!): RunStateOperationInfo!
@@ -2198,15 +2198,15 @@ input UserUpdateInput {
   description: String!
 }
 
-input WakeLangserverInput {
+input WakeRuntimeInput {
   projectVersionId: GlobalID!
 }
 
-type WakeLangserverPayload {
+type WakeRuntimePayload {
   success: Boolean!
 }
 
-union WakeLangserverPayloadOperationInfo = WakeLangserverPayload | OperationInfo
+union WakeRuntimePayloadOperationInfo = WakeRuntimePayload | OperationInfo
 
 input WakeWorkerSetInput {
   projectId: GlobalID!

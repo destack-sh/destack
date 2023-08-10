@@ -41,6 +41,8 @@ if TYPE_CHECKING:
         Tagging,
         Task,
         Value,
+        TriggerType,
+        Trigger,
     )
 
 logger = structlog.get_logger(__name__)
@@ -422,6 +424,8 @@ class RunTracer(Tracer):
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
+        trigger_type: TriggerType | None = None,
+        trigger: Trigger | UUID | None = None,
     ):
         if trace and _active_run.get() is not None:
             root = _active_run.get().root or _active_run.get()
@@ -434,8 +438,11 @@ class RunTracer(Tracer):
             module=self.session.module,
             runnable=runnable,
             session=self.session,
+            trigger_type=trigger_type,
+            trigger=trigger,
             root=root,
             parent=parent,
+            scheduled_at=None,
             started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             terminated_at=None,
             inputs=inputs,

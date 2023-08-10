@@ -151,8 +151,8 @@ const documents = {
     types.UpdateSecretDocument,
   "\n      mutation deleteSecret($id: GlobalID!) {\n        deleteSecret(input: { id: $id }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteSecretDocument,
-  "\n      mutation wakeLangserver($projectVersionId: GlobalID!) {\n        wakeLangserver(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
-    types.WakeLangserverDocument,
+  "\n      mutation wakeRuntime($projectVersionId: GlobalID!) {\n        wakeRuntime(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.WakeRuntimeDocument,
   "\n      mutation wakeWorkerSet($projectId: GlobalID!) {\n        wakeWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n          ... on WakeWorkerSetPayload {\n            success\n          }\n        }\n      }\n    ":
     types.WakeWorkerSetDocument,
   "\n      mutation restartWorkerSet($projectId: GlobalID!) {\n        restartWorkerSet(input: { projectId: $projectId }) {\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -713,8 +713,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation wakeLangserver($projectVersionId: GlobalID!) {\n        wakeLangserver(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    "
-): (typeof documents)["\n      mutation wakeLangserver($projectVersionId: GlobalID!) {\n        wakeLangserver(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation wakeRuntime($projectVersionId: GlobalID!) {\n        wakeRuntime(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    "
+): (typeof documents)["\n      mutation wakeRuntime($projectVersionId: GlobalID!) {\n        wakeRuntime(input: { projectVersionId: $projectVersionId }) {\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -73,7 +73,7 @@ if RUN_LANGUAGE_SERVER_IN_API:
     from bench.server import RuntimeServer
 
     server = RuntimeServer()
-    task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "langserver"))
+    task = reactor._asyncioEventloop.create_task(wrap_task(server.run(), "runtime"))
     reactor.addSystemEventTrigger("before", "shutdown", server.stop)
 
 if RUN_ORCHESTRATION_SERVER_IN_API:

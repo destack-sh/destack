@@ -21,6 +21,10 @@ class HasTriggeredBy(Model):
     )
     trigger = models.ForeignKey("Trigger", null=True, blank=True, on_delete=models.SET_NULL)
 
+    @property
+    def trigger_id(self):
+        return self.trigger_id or self.trigger_access_token_id or self.trigger_user_id
+
     class Meta:
         abstract = True
 

@@ -39,6 +39,8 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqWriteModulePayload,
     RunErrorType,
+    ReqPingWorkerSetPayload,
+    RepPingWorkerSetPayload,
 )
 from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
@@ -132,6 +134,7 @@ class WorkerNode(Monitored):
             await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
             await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
+            await handle_reply(f"{NMessageType.PING_WORKER_SET}.{p_routing}", self.ping),
         ]
         if self.worker_set_id is not None:  # only mark as active if not a local worker
             self.tasks.start(self.mark_as_active_if_active_forever())
@@ -231,6 +234,10 @@ class WorkerNode(Monitored):
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
         await msg.reply(RepGetEnvironmentPayload(environment=WORKER_ENVIRONMENT_DATA))
 
+    @message_handler
+    async def ping(self, msg: NMessage[ReqPingWorkerSetPayload]):
+        await msg.reply(RepPingWorkerSetPayload(success=self.healthy))
+
     async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
         """Gets a modules wire data"""
         log = logger.bind(ref=ref)
@@ -262,7 +269,7 @@ class ModuleWorkerNode(ModuleWriter):
     def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
         self.node = node
         self.module_id = module_id
-        self.project_id: Optional[UUID] = None  # set in init (requires langserver fetch)
+        self.project_id: Optional[UUID] = None  # set in init (requires runtime fetch)
         self.timeout = timeout
         self.ready = asyncio.Event()
 
@@ -392,6 +399,7 @@ class ModuleWorkerNode(ModuleWriter):
         trigger_type: TriggerType,
         trigger_id: Optional[UUID],
     ) -> RunJob | RunErrorType:
+        # nocheckin: simplify run and respect scheduled_at
         if not self.interpreted:
             return RunErrorType.NOT_READY
 

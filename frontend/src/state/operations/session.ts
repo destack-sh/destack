@@ -7,22 +7,22 @@ export function useSessionOps() {
   const bench = useBenchState();
   const ops = useOperationsStore();
 
-  const { mutate: wakeLangserverMut } = useMutation(
+  const { mutate: wakeRuntimeMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation wakeLangserver($projectVersionId: GlobalID!) {
-        wakeLangserver(input: { projectVersionId: $projectVersionId }) {
+      mutation wakeRuntime($projectVersionId: GlobalID!) {
+        wakeRuntime(input: { projectVersionId: $projectVersionId }) {
           ...OperationInfoContent
         }
       }
     `)
   );
 
-  async function wakeLangserver(moduleId: string) {
+  async function wakeRuntime(moduleId: string) {
     return await ops.perform({
       type: "runtime.wake",
       stateless: true,
       do: async () => {
-        return await wakeLangserverMut({
+        return await wakeRuntimeMut({
           projectVersionId: moduleId,
         });
       },
@@ -180,7 +180,7 @@ export function useSessionOps() {
   }
 
   return {
-    wakeLangserver,
+    wakeRuntime,
     wakeWorkerSet,
     restartWorkerSet,
     run,

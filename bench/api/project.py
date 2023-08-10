@@ -397,6 +397,8 @@ class ProjectVersionMutation:
 
     @safe_mutation(atomic=True)
     def restore(self, info: Info, input: RestoreInput) -> CommitPayload | OperationInfo:
+        # TODO @Broken: update restore to keep current ids properly (use module node identity?)
+        raise NotImplementedError("restore is temporarily disabled")
         to_restore = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
