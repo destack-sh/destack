@@ -428,6 +428,7 @@ class Session(os.Document):
     opened_at: Optional[datetime] = os.field(os.FT.DATE)
     closed_at: Optional[datetime] = os.field(os.FT.DATE)
     metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
+    trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
 
 
 @packer(models.Session, Session, wire.SessionData)
@@ -439,6 +440,7 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
             opened_at=node.opened_at,
             closed_at=node.closed_at,
             metadata=node.metadata,
+            trigger_type=node.trigger_type,
         )
 
 
@@ -448,6 +450,7 @@ class Run(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     worker_node_id: Optional[str] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: UUID = os.field(os.FT.KEYWORD)
@@ -474,6 +477,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             project_version_id=mirror.project_version_id,
             worker_node_id=mirror.worker_node_id,
             session_id=mirror.session_id,
+            trigger_type=mirror.trigger_type,
             runnable_id=mirror.runnable_id,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
@@ -495,6 +499,8 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             worker_node_id=mirror.worker_node_id,
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,
+            trigger_type=mirror.trigger_type,
+            trigger_id=None,  # not stored
             root_id=mirror.root_id,
             parent_id=mirror.parent_id,
             runnable_id=mirror.runnable_id,
@@ -522,6 +528,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             project_version_id=data.module_id,
             worker_node_id=data.worker_node_id,
             session_id=data.session_id,
+            trigger_type=data.trigger_type,
             root_id=data.root_id,
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,

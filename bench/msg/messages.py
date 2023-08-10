@@ -59,11 +59,11 @@ class NMessageType(StrEnum):
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
     SESSION_CHANGED = "session.changed"
-    RUNS_CHANGED_GLOBAL = "runs.changed"
+    RUNS_CHANGED = "runs.changed"
     LOGS_CHANGED = "logs.changed"
     WORKERS_CHANGED = "workers.changed"
 
-    # read/write via server
+    # read/write via runtime
     READ_MODULE = "module.read"
     READ_MODULE_REP = "module.read.rep"
     WRITE_MODULE = "module.write"
@@ -86,8 +86,8 @@ class NMessageType(StrEnum):
     READ_SECRET_REP = "secret.read.rep"
     RUN_PROXY_INFERENCE = "model.proxy_inference"
     RUN_PROXY_INFERENCE_REP = "model.proxy_inference.rep"
-    WAKE_LANGSERVER = "langserver.wake"
-    WAKE_LANGSERVER_REP = "langserver.wake.rep"
+    WAKE_RUNTIME = "runtime.wake"
+    WAKE_RUNTIME_REP = "runtime.wake.rep"
 
     # worker management/lifecycle
     CONFIGURE_WORKER_SET = "worker_set.configure"
@@ -100,7 +100,9 @@ class NMessageType(StrEnum):
     DO_RESTART_WORKER_NODE_REP = "worker_set.do_restart.rep"
     GET_ENVIRONMENT = "worker_set.get_environment"
     GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
-    # running (routed via project id)
+    PING_WORKER_SET = "worker_set.ping"
+    PING_WORKER_SET_REP = "worker_set.ping.rep"
+    # running (routed via project id, maybe later worker set id too)
     START_RUN = "run.start"
     START_RUN_REP = "run.start.rep"
     CANCEL_RUN = "run.cancel"
@@ -131,8 +133,9 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.CANCEL_RUN: NMessageType.CANCEL_RUN_REP,
     NMessageType.PAUSE_RUN: NMessageType.PAUSE_RUN_REP,
     NMessageType.RESUME_RUN: NMessageType.RESUME_RUN_REP,
-    NMessageType.WAKE_LANGSERVER: NMessageType.WAKE_LANGSERVER_REP,
+    NMessageType.WAKE_RUNTIME: NMessageType.WAKE_RUNTIME_REP,
     NMessageType.GET_ENVIRONMENT: NMessageType.GET_ENVIRONMENT_REP,
+    NMessageType.PING_WORKER_SET: NMessageType.PING_WORKER_SET_REP,
 }
 REQUEST_BY_REPLY_TYPE = {v: k for k, v in REPLY_BY_REQUEST_TYPE.items()}
 
@@ -286,7 +289,7 @@ class SessionChangedPayload(ModuleScoped, Payload):
     runs: list[RunData]
 
 
-@payload(NMessageType.RUNS_CHANGED_GLOBAL)
+@payload(NMessageType.RUNS_CHANGED)
 class RunsChangedGlobalPayload(Payload):
     runs: list[RunData]
 
@@ -447,13 +450,13 @@ class RepRunInferencePayload(Payload):
     timeout: bool = False
 
 
-@payload(NMessageType.WAKE_LANGSERVER)
-class ReqWakeLangserverPayload(Payload):
+@payload(NMessageType.WAKE_RUNTIME)
+class ReqWakeRuntimePayload(Payload):
     module_id: UUID
 
 
-@payload(NMessageType.WAKE_LANGSERVER_REP)
-class RepWakeLangserverPayload(Payload):
+@payload(NMessageType.WAKE_RUNTIME_REP)
+class RepWakeRuntimePayload(Payload):
     module_id: UUID
 
 
@@ -512,12 +515,22 @@ class RepDoRestartWorkerNodePayload(Payload):
 
 @payload(NMessageType.GET_ENVIRONMENT)
 class ReqGetEnvironmentPayload(ProjectScoped, Payload):
-    project_id: UUID
+    pass
 
 
 @payload(NMessageType.GET_ENVIRONMENT_REP)
 class RepGetEnvironmentPayload(Payload):
     environment: EnvironmentData
+
+
+@payload(NMessageType.PING_WORKER_SET)
+class ReqPingWorkerSetPayload(ProjectScoped, Payload):
+    pass
+
+
+@payload(NMessageType.PING_WORKER_SET_REP)
+class RepPingWorkerSetPayload(Payload):
+    success: bool
 
 
 # invert REGISTERED_MESSAGE_PAYLOADS

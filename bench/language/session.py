@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 from bench.language.core import Module, Session, Statement, StatementType
+from bench.language.const import TriggerType
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.reflect import reflect_enum, reflect_struct
 from bench.language.search import Search
@@ -18,6 +19,7 @@ if TYPE_CHECKING:
     from bench.language.task import Task
     from bench.language.type import Field
     from bench.language.wire import LogEntryData, RunData
+    from bench.language.flow import Trigger
 
 
 class WorkerProfile(enum.StrEnum):
@@ -90,6 +92,8 @@ class Run:
     scheduled_at: datetime
     started_at: datetime
     terminated_at: Optional[datetime]
+    trigger_type: Optional[TriggerType]
+    trigger: Union["Trigger", UUID]
     status: RunStatus = field(init=False)
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]

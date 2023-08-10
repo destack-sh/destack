@@ -1635,6 +1635,8 @@ class RunData:
     runnable_id: UUID
     runnable_type: StatementType
     session_id: UUID
+    trigger_type: TriggerType
+    trigger_id: Optional[UUID]
     root_id: UUID
     parent_id: Optional[UUID]
     created_at: datetime
@@ -1670,6 +1672,8 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             runnable_id=object.runnable.id,
             runnable_type=object.runnable.type,
             session_id=object.session.id,
+            trigger_id=object.trigger.id if object.trigger else None,
+            trigger_type=object.trigger.type if object.trigger else None,
             root_id=object.root.id if object.root else None,
             parent_id=object.parent.id if object.parent else None,
             created_at=object.created_at,
@@ -1706,6 +1710,8 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             root=LazyRun(data.root_id) if data.root_id else None,
             parent=LazyRun(data.parent_id) if data.parent_id else None,
             runnable=runnable,
+            trigger=data.trigger_id,
+            trigger_type=data.trigger_type,
             created_at=data.created_at,
             updated_at=data.updated_at,
             scheduled_at=data.scheduled_at,

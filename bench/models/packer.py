@@ -947,17 +947,20 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
             opened_at=data.opened_at,
             closed_at=data.closed_at,
             metadata=data.metadata,
-            trigger_id=data.user_id or data.access_token_id,
+            trigger_id=data.trigger_id,
             trigger_type=data.trigger_type,
         )
 
     def unpack(self, data: wire.SessionData) -> models.Session:
         user_id = None
         access_token_id = None
+        trigger_id = None
         if data.trigger_type == TriggerType.API:
             access_token_id = data.trigger_id
         elif data.trigger_type == TriggerType.USER:
             user_id = data.trigger_id
+        elif data.trigger_type == TriggerType.TIME:
+            trigger_id = data.trigger_id
         return models.Session(
             id=data.id,
             project_version_id=data.module_id,
@@ -965,8 +968,9 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
             closed_at=data.closed_at,
             metadata=data.metadata,
             trigger_type=data.trigger_type,
-            access_token_id=access_token_id,
-            user_id=user_id,
+            trigger_access_token_id=access_token_id,
+            trigger_user_id=user_id,
+            trigger_id=trigger_id,
         )
 
 
@@ -979,6 +983,8 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             worker_node_id=model.worker_node_id,
             module_id=model.project_version_id,
             session_id=model.session_id,
+            trigger_type=model.trigger_type,
+            trigger_id=model.trigger_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
             runnable_id=model.runnable_id,
@@ -997,12 +1003,25 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
 
     def unpack(self, data: wire.RunData) -> models.Run:
         # additional context
+        user_id = None
+        access_token_id = None
+        trigger_id = None
+        if data.trigger_type == TriggerType.API:
+            access_token_id = data.trigger_id
+        elif data.trigger_type == TriggerType.USER:
+            user_id = data.trigger_id
+        elif data.trigger_type == TriggerType.TIME:
+            trigger_id = data.trigger_id
         return models.Run(
             id=data.id,
             project_id=data.project_id,
             project_version_id=data.module_id,
             worker_node_id=data.worker_node_id,
             session_id=data.session_id,
+            trigger_type=data.trigger_type,
+            trigger_access_token_id=access_token_id,
+            trigger_user_id=user_id,
+            trigger_id=trigger_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,
