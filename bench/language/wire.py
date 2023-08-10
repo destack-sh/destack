@@ -1629,20 +1629,20 @@ class RunErrorData:
 @dataclass
 class RunData:
     id: UUID
-    worker_node_id: str
+    worker_node_id: Optional[str]
     project_id: UUID
     module_id: UUID
     runnable_id: UUID
     runnable_type: StatementType
-    session_id: UUID
+    session_id: Optional[UUID]
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
-    root_id: UUID
+    root_id: Optional[UUID]
     parent_id: Optional[UUID]
     created_at: datetime
     updated_at: datetime
     scheduled_at: Optional[datetime]
-    started_at: datetime
+    started_at: Optional[datetime]
     terminated_at: Optional[datetime]
     status: RunStatus
     inputs: Optional[Any]

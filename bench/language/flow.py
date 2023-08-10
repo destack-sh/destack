@@ -45,7 +45,9 @@ class Trigger(ModuleNode, HasCrud, HasSession):
             content_str = f"{self.schedule_type} {self.timezone} {schedule_str}"
         else:
             content_str = None
-        return f"{self.type} {content_str or '<none>'}"
+        return (
+            f"{self.type} {content_str or '<none>'} on {self.parent} in {self.scope or '<global>'}"
+        )
 
     def __repr__(self):
         return f"<Trigger {self}>"
@@ -174,7 +176,7 @@ TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
 class TriggerScheduleIterator:
     """Iterator for a time trigger schedule."""
 
-    def __init__(self, trigger: Trigger, initial_now: datetime, keep: int = 100):
+    def __init__(self, trigger: Trigger, initial_now: datetime, keep: int = 10):
         self.trigger = trigger
         self.initial_now = initial_now.astimezone(pytz.timezone(trigger.timezone))
         self.offset = 0
@@ -223,10 +225,11 @@ class TriggerScheduleIterator:
                 datetime.fromtimestamp(self._next + self.trigger.interval * i, tz=pytz.utc)
                 for i in range(n)
             ]
+            self._next += self.trigger.interval * n
             # timezone doesn't matter here since we use a common origin time
             # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
         elif self.type == ScheduleType.CRON:
-            next_occurrences = [self._croniter.get_next(self.trigger.cron) for _ in range(n)]
+            next_occurrences = [self._croniter.get_next(datetime) for _ in range(n)]
         else:
             raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")
 
@@ -241,7 +244,7 @@ class TriggerScheduleIterator:
         return self.advance(n=1)[0]
 
 
-def is_time_trigger_identical(a: Trigger, b: Trigger) -> bool:
+def is_time_trigger_equal(a: Trigger, b: Trigger) -> bool:
     """Checks if two time triggers are identical (as pertaining to their schedule)."""
 
     if a.schedule_type != b.schedule_type:

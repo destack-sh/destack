@@ -8,6 +8,7 @@ from itertools import chain
 from typing import Optional
 from uuid import UUID
 
+import pytz
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
@@ -21,16 +22,16 @@ from bench.language import (
     Query,
     QueryOp,
     ResolvedField,
-    Run,
     Trigger,
     TriggerType,
     wire,
 )
 from bench.language.cache import CacheAsync
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
-from bench.language.flow import IsFlowable, TriggerScheduleIterator
+from bench.language.flow import IsFlowable, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.session import RunStatus
 from bench.language.type import instantiate_py_value, strip_py_value
 from bench.language.utils import get_run_cache_subkey
 from bench.language.wire import ModuleTree
@@ -53,7 +54,9 @@ from bench.msg.messages import (
     RepSearchLogPayload,
     RepSearchRecordPayload,
     RepSearchRunPayload,
+    RepStartRunPayload,
     RepWakeRuntimePayload,
+    RepWakeWorkerSetPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
     RepWriteSessionPayload,
@@ -68,14 +71,13 @@ from bench.msg.messages import (
     ReqSearchRunPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
+    ReqWakeWorkerSetPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
+    RunsChangedGlobalPayload,
     SessionChangedPayload,
-    RepStartRunPayload,
     WorkersChangedPayload,
-    ReqWakeWorkerSetPayload,
-    RepWakeWorkerSetPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -144,7 +146,11 @@ class WorkerSetWatcher:
             # trigger until_healthy events
             if existing_ws.project_id in self._until_healthy_events:
                 self._until_healthy_events[existing_ws.project_id].set()
-                del self._until_healthy_events[existing_ws.project_id]
+
+    def is_healthy(self, project_id: UUID) -> bool:
+        """Return whether the worker set is healthy."""
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        return worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY
 
     async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
         """If not already healthy, wake the worker set and wait until it is healthy."""
@@ -155,7 +161,7 @@ class WorkerSetWatcher:
         if project_id not in self._until_healthy_events:
             self._until_healthy_events[project_id] = asyncio.Event()
 
-        if worker_set.sleeping:
+        if not worker_set or worker_set.sleeping:
             rep: NMessage[RepWakeWorkerSetPayload] = await request(
                 NMessageType.WAKE_WORKER_SET,
                 ReqWakeWorkerSetPayload(project_id=project_id),
@@ -168,6 +174,7 @@ class WorkerSetWatcher:
             await asyncio.wait_for(self._until_healthy_events[project_id].wait(), timeout)
         else:
             await self._until_healthy_events[project_id].wait()
+            del self._until_healthy_events[project_id]
 
     async def stop(self):
         for sub in self._subs:
@@ -577,7 +584,7 @@ class RuntimeServer(Monitored):
         await asyncio.gather(sub.unsubscribe() for sub in self.subs)
 
 
-TIME_TRIGGER_PRE_SEND_WINDOW = 60  # 1 minute before
+TIME_TRIGGER_PRE_SEND_WINDOW = timedelta(minutes=1)  # 1 minute before
 TIME_TRIGGER_LOOKAHEAD = 2  # occurrences
 
 
@@ -624,7 +631,10 @@ class RuntimeWorker:
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
-            module_id=self.module_id, project_id=self.project_id, worker_id=self.server_id
+            module_id=self.module_id,
+            project_id=self.project_id,
+            worker_id=self.server_id,
+            module=self.project_version,
         )
         # module data
         self.source: wire.ModuleTreeData | None = None
@@ -674,30 +684,34 @@ class RuntimeWorker:
         triggers_to_fire: set[UUID] = set()
         timed_wait_task: Optional[asyncio.Task] = None
 
-        # backfill time triggers on first go
+        # backfill time triggers on first go (coalescing to at most one per trigger)
         for trigger in self.active_triggers.values():
             if (
                 trigger.processed_up_to is not None
                 and trigger.iter.last_occurrence_initial > trigger.processed_up_to
             ):
+                # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
 
-        logger.debug(
-            "time_triggers.process_forever",
-            module_id=self.module_id,
-            initial_triggers_to_fire=triggers_to_fire,
-        )
+        self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
         # enter forever loop
         while True:
             if timed_wait_task is not None:
                 timed_wait_task.cancel()
 
-            # cancel already scheduled runs that no longer have an active trigger
-            # nocheckin: do this
+            process_up_to = (
+                datetime.utcnow().replace(tzinfo=pytz.UTC) + TIME_TRIGGER_PRE_SEND_WINDOW
+            )
+            self.log.debug(
+                "time_triggers.check",
+                process_up_to=process_up_to,
+                active_triggers=self.active_triggers,
+            )
+
+            # TODO @Robustness @UX: cancel pre-scheduled runs that no longer have an active trigger
 
             # collect triggers that are due to fire within the send window
-            process_up_to = datetime.utcnow() + timedelta(seconds=TIME_TRIGGER_PRE_SEND_WINDOW)
             for trigger in self.active_triggers.values():
                 if trigger.next_occurrence is None:
                     trigger.next_occurrence = trigger.iter.next()
@@ -705,41 +719,66 @@ class RuntimeWorker:
                     triggers_to_fire.add(trigger.trigger.id)
 
             # "process" triggers (write to DB and create runs atomically)
-            runs_to_start = sync_to_async(self._process_triggers)(
-                self.active_triggers, triggers_to_fire
+            runs_to_start: list[wire.RunData] = await sync_to_async(self._process_triggers)(
+                triggers=self.active_triggers,
+                triggers_to_fire=triggers_to_fire,
+                processed_up_to=process_up_to,
             )
+
+            # publish scheduled runs (should be project scoped later, but we don't have a session)
+            await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_to_start))
 
             # start worker set if not already started
             if runs_to_start:
-                await self.workers_watcher.wake_until_healthy(self.project_id, timeout=300)
+                if not self.workers_watcher.is_healthy(self.project_id):
+                    # not sure what to do after timeout here... retry? panic?
+                    await self.workers_watcher.wake_until_healthy(self.project_id, timeout=300)
 
-            # send out run requests
-            for run in runs_to_start:
-                req = ReqStartRunPayload(
-                    runnable=run.runnable.id,
-                    runnable_type=run.runnable.type,
-                    arguments=run.inputs,
-                    block=False,
-                    keyed=True,
-                    trigger_type=run.trigger_type,
-                    trigger=run.trigger.id,
-                    scheduled_at=run.scheduled_at,
+                logger.debug(
+                    "time_triggers.fire",
+                    runs_to_start=runs_to_start,
+                    fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
                 )
-                rep: NMessage[RepStartRunPayload] = await request(
-                    NMessageType.START_RUN, req, reply_t=RepStartRunPayload
-                )
+
+                # send out run requests (could do this in parallel but doesn't matter for now)
+                for run in runs_to_start:
+                    req = ReqStartRunPayload(
+                        project_id=run.project_id,
+                        module_id=run.module_id,
+                        session_id=run.session_id,
+                        run_id=run.id,
+                        runnable=run.runnable_id,
+                        runnable_type=run.runnable_type,
+                        arguments=run.inputs,
+                        block=False,
+                        keyed=True,
+                        trigger_type=run.trigger_type,
+                        trigger_id=run.trigger_id,
+                        scheduled_at=run.scheduled_at,
+                    )
+                    rep: NMessage[RepStartRunPayload] = await request(
+                        NMessageType.START_RUN, req, reply_t=RepStartRunPayload
+                    )
+                    if rep.p.error:
+                        logger.error("time_triggers.start_run.error", run=run, error=rep.p.error)
+                        continue
 
             # reset next occurrence for all triggers that fired
-            for trigger in [self.active_triggers[id] for id in triggers_to_fire]:
+            for trigger_id in triggers_to_fire:
+                trigger = self.active_triggers[trigger_id]
                 trigger.next_occurrence = trigger.iter.next()
             triggers_to_fire.clear()
 
             # wait for earliest next trigger occurrence (or trigger change)
             earliest_next_occurrence = min(t.next_occurrence for t in self.active_triggers.values())
-            timeout = (earliest_next_occurrence - datetime.utcnow()).total_seconds()
-            timed_wait_task = asyncio.create_task(set_wait(timeout))
+            new_now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            timeout_till_next = (earliest_next_occurrence - new_now).total_seconds()
+            assert timeout_till_next >= 0, f"negative timeout: {timeout_till_next}"
+            timed_wait_task = asyncio.create_task(set_wait(timeout_till_next))
+            self.log.debug("time_triggers.wait", timeout=timeout_till_next)
 
             # wait until change or until next earliest trigger
+            self.active_trigger_process_wait.clear()
             await self.active_trigger_process_wait.wait()
 
     @transaction.atomic
@@ -748,57 +787,91 @@ class RuntimeWorker:
         triggers: dict[UUID, ActiveTrigger],
         processed_up_to: datetime,
         triggers_to_fire: set[UUID],
-    ) -> list[Run]:
+    ) -> list[wire.RunData]:
         """
         Atomically update processed_up_to for all triggers and create Runs for firing triggers.
         """
 
+        self.log.debug(
+            "time_triggers.process",
+            triggers=list(triggers.values()),
+            triggers_to_fire=triggers_to_fire,
+        )
+
         # update processed_up_to for all triggers
-        for trigger in triggers:
+        for trigger in triggers.values():
             trigger.processed_up_to = processed_up_to
         models.Trigger.objects.filter(id__in=triggers.keys()).update(
             processed_up_to=processed_up_to
         )
 
         # create runs for fired triggers
-        runs = []
+        runs: list[wire.RunData] = []
+        now = datetime.utcnow().replace(tzinfo=pytz.UTC)
         for trigger_id in triggers_to_fire:
             fired_trigger = triggers[trigger_id]
             runnable = fired_trigger.trigger.parent
-            run = Run(
+            run = wire.RunData(
                 id=UUIDT(),
-                module=self.module,
-                runnable=runnable,
-                root=None,
-                parent=None,
+                project_id=self.project_id,
+                module_id=self.module.id,
+                worker_node_id=None,
+                runnable_id=runnable.id,
+                runnable_type=runnable.type,
+                session_id=None,
+                trigger_type=fired_trigger.trigger.type,
+                trigger_id=fired_trigger.trigger.id,
+                root_id=None,
+                parent_id=None,
+                created_at=now,
+                updated_at=now,
                 scheduled_at=fired_trigger.next_occurrence,
-                stated_at=None,
+                started_at=None,
                 terminated_at=None,
+                status=RunStatus.Scheduled,
                 inputs={},
                 outputs=None,
                 error=None,
                 metadata=None,
-                trigger_type=fired_trigger.trigger.type,
-                trigger=fired_trigger.trigger,
             )
             runs.append(run)
-        runs_models = [packer.pack_data(wire.pack_data(run)) for run in runs]
-        models.Run.objects.bulk_create(runs_models)
+        models.Run.objects.bulk_create([packer.unpack_data(run) for run in runs])
 
         return runs
 
-    def _update_triggers(self):
+    def _update_local_triggers(self):
         """Update active time triggers when the module changes."""
 
-        new_triggers = {}
+        # collect new (i.e. current) module's triggers
+        new_active_triggers = {}
         for statement in self.module._statements_by_id.values():
             if isinstance(statement, IsFlowable) and not statement.errors:
                 for trigger in statement.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
-                        new_triggers[trigger.id] = trigger
+                        new_active_triggers[trigger.id] = trigger
 
-        # nocheckin: update local triggers properly
+        # upsert triggers (if new or changed)
+        new_now = datetime.utcnow()
+        for new_trigger in new_active_triggers.values():
+            existing_trigger = self.active_triggers.get(new_trigger.id)
+            if not existing_trigger or not is_time_trigger_equal(
+                existing_trigger.trigger, new_trigger
+            ):
+                self.active_triggers[new_trigger.id] = ActiveTrigger(
+                    trigger=new_trigger,
+                    iter=TriggerScheduleIterator(new_trigger, new_now),
+                    next_occurrence=None,
+                    processed_up_to=None,
+                )
+                logger.debug("time_triggers.upsert", trigger=new_trigger)
 
+        # remove triggers that are no longer active
+        for old_trigger_id in set(self.active_triggers.keys()) - set(new_active_triggers.keys()):
+            removed_trigger = self.active_triggers[old_trigger_id]
+            del self.active_triggers[old_trigger_id]
+            logger.debug("time_triggers.remove", trigger=removed_trigger.trigger)
+
+        # trigger active trigger processing
         self.active_trigger_process_wait.set()
 
     async def interp(self, new_source: wire.ModuleTreeData) -> None:
@@ -809,6 +882,8 @@ class RuntimeWorker:
         )
         # save and notify interp changes
         if interp_mut.mutations:
+            # TODO @Performance: ensure write resolved fields only happens if module changed
+            #  This is especially important on startup because we load all the modules.
             await sync_to_async(write_mutations)(
                 self.project_version, self.module_tree, interp_mut.mutations, wait_for_os=False
             )
@@ -869,7 +944,7 @@ class RuntimeWorker:
                 interp_mut.create(issue)
 
         # update triggers
-        self._update_triggers()
+        self._update_local_triggers()
 
         return interp_mut
 

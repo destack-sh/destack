@@ -6,8 +6,8 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.language.core import Module, Session, Statement, StatementType
 from bench.language.const import TriggerType
+from bench.language.core import Module, Session, Statement, StatementType
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.reflect import reflect_enum, reflect_struct
 from bench.language.search import Search
@@ -15,11 +15,11 @@ from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language.code_ import Code
+    from bench.language.flow import Trigger
     from bench.language.model import Model
     from bench.language.task import Task
     from bench.language.type import Field
     from bench.language.wire import LogEntryData, RunData
-    from bench.language.flow import Trigger
 
 
 class WorkerProfile(enum.StrEnum):
@@ -86,7 +86,7 @@ class Run:
     id: UUID
     runnable: Union["Code", "Model", "Task"]
     module: Module
-    session: Session
+    session: Optional[Session]
     root: Optional["Run"]
     parent: Optional["Run"]
     scheduled_at: datetime
