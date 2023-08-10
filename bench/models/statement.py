@@ -125,6 +125,8 @@ class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
     scope = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True
     )
+    # internal
+    processed_up_to = models.DateTimeField(null=True, blank=True)
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:

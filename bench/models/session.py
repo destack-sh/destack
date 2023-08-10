@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Optional
 
 from django.db import models
+from django.db.models import Model
 from strawberry_django_plus import gql
 
 from bench.language.const import TriggerType
@@ -10,13 +11,22 @@ from bench.language.session import RunStatus
 from bench.models.utils import UUIDTModel, get_choices
 
 
-class Session(UUIDTModel):
-    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
-    trigger_type = models.CharField(max_length=32, choices=get_choices(TriggerType))
-    user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
-    access_token = models.ForeignKey(
+class HasTriggeredBy(Model):
+    trigger_type = models.CharField(
+        max_length=32, choices=get_choices(TriggerType), null=True, blank=True
+    )
+    trigger_user = models.ForeignKey("User", null=True, blank=True, on_delete=models.SET_NULL)
+    trigger_access_token = models.ForeignKey(
         "AccessToken", null=True, blank=True, on_delete=models.SET_NULL
     )
+    trigger = models.ForeignKey("Trigger", null=True, blank=True, on_delete=models.SET_NULL)
+
+    class Meta:
+        abstract = True
+
+
+class Session(UUIDTModel, HasTriggeredBy):
+    project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     opened_at = models.DateTimeField(null=True, blank=True)
@@ -24,23 +34,28 @@ class Session(UUIDTModel):
     metadata = models.JSONField(null=True, blank=True)
 
 
-class Run(UUIDTModel):
+class Run(UUIDTModel, HasTriggeredBy):
     # TODO @Cleanup: Run.project should be non null (was added later)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)
-    session = models.ForeignKey("Session", on_delete=models.CASCADE, related_name="runs")
-    status = models.CharField(max_length=32, choices=get_choices(RunStatus))
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    started_at = models.DateTimeField(null=True, blank=True)
-    terminated_at = models.DateTimeField(null=True, blank=True)
+    session = models.ForeignKey(
+        "Session", on_delete=models.CASCADE, null=True, blank=True, related_name="runs"
+    )
     root = models.ForeignKey(
         "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
     )
     parent = models.ForeignKey(
         "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
+
+    status = models.CharField(max_length=32, choices=get_choices(RunStatus))
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    scheduled_at = models.DateTimeField(null=True, blank=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    terminated_at = models.DateTimeField(null=True, blank=True)
+
     runnable = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
     runnable_type = models.CharField(max_length=64, null=True, blank=True)
     inputs = models.JSONField(null=True, blank=True)

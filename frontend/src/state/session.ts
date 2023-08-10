@@ -28,6 +28,7 @@ import { DateTime } from "luxon";
 import { computed, onBeforeUnmount, reactive, ref, watch, type Ref } from "vue";
 
 export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
+export const RUN_ACTIVE_STATES = [RunStatus.Queued, RunStatus.Running, RunStatus.Aborting]; // scheduled doesn't count as active
 
 export const WorkerSetContentType = graphql(/* GraphQL */ `
   fragment WorkerSetContent on WorkerSet {
@@ -450,7 +451,7 @@ export function _useSessions(
 
   const currentRoots = computed(() => Object.values(currentRuns.value).filter((run) => run.parent == null));
   const activeRuns = computed(() =>
-    Object.values(currentRuns.value).filter((run) => !RUN_TERMINAL_STATES.includes(run.status))
+    Object.values(currentRuns.value).filter((run) => RUN_ACTIVE_STATES.includes(run.status))
   );
   const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
 

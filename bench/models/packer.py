@@ -985,6 +985,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             runnable_type=StatementType(model.runnable_type) if model.runnable_type else None,
             created_at=model.created_at,
             updated_at=model.updated_at,
+            scheduled_at=model.scheduled_at,
             started_at=model.started_at,
             terminated_at=model.terminated_at,
             status=model.status,
@@ -1008,6 +1009,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             runnable_type=data.runnable_type.value,
             created_at=data.started_at,  # not sure what to pass since it's not in DB, not frame
             updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,
             status=data.status,
