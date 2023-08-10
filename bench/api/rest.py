@@ -1,22 +1,17 @@
-import json
 import threading
 from datetime import datetime
 from functools import wraps
 from typing import NamedTuple, Optional
 from uuid import UUID
 
-import posthog
 import structlog
-from asgiref.sync import sync_to_async
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
 from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
 
-from bench.models import Project, ProjectVersion, TriggerType
-from bench.models.token import AccessTokenScope, digest_raw_token
-from bench.msg.core import request
-from bench.msg.messages import NMessageType, RepStartRunPayload, ReqStartRunPayload
+from bench.models import Project, ProjectVersion
+from bench.models.token import AccessTokenScope
 
 logger = structlog.get_logger(__name__)
 
@@ -128,64 +123,4 @@ def get_access(
 @async_check_is_main_thread
 @async_api_view(methods=["POST"])
 async def run(req: HttpRequest, owner: str, project: str) -> HttpResponse:
-    try:
-        data = json.loads(req.body)
-        # map input__key to inputs[key]
-        data["inputs"] = data.get("inputs", {})
-        data["inputs"].update(
-            {k.split("__", 1)[1]: v for k, v in data.items() if k.startswith("input__")}
-        )
-        serializer = RunInputSerializer(data=data)
-    except json.JSONDecodeError:
-        return HttpResponse("Invalid JSON", status=400)
-    serializer.is_valid(raise_exception=True)
-    data = serializer.validated_data
-    if data.get("task") is not None:
-        runnable = data["task"]
-        runnable_type = "task"
-        if data["build"] is None:
-            raise serializers.ValidationError("Build must be set if task is set")
-    elif data.get("code") is not None:
-        runnable = data["code"]
-        runnable_type = "code"
-    else:
-        raise serializers.ValidationError("Either task or code must be set")
-
-    access_token = req.headers.get("Authorization", "").split(" ", 1)[-1]
-    if not access_token:
-        raise PermissionDenied("no access token provided")
-    token_digest = digest_raw_token(access_token)
-    del access_token
-
-    access = await sync_to_async(get_access)(
-        owner=owner, project=project, tag=data["version"], token_digest=token_digest
-    )
-
-    run = ReqStartRunPayload(
-        module_id=access.project_version_id,
-        runnable=runnable,
-        runnable_type=runnable_type,
-        build=data["build"],
-        arguments=data["inputs"],
-        block=data["block"],
-        trigger_type=TriggerType.API,
-        trigger_id=access.access_token_id,
-    )
-    rep = await request(NMessageType.START_RUN, run, RepStartRunPayload, timeout=60)
-    outputs = dict(
-        run_id=rep.p.run_id,
-        output=rep.p.outputs,
-        success=not rep.p.error,
-        error=dict(type=rep.p.error.value, details=rep.p.error_details) if rep.p.error else None,
-    )
-
-    # track
-    if access.organization_id:
-        distinct_id = f"org-{access.organization_id}"
-    elif access.user_id:
-        distinct_id = str(access.user_id)
-    else:
-        raise ValueError("access token must have either user or organization")
-    posthog.capture(distinct_id, "run api", properties={"runnable": runnable})
-
-    return JsonResponse(outputs, status=200)
+    raise NotImplementedError

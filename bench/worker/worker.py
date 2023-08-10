@@ -94,7 +94,7 @@ class WorkerNode(Monitored):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
-        self.workers: dict[UUID, ModuleWorker] = {}
+        self.workers: dict[UUID, ModuleWorkerNode] = {}
         self.subs = []
         self.tasks = TaskManager()
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
@@ -150,16 +150,16 @@ class WorkerNode(Monitored):
         finally:
             await self.stop()
 
-    def _get_worker(self, module_id: UUID) -> "ModuleWorker":
+    def _get_worker(self, module_id: UUID) -> "ModuleWorkerNode":
         if module_id not in self.workers:
             # start module worker if not already started
             # TODO @Broken: assign workers to deployments
-            worker = ModuleWorker(module_id, self, timeout=WORKER_RUN_TIMEOUT)
+            worker = ModuleWorkerNode(module_id, self, timeout=WORKER_RUN_TIMEOUT)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]
 
-    async def _get_ready_worker(self, module_id: UUID) -> "ModuleWorker":
+    async def _get_ready_worker(self, module_id: UUID) -> "ModuleWorkerNode":
         worker = self._get_worker(module_id)
         if not worker.ready.is_set():
             await worker.ready.wait()
@@ -256,8 +256,8 @@ class WorkerNode(Monitored):
         self._ready.clear()
 
 
-class ModuleWorker(ModuleWriter):
-    """A worker that helps run a specific module."""
+class ModuleWorkerNode(ModuleWriter):
+    """A user worker that helps run a specific module."""
 
     def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
         self.node = node
@@ -290,10 +290,43 @@ class ModuleWorker(ModuleWriter):
         )
         return last_run_recent or not self.queue.empty()
 
-    async def start(self, source: wire.ModuleTreeData):
-        self.log.debug("module.init")
-        self.source = source
-        self.module = await sync_to_async(Module.interp_from)(source, session=None)
+    async def run(self):
+        """Runs the module worker main processing loop"""
+
+        # first interp
+        self.log.info("module.start")
+        self.source, self.project_id = await self.node.get_module(self.module_id)
+        try:
+            self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
+        except Exception as e:
+            self.log.error("module.init.failed", exc_info=e)
+            raise RuntimeError(f"failed to initialize module worker {self}")
+
+        self.ready.set()
+
+        # process run tasks ad infinitum
+        while True:
+            _, job = await self.queue.get()
+            if job.cancelled:
+                continue
+
+            try:
+                self.log.debug("run", job=job, timeout=self.timeout)
+                job.started.set()
+                await self.do_run(job, self.timeout)
+                if job.session.tracer.run.runs:
+                    job.run = job.session.tracer.run.runs[job.id]
+                    job.logs = job.session.tracer.cached_logs[:50]
+                self.log.debug("run.completed", job=job)
+            except asyncio.CancelledError:
+                self.log.info("run.cancelled", job=job)
+                # keep the queue running?
+            except Exception as e:
+                job.error = RunErrorType.RUNTIME_ERROR
+                self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
+            finally:
+                job.terminated.set()
+                self.queue.task_done()
 
     async def do_interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
@@ -458,41 +491,3 @@ class ModuleWorker(ModuleWriter):
             # send keybord interrupt to self (this causes all sorts of unintended cancels)
             # os.kill(os.getpid(), signal.SIGINT)
         return True
-
-    async def run(self):
-        """Runs the module worker main processing loop"""
-
-        # first interp
-        self.log.info("module.start")
-        source, self.project_id = await self.node.get_module(self.module_id)
-        try:
-            await self.start(source)
-        except Exception as e:
-            self.log.error("worker_init_failed", exc_info=e)
-            raise RuntimeError(f"failed to initialize module worker {self}")
-
-        self.ready.set()
-
-        # process run tasks ad infinitum
-        while True:
-            _, job = await self.queue.get()
-            if job.cancelled:
-                continue
-
-            try:
-                self.log.debug("run", job=job, timeout=self.timeout)
-                job.started.set()
-                await self.do_run(job, self.timeout)
-                if job.session.tracer.run.runs:
-                    job.run = job.session.tracer.run.runs[job.id]
-                    job.logs = job.session.tracer.cached_logs[:50]
-                self.log.debug("run.completed", job=job)
-            except asyncio.CancelledError:
-                self.log.info("run.cancelled", job=job)
-                # keep the queue running?
-            except Exception as e:
-                job.error = RunErrorType.RUNTIME_ERROR
-                self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
-            finally:
-                job.terminated.set()
-                self.queue.task_done()

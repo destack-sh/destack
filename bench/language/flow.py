@@ -1,3 +1,5 @@
+import typing
+from collections import deque
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Optional, Union, cast
@@ -166,57 +168,98 @@ class FlowProxy:  # :SyncProxy
 
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
+TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
 
 
 @dataclass
 class TriggerSchedule:
+    """Schedule for a time trigger."""
+
     type: ScheduleType
     timezone: str
     now: datetime
-    last_occurrence: datetime
-    next_occurrences: list[datetime] = field(default_factory=list)
+    iter: "TriggerScheduleIterator"
 
 
-def get_trigger_schedule(
-    trigger: Trigger, now: datetime, next_occurrences: int = 2
-) -> TriggerSchedule:
+class TriggerScheduleIterator:
+    """Iterator for a time trigger schedule."""
+
+    def __init__(self, trigger: Trigger, initial_now: datetime, keep: int = 100):
+        self.trigger = trigger
+        self.initial_now = initial_now.astimezone(pytz.timezone(trigger.timezone))
+        self.offset = 0
+        self.last_occurrence_initial: Optional[datetime] = None
+        self.next_occurrences_buffer: typing.Deque[datetime] = deque(maxlen=keep)
+        # iter state
+        self._next: int | None = None
+        self._croniter: croniter | None = None
+
+    @property
+    def type(self) -> ScheduleType:
+        return self.trigger.schedule_type
+
+    def _init(self):
+        if self.type == ScheduleType.INTERVAL:
+            self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
+            previous = self._next
+            while self._next < self.initial_now.timestamp():
+                previous = self._next
+                self._next += self.trigger.interval
+            self.last_occurrence_initial = datetime.fromtimestamp(previous, tz=pytz.utc)
+        elif self.type == ScheduleType.CRON:
+            if not croniter.is_valid(self.trigger.cron):
+                raise ValueError(f"invalid cron expression in {self.trigger}: {self.trigger.cron}")
+            self._croniter = croniter(self.trigger.cron, self.initial_now)
+            self.last_occurrence_initial = croniter(self.trigger.cron, self.initial_now).get_prev(
+                self.trigger.cron
+            )
+        else:
+            raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")
+
+    def advance(self, n: int = 1) -> list[datetime]:
+        """Advance the iterator by n steps and return the next n occurrences."""
+        # :TriggerSchedule
+
+        if self.type == ScheduleType.INTERVAL:
+            next_occurrences = [
+                datetime.fromtimestamp(self._next + self.trigger.interval * i, tz=pytz.utc)
+                for i in range(n)
+            ]
+            # timezone doesn't matter here since we use a common origin time
+            # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
+        elif self.type == ScheduleType.CRON:
+            next_occurrences = [self._croniter.get_next(self.trigger.cron) for _ in range(n)]
+        else:
+            raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")
+
+        self.offset += n
+        for occurrence in next_occurrences:
+            self.next_occurrences_buffer.append(occurrence)
+
+        return next_occurrences
+
+
+def is_time_trigger_identical(a: Trigger, b: Trigger) -> bool:
+    """Checks if two time triggers are identical (as pertaining to their schedule)."""
+
+    if a.schedule_type != b.schedule_type:
+        return False
+    if a.timezone != b.timezone:
+        return False
+    if a.schedule_type == ScheduleType.INTERVAL:
+        return a.interval == b.interval
+    if a.schedule_type == ScheduleType.CRON:
+        return a.cron == b.cron
+    return False
+
+
+def get_time_trigger_schedule(trigger: Trigger, now: datetime) -> TriggerSchedule:
+    """Gets the current schedule for a time-based trigger."""
+
     # :TriggerSchedule
-    now_timestamp = now.timestamp()
-    if trigger.schedule_type == ScheduleType.INTERVAL:
-        # TODO @Performance: use more efficient algorithm for finding interval trigger occurrences
-        #  (we do the exact same thing in frontend right now)
-        next = TRIGGER_INTERVAL_ORIGIN.timestamp()
-        previous = next
-        while next < now_timestamp:
-            previous = next
-            next += trigger.interval
-        last_occurrence = datetime.fromtimestamp(previous, tz=pytz.utc)
-        next_occurrences = [
-            datetime.fromtimestamp(next + trigger.interval * i, tz=pytz.utc)
-            for i in range(next_occurrences)
-        ]
-        # timezone doesn't matter here since we use a common origin time
-        # will matter once we support in-interval offsets (e.g. every 3 days at 10:00)
-
-        return TriggerSchedule(
-            type=trigger.schedule_type,
-            timezone=trigger.timezone,
-            now=now,
-            last_occurrence=last_occurrence,
-            next_occurrences=next_occurrences,
-        )
-    elif trigger.schedule_type == ScheduleType.CRON:
-        if not croniter.is_valid(trigger.cron):
-            raise ValueError(f"invalid cron expression in {trigger}: {trigger.cron}")
-        iter = croniter(trigger.cron, now.astimezone(pytz.timezone(trigger.timezone)))
-        last_occurrence = iter.get_prev(trigger.cron)
-        next_occurrences = [iter.get_next(trigger.cron) for _ in range(next_occurrences)]
-        return TriggerSchedule(
-            type=trigger.schedule_type,
-            timezone=trigger.timezone,
-            now=now,
-            last_occurrence=last_occurrence,
-            next_occurrences=next_occurrences,
-        )
-    else:
-        raise ValueError(f"unexpected schedule type in {trigger}: {trigger.schedule_type}")
+    return TriggerSchedule(
+        type=trigger.schedule_type,
+        timezone=trigger.timezone,
+        now=now,
+        iter=TriggerScheduleIterator(trigger, now),
+    )

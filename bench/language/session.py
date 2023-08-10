@@ -46,7 +46,6 @@ class WorkerSetStatus(enum.StrEnum):
 
 @reflect_enum("RunStatus", "The status of a run")
 class RunStatus(enum.StrEnum):
-    Created = "Created"
     Scheduled = "Scheduled"
     Queued = "Queued"
     Running = "Running"
@@ -58,11 +57,7 @@ class RunStatus(enum.StrEnum):
     Completed = "Completed"
 
 
-TERMINAL_RUN_STATUSES = {
-    RunStatus.Aborted,
-    RunStatus.Failed,
-    RunStatus.Completed,
-}
+TERMINAL_RUN_STATUSES = {RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed}
 PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
 
 
