@@ -64,6 +64,8 @@ class NMessageType(StrEnum):
     WORKERS_CHANGED = "workers.changed"
 
     # read/write via runtime
+    GET_MODULE_HEAD = "module.get_head"
+    GET_MODULE_HEAD_REP = "module.get_head.rep"
     READ_MODULE = "module.read"
     READ_MODULE_REP = "module.read.rep"
     WRITE_MODULE = "module.write"
@@ -118,6 +120,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.WAKE_WORKER_SET: NMessageType.WAKE_WORKER_SET_REP,
     NMessageType.RESTART_WORKER_SET: NMessageType.RESTART_WORKER_SET_REP,
     NMessageType.DO_RESTART_WORKER_NODE: NMessageType.DO_RESTART_WORKER_NODE_REP,
+    NMessageType.GET_MODULE_HEAD: NMessageType.GET_MODULE_HEAD_REP,
     NMessageType.READ_MODULE: NMessageType.READ_MODULE_REP,
     NMessageType.WRITE_MODULE: NMessageType.WRITE_MODULE_REP,
     NMessageType.WRITE_SESSION: NMessageType.WRITE_SESSION_REP,
@@ -261,6 +264,7 @@ class StartRunErrorType(enum.StrEnum):
     INTERNAL_ERROR = "internal_error"
     TIMEOUT = "timeout"
     RUNTIME_ERROR = "runtime_error"
+    ALREADY_SCHEDULED = "already_scheduled"
 
 
 @payload(NMessageType.START_RUN_REP)
@@ -300,6 +304,16 @@ class WorkersChangedPayload(ProjectScoped, Payload):
 @payload(NMessageType.LOGS_CHANGED)
 class LogsChangedPayload(ModuleScoped, Payload):
     logs: list[LogEntryData]
+
+
+@payload(NMessageType.GET_MODULE_HEAD)
+class ReqGetModuleHeadPayload(ProjectScoped, Payload):
+    pass
+
+
+@payload(NMessageType.GET_MODULE_HEAD_REP)
+class RepGetModuleHeadPayload(Payload):
+    module_id: UUID
 
 
 @payload(NMessageType.READ_MODULE)

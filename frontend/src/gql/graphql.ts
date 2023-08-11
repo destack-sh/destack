@@ -2038,6 +2038,7 @@ export enum SortOrder {
 }
 
 export enum StartRunErrorType {
+  AlreadyScheduled = "ALREADY_SCHEDULED",
   InternalError = "INTERNAL_ERROR",
   InvalidRun = "INVALID_RUN",
   RuntimeError = "RUNTIME_ERROR",

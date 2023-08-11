@@ -29,6 +29,7 @@ from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
     RepGetEnvironmentPayload,
+    RepGetModuleHeadPayload,
     RepPingWorkerSetPayload,
     RepReadModulePayload,
     RepStartRunPayload,
@@ -36,6 +37,7 @@ from bench.msg.messages import (
     RepWriteSessionPayload,
     ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
+    ReqGetModuleHeadPayload,
     ReqPingWorkerSetPayload,
     ReqReadModulePayload,
     ReqStartRunPayload,
@@ -68,7 +70,7 @@ class WorkerNode(Monitored):
      (see :BE-213)
     """
 
-    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID):
+    def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID | None):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
@@ -119,7 +121,14 @@ class WorkerNode(Monitored):
 
         if self.project_id is not None:
             # preload worker for project (assumes it's at head)
-            await self._prepare_worker(self.project_id)
+            rep: NMessage[RepGetModuleHeadPayload] = await request(
+                NMessageType.GET_MODULE_HEAD,
+                ReqGetModuleHeadPayload(project_id=self.project_id),
+                retry=3,
+                timeout=3,
+                reply_t=RepGetModuleHeadPayload,
+            )
+            await self._prepare_worker(rep.p.module_id)
 
         self._ready.set()
 
@@ -135,7 +144,6 @@ class WorkerNode(Monitored):
     def _get_worker(self, module_id: UUID) -> "ModuleWorkerProcess":
         if module_id not in self.workers:
             # start module worker if not already started
-            # nocheckin: module_id could be a project_id, which means self.workers key is wrong
             worker = ModuleWorkerProcess(module_id=module_id, node=self, process_id=None)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
@@ -336,15 +344,16 @@ class ModuleWorkerProcess(ModuleWriter):
             module_id=self.module_id,
         )
 
-        self.active_runs: dict[UUID, RunJob] = {}
-        self.last_run_job: Optional[RunJob] = None
+        self._active_runs: dict[UUID, RunJob] = {}
+        self._scheduled_runs: dict[UUID, RunJob] = {}
+        self._last_run_job: Optional[RunJob] = None
         self._dirty_runs: dict[UUID, wire.RunData] = {}
 
     @property
     def active(self) -> bool:
         last_run_recent = (
-            self.last_run_job is not None
-            and self.last_run_job.run_data.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
+            self._last_run_job is not None
+            and self._last_run_job.run_data.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
         )
         return last_run_recent or not self.queue.empty()
 
@@ -374,17 +383,12 @@ class ModuleWorkerProcess(ModuleWriter):
                 continue
 
             try:
-                self.log.debug("run", job=job, timeout=WORKER_RUN_TIMEOUT)
                 job.started.set()
                 session = await self._do_run_job(job, WORKER_RUN_TIMEOUT)
                 if session.tracer.run.runs:
                     job.run = session.tracer.run.runs[job.run_data.id]
                     job.run_data = wire.pack_data(job.run)
                     job.last_logs = session.tracer.cached_logs[:50]
-                self.log.debug("run.completed", job=job)
-            except asyncio.CancelledError:
-                self.log.info("run.cancelled", job=job)
-                # keep the queue running?
             except Exception as e:
                 self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
             finally:
@@ -403,6 +407,9 @@ class ModuleWorkerProcess(ModuleWriter):
         If scheduled, the run will be queued after the delay.
         """
 
+        if run_data.id in self._scheduled_runs:
+            raise RunStartError(StartRunErrorType.ALREADY_SCHEDULED)
+
         job = RunJob(run_data=run_data, session_id=session_id)
 
         def _enqueue(priority: int):
@@ -411,6 +418,8 @@ class ModuleWorkerProcess(ModuleWriter):
             self.queue.put_nowait(job)
             self._dirty_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
+            if job.run_data.id in self._scheduled_runs:
+                del self._scheduled_runs[job.run_data.id]
 
         # add to queue (now or later if scheduled)
         if run_data.scheduled_at:
@@ -418,12 +427,18 @@ class ModuleWorkerProcess(ModuleWriter):
             now = utcnow_with_tz()
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
-                # trace
+                self._scheduled_runs[run_data.id] = job
                 self._dirty_runs[run_data.id] = run_data
                 asyncio.get_running_loop().call_later(delay, _enqueue, 0)  # high priority
             else:
                 _enqueue(0)
-            self.log.info("worker.schedule", job=job, run_data=run_data, delay=delay)
+            self.log.info(
+                "worker.schedule",
+                job=job,
+                scheduled_at=run_data.scheduled_at,
+                delay=delay,
+                run_data=run_data,
+            )
 
         else:
             _enqueue(10)  # default priority
@@ -494,16 +509,16 @@ class ModuleWorkerProcess(ModuleWriter):
 
             # wait out schedule delay if needed
             now = utcnow_with_tz()
-            if job.run_data.scheduled_at and job.run_data.scheduled_at < now:
+            if job.run_data.scheduled_at and job.run_data.scheduled_at > now:
                 # wait out the schedule delay if needed
-                delay = (now - job.run_data.scheduled_at).total_seconds()
+                delay = (job.run_data.scheduled_at - now).total_seconds()
                 self.log.info("worker.run.delay", job=job, delay=delay)
                 await asyncio.sleep(delay)
 
             # run
             job.task = asyncio.create_task(self._do_run_in_session(session, runnable, inputs))
-            self.active_runs[job.run_data.id] = job
-            self.last_run_job = job
+            self._active_runs[job.run_data.id] = job
+            self._last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
             job.last_logs = session.tracer.cached_logs[:50]
 
@@ -511,8 +526,8 @@ class ModuleWorkerProcess(ModuleWriter):
         finally:
             job.terminated.set()
             self.module.deactivate()
-            if job.run_data.id in self.active_runs:
-                del self.active_runs[job.run_data.id]
+            if job.run_data.id in self._active_runs:
+                del self._active_runs[job.run_data.id]
 
     async def cancel_run(self, run_id: UUID) -> bool:
         # TODO @Broken: implement cancel properly (interupts don't work)

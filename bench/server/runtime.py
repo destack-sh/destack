@@ -44,6 +44,7 @@ from bench.msg.messages import (
     ModuleChangedPayload,
     ModuleInternalChangedPayload,
     NMessageType,
+    RepGetModuleHeadPayload,
     RepMarkUploadedObjectPayload,
     RepReadModulePayload,
     RepReadObjectPayload,
@@ -58,6 +59,7 @@ from bench.msg.messages import (
     RepWriteModulePayload,
     RepWriteObjectPayload,
     RepWriteSessionPayload,
+    ReqGetModuleHeadPayload,
     ReqMarkUploadedObjectPayload,
     ReqReadModulePayload,
     ReqReadObjectPayload,
@@ -103,10 +105,7 @@ async def get_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, 
         return _cached_modules[ref]
     id = ref if isinstance(ref, UUID) else ref.id
     if id:
-        try:
-            project_version = await ProjectVersion.objects.aget(id=id)
-        except ProjectVersion.DoesNotExist:
-            project_version = (await Project.objects.select_related("head").aget(id=id)).head
+        project_version = await ProjectVersion.objects.aget(id=id)
     else:
         owner, project = ref.name.split(".")
         if ref.version != "x":
@@ -170,6 +169,7 @@ class RuntimeServer(Monitored):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
+            await handle_reply(NMessageType.GET_MODULE_HEAD, self.get_module_head),
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
@@ -215,6 +215,14 @@ class RuntimeServer(Monitored):
         if not worker.ready.is_set():
             await worker.ready.wait()
         return worker
+
+    @message_handler
+    async def get_module_head(self, msg: NMessage[ReqGetModuleHeadPayload]) -> None:
+        logger.debug("module.head", msg=msg)
+        project = await Project.objects.select_related("user", "organization").aget(
+            id=msg.p.project_id
+        )
+        await msg.reply(RepGetModuleHeadPayload(module_id=project.head_id))
 
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
@@ -496,7 +504,8 @@ class RuntimeServer(Monitored):
         await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
 
 
-TIME_TRIGGER_PRE_SEND_WINDOW = timedelta(minutes=1)  # 1 minute before
+# :MinTriggerInterval (because less than pre send window won't work)
+TIME_TRIGGER_PRE_SEND_WINDOW = 45  # seconds
 TIME_TRIGGER_LOOKAHEAD = 2  # occurrences
 
 
@@ -507,11 +516,6 @@ async def run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime
         delay = 0
     await asyncio.sleep(delay)
     await func()
-
-
-def schedule_run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime) -> None:
-    """Schedule a function to run at a given time."""
-    asyncio.create_task(run_at(func, at))
 
 
 @dataclass
@@ -607,7 +611,7 @@ class RuntimeWorker:
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
 
-        # nocheckin: backfill scheduled runs into runs_to_start
+        # TODO @Broken: backfill scheduled runs into runs_to_start
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
@@ -616,7 +620,7 @@ class RuntimeWorker:
             if timed_wait_task is not None:
                 timed_wait_task.cancel()
 
-            process_up_to = utcnow_with_tz() + TIME_TRIGGER_PRE_SEND_WINDOW
+            process_up_to = utcnow_with_tz() + timedelta(seconds=TIME_TRIGGER_PRE_SEND_WINDOW)
             self.log.debug(
                 "time_triggers.check",
                 process_up_to=process_up_to,
@@ -696,7 +700,9 @@ class RuntimeWorker:
                     t.next_occurrence for t in self.active_triggers.values()
                 )
                 new_now = utcnow_with_tz()
-                timeout_till_next = (earliest_next_occurrence - new_now).total_seconds()
+                timeout_till_next = (
+                    earliest_next_occurrence - new_now
+                ).total_seconds() - TIME_TRIGGER_PRE_SEND_WINDOW
                 if timeout_till_next < 0:
                     logger.warning("time_triggers.wait.overdue", timeout=timeout_till_next)
                     continue  # immediately go to next iteration
