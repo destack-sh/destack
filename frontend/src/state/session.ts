@@ -11,15 +11,19 @@ import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQue
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import {
   CheckCircleIcon as CheckCircleIconOutline,
+  ClockIcon as ClockIconOutline,
   PauseCircleIcon as PauseCircleIconOutline,
   QuestionMarkCircleIcon as QuestionMarkCircleIconOutline,
+  QueueListIcon as QueueListIconOutline,
   XCircleIcon as XCircleIconOutline,
 } from "@heroicons/vue/24/outline";
 
 import {
   CheckCircleIcon as CheckCircleIconSolid,
+  ClockIcon as ClockIconSolid,
   PauseCircleIcon as PauseCircleIconSolid,
   QuestionMarkCircleIcon as QuestionMarkCircleIconSolid,
+  QueueListIcon as QueueListIconSolid,
   XCircleIcon as XCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
@@ -27,8 +31,8 @@ import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, onBeforeUnmount, reactive, ref, watch, type Ref } from "vue";
 
-export const RUN_TERMINAL_STATES = [RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
-export const RUN_ACTIVE_STATES = [RunStatus.Queued, RunStatus.Running, RunStatus.Aborting]; // scheduled doesn't count as active
+export const TERMINAL_RUN_STATUSES = [RunStatus.Cancelled, RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
+export const ACTIVE_RUN_STATUSES = [RunStatus.Queued, RunStatus.Running, RunStatus.Aborting]; // scheduled doesn't count as active
 
 export const WorkerSetContentType = graphql(/* GraphQL */ `
   fragment WorkerSetContent on WorkerSet {
@@ -352,7 +356,7 @@ export function _useSessions(
 
   function run(
     runnable: { id: string },
-    options?: { sessionId?: string; runId?: string; arguments?: any; block?: number; keyed?: boolean }
+    options?: { sessionId?: string; runId?: string; inputs?: any; block?: number; keyed?: boolean }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
     const sessionId = options?.sessionId ?? newSessionId();
@@ -364,7 +368,7 @@ export function _useSessions(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       duration: null,
-      inputs: options?.arguments ?? {},
+      inputs: options?.inputs ?? {},
       runnable,
       outputs: null,
       metadata: null,
@@ -382,7 +386,7 @@ export function _useSessions(
 
     function doRunWithLogs() {
       return sessionOps
-        .run(runnable.id, run.id, run.session.id, run.inputs, {
+        .run(runnable.id, run.id, run.session?.id, run.inputs, {
           block: options?.block,
           keyed: options?.keyed,
         })
@@ -452,7 +456,7 @@ export function _useSessions(
 
   const currentRoots = computed(() => Object.values(currentRuns.value).filter((run) => run.parent == null));
   const activeRuns = computed(() =>
-    Object.values(currentRuns.value).filter((run) => RUN_ACTIVE_STATES.includes(run.status))
+    Object.values(currentRuns.value).filter((run) => ACTIVE_RUN_STATUSES.includes(run.status))
   );
   const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
 
@@ -854,49 +858,46 @@ export function useLogs(
 }
 
 export function getRunStatusIconOutline(status: RunStatus) {
-  if (status == RunStatus.Queued || status == RunStatus.Running) {
-    return BusySpinnerIcon;
-  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
-    return XCircleIconOutline;
-  } else if (status == RunStatus.Suspended) {
-    return PauseCircleIconOutline;
-  } else if (status == RunStatus.Failed) {
-    return XCircleIconOutline;
-  } else if (status == RunStatus.Completed) {
-    return CheckCircleIconOutline;
-  } else {
-    return QuestionMarkCircleIconOutline;
-  }
+  return RUN_STATUS_ICON_OUTLINE[status];
 }
+
+export const RUN_STATUS_ICON_OUTLINE: Record<RunStatus, any> = {
+  [RunStatus.Scheduled]: ClockIconOutline,
+  [RunStatus.Queued]: QueueListIconOutline,
+  [RunStatus.Running]: BusySpinnerIcon,
+  [RunStatus.Suspended]: PauseCircleIconOutline,
+  [RunStatus.Aborting]: XCircleIconOutline,
+  [RunStatus.Aborted]: XCircleIconOutline,
+  [RunStatus.Cancelled]: XCircleIconOutline,
+  [RunStatus.Failed]: XCircleIconOutline,
+  [RunStatus.Completed]: CheckCircleIconOutline,
+};
 
 export function getRunStatusIconSolid(status: RunStatus) {
-  if (status == RunStatus.Queued || status == RunStatus.Running) {
-    return BusySpinnerIcon;
-  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
-    return XCircleIconSolid;
-  } else if (status == RunStatus.Suspended) {
-    return PauseCircleIconSolid;
-  } else if (status == RunStatus.Failed) {
-    return XCircleIconSolid;
-  } else if (status == RunStatus.Completed) {
-    return CheckCircleIconSolid;
-  } else {
-    return QuestionMarkCircleIconSolid;
-  }
+  return RUN_STATUS_ICON_SOLID[status];
 }
 
+export const RUN_STATUS_ICON_SOLID: Record<RunStatus, any> = {
+  [RunStatus.Scheduled]: ClockIconSolid,
+  [RunStatus.Queued]: QueueListIconSolid,
+  [RunStatus.Running]: BusySpinnerIcon,
+  [RunStatus.Suspended]: PauseCircleIconSolid,
+  [RunStatus.Aborting]: XCircleIconSolid,
+  [RunStatus.Aborted]: XCircleIconSolid,
+  [RunStatus.Cancelled]: XCircleIconSolid,
+  [RunStatus.Failed]: XCircleIconSolid,
+  [RunStatus.Completed]: CheckCircleIconSolid,
+};
+
 export function getRunStatusColor(status: RunStatus, options?: { gray?: string }) {
-  const gray = options?.gray ?? "text-gray-700";
-  if (status == RunStatus.Queued || status == RunStatus.Running || status == RunStatus.Scheduled) {
-    return gray;
-  } else if (status == RunStatus.Aborting || status == RunStatus.Aborted) {
+  if (status == RunStatus.Aborting || status == RunStatus.Aborted || status == RunStatus.Cancelled) {
     return "text-yellow-600";
   } else if (status == RunStatus.Failed) {
     return "text-red-600";
   } else if (status == RunStatus.Completed) {
     return "text-green-700";
   } else {
-    return gray;
+    return options?.gray ?? "text-gray-700";
   }
 }
 

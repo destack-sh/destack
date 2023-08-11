@@ -22,8 +22,8 @@ logger = structlog.get_logger(__name__)
 
 class WorkerHost:
     """
-    Manages the lifecycle of the worker node in a separate process. Like an inverted sidecar.
-    During development, this can also launch the worker node in the same process.
+    Manages the lifecycle of the worker node's worker processes in a main sidecar process.
+    During local development, this may also launch the worker node in the same process.
     """
 
     def __init__(self, worker_set_id: UUID | None, worker_node_id: str, project_id: UUID | None):

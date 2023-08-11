@@ -1905,18 +1905,9 @@ export type RunError = {
   type: Scalars["String"];
 };
 
-export enum RunErrorType {
-  InternalError = "INTERNAL_ERROR",
-  InvalidRunconfig = "INVALID_RUNCONFIG",
-  NotReady = "NOT_READY",
-  RuntimeError = "RUNTIME_ERROR",
-  Timeout = "TIMEOUT",
-  Unavailable = "UNAVAILABLE",
-}
-
 export type RunInput = {
-  arguments?: InputMaybe<Scalars["JSON"]>;
   block?: Scalars["Float"];
+  inputs?: InputMaybe<Scalars["JSON"]>;
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
   runId?: InputMaybe<Scalars["GlobalID"]>;
@@ -1927,7 +1918,7 @@ export type RunInput = {
 
 export type RunState = {
   __typename?: "RunState";
-  error?: Maybe<RunErrorType>;
+  error?: Maybe<StartRunErrorType>;
   logs?: Maybe<Array<LogEntry>>;
   projectVersionId: Scalars["GlobalID"];
   run?: Maybe<Run>;
@@ -1940,6 +1931,7 @@ export type RunStateOperationInfo = OperationInfo | RunState;
 export enum RunStatus {
   Aborted = "Aborted",
   Aborting = "Aborting",
+  Cancelled = "Cancelled",
   Completed = "Completed",
   Failed = "Failed",
   Queued = "Queued",
@@ -2019,7 +2011,7 @@ export type Session = Node & {
 export type SessionChange = {
   __typename?: "SessionChange";
   runs: Array<Run>;
-  session: Session;
+  session?: Maybe<Session>;
 };
 
 export type SessionChangeRunsChangeWorkerChange = RunsChange | SessionChange | WorkerChange;
@@ -2043,6 +2035,14 @@ export enum SortMode {
 export enum SortOrder {
   Ascending = "ASCENDING",
   Descending = "DESCENDING",
+}
+
+export enum StartRunErrorType {
+  InternalError = "INTERNAL_ERROR",
+  InvalidRun = "INVALID_RUN",
+  RuntimeError = "RUNTIME_ERROR",
+  Timeout = "TIMEOUT",
+  Unavailable = "UNAVAILABLE",
 }
 
 export type Statement = CrudModel &
@@ -4281,7 +4281,7 @@ export type StartRunMutationVariables = Exact<{
   runnableId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  arguments?: InputMaybe<Scalars["JSON"]>;
+  inputs?: InputMaybe<Scalars["JSON"]>;
   keyed?: InputMaybe<Scalars["Boolean"]>;
   block?: InputMaybe<Scalars["Float"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
@@ -4296,7 +4296,7 @@ export type StartRunMutation = {
         projectVersionId: any;
         runnableId?: any | null;
         success: boolean;
-        error?: RunErrorType | null;
+        error?: StartRunErrorType | null;
         run?: ({ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }) | null;
         logs?: Array<
           { __typename?: "LogEntry" } & { " $fragmentRefs"?: { LogEntryContentFragment: LogEntryContentFragment } }
@@ -11619,7 +11619,7 @@ export const StartRunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "inputs" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
         {
@@ -11673,8 +11673,8 @@ export const StartRunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "arguments" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "arguments" } },
+                      name: { kind: "Name", value: "inputs" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "inputs" } },
                     },
                     {
                       kind: "ObjectField",

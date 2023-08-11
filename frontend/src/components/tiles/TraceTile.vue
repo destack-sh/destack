@@ -9,8 +9,7 @@ import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphq
 import { useBenchState } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { RUN_ACTIVE_STATES, RUN_TERMINAL_STATES } from "@/state/session";
-import { getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
+import { TERMINAL_RUN_STATUSES, getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref, watch } from "vue";
@@ -78,7 +77,7 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
 
   function _walk(run: Run, ancestors: OrderedNode[]): OrderedNode {
     const runnable = module.statementOf(run.runnable?.id);
-    const terminated = RUN_ACTIVE_STATES.includes(run.status);
+    const terminated = TERMINAL_RUN_STATUSES.includes(run.status);
     const duration = terminated
       ? run.duration ?? 0
       : now.value.diff(DateTime.fromISO(run.startedAt ?? run.createdAt), "seconds").seconds;

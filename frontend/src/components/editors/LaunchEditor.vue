@@ -15,7 +15,7 @@ import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { RUN_ACTIVE_STATES, useCurrentSessions } from "@/state/session";
+import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 
 const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
 const emit = defineEmits<{
@@ -73,7 +73,7 @@ const currentRun = computed(() => runs.value[0]);
 const isCurrentRunActive = computed(
   () =>
     currentRun.value != null &&
-    RUN_ACTIVE_STATES.includes(currentRun.value?.status) &&
+    ACTIVE_RUN_STATUSES.includes(currentRun.value?.status) &&
     currentRun.value?.status != RunStatus.Aborting
 );
 
@@ -85,7 +85,7 @@ async function run() {
   const { result: resultPromise } = await sessions.run(
     { id: editor.value.statementId },
     {
-      arguments: editor.value.arguments,
+      inputs: editor.value.inputs,
       keyed: true,
       runId: editor.value.lastRunId,
       sessionId: editor.value.lastSessionId,
@@ -224,7 +224,7 @@ defineExpose({
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
           <StructTile
             v-if="inputFields.length > 0"
-            v-model="editor.arguments"
+            v-model="editor.inputs"
             :fields="inputFields"
             full-inputs
             readonly-type

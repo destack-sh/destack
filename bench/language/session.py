@@ -54,12 +54,18 @@ class RunStatus(enum.StrEnum):
     Suspended = "Suspended"
     Aborting = "Aborting"
     # terminal statuses
+    Cancelled = "Cancelled"
     Aborted = "Aborted"
     Failed = "Failed"
     Completed = "Completed"
 
 
-TERMINAL_RUN_STATUSES = {RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed}
+TERMINAL_RUN_STATUSES = {
+    RunStatus.Cancelled,
+    RunStatus.Aborted,
+    RunStatus.Failed,
+    RunStatus.Completed,
+}
 PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
 
 

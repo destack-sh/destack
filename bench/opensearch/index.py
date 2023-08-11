@@ -231,18 +231,17 @@ def write_mutations_to_os(
 
 def write_session_to_os(
     project_v: models.ProjectVersion,
-    session: models.Session,
+    session: typing.Optional[models.Session],
     runs: list[wire.RunData],
     logs: list[wire.LogEntryData],
 ) -> None:
     """Writes/mirrors a session to OpenSearch."""
 
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
-    ops: list[dict] = [
-        # session itself
-        {"index": {"_index": bench_index, "_id": str(session.id)}},
-        mirror.mirror_node(project_v, session).to_dict(),
-    ]
+    ops: list[dict] = []
+    if session:
+        ops.append({"index": {"_index": bench_index, "_id": str(session.id)}})
+        ops.append(mirror.mirror_node(project_v, session).to_dict())
     for run in runs:
         ops.append({"index": {"_index": bench_index, "_id": str(run.id)}})
         ops.append(mirror.unpack_node_flat(project_v, run, None).to_dict())

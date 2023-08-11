@@ -213,6 +213,8 @@ async def request(
     reply_t: Type[PayloadT],
     *,
     timeout: float = 10,
+    retry: int = 0,
+    retry_delay: float = 5,
 ) -> NMessage[PayloadT]:
     if not nc_init.is_set():
         raise RuntimeError("nats not initialized")
@@ -221,7 +223,24 @@ async def request(
     message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
     serialized = _serialize_message(message)
     log.debug("request", topic=payload.topic, message=message, bytes=len(serialized))
-    reply = await nc.request(payload.topic, serialized, timeout=timeout)
+
+    while retry >= 0:
+        try:
+            reply = await nc.request(payload.topic, serialized, timeout=timeout)
+            break
+        except Exception as e:
+            log.exception(
+                "request.failed",
+                exc_info=True,
+                e=e,
+                sentry=sentry_capture_if_enabled(e),
+                retry=retry,
+            )
+            retry -= 1
+            if retry < 0:
+                raise
+            await asyncio.sleep(retry_delay)
+
     reply_msg = _parse_message(reply.data)
     if not isinstance(reply_msg.payload, reply_t):
         raise TypeError(f"expected message {reply_t} for {reply_t}, got {message}")

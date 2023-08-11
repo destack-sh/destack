@@ -263,8 +263,8 @@ async def _expand_filter(
     return expanded_ids, project_version_ids
 
 
-RUNS_LIMIT = 100
-LOGS_LIMIT = 250
+RUNS_LIMIT = 50
+LOGS_LIMIT = 200
 
 
 @gql.type
@@ -311,7 +311,7 @@ class RunInput:
     runnable_id: Optional[GlobalID] = None
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
-    arguments: Optional[JSON] = None
+    inputs: Optional[JSON] = None
     block: float = 1.0
     keyed: bool = False
     timeout_seconds: Optional[int] = None
@@ -620,8 +620,7 @@ class SessionMutation:
             project_id=project_version.project_id,
             module_id=project_version_id,
             runnable=to_uuid(input.runnable_id),
-            runnable_type=None,
-            arguments=input.arguments,
+            inputs=input.inputs,
             scheduled_at=None,
             block=input.block,
             trigger_type=TriggerType.USER,
@@ -702,7 +701,7 @@ class LogChange:
 
 @gql.type
 class SessionChange:
-    session: Session
+    session: Optional[Session]
     runs: list[Run]
 
 
@@ -775,7 +774,7 @@ class SessionSubscription:
             elif isinstance(msg.p, SessionChangedPayload):
                 log.debug("sessions.update", msg=msg)
                 yield SessionChange(
-                    session=packer.unpack_data(msg.p.session),
+                    session=packer.unpack_data(msg.p.session) if msg.p.session else None,
                     runs=[packer.unpack_data(r) for r in msg.p.runs],
                 )
             elif isinstance(msg.p, RunsChangedGlobalPayload):

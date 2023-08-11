@@ -87,11 +87,12 @@ defineExpose({
       <!-- Output views -->
       <TraceTile
         v-if="activeView == 'tracebars' || activeView == 'tracelist'"
-        :session-id="run.session.id"
+        :session-id="run.session?.id"
         :root-id="run.id"
         :layout="activeView == 'tracebars' ? 'bars' : 'list'"
         live
       />
+      <!-- nocheckin: fix logs tile if run is not yet started (session id is none so we'll get all logs...) -->
       <LogsTile
         v-else-if="activeView == 'logs'"
         ref="logsTileRef"
@@ -99,7 +100,7 @@ defineExpose({
         :containerHeight="300"
         :project-id="(projectId as string)"
         :project-version-id="(projectVersionId as string)"
-        :session-id="run.session.id"
+        :session-id="run.session?.id"
         :focus="{
           runnableIds: run.runnable != null ? [run.runnable.id] : undefined,
         }"

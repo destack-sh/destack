@@ -981,6 +981,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             id=model.id,
             project_id=model.project_id,
             worker_node_id=model.worker_node_id,
+            worker_process_id=model.worker_process_id,
             module_id=model.project_version_id,
             session_id=model.session_id,
             trigger_type=model.trigger_type,
@@ -1017,6 +1018,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             project_id=data.project_id,
             project_version_id=data.module_id,
             worker_node_id=data.worker_node_id,
+            worker_process_id=data.worker_process_id,
             session_id=data.session_id,
             trigger_type=data.trigger_type,
             trigger_access_token_id=access_token_id,
@@ -1149,20 +1151,21 @@ def upsert_module(
 @transaction.atomic(savepoint=False)
 def write_session(
     project_v: models.ProjectVersion,
-    session: wire.SessionData,
+    session: Optional[wire.SessionData],
     runs: list[wire.RunData],
     logs: list[wire.LogEntryData],
 ):
     """
     Writes a session and relevant runs and logs to the database.
     """
-    session = unpack_data(session)
-    models.Session.objects.bulk_create(
-        [session],
-        update_conflicts=True,
-        unique_fields=["id"],
-        update_fields=["updated_at", "opened_at", "closed_at", "metadata"],
-    )
+    if session:
+        session = unpack_data(session)
+        models.Session.objects.bulk_create(
+            [session],
+            update_conflicts=True,
+            unique_fields=["id"],
+            update_fields=["updated_at", "opened_at", "closed_at", "metadata"],
+        )
     runs_models = [unpack_data(r) for r in runs]
     models.Run.objects.bulk_create(
         runs_models,
