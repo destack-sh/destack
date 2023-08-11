@@ -1664,6 +1664,13 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             )
         else:
             error = None
+        trigger_id = (
+            object.trigger
+            if isinstance(object.trigger, UUID)
+            else object.trigger.id
+            if object.trigger
+            else None
+        )
         return RunData(
             id=object.id,
             project_id=object.session.ctx.project_id,
@@ -1673,8 +1680,8 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             runnable_id=object.runnable.id,
             runnable_type=object.runnable.type,
             session_id=object.session.id,
-            trigger_id=object.trigger.id if object.trigger else None,
-            trigger_type=object.trigger.type if object.trigger else None,
+            trigger_id=trigger_id,
+            trigger_type=object.trigger_type if object.trigger_type else None,
             root_id=object.root.id if object.root else None,
             parent_id=object.parent.id if object.parent else None,
             created_at=object.created_at,

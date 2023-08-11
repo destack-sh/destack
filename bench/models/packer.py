@@ -10,11 +10,9 @@ import abc
 import dataclasses
 import typing
 from collections import OrderedDict, defaultdict
-from datetime import datetime
 from typing import Optional, TypeVar
 from uuid import UUID, uuid5
 
-import pytz
 from django.db import transaction
 from django.db.models import Model, QuerySet
 
@@ -26,6 +24,7 @@ from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
 from bench.language.wire import ModuleTree, ModuleTreeData
 from bench.opensearch.index import write_session_to_os
+from bench.utils.dt import utcnow_with_tz
 
 MOT = ModuleObjectType
 ParentsT = set[MOT]
@@ -1029,7 +1028,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             runnable_id=data.runnable_id,
             runnable_type=data.runnable_type.value,
             created_at=data.created_at,
-            updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            updated_at=utcnow_with_tz(),
             scheduled_at=data.scheduled_at,
             started_at=data.started_at,
             terminated_at=data.terminated_at,

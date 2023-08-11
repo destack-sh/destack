@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-import pytz
 import structlog
 from django.db import models
 from django.db.models import Q
@@ -25,6 +24,7 @@ from bench.models.utils import (
     create_models_bfs,
     get_choices,
 )
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -78,7 +78,7 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
         return self.statement
 
     def soft_delete(self):
-        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.deleted_at = utcnow_with_tz()
 
     def restore(self):
         self.deleted_at = None
@@ -133,7 +133,7 @@ class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
         return self.statement_id
 
     def soft_delete(self):
-        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.deleted_at = utcnow_with_tz()
 
     def restore(self):
         self.deleted_at = None
@@ -160,7 +160,7 @@ class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
         return self.statement_id
 
     def soft_delete(self):
-        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.deleted_at = utcnow_with_tz()
 
     def restore(self):
         self.deleted_at = None
@@ -337,7 +337,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
         return self.file.path + ":" + str(self.order_key)
 
     def soft_delete(self):
-        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.deleted_at = utcnow_with_tz()
         # soft delete descendants (that aren't yet deleted)
         self.descendants.filter(deleted_at=None).update(deleted_at=self.deleted_at)
 

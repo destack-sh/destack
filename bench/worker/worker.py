@@ -6,7 +6,6 @@ from datetime import datetime, timedelta
 from typing import Optional, Union
 from uuid import UUID
 
-import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
@@ -45,6 +44,7 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.utils.cache import redis
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
@@ -194,7 +194,7 @@ class WorkerNode(Monitored):
                 inputs = msg.p.inputs
 
             # create run data
-            now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            now = utcnow_with_tz()
             status = RunStatus.Queued if msg.p.scheduled_at is None else RunStatus.Scheduled
             # only create session id if not scheduled
             run_data = RunData(
@@ -288,11 +288,18 @@ class WorkerNode(Monitored):
 class RunJob:
     run_data: RunData
     session_id: UUID
+    priority: int = 10  # default
     run: Optional[Run] = None
     task: asyncio.Task | None = None
     last_logs: list[LogEntry] | None = None
     started: asyncio.Event = field(default_factory=asyncio.Event)
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def __lt__(self, other: "RunJob"):
+        return self.priority < other.priority
+
+    def __gt__(self, other):
+        return self.priority > other.priority
 
     def __str__(self):
         return f"{self.run_data.id}"
@@ -320,7 +327,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
         self.source: wire.ModuleTreeData | None = None
         self.module: Module | None = None
-        self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
+        self.queue: asyncio.Queue[RunJob] = asyncio.PriorityQueue()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=self.node.worker_set_id,
@@ -362,7 +369,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
     async def _process_runs_forever(self):
         while True:
-            _, job = await self.queue.get()
+            job = await self.queue.get()
             if job.run_data.status != RunStatus.Queued:
                 continue
 
@@ -399,15 +406,16 @@ class ModuleWorkerProcess(ModuleWriter):
         job = RunJob(run_data=run_data, session_id=session_id)
 
         def _enqueue(priority: int):
+            job.priority = priority
             run_data.status = RunStatus.Queued
-            self.queue.put_nowait((priority, job))
+            self.queue.put_nowait(job)
             self._dirty_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
 
         # add to queue (now or later if scheduled)
         if run_data.scheduled_at:
             run_data.status = RunStatus.Scheduled
-            now = datetime.utcnow().replace(tzinfo=pytz.utc)
+            now = utcnow_with_tz()
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
                 # trace
@@ -485,7 +493,7 @@ class ModuleWorkerProcess(ModuleWriter):
             self.module.activate_in(session)
 
             # wait out schedule delay if needed
-            now = datetime.utcnow().replace(tzinfo=pytz.utc)
+            now = utcnow_with_tz()
             if job.run_data.scheduled_at and job.run_data.scheduled_at < now:
                 # wait out the schedule delay if needed
                 delay = (now - job.run_data.scheduled_at).total_seconds()

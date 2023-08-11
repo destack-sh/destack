@@ -103,7 +103,10 @@ const actions = computed(() => [
       <div
         class="pointer-events-none absolute left-0 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-gray-700 opacity-0 transition duration-150 group-hover/trigger:opacity-100"
       >
-        <span class="text-center font-bold">{{ triggerSchedules[i]?.humanized ?? "Invalid schedule" }}</span>
+        <span class="text-center font-bold"
+          >{{ triggerSchedules[i]?.humanized ?? "Invalid schedule" }}
+          <span v-if="!trigger.active" class="font-normal text-gray-400">(inactive)</span>
+        </span>
         <!-- Occurrences -->
         <div
           v-if="triggerSchedules[i].lastOccurrence != null && triggerSchedules[i].nextOccurrences != null"

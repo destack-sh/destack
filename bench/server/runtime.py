@@ -8,7 +8,6 @@ from itertools import chain
 from typing import Optional
 from uuid import UUID
 
-import pytz
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
@@ -81,6 +80,7 @@ from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
 from bench.server.observer import WorkerSetObserver
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
@@ -602,6 +602,7 @@ class RuntimeWorker:
             if (
                 trigger.processed_up_to is not None
                 and trigger.iter.last_occurrence_initial > trigger.processed_up_to
+                and trigger.iter.last_occurrence_initial > trigger.trigger.updated_at
             ):
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
@@ -615,9 +616,7 @@ class RuntimeWorker:
             if timed_wait_task is not None:
                 timed_wait_task.cancel()
 
-            process_up_to = (
-                datetime.utcnow().replace(tzinfo=pytz.UTC) + TIME_TRIGGER_PRE_SEND_WINDOW
-            )
+            process_up_to = utcnow_with_tz() + TIME_TRIGGER_PRE_SEND_WINDOW
             self.log.debug(
                 "time_triggers.check",
                 process_up_to=process_up_to,
@@ -696,9 +695,11 @@ class RuntimeWorker:
                 earliest_next_occurrence = min(
                     t.next_occurrence for t in self.active_triggers.values()
                 )
-                new_now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+                new_now = utcnow_with_tz()
                 timeout_till_next = (earliest_next_occurrence - new_now).total_seconds()
-                assert timeout_till_next >= 0, f"negative timeout: {timeout_till_next}"
+                if timeout_till_next < 0:
+                    logger.warning("time_triggers.wait.overdue", timeout=timeout_till_next)
+                    continue  # immediately go to next iteration
                 timed_wait_task = asyncio.create_task(set_wait(timeout_till_next))
                 self.log.debug("time_triggers.wait", timeout=timeout_till_next)
             else:
@@ -735,7 +736,7 @@ class RuntimeWorker:
 
         # create runs for fired triggers
         runs: list[wire.RunData] = []
-        now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+        now = utcnow_with_tz()
         for trigger_id in triggers_to_fire:
             fired_trigger = triggers[trigger_id]
             runnable = fired_trigger.trigger.parent
@@ -793,6 +794,9 @@ class RuntimeWorker:
                     processed_up_to=None,
                 )
                 logger.debug("time_triggers.upsert", trigger=new_trigger)
+            elif existing_trigger:
+                # preserve existing active trigger, just update trigger reference
+                self.active_triggers[new_trigger.id].trigger = new_trigger
 
         # remove triggers that are no longer active
         for old_trigger_id in set(self.active_triggers.keys()) - set(new_active_triggers.keys()):

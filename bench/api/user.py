@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
-import pytz
 import structlog
 from asgiref.sync import async_to_sync
 from channels.auth import login as channels_login
@@ -31,6 +30,7 @@ from bench.models.user import (
 )
 from bench.msg.core import NMessage, publish_soon, subscribe
 from bench.msg.messages import ClientChangedPayload, ClientOrigin, NMessageType
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.organization import Organization, OrganizationMembership
@@ -194,7 +194,7 @@ class UserMutation:
         client_id = _get_client_id(info)
         if client_id is not None:
             client = models.Client.objects.get(id=client_id)
-            client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            client.closed_at = utcnow_with_tz()
             client.last_seen_at = client.closed_at
             client.save()
             _publish_client_changed(client, info)
@@ -238,7 +238,7 @@ class UserMutation:
         client.field_id = input.field_id.node_id if input.field_id else None
         client.record_id = input.record_id.node_id if input.record_id else None
         client.name = input.path
-        client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.last_seen_at = utcnow_with_tz()
         client.save()
         # update client id in session if needed
         if _get_client_id(info) != client.id:
@@ -256,7 +256,7 @@ class UserMutation:
         if client_id is not None:
             return None  # ignore
         client = models.Client.objects.get(id=client_id)
-        client.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.closed_at = utcnow_with_tz()
         client.last_seen_at = client.closed_at
         client.save()
         _publish_client_changed(client, info)
@@ -271,7 +271,7 @@ class UserMutation:
         if client_id is None:
             raise PermissionDenied("can only update presence when client_id is set")
         client = models.Client.objects.get(id=client_id)
-        client.last_seen_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        client.last_seen_at = utcnow_with_tz()
         client.save()
         _publish_client_changed(client, info)
         return client
@@ -353,17 +353,13 @@ class ClientQuery:
         if organization_ids:
             qs = qs.filter(user__organizations__id__in=organization_ids)
         if active:
-            active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
-                seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
-            )
+            active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
             qs = qs.filter(
                 Q(last_seen_at__gte=active_cutoff)
                 & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
             )
         if present:
-            present_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
-                seconds=CLIENT_PRESENT_TIMEOUT_SECONDS
-            )
+            present_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_PRESENT_TIMEOUT_SECONDS)
             qs = qs.filter(
                 Q(last_seen_at__gte=present_cutoff)
                 & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))

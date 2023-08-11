@@ -3,9 +3,9 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import type { LogEntry } from "@/gql/graphql";
 import { useLogs } from "@/state/session";
 import { ChevronDoubleDownIcon } from "@heroicons/vue/24/outline";
-import { useElementBounding, useScroll, whenever } from "@vueuse/core";
+import { useElementBounding, useScroll } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, nextTick, ref, toRef, watch, watchEffect } from "vue";
+import { computed, ref, toRef, watch, watchEffect } from "vue";
 
 const props = defineProps<{
   projectId: string;

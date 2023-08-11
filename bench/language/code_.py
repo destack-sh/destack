@@ -13,7 +13,6 @@ from random import Random
 from typing import Any, Optional
 
 import msgpack
-import pytz
 import structlog
 from more_itertools import first, last
 
@@ -25,6 +24,7 @@ from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
 from bench.language.type import HasType, check_type, instantiate_py_value, strip_py_value
 from bench.language.utils import Runnable, get_run_cache_subkey
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -264,7 +264,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
-            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            started_at = utcnow_with_tz()
             result = callable(*args, **kwargs)
             outputs_raw = strip_py_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
@@ -279,7 +279,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
-            started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            started_at = utcnow_with_tz()
             result = await callable(*args, **kwargs)
             outputs_raw = strip_py_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
@@ -381,7 +381,7 @@ class CachedRun:
 
     @staticmethod
     def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
-        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now = utcnow_with_tz()
         run = CachedRun(
             generated_at=now,
             duration=(now - started_at).total_seconds(),

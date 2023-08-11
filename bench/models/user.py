@@ -1,7 +1,6 @@
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import TYPE_CHECKING, Optional
 
-import pytz
 import requests
 import structlog
 from django.contrib.auth.base_user import BaseUserManager
@@ -18,6 +17,7 @@ from bench.models.organization import (
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.msg.messages import ClientData
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
@@ -189,9 +189,7 @@ class ClientManager(models.Manager):
         project: Optional["Project"] = None,
         project_version: Optional["ProjectVersion"] = None,
     ) -> models.QuerySet["Client"]:
-        active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
-            seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
-        )
+        active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
         qs = self.filter(
             Q(last_seen_at__gte=active_cutoff)
             & (Q(closed_at__isnull=True) | Q(closed_at__lt=F("last_seen_at")))
@@ -233,18 +231,14 @@ class Client(UUIDModel):
     def active(self) -> bool:
         if self.closed_at is not None and self.closed_at >= self.last_seen_at:
             return False
-        active_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
-            seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS
-        )
+        active_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_ACTIVE_TIMEOUT_SECONDS)
         return self.last_seen_at is not None and self.last_seen_at >= active_cutoff
 
     @property
     def present(self) -> bool:
         if self.closed_at is not None and self.closed_at >= self.last_seen_at:
             return False
-        present_cutoff = datetime.utcnow().replace(tzinfo=pytz.UTC) - timedelta(
-            seconds=CLIENT_PRESENT_TIMEOUT_SECONDS
-        )
+        present_cutoff = utcnow_with_tz() - timedelta(seconds=CLIENT_PRESENT_TIMEOUT_SECONDS)
         return self.last_seen_at is not None and self.last_seen_at >= present_cutoff
 
     def __str__(self):

@@ -2,7 +2,7 @@
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, type Run } from "@/gql/graphql";
+import { RunStatus, type Run, TriggerType } from "@/gql/graphql";
 import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
 import { ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
@@ -11,6 +11,7 @@ import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
+import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
 
 const props = defineProps<{
   runnableId: string;
@@ -118,7 +119,7 @@ function isExpanded(runId: string) {
               <component
                 :is="getRunStatusIconSolid(run.status)"
                 class="h-4 w-4"
-                :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
+                :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
               />
               <!-- Runnable -->
               <span
@@ -133,7 +134,7 @@ function isExpanded(runId: string) {
                 >{{ statement?.name }}</span
               >
               <!-- Duration -->
-              <span class="group/cache ml-1 flex flex-row flex-nowrap items-center">
+              <span class="group/cache ml-1 flex flex-row flex-nowrap items-center" v-if="run.startedAt != null">
                 <span class="font-semibold">
                   {{
                     run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt)
@@ -143,9 +144,11 @@ function isExpanded(runId: string) {
               </span>
             </span>
             <!-- Trigger -->
-            <span class="flex w-full flex-row gap-1 text-gray-400">
+            <span class="flex w-full flex-row items-center gap-1">
+              <!-- Type -->
+              <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
               <!-- From -->
-              <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt) }}</span>
+              <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
             </span>
           </div>
           <!-- Selected fields as a preview -->

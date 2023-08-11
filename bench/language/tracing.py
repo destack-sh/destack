@@ -24,6 +24,7 @@ from bench.language.type import (
     strip_py_value_flat,
 )
 from bench.language.utils import Runnable
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -426,6 +427,13 @@ class RunTracer(Tracer):
         else:
             root = None
             parent = None
+        if parent:
+            trigger_type = trigger_type or TriggerType.INVOKE
+        if not trigger_type and root is None:
+            # inherit trigger type from session if we're not nested
+            # (this will be wrong once we process other triggers within a session)
+            trigger_type = self.session.ctx.trigger_type
+            trigger = self.session.ctx.trigger_id
         frame = Run(
             id=self.session.ctx.first_run_id if root is None else UUIDT(),
             module=self.session.module,
@@ -436,7 +444,7 @@ class RunTracer(Tracer):
             root=root,
             parent=parent,
             scheduled_at=None,
-            started_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            started_at=utcnow_with_tz(),
             terminated_at=None,
             inputs=inputs,
             outputs=None,
@@ -470,7 +478,7 @@ class RunTracer(Tracer):
 
     def run_exit(self, statement: Runnable, result):
         frame = self.pop_stacktrace()
-        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = utcnow_with_tz()
         frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)
         frame._update_status()
         self.track(frame)
@@ -480,7 +488,7 @@ class RunTracer(Tracer):
 
     def run_exception(self, statement: Runnable, exception: Exception):
         frame = self.pop_stacktrace()
-        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = utcnow_with_tz()
         frame.error = RunError.from_exception(exception, statement)
         frame._update_status()
         self.track(frame)
@@ -492,7 +500,7 @@ class RunTracer(Tracer):
         self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
     ):
         frame = self._create_frame(runnable=statement, trace=True)
-        frame.terminated_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        frame.terminated_at = utcnow_with_tz()
         frame.cached_generated_at = generated_at
         frame.cached_duration = duration
         frame.inputs = _strip_and_truncate_py_value(inputs, statement, is_output=False)
