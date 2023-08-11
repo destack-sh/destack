@@ -244,19 +244,19 @@ class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
 
 @payload(NMessageType.START_RUN)
 class ReqStartRunPayload(ModuleScoped, Payload):
+    run_id: Optional[UUID]
+    session_id: Optional[UUID]
     runnable: Optional[UUID | str]
     runnable_type: Optional[StatementType]
+    scheduled_at: Optional[datetime]
+    trigger_type: TriggerType
+    trigger_id: Optional[UUID]
     arguments: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
-    trigger_type: TriggerType
-    trigger_id: Optional[UUID]
-    scheduled_at: Optional[datetime]
-    session_id: Optional[UUID]
-    run_id: Optional[UUID]
 
 
-class RunErrorType(enum.StrEnum):
+class StartRunErrorType(enum.StrEnum):
     UNAVAILABLE = "unavailable"
     INTERNAL_ERROR = "internal_error"
     NOT_READY = "not_ready"
@@ -267,7 +267,7 @@ class RunErrorType(enum.StrEnum):
 
 @payload(NMessageType.START_RUN_REP)
 class RepStartRunPayload(Payload):
-    error: Optional[RunErrorType] = None
+    error: Optional[StartRunErrorType] = None
     run_id: Optional[UUID] = None
     run: Optional[RunData] = None
     logs: Optional[list[LogEntryData]] = None
@@ -500,6 +500,8 @@ class RepRestartWorkerSetPayload(Payload):
 class ReqDoRestartWorkerNodePayload(Payload):
     project_id: UUID
     worker_set_id: Optional[UUID]
+    worker_node_id: Optional[str]
+    worker_process_id: Optional[str]
 
     @property
     def topic(self) -> str:
@@ -509,7 +511,8 @@ class ReqDoRestartWorkerNodePayload(Payload):
 @payload(NMessageType.DO_RESTART_WORKER_NODE_REP)
 class RepDoRestartWorkerNodePayload(Payload):
     worker_set_id: Optional[UUID]
-    worker_node_id: typing.Optional[str]
+    worker_node_id: Optional[str]
+    worker_process_id: Optional[str]
     success: bool
 
 

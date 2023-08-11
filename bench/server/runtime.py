@@ -56,7 +56,6 @@ from bench.msg.messages import (
     RepSearchRunPayload,
     RepStartRunPayload,
     RepWakeRuntimePayload,
-    RepWakeWorkerSetPayload,
     RepWriteModulePayload,
     RepWriteObjectPayload,
     RepWriteSessionPayload,
@@ -71,18 +70,17 @@ from bench.msg.messages import (
     ReqSearchRunPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
-    ReqWakeWorkerSetPayload,
     ReqWriteModulePayload,
     ReqWriteObjectPayload,
     ReqWriteSessionPayload,
     RunsChangedGlobalPayload,
     SessionChangedPayload,
-    WorkersChangedPayload,
 )
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
+from bench.server.observer import WorkerSetObserver
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
@@ -95,92 +93,6 @@ logger = structlog.get_logger(__name__)
 MAX_SEARCH_RECORD_LIMIT = 500
 MAX_SEARCH_LOG_LIMIT = 1000
 MAX_SEARCH_RUN_LIMIT = 1000
-
-
-class WorkerSetWatcher:
-    """Observe the state of all workers in all modules."""
-
-    def __init__(self):
-        self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
-        self._subs = []
-        self._until_healthy_events: dict[UUID, asyncio.Event] = {}
-
-    @property
-    def worker_sets(self) -> typing.Collection[models.WorkerSet]:
-        return self._worker_sets_by_project_id.values()
-
-    async def start(self):
-        logger.info("worker_watcher.start")
-        self._subs = [
-            await subscribe(
-                f"{NMessageType.WORKERS_CHANGED}.>",
-                payload_t=WorkersChangedPayload,
-                cb=self._on_workers_changed,
-            )
-        ]
-        self._worker_sets_by_project_id = {
-            ws.project_id: ws
-            async for ws in models.WorkerSet.objects.select_related(
-                "project", "project__organization", "project__user"
-            ).all()
-        }
-        logger.info("worker_watcher.ready", worker_sets=self.worker_sets)
-
-    async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
-        logger.debug("worker_watcher.change", msg=msg)
-        for updated_ws in msg.p.worker_sets:
-            # upsert properties in local worker set
-            updated_ws: models.WorkerSet = packer.unpack_data(updated_ws)
-            if updated_ws.project_id not in self._worker_sets_by_project_id:
-                existing_ws = await models.WorkerSet.objects.select_related(
-                    "project", "project__organization", "project__user"
-                )
-            else:
-                existing_ws = self._worker_sets_by_project_id[updated_ws.project_id]
-            for field in models.WorkerSet._meta.fields:
-                # skip relational fields
-                if field.is_relation:
-                    continue
-                setattr(existing_ws, field.name, getattr(updated_ws, field.name))
-
-            # trigger until_healthy events
-            if existing_ws.project_id in self._until_healthy_events:
-                self._until_healthy_events[existing_ws.project_id].set()
-
-    def is_healthy(self, project_id: UUID) -> bool:
-        """Return whether the worker set is healthy."""
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        return worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY
-
-    async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
-        """If not already healthy, wake the worker set and wait until it is healthy."""
-        logger.info("worker_watcher.wait_until_healthy", project_id=project_id)
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        if worker_set and worker_set.status != models.WorkerSetStatus.HEALTHY:
-            return
-        if project_id not in self._until_healthy_events:
-            self._until_healthy_events[project_id] = asyncio.Event()
-
-        if not worker_set or worker_set.sleeping:
-            rep: NMessage[RepWakeWorkerSetPayload] = await request(
-                NMessageType.WAKE_WORKER_SET,
-                ReqWakeWorkerSetPayload(project_id=project_id),
-                reply_t=RepWakeWorkerSetPayload,
-            )
-            if not rep.p.success:
-                raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
-
-        if timeout:
-            await asyncio.wait_for(self._until_healthy_events[project_id].wait(), timeout)
-        else:
-            await self._until_healthy_events[project_id].wait()
-            del self._until_healthy_events[project_id]
-
-    async def stop(self):
-        for sub in self._subs:
-            await sub.unsubscribe()
-        self._subs.clear()
-
 
 _cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
 
@@ -248,10 +160,10 @@ class RuntimeServer(Monitored):
 
     def __init__(self):
         self.id = UUIDT()
-        self.workers: dict[UUID, RuntimeWorker] = {}
+        self.runtime_workers: dict[UUID, RuntimeWorker] = {}
         self.subs = []
         self.tasks = TaskManager()
-        self.worker_watcher = WorkerSetWatcher()
+        self.user_worker_observer = WorkerSetObserver()
         self._ready = False
 
     async def run(self):
@@ -277,7 +189,7 @@ class RuntimeServer(Monitored):
         projects = [project async for project in Project.objects.all()]
         await asyncio.gather(*[self._prepare_worker(project.head_id) for project in projects])
 
-        await self.worker_watcher.start()
+        await self.user_worker_observer.start()
 
         logger.info("ready")
         self._ready = True
@@ -291,14 +203,14 @@ class RuntimeServer(Monitored):
         return self.ready and self.tasks.healthy
 
     async def _prepare_worker(self, module_id: UUID) -> "RuntimeWorker":
-        worker = self.workers.get(module_id)
+        worker = self.runtime_workers.get(module_id)
         if worker is None:
             # start language worker if not already started
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = RuntimeWorker(self.id, self.tasks, self.worker_watcher, project_version)
-            self.workers[module_id] = worker
+            worker = RuntimeWorker(self.id, self.tasks, self.user_worker_observer, project_version)
+            self.runtime_workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), f"worker-{module_id}"))
         if not worker.ready.is_set():
             await worker.ready.wait()
@@ -581,7 +493,7 @@ class RuntimeServer(Monitored):
     async def stop(self):
         logger.info("stop")
         self._ready = False
-        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
 
 
 TIME_TRIGGER_PRE_SEND_WINDOW = timedelta(minutes=1)  # 1 minute before
@@ -622,7 +534,7 @@ class RuntimeWorker:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        workers_watcher: WorkerSetWatcher,
+        workers_watcher: WorkerSetObserver,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
@@ -770,12 +682,18 @@ class RuntimeWorker:
             triggers_to_fire.clear()
 
             # wait for earliest next trigger occurrence (or trigger change)
-            earliest_next_occurrence = min(t.next_occurrence for t in self.active_triggers.values())
-            new_now = datetime.utcnow().replace(tzinfo=pytz.UTC)
-            timeout_till_next = (earliest_next_occurrence - new_now).total_seconds()
-            assert timeout_till_next >= 0, f"negative timeout: {timeout_till_next}"
-            timed_wait_task = asyncio.create_task(set_wait(timeout_till_next))
-            self.log.debug("time_triggers.wait", timeout=timeout_till_next)
+            if self.active_triggers:
+                earliest_next_occurrence = min(
+                    t.next_occurrence for t in self.active_triggers.values()
+                )
+                new_now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+                timeout_till_next = (earliest_next_occurrence - new_now).total_seconds()
+                assert timeout_till_next >= 0, f"negative timeout: {timeout_till_next}"
+                timed_wait_task = asyncio.create_task(set_wait(timeout_till_next))
+                self.log.debug("time_triggers.wait", timeout=timeout_till_next)
+            else:
+                # no triggers, wait forever until next change
+                self.log.debug("time_triggers.wait", timeout=None)
 
             # wait until change or until next earliest trigger
             self.active_trigger_process_wait.clear()
@@ -871,7 +789,7 @@ class RuntimeWorker:
             del self.active_triggers[old_trigger_id]
             logger.debug("time_triggers.remove", trigger=removed_trigger.trigger)
 
-        # trigger active trigger processing
+        # re-trigger active trigger processing
         self.active_trigger_process_wait.set()
 
     async def interp(self, new_source: wire.ModuleTreeData) -> None:

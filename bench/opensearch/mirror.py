@@ -449,6 +449,7 @@ class Run(os.Document):
     project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     worker_node_id: Optional[str] = os.field(os.FT.KEYWORD)
+    worker_process_id: Optional[str] = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
@@ -476,6 +477,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             project_id=mirror.project_id,
             project_version_id=mirror.project_version_id,
             worker_node_id=mirror.worker_node_id,
+            worker_process_id=mirror.worker_process_id,
             session_id=mirror.session_id,
             trigger_type=mirror.trigger_type,
             runnable_id=mirror.runnable_id,
@@ -497,6 +499,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             id=mirror.id,
             project_id=mirror.project_id,
             worker_node_id=mirror.worker_node_id,
+            worker_process_id=mirror.worker_process_id,
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,
             trigger_type=mirror.trigger_type,
@@ -527,6 +530,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             project_id=data.project_id,
             project_version_id=data.module_id,
             worker_node_id=data.worker_node_id,
+            worker_process_id=data.worker_process_id,
             session_id=data.session_id,
             trigger_type=data.trigger_type,
             root_id=data.root_id,

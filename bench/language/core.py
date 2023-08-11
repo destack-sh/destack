@@ -858,6 +858,7 @@ class SessionContext:
     module_id: UUID
     project_id: UUID
     worker_node_id: str
+    worker_process_id: Optional[str]
     trigger_type: TriggerType
     trigger_id: typing.Optional[UUID]
     first_run_id: typing.Optional[UUID] = None
@@ -883,6 +884,8 @@ SESSION_MUTATION_FLUSH_WATERMARK = 500
 
 
 class ModuleWriter(abc.ABC):
+    """Base for writing module/session for type-checking."""
+
     async def write_module(self, mutations: list["ModuleMutation"]) -> bool:
         raise NotImplementedError
 

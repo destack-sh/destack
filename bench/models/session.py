@@ -43,6 +43,7 @@ class Run(UUIDTModel, HasTriggeredBy):
     project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)
+    worker_process_id = models.CharField(max_length=64, null=True, blank=True)
     session = models.ForeignKey(
         "Session", on_delete=models.CASCADE, null=True, blank=True, related_name="runs"
     )

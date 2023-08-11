@@ -1858,10 +1858,11 @@ export type Run = Node & {
   projectVersion: ProjectVersion;
   root?: Maybe<Run>;
   runnable?: Maybe<Statement>;
-  session: Session;
+  session?: Maybe<Session>;
   startedAt?: Maybe<Scalars["DateTime"]>;
   status: RunStatus;
   terminatedAt?: Maybe<Scalars["DateTime"]>;
+  triggerType?: Maybe<TriggerType>;
   updatedAt: Scalars["DateTime"];
 };
 
@@ -2010,7 +2011,7 @@ export type Session = Node & {
   openedAt?: Maybe<Scalars["DateTime"]>;
   project: Project;
   runs: Array<Run>;
-  triggerType: TriggerType;
+  triggerType?: Maybe<TriggerType>;
   updatedAt: Scalars["DateTime"];
   user?: Maybe<User>;
 };
@@ -5305,7 +5306,7 @@ export type RunHeaderFragment = {
   duration?: number | null;
   status: RunStatus;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
-  session: { __typename?: "Session"; id: any };
+  session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
   parent?: { __typename?: "Run"; id: any } | null;
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
@@ -5320,11 +5321,12 @@ export type RunContentFragment = {
   terminatedAt?: any | null;
   duration?: number | null;
   status: RunStatus;
+  triggerType?: TriggerType | null;
   inputs?: any | null;
   outputs?: any | null;
   metadata?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
-  session: { __typename?: "Session"; id: any };
+  session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
   parent?: { __typename?: "Run"; id: any } | null;
   errorNice?: {
@@ -6747,6 +6749,7 @@ export const RunContentFragmentDoc = {
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "session" },

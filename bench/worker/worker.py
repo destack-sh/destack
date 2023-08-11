@@ -3,26 +3,19 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Any, Optional
+from typing import Optional
 from uuid import UUID
 
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import Code, LogEntry, Task, wire
+from bench.language import LogEntry, wire
 from bench.language.code_ import run
-from bench.language.const import TriggerType
-from bench.language.core import (
-    Module,
-    ModuleReference,
-    ModuleWriter,
-    Session,
-    SessionContext,
-    SessionMode,
-)
+from bench.language.core import Module, ModuleReference, ModuleWriter, Session, SessionContext
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import Run, RunError
 from bench.language.type import instantiate_py_value_flat, map_value
+from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (
     ClientOrigin,
@@ -30,17 +23,19 @@ from bench.msg.messages import (
     NMessageType,
     RepCancelRunPayload,
     RepGetEnvironmentPayload,
+    RepPingWorkerSetPayload,
     RepReadModulePayload,
     RepStartRunPayload,
     RepWriteModulePayload,
+    RepWriteSessionPayload,
     ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
+    ReqPingWorkerSetPayload,
     ReqReadModulePayload,
     ReqStartRunPayload,
     ReqWriteModulePayload,
-    RunErrorType,
-    ReqPingWorkerSetPayload,
-    RepPingWorkerSetPayload,
+    ReqWriteSessionPayload,
+    StartRunErrorType,
 )
 from bench.utils.cache import redis
 from bench.utils.func import describe_type, wrap_task
@@ -51,44 +46,15 @@ from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
+WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
+WORKER_ACTIVE_PUBLISH_INTERVAL = 10
 
 logger = structlog.get_logger(__name__)
 
 
-def create_wrapped_task(coro, task_id: str = None):
-    return asyncio.create_task(wrap_task(coro, task_id))
-
-
-@dataclass(repr=False, slots=True)
-class RunJob:
-    priority: int = 1
-    cancelled: bool = False
-    runnable: Task | Code = None
-    session: Session = None
-    arguments: dict[str, Any] = None
-    run: Optional[Run] = None
-    logs: Optional[list[LogEntry]] = None
-    error: Optional[RunError] = None
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    started: asyncio.Event = field(default_factory=asyncio.Event)
-    task: asyncio.Task | None = None
-    terminated: asyncio.Event = field(default_factory=asyncio.Event)
-    id: UUID = field(default_factory=UUIDT)
-
-    def __str__(self):
-        return f"{self.id} {self.runnable}"
-
-    def __repr__(self):
-        return f"<RunJob {self}>"
-
-
-ACTIVE_TIMEOUT = 30
-ACTIVE_PUBLISH_INTERVAL = 10
-
-
 class WorkerNode(Monitored):
     """
-    A sandboxed runtime worker to host user code, generally one worker process per Bench.
+    A user worker to run user code, generally one worker process per project (Bench).
     For local development a node can host multiple Benches.
     """
 
@@ -96,7 +62,7 @@ class WorkerNode(Monitored):
         self.worker_set_id = worker_set_id
         self.worker_node_id = worker_node_id
         self.project_id = project_id
-        self.workers: dict[UUID, ModuleWorkerNode] = {}
+        self.workers: dict[UUID, ModuleWorkerProcess] = {}
         self.subs = []
         self.tasks = TaskManager()
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
@@ -137,11 +103,13 @@ class WorkerNode(Monitored):
             await handle_reply(f"{NMessageType.PING_WORKER_SET}.{p_routing}", self.ping),
         ]
         if self.worker_set_id is not None:  # only mark as active if not a local worker
-            self.tasks.start(self.mark_as_active_if_active_forever())
+            self.tasks.start(
+                self.mark_as_active_if_active_forever(interval=WORKER_ACTIVE_PUBLISH_INTERVAL)
+            )
 
         if self.project_id is not None:
             # preload worker for project (assumes it's at head)
-            await self._get_ready_worker(self.project_id)
+            await self._prepare_worker(self.project_id)
 
         self._ready.set()
 
@@ -149,20 +117,21 @@ class WorkerNode(Monitored):
         # run forever until cancelled
         try:
             asyncio.create_task(self.run())
+            await self._ready.wait()
             await asyncio.Event().wait()
         finally:
             await self.stop()
 
-    def _get_worker(self, module_id: UUID) -> "ModuleWorkerNode":
+    def _get_worker(self, module_id: UUID) -> "ModuleWorkerProcess":
         if module_id not in self.workers:
             # start module worker if not already started
-            # TODO @Broken: assign workers to deployments
-            worker = ModuleWorkerNode(module_id, self, timeout=WORKER_RUN_TIMEOUT)
+            # nocheckin: module_id could be a project_id, which means self.workers key is wrong
+            worker = ModuleWorkerProcess(module_id, self, timeout=WORKER_RUN_TIMEOUT)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]
 
-    async def _get_ready_worker(self, module_id: UUID) -> "ModuleWorkerNode":
+    async def _prepare_worker(self, module_id: UUID) -> "ModuleWorkerProcess":
         worker = self._get_worker(module_id)
         if not worker.ready.is_set():
             await worker.ready.wait()
@@ -177,7 +146,7 @@ class WorkerNode(Monitored):
             ex=24 * 60 * 60,  # keep for 1 day
         )
 
-    async def mark_as_active_if_active_forever(self, interval=ACTIVE_PUBLISH_INTERVAL):
+    async def mark_as_active_if_active_forever(self, interval: int):
         while True:
             if any(w.active for w in self.workers.values()):
                 await self._mark_worker_as_active()
@@ -193,14 +162,14 @@ class WorkerNode(Monitored):
             if not is_semantic:
                 # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
                 return
-            worker = await self._get_ready_worker(msg.p.module_id)
-            await worker.do_interp_on_change(msg.p.mutations)
+            worker = await self._prepare_worker(msg.p.module_id)
+            await worker.interp_on_change(msg.p.mutations)
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
         logger.debug("run.start", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
-        run_job = worker.queue_run(
+        worker = await self._prepare_worker(msg.p.module_id)
+        run_job = worker.start_run(
             runnable=msg.p.runnable,
             arguments=msg.p.arguments,
             run_id=msg.p.run_id,
@@ -209,7 +178,7 @@ class WorkerNode(Monitored):
             trigger_id=msg.p.trigger_id,
             keyed=msg.p.keyed,
         )
-        if isinstance(run_job, RunErrorType):  # couldn't queue run
+        if isinstance(run_job, StartRunErrorType):  # couldn't queue run
             await msg.reply(RepStartRunPayload(error=run_job))
         else:
             if msg.p.block is not None:
@@ -226,7 +195,7 @@ class WorkerNode(Monitored):
     @message_handler
     async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
         logger.debug("run.cancel", msg=msg)
-        worker = await self._get_ready_worker(msg.p.module_id)
+        worker = await self._prepare_worker(msg.p.module_id)
         success = await worker.cancel_run(msg.p.run_id)
         await msg.reply(RepCancelRunPayload(success=success))
 
@@ -259,12 +228,30 @@ class WorkerNode(Monitored):
     async def stop(self):
         logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
         await self.tasks.stop()
-        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
         self._ready.clear()
 
 
-class ModuleWorkerNode(ModuleWriter):
-    """A user worker that helps run a specific module."""
+@dataclass(repr=False, slots=True)
+class RunJob:
+    run_data: RunData
+    run: Optional[Run] = None
+    task: asyncio.Task | None = None
+    started: asyncio.Event = field(default_factory=asyncio.Event)
+    terminated: asyncio.Event = field(default_factory=asyncio.Event)
+
+    def __str__(self):
+        return f"{self.run_data.id}"
+
+    def __repr__(self):
+        return f"<RunJob {self}>"
+
+
+class ModuleWorkerProcess(ModuleWriter):
+    """
+    A user worker that helps run a specific module.
+    Generally, a worker process is intended to process one run at a time (for now).
+    """
 
     def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
         self.node = node
@@ -293,7 +280,7 @@ class ModuleWorkerNode(ModuleWriter):
     def active(self) -> bool:
         last_run_recent = (
             self.last_run is not None
-            and self.last_run.created_at > datetime.utcnow() - timedelta(seconds=ACTIVE_TIMEOUT)
+            and self.last_run.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
         )
         return last_run_recent or not self.queue.empty()
 
@@ -312,6 +299,9 @@ class ModuleWorkerNode(ModuleWriter):
         self.ready.set()
 
         # process run tasks ad infinitum
+        await self._process_runs_forever()
+
+    async def _process_runs_forever(self):
         while True:
             _, job = await self.queue.get()
             if job.cancelled:
@@ -320,7 +310,7 @@ class ModuleWorkerNode(ModuleWriter):
             try:
                 self.log.debug("run", job=job, timeout=self.timeout)
                 job.started.set()
-                await self.do_run(job, self.timeout)
+                await self._do_run(job, self.timeout)
                 if job.session.tracer.run.runs:
                     job.run = job.session.tracer.run.runs[job.id]
                     job.logs = job.session.tracer.cached_logs[:50]
@@ -329,84 +319,28 @@ class ModuleWorkerNode(ModuleWriter):
                 self.log.info("run.cancelled", job=job)
                 # keep the queue running?
             except Exception as e:
-                job.error = RunErrorType.RUNTIME_ERROR
+                job.error = StartRunErrorType.RUNTIME_ERROR
                 self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
             finally:
                 job.terminated.set()
                 self.queue.task_done()
 
-    async def do_interp_on_change(self, mutations: list[ModuleMutation]):
+    async def interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("module.interp", mutations=len(mutations))
         new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
         self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
-    async def write_module(self, mutations: list[ModuleMutation]) -> bool:
-        # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-        is_semantic = any(m.type.semantic for m in mutations)
-        self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
-
-        # interp
-        if is_semantic:
-            new_source = ModuleMutator(self.module, mutations).to_module()
-            self.source = new_source
-            self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
-
-        req = ReqWriteModulePayload(
-            module_id=self.module_id,
-            mutations=mutations,
-            client=self.node.client,
-            wait=False,
-        )
-        rep: NMessage[RepWriteModulePayload] = await request(
-            NMessageType.WRITE_MODULE, req, RepWriteModulePayload
-        )
-        return rep.p.success
-
-    async def write_session(
-        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
-    ) -> bool:
-        from bench.msg import NMessage
-        from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepWriteSessionPayload, ReqWriteSessionPayload
-
-        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
-
-        session_data = wire.pack_data(session)
-        runs_data = [wire.pack_data(run) for run in runs]
-        logs_data = [wire.pack_data(log) for log in logs]
-
-        req = ReqWriteSessionPayload(
-            module_id=self.module_id,
-            session=session_data,
-            runs=runs_data,
-            logs=logs_data,
-            client=self.node.client,
-        )
-        rep: NMessage[RepWriteSessionPayload] = await request(
-            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload
-        )
-        return rep.p.success
-
-    def queue_run(
-        self,
-        *,
-        runnable: str | UUID,
-        arguments: dict[str, Any],
-        keyed: bool,
-        run_id: Optional[UUID],
-        session_id: Optional[UUID],
-        trigger_type: TriggerType,
-        trigger_id: Optional[UUID],
-    ) -> RunJob | RunErrorType:
+    def start_run(self, run_data: RunData, keyed: bool) -> RunJob | StartRunErrorType:
+        self.log.exception("worker.start_run", run_data=run_data, keyed=keyed)
         # nocheckin: simplify run and respect scheduled_at
         if not self.interpreted:
-            return RunErrorType.NOT_READY
+            return StartRunErrorType.NOT_READY
 
         # get the runnable
         runnable = self.module.lookup(runnable)
         if runnable is None:
-            return RunErrorType.INVALID_RUNCONFIG
+            return StartRunErrorType.INVALID_RUNCONFIG
 
         first_run_id = run_id or UUIDT()
         # instantiate
@@ -419,19 +353,11 @@ class ModuleWorkerNode(ModuleWriter):
                 trigger_id=trigger_id,
                 first_run_id=first_run_id,
             )
-            session = Session(
-                id=session_id or UUIDT(),
-                module=self.module,
-                ctx=session_ctx,
-                mode=SessionMode.WRITE,
-                writer=self,
-                executor=self.executor,
-            )
         except Exception as e:
-            self.log.exception("module.run.instantiate.failed", exc_info=e)
-            return RunErrorType.INVALID_RUNCONFIG
+            self.log.exception("worker.start_run.failed", exc_info=e)
+            return StartRunErrorType.INVALID_RUNCONFIG
 
-        if keyed:  # unkey
+        if keyed:
             arguments = map_value(
                 arguments,
                 runnable,
@@ -440,11 +366,16 @@ class ModuleWorkerNode(ModuleWriter):
                 is_output=False,
             )
         job = RunJob(id=first_run_id, session=session, runnable=runnable, arguments=arguments)
-        self.queue.put_nowait((job.priority, job))
-        session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
+        if run_data.scheduled_at:
+            pass  # nocheckin queue at scheduled_at
+        else:
+            # immediately add to queue
+            self.queue.put_nowait((job.priority, job))
+            session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
         return job
 
-    async def do_run(self, job: RunJob, timeout: float) -> Optional[RunErrorType]:
+    async def _do_run(self, job: RunJob, timeout: float) -> Optional[StartRunErrorType]:
+        """Actually runs the job, and updates the job with the result"""
         try:
             self.log.info(
                 "module.run",
@@ -469,10 +400,10 @@ class ModuleWorkerNode(ModuleWriter):
             return None
         except RunError as e:
             self.log.exception("module.run.failed", exc_info=e)
-            return RunErrorType.RUNTIME_ERROR
+            return StartRunErrorType.RUNTIME_ERROR
         except Exception as e:
             self.log.exception("module.run.failed", exc_info=e, sentry=sentry_capture_if_enabled(e))
-            return RunErrorType.INTERNAL_ERROR
+            return StartRunErrorType.INTERNAL_ERROR
         finally:
             job.session.module.deactivate()
             if job.id in self.pending_runs:
@@ -499,3 +430,46 @@ class ModuleWorkerNode(ModuleWriter):
             # send keybord interrupt to self (this causes all sorts of unintended cancels)
             # os.kill(os.getpid(), signal.SIGINT)
         return True
+
+    async def write_module(self, mutations: list[ModuleMutation]) -> bool:
+        # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
+        is_semantic = any(m.type.semantic for m in mutations)
+        self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
+
+        # interp
+        if is_semantic:
+            new_source = ModuleMutator(self.module, mutations).to_module()
+            self.source = new_source
+            self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
+
+        req = ReqWriteModulePayload(
+            module_id=self.module_id,
+            mutations=mutations,
+            client=self.node.client,
+            wait=False,
+        )
+        rep: NMessage[RepWriteModulePayload] = await request(
+            NMessageType.WRITE_MODULE, req, RepWriteModulePayload
+        )
+        return rep.p.success
+
+    async def write_session(
+        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
+    ) -> bool:
+        self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
+
+        session_data = wire.pack_data(session)
+        runs_data = [wire.pack_data(run) for run in runs]
+        logs_data = [wire.pack_data(log) for log in logs]
+
+        req = ReqWriteSessionPayload(
+            module_id=self.module_id,
+            session=session_data,
+            runs=runs_data,
+            logs=logs_data,
+            client=self.node.client,
+        )
+        rep: NMessage[RepWriteSessionPayload] = await request(
+            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload
+        )
+        return rep.p.success
