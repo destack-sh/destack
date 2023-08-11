@@ -3,7 +3,6 @@ from datetime import datetime, timedelta
 from typing import Collection
 from uuid import UUID
 
-import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
@@ -30,6 +29,7 @@ from bench.opensearch.index import write_runs_to_os
 from bench.server import k8
 from bench.settings import KUBERNETES_ENABLED
 from bench.utils.cache import redis
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture_if_enabled
@@ -175,7 +175,7 @@ class OrchestrationServer(Monitored):
         )
         if not dead_runs:
             return
-        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now = utcnow_with_tz()
         for run in dead_runs:
             run.terminated_at = now
             run.status = RunStatus.Aborted
@@ -197,7 +197,7 @@ class OrchestrationServer(Monitored):
                 worker_set.target_replicas = partial_worker_set.target_replicas
                 worker_set.status = partial_worker_set.status
                 if not worker_set.sleeping:
-                    worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+                    worker_set.last_bumped_at = utcnow_with_tz()
             elif isinstance(object, k8.Pod):
                 if event_type == k8.EventType.ADDED:
                     worker_set.active_replicas_ids.append(object.name)
@@ -260,9 +260,7 @@ class OrchestrationServer(Monitored):
         """Marks worker sets as sleeping if they are idle for too long WITHOUT writing to DB."""
         logger.debug("worker_sets.mark_tired")
         tired_worker_sets = []
-        idle_cutoff = datetime.utcnow().replace(tzinfo=pytz.utc) - timedelta(
-            seconds=WORKER_SET_IDLE_SLEEP_TIME
-        )
+        idle_cutoff = utcnow_with_tz() - timedelta(seconds=WORKER_SET_IDLE_SLEEP_TIME)
         for worker_set in self.worker_sets:
             # put to sleep if idle for too long
             if (
@@ -298,7 +296,7 @@ class OrchestrationServer(Monitored):
             worker_set.desired_replicas = msg.p.desired_replicas
             worker_set.profile = msg.p.profile
             worker_set.region = msg.p.region
-            worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            worker_set.last_bumped_at = utcnow_with_tz()
             await self._save_and_notify_worker_sets([worker_set])
             await self._deploy_worker_sets([worker_set])
             success = True
@@ -319,7 +317,7 @@ class OrchestrationServer(Monitored):
                 worker_set.sleeping = False
                 worker_set.target_replicas = worker_set.desired_replicas
                 worker_set.status = WorkerSetStatus.PENDING
-            worker_set.last_bumped_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+            worker_set.last_bumped_at = utcnow_with_tz()
             await self._save_and_notify_worker_sets([worker_set])
             if was_sleeping:
                 await self._deploy_worker_sets([worker_set])

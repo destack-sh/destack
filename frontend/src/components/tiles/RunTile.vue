@@ -92,9 +92,8 @@ defineExpose({
         :layout="activeView == 'tracebars' ? 'bars' : 'list'"
         live
       />
-      <!-- nocheckin: fix logs tile if run is not yet started (session id is none so we'll get all logs...) -->
       <LogsTile
-        v-else-if="activeView == 'logs'"
+        v-else-if="activeView == 'logs' && run.session?.id != null"
         ref="logsTileRef"
         class="max-h-[300px] overflow-auto"
         :containerHeight="300"

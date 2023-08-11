@@ -14,12 +14,12 @@ from logging import Logger
 from typing import Callable, NamedTuple, Optional, Union
 from uuid import UUID, uuid4
 
-import pytz
 import structlog
 from asgiref.sync import async_to_sync, sync_to_async
 
 from bench.language.const import StatementType, TriggerType
 from bench.language.issue import BenchError, Issue, IssueHandler, IssueKind, IssueType
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
@@ -1008,7 +1008,7 @@ class Session:
         """Opens the session for execution and modification."""
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
-        self.opened_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.opened_at = utcnow_with_tz()
         if active_session.get() is not None:
             raise RuntimeError(f"another session is active: {active_session.get()}")
         active_session.set(self)
@@ -1052,7 +1052,7 @@ class Session:
         """Closes the session, flushing any mutations and preventing further execution/mutation."""
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
-        self.closed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.closed_at = utcnow_with_tz()
         await self.aflush(optimistic=True)
         # await all pending flushes
         pending_mutations_count = sum(count for count, _ in self._pending_flushes)

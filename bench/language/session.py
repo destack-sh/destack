@@ -95,8 +95,8 @@ class Run:
     session: Optional[Session]
     root: Optional["Run"]
     parent: Optional["Run"]
-    scheduled_at: datetime
-    started_at: datetime
+    scheduled_at: Optional[datetime]
+    started_at: Optional[datetime]
     terminated_at: Optional[datetime]
     trigger_type: Optional[TriggerType]
     trigger: Union["Trigger", UUID]

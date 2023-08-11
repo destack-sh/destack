@@ -1,8 +1,6 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
-import pytz
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from strawberry import UNSET, lazy
@@ -29,6 +27,7 @@ from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
 from bench.opensearch.query import prepare_search
 from bench.utils.cache import redis_sync
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.file import File
@@ -360,7 +359,7 @@ class ProjectVersionMutation:
             name=input.name,
             tag=input.tag,
             description=input.description,
-            committed_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+            committed_at=utcnow_with_tz(),
         )
         snapshot.parents.set(head.parents.all())
         head.parents.set([snapshot])
@@ -415,7 +414,7 @@ class ProjectVersionMutation:
                 name="Autosave",
                 tag=None,
                 description="Autosave before restoring version",
-                committed_at=datetime.utcnow().replace(tzinfo=pytz.utc),
+                committed_at=utcnow_with_tz(),
             )
             snapshot.parents.set(old_head.parents.all())
             models.ProjectVersion.objects.copy(

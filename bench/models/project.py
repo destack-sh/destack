@@ -6,7 +6,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional, TypedDict, Union
 from uuid import UUID, uuid4
 
-import pytz
 import structlog
 from django.core.validators import validate_slug
 from django.db import models, transaction
@@ -527,7 +526,7 @@ class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
     ):
         if self.committed:
             raise ValueError(f"already committed: {self}")
-        self.committed_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.committed_at = utcnow_with_tz()
         if name is not None:
             self.name = name
         if tag is not None:
@@ -767,7 +766,7 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
         return self.statements.filter(parent=None)
 
     def soft_delete(self):
-        self.deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        self.deleted_at = utcnow_with_tz()
         self.statements.filter(deleted_at=None).update(deleted_at=self.deleted_at)
 
     def restore(self):

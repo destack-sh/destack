@@ -9,7 +9,6 @@ from logging import Logger
 from typing import Any, Self
 
 import msgpack
-import pytz
 import structlog
 
 from bench.language.cache import CacheAsync
@@ -19,6 +18,7 @@ from bench.language.flow import IsFlowable
 from bench.language.tag import HasTags
 from bench.language.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
 from bench.language.utils import Runnable, get_run_cache_subkey
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
@@ -165,10 +165,10 @@ class Model(HasType, HasTags, IsFlowable, Runnable, Statement):
         Runs inference on the given endpoint without timeout.
         This should be asyncio.shield-ed to ensure we write the result to cache (if enabled).
         """
-        started_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        started_at = utcnow_with_tz()
         log.debug("inference.enter")
         output = await self._endpoint_resolved(**inputs)
-        now = datetime.utcnow().replace(tzinfo=pytz.utc)
+        now = utcnow_with_tz()
         duration = (now - started_at).total_seconds()
         if cache and self.should_cache:
             # result is assumed to be JSON serializable, will obviously error here if not

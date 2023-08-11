@@ -1,8 +1,6 @@
-from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional
 from uuid import UUID
 
-import pytz
 import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import F
@@ -21,6 +19,7 @@ from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
 from bench.models import RefMappingKind
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.dataset import Dataset
@@ -359,7 +358,7 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         statement_ids = [UUID(i.node_id) for i in input.ids]
         # imitate Statement.soft_delete but for a batch
-        deleted_at = datetime.utcnow().replace(tzinfo=pytz.utc)
+        deleted_at = utcnow_with_tz()
         models.Statement.objects.filter(id__in=statement_ids).update(deleted_at=deleted_at)
         models.Statement.objects.get_descendants(statement_ids, deleted_at=None).update(
             deleted_at=deleted_at

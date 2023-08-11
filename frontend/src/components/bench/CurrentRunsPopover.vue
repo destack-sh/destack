@@ -50,10 +50,10 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
               <component
                 :is="getRunStatusIconSolid(run.status)"
                 class="h-4 w-4"
-                :class="[run.status == RunStatus.Running || run.status == RunStatus.Queued ? 'animate-spin' : '']"
+                :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
               />
               <span class="ml-1.5" :class="[getRunStatusColor(run.status)]">
-                {{ run.status == RunStatus.Queued ? "..." : sessions.getDurationFormatted(run) }}
+                {{ run.startedAt == null ? "..." : sessions.getDurationFormatted(run) }}
               </span>
               <span
                 class="ml-1 text-gray-900 decoration-gray-700 underline-offset-4"

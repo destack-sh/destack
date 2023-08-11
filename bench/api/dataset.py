@@ -2,7 +2,6 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-import pytz
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django_plus import gql
@@ -21,6 +20,7 @@ from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
 from bench.opensearch.query import encode_cursor, prepare_search
+from bench.utils.dt import utcnow_with_tz
 
 
 @gql.django.type(models.Dataset)
@@ -128,8 +128,7 @@ def _prep_write_dataset(
         id=input.statement_id.node_id
     )
     project_v = check_can_write_thing(info, statement)
-    now = datetime.utcnow().replace(tzinfo=pytz.utc)
-    return now, project_v, statement
+    return utcnow_with_tz(), project_v, statement
 
 
 @gql.type
