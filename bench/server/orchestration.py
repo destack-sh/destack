@@ -350,7 +350,10 @@ class OrchestrationServer(Monitored):
                 rep: NMessage[RepDoRestartWorkerNodePayload] = await request(
                     NMessageType.DO_RESTART_WORKER_NODE,
                     ReqDoRestartWorkerNodePayload(
-                        project_id=msg.p.project_id, worker_set_id=worker_set.id
+                        project_id=msg.p.project_id,
+                        worker_set_id=worker_set.id,
+                        worker_node_id=None,
+                        worker_process_id=None,
                     ),
                     reply_t=RepDoRestartWorkerNodePayload,
                     timeout=WORKER_SET_GENTLE_RESTART_TIMEOUT,

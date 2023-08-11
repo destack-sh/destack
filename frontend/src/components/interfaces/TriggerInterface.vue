@@ -95,9 +95,12 @@ function update(properties: Partial<Trigger>) {
   <div ref="containerRef" class="relative">
     <!-- Type & active -->
     <div class="flex flex-row items-center justify-between">
-      <span class="inline-flex flex-row items-center">
-        <component :is="TRIGGER_ICONS_SOLID[props.modelValue.type]" class="mr-1 h-4 w-4 text-orange-900" />
-        <span class="font-bold text-orange-900">{{ toCamelCase(props.modelValue.type) }} trigger</span>
+      <span
+        class="inline-flex flex-row items-center"
+        :class="[props.modelValue.active ? 'text-orange-900' : 'text-gray-700']"
+      >
+        <component :is="TRIGGER_ICONS_SOLID[props.modelValue.type]" class="mr-1 h-4 w-4" />
+        <span class="font-bold">{{ toCamelCase(props.modelValue.type) }} trigger</span>
         <span v-if="!props.modelValue.active" class="ml-1 text-gray-400">(inactive)</span>
       </span>
       <div class="flex flex-row items-center gap-1.5">
@@ -220,7 +223,12 @@ function update(properties: Partial<Trigger>) {
             <!-- Time (with UTC) -->
             <!-- Other timezones (if different) -->
             <span class="flex flex-col gap-0.5">
-              <span :class="[i == 0 ? 'text-orange-600' : 'text-gray-900']">
+              <span
+                :class="[
+                  i == 0 ? 'text-orange-600' : 'text-gray-900',
+                  i == 0 && props.modelValue.active ? 'font-semibold' : '',
+                ]"
+              >
                 {{ occurrence.setZone(timezone).toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
               </span>
               <!-- Other timezones (if different) -->

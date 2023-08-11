@@ -10,6 +10,7 @@ import { newTriggerId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
 import { computed, ref, type Ref } from "vue";
 
@@ -87,11 +88,14 @@ const actions = computed(() => [
     <button
       v-for="(trigger, i) in context.triggers.value"
       :key="trigger.id"
-      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 text-orange-900 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
-      :class="[trigger.active ? 'ring-solid' : 'ring-']"
+      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
+      :class="[trigger.active ? 'text-orange-900' : 'text-gray-600']"
       @click="editTrigger(trigger)"
     >
-      <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="mr-1 h-4 w-4" />
+      <span class="mr-1 inline-flex flex-row">
+        <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="h-4 w-4" />
+        <PauseIcon v-if="!trigger.active" class="h-4 w-4" />
+      </span>
       <span class="max-w-[120px] truncate whitespace-nowrap text-sm">
         {{ triggerSchedules[i]?.humanized ?? "???" }}
       </span>
@@ -109,7 +113,10 @@ const actions = computed(() => [
             v-for="(occurrence, offset) in [triggerSchedules[i].lastOccurrence, ...triggerSchedules[i].nextOccurrences]"
             :key="offset"
             class="flex flex-row justify-between gap-2.5"
-            :class="[offset == 1 ? 'text-orange-600' : 'text-gray-400']"
+            :class="[
+              offset == 1 ? 'text-orange-600' : 'text-gray-400',
+              offset == 1 && trigger.active ? 'font-semibold' : '',
+            ]"
           >
             <span>{{ offset == 0 ? "last" : "next" }}</span>
             <span>

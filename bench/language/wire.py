@@ -485,8 +485,9 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
-# TODO @Cleanup @Architecture: auto-generated wire format and module data packers
+# TODO! @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
 #  I have a strong hunch that this is possible, and it seems like a good idea. Less code.
+#  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 
 
 @node_packer(MOT.MODULE, ModuleData, lang.Module)
@@ -1630,6 +1631,7 @@ class RunErrorData:
 class RunData:
     id: UUID
     worker_node_id: Optional[str]
+    worker_process_id: Optional[str]
     project_id: UUID
     module_id: UUID
     runnable_id: UUID
@@ -1669,6 +1671,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             project_id=object.session.ctx.project_id,
             module_id=object.session.module.id,
             worker_node_id=object.session.ctx.worker_node_id,
+            worker_process_id=object.session.ctx.worker_process_id,
             runnable_id=object.runnable.id,
             runnable_type=object.runnable.type,
             session_id=object.session.id,

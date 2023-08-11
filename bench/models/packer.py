@@ -1026,7 +1026,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,
             runnable_type=data.runnable_type.value,
-            created_at=data.started_at,  # not sure what to pass since it's not in DB, not frame
+            created_at=data.created_at,
             updated_at=datetime.utcnow().replace(tzinfo=pytz.utc),
             scheduled_at=data.scheduled_at,
             started_at=data.started_at,

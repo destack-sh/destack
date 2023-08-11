@@ -91,6 +91,7 @@ class WorkerHost:
             RepDoRestartWorkerNodePayload(
                 worker_set_id=self.worker_set_id,
                 worker_node_id=self.worker_node_id,
+                worker_process_id=str(self.worker_process.pid),
                 success=True,
             )
         )
@@ -105,4 +106,4 @@ class WorkerHost:
 
     async def stop(self):
         self.stop_sync()
-        await asyncio.gather(sub.unsubscribe() for sub in self.subs)
+        await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])

@@ -1506,7 +1506,8 @@ input RestoreInput {
 type Run implements Node {
   id: GlobalID!
   projectVersion: ProjectVersion!
-  session: Session!
+  session: Session
+  triggerType: TriggerType
   root: Run
   parent: Run
   children: [Run!]!
@@ -1665,7 +1666,7 @@ type Session implements Node {
   closedAt: DateTime
   metadata: JSON
   runs: [Run!]!
-  triggerType: TriggerType!
+  triggerType: TriggerType
   user: User
   accessToken: AccessToken
 }

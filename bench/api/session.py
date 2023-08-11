@@ -56,9 +56,9 @@ from bench.msg.messages import (
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
     ReqWakeWorkerSetPayload,
-    RunErrorType,
     RunsChangedGlobalPayload,
     SessionChangedPayload,
+    StartRunErrorType,
     WorkersChangedPayload,
 )
 from bench.opensearch import mirror
@@ -162,7 +162,7 @@ class Session(gql.Node):
     metadata: Optional[JSON]
     runs: list["Run"]
     # trigger
-    trigger_type: TriggerType
+    trigger_type: Optional[TriggerType]
     user: Optional[Annotated["User", lazy(".user")]]
     access_token: Optional[Annotated["AccessToken", lazy(".token")]]
 
@@ -170,7 +170,8 @@ class Session(gql.Node):
 @gql.django.type(models.Run)
 class Run(gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
-    session: Session
+    session: Optional[Session]
+    trigger_type: Optional[TriggerType]
     root: Optional["Run"]
     parent: Optional["Run"]
     children: list["Run"]
@@ -316,7 +317,7 @@ class RunInput:
     timeout_seconds: Optional[int] = None
 
 
-ModuleRunErrorType = gql.enum(RunErrorType)
+ModuleRunErrorType = gql.enum(StartRunErrorType)
 
 
 @gql.type

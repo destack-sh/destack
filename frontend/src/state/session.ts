@@ -92,6 +92,7 @@ export const RunContentType = graphql(/* GraphQL */ `
       tag
       name
     }
+    triggerType
     session {
       id
     }
