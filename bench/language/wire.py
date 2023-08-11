@@ -45,8 +45,11 @@ from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
 #
-# Stable, concise and flat language data nodes for transit and storage.
+# Stable, concise and flat data nodes for transit and storage.
 # TODO @Performance @Robustness: use an optimized and evolvable :WireFormat
+# TODO! @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
+#  We can probably do this and implement protobuf or such at the same time.
+#  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 #
 
 
@@ -483,11 +486,6 @@ class ModuleTreeData(ModuleData):
         # restore cls from namespace?
         nodes = [from_dict(_DATA_CLASS_BY_NAME[node.pop("cls")], node) for node in data["nodes"]]
         return {"nodes": nodes}
-
-
-# TODO! @Cleanup @Architecture: auto-generate wire format and module data packers (most of it)
-#  I have a strong hunch that this is possible, and it seems like a good idea. Less code.
-#  Maybe we can also auto-generate some of the model packers, though that mapping is less 1:1.
 
 
 @node_packer(MOT.MODULE, ModuleData, lang.Module)

@@ -2,10 +2,10 @@
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
-import { formatDuration, useTimeFromNow } from "@/composables/useNow";
+import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
 import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
-import { RUN_ACTIVE_STATES, RUN_TERMINAL_STATES, useCurrentSessions } from "@/state/session";
+import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
@@ -78,7 +78,7 @@ const isCurrentRunActive = computed(
   () =>
     preparingRun.value ||
     (currentRun.value != null &&
-      RUN_ACTIVE_STATES.includes(currentRun.value?.status) &&
+      ACTIVE_RUN_STATUSES.includes(currentRun.value?.status) &&
       currentRun.value?.status != RunStatus.Aborting)
 );
 

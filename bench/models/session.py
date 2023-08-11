@@ -39,7 +39,6 @@ class Session(UUIDTModel, HasTriggeredBy):
 
 
 class Run(UUIDTModel, HasTriggeredBy):
-    # TODO @Cleanup: Run.project should be non null (was added later)
     project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
     worker_node_id = models.CharField(max_length=64, null=True, blank=True)

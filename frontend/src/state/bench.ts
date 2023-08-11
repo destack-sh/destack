@@ -1031,7 +1031,7 @@ export class LaunchEditor extends Editor {
   type = "launch" as const;
   statementId: string;
   statementType?: StatementType.Task | StatementType.Code;
-  arguments: Record<string, any> = {};
+  inputs: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
   lastRunTerminatedAt?: string;
   lastRunId?: string;
@@ -1075,7 +1075,7 @@ export class LaunchEditor extends Editor {
   }
 
   clear() {
-    this.arguments = {};
+    this.inputs = {};
   }
 }
 

@@ -3,6 +3,8 @@ import typing
 from typing import Optional
 from uuid import UUID
 
+import structlog
+
 from bench import models
 from bench.models import packer
 from bench.msg import NMessage
@@ -13,7 +15,8 @@ from bench.msg.messages import (
     ReqWakeWorkerSetPayload,
     WorkersChangedPayload,
 )
-from bench.server.runtime import logger
+
+logger = structlog.get_logger(__name__)
 
 
 class WorkerSetObserver:

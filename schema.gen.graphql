@@ -1564,21 +1564,12 @@ type RunError {
   traceback: [RunCodeFrame!]
 }
 
-enum RunErrorType {
-  UNAVAILABLE
-  INTERNAL_ERROR
-  NOT_READY
-  INVALID_RUNCONFIG
-  TIMEOUT
-  RUNTIME_ERROR
-}
-
 input RunInput {
   projectVersionId: GlobalID!
   runnableId: GlobalID = null
   runId: GlobalID = null
   sessionId: GlobalID = null
-  arguments: JSON = null
+  inputs: JSON = null
   block: Float! = 1
   keyed: Boolean! = false
   timeoutSeconds: Int = null
@@ -1588,7 +1579,7 @@ type RunState {
   projectVersionId: GlobalID!
   runnableId: GlobalID
   success: Boolean!
-  error: RunErrorType
+  error: StartRunErrorType
   run: Run
   logs: [LogEntry!]
 }
@@ -1601,6 +1592,7 @@ enum RunStatus {
   Running
   Suspended
   Aborting
+  Cancelled
   Aborted
   Failed
   Completed
@@ -1672,7 +1664,7 @@ type Session implements Node {
 }
 
 type SessionChange {
-  session: Session!
+  session: Session
   runs: [Run!]!
 }
 
@@ -1696,6 +1688,14 @@ enum SortMode {
 enum SortOrder {
   ASCENDING
   DESCENDING
+}
+
+enum StartRunErrorType {
+  UNAVAILABLE
+  INVALID_RUN
+  INTERNAL_ERROR
+  TIMEOUT
+  RUNTIME_ERROR
 }
 
 type Statement implements CrudModel & ModuleNode & Node {

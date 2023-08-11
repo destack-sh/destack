@@ -83,7 +83,7 @@ export function useSessionOps() {
         $runnableId: GlobalID
         $runId: GlobalID
         $sessionId: GlobalID
-        $arguments: JSON
+        $inputs: JSON
         $keyed: Boolean
         $block: Float
         $timeoutSeconds: Int
@@ -94,7 +94,7 @@ export function useSessionOps() {
             runnableId: $runnableId
             runId: $runId
             sessionId: $sessionId
-            arguments: $arguments
+            inputs: $inputs
             keyed: $keyed
             block: $block
             timeoutSeconds: $timeoutSeconds
@@ -121,7 +121,7 @@ export function useSessionOps() {
     runnableId: string,
     runId?: string,
     sessionId?: string,
-    arguments_?: Record<string, any>,
+    inputs?: Record<string, any>,
     options?: { block?: number; keyed?: boolean; timeoutSeconds?: number }
   ) {
     return await ops.perform({
@@ -134,7 +134,7 @@ export function useSessionOps() {
           runnableId,
           runId,
           sessionId,
-          arguments: arguments_,
+          inputs: inputs,
           keyed: options?.keyed,
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,

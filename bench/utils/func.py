@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from asyncio import CancelledError
 from collections import OrderedDict
 from typing import (
@@ -87,6 +88,28 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
             "task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture_if_enabled(e)
         )
         raise
+
+
+async def wait_then(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:
+    """
+    Wait for a delay, then call the given coroutine or function with the given arguments.
+    """
+    await asyncio.sleep(delay)
+    if asyncio.iscoroutine(coro_or_func):
+        await coro_or_func(*args, **kwargs)
+    else:
+        coro_or_func(*args, **kwargs)
+
+
+def call_later(delay: float, coro_or_func: Coroutine | callable, *args, **kwargs) -> None:
+    """
+    Call the given coroutine or function with the given arguments after a delay.
+    """
+    loop = asyncio.get_event_loop()
+    if asyncio.iscoroutine(coro_or_func):
+        loop.call_later(delay, asyncio.create_task, coro_or_func(*args, **kwargs))
+    else:
+        loop.call_later(delay, coro_or_func, *args, **kwargs)
 
 
 def describe_type(obj: Any) -> str:

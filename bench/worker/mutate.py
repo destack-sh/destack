@@ -20,13 +20,21 @@ MutableThing = Union[
     mirror.Record,
 ]
 
-_SCOPE_TO_TYPE_NAME = {
+_MOT_TO_TYPE_NAME = {
+    MOT.MODULE: "Module",
     MOT.FILE: "File",
     MOT.STATEMENT: "Statement",
     MOT.FIELD: "Field",
+    MOT.RESOLVED_FIELD: "ResolvedField",
     MOT.RECORD: "Record",
     MOT.TAGGING: "Tagging",
+    MOT.TRIGGER: "Trigger",
+    MOT.DATASET_VIEW: "DatasetView",
+    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
+    MOT.COMMENT: "Comment",
+    MOT.ISSUE: "Issue",
 }
+assert len(_MOT_TO_TYPE_NAME) == len(MOT), f"mismatch: {len(_MOT_TO_TYPE_NAME)} != {len(MOT)}"
 
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
@@ -233,6 +241,6 @@ def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
         else:
             type_name = "File"
     else:
-        type_name = _SCOPE_TO_TYPE_NAME[mutation.type.mot]
+        type_name = _MOT_TO_TYPE_NAME[mutation.type.mot]
     value = GlobalID(type_name, str(value))
     return value

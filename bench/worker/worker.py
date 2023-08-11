@@ -3,17 +3,24 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import Optional, Union
 from uuid import UUID
 
+import pytz
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import LogEntry, wire
-from bench.language.code_ import run
-from bench.language.core import Module, ModuleReference, ModuleWriter, Session, SessionContext
+from bench.language import LogEntry, Runnable, wire
+from bench.language.core import (
+    Module,
+    ModuleReference,
+    ModuleWriter,
+    Session,
+    SessionContext,
+    SessionMode,
+)
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import Run, RunError
+from bench.language.session import Run, RunError, RunErrorKind, RunStatus
 from bench.language.type import instantiate_py_value_flat, map_value
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
@@ -38,7 +45,7 @@ from bench.msg.messages import (
     StartRunErrorType,
 )
 from bench.utils.cache import redis
-from bench.utils.func import describe_type, wrap_task
+from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import get_from_env, sentry_capture_if_enabled
@@ -48,6 +55,7 @@ from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
 WORKER_ACTIVE_PUBLISH_INTERVAL = 10
+WORKER_SCHEDULE_BLOCK_AHEAD = 0.5
 
 logger = structlog.get_logger(__name__)
 
@@ -56,6 +64,8 @@ class WorkerNode(Monitored):
     """
     A user worker to run user code, generally one worker process per project (Bench).
     For local development a node can host multiple Benches.
+    TODO @Architecture: merge WorkerNode/WorkerHost,  processes should be 1:1 with ModuleWorkerProcess
+     (see :BE-213)
     """
 
     def __init__(self, worker_node_id: str, worker_set_id: UUID | None, project_id: UUID):
@@ -126,7 +136,7 @@ class WorkerNode(Monitored):
         if module_id not in self.workers:
             # start module worker if not already started
             # nocheckin: module_id could be a project_id, which means self.workers key is wrong
-            worker = ModuleWorkerProcess(module_id, self, timeout=WORKER_RUN_TIMEOUT)
+            worker = ModuleWorkerProcess(module_id=module_id, node=self, process_id=None)
             self.workers[module_id] = worker
             asyncio.create_task(wrap_task(worker.run(), "worker_run_" + str(module_id)))
         return self.workers[module_id]
@@ -167,30 +177,72 @@ class WorkerNode(Monitored):
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
-        logger.debug("run.start", msg=msg)
+        logger.debug("run.start", msg=msg, block=msg.p.block)
         worker = await self._prepare_worker(msg.p.module_id)
-        run_job = worker.start_run(
-            runnable=msg.p.runnable,
-            arguments=msg.p.arguments,
-            run_id=msg.p.run_id,
-            session_id=msg.p.session_id,
-            trigger_type=msg.p.trigger_type,
-            trigger_id=msg.p.trigger_id,
-            keyed=msg.p.keyed,
+        run_id = msg.p.run_id or UUIDT()
+
+        try:
+            # get runnable
+            runnable = worker.module.lookup(msg.p.runnable)
+            if runnable is None:
+                pass
+
+            # key inputs if needed
+            if not msg.p.keyed:
+                inputs = map_value(msg.p.inputs, runnable, map_k=lambda f: (f.key, f.py_ident))
+            else:
+                inputs = msg.p.inputs
+
+            # create run data
+            now = datetime.utcnow().replace(tzinfo=pytz.UTC)
+            status = RunStatus.Queued if msg.p.scheduled_at is None else RunStatus.Scheduled
+            # only create session id if not scheduled
+            run_data = RunData(
+                id=run_id,
+                project_id=self.project_id,
+                module_id=msg.p.module_id,
+                worker_node_id=self.worker_node_id,
+                worker_process_id=None,
+                runnable_id=runnable.id,
+                runnable_type=runnable.type,
+                session_id=None,
+                trigger_type=msg.p.trigger_type,
+                trigger_id=msg.p.trigger_id,
+                root_id=None,
+                parent_id=None,
+                created_at=now,
+                updated_at=now,
+                scheduled_at=msg.p.scheduled_at,
+                started_at=None,
+                terminated_at=None,
+                status=status,
+                inputs=inputs,
+                outputs=None,
+                error=None,
+                metadata=None,
+            )
+
+            # store session id separately from run because we write the run data directly
+            #  (and the session doesn't actually exist until the run starts)
+            session_id = msg.p.session_id or (UUIDT() if not msg.p.scheduled_at else None)
+            run_job = worker.add_run(run_data, session_id)
+            error = None
+        except RunStartError as e:
+            logger.error("run.start.error", msg=msg, error=e)
+            await msg.reply(RepStartRunPayload(error=e.type))
+            return
+
+        if msg.p.block is not None:
+            try:
+                await run_job.started.wait()
+                await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
+            except asyncio.TimeoutError:
+                pass  # ignore
+        logs = [wire.pack_data(log) for log in run_job.last_logs] if run_job.last_logs else None
+        rep = RepStartRunPayload(
+            error=error, run=run_job.run_data if run_job else None, run_id=run_id, logs=logs
         )
-        if isinstance(run_job, StartRunErrorType):  # couldn't queue run
-            await msg.reply(RepStartRunPayload(error=run_job))
-        else:
-            if msg.p.block is not None:
-                try:
-                    await run_job.started.wait()
-                    await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
-                except asyncio.TimeoutError:
-                    run_job.run = run_job.session.tracer.run.runs[run_job.id]
-            run = wire.pack_data(run_job.run) if run_job.run else None
-            logs = [wire.pack_data(log) for log in run_job.logs] if run_job.logs else None
-            rep = RepStartRunPayload(error=run_job.error, run=run, run_id=run_job.id, logs=logs)
-            await msg.reply(rep)
+        await msg.reply(rep)
 
     @message_handler
     async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
@@ -215,7 +267,7 @@ class WorkerNode(Monitored):
             log.debug("module.fetch", cached=True)
             return cached
         module_rep = await request(
-            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload
+            NMessageType.READ_MODULE, ReqReadModulePayload(ref), RepReadModulePayload, retry=3
         )
         if module_rep.p.module.committed:
             self.cached_committed_modules[ref] = module_rep.p.module, module_rep.p.project_id
@@ -235,8 +287,10 @@ class WorkerNode(Monitored):
 @dataclass(repr=False, slots=True)
 class RunJob:
     run_data: RunData
+    session_id: UUID
     run: Optional[Run] = None
     task: asyncio.Task | None = None
+    last_logs: list[LogEntry] | None = None
     started: asyncio.Event = field(default_factory=asyncio.Event)
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
 
@@ -247,40 +301,43 @@ class RunJob:
         return f"<RunJob {self}>"
 
 
+class RunStartError(Exception):
+    def __init__(self, type: StartRunErrorType):
+        self.type = type
+
+
 class ModuleWorkerProcess(ModuleWriter):
     """
     A user worker that helps run a specific module.
     Generally, a worker process is intended to process one run at a time (for now).
     """
 
-    def __init__(self, module_id: UUID, node: "WorkerNode", timeout: float):
+    def __init__(self, module_id: UUID, node: "WorkerNode", process_id: Optional[str]):
         self.node = node
         self.module_id = module_id
         self.project_id: Optional[UUID] = None  # set in init (requires runtime fetch)
-        self.timeout = timeout
         self.ready = asyncio.Event()
 
         self.source: wire.ModuleTreeData | None = None
         self.module: Module | None = None
         self.queue: asyncio.Queue[tuple[int, RunJob]] = asyncio.PriorityQueue()
-        self.pending_runs: dict[UUID, RunJob] = {}
-        self.last_run: Optional[RunJob] = None
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
             worker_set=self.node.worker_set_id,
             worker_node=self.node.worker_node_id,
+            worker_process=process_id,
             module_id=self.module_id,
         )
 
-    @property
-    def interpreted(self) -> bool:
-        return self.module is not None
+        self.active_runs: dict[UUID, RunJob] = {}
+        self.last_run_job: Optional[RunJob] = None
+        self._dirty_runs: dict[UUID, wire.RunData] = {}
 
     @property
     def active(self) -> bool:
         last_run_recent = (
-            self.last_run is not None
-            and self.last_run.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
+            self.last_run_job is not None
+            and self.last_run_job.run_data.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
         )
         return last_run_recent or not self.queue.empty()
 
@@ -288,13 +345,15 @@ class ModuleWorkerProcess(ModuleWriter):
         """Runs the module worker main processing loop"""
 
         # first interp
-        self.log.info("module.start")
+        self.log.info("worker.start")
         self.source, self.project_id = await self.node.get_module(self.module_id)
         try:
             self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
         except Exception as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
+
+        self.node.tasks.start(self._flush_dirty_runs_forever(interval=0.1))
 
         self.ready.set()
 
@@ -304,132 +363,162 @@ class ModuleWorkerProcess(ModuleWriter):
     async def _process_runs_forever(self):
         while True:
             _, job = await self.queue.get()
-            if job.cancelled:
+            if job.run_data.status != RunStatus.Queued:
                 continue
 
             try:
-                self.log.debug("run", job=job, timeout=self.timeout)
+                self.log.debug("run", job=job, timeout=WORKER_RUN_TIMEOUT)
                 job.started.set()
-                await self._do_run(job, self.timeout)
-                if job.session.tracer.run.runs:
-                    job.run = job.session.tracer.run.runs[job.id]
-                    job.logs = job.session.tracer.cached_logs[:50]
+                session = await self._do_run_job(job, WORKER_RUN_TIMEOUT)
+                if session.tracer.run.runs:
+                    job.run = session.tracer.run.runs[job.run_data.id]
+                    job.run_data = wire.pack_data(job.run)
+                    job.last_logs = session.tracer.cached_logs[:50]
                 self.log.debug("run.completed", job=job)
             except asyncio.CancelledError:
                 self.log.info("run.cancelled", job=job)
                 # keep the queue running?
             except Exception as e:
-                job.error = StartRunErrorType.RUNTIME_ERROR
                 self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
             finally:
                 job.terminated.set()
                 self.queue.task_done()
 
     async def interp_on_change(self, mutations: list[ModuleMutation]):
-        self.log.debug("module.interp", mutations=len(mutations))
+        self.log.debug("worker.interp", mutations=len(mutations))
         new_source = ModuleMutator(self.source, mutations).to_module()
         self.source = new_source
         self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
-    def start_run(self, run_data: RunData, keyed: bool) -> RunJob | StartRunErrorType:
-        self.log.exception("worker.start_run", run_data=run_data, keyed=keyed)
-        # nocheckin: simplify run and respect scheduled_at
-        if not self.interpreted:
-            return StartRunErrorType.NOT_READY
+    def add_run(self, run_data: RunData, session_id: UUID) -> RunJob:
+        """
+        Registers a run to be processed by this worker process.
+        If scheduled, the run will be queued after the delay.
+        """
 
-        # get the runnable
-        runnable = self.module.lookup(runnable)
-        if runnable is None:
-            return StartRunErrorType.INVALID_RUNCONFIG
+        job = RunJob(run_data=run_data, session_id=session_id)
 
-        first_run_id = run_id or UUIDT()
-        # instantiate
+        def _enqueue(priority: int):
+            run_data.status = RunStatus.Queued
+            self.queue.put_nowait((priority, job))
+            self._dirty_runs[run_data.id] = run_data
+            self.log.debug("worker.queue", job=job)
+
+        # add to queue (now or later if scheduled)
+        if run_data.scheduled_at:
+            run_data.status = RunStatus.Scheduled
+            now = datetime.utcnow().replace(tzinfo=pytz.utc)
+            delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
+            if delay > 0:
+                # trace
+                self._dirty_runs[run_data.id] = run_data
+                asyncio.get_running_loop().call_later(delay, _enqueue, 0)  # high priority
+            else:
+                _enqueue(0)
+            self.log.info("worker.schedule", job=job, run_data=run_data, delay=delay)
+
+        else:
+            _enqueue(10)  # default priority
+
+        return job
+
+    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict):
+        """Actually runs the runnable in the session"""
+
+        # open session
+        await session.aopen()
+        if not runnable._is_async:
+            runnable = runnable.to_async()
+
+        # run session
         try:
-            session_ctx = SessionContext(
-                module_id=self.module_id,
-                project_id=self.project_id,
-                worker_node_id=self.node.worker_node_id,
-                trigger_type=trigger_type,
-                trigger_id=trigger_id,
-                first_run_id=first_run_id,
-            )
+            ret = await runnable(**inputs)
         except Exception as e:
-            self.log.exception("worker.start_run.failed", exc_info=e)
-            return StartRunErrorType.INVALID_RUNCONFIG
+            raise RunError(
+                kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=runnable
+            ) from e
+        finally:
+            # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
+            #  (where a queued run may be saved after a fast run has completed and flushed)
+            if session.ctx.first_run_id in self._dirty_runs:
+                del self._dirty_runs[session.ctx.first_run_id]
 
-        if keyed:
-            arguments = map_value(
-                arguments,
+        # close session
+        await session.aclose()
+
+        return ret
+
+    async def _do_run_job(self, job: RunJob, timeout: float) -> Session:
+        """Actually runs the job, and updates the job with the result"""
+
+        try:
+            job.started.set()
+            self.log.info("worker.run", job=job, timeout=timeout)
+
+            # instantiate arguments
+            runnable = self.module.lookup(job.run_data.runnable_id)
+            inputs = map_value(
+                job.run_data.inputs,
                 runnable,
                 map_k=lambda f: (f.typed_key, f.py_ident),
                 map_v=instantiate_py_value_flat,
                 is_output=False,
             )
-        job = RunJob(id=first_run_id, session=session, runnable=runnable, arguments=arguments)
-        if run_data.scheduled_at:
-            pass  # nocheckin queue at scheduled_at
-        else:
-            # immediately add to queue
-            self.queue.put_nowait((job.priority, job))
-            session.tracer.run_queue(runnable, arguments, queue_position=self.queue.qsize())
-        return job
 
-    async def _do_run(self, job: RunJob, timeout: float) -> Optional[StartRunErrorType]:
-        """Actually runs the job, and updates the job with the result"""
-        try:
-            self.log.info(
-                "module.run",
-                runnable=job.runnable,
-                arguments=describe_type(job.arguments),
-                timeout=timeout,
+            # create session
+            session_ctx = SessionContext(
+                module_id=self.module_id,
+                project_id=self.project_id,
+                worker_node_id=self.node.worker_node_id,
+                worker_process_id=None,
+                trigger_type=job.run_data.trigger_type,
+                trigger_id=job.run_data.trigger_id,
+                first_run_id=job.run_data.id,
             )
-            # TODO @Architecture @Robustness: handle module instantiation & session linking better
-            #  esp. with contexts, dependencies, parallelism, etc.
-            job.session.module.activate_in(job.session)
-            arguments = map_value(
-                job.arguments,
-                job.runnable,
-                map_k=lambda f: (f.py_ident, f.py_ident),
-                map_v=instantiate_py_value_flat,
-                is_output=False,
+            session = Session(
+                module=self.module,
+                writer=self,
+                ctx=session_ctx,
+                id=job.session_id,
+                mode=SessionMode.WRITE,
             )
-            job.task = asyncio.create_task(run(job.runnable, arguments, job.session))
-            self.pending_runs[job.id] = job
-            self.last_run = job
+            self.module.activate_in(session)
+
+            # wait out schedule delay if needed
+            now = datetime.utcnow().replace(tzinfo=pytz.utc)
+            if job.run_data.scheduled_at and job.run_data.scheduled_at < now:
+                # wait out the schedule delay if needed
+                delay = (now - job.run_data.scheduled_at).total_seconds()
+                self.log.info("worker.run.delay", job=job, delay=delay)
+                await asyncio.sleep(delay)
+
+            # run
+            job.task = asyncio.create_task(self._do_run_in_session(session, runnable, inputs))
+            self.active_runs[job.run_data.id] = job
+            self.last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
-            return None
-        except RunError as e:
-            self.log.exception("module.run.failed", exc_info=e)
-            return StartRunErrorType.RUNTIME_ERROR
-        except Exception as e:
-            self.log.exception("module.run.failed", exc_info=e, sentry=sentry_capture_if_enabled(e))
-            return StartRunErrorType.INTERNAL_ERROR
+            job.last_logs = session.tracer.cached_logs[:50]
+
+            return session
         finally:
-            job.session.module.deactivate()
-            if job.id in self.pending_runs:
-                del self.pending_runs[job.id]
+            job.terminated.set()
+            self.module.deactivate()
+            if job.run_data.id in self.active_runs:
+                del self.active_runs[job.run_data.id]
 
     async def cancel_run(self, run_id: UUID) -> bool:
-        job = self.pending_runs.get(run_id)
-        if not job:
-            for j in self.queue._queue:
-                if j.id == run_id:
-                    job = j
-                    break
-        if not job:
-            return False
+        # TODO @Broken: implement cancel properly (interupts don't work)
+        #  (currently we only do process restarts)
+        return False
 
-        job.cancelled = True
-        job.run.session.tracer.run_cancel(job.runnable, job.arguments)
-
-        if job.task:
-            # this doesn't really work, but we're not using this cancellation yet
-            # we need some better mechanism for targeted :RunCancellation
-            # maybe another thread? multiprocessing?
-            job.task.cancel()
-            # send keybord interrupt to self (this causes all sorts of unintended cancels)
-            # os.kill(os.getpid(), signal.SIGINT)
-        return True
+    async def _flush_dirty_runs_forever(self, interval: float):
+        while True:
+            if self._dirty_runs:
+                logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_runs))
+                runs = list(self._dirty_runs.values())
+                self._dirty_runs = {}
+                await self.write_session(session=None, runs=runs, logs=[])
+            await asyncio.sleep(interval)
 
     async def write_module(self, mutations: list[ModuleMutation]) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
@@ -449,18 +538,21 @@ class ModuleWorkerProcess(ModuleWriter):
             wait=False,
         )
         rep: NMessage[RepWriteModulePayload] = await request(
-            NMessageType.WRITE_MODULE, req, RepWriteModulePayload
+            NMessageType.WRITE_MODULE, req, RepWriteModulePayload, retry=3
         )
         return rep.p.success
 
     async def write_session(
-        self, session: "Session", runs: list["Run"], logs: list["LogEntry"]
+        self,
+        session: Optional["Session"],
+        runs: list[Union["Run", wire.RunData]],
+        logs: list[Union["LogEntry", wire.LogEntryData]],
     ) -> bool:
         self.log.debug("session.write", session=session, runs=len(runs), logs=len(logs))
 
-        session_data = wire.pack_data(session)
-        runs_data = [wire.pack_data(run) for run in runs]
-        logs_data = [wire.pack_data(log) for log in logs]
+        session_data = wire.pack_data(session) if session else None
+        runs_data = [wire.pack_data(run) if isinstance(run, Run) else run for run in runs]
+        logs_data = [wire.pack_data(log) if isinstance(log, LogEntry) else log for log in logs]
 
         req = ReqWriteSessionPayload(
             module_id=self.module_id,
@@ -470,6 +562,6 @@ class ModuleWorkerProcess(ModuleWriter):
             client=self.node.client,
         )
         rep: NMessage[RepWriteSessionPayload] = await request(
-            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload
+            NMessageType.WRITE_SESSION, req, RepWriteSessionPayload, retry=3
         )
         return rep.p.success

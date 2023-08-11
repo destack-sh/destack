@@ -594,6 +594,7 @@ class RuntimeWorker:
             self.active_trigger_process_wait.set()
 
         triggers_to_fire: set[UUID] = set()
+        runs_to_start: list[wire.RunData] = []
         timed_wait_task: Optional[asyncio.Task] = None
 
         # backfill time triggers on first go (coalescing to at most one per trigger)
@@ -604,6 +605,8 @@ class RuntimeWorker:
             ):
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
+
+        # nocheckin: backfill scheduled runs into runs_to_start
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
@@ -631,11 +634,12 @@ class RuntimeWorker:
                     triggers_to_fire.add(trigger.trigger.id)
 
             # "process" triggers (write to DB and create runs atomically)
-            runs_to_start: list[wire.RunData] = await sync_to_async(self._process_triggers)(
+            next_runs_to_start: list[wire.RunData] = await sync_to_async(self._process_triggers)(
                 triggers=self.active_triggers,
                 triggers_to_fire=triggers_to_fire,
                 processed_up_to=process_up_to,
             )
+            runs_to_start.extend(next_runs_to_start)
 
             # publish scheduled runs (should be project scoped later, but we don't have a session)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_to_start))
@@ -660,19 +664,24 @@ class RuntimeWorker:
                         session_id=run.session_id,
                         run_id=run.id,
                         runnable=run.runnable_id,
-                        runnable_type=run.runnable_type,
-                        arguments=run.inputs,
-                        block=False,
+                        inputs=run.inputs,
+                        block=None,
                         keyed=True,
                         trigger_type=run.trigger_type,
                         trigger_id=run.trigger_id,
                         scheduled_at=run.scheduled_at,
                     )
-                    rep: NMessage[RepStartRunPayload] = await request(
-                        NMessageType.START_RUN, req, reply_t=RepStartRunPayload
-                    )
-                    if rep.p.error:
-                        logger.error("time_triggers.start_run.error", run=run, error=rep.p.error)
+                    try:
+                        rep: NMessage[RepStartRunPayload] = await request(
+                            NMessageType.START_RUN, req, reply_t=RepStartRunPayload, retry=3
+                        )
+                        if rep.p.error:
+                            logger.error(
+                                "time_triggers.start_run.error", run=run, error=rep.p.error
+                            )
+                            continue
+                    except Exception as e:
+                        logger.error("time_triggers.start_run.error", run=run, exc_info=e)
                         continue
 
             # reset next occurrence for all triggers that fired
@@ -680,6 +689,7 @@ class RuntimeWorker:
                 trigger = self.active_triggers[trigger_id]
                 trigger.next_occurrence = trigger.iter.next()
             triggers_to_fire.clear()
+            runs_to_start.clear()
 
             # wait for earliest next trigger occurrence (or trigger change)
             if self.active_triggers:
@@ -734,6 +744,7 @@ class RuntimeWorker:
                 project_id=self.project_id,
                 module_id=self.module.id,
                 worker_node_id=None,
+                worker_process_id=None,
                 runnable_id=runnable.id,
                 runnable_type=runnable.type,
                 session_id=None,
@@ -916,7 +927,7 @@ class RuntimeWorker:
 
     async def write_session(
         self,
-        session: wire.SessionData,
+        session: Optional[wire.SessionData],
         runs: list[wire.RunData] | None,
         logs: list[wire.LogEntryData] | None,
         origins: tuple[ClientOrigin] = None,

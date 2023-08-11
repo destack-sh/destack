@@ -8,7 +8,7 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import StatementType, TriggerType
+from bench.language.const import TriggerType
 from bench.language.core import ModuleReference
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
@@ -247,20 +247,18 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     run_id: Optional[UUID]
     session_id: Optional[UUID]
     runnable: Optional[UUID | str]
-    runnable_type: Optional[StatementType]
     scheduled_at: Optional[datetime]
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
-    arguments: dict[str, typing.Any]
+    inputs: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
 
 
 class StartRunErrorType(enum.StrEnum):
     UNAVAILABLE = "unavailable"
+    INVALID_RUN = "invalid_run"
     INTERNAL_ERROR = "internal_error"
-    NOT_READY = "not_ready"
-    INVALID_RUNCONFIG = "invalid_runconfig"
     TIMEOUT = "timeout"
     RUNTIME_ERROR = "runtime_error"
 
@@ -331,7 +329,7 @@ class RepWriteModulePayload(Payload):
 @payload(NMessageType.WRITE_SESSION)
 class ReqWriteSessionPayload(Payload):
     module_id: UUID
-    session: SessionData
+    session: Optional[SessionData]
     runs: list[RunData]
     logs: list[LogEntryData]
     client: ClientOrigin

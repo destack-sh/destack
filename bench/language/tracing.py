@@ -40,9 +40,9 @@ if TYPE_CHECKING:
         Statement,
         Tagging,
         Task,
-        Value,
-        TriggerType,
         Trigger,
+        TriggerType,
+        Value,
     )
 
 logger = structlog.get_logger(__name__)
@@ -100,9 +100,6 @@ class Tracer:
         pass
 
     # execution
-
-    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
-        pass
 
     def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
         pass
@@ -311,10 +308,6 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.dataset_update(dataset, record, key)
 
-    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
-        for tracer in self.tracers:
-            tracer.run_queue(statement, inputs, queue_position)
-
     def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
         for tracer in self.tracers:
             tracer.run_cancel(statement, inputs)
@@ -455,17 +448,6 @@ class RunTracer(Tracer):
         if parent is not None:
             parent.children.append(frame)
         return frame
-
-    def run_queue(self, statement: Runnable, inputs: dict[str, Any], queue_position: int):
-        # don't trace this because it's not part of the stacktrace
-        frame = self._create_frame(
-            runnable=statement,
-            inputs=strip_py_value(inputs, statement, is_output=False),
-            trace=False,
-            queue_position=queue_position,
-        )
-        self.track(frame)
-        logger.debug("trace.run.queue", frame=frame)
 
     def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
         # don't trace this because it's not part of the stacktrace

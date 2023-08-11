@@ -18,7 +18,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.const import StatementType, TypeTag
-from bench.language.core import IssueType, LookupBy, Scope, Session, Statement, StatementPath, node
+from bench.language.core import IssueType, LookupBy, Scope, Statement, StatementPath, node
 from bench.language.flow import HasFlow, IsFlowable
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
@@ -451,34 +451,6 @@ def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
         if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
     }
     return new_globals
-
-
-async def run(
-    code: Code,
-    arguments: dict[str, Any] | None,
-    session: "Session",
-    is_trusted: bool = False,
-) -> Any:
-    from bench.language.session import RunError, RunErrorKind
-
-    if not is_trusted and not ALLOW_UNTRUSTED_CODE:
-        raise RunError(kind=RunErrorKind.UNTRUSTED, type="untrusted", runnable=code)
-    # transform keys to valid python identifiers
-    arguments = {
-        to_pyidentifier(k, IdentifierType.VARIABLE): v for k, v in (arguments or {}).items()
-    }
-    try:
-        # set current session
-        await session.aopen()
-        if not code._is_async:
-            code = code.to_async()
-        ret = await code(**arguments)
-        await session.aclose()
-        return ret
-    except Exception as e:
-        raise RunError(
-            kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=code
-        ) from e
 
 
 def _parse_code(code: str | None) -> "CodeParse":
