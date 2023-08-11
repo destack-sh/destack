@@ -49,7 +49,7 @@ const now = useTimeFromNow(100);
 const bench = useBenchState();
 const sessions = useCurrentSessions();
 const runs = sessions.runsOf(context.statement.value);
-const currentRun = computed(() => runs.value[0]);
+const currentRun = computed(() => runs.value.filter((r) => r.status != RunStatus.Scheduled)[0]);
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
@@ -233,7 +233,7 @@ defineExpose({
         v-if="!hasTypes && currentRun != null"
         :class="[preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
       >
-        <BusySpinnerIcon v-if="preparingRun || currentRun.status == RunStatus.Queued" class="h-4 w-4 animate-spin" />
+        <BusySpinnerIcon v-if="preparingRun || currentRun.startedAt == null" class="h-4 w-4 animate-spin" />
         <span v-else>{{ sessions.getDurationFormatted(currentRun) }}</span>
       </span>
       <!-- Cache info -->

@@ -171,6 +171,7 @@ class FlowProxy:  # :SyncProxy
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
+TRIGGER_INTERVAL_MIN = 300  # seconds :MinTriggerInterval
 
 
 class TriggerScheduleIterator:

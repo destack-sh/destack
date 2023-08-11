@@ -1696,6 +1696,7 @@ enum StartRunErrorType {
   INTERNAL_ERROR
   TIMEOUT
   RUNTIME_ERROR
+  ALREADY_SCHEDULED
 }
 
 type Statement implements CrudModel & ModuleNode & Node {
