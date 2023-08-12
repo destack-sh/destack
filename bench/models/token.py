@@ -10,6 +10,7 @@ from django.db import models
 
 from bench.models.utils import UUIDModel
 from bench.settings import ACCESS_TOKEN_DIGEST_LENGTH, ACCESS_TOKEN_KEY_LENGTH, ACCESS_TOKEN_PREFIX
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -86,11 +87,12 @@ class AccessToken(UUIDModel):
         return f"<AccessToken {self}>"
 
     def revoke(self):
-        self.revoked_at = datetime.utcnow()
+        self.revoked_at = utcnow_with_tz()
         self.save()
 
     @property
     def status(self) -> AccessTokenStatus:
+        # TODO @Cleanup: move computed AccessToken.status into column
         if self.revoked:
             return AccessTokenStatus.REVOKED
         elif self.expired:
@@ -104,7 +106,7 @@ class AccessToken(UUIDModel):
 
     @property
     def expired(self):
-        return self.expires_at is not None and datetime.utcnow() >= self.expires_at
+        return self.expires_at is not None and utcnow_with_tz() >= self.expires_at
 
     @property
     def revoked(self):

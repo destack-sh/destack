@@ -11,6 +11,7 @@ from strawberry_django_plus.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_write_user
 from bench.api.utils import safe_mutation
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.organization import OrganizationInvite
@@ -32,14 +33,14 @@ class NotificationFilter:
         if self.not_archived:
             queryset = queryset.filter(
                 Q(archived_at__isnull=True)
-                & (Q(expires_at__isnull=True) | Q(expires_at__gte=datetime.utcnow()))
+                & (Q(expires_at__isnull=True) | Q(expires_at__gte=utcnow_with_tz()))
             )
 
         if self.status == NotificationStatus.ACTIVE:
             queryset = queryset.filter(
                 Q(read_at__isnull=True)
                 & Q(archived_at__isnull=True)
-                & (Q(expires_at__isnull=True) | Q(expires_at__gte=datetime.utcnow()))
+                & (Q(expires_at__isnull=True) | Q(expires_at__gte=utcnow_with_tz()))
             )
         elif self.status == NotificationStatus.READ:
             queryset = queryset.filter(read_at__isnull=False)

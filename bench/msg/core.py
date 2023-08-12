@@ -25,6 +25,7 @@ from bench.msg.messages import (
     NMessageType,
     Payload,
 )
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.serialize import from_dict, to_dict
 from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
 
@@ -110,7 +111,7 @@ class NMessage(Generic[PayloadT]):
             raise TypeError(
                 f"expected reply payload to {self} to be {reply_payload_cls}, got {type(payload)}: {payload}"
             )
-        reply_msg = NMessage(reply_type, payload, sent_at=datetime.utcnow())
+        reply_msg = NMessage(reply_type, payload, sent_at=utcnow_with_tz())
         log.debug("reply", msg=self, reply=reply_msg)
         serialized = _serialize_message(reply_msg)
         await self.msg.respond(serialized)
@@ -220,7 +221,7 @@ async def request(
         raise RuntimeError("nats not initialized")
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
-    message = NMessage(type=type, payload=payload, sent_at=datetime.utcnow())
+    message = NMessage(type=type, payload=payload, sent_at=utcnow_with_tz())
     serialized = _serialize_message(message)
     log.debug("request", topic=payload.topic, message=message, bytes=len(serialized))
 
@@ -265,14 +266,14 @@ async def handle_reply(type: str, cb, *, group: str = "") -> Subscription:
 
 async def publish(type: NMessageType, payload: Any) -> None:
     message = prepare_publish(type, payload, payload.topic)
-    message.sent_at = datetime.utcnow()
+    message.sent_at = utcnow_with_tz()
     await do_publish(message, message.topic)
 
 
 def prepare_publish(type: NMessageType, payload: Any, topic: str) -> NMessage:
     if not isinstance(payload, REGISTERED_MESSAGE_PAYLOADS[type]):
         raise TypeError(f"expected message {type} for {payload}")
-    message = NMessage(type=type, topic=topic, payload=payload, sent_at=datetime.utcnow())
+    message = NMessage(type=type, topic=topic, payload=payload, sent_at=utcnow_with_tz())
     _serialize_message(message)  # check that message is serializable for debugging
     return message
 

@@ -1,5 +1,4 @@
 import threading
-from datetime import datetime
 from functools import wraps
 from typing import NamedTuple, Optional
 from uuid import UUID
@@ -12,6 +11,7 @@ from rest_framework import serializers
 
 from bench.models import Project, ProjectVersion
 from bench.models.token import AccessTokenScope
+from bench.utils.dt import utcnow_with_tz
 
 logger = structlog.get_logger(__name__)
 
@@ -105,7 +105,7 @@ def get_access(
             scopes__contains=[scope],
         )
         .filter(Q(revoked_at__isnull=True))
-        .filter(Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True))
+        .filter(Q(expires_at__gte=utcnow_with_tz()) | Q(expires_at__isnull=True))
         .only("id", "user_id", "organization_id")
         .first()
     )

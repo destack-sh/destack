@@ -11,6 +11,7 @@ from bench.language.core import Module, Session, Statement, StatementType
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.reflect import reflect_enum, reflect_struct
 from bench.language.search import Search
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
@@ -111,7 +112,7 @@ class Run:
 
     def __post_init__(self):
         self._update_status()
-        self.updated_at = datetime.utcnow()
+        self.updated_at = utcnow_with_tz()
 
     def __str__(self):
         metadata_keys_str = ", ".join(self.metadata.keys()) if self.metadata else ""

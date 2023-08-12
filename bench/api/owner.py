@@ -7,6 +7,7 @@ from strawberry_django_plus import gql
 from strawberry_django_plus.relay import GlobalID
 
 from bench import models
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -20,7 +21,7 @@ class AccessTokenFilter:
     def filter(self, queryset):
         if not self.include_inactive:
             queryset = queryset.filter(Q(revoked_at__isnull=True)).filter(
-                Q(expires_at__gte=datetime.utcnow()) | Q(expires_at__isnull=True)
+                Q(expires_at__gte=utcnow_with_tz()) | Q(expires_at__isnull=True)
             )
         return queryset
 

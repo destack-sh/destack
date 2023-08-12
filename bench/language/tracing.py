@@ -8,7 +8,6 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Callable, Optional
 from uuid import UUID
 
-import pytz
 import structlog
 
 from bench.language.core import MOT, ModuleOp, Session
@@ -177,7 +176,7 @@ class LogCollector:
         log_entry = LogEntry(
             id=UUIDT(),
             module=self.session.module,
-            created_at=datetime.now(pytz.utc),
+            created_at=utcnow_with_tz(),
             stream=self.stream,
             session=self.session,
             runnable=runnable,
