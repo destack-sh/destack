@@ -3,12 +3,16 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { TypeFlag } from "@/state/module";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { StatementType } from "@/gql/graphql";
-import { getStatementIconSolid, useStatementContext } from "@/state/statement";
+import {
+  getStatementLabel,
+  getStatementDescription,
+  getStatementIconSolid,
+  useStatementContext,
+} from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
 
@@ -41,7 +45,7 @@ watch(query, (query) => {
   }
 });
 
-// command/type selection dropdown
+// command selection dropdown
 // (not sure if this is the best place to put it)
 const commanding: Ref<boolean> = ref(false);
 const commandQuery: Ref<string> = ref("");
@@ -52,88 +56,63 @@ const { focused: commandInputRefFocused } = useFocus(commandInputRef);
 
 useActiveScroll(computed(() => commandOptionsRef.value?.$el));
 
+type Group = {
+  name: string;
+};
+
+const GROUPS = {
+  BASIC: { name: "Basic statements" },
+  ADVANCED: { name: "Advanced statements" },
+};
+
 type Command = {
+  group: Group;
   label: string;
   icon: any;
   description: string;
   action: () => void;
 };
 
+function singleStatementCommand(
+  group: Group,
+  type: StatementType,
+  options?: { rootTypeTag?: TypeTag; icon?: any; label?: string; description?: string }
+): Command {
+  return {
+    group,
+    label: options?.label ?? getStatementLabel(type, options?.rootTypeTag),
+    icon: options?.icon ?? getStatementIconSolid(type, options?.rootTypeTag),
+    description: options?.description ?? getStatementDescription(type, options?.rootTypeTag),
+    action: () => (context.morpthToSymbol({ type, rootTypeTag: options?.rootTypeTag }), emit("morphed")),
+  };
+}
+
 // TODO @UX: blank statement menu sucks
 const commands = computed(() => {
   const commands: Command[] = [
+    // basic statements
     {
-      label: "text",
+      group: GROUPS.BASIC,
+      label: "Text",
       icon: getStatementIconSolid(StatementType.Text),
-      description: "Just write for a markdown comment.",
+      description: "Just type for a markdown comment",
       action: () => ((query.value = ""), nextTick(() => spanRef.value?.focus())),
     },
-    {
-      label: "type",
-      icon: getStatementIconSolid(StatementType.Type, TypeTag.Struct),
-      description: "A structure type with multiple fields.",
-      action: () => (
-        context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
-      ),
-    },
-    {
-      label: "choice",
-      icon: getStatementIconSolid(StatementType.Type, TypeTag.Enum),
-      description: "A choice type with multiple options.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
-    },
-    {
-      label: "dataset",
-      icon: getStatementIconSolid(StatementType.Dataset),
-      description: "Examples, feedback, context up to 1M+.",
-      action: () => (
-        context.morpthToSymbol({ type: StatementType.Dataset, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
-      ),
-    },
-    {
-      label: "code",
-      icon: getStatementIconSolid(StatementType.Code),
-      description: "Connect, test, customize with Python.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
-    },
-    {
-      label: "task",
-      icon: getStatementIconSolid(StatementType.Task),
-      description: "Instruct AI to do something.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Task }), emit("morphed")),
-    },
-    {
-      label: "expectation",
-      icon: getStatementIconSolid(StatementType.Expectation),
-      description: "Tune desired AI behaviour.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
-    },
-    // {
-    //   label: "flow",
-    //   description: "Pipe and connect code and tasks and triggers.",
-    //   action: () => (context.morpthToSymbol({ type: StatementType.Flow }), emit("morphed")),
-    // },
-    {
-      label: "value",
-      icon: getStatementIconSolid(StatementType.Value),
-      description: "A single configuration or secrets.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
-    },
-    {
-      label: "reference",
-      icon: getStatementIconSolid(StatementType.Reference),
-      description: "Reuse another statement.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
-    },
-    // {
-    //   label: "block",
-    //   description: "A group of related statements.",
-    //   action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
-    // },
+    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Struct }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Dataset),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Code),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Task),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation),
+
+    // advanced statements
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow),
   ];
 
   return commands;
 });
+
 const filteredCommands = computed(() => {
   return commands.value.filter((command) => {
     return command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
@@ -217,14 +196,25 @@ defineExpose({
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"
-          class="absolute top-7 z-20 flex max-h-64 w-[340px] flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute top-7 z-20 flex max-h-80 w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
             <span class="text-gray-700">No results</span>
           </div>
-          <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
+          <ComboboxOption
+            v-for="(command, i) in filteredCommands"
+            :key="command.label"
+            :value="command"
+            v-slot="{ active }"
+          >
+            <div
+              v-if="i == 0 || command.group != filteredCommands[i - 1]?.group"
+              class="select-none px-2 py-1 text-xs font-semibold tracking-wide text-gray-500"
+            >
+              {{ command.group?.name }}
+            </div>
             <li
-              class="flex flex-row justify-between gap-3"
+              class="flex flex-row items-center justify-between gap-3"
               :class="[
                 'cursor-pointer select-none px-2 py-0.5',
                 active ? 'bg-orange-100 text-gray-900' : 'text-gray-900',
@@ -239,9 +229,7 @@ defineExpose({
                 <span class="font-semibold text-orange-600">
                   {{ command.label }}
                 </span>
-                <span class="text-gray-700">
-                  {{ command.description }}
-                </span>
+                <span class="text-xs text-gray-700"> {{ command.description }}. </span>
               </div>
             </li>
           </ComboboxOption>
