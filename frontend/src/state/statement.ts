@@ -32,6 +32,7 @@ import {
   TagIcon as TagIconOutline,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
   ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconOutline,
+  PaperAirplaneIcon as PaperAirplaneIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -45,6 +46,7 @@ import {
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
   PlayCircleIcon as PlayCircleIconSolid,
   ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconSolid,
+  PaperAirplaneIcon as PaperAirplaneIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -583,7 +585,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Value]: TableCellsIconOutline,
   [StatementType.Dataset]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
-  [StatementType.Flow]: ArrowPathRoundedSquareIconOutline,
+  [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: ServerStackIconOutline,
   [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
   [StatementType.Block]: QueueListIcon,
@@ -596,7 +598,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Value]: TableCellsIconSolid,
   [StatementType.Dataset]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
-  [StatementType.Flow]: ArrowPathRoundedSquareIconSolid,
+  [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: ServerStackIconSolid,
   [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
   [StatementType.Block]: QueueListIcon,
@@ -620,5 +622,57 @@ export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag
     return PlayCircleIconSolid;
   } else {
     return STATEMENT_ICONS_SOLID[type];
+  }
+}
+
+export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
+  [StatementType.Blank]: "Blank",
+  [StatementType.Tag]: "Tag",
+  [StatementType.Text]: "Text",
+  [StatementType.Type]: "Type",
+  [StatementType.Task]: "Task",
+  [StatementType.Code]: "Code",
+  [StatementType.Value]: "Value",
+  [StatementType.Dataset]: "Dataset",
+  [StatementType.Model]: "Model",
+  [StatementType.Expectation]: "Expectaction",
+  [StatementType.Block]: "Block",
+  [StatementType.Flow]: "Flow",
+  [StatementType.Reference]: "Reference",
+};
+
+export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | null) {
+  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+    return "Type";
+  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+    return "Choice";
+  } else {
+    return STATEMENT_TYPE_LABELS[type];
+  }
+}
+
+export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
+  [StatementType.Text]: "A plain markdown comment",
+  [StatementType.Type]: "A object, choice or union type",
+  [StatementType.Dataset]: "Examples, feedback, context up to 1M+",
+  [StatementType.Code]: "Connect, test, customize with Python",
+  [StatementType.Task]: "Instruct AI to do something",
+  [StatementType.Expectation]: "Tune desired AI behaviour",
+  [StatementType.Value]: "Constants for configuration or secrets",
+  [StatementType.Reference]: "Reuse another statement",
+  [StatementType.Block]: "A group of related statements",
+  [StatementType.Flow]: "Connect code and tasks with triggers",
+  [StatementType.Blank]: "Empty statement",
+  [StatementType.Model]: "An AI model of any kind",
+  [StatementType.Tag]: "A tag for statements and such",
+};
+
+export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {
+  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+    return "An object type with multiple field";
+  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+    return "A choice type with multiple options";
+  } else {
+    return STATEMENT_TYPE_DESCRIPTIONS[type];
   }
 }

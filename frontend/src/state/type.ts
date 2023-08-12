@@ -1,29 +1,6 @@
-import { StatementType, TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
 import { reverseRecord } from "@/utils/functools";
-
-export const STATEMENT_TYPE_KEYWORD: Partial<Record<StatementType, string>> = {
-  [StatementType.Type]: "type",
-  [StatementType.Task]: "task",
-  [StatementType.Code]: "code",
-  [StatementType.Value]: "value",
-  [StatementType.Dataset]: "dataset",
-  [StatementType.Model]: "model",
-  [StatementType.Expectation]: "expect",
-  [StatementType.Block]: "block",
-};
-export const SUPPORTED_STATEMENT_TYPES = [
-  StatementType.Blank,
-  StatementType.Text,
-  StatementType.Type,
-  StatementType.Code,
-  StatementType.Dataset,
-  StatementType.Value,
-  StatementType.Model,
-  StatementType.Expectation,
-  StatementType.Task,
-];
-export const STATEMENT_TYPE_BY_KEYWORD: Partial<Record<string, StatementType>> = reverseRecord(STATEMENT_TYPE_KEYWORD);
 
 export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Boolean]: "boolean",

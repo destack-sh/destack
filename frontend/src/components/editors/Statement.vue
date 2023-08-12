@@ -25,8 +25,7 @@ import {
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
-import { STATEMENT_CONTEXT, type StatementContext } from "@/state/statement";
-import { STATEMENT_TYPE_KEYWORD } from "@/state/type";
+import { STATEMENT_CONTEXT, STATEMENT_TYPE_LABELS, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
@@ -413,7 +412,7 @@ const allActions: Ref<StatementAction[]> = computed(() => [
 ]);
 const actionGroups = computed(() => [
   { id: "general" },
-  { id: "custom", label: STATEMENT_TYPE_KEYWORD[statement.value.type] ?? "Statement" },
+  { id: "custom", label: STATEMENT_TYPE_LABELS[statement.value.type] ?? "Statement" },
 ]);
 
 function showActionsPopover() {

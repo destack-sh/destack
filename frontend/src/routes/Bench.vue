@@ -593,7 +593,7 @@ onBeforeUnmount(() => {
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="group relative border-l-2 border-gray-50 px-2 py-2 text-gray-600 hover:bg-orange-100"
+              class="group relative border-l-2 border-gray-50 px-2.5 py-2.5 text-gray-600 hover:bg-orange-100"
               :class="
                 view.id == activeView.id && bench.showViewContent
                   ? 'border-orange-600 text-orange-600'
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
           <component v-for="popover in sidebarPopovers" :key="popover.label" :is="popover.component">
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="group relative border-l-2 px-2 py-2 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
+                class="group relative border-l-2 px-2.5 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
                 :class="open ? 'border-orange-600 text-orange-600' : 'hover:border-orange-100'"
               >
                 <span class="sr-only">{{ popover.label }}</span>
