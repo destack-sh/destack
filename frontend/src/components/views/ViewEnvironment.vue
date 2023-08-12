@@ -168,9 +168,6 @@ const statusIconSolid = computed(() =>
               ]
             }}
           </span>
-          <span v-if="workerSet.lastActiveAt" class="mr-1.5 flex flex-row items-center text-gray-500">
-            {{ now.getTimeFromNowString(workerSet.lastActiveAt) }}
-          </span>
         </div>
         <!-- Idle / actions -->
         <div class="flex flex-row items-center whitespace-nowrap">
