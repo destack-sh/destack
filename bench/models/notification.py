@@ -1,9 +1,8 @@
-from datetime import datetime
-
 from django.db import models
 
 from bench.models.user import User
 from bench.models.utils import UUIDModel
+from bench.utils.dt import utcnow_with_tz
 
 
 class NotificationType(models.TextChoices):
@@ -41,20 +40,21 @@ class Notification(UUIDModel):
             self.read_at = None
             self.archived_at = None
         elif status == NotificationStatus.READ:
-            self.read_at = datetime.utcnow()
+            self.read_at = utcnow_with_tz()
         elif status == NotificationStatus.ARCHIVED:
-            self.archived_at = datetime.utcnow()
+            self.archived_at = utcnow_with_tz()
         else:
             raise NotImplementedError(f"marking as {status} is not implemented")
         self.save()
 
     @property
     def status(self) -> NotificationStatus:
+        # TODO @Cleanup: move computed Notification.status into a status column
         if self.read_at:
             return NotificationStatus.READ
         elif self.archived_at:
             return NotificationStatus.ARCHIVED
-        elif self.expires_at and self.expires_at < datetime.utcnow():
+        elif self.expires_at and self.expires_at < utcnow_with_tz():
             return NotificationStatus.EXPIRED
         else:
             return NotificationStatus.ACTIVE

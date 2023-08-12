@@ -511,7 +511,7 @@ TIME_TRIGGER_LOOKAHEAD = 2  # occurrences
 
 async def run_at(func: typing.Callable[[], typing.Awaitable[None]], at: datetime) -> None:
     """Run a function at a given time."""
-    delay = (at - datetime.utcnow()).total_seconds()
+    delay = (at - utcnow_with_tz()).total_seconds()
     if delay < 0:
         delay = 0
     await asyncio.sleep(delay)
@@ -787,7 +787,7 @@ class RuntimeWorker:
                         new_active_triggers[trigger.id] = trigger
 
         # upsert triggers (if new or changed)
-        new_now = datetime.utcnow()
+        new_now = utcnow_with_tz()
         for new_trigger in new_active_triggers.values():
             existing_trigger = self.active_triggers.get(new_trigger.id)
             if not existing_trigger or not is_time_trigger_equal(

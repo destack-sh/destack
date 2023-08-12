@@ -2,7 +2,7 @@ import asyncio
 import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Optional, Union
 from uuid import UUID
 
@@ -353,7 +353,7 @@ class ModuleWorkerProcess(ModuleWriter):
     def active(self) -> bool:
         last_run_recent = (
             self._last_run_job is not None
-            and self._last_run_job.run_data.created_at > datetime.utcnow() - WORKER_ACTIVE_TIMEOUT
+            and self._last_run_job.run_data.created_at > utcnow_with_tz() - WORKER_ACTIVE_TIMEOUT
         )
         return last_run_recent or not self.queue.empty()
 
