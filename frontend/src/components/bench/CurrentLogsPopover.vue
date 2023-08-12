@@ -6,7 +6,7 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
+import { Bars3BottomLeftIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { Bars4Icon } from "@heroicons/vue/24/solid";
 import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
@@ -30,7 +30,7 @@ const altKey = useKeyModifier("Alt");
         'bg-orange-100': open,
       }"
     >
-      <Bars4Icon class="h-5 w-5" />
+      <Bars3BottomLeftIcon class="h-5 w-5" />
     </PopoverButton>
 
     <FadeTransition>

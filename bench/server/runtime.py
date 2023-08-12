@@ -169,7 +169,7 @@ class RuntimeServer(Monitored):
         await nc_init.wait()
         logger.info("start")
         self.subs = [
-            await handle_reply(NMessageType.GET_MODULE_HEAD, self.get_module_head),
+            await handle_reply(f"{NMessageType.GET_MODULE_HEAD}.>", self.get_module_head),
             await handle_reply(NMessageType.READ_MODULE, self.read_module),
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
