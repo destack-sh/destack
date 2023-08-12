@@ -8,7 +8,7 @@ import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButto
 import { useFocus } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { StatementType } from "@/gql/graphql";
-import { useStatementContext } from "@/state/statement";
+import { getStatementIconSolid, useStatementContext } from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
 
@@ -54,6 +54,7 @@ useActiveScroll(computed(() => commandOptionsRef.value?.$el));
 
 type Command = {
   label: string;
+  icon: any;
   description: string;
   action: () => void;
 };
@@ -63,16 +64,13 @@ const commands = computed(() => {
   const commands: Command[] = [
     {
       label: "text",
-      description: "Just start writing, documenting, whatever.",
+      icon: getStatementIconSolid(StatementType.Text),
+      description: "Just write for a markdown comment.",
       action: () => ((query.value = ""), nextTick(() => spanRef.value?.focus())),
     },
     {
-      label: "task",
-      description: "Instruct AI to do something.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Task }), emit("morphed")),
-    },
-    {
       label: "type",
+      icon: getStatementIconSolid(StatementType.Type, TypeTag.Struct),
       description: "A structure type with multiple fields.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Struct }), emit("morphed")
@@ -80,20 +78,35 @@ const commands = computed(() => {
     },
     {
       label: "choice",
+      icon: getStatementIconSolid(StatementType.Type, TypeTag.Enum),
       description: "A choice type with multiple options.",
       action: () => (context.morpthToSymbol({ type: StatementType.Type, rootTypeTag: TypeTag.Enum }), emit("morphed")),
     },
     {
       label: "dataset",
-      description: "Data big and tiny, fast however you need it.",
+      icon: getStatementIconSolid(StatementType.Dataset),
+      description: "Examples, feedback, context up to 1M+.",
       action: () => (
         context.morpthToSymbol({ type: StatementType.Dataset, rootTypeFlags: TypeFlag.IsArray }), emit("morphed")
       ),
     },
     {
       label: "code",
-      description: "Custom logic in Python.",
+      icon: getStatementIconSolid(StatementType.Code),
+      description: "Connect, test, customize with Python.",
       action: () => (context.morpthToSymbol({ type: StatementType.Code }), emit("morphed")),
+    },
+    {
+      label: "task",
+      icon: getStatementIconSolid(StatementType.Task),
+      description: "Instruct AI to do something.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Task }), emit("morphed")),
+    },
+    {
+      label: "expectation",
+      icon: getStatementIconSolid(StatementType.Expectation),
+      description: "Tune desired AI behaviour.",
+      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
     },
     // {
     //   label: "flow",
@@ -102,24 +115,21 @@ const commands = computed(() => {
     // },
     {
       label: "value",
-      description: "A bit of configuration, secrets or flags.",
+      icon: getStatementIconSolid(StatementType.Value),
+      description: "A single configuration or secrets.",
       action: () => (context.morpthToSymbol({ type: StatementType.Value, rootTypeFlags: 0 }), emit("morphed")),
     },
     {
       label: "reference",
+      icon: getStatementIconSolid(StatementType.Reference),
       description: "Reuse another statement.",
       action: () => (context.morpthToSymbol({ type: StatementType.Reference }), emit("morphed")),
     },
-    {
-      label: "block",
-      description: "A group of related statements.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
-    },
-    {
-      label: "expectation",
-      description: "Tune desired behaviour.",
-      action: () => (context.morpthToSymbol({ type: StatementType.Expectation }), emit("morphed")),
-    },
+    // {
+    //   label: "block",
+    //   description: "A group of related statements.",
+    //   action: () => (context.morpthToSymbol({ type: StatementType.Block }), emit("morphed")),
+    // },
   ];
 
   return commands;
@@ -207,25 +217,32 @@ defineExpose({
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"
-          class="absolute top-7 z-20 flex max-h-64 w-80 flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute top-7 z-20 flex max-h-64 w-[340px] flex-col gap-1 overflow-auto rounded-sm bg-white p-1 shadow-sm ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
             <span class="text-gray-700">No results</span>
           </div>
           <ComboboxOption v-for="command in filteredCommands" :key="command.label" :value="command" v-slot="{ active }">
             <li
-              class="flex flex-col"
+              class="flex flex-row justify-between gap-3"
               :class="[
                 'cursor-pointer select-none px-2 py-0.5',
                 active ? 'bg-orange-100 text-gray-900' : 'text-gray-900',
               ]"
             >
-              <span class="text-orange-600">
-                {{ command.label }}
-              </span>
-              <span class="text-gray-700">
-                {{ command.description }}
-              </span>
+              <div class="py-1">
+                <div class="relative h-8 w-8 rounded-md bg-orange-500">
+                  <component :is="command.icon" class="absolute left-1.5 top-1.5 h-5 w-5 text-white" />
+                </div>
+              </div>
+              <div class="flex flex-1 flex-col">
+                <span class="font-semibold text-orange-600">
+                  {{ command.label }}
+                </span>
+                <span class="text-gray-700">
+                  {{ command.description }}
+                </span>
+              </div>
             </li>
           </ComboboxOption>
         </ComboboxOptions>

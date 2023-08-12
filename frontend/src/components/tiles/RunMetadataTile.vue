@@ -21,6 +21,7 @@ const fields = computed(
 </script>
 <template>
   <div class="flex flex-col gap-1">
+    <!-- TODO @UX: run metadata tile is extra ugly -->
     <!-- About -->
     <div>
       <!-- Table with path, status, started at, terminated at -->

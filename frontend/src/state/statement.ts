@@ -31,6 +31,7 @@ import {
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
+  ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -42,6 +43,8 @@ import {
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
+  PlayCircleIcon as PlayCircleIconSolid,
+  ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -574,6 +577,7 @@ export function getEnumColor(type: { key: string }) {
 }
 
 export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
+  [StatementType.Text]: ChatBubbleBottomCenterTextIconOutline,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
   [StatementType.Value]: TableCellsIconOutline,
@@ -586,6 +590,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
+  [StatementType.Text]: ChatBubbleBottomCenterTextIconSolid,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
   [StatementType.Value]: TableCellsIconSolid,

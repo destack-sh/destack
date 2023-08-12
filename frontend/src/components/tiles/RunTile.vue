@@ -47,6 +47,7 @@ defineExpose({
 </script>
 <template>
   <div class="relative">
+    <!-- TODO @UX: run tile is ugly af -->
     <!-- Controls -->
     <div v-if="showControls" class="flex flex-row items-center justify-between">
       <span class="text-xs font-semibold uppercase text-gray-400">{{ activeView }}</span>

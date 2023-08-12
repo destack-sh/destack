@@ -61,11 +61,9 @@ const containerSize = useElementSize(containerRef);
 const previewFields = computed(() => [...inputFields.value.slice(0, 1), ...outputFields.value.slice(0, 2)]);
 const headerHeight = 64;
 const bodyHeight = 512;
-const paddingY = 8;
-const paddingX = 4;
 const metadataWidth = 200;
 const previewWidth = computed(() => {
-  return containerSize.width.value - metadataWidth - paddingX * 2;
+  return containerSize.width.value - metadataWidth - 4 * 2;
 });
 
 function toggleExpanded(runId: string) {
@@ -89,7 +87,6 @@ function isExpanded(runId: string) {
     <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
       <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
     </div>
-    <!-- TODO @UX: animate runs in tile (without interfering with expand/close animation, looks glitchy) -->
     <div v-else class="relative flex flex-col">
       <div v-if="(runs?.length ?? 0) == 0" class="w-full text-center"><span class="text-gray-400">No runs</span></div>
       <div
@@ -97,13 +94,9 @@ function isExpanded(runId: string) {
         tabindex="-1"
         v-for="(run, y) in runs"
         :key="run.id"
-        class="group/run flex flex-col"
+        class="group/run flex flex-col px-1 py-2"
         :class="[y > 0 ? 'border-t- border-orange-900 border-opacity-[12%]' : '']"
         :style="{
-          paddingTop: paddingY + 'px',
-          paddingBottom: paddingY + 'px',
-          paddingLeft: paddingX + 'px',
-          paddingRight: paddingX + 'px',
           height: isExpanded(run.id) ? undefined : headerHeight + 'px',
         }"
         @click.stop="toggleExpanded(run.id)"
@@ -206,25 +199,3 @@ function isExpanded(runId: string) {
     <!-- Load more -->
   </div>
 </template>
-<style scoped>
-/* see https://vuejs.org/examples/#list-transition */
-/* 1. declare transition */
-.fade-move,
-.fade-enter-active,
-.fade-leave-active {
-  transition: all 0.2s cubic-bezier(0.55, 0, 0.1, 1);
-}
-
-/* 2. declare enter from and leave to state */
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-  transform: scaleY(0.01) translate(30px, 0);
-}
-
-/* 3. ensure leaving items are taken out of layout flow so that moving
-      animations can be calculated correctly. */
-.fade-leave-active {
-  position: absolute;
-}
-</style>
