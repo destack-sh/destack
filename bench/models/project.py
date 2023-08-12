@@ -19,6 +19,7 @@ from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
 from bench.settings import LOCAL, PROJECT_BUCKET_NAME
+from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
