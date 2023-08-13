@@ -37,9 +37,10 @@ const cachedPercentage = computed(() => {
     >
       Cached
       {{ now.getTimeFromNowString(cachedGeneratedAt) }} ago<br />
-      <template v-if="cachedPercentage > 0">
+      <!-- TODO @Broken: run cached info saved % is incorrect -->
+      <!-- <template v-if="cachedPercentage > 0">
         Saved {{ cachedPercentage.toFixed() }}% (~{{ formatDuration((cachedDuration - run.duration) * 1000) }})
-      </template>
+      </template> -->
     </span>
   </span>
 </template>

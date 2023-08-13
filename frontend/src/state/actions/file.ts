@@ -21,7 +21,7 @@ export function useFileActions() {
       try {
         await create;
       } catch (e) {
-        bench.closeEditor(optimisticEditor);
+        bench.closePanel(optimisticEditor);
       }
     },
   });

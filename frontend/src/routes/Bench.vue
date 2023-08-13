@@ -12,7 +12,7 @@ import HelpPopover from "@/components/bench/HelpPopover.vue";
 import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import ProjectPopover from "@/components/bench/ProjectPopover.vue";
 import SettingsPopover from "@/components/bench/SettingsPopover.vue";
-import EditorGroup from "@/components/editors/EditorGroup.vue";
+import PanelGroup from "@/components/editors/PanelGroup.vue";
 import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
@@ -21,7 +21,7 @@ import { IssueKind, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
-  EDITOR_INSTANCE_TYPES,
+  PANEL_INSTANCE_TYPES,
   prettifySlug,
   useBenchMigrations,
   useBenchPersistence,
@@ -186,8 +186,8 @@ watchEffect(() => {
   if (projectError.value) {
     title.value = "Page not found";
   } else {
-    if (bench.focusedEditor != null) {
-      title.value = (bench.focusedEditor.name || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
+    if (bench.focusedPanel != null) {
+      title.value = (bench.focusedPanel.name || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
     } else {
       title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
     }
@@ -274,7 +274,7 @@ watch(
   () => {
     if (module.idx.value != null && !consideredUrl.value && ready.value) {
       const hash = router.currentRoute.value.hash.slice(1);
-      const matchingEditor = Object.values(EDITOR_INSTANCE_TYPES)
+      const matchingEditor = Object.values(PANEL_INSTANCE_TYPES)
         .map((editorType) => editorType.parsePath(hash, module.idx.value as ModuleIndex))
         .find((e) => e != null);
       if (matchingEditor != null) {
@@ -290,10 +290,10 @@ watch(
 
 // change url if focused editor changes
 watchEffect(() => {
-  if (bench.focusedEditor != null) {
+  if (bench.focusedPanel != null) {
     // set hash to open path
     if (consideredUrl.value) {
-      const prettyPath = prettifySlug(bench.focusedEditor.path);
+      const prettyPath = prettifySlug(bench.focusedPanel.path);
       router.replace({ hash: `#${prettyPath}`, query: router.currentRoute.value.query });
     }
   } else if (ready.value && consideredUrl.value) {
@@ -593,7 +593,7 @@ onBeforeUnmount(() => {
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
-              class="group relative border-l-2 border-gray-50 px-2.5 py-2.5 text-gray-600 hover:bg-orange-100"
+              class="group relative border-l-2 border-gray-50 px-2 py-2.5 text-gray-600 hover:bg-orange-100"
               :class="
                 view.id == activeView.id && bench.showViewContent
                   ? 'border-orange-600 text-orange-600'
@@ -618,7 +618,7 @@ onBeforeUnmount(() => {
           <component v-for="popover in sidebarPopovers" :key="popover.label" :is="popover.component">
             <template v-slot:button="{ open }">
               <PopoverButton
-                class="group relative border-l-2 px-2.5 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
+                class="group relative border-l-2 px-2 py-2.5 text-gray-600 outline-none hover:bg-orange-100 focus:ring-0"
                 :class="open ? 'border-orange-600 text-orange-600' : 'hover:border-orange-100'"
               >
                 <span class="sr-only">{{ popover.label }}</span>
@@ -662,13 +662,13 @@ onBeforeUnmount(() => {
         <!-- Left editor group -->
         <div class="relative flex-1">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroup :group="bench.left" class="h-full w-full" />
+            <PanelGroup :group="bench.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
-        <div class="relative flex-1" v-if="bench.right.editors.length > 0">
+        <div class="relative flex-1" v-if="bench.right.panels.length > 0">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
-            <EditorGroup :group="bench.right" class="h-full w-full" />
+            <PanelGroup :group="bench.right" class="h-full w-full" />
           </div>
         </div>
       </main>

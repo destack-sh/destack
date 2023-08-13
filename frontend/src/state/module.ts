@@ -393,10 +393,10 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
   const statementsByParentId: Record<string, T[]> = {};
   // group by parent
   statements.forEach((statement) => {
-    if (statementsByParentId[statement.parent.id] != null) {
-      statementsByParentId[statement.parent.id].push(statement);
+    if (statementsByParentId[statement.parent?.id] != null) {
+      statementsByParentId[statement.parent?.id].push(statement);
     } else {
-      statementsByParentId[statement.parent.id] = [statement];
+      statementsByParentId[statement.parent?.id] = [statement];
     }
   });
   // walk from root
@@ -415,7 +415,7 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
       }
     }
   }
-  const fileId = statements.find((s) => s.parent.__typename == "File")?.parent.id; // assumes all statements are from the same file
+  const fileId = statements.find((s) => s.parent?.__typename == "File")?.parent?.id; // assumes all statements are from the same file
   walkDfs(fileId, 0, []);
   return ordered;
 }
@@ -435,8 +435,8 @@ export function useNavigation() {
     if (!context?.file) return;
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
-    const editor = bench.focusFile(context.file as any) as FileEditor;
-    editor.editElement(symbol as any);
+    const panel = bench.focusFile(context.file as any) as FileEditor;
+    panel.editElement(symbol as any);
   }
 
   function focusFile(file: { id: string }) {

@@ -15,16 +15,16 @@ import { graphql, useFragment } from "@/gql";
 import {
   QueryOp,
   SortOrder,
-  type SearchSearchQueryVariables,
   ModuleMutationType,
   TypeHint,
   type SearchSort,
   type SearchQuery,
+  type SearchDatasetQueryVariables,
 } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
-  useEditorContext,
-  useElementEditorSettings,
+  usePanelContext,
+  useElementPanelSettings,
   type RecordAction,
   type StatementAction,
   type StatementHeader,
@@ -72,7 +72,7 @@ const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }
 const context = useStatementContext();
 const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 15;
-const editor = useEditorContext();
+const panel = usePanelContext();
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
 
@@ -101,7 +101,7 @@ type DatasetStatementProperties = {
   query?: SearchQuery;
 };
 
-const properties = useElementEditorSettings<DatasetStatementProperties>(context.statement, {
+const properties = useElementPanelSettings<DatasetStatementProperties>(context.statement, {
   inlineQuery: undefined,
   wrapColumns: false,
 });
@@ -230,7 +230,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     }
   }
 `);
-const searchQueryVariables: Ref<SearchSearchQueryVariables> = computed(
+const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
   () =>
     ({
       statementId: context.statement.value.id,
@@ -239,7 +239,7 @@ const searchQueryVariables: Ref<SearchSearchQueryVariables> = computed(
       sort: sort.value,
       limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
       count: true,
-    } as SearchSearchQueryVariables)
+    } as SearchDatasetQueryVariables)
 );
 const {
   loading: recordsLoading,
@@ -330,10 +330,10 @@ const propertiesColumnWidth = 40;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
-  if (editor.size.value.width > editor.editor.value.contentWidthWithMargin) {
-    return (editor.size.value.width - editor.editor.value.contentWidth) / 2;
+  if (panel.size.value.width > panel.panel.value.contentWidthWithMargin) {
+    return (panel.size.value.width - panel.panel.value.contentWidth) / 2;
   } else {
-    return editor.editor.value.contentMarginX;
+    return panel.panel.value.contentMarginX;
   }
 });
 // auto size columns and rows
@@ -345,17 +345,17 @@ const gridOffsetX: Ref<number> = computed(() => {
 watch(
   () => [
     properties.wrapColumns,
-    editor.editor.value.contentWidth,
-    editor.editor.value.contentMarginX,
+    panel.panel.value.contentWidth,
+    panel.panel.value.contentMarginX,
     context.xOffset,
-    editor.size.value,
+    panel.size.value,
     context.allFields.value,
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
     // update column widths
     const targetMinTotalWidth =
-      Math.min(editor.size.value.width - editor.editor.value.contentMarginX * 2, editor.editor.value.contentWidth) -
+      Math.min(panel.size.value.width - panel.panel.value.contentMarginX * 2, panel.panel.value.contentWidth) -
       context.xOffset.value -
       8; // not sure why -8, probably some mx-1? borders?
     const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = context.allFields.value.map((f) =>
@@ -418,16 +418,16 @@ const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
 const hasFloatingHeader = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
-  const editorTop = editor.pos.value.top + appearance.editorHeaderHeight;
+  const editorTop = panel.pos.value.top + appearance.editorHeaderHeight;
   return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
 });
 const gridOverhangLeft = computed(() => {
   // how much the grid overhangs the left of the editor
-  return Math.max(editor.pos.value.left - innerGridBounding.left.value, 0);
+  return Math.max(panel.pos.value.left - innerGridBounding.left.value, 0);
 });
 const gridOverhangRight = computed(() => {
   // how much the grid overhangs the right of the editor
-  return Math.max(innerGridBounding.right.value - (editor.pos.value.left + editor.size.value.width), 0);
+  return Math.max(innerGridBounding.right.value - (panel.pos.value.left + panel.size.value.width), 0);
 });
 
 // navigation
@@ -906,7 +906,7 @@ defineExpose({
       'margin-right': -gridOffsetX + 'px',
       'padding-left': gridOffsetX + 'px',
       'padding-right': gridOffsetX + 'px',
-      'max-width': editor.size.value.width + 'px',
+      'max-width': panel.size.value.width + 'px',
     }"
   >
     <!-- Inner grid -->
@@ -926,9 +926,9 @@ defineExpose({
         :style="{
           position: hasFloatingHeader ? 'fixed' : 'absolute',
           left: hasFloatingHeader
-            ? -gridScrollOffsetX + 4 + editor.pos.value.left + gridOffsetX + 'px'
+            ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
             : -gridScrollOffsetX + 4 + 'px',
-          top: hasFloatingHeader ? editor.pos.value.top + appearance.editorHeaderHeight + 'px' : undefined,
+          top: hasFloatingHeader ? panel.pos.value.top + appearance.editorHeaderHeight + 'px' : undefined,
           /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
           clipPath: hasFloatingHeader ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
         }"

@@ -1,5 +1,5 @@
 import { computed, inject, ref, watch, type Ref } from "vue";
-import { type EditorContext, EDITOR_CONTEXT } from "@/state/bench";
+import { type PanelContext, PANEL_CONTEXT } from "@/state/bench";
 import { unrefElement } from "@vueuse/core";
 
 export const VIEW_MARGIN = 8;
@@ -16,15 +16,15 @@ export function pinAbsoluteElement(
 ) {
   // fixes the element at the first available position
   const fixed: Ref<{ x: number; y: number; width: number; height: number } | null> = ref(null);
-  const editorContext = inject<EditorContext<any> | null>(EDITOR_CONTEXT, null);
-  if (fix.keepInView && editorContext == null) {
+  const panelContext = inject<PanelContext<any> | null>(PANEL_CONTEXT, null);
+  if (fix.keepInView && panelContext == null) {
     throw new Error("keepInView requires editor context");
   }
   if (fix.keepInView && !fix.pos) {
     throw new Error("keepInView requires pos");
   }
 
-  watch([target, () => fix.sourcePos?.value, () => editorContext?.pos.value, () => editorContext?.size.value], () => {
+  watch([target, () => fix.sourcePos?.value, () => panelContext?.pos.value, () => panelContext?.size.value], () => {
     const el = unrefElement(target);
     if (el == null && fixed.value != null) fixed.value = null; // reset
     if (el == null) return; // no element
@@ -37,9 +37,9 @@ export function pinAbsoluteElement(
       rect.y = fix.sourcePos.value.y;
     }
     fixed.value = { x: rect.left, y: rect.top, width: rect.width, height: rect.height };
-    if (fix.keepInView && editorContext != null) {
-      const cpos = editorContext.pos.value;
-      const crect = editorContext.size.value;
+    if (fix.keepInView && panelContext != null) {
+      const cpos = panelContext.pos.value;
+      const crect = panelContext.size.value;
       if (rect.x + rect.width > cpos.left + crect.width - VIEW_MARGIN) {
         // crosses on the right, move left
         fixed.value.x -= rect.right - (cpos.left + crect.width - VIEW_MARGIN);

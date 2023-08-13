@@ -4,7 +4,7 @@ import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
-import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
+import { useBenchState, usePanelContext, type PanelGroup, type StatementAction } from "@/state/bench";
 import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
@@ -34,7 +34,7 @@ const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
-const editor = useEditorContext();
+const panel = usePanelContext();
 const standalone = context.standalone;
 
 const code: Ref<string> = ref(context.statement.value.code ?? "");
@@ -158,7 +158,7 @@ const extraActions = computed(() => {
     label: "Launch",
     icon: WindowIcon,
     action: () => {
-      const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+      const nextGroup = bench.nextGroup(panel.editor.value.group as PanelGroup); // open in opposite group
       bench.openRun(context.statement.value, { group: nextGroup, focus: true });
     },
   });
@@ -170,7 +170,7 @@ context.setCustomActions(extraActions);
 async function run() {
   if (isCurrentRunActive.value) return;
   if (hasTypes.value) {
-    const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
+    const nextGroup = bench.nextGroup(panel.editor.value.group as PanelGroup); // open in opposite group
     bench.openRun(context.statement.value, { group: nextGroup, focus: true });
   } else {
     try {

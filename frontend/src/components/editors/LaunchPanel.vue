@@ -8,7 +8,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { useFragment } from "@/gql";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type EditorContext, type StatementAction, type LaunchEditor } from "@/state/bench";
+import { useBenchState, type PanelContext, type StatementAction, type LaunchPanel } from "@/state/bench";
 import { FieldType } from "@/state/fragments";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
@@ -17,22 +17,22 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 
-const props = defineProps<{ editor: EditorContext<LaunchEditor>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<LaunchPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
 
 const bench = useBenchState();
 const appearance = useAppearance();
-const editor = computed(() => props.editor.editor.value);
-const editorSize = computed(() => props.editor.size.value);
+const panel = computed(() => props.panel.panel.value);
+const editorSize = computed(() => props.panel.size.value);
 const now = useTimeFromNow();
 
 // state
 
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
-const statement = computed(() => module.statementOf(props.editor.editor.value.statementId));
+const statement = computed(() => module.statementOf(props.panel.panel.value.statementId));
 const inputFields = computed(
   () =>
     statement.value?.fields?.map((f) => useFragment(FieldType, f)).filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []
@@ -47,11 +47,11 @@ const terminalActions = computed(() => {
 
 // sync symbol type into editor
 watchEffect(() => {
-  if (statement.value?.type != null && statement.value.type != editor.value.statementType) {
+  if (statement.value?.type != null && statement.value.type != panel.value.statementType) {
     if (![StatementType.Code, StatementType.Task].includes(statement.value.type)) {
       throw new Error(`unexpected statement type ${statement.value.type}`);
     }
-    editor.value.statementType = statement.value.type as StatementType.Code | StatementType.Task;
+    panel.value.statementType = statement.value.type as StatementType.Code | StatementType.Task;
   }
 });
 
@@ -63,12 +63,12 @@ const path = computed(() => {
 });
 watch(path, () => {
   if (statement.value == null || module.idx.value == null) return;
-  editor.value.updatePath(statement.value, module.idx.value);
+  panel.value.updatePath(statement.value, module.idx.value);
 });
 
 // running
 
-const runs = sessions.runsOf({ id: editor.value.statementId });
+const runs = sessions.runsOf({ id: panel.value.statementId });
 const currentRun = computed(() => runs.value[0]);
 const isCurrentRunActive = computed(
   () =>
@@ -79,20 +79,20 @@ const isCurrentRunActive = computed(
 
 async function run() {
   if (statement.value == null) return;
-  editor.value.lastRunId = newRunId();
-  editor.value.lastSessionId = newSessionId();
-  editor.value.lastOutput = undefined;
+  panel.value.lastRunId = newRunId();
+  panel.value.lastSessionId = newSessionId();
+  panel.value.lastOutput = undefined;
   const { result: resultPromise } = await sessions.run(
-    { id: editor.value.statementId },
+    { id: panel.value.statementId },
     {
-      inputs: editor.value.inputs,
+      inputs: panel.value.inputs,
       keyed: true,
-      runId: editor.value.lastRunId,
-      sessionId: editor.value.lastSessionId,
+      runId: panel.value.lastRunId,
+      sessionId: panel.value.lastSessionId,
     }
   );
   const result = await resultPromise;
-  editor.value.lastOutput = result?.run.outputs;
+  panel.value.lastOutput = result?.run.outputs;
 }
 
 async function cancel() {
@@ -108,13 +108,13 @@ const gridStepY = ref(18); // p-4.5
 
 function getTileWidth(targetWidth?: number) {
   return Math.min(
-    targetWidth ?? editor.value.contentWidth,
-    props.editor.size.value.width - 2 * editor.value.contentMarginX
+    targetWidth ?? panel.value.contentWidth,
+    props.panel.size.value.width - 2 * panel.value.contentMarginX
   );
 }
 
 function getTileOffsetX(targetWidth?: number) {
-  return (props.editor.size.value.width - getTileWidth(targetWidth)) / 2;
+  return (props.panel.size.value.width - getTileWidth(targetWidth)) / 2;
 }
 
 function getTilePositionX(targetWidth?: number) {
@@ -224,7 +224,7 @@ defineExpose({
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
           <StructTile
             v-if="inputFields.length > 0"
-            v-model="editor.inputs"
+            v-model="panel.inputs"
             :fields="inputFields"
             full-inputs
             readonly-type
@@ -238,13 +238,13 @@ defineExpose({
         <ContainerTile
           label="Trace"
           :sub-label="
-            editor.lastRunTerminatedAt != null
-              ? now.getTimeFromNowLongString(editor.lastRunTerminatedAt as string)
+            panel.lastRunTerminatedAt != null
+              ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
           "
           :style="{ ...baseTilePositionX }"
         >
-          <TraceTile v-if="editor.lastRunId" :root-id="editor.lastRunId" layout="list" live />
+          <TraceTile v-if="panel.lastRunId" :root-id="panel.lastRunId" layout="list" live />
           <div v-else class="flex h-full w-full flex-col items-center justify-center">
             <span class="text-sm text-gray-400">No trace</span>
           </div>
@@ -253,15 +253,15 @@ defineExpose({
         <ContainerTile
           label="Output"
           :sub-label="
-            editor.lastRunTerminatedAt != null
-              ? now.getTimeFromNowLongString(editor.lastRunTerminatedAt as string)
+            panel.lastRunTerminatedAt != null
+              ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
           "
           :style="{ ...baseTilePositionX }"
         >
           <StructTile
-            v-if="editor.lastOutput && outputFields.length > 0"
-            :model-value="editor.lastOutput"
+            v-if="panel.lastOutput && outputFields.length > 0"
+            :model-value="panel.lastOutput"
             :fields="outputFields"
             readonly
             class=""
@@ -276,7 +276,7 @@ defineExpose({
             :project-id="bench.projectId"
             :project-version-id="bench.projectVersionId"
             include-ancestor-versions
-            :runnable-id="editor?.statementId"
+            :runnable-id="panel?.statementId"
             :symbol-type="statement?.type"
             live
           />

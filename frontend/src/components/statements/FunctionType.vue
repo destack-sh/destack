@@ -9,7 +9,7 @@ import { TypeFlag } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
-import { useEditorContext } from "@/state/bench";
+import { usePanelContext } from "@/state/bench";
 
 const context = useStatementContext();
 
@@ -49,8 +49,8 @@ const addInputRef: Ref<HTMLButtonElement | null> = ref(null);
 const createInputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const addOutputRef: Ref<HTMLButtonElement | null> = ref(null);
 const createOutputRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const editor = useEditorContext();
-const isHorizontal = computed(() => editor.size.value.width > 700);
+const panel = usePanelContext();
+const isHorizontal = computed(() => panel.size.value.width > 700);
 
 function readColumn(field: Field, column: ColumnType) {
   if (column == "type") {
@@ -99,7 +99,7 @@ function moveField(node: Field, position: "before" | "after", other: Field) {
   }
 }
 
-function dropField(droppedId: string, position: "above" | "below", fieldId: string) {
+function dropField(droppedId: string, position: "left" | "right" | "above" | "below", fieldId: string) {
   const dropped = context.selfFields.value.find((n) => n.id == droppedId);
   const field = context.selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops

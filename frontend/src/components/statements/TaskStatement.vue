@@ -3,7 +3,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
-import { useBenchState, useEditorContext, type EditorGroup, type StatementAction } from "@/state/bench";
+import { useBenchState, usePanelContext, type PanelGroup, type StatementAction } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
@@ -24,7 +24,7 @@ const props = defineProps<{ isTyped: boolean; folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const bench = useBenchState();
-const editor = useEditorContext();
+const panel = usePanelContext();
 const context = useStatementContext();
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
@@ -43,8 +43,8 @@ const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 
 function run() {
-  const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
-  bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+  const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
+  bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
 }
 
 function unfoldIfFolded() {

@@ -4274,7 +4274,7 @@ export type RestartWorkerSetMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "RestartWorkerSetPayload" };
+    | { __typename?: "RestartWorkerSetPayload"; success: boolean };
 };
 
 export type StartRunMutationVariables = Exact<{
@@ -11581,7 +11581,17 @@ export const RestartWorkerSetDocument = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } }],
+              selections: [
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "RestartWorkerSetPayload" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "success" } }],
+                  },
+                },
+              ],
             },
           },
         ],

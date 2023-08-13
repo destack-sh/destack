@@ -301,7 +301,7 @@ export function _useSessions(
     waking.value = true;
     return sessionOps
       .wakeWorkerSet(filter.projectId.value as string)
-      .then((r) => r?.data?.wakeWorkerSet?.success ?? false)
+      .then((r) => r?.data?.wakeWorkerSet.__typename != "WakeWorkerSetPayload" || !r?.data?.wakeWorkerSet?.success)
       .then((success) => {
         if (!success) {
           waking.value = false;
@@ -317,7 +317,9 @@ export function _useSessions(
     restarting.value = true;
     return sessionOps
       .restartWorkerSet(filter.projectId.value as string)
-      .then((r) => r?.data?.restartWorkerSet?.success ?? false)
+      .then(
+        (r) => r?.data?.restartWorkerSet.__typename != "RestartWorkerSetPayload" || !r?.data?.restartWorkerSet?.success
+      )
       .finally(() => {
         restarting.value = false;
       });
@@ -469,12 +471,12 @@ export function _useSessions(
   }
 
   const now = useNow(100);
-  function getDurationSeconds(run: { duration?: number; startedAt?: string; createdAt: string }): number {
+  function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
     return now.value.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
   }
 
-  function getDurationFormatted(run: { duration?: number; startedAt?: string; createdAt: string }): string {
+  function getDurationFormatted(run: Pick<Run, "createdAt" | "startedAt" | "duration">): string {
     return formatDuration(getDurationSeconds(run) * 1000);
   }
 

@@ -22,7 +22,7 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
 
 const members = computed(() => {
-  return runtimeType.value?.fields ?? [];
+  return runtimeType.value?.fields.slice().sort((a, b) => a.orderKey.localeCompare(b.orderKey)) ?? [];
 });
 const selectedMembers = computed(
   () => (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as Field[]) ?? []
@@ -34,7 +34,7 @@ const filteredMembers = computed(() => {
   const baseMembers = isArray.value ? missingMembers.value : members.value;
   if (query.value.trim() == "") return baseMembers;
   const [idxs] = uf.search(
-    baseMembers.map((m) => m.name),
+    baseMembers.map((m) => m.name ?? ""),
     query.value
   );
   return idxs?.map((idx) => baseMembers[idx]) ?? [];

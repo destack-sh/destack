@@ -12,7 +12,7 @@ import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
 export type FileState = {
-  editor: FileEditor;
+  panel: FileEditor;
   editing: boolean;
   focused: boolean;
   file: FileHeader;
@@ -44,15 +44,15 @@ export function provideFileState(file: Ref<FileState | null>) {
   // set active file if focused
   watchEffect(() => {
     if (file.value?.focused) {
-      if (activeFileState.value?.editor.id !== file.value?.editor.id) {
+      if (activeFileState.value?.panel.id !== file.value?.panel.id) {
         activeFileState.value = file.value;
       }
-    } else if (activeFileState.value?.editor.id === file.value?.editor.id) {
+    } else if (activeFileState.value?.panel.id === file.value?.panel.id) {
       activeFileState.value = null;
     }
   });
   onBeforeUnmount(() => {
-    if (activeFileState.value?.editor.id === file.value?.editor.id) {
+    if (activeFileState.value?.panel.id === file.value?.panel.id) {
       activeFileState.value = null;
     }
   });
@@ -501,7 +501,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   function getSelectionBottom(): StatementHeader | undefined {
-    if (file.value?.editor.hasSelection) {
+    if (file.value?.panel.hasSelection) {
       const selectedRoots = getSelectedRoots();
       return selectedRoots[selectedRoots.length - 1];
     } else if (statement.value != null) {
@@ -603,12 +603,12 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       console.log("pasted " + sourceStatements.length + " statements");
       // select the pasted stuff
       if (bench.focusedStatementId != null && sourceIds.includes(bench.focusedStatementId)) {
-        file.value?.editor.focusElement({ id: targetIds[bench.focusedStatementId], __typename: "Statement" });
+        file.value?.panel.focusElement({ id: targetIds[bench.focusedStatementId], __typename: "Statement" });
       } else {
-        file.value?.editor.blurElement();
+        file.value?.panel.blurElement();
       }
-      file.value?.editor.clearSelection();
-      Object.values(targetIds).forEach((targetId) => file.value?.editor.addToSelection({ id: targetId }));
+      file.value?.panel.clearSelection();
+      Object.values(targetIds).forEach((targetId) => file.value?.panel.addToSelection({ id: targetId }));
     } catch (err) {
       console.error("failed to parse clipboard data", err);
       return;
@@ -620,8 +620,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
     // current
     const current = {
-      statement: statementsById.value[file.value.editor.activeStatementId as string],
-      component: file.value.statementsComponents[file.value.editor.activeStatementId as string],
+      statement: statementsById.value[file.value.panel.activeStatementId as string],
+      component: file.value.statementsComponents[file.value.panel.activeStatementId as string],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
@@ -710,7 +710,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
     if (focus) {
-      nav?.value?.editor.editElement(newStatement as StatementHeader);
+      nav?.value?.panel.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -720,7 +720,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     const newStatement = { __typename: "Statement", id: newStatementId() };
     ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
     if (focus) {
-      nav?.value?.editor.editElement(newStatement as StatementHeader);
+      nav?.value?.panel.editElement(newStatement as StatementHeader);
     }
   }
 
@@ -741,7 +741,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (statement.value == null) return;
     const above = nav?.value?.getAbove(statement.value);
     if (above == null) return;
-    nav?.value?.editor.focusElement(above);
+    nav?.value?.panel.focusElement(above);
   }
 
   async function moveFocusDown() {
@@ -749,7 +749,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (statement.value == null) return;
     const below = nav?.value?.getBelow(statement.value);
     if (below == null) return;
-    nav?.value?.editor.focusElement(below);
+    nav?.value?.panel.focusElement(below);
   }
 
   async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {

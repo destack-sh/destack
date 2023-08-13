@@ -16,11 +16,11 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import {
   useBenchState,
-  useEditorContext,
+  usePanelContext,
   type StatementAction,
   type StatementHeader,
   FileEditor,
-  type EditorGroup,
+  type PanelGroup,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
@@ -56,15 +56,15 @@ const ancestors = computed(() => props.ancestors.map((s) => useFragment(Statemen
 const bench = useBenchState();
 const appearance = useAppearance();
 const nav = useNavigationContext(!props.standalone);
-const editor = useEditorContext();
+const panel = usePanelContext();
 const module = useCurrentModule();
 const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const isActive = computed(() => props.standalone || nav?.value?.editor.activeStatementId == statement.value?.id);
-const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.editor.focused));
-const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.editor.editing));
-const isSelected = computed(() => nav?.value?.editor.isSelected(statement.value));
+const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementId == statement.value?.id);
+const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.panel.focused));
+const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.panel.editing));
+const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
 const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
@@ -72,28 +72,28 @@ const canContentFold = computed(
     statement.value.type != StatementType.Block
 );
 const isContentFolded = computed(
-  () => !props.standalone && (editor.editor.value as FileEditor).isStatementContentFolded(statement.value)
+  () => !props.standalone && (panel.panel.value as FileEditor).isStatementContentFolded(statement.value)
 );
 
 function toggleContentFold(descendants?: boolean) {
   if (props.standalone) return;
   if (descendants) {
-    (editor.editor.value as FileEditor).setStatementContentsFolded(
+    (panel.panel.value as FileEditor).setStatementContentsFolded(
       module.getDescendantsOf(statement.value),
       !isContentFolded.value
     );
   } else {
-    (editor.editor.value as FileEditor).toggleStatementContentFolded(statement.value);
+    (panel.panel.value as FileEditor).toggleStatementContentFolded(statement.value);
   }
 }
 
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
   ancestors.value.findIndex(
-    (s) => nav?.value?.editor.activeStatementId == s.id || nav?.value?.editor.selectedElementIds.includes(s.id)
+    (s) => nav?.value?.panel.activeStatementId == s.id || nav?.value?.panel.selectedElementIds.includes(s.id)
   )
 );
-const isAncestorHighlight = computed(() => !nav?.value?.editor.editing && ancestorHighlightDepth.value > -1);
+const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
 const contentOffsetX = computed(() => props.depth * 20);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
@@ -186,7 +186,7 @@ const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 whenever(isActive, () => {
   if (isEditing.value) return; //  (but not editing, which would focus an actual HTML element)
   // scroll into view if not visible
-  const editorRect = editor.container.value?.getBoundingClientRect();
+  const editorRect = panel.container.value?.getBoundingClientRect();
   const containerRect = containerRef.value?.getBoundingClientRect();
   if (editorRect != null && containerRect != null) {
     if (
@@ -245,10 +245,10 @@ onClickOutside(containerRef, (e) => {
     isFocused.value &&
     !altKeyState.value &&
     !shiftKeyState.value &&
-    editor.container.value?.parentNode?.contains(e.target as Node)
+    panel.container.value?.parentNode?.contains(e.target as Node)
   ) {
     // we don't blur the statement interface here because the focus is already elsewhere
-    nav?.value?.editor.blurElement(statement.value);
+    nav?.value?.panel.blurElement(statement.value);
   }
 });
 
@@ -262,7 +262,7 @@ whenever(inStatementFocused, () => {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
-    nav?.value?.editor.editElement(statement.value);
+    nav?.value?.panel.editElement(statement.value);
   }
 });
 
@@ -271,7 +271,7 @@ function focusInEditor() {
     bench.focusStatement(statement.value as any);
   } else {
     bench.focusFile(file.value as any);
-    nav?.value?.editor.focusElement(statement.value);
+    nav?.value?.panel.focusElement(statement.value);
   }
 }
 
@@ -279,7 +279,7 @@ function onClickContainer(e: MouseEvent) {
   // create selection to here if shift was pressed
   if (e.shiftKey && nav != null) {
     const index = nav?.value?.statementPositions[statement.value.id];
-    const lastIndex = nav?.value?.statementPositions[nav?.value?.editor.activeStatementId ?? ""];
+    const lastIndex = nav?.value?.statementPositions[nav?.value?.panel.activeStatementId ?? ""];
     console.log("select all statements between", index, lastIndex);
     focusInEditor();
     if (lastIndex != null) {
@@ -287,7 +287,7 @@ function onClickContainer(e: MouseEvent) {
       for (let i = Math.min(index, lastIndex); i <= Math.max(index, lastIndex); i++) {
         const statement = nav?.value?.statements[i];
         if (statement != null) {
-          nav?.value?.editor.addToSelection(statement);
+          nav?.value?.panel.addToSelection(statement);
         }
       }
     }
@@ -359,7 +359,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        nav?.value?.editor.bench.openStatement(statement.value, { focus: true });
+        nav?.value?.panel.bench.openStatement(statement.value, { focus: true });
       },
     });
     actions.push({
@@ -368,8 +368,8 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        const nextGroup = bench.nextGroup(editor.editor.value.group as EditorGroup); // open in opposite group
-        nav?.value?.editor.bench.openStatement(statement.value, { group: nextGroup, focus: true });
+        const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
+        nav?.value?.panel.bench.openStatement(statement.value, { group: nextGroup, focus: true });
       },
     });
     actions.push({
@@ -385,7 +385,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     label: "Rename",
     icon: PencilSquareIcon,
     action: () => {
-      nav?.value?.editor.editElement(statement.value);
+      nav?.value?.panel.editElement(statement.value);
       nextTick(() => statementRef.value?.focus());
     },
   });
@@ -441,7 +441,7 @@ defineExpose({
   <!-- Statement wrapper -->
   <div
     class="group/statement relative w-full max-w-full"
-    :style="standalone ? {} : editor.editor.value.contentMarginXAsPaddingX"
+    :style="standalone ? {} : panel.panel.value.contentMarginXAsPaddingX"
     @click="onClickContainer"
   >
     <!-- Statement main -->

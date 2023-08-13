@@ -59,6 +59,9 @@ export function useSessionOps() {
       mutation restartWorkerSet($projectId: GlobalID!) {
         restartWorkerSet(input: { projectId: $projectId }) {
           ...OperationInfoContent
+          ... on RestartWorkerSetPayload {
+            success
+          }
         }
       }
     `)

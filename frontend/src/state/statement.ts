@@ -23,16 +23,17 @@ import {
   ArrowUpRightIcon,
   CircleStackIcon as CircleStackIconOutline,
   CodeBracketSquareIcon as CodeBracketSquareIconOutline,
-  PlayCircleIcon as PlayCircleIconOutline,
   QueueListIcon,
   RectangleGroupIcon as RectangleGroupIconOutline,
   ServerStackIcon as ServerStackIconOutline,
   SparklesIcon as SparklesIconOutline,
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
-  ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconOutline,
   ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconOutline,
   PaperAirplaneIcon as PaperAirplaneIconOutline,
+  ChevronDoubleDownIcon,
+  Squares2X2Icon as Squares2X2IconOutline,
+  Bars3BottomLeftIcon,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -43,10 +44,10 @@ import {
   ServerStackIcon as ServerStackIconSolid,
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
-  ArrowPathRoundedSquareIcon as ArrowPathRoundedSquareIconSolid,
-  PlayCircleIcon as PlayCircleIconSolid,
   ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
+  Square2StackIcon as Square2StackIconSolid,
+  Squares2X2Icon as Squares2X2IconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
 
@@ -579,7 +580,7 @@ export function getEnumColor(type: { key: string }) {
 }
 
 export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
-  [StatementType.Text]: ChatBubbleBottomCenterTextIconOutline,
+  [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
   [StatementType.Value]: TableCellsIconOutline,
@@ -592,7 +593,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
-  [StatementType.Text]: ChatBubbleBottomCenterTextIconSolid,
+  [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
   [StatementType.Value]: TableCellsIconSolid,
@@ -609,7 +610,7 @@ export function getStatementIconOutline(type: StatementType, rootTypeTag?: TypeT
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIconOutline;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return PlayCircleIconOutline;
+    return Squares2X2IconOutline;
   } else {
     return STATEMENT_ICONS_OUTLINE[type];
   }
@@ -619,7 +620,7 @@ export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIconSolid;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return PlayCircleIconSolid;
+    return Squares2X2IconSolid;
   } else {
     return STATEMENT_ICONS_SOLID[type];
   }
@@ -643,7 +644,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
 
 export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
-    return "Type";
+    return "Object";
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
     return "Choice";
   } else {
@@ -676,3 +677,4 @@ export function getStatementDescription(type: StatementType, rootTypeTag?: TypeT
     return STATEMENT_TYPE_DESCRIPTIONS[type];
   }
 }
+export { Field };
