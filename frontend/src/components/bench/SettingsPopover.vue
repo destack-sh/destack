@@ -83,7 +83,7 @@ const fontOptions = [
             <WindowIcon class="h-5 w-5 text-gray-700" />
             <span class="text-sm text-gray-900">Editor tabs</span>
           </span>
-          <Switch v-model="bench.showEditorGroupHeader" />
+          <Switch v-model="bench.showPanelGroupHeader" />
         </div>
         <!-- Dark mode -->
         <div class="flex flex-row items-center justify-between px-2">

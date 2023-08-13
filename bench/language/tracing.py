@@ -10,7 +10,8 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.core import MOT, ModuleOp, Session
+from bench.language.const import TriggerType
+from bench.language.core import MOT, ModuleOp, Session, Statement
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
 from bench.language.session import LogEntry, Run, RunError
@@ -37,11 +38,9 @@ if TYPE_CHECKING:
         Record,
         RemoteObject,
         Secret,
-        Statement,
         Tagging,
         Task,
         Trigger,
-        TriggerType,
         Value,
     )
 

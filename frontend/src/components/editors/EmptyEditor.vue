@@ -1,12 +1,12 @@
 <script lang="ts" setup>
 import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
-import { useBenchState, type EditorGroup } from "@/state/bench";
+import { useBenchState, type PanelGroup } from "@/state/bench";
 import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
-const props = defineProps<{ group: EditorGroup }>();
+const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
 const actions = useActions();

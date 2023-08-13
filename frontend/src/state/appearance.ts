@@ -4,7 +4,7 @@ import { onBeforeMount, watch } from "vue";
 
 export type Theme = "light" | "dark";
 
-export type EditorAppearance = {
+export type PanelAppearance = {
   wide?: boolean;
 };
 
@@ -13,12 +13,14 @@ export const CONTENT_WIDTH_WIDE = 3200;
 export const CONTENT_MARGIN_X_NARROW = 72;
 export const CONTENT_MARGIN_X_WIDE = 72;
 
+export type Font = "sans" | "serif" | "mono";
+
 export const useAppearanceState = defineStore("appearance", {
   state: () => ({
     fullscreen: false,
     theme: "light" as Theme,
     textSmall: true,
-    font: "sans" as "sans" | "serif" | "mono",
+    font: "sans" as Font,
     inlineMetrics: false,
     contentWide: false,
     benchHeaderHeight: 52,
@@ -39,7 +41,7 @@ export const useAppearanceState = defineStore("appearance", {
     },
     // :ContentSizeProps
     contentWidthWithMargin() {
-      return this.contentWidth + 2 * this.contentMarginX;
+      return (this.contentWidth as any) + 2 * (this.contentMarginX as any); // no idea why TS is complaining
     },
     contentWidthAsFixed() {
       return {

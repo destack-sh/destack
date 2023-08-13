@@ -16,7 +16,7 @@ import {
   CONTENT_WIDTH_NARROW,
   CONTENT_WIDTH_WIDE,
   useAppearanceState,
-  type EditorAppearance,
+  type PanelAppearance,
   type Theme,
 } from "@/state/appearance";
 import type { ModuleIndex } from "@/state/module";
@@ -46,33 +46,33 @@ export type StatementHeader = Pick<
   "__typename" | "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "parent"
 >;
 
-export type ViewId = "explorer" | "search" | "history" | "issues" | "comments" | "environment" | "instruction";
+export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";
 
-export type EditorType = "file" | "statement" | "launch";
+export type PanelType = "file" | "statement" | "launch";
 
-const BENCH_STATE_VERSION = 2;
+const BENCH_STATE_VERSION = 3;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
   return path.replace(/[^a-zA-Z0-9-_./@:]/g, "-");
 }
 
-// note that editor state should be JSON serializable (except below)
-const UNSERIALIZABLE_EDITOR_PROPS = ["_bench", "_context"];
-export abstract class Editor {
-  type: EditorType;
+// note that panel state should be JSON serializable (except below)
+const UNSERIALIZABLE_PANEL_PROPS = ["_bench", "_context"];
+export abstract class Panel {
+  type: PanelType;
   id: string;
   name: string;
   path: string;
-  groupId: string | null = null; // id instead of EditorGroup to avoid circular dependency
-  appearance: EditorAppearance = {};
+  groupId: string | null = null; // id instead of PanelGroup to avoid circular dependency
+  appearance: PanelAppearance = {};
   lastFocusedAt: string | null = null;
   lastActiveAt: string | null = null;
   // refs assigned on creation/component instantiation
   _bench: ReturnType<typeof useBenchState> | undefined = undefined;
   _context: any | undefined = undefined;
 
-  constructor(type: EditorType, id: string, name: string, path: string, groupId: string | null = null) {
+  constructor(type: PanelType, id: string, name: string, path: string, groupId: string | null = null) {
     this.name = name;
     this.type = type;
     this.id = id;
@@ -80,9 +80,9 @@ export abstract class Editor {
     this.groupId = groupId;
   }
 
-  copy(): Editor {
+  copy(): Panel {
     // serialize, deserialize and reset id
-    const serialized = JSON.stringify(stripEditor(this));
+    const serialized = JSON.stringify(stripPanel(this));
     const copy = instantiate(JSON.parse(serialized), this.bench);
     copy.resetId();
     return copy;
@@ -92,9 +92,9 @@ export abstract class Editor {
     this._bench = bench;
   }
 
-  onMounted(context: EditorContext<any>) {
+  onMounted(context: PanelContext<any>) {
     if (this._context != null) {
-      throw new Error(`editor ${this.id} already has a context`);
+      throw new Error(`panel ${this.id} already has a context`);
     }
     this._context = context;
   }
@@ -104,8 +104,8 @@ export abstract class Editor {
   }
   abstract resetId(): void;
 
-  static parsePath(path: string, module: ModuleIndex): Editor | null {
-    throw new Error("not implemented"); // implement per editor type
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    throw new Error("not implemented"); // implement per panel type
   }
 
   get hasWhiteBackground() {
@@ -164,10 +164,10 @@ export abstract class Editor {
   }
 
   get focused() {
-    return this._bench?.focusedEditorId == this.id;
+    return this._bench?.focusedPanelId == this.id;
   }
 
-  get group(): EditorGroup | undefined {
+  get group(): PanelGroup | undefined {
     if (this.groupId == null) {
       return undefined;
     }
@@ -176,7 +176,7 @@ export abstract class Editor {
 
   get bench(): ReturnType<typeof useBenchState> {
     if (this._bench == null) {
-      throw new Error(`editor ${this.id} has no bench`);
+      throw new Error(`panel ${this.id} has no bench`);
     }
     return this._bench;
   }
@@ -184,7 +184,7 @@ export abstract class Editor {
   get context(): any {
     // TODO @Cleanup: this should be typed but TS throws up
     if (this._context == null) {
-      throw new Error(`editor ${this.id} has no context`);
+      throw new Error(`panel ${this.id} has no context`);
     }
     return this._context;
   }
@@ -194,19 +194,19 @@ export abstract class Editor {
   }
 }
 
-export type EditorGroup = {
+export type PanelGroup = {
   id: string;
   name: string;
-  editors: Editor[];
-  activeEditorId: string | null;
+  panels: Panel[];
+  activePanelId: string | null;
 };
 
-function makeEditorGroup(id: string, name: string): EditorGroup {
+function makePanelGroup(id: string, name: string): PanelGroup {
   return {
     id,
     name,
-    editors: [],
-    activeEditorId: null,
+    panels: [],
+    activePanelId: null,
   };
 }
 
@@ -221,14 +221,14 @@ export const useBenchState = defineStore("bench", {
       // views
       activeViewId: "explorer" as ViewId,
       focusedViewId: null as ViewId | null,
-      // editors
-      left: makeEditorGroup("left", "Left"),
-      right: makeEditorGroup("right", "Right"),
-      focusedEditorId: null as string | null,
+      // panels
+      left: makePanelGroup("left", "Left"),
+      right: makePanelGroup("right", "Right"),
+      focusedPanelId: null as string | null,
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
       showGenerated: true,
-      showEditorGroupHeader: false,
+      showPanelGroupHeader: false,
       showGlobalHeader: true,
       showViewSelection: true,
       showViewContent: false,
@@ -239,31 +239,31 @@ export const useBenchState = defineStore("bench", {
     groups(state) {
       return [state.left, state.right];
     },
-    group(): (id: string) => EditorGroup {
+    group(): (id: string) => PanelGroup {
       return (id: string) => {
         const group = this.groups.find((g) => g.id == id);
-        if (group == null) throw new Error(`editor group ${id} not found`);
+        if (group == null) throw new Error(`panel group ${id} not found`);
         return group;
       };
     },
-    editors(state) {
-      return state.left.editors.concat(state.right.editors);
+    panels(state) {
+      return state.left.panels.concat(state.right.panels);
     },
-    focusedEditor(): Editor | undefined {
-      return this.editors.find((e) => e.id == this.focusedEditorId);
+    focusedPanel(): Panel | undefined {
+      return this.panels.find((e) => e.id == this.focusedPanelId);
     },
     focusedFileId(): string | null {
-      return this.focusedEditor?.type == "file" ? (this.focusedEditor as FileEditor).fileId : null;
+      return this.focusedPanel?.type == "file" ? (this.focusedPanel as FileEditor).fileId : null;
     },
     focusedFile(): FileEditor | undefined {
-      return this.focusedEditor?.type == "file" ? (this.focusedEditor as FileEditor) : undefined;
+      return this.focusedPanel?.type == "file" ? (this.focusedPanel as FileEditor) : undefined;
     },
     focusedStatementId(): string | null {
       return this.focusedFile?.activeStatementId ?? null;
     },
-    focusedGroup(): EditorGroup | undefined {
-      if (this.focusedEditor?.groupId == null) return undefined;
-      return this.group(this.focusedEditor?.groupId);
+    focusedGroup(): PanelGroup | undefined {
+      if (this.focusedPanel?.groupId == null) return undefined;
+      return this.group(this.focusedPanel?.groupId);
     },
     appearance() {
       return useAppearanceState();
@@ -315,174 +315,172 @@ export const useBenchState = defineStore("bench", {
       console.debug(`blur view ${viewId}`);
     },
 
-    // editors
+    // panels
 
-    _removeEditorFromGroup(editor: Editor): void {
-      if (editor.groupId == null) return;
-      const group = this.group(editor.groupId);
+    _removePanelFromGroup(panel: Panel): void {
+      if (panel.groupId == null) return;
+      const group = this.group(panel.groupId);
       if (group == null) return;
-      group.editors = group.editors.filter((e) => e != editor);
-      if (group.activeEditorId == editor.id) {
-        // if active editor was removed, set first editor as active
-        const nextToFocus = group.editors.sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
+      group.panels = group.panels.filter((e) => e != panel);
+      if (group.activePanelId == panel.id) {
+        // if active panel was removed, set first panel as active
+        const nextToFocus = group.panels.sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
         if (nextToFocus != null) {
-          group.activeEditorId = nextToFocus.id;
+          group.activePanelId = nextToFocus.id;
           nextToFocus.lastActiveAt = new Date().toISOString();
         }
-        group.activeEditorId = nextToFocus?.id || null;
-        // if editor was focused, focus new active editor
-        if (editor.id == this.focusedEditorId) {
-          this.focusedEditorId = group.activeEditorId;
+        group.activePanelId = nextToFocus?.id || null;
+        // if panel was focused, focus new active panel
+        if (panel.id == this.focusedPanelId) {
+          this.focusedPanelId = group.activePanelId;
           if (nextToFocus != null) {
             nextToFocus.lastFocusedAt = new Date().toISOString();
           }
         }
       }
-      editor.groupId = null;
+      panel.groupId = null;
     },
 
-    openEditor(editor: Editor, group?: EditorGroup): Editor {
-      // if group wasn't passed, just return the editor if it's already open
-      if (group == null && editor.groupId != null) {
-        return editor;
+    openPanel(panel: Panel, group?: PanelGroup): Panel {
+      // if group wasn't passed, just return the panel if it's already open
+      if (group == null && panel.groupId != null) {
+        return panel;
       }
-      console.log(`open editor ${editor.path} in group ${group?.id}`);
+      console.log(`open panel ${panel.path} in group ${group?.id}`);
       group = group || this.focusedGroup || this.left;
-      // change editor group if different
-      if (editor.groupId != group.id) {
-        if (editor.groupId != null) {
+      // change panel group if different
+      if (panel.groupId != group.id) {
+        if (panel.groupId != null) {
           // remove from old group
-          this._removeEditorFromGroup(editor);
+          this._removePanelFromGroup(panel);
         }
-        editor.groupId = group.id;
-        group.editors.push(editor);
+        panel.groupId = group.id;
+        group.panels.push(panel);
       }
-      return editor;
+      return panel;
     },
 
-    closeEditor(editor: Editor): void {
-      console.log(`close editor ${editor.path}`);
-      if (editor.groupId != null) {
-        this._removeEditorFromGroup(editor);
+    closePanel(panel: Panel): void {
+      console.log(`close panel ${panel.path}`);
+      if (panel.groupId != null) {
+        this._removePanelFromGroup(panel);
       }
     },
 
-    closeEditorGroup(group: EditorGroup): void {
-      console.log(`close editor group ${group.id}`);
-      group.editors.forEach((e) => this.closeEditor(e));
+    closePanelGroup(group: PanelGroup): void {
+      console.log(`close panel group ${group.id}`);
+      group.panels.forEach((e) => this.closePanel(e));
     },
 
-    moveEditor(editor: Editor, group: EditorGroup, options?: { copy?: boolean }): void {
-      const wasFocused = editor == this.focusedEditor;
+    movePanel(panel: Panel, group: PanelGroup, options?: { copy?: boolean }): void {
+      const wasFocused = panel == this.focusedPanel;
       if (options?.copy) {
-        editor = editor.copy();
+        panel = panel.copy();
       }
-      this.openEditor(editor, group);
+      this.openPanel(panel, group);
       if (wasFocused) {
-        this.focusEditor(editor);
+        this.focusPanel(panel);
       }
     },
 
     openFile(
       file: { id: string; name: string },
-      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
-    ): Editor {
-      let editor = this.editors.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
-      if (!editor || options?.create) {
-        console.log(`create new file editor for ${file.id} ${file.name}`);
-        editor = new FileEditor(file);
-        editor.onDeserialized(this);
+      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
+    ): Panel {
+      let panel = this.panels.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
+      if (!panel || options?.create) {
+        console.log(`create new file panel for ${file.id} ${file.name}`);
+        panel = new FileEditor(file);
+        panel.onDeserialized(this);
       }
-      this.openEditor(editor, options?.group);
+      this.openPanel(panel, options?.group);
       if (options?.focus) {
-        this.focusEditor(editor);
+        this.focusPanel(panel);
       }
-      return editor;
+      return panel;
     },
 
     openStatement(
       statement: { id: string; name?: string | null },
-      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
-    ): Editor {
-      let editor = this.editors.find(
-        (e) => e.type == "statement" && (e as StatementEditor).statementId == statement.id
-      );
-      if (!editor || options?.create) {
-        console.log(`create new statement editor for ${statement.name}`);
-        editor = new StatementEditor(statement);
-        editor.appearance.wide = true; // default to wide
-        editor.onDeserialized(this);
+      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
+    ): Panel {
+      let panel = this.panels.find((e) => e.type == "statement" && (e as StatementEditor).statementId == statement.id);
+      if (!panel || options?.create) {
+        console.log(`create new statement panel for ${statement.name}`);
+        panel = new StatementEditor(statement);
+        panel.appearance.wide = true; // default to wide
+        panel.onDeserialized(this);
       }
-      this.openEditor(editor, options?.group);
+      this.openPanel(panel, options?.group);
       if (options?.focus) {
-        this.focusEditor(editor);
+        this.focusPanel(panel);
       }
-      return editor;
+      return panel;
     },
 
-    openRun(
+    openLaunch(
       statement: { id: string; name?: string | null },
-      options?: { group?: EditorGroup; create?: boolean; focus?: boolean }
-    ): Editor {
-      let editor = this.editors.find((e) => e.type == "launch" && (e as LaunchEditor).statementId == statement.id);
-      if (!editor || options?.create) {
-        console.log(`create new launch editor for ${statement.name}`);
-        editor = new LaunchEditor(statement);
-        editor.onDeserialized(this);
+      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
+    ): Panel {
+      let panel = this.panels.find((e) => e.type == "launch" && (e as LaunchPanel).statementId == statement.id);
+      if (!panel || options?.create) {
+        console.log(`create new launch panel for ${statement.name}`);
+        panel = new LaunchPanel(statement);
+        panel.onDeserialized(this);
       }
-      this.openEditor(editor, options?.group);
+      this.openPanel(panel, options?.group);
       if (options?.focus) {
-        this.focusEditor(editor);
+        this.focusPanel(panel);
       }
-      return editor;
+      return panel;
     },
 
-    nextGroup(group: EditorGroup): EditorGroup | undefined {
+    nextGroup(group: PanelGroup): PanelGroup | undefined {
       const index = this.groups.indexOf(group);
       return this.groups[(index + 1) % this.groups.length];
     },
 
-    focusGroup(group: EditorGroup): void {
+    focusGroup(group: PanelGroup): void {
       if (this.focusedGroup?.id == group.id) return;
-      if (group.activeEditorId == null) {
-        throw new Error("group must have an active editor");
+      if (group.activePanelId == null) {
+        throw new Error("group must have an active panel");
       }
       console.debug(`focus group ${group.id}`);
-      this.focusedEditorId = group.activeEditorId;
-      if (this.focusedEditor != null) {
-        this.focusedEditor.lastFocusedAt = new Date().toISOString();
+      this.focusedPanelId = group.activePanelId;
+      if (this.focusedPanel != null) {
+        this.focusedPanel.lastFocusedAt = new Date().toISOString();
       }
     },
 
-    focusEditor(editor: Editor): void {
+    focusPanel(panel: Panel): void {
       this.focusedViewId = null;
-      if (this.focusedEditor?.id == editor.id) return;
-      console.debug(`focus editor ${editor.path} in group ${editor.groupId}`);
-      if (!editor.groupId) {
-        throw new Error("editor must be in a group: " + editor.path);
+      if (this.focusedPanel?.id == panel.id) return;
+      console.debug(`focus panel ${panel.path} in group ${panel.groupId}`);
+      if (!panel.groupId) {
+        throw new Error("panel must be in a group: " + panel.path);
       }
-      // blur all other editors
-      this.editors.filter((e) => e.id != editor.id).forEach((e) => e.blur());
-      this.focusedEditorId = editor.id;
-      this.group(editor.groupId).activeEditorId = editor.id;
-      editor.lastFocusedAt = new Date().toISOString();
-      editor.lastActiveAt = new Date().toISOString();
+      // blur all other panels
+      this.panels.filter((e) => e.id != panel.id).forEach((e) => e.blur());
+      this.focusedPanelId = panel.id;
+      this.group(panel.groupId).activePanelId = panel.id;
+      panel.lastFocusedAt = new Date().toISOString();
+      panel.lastActiveAt = new Date().toISOString();
     },
 
-    focusFile(file: { id: string; name: string }, group?: EditorGroup): Editor {
-      const editor = this.openFile(file, { group });
-      this.focusEditor(editor);
-      return editor;
+    focusFile(file: { id: string; name: string }, group?: PanelGroup): Panel {
+      const panel = this.openFile(file, { group });
+      this.focusPanel(panel);
+      return panel;
     },
 
-    focusStatement(statement: StatementHeader, group?: EditorGroup): Editor {
-      const editor = this.openStatement(statement, { group });
-      this.focusEditor(editor);
-      return editor;
+    focusStatement(statement: StatementHeader, group?: PanelGroup): Panel {
+      const panel = this.openStatement(statement, { group });
+      this.focusPanel(panel);
+      return panel;
     },
 
     blur() {
-      this.editors.forEach((e) => e.blur());
+      this.panels.forEach((e) => e.blur());
     },
 
     // settings
@@ -500,7 +498,7 @@ export const useBenchState = defineStore("bench", {
     _doMigrateTo(versionId: string, refMappings: Record<string, string>): void {
       // migrate by serializing state and replacing refs
       let stateJson = benchStateToJson(this);
-      // TODO @Performance: replace editor refs on migration in a single pass
+      // TODO @Performance: replace panel refs on migration in a single pass
       for (const [sourceId, targetId] of Object.entries(refMappings)) {
         // replace all matches of ref.source with ref.target
         // (need to use regex to replace *all* matches)
@@ -510,19 +508,19 @@ export const useBenchState = defineStore("bench", {
       this.$reset();
       benchInitFromJson(this, stateJson);
 
-      // remove editors with refs we don't have anymore
+      // remove panels with refs we don't have anymore
       // note that this also closes any module-external refs
       // I tried to fix this by only removing refs we _used_ tohave (checking for original ref.target)
       // but that doesn't work for refs that were just created in first source version.
       const targetRefs = Object.values(refMappings);
-      for (const editor of this.editors) {
-        let editorRef = null;
-        if (editor.type == "file") {
-          editorRef = (editor as FileEditor).fileId;
+      for (const panel of this.panels) {
+        let panelRef = null;
+        if (panel.type == "file") {
+          panelRef = (panel as FileEditor).fileId;
         }
-        if (editorRef != null && !targetRefs.includes(editorRef)) {
-          console.debug(`close outdated editor ${editor.path} (${editor.id} pointed to ${editorRef})`);
-          this.closeEditor(editor);
+        if (panelRef != null && !targetRefs.includes(panelRef)) {
+          console.debug(`close outdated panel ${panel.path} (${panel.id} pointed to ${panelRef})`);
+          this.closePanel(panel);
         }
       }
       this.projectVersionId = versionId;
@@ -532,25 +530,25 @@ export const useBenchState = defineStore("bench", {
 
 // persistence
 
-function stripEditor(editor: Editor) {
-  const stripped = { ...editor };
-  for (const prop of UNSERIALIZABLE_EDITOR_PROPS) {
+function stripPanel(panel: Panel) {
+  const stripped = { ...panel };
+  for (const prop of UNSERIALIZABLE_PANEL_PROPS) {
     delete (stripped as any)[prop];
   }
   return stripped;
 }
 
 function benchStateToJson(bench: ReturnType<typeof useBenchState>): string {
-  // clean up editor state for serialization
+  // clean up panel state for serialization
   const state = {
     ...bench.$state,
     left: {
       ...bench.$state.left,
-      editors: bench.$state.left.editors.map((e) => stripEditor(e)),
+      panels: bench.$state.left.panels.map((e) => stripPanel(e)),
     },
     right: {
       ...bench.$state.right,
-      editors: bench.$state.right.editors.map((e) => stripEditor(e)),
+      panels: bench.$state.right.panels.map((e) => stripPanel(e)),
     },
   };
   return JSON.stringify(state);
@@ -567,9 +565,9 @@ function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: strin
     bench.$reset(); // reset to initial state
     throw new Error(`Bench state version mismatch (${version} != ${BENCH_STATE_VERSION})`);
   }
-  // instantiate editors
+  // instantiate panels
   for (const group of bench.groups) {
-    group.editors = group.editors.map((e) => instantiate(e, bench));
+    group.panels = group.panels.map((e) => instantiate(e, bench));
   }
 }
 
@@ -579,7 +577,7 @@ export function useBenchPersistence(intervalMs = 1000) {
   function save(projectId?: string) {
     if (bench.projectId == null) return;
     if (projectId != null && bench.projectId != projectId) {
-      throw new Error(`cannot save editor state for project ${projectId} (current project is ${bench.projectId})`);
+      throw new Error(`cannot save panel state for project ${projectId} (current project is ${bench.projectId})`);
     }
     localStorage.setItem(`bench-state-${bench.projectId}`, benchStateToJson(bench));
   }
@@ -681,29 +679,29 @@ export function useBenchMigrations() {
 
 // context
 
-export type EditorContext<T extends Editor> = {
-  editor: Ref<T>;
+export type PanelContext<T extends Panel> = {
+  panel: Ref<T>;
   component: Ref<any>;
   container: Ref<HTMLElement | null>;
   size: Ref<{ width: number; height: number }>;
   pos: Ref<{ left: number; top: number }>;
   scroll: Ref<{ x: number; y: number }>;
-  actions: Ref<EditorAction[]>;
+  actions: Ref<PanelAction[]>;
   actionGroups?: Ref<ActionGroup[]>;
 };
 
-export const EDITOR_CONTEXT = "__editor__";
+export const PANEL_CONTEXT = "__panel__";
 
-export function provideEditorContext<T extends Editor>(
-  editor: Ref<T>,
+export function providePanelContext<T extends Panel>(
+  panel: Ref<T>,
   component: Ref<any>,
   container: Ref<HTMLElement | null>,
   scroll: { x: Ref<number>; y: Ref<number> }
 ) {
-  const editorState = useBenchState();
+  const panelState = useBenchState();
   const elementBounding = useElementBounding(container);
-  const context: EditorContext<T> = {
-    editor,
+  const context: PanelContext<T> = {
+    panel: panel,
     component,
     container,
     size: computed(() => ({ width: elementBounding.width.value, height: elementBounding.height.value })),
@@ -713,20 +711,20 @@ export function provideEditorContext<T extends Editor>(
     })),
     scroll: computed(() => ({ x: scroll.x.value, y: scroll.y.value })),
     actions: computed(() => {
-      const actions: EditorAction[] = [];
+      const actions: PanelAction[] = [];
 
-      // open other editors in this group
-      editor.value.group?.editors.forEach((e) => {
-        if (e.id == editor.value.id) return;
+      // open other panels in this group
+      panel.value.group?.panels.forEach((e) => {
+        if (e.id == panel.value.id) return;
         actions.push({
           groupId: "jump",
-          label: e.name,
+          label: e.name.length > 0 ? e.name : "(Untitled)",
           icon: {
             file: CodeBracketIcon,
             statement: CodeBracketIcon,
             launch: WindowIcon,
           }[e.type],
-          action: () => editorState.focusEditor(e),
+          action: () => panelState.focusPanel(e),
         });
       });
 
@@ -736,68 +734,68 @@ export function provideEditorContext<T extends Editor>(
           groupId: "close",
           label: "Close",
           icon: XCircleIcon,
-          action: () => editorState.closeEditor(editor.value),
+          action: () => panelState.closePanel(panel.value),
         },
         {
           groupId: "close",
           label: "Close Others",
           icon: XCircleIcon,
           action: () =>
-            editor.value.group?.editors.filter((e) => e != editor.value).forEach((e) => editorState.closeEditor(e)),
+            panel.value.group?.panels.filter((e) => e != panel.value).forEach((e) => panelState.closePanel(e)),
         },
         {
           groupId: "close",
           label: "Close All",
           icon: XCircleIcon,
-          action: () => editorState.closeEditorGroup(editor.value.group as EditorGroup),
+          action: () => panelState.closePanelGroup(panel.value.group as PanelGroup),
         },
       ];
       actions.push(...closeActions);
 
       // view
-      if (editor.value.effectiveWide) {
+      if (panel.value.effectiveWide) {
         actions.push({
           groupId: "view",
           label: "Narrow",
           icon: ArrowsPointingInIcon,
-          action: () => (editor.value.appearance.wide = false),
+          action: () => (panel.value.appearance.wide = false),
         });
       } else {
         actions.push({
           groupId: "view",
           label: "Expand",
           icon: ArrowsPointingOutIcon,
-          action: () => (editor.value.appearance.wide = true),
+          action: () => (panel.value.appearance.wide = true),
         });
       }
 
       // move
       // should clean this up
-      if (editor.value.groupId == editorState.left.id) {
+      if (panel.value.groupId == panelState.left.id) {
         actions.push({
           groupId: "move",
           label: "Move Right",
           icon: ArrowRightIcon,
-          action: () => editorState.moveEditor(editor.value, editorState.right),
+          action: () => panelState.movePanel(panel.value, panelState.right),
         });
         actions.push({
           groupId: "move",
           label: "Split Right",
           icon: ArrowRightIcon,
-          action: () => editorState.moveEditor(editor.value, editorState.right, { copy: true }),
+          action: () => panelState.movePanel(panel.value, panelState.right, { copy: true }),
         });
       } else {
         actions.push({
           groupId: "move",
           label: "Move Left",
           icon: ArrowLeftIcon,
-          action: () => editorState.moveEditor(editor.value, editorState.left),
+          action: () => panelState.movePanel(panel.value, panelState.left),
         });
         actions.push({
           groupId: "move",
           label: "Split Left",
           icon: ArrowLeftIcon,
-          action: () => editorState.moveEditor(editor.value, editorState.left, { copy: true }),
+          action: () => panelState.movePanel(panel.value, panelState.left, { copy: true }),
         });
       }
       return actions;
@@ -808,12 +806,12 @@ export function provideEditorContext<T extends Editor>(
       { id: "move", label: "Move" },
     ]),
   };
-  provide(EDITOR_CONTEXT, context);
+  provide(PANEL_CONTEXT, context);
   return context;
 }
 
-export function useEditorContext<T extends Editor>(): EditorContext<T> {
-  const context = inject<EditorContext<T>>(EDITOR_CONTEXT);
+export function usePanelContext<T extends Panel>(): PanelContext<T> {
+  const context = inject<PanelContext<T>>(PANEL_CONTEXT);
   if (context == null) {
     throw new Error("scroll context not provided");
   }
@@ -843,14 +841,14 @@ export type FileAction = Action<FileHeader>;
 export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<Field>;
 export type RecordAction = Action<BRecord>;
-export type EditorAction = Action<Editor>;
+export type PanelAction = Action<Panel>;
 
-// specific editors
+// specific panels
 
 export type NavElementType = "Statement" | "Field" | "Record";
 export type NavElement = { id: Scalars["GlobalID"]; __typename?: NavElementType };
 
-export abstract class NavigableEditor extends Editor {
+export abstract class NavigablePanel extends Panel {
   activeStatementId?: string;
   selectedElementType?: NavElementType;
   selectedElementIds: string[] = [];
@@ -942,7 +940,7 @@ export abstract class NavigableEditor extends Editor {
   }
 }
 
-export class FileEditor extends NavigableEditor {
+export class FileEditor extends NavigablePanel {
   type = "file" as const;
   fileId: string;
   foldedStatementContentIds?: string[] = [];
@@ -987,14 +985,14 @@ export class FileEditor extends NavigableEditor {
     this.path = file.name;
   }
 
-  static parsePath(path: string, module: ModuleIndex): Editor | null {
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
     const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == path);
     if (matchingFile == null) return null;
     return new FileEditor(matchingFile);
   }
 }
 
-export class StatementEditor extends NavigableEditor {
+export class StatementEditor extends NavigablePanel {
   type = "statement" as const;
   statementId: string;
 
@@ -1015,7 +1013,7 @@ export class StatementEditor extends NavigableEditor {
     this.path = `${file.name}:${statement.name ?? ""}`;
   }
 
-  static parsePath(path: string, module: ModuleIndex): Editor | null {
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
     const [filePath, statementName] = path.split(":");
     const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
     if (matchingFile == null) return null;
@@ -1027,7 +1025,7 @@ export class StatementEditor extends NavigableEditor {
   }
 }
 
-export class LaunchEditor extends Editor {
+export class LaunchPanel extends Panel {
   type = "launch" as const;
   statementId: string;
   statementType?: StatementType.Task | StatementType.Code;
@@ -1059,7 +1057,7 @@ export class LaunchEditor extends Editor {
     this.path = `${file.name}:${statement.name ?? ""}@${this.type}`;
   }
 
-  static parsePath(path: string, module: ModuleIndex): Editor | null {
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
     const [filePath, statementName] = path.split(":");
     const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == filePath);
     if (matchingFile == null) return null;
@@ -1067,7 +1065,7 @@ export class LaunchEditor extends Editor {
       (s) => prettifySlug(s.name ?? "") == statementName
     );
     if (matchingStatement == null) return null;
-    return new LaunchEditor(matchingStatement);
+    return new LaunchPanel(matchingStatement);
   }
 
   get hasWhiteBackground() {
@@ -1079,30 +1077,30 @@ export class LaunchEditor extends Editor {
   }
 }
 
-export const EDITOR_INSTANCE_TYPES: Record<EditorType, typeof Editor> = {
+export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   file: FileEditor as any,
   statement: StatementEditor as any,
-  launch: LaunchEditor as any, // don't care about constructor type
+  launch: LaunchPanel as any, // don't care about constructor type
 };
 
-function instantiate(editorData: any, bench: ReturnType<typeof useBenchState>): Editor {
-  const type = editorData.type;
-  const EditorClass = EDITOR_INSTANCE_TYPES[type as EditorType];
-  if (EditorClass == null) {
-    throw new Error(`unknown editor type ${type}`);
+function instantiate(panelData: any, bench: ReturnType<typeof useBenchState>): Panel {
+  const type = panelData.type;
+  const PanelClass = PANEL_INSTANCE_TYPES[type as PanelType];
+  if (PanelClass == null) {
+    throw new Error(`unknown panel type ${type}`);
   }
-  if (!Reflect.setPrototypeOf(editorData, EditorClass.prototype)) {
-    throw new Error(`failed to set prototype of editor ${editorData.id}`);
+  if (!Reflect.setPrototypeOf(panelData, PanelClass.prototype)) {
+    throw new Error(`failed to set prototype of panel ${panelData.id}`);
   }
-  const editor = editorData as Editor;
-  editor.onDeserialized(bench);
-  return editor;
+  const panel = panelData as Panel;
+  panel.onDeserialized(bench);
+  return panel;
 }
 
-export function useElementEditorSettings<T>(element: Ref<{ id: string }>, defaultValue: T) {
-  const editor = useEditorContext().editor;
-  if (editor.value == null) {
-    throw new Error("editor not set");
+export function useElementPanelSettings<T>(element: Ref<{ id: string }>, defaultValue: T) {
+  const panel = usePanelContext().panel;
+  if (panel.value == null) {
+    throw new Error("panel not set");
   }
 
   const proxy = new Proxy(
@@ -1110,13 +1108,13 @@ export function useElementEditorSettings<T>(element: Ref<{ id: string }>, defaul
     {
       get: function (_: any, p: PropertyKey): T[keyof T] {
         const key = p as keyof T;
-        const e = editor.value as NavigableEditor;
+        const e = panel.value as NavigablePanel;
         const settings = e.elementProperties[element.value.id] || {};
         return settings[key] ?? defaultValue[key];
       },
       set: function (_: any, p: PropertyKey, value: any): boolean {
         const key = p as keyof T;
-        const e = editor.value as NavigableEditor;
+        const e = panel.value as NavigablePanel;
         const settings = e.elementProperties[element.value.id] || {};
         settings[key] = value as T[keyof T];
         e.elementProperties[element.value.id] = settings;

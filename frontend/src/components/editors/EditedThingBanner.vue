@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
-import { useBenchState, useEditorContext } from "@/state/bench";
+import { useBenchState, usePanelContext } from "@/state/bench";
 import { computed } from "vue";
 
 const props = defineProps<{
@@ -14,7 +14,7 @@ const emit = defineEmits<{
 
 const now = useTimeFromNow();
 const bench = useBenchState();
-const editorView = useEditorContext();
+const editorView = usePanelContext();
 
 const isDeleted = computed(() => props.thing?.deletedAt != null);
 const isOtherVersion = computed(

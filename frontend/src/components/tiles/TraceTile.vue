@@ -205,7 +205,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         <component
           :is="getRunStatusIconSolid(node.run.status)"
           class="h-4 w-4"
-          :class="[node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '']"
+          :class="[getRunStatusIconSolid(node.run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
         />
         <!-- Runnable -->
         <span

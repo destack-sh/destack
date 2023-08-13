@@ -8,7 +8,7 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { FileEditor, useBenchState, type EditorContext, type FileAction, type StatementHeader } from "@/state/bench";
+import { FileEditor, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
@@ -23,13 +23,13 @@ import { newFileId } from "@/state/operations/file";
 import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 
-const props = defineProps<{ editor: EditorContext<FileEditor>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<FileEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const appearance = useAppearance();
 const actions = useActions();
-const editor = computed(() => props.editor.editor.value);
+const panel = computed(() => props.panel.panel.value);
 const ops = useOperations();
 
 // file state
@@ -51,7 +51,7 @@ const { result: file, loading: fileLoading } = useQuery(
     }
   `),
   () => ({
-    fileId: props.editor.editor.value.fileId,
+    fileId: props.panel.panel.value.fileId,
   })
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
@@ -62,20 +62,20 @@ const isOtherVersion = computed(
     fileHeader.value != null &&
     fileHeader.value?.projectVersion?.id != bench.projectVersionId
 );
-const name: Ref<string | null> = ref(fileHeader.value?.name ?? null);
+const name: Ref<string> = ref(fileHeader.value?.name ?? "");
 const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
 
 syncProperty({
   value: name,
   editing: computed(() => titleRef.value?.editing),
-  read: () => (name.value = fileHeader.value?.name ?? null),
+  read: () => (name.value = fileHeader.value?.name ?? ""),
   write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
 });
 
 // sync name/path into editor
 watch([name, fileHeader], () => {
   if (fileHeader.value == null || module.idx.value == null) return;
-  editor.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
+  panel.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
 });
 
 const statements = computed(() => {
@@ -91,9 +91,9 @@ const fileState: Ref<FileState | null> = computed(() => {
     return null;
   }
   return {
-    editor: props.editor.editor.value,
+    panel: props.panel.panel.value,
     focused: props.focused,
-    editing: editor.value.editing || titleRef.value?.editing,
+    editing: panel.value.editing || titleRef.value?.editing,
     file: fileHeader.value as any,
     statementsUnordered: statements.value as any,
     statementsComponents: statementsComponents.value,
@@ -113,13 +113,13 @@ watchEffect(() => {
       }
     }
     statementsLoaded.value = true;
-    editor.value.stopEditingElement(); // reset editing element on load
-    if (editor.value.focused && editor.value.activeStatementId != null) {
+    panel.value.stopEditingElement(); // reset editing element on load
+    if (panel.value.focused && panel.value.activeStatementId != null) {
       // focus active statement
-      statementsComponents.value[editor.value.activeStatementId]?.focus();
+      statementsComponents.value[panel.value.activeStatementId]?.focus();
       // scroll into view
       nextTick(() => {
-        statementsComponents.value[editor.value.activeStatementId as string].$el.parentNode?.scrollIntoView({
+        statementsComponents.value[panel.value.activeStatementId as string].$el.parentNode?.scrollIntoView({
           behavior: "instant",
           block: "center",
           inline: "center",
@@ -133,7 +133,7 @@ watchEffect(() => {
 
 function focusTitle() {
   titleRef.value?.focus();
-  editor.value.activeStatementId = undefined;
+  panel.value.activeStatementId = undefined;
 }
 
 function registerStatementRef(id: string, component: InstanceType<typeof Statement> | undefined) {
@@ -181,7 +181,7 @@ async function insertOrFocusStatementStart() {
 }
 
 function focusStatementStart() {
-  editor.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
+  panel.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
 }
 
 async function insertOrFocusStatementEnd() {
@@ -190,7 +190,7 @@ async function insertOrFocusStatementEnd() {
   // focus last statement if it's a blank
   const lastStatement = context.value?.positionedStatements[context.value.positionedStatements.length - 1];
   if (lastStatement?.statement.type == StatementType.Blank) {
-    editor.value.editElement(lastStatement.statement as StatementHeader);
+    panel.value.editElement(lastStatement.statement as StatementHeader);
     return;
   } else {
     actions.apply("statement.insertEnd");
@@ -200,15 +200,15 @@ async function insertOrFocusStatementEnd() {
 // left click anywhere clears editor selection
 function clearSelectionIfLeftClick(e: MouseEvent) {
   if (e.button == 0 && !e.altKey && !e.shiftKey) {
-    editor.value?.clearSelection();
+    panel.value?.clearSelection();
   }
 }
 document.addEventListener("click", clearSelectionIfLeftClick);
 onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
 // whenever editing -> clears selection
 whenever(
-  computed(() => editor.value.editing),
-  () => editor.value?.clearSelection()
+  computed(() => panel.value.editing),
+  () => panel.value?.clearSelection()
 );
 
 function goToContent() {
@@ -273,19 +273,19 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
 
 // statement add areas (computed absolutely because I'm so tired of flex)
 const statementAddAreaPositionX = computed(() => {
-  const editorSize = props.editor.size.value;
-  if (editorSize.width > editor.value.contentWidthWithMargin) {
-    const marginX = (editorSize.width - editor.value.contentWidth) / 2;
+  const editorSize = props.panel.size.value;
+  if (editorSize.width > panel.value.contentWidthWithMargin) {
+    const marginX = (editorSize.width - panel.value.contentWidth) / 2;
     return {
-      width: editor.value.contentWidth - 4 + "px",
+      width: panel.value.contentWidth - 4 + "px",
       marginLeft: marginX - 4 + "px", // no, not sure where the 4 comes from
       marginRight: marginX + "px",
     };
   } else {
     return {
-      width: editorSize.width - editor.value.contentMarginX * 2 + "px",
-      marginLeft: editor.value.contentMarginX + "px",
-      marginRight: editor.value.contentMarginX + "px",
+      width: editorSize.width - panel.value.contentMarginX * 2 + "px",
+      marginLeft: panel.value.contentMarginX + "px",
+      marginRight: panel.value.contentMarginX + "px",
     };
   }
 });
@@ -299,10 +299,10 @@ const localClients = computed(() =>
 function getStatementBounding(statementId: string): { top: number; right: number } {
   const statement = statementsComponents.value[statementId];
   if (statement == null) return { top: -100 };
-  const editor = props.editor;
+  const panel = props.panel;
   return {
-    right: Math.round((statement.bounding.right.value + editor.scroll.value.x - editor.pos.value.left) * 100) / 100,
-    top: Math.round((statement.bounding.top.value + editor.scroll.value.y - editor.pos.value.top) * 100) / 100,
+    right: Math.round((statement.bounding.right.value + panel.scroll.value.x - panel.pos.value.left) * 100) / 100,
+    top: Math.round((statement.bounding.top.value + panel.scroll.value.y - panel.pos.value.top) * 100) / 100,
   };
 }
 </script>
@@ -314,17 +314,17 @@ function getStatementBounding(statementId: string): { top: number; right: number
     <FixedInlineHeader
       :thing="file"
       :actions="fileActions"
-      :editing="editor.editing"
+      :editing="panel.editing"
       :path="name"
-      :subpath="context?.statementsById[editor.activeStatementId ?? '']?.name"
+      :subpath="context?.statementsById[panel.activeStatementId ?? '']?.name"
     />
     <!-- Loading -->
     <div
       v-if="fileLoading || !statementsLoaded"
       class="flex h-full w-full flex-col items-center justify-center"
       :style="{
-        width: props.editor.size.value?.width + 'px',
-        height: props.editor.size.value?.height + 'px',
+        width: props.panel.size.value?.width + 'px',
+        height: props.panel.size.value?.height + 'px',
       }"
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
@@ -339,9 +339,9 @@ function getStatementBounding(statementId: string): { top: number; right: number
         class="relative mx-auto w-full justify-between pt-14"
         :class="appearance.baseClass"
         :style="{
-          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
-          paddingLeft: `${editor.contentMarginX + 6}px`, // + for :StatementPadding
-          paddingRight: `${editor.contentMarginX + 6}px`,
+          'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px',
+          paddingLeft: `${panel.contentMarginX + 6}px`, // + for :StatementPadding
+          paddingRight: `${panel.contentMarginX + 6}px`,
         }"
         v-model="name"
         @enter="goToContent"
@@ -363,7 +363,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
         v-for="positioned in context?.positionedStatements"
         :key="positioned.statement.id"
         class="mx-auto w-full"
-        :style="{ 'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px' }"
+        :style="{ 'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px' }"
       >
         <Statement
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"

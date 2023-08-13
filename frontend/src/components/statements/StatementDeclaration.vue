@@ -8,7 +8,7 @@ import {
 } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
-import { useEditorContext, type StatementHeader } from "@/state/bench";
+import { usePanelContext, type StatementHeader } from "@/state/bench";
 
 const context = useStatementContext();
 
@@ -28,10 +28,10 @@ const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
 
 const altKey = useKeyModifier("Alt");
-const editor = useEditorContext();
+const panel = usePanelContext();
 
 function openInEditor() {
-  editor.editor.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
+  panel.panel.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
 }
 
 function focus(position: "first" | "last" = "first") {

@@ -4,19 +4,19 @@ import Statement from "@/components/editors/Statement.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import { graphql, useFragment } from "@/gql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type EditorContext, type StatementEditor } from "@/state/bench";
+import { useBenchState, type PanelContext, type StatementEditor } from "@/state/bench";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
-const props = defineProps<{ editor: EditorContext<StatementEditor>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<StatementEditor>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
 const appearance = useAppearance();
-const editor = computed(() => props.editor.editor.value);
+const panel = computed(() => props.panel.panel.value);
 
 // statement state
 
@@ -37,7 +37,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
     }
   `),
   () => ({
-    statementId: props.editor.editor.value.statementId,
+    statementId: props.panel.panel.value.statementId,
   })
 );
 
@@ -57,7 +57,7 @@ watch(
   () => [statement.value?.name, statement.value == null || module.fileOf(statement.value)],
   () => {
     if (statement.value != null && module.idx.value != null && module.fileOf(statement.value) != null) {
-      editor.value.updatePath(statement.value, module.idx.value);
+      panel.value.updatePath(statement.value, module.idx.value);
     }
   }
 );
@@ -69,7 +69,7 @@ watch(
       :actions="statementComponentRef?.allActions ?? []"
       :editing="false /* not sure */"
       :readonly="bench.readonly"
-      :path="editor.path"
+      :path="panel.path"
     />
     <EditedThingBanner :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
     <!-- Loading -->
@@ -77,8 +77,8 @@ watch(
       v-if="statementLoading || !statementComponentLoaded"
       class="flex h-full w-full flex-col items-center justify-center"
       :style="{
-        width: props.editor.size.value?.width + 'px',
-        height: props.editor.size.value?.height + 'px',
+        width: props.panel.size.value?.width + 'px',
+        height: props.panel.size.value?.height + 'px',
       }"
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
@@ -96,9 +96,9 @@ watch(
         class="relative mx-auto w-full justify-between pb-10 pt-4"
         :class="appearance.baseClass"
         :style="{
-          'max-width': editor.contentWidth + editor.contentMarginX * 2 + 'px',
-          paddingLeft: `${editor.contentMarginX}px`,
-          paddingRight: `${editor.contentMarginX}px`,
+          'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px',
+          paddingLeft: `${panel.contentMarginX}px`,
+          paddingRight: `${panel.contentMarginX}px`,
         }"
         :file="file"
         :statement="statement"

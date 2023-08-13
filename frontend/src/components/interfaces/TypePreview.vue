@@ -117,7 +117,7 @@ const icon = computed(() => {
   <div class="relative whitespace-nowrap">
     <!-- Force icon to align with text -->
     <!-- works fine but there has to be a better way... -->
-    <div v-if="icon && !hideIcon" class="inline-block h-4 w-6">
+    <div v-if="icon && !hideIcon" class="inline-block h-4 w-4">
       &nbsp;
       <component :is="icon" class="absolute left-0 top-0.5 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
     </div>

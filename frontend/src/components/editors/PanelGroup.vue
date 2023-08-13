@@ -1,15 +1,15 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import EditorInterface from "@/components/editors/Editor.vue";
+import PanelInterface from "@/components/editors/Panel.vue";
 import EmptyEditor from "@/components/editors/EmptyEditor.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type Editor, type EditorGroup } from "@/state/bench";
+import { useBenchState, type Panel, type PanelGroup } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
-const props = defineProps<{ group: EditorGroup }>();
+const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
 const appearance = useAppearance();
@@ -18,16 +18,16 @@ const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
 // keep panel refs to pass to editor interface for scroll context
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
-const focused = computed(() => bench.focusedEditor?.groupId == props.group.id);
+const focused = computed(() => bench.focusedPanel?.groupId == props.group.id);
 
 // auto update selected tab
 watch(
-  () => [props.group.activeEditorId, props.group.editors],
+  () => [props.group.activePanelId, props.group.panels],
   () => {
-    if (props.group.activeEditorId != null && props.group.editors.length > 0) {
-      const activeEditorIndex = props.group.editors.findIndex((editor) => editor.id === props.group.activeEditorId);
+    if (props.group.activePanelId != null && props.group.panels.length > 0) {
+      const activeEditorIndex = props.group.panels.findIndex((editor) => editor.id === props.group.activePanelId);
       if (activeEditorIndex < 0) {
-        console.error(`active editor ${props.group.activeEditorId} not found in group ${props.group.id}`);
+        console.error(`active editor ${props.group.activePanelId} not found in group ${props.group.id}`);
       }
       // this used to work in the same tick, but headlessui now freaks
       // and lets its internal selectedIndex come out of sync with our controlled selectedTab
@@ -42,18 +42,18 @@ watch(
 const editorSize = computed(() => {
   return {
     width: containerSize.width.value + "px",
-    height: containerSize.height.value - (bench.showEditorGroupHeader ? appearance.editorHeaderHeight : 0) + "px",
+    height: containerSize.height.value - (bench.showPanelGroupHeader ? appearance.editorHeaderHeight : 0) + "px",
   };
 });
 
-function focus(e: Editor) {
-  bench.focusEditor(e);
+function focus(e: Panel) {
+  bench.focusPanel(e);
   // blur any focused element when clicking on a tab
   bench.blur();
 }
 
 const actions = useActions();
-async function createFileInEditorGroup() {
+async function createFileInPanelGroup() {
   await actions.file.create.value.apply();
 }
 </script>
@@ -67,13 +67,13 @@ async function createFileInEditorGroup() {
       (happens if there are multiple active editor groups)  -->
       <TabList
         class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
-        v-show="bench.showEditorGroupHeader"
+        v-show="bench.showPanelGroupHeader"
         :style="{
           height: appearance.editorHeaderHeight + 'px',
         }"
       >
         <!-- Editor tab -->
-        <Tab as="template" v-for="(e, i) in group.editors" :key="e.id" v-slot="{ selected }">
+        <Tab as="template" v-for="(e, i) in group.panels" :key="e.id" v-slot="{ selected }">
           <button
             class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 text-sm outline-none"
             :class="{
@@ -99,7 +99,7 @@ async function createFileInEditorGroup() {
         <button
           v-if="actions.file.create.value.enabled"
           class="group mx-0.5 px-2 py-1 outline-none ring-0"
-          @click="createFileInEditorGroup"
+          @click="createFileInPanelGroup"
         >
           <PlusIcon
             class="h-4 w-4 text-gray-400 group-hover:bg-orange-100 group-hover:text-gray-700"
@@ -116,14 +116,14 @@ async function createFileInEditorGroup() {
           class="overflow-y-scroll outline-none"
           :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50']"
           :style="editorSize"
-          v-for="e in group.editors"
+          v-for="e in group.panels"
           :key="e.id"
           unmount
         >
-          <EditorInterface :editor="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
+          <PanelInterface :panel="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
         <EmptyEditor
-          v-if="bench.projectVersionId != null && group.activeEditorId == null"
+          v-if="bench.projectVersionId != null && group.activePanelId == null"
           class="relative h-full w-full"
           :group="group"
         />
