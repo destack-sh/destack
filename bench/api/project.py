@@ -14,7 +14,7 @@ from strawberry_django_plus.utils.resolvers import async_safe
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.utils import (
-    CrudModel,
+    HasCrud,
     ModuleNode,
     get_client_origin_from_info,
     get_user_from_info,
@@ -232,7 +232,7 @@ class RefMappingFilter:
 
 
 @gql.django.type(models.ProjectVersion)
-class ProjectVersion(CrudModel, ModuleNode, gql.Node):
+class ProjectVersion(HasCrud, ModuleNode, gql.Node):
     project: Project
     parent: Optional[ModuleNode]
     name: auto

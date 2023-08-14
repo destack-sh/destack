@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
-import Statement from "@/components/editors/Statement.vue";
+import StatementComponent from "@/components/editors/Statement.vue";
 import StatementAddArea from "@/components/editors/StatementAddArea.vue";
 import TitleBanner from "@/components/editors/TitleBanner.vue";
 import { graphql, useFragment } from "@/gql";
@@ -11,7 +11,7 @@ import { useAppearance } from "@/state/appearance";
 import { FileEditor, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type Statement } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -85,7 +85,7 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const statementsComponents = ref<Record<string, InstanceType<typeof Statement>>>({});
+const statementsComponents = ref<Record<string, InstanceType<typeof StatementComponent>>>({});
 const fileState: Ref<FileState | null> = computed(() => {
   if (fileHeader.value == null) {
     return null;
@@ -136,7 +136,7 @@ function focusTitle() {
   panel.value.activeStatementId = undefined;
 }
 
-function registerStatementRef(id: string, component: InstanceType<typeof Statement> | undefined) {
+function registerStatementRef(id: string, component: InstanceType<typeof StatementComponent> | undefined) {
   if (component == null) {
     delete statementsComponents.value[id];
   } else if (statementsComponents.value[id] !== component) {
@@ -365,13 +365,13 @@ function getStatementBounding(statementId: string): { top: number; right: number
         class="mx-auto w-full"
         :style="{ 'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px' }"
       >
-        <Statement
+        <StatementComponent
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
           :readonly="isDeleted || isOtherVersion"
           :depth="positioned.depth"
-          :ancestors="positioned.ancestors.map((ancestorId) => context?.statementsById[ancestorId])"
+          :ancestors="positioned.ancestors.map((ancestorId) => (context?.statementsById[ancestorId] as Statement))"
           :standalone="false"
           :shown="statementsLoaded"
           class="w-full"

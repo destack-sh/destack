@@ -5,12 +5,20 @@ import {
   type InterpFileFragment,
   type InterpStatementFragment,
   IssueKind,
+  type HasCrud as HasCrudGql,
+  type ProjectVersion as ProjectVersionGql,
+  type Statement as StatementGql,
+  type File as FileGql,
+  type Field as FieldGql,
+  type Record as RecordGql,
+  type Issue as IssueGql,
+  type Tagging as TaggingGql,
+  type Trigger as TriggerGql,
 } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
-import { FieldType, InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
+import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
-import type { Field } from "@/state/statement";
 import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
@@ -19,10 +27,26 @@ import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
-// TODO @Cleanup: type InterpFile/InterpStatement more properly
-//  apollo fragment typing is annoying..
+// TODO @Cleanup @Robustness: type module objects more correctly
+// full objects
+export type HasCrud = Omit<HasCrudGql, "__typename" | "id">;
+export type HasCrudKey = keyof HasCrud;
+export type Module = ProjectVersionGql;
+export type File = FileGql;
+export type Statement = StatementGql;
+export type Field = FieldGql;
+export type Record = RecordGql;
+export type Tagging = TaggingGql;
+export type Trigger = TriggerGql;
+export type Issue = IssueGql;
+// interpreter state
 export type InterpFile = InterpFileFragment;
-export type InterpStatement = InterpStatementFragment;
+export type InterpStatement = Omit<InterpStatementFragment, "fields" | "tags" | "triggers" | "issues"> & {
+  fields: Field[];
+  tags: Tagging[];
+  triggers: Trigger[];
+  issues: Issue[];
+};
 
 export enum TypeFlag { // :TypeFlags
   Zero = 0,
@@ -39,10 +63,10 @@ export type ModuleIndex = {
   id: string;
   name: string;
   path: string;
-  statementsById: Record<string, InterpStatement>;
-  statementsByFileId: Record<string, InterpStatement[]>;
-  statementsByParentId: Record<string, InterpStatement[]>;
-  filesById: Record<string, InterpFile>;
+  statementsById: globalThis.Record<string, InterpStatement>;
+  statementsByFileId: globalThis.Record<string, InterpStatement[]>;
+  statementsByParentId: globalThis.Record<string, InterpStatement[]>;
+  filesById: globalThis.Record<string, InterpFile>;
 };
 
 function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
@@ -81,16 +105,16 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
-    const statementsById: Record<string, InterpStatement> = {};
-    const statementsByFileId: Record<string, InterpStatement[]> = {};
-    const statementsByParentId: Record<string, InterpStatement[]> = {};
-    const filesById: Record<string, InterpFile> = {};
+    const statementsById: globalThis.Record<string, InterpStatement> = {};
+    const statementsByFileId: globalThis.Record<string, InterpStatement[]> = {};
+    const statementsByParentId: globalThis.Record<string, InterpStatement[]> = {};
+    const filesById: globalThis.Record<string, InterpFile> = {};
 
     for (const fileEdge of module.value.projectVersion.files.edges) {
       const file = useFragment(InterpFileType, fileEdge.node);
       if (file.deletedAt != null) continue;
-      filesById[fileEdge.node.id] = file;
-      for (const statement of fileEdge.node.statements.map((s) => useFragment(InterpStatementType, s))) {
+      filesById[file.id] = file;
+      for (const statement of fileEdge.node.statements.map((s) => s as InterpStatement)) {
         if (statement.deletedAt != null) continue;
         statementsById[statement.id] = statement;
         if (statementsByParentId[statement.parent?.id] == null) {
@@ -98,8 +122,8 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
         }
         statementsByParentId[statement.parent?.id].push(statement);
       }
-      statementsByFileId[fileEdge.node.id] = fileEdge.node.statements
-        .map((s) => useFragment(InterpStatementType, s))
+      statementsByFileId[file.id] = fileEdge.node.statements
+        .map((s) => s as InterpStatement)
         .filter((s) => s.deletedAt == null);
     }
     return {
@@ -159,7 +183,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return (
       Object.values(symbolxLib.idx.value?.statementsById ?? {})
         .find((s) => s.name == "RunMetadata")
-        ?.fields.map((f) => useFragment(FieldType, f)) ?? []
+        ?.fields.map((f) => f as Field) ?? []
     );
   });
   function runMetadataKey(name: string): string | null {
@@ -270,7 +294,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     includeDependencies: true,
   });
   const tagsByKey = computed(() => {
-    const tagsByKey: Record<string, InterpStatement> = {};
+    const tagsByKey: globalThis.Record<string, InterpStatement> = {};
     for (const tag of tags.value) {
       tagsByKey[tag.key as string] = tag;
     }
@@ -390,7 +414,7 @@ export type OrderedStatement<T extends OrderableStatement> = {
 export function orderStatements<T extends OrderableStatement>(statements: T[]): OrderedStatement<T>[] {
   if (statements.length == 0) return [];
   const ordered: OrderedStatement<T>[] = [];
-  const statementsByParentId: Record<string, T[]> = {};
+  const statementsByParentId: globalThis.Record<string, T[]> = {};
   // group by parent
   statements.forEach((statement) => {
     if (statementsByParentId[statement.parent?.id] != null) {

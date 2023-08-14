@@ -1,17 +1,16 @@
-import { useFragment, type FragmentType } from "@/gql";
+import { StatementType, TypeHint, TypeTag, type FieldCreateInput, type FieldUpdateInput } from "@/gql/graphql";
+import { useActions } from "@/state/actions";
+import type { FileHeader, StatementAction } from "@/state/bench";
 import {
-  StatementType,
-  TypeHint,
-  TypeTag,
-  type FieldCreateInput,
-  type FieldUpdateInput,
+  TypeFlag,
+  getSymbolSubtype,
+  useCurrentModule,
   type Field,
   type Statement,
-} from "@/gql/graphql";
-import { useActions } from "@/state/actions";
-import type { StatementAction } from "@/state/bench";
-import { FieldType, FileHeaderType, StatementContentType, TaggingType, TriggerContentType } from "@/state/fragments";
-import { TypeFlag, getSymbolSubtype, useCurrentModule } from "@/state/module";
+  type HasCrudKey,
+  type Tagging,
+  type Trigger,
+} from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
@@ -57,8 +56,8 @@ export type StatementContext = {
   active: Ref<boolean>;
   focused: Ref<boolean>;
   editing: Ref<boolean>;
-  statement: Ref<FragmentType<typeof StatementContentType>>;
-  file: Ref<FragmentType<typeof FileHeaderType>>;
+  statement: Ref<Statement>;
+  file: Ref<FileHeader>;
   destroyed: Ref<boolean>;
   standalone: Ref<boolean>;
   customActions: Ref<StatementAction[] | undefined>;
@@ -73,8 +72,8 @@ export function useStatementContext() {
   // state
 
   const module = useCurrentModule();
-  const statement = computed(() => useFragment(StatementContentType, context.statement.value));
-  const file = computed(() => useFragment(FileHeaderType, context.file.value));
+  const statement = context.statement;
+  const file = context.file;
   const symbolSubtype: Ref<string | null> = computed(() => getSymbolSubtype(statement.value));
 
   // basic actions
@@ -273,14 +272,14 @@ export function useStatementContext() {
   const fields = computed(
     () =>
       statement.value.fields
-        ?.map((n) => useFragment(FieldType, n))
+        ?.map((n) => n as Field)
         .filter((n) => n.deletedAt == null)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
   );
   const resolvedFields = computed(
     () =>
       statement.value.resolvedFields
-        ?.map((n) => useFragment(FieldType, n))
+        ?.map((n) => n as Field)
         .filter((n) => n.deletedAt == null)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
   );
@@ -293,7 +292,7 @@ export function useStatementContext() {
   });
   const allFields = computed(() => [...inheritedFields.value, ...selfFields.value]);
   const fieldsByName = computed(() => {
-    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    const fieldsByName: Record<string, Field> = {};
     for (const field of fields.value) {
       if (field.name != null) {
         fieldsByName[field.name] = field as any;
@@ -302,7 +301,7 @@ export function useStatementContext() {
     return fieldsByName;
   });
   const resolvedFieldsByName = computed(() => {
-    const fieldsByName: Record<string, FragmentType<typeof FieldType>> = {};
+    const fieldsByName: Record<string, Field> = {};
     for (const field of resolvedFields.value) {
       if (field.name != null) {
         fieldsByName[field.name] = field as any;
@@ -444,13 +443,10 @@ export function useStatementContext() {
     insertAbove,
     insertBelow,
     // tagging
-    tags: computed(
-      () => statement.value.tags.map((t) => useFragment(TaggingType, t)).filter((t) => t.deletedAt == null) ?? []
-    ),
+    tags: computed(() => statement.value.tags.map((t) => t as Tagging).filter((t) => t.deletedAt == null) ?? []),
     // triggers
     triggers: computed(
-      () =>
-        statement.value.triggers.map((t) => useFragment(TriggerContentType, t)).filter((t) => t.deletedAt == null) ?? []
+      () => statement.value.triggers.map((t) => t as Trigger).filter((t) => t.deletedAt == null) ?? []
     ),
     // typing
     fields,
@@ -543,7 +539,7 @@ export function makeField(data: {
   reference?: { id: string; name?: string } | null;
   flags?: number;
 }): Field {
-  const fieldData: Field = {
+  const fieldData = {
     id: newFieldId(),
     name: data.name ?? null,
     tag: data.tag,
@@ -552,7 +548,9 @@ export function makeField(data: {
     orderKey: data.orderKey ?? INTEGER_ZERO,
     reference: data.reference as Statement,
     flags: data.flags ?? 0,
-  };
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  } as Field;
   return fieldData;
 }
 
@@ -672,4 +670,3 @@ export function getStatementDescription(type: StatementType, rootTypeTag?: TypeT
     return STATEMENT_TYPE_DESCRIPTIONS[type];
   }
 }
-export { Field };

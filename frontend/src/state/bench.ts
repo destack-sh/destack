@@ -955,11 +955,11 @@ export class FileEditor extends NavigablePanel {
     this.id = this.fileId + "-" + randomHexString();
   }
 
-  isStatementContentFolded(statement: Pick<StatementHeader, "id">): boolean {
+  isStatementContentFolded(statement: { id: string }): boolean {
     return this.foldedStatementContentIds?.includes(statement.id) ?? false;
   }
 
-  toggleStatementContentFolded(statement: Pick<StatementHeader, "id">): void {
+  toggleStatementContentFolded(statement: { id: string }): void {
     if (this.isStatementContentFolded(statement)) {
       this.foldedStatementContentIds = this.foldedStatementContentIds?.filter((id) => id != statement.id);
     } else {
@@ -968,7 +968,7 @@ export class FileEditor extends NavigablePanel {
     }
   }
 
-  setStatementContentsFolded(statements: Pick<StatementHeader, "id">[], folded: boolean): void {
+  setStatementContentsFolded(statements: { id: string }[], folded: boolean): void {
     if (folded) {
       this.foldedStatementContentIds = [...(this.foldedStatementContentIds ?? []), ...statements.map((s) => s.id)];
     } else {

@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
-import { useCurrentModule, TypeFlag } from "@/state/module";
+import { useCurrentModule, TypeFlag, type Field } from "@/state/module";
 import { computed, type Ref, ref } from "vue";
 import { Combobox, ComboboxButton, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { getEnumColor, type Field } from "@/state/statement";
+import { getEnumColor } from "@/state/statement";
 import uFuzzy from "@leeoniya/ufuzzy";
 
 const props = defineProps<{

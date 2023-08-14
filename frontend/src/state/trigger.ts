@@ -92,8 +92,10 @@ export function getTriggerIntervalUnit(interval: number): INTERVAL_UNIT {
   return "minute";
 }
 
+export type TimeTrigger = { timezone: string; scheduleType: ScheduleType; interval: number; cron: string };
+
 export function getTriggerSchedule(
-  trigger: { timezone: string; scheduleType: ScheduleType; interval: number; cron: string },
+  trigger: TimeTrigger,
   now: DateTime,
   options?: { nextOccurrences?: number }
 ): TriggerSchedule {
@@ -174,7 +176,10 @@ export function useTriggerSchedule(
       now.now.value,
     ],
     () => {
-      if (trigger.value?.type != TriggerType.Time) return;
+      if (trigger.value?.type != TriggerType.Time) {
+        schedule.value = null;
+        return;
+      }
       const { scheduleType, timezone: timezoneMaybe, interval: intervalMaybe, cron: cronMaybe } = trigger.value;
       const timezone = timezoneMaybe ?? "UTC";
       const interval = intervalMaybe ?? 60 * 60;

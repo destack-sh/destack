@@ -33,13 +33,8 @@ const now = useTimeFromNow();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementId));
-const inputFields = computed(
-  () =>
-    statement.value?.fields?.map((f) => useFragment(FieldType, f)).filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []
-);
-const outputFields = computed(
-  () => statement.value?.fields?.map((f) => useFragment(FieldType, f)).filter((t) => t.flags & TypeFlag.IsOutput) ?? []
-);
+const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
+const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [];
   return actions;
@@ -190,7 +185,6 @@ defineExpose({
         <!-- Title & source -->
         <div class="flex flex-col">
           <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "" }}&nbsp;</h1>
-          <h3 class="text-sm text-gray-700">{{ statement?.file?.path }}</h3>
         </div>
         <!-- Run button -->
         <div

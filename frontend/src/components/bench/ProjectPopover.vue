@@ -1,16 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { useFragment, type FragmentType } from "@/gql";
-import { ProjectVisibility } from "@/gql/graphql";
-import { ProjectHeaderType } from "@/state/fragments";
+import { ProjectVisibility, type Project } from "@/gql/graphql";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { ArrowRightOnRectangleIcon, GlobeAltIcon, LockClosedIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
-const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
-const project = computed(() => useFragment(ProjectHeaderType, props.project));
+const props = defineProps<{ project: Pick<Project, "id" | "name" | "slug" | "visibility"> }>();
 
 const projectActions = computed(() => [
   {
@@ -24,7 +21,7 @@ const projectActions = computed(() => [
 const ops = useOperations();
 const notifications = useNotifications();
 async function updateVisibility(visibility: ProjectVisibility) {
-  await ops.project.updateVisibility(project.value.id, visibility);
+  await ops.project.updateVisibility(props.project.id, visibility);
 
   notifications.dismissIf({ type: "project.visibilityUpdated" });
   notifications.show({
@@ -34,7 +31,7 @@ async function updateVisibility(visibility: ProjectVisibility) {
     description:
       visibility == ProjectVisibility.Public
         ? "Everyone can see and copy this Bench."
-        : `Only ${project.value.owner.slug} can work on this Bench.`,
+        : `Only ${props.project.slug} can work on this Bench.`,
   });
 }
 </script>

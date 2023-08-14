@@ -133,7 +133,7 @@ function isExpanded(runId: string) {
                     run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt)
                   }}
                 </span>
-                <RunCacheInfo :run="run" />
+                <RunCacheInfo :run="(run as Run)" />
               </span>
             </span>
             <!-- Trigger -->

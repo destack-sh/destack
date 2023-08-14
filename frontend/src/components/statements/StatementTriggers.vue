@@ -8,7 +8,7 @@ import { ScheduleType, TriggerType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newTriggerId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
-import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule } from "@/state/trigger";
+import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
@@ -67,7 +67,11 @@ function close() {
 }
 
 const now = useNow(1000);
-const triggerSchedules = computed(() => context.triggers.value.map((t) => getTriggerSchedule(t, now.value)));
+const triggerSchedules: Ref<(TriggerSchedule | null)[]> = computed(() =>
+  context.triggers.value.map((t) =>
+    t.type == TriggerType.Time ? getTriggerSchedule(t as TimeTrigger, now.value) : null
+  )
+);
 
 const actions = computed(() => [
   {
@@ -109,11 +113,18 @@ const actions = computed(() => [
         </span>
         <!-- Occurrences -->
         <div
-          v-if="triggerSchedules[i].lastOccurrence != null && triggerSchedules[i].nextOccurrences != null"
+          v-if="
+            triggerSchedules[i] != null &&
+            triggerSchedules[i]?.lastOccurrence != null &&
+            triggerSchedules[i]?.nextOccurrences != null
+          "
           class="mt-1 flex flex-col"
         >
           <span
-            v-for="(occurrence, offset) in [triggerSchedules[i].lastOccurrence, ...triggerSchedules[i].nextOccurrences]"
+            v-for="(occurrence, offset) in [
+              triggerSchedules[i]?.lastOccurrence,
+              ...(triggerSchedules[i]?.nextOccurrences ?? []),
+            ]"
             :key="offset"
             class="flex flex-row justify-between gap-2.5"
             :class="[

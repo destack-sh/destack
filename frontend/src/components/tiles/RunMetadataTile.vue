@@ -2,9 +2,7 @@
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { formatDuration } from "@/composables/useNow";
-import { useFragment } from "@/gql";
 import type { Run } from "@/gql/graphql";
-import { FieldType } from "@/state/fragments";
 import { TypeFlag, useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusColor } from "@/state/session";
 import { DateTime } from "luxon";
@@ -15,9 +13,7 @@ const props = defineProps<{
 }>();
 const module = useCurrentModule();
 const nav = useNavigation();
-const fields = computed(
-  () => module.statementOf(props.run.runnable?.id)?.fields.map((f) => useFragment(FieldType, f)) ?? []
-);
+const fields = computed(() => module.statementOf(props.run.runnable?.id)?.fields ?? []);
 </script>
 <template>
   <div class="flex flex-col gap-1">

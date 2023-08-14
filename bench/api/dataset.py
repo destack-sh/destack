@@ -13,7 +13,7 @@ from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import CrudModel, Revisioned, SearchQuery, SearchSort, ThingBatch, to_global_id
+from bench.api.utils import HasCrud, Revisioned, SearchQuery, SearchSort, ThingBatch, to_global_id
 from bench.language import Q, Query, QueryOp
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -30,7 +30,7 @@ class Dataset(gql.Node):
 
 
 @gql.type
-class Record(CrudModel, Revisioned):
+class Record(HasCrud, Revisioned):
     id: GlobalID
     dataset_id: str
     order_key: Optional[str]

@@ -1,8 +1,8 @@
-import type Statement from "@/components/editors/Statement.vue";
+import type StatementComponent from "@/components/editors/Statement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
-import { orderStatements, TypeFlag, type OrderedStatement } from "@/state/module";
+import { orderStatements, TypeFlag, type OrderedStatement, type Field, type Statement } from "@/state/module";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newRecordId, newFieldId, newFieldKey, newStatementId } from "@/state/operations/statement";
@@ -16,17 +16,17 @@ export type FileState = {
   editing: boolean;
   focused: boolean;
   file: FileHeader;
-  statementsUnordered: StatementHeader[]; // unordered
-  statementsComponents: Record<string, InstanceType<typeof Statement>>;
+  statementsUnordered: Statement[]; // unordered
+  statementsComponents: Record<string, InstanceType<typeof StatementComponent>>;
   navigateUp: () => void;
   navigateDown: () => void;
 };
 
 export type FileContext = FileState & {
   statements: StatementHeader[]; // ordered
-  statementsById: Record<string, StatementHeader>;
-  statementsComponents: Record<string, InstanceType<typeof Statement>>;
-  statementsByParentId: Record<string, StatementHeader[]>;
+  statementsById: Record<string, Statement>;
+  statementsComponents: Record<string, InstanceType<typeof StatementComponent>>;
+  statementsByParentId: Record<string, Statement[]>;
   statementPositions: Record<string, number>;
   positionedStatements: OrderedStatement<StatementContentFragment>[];
   depths: number[];
@@ -60,7 +60,7 @@ export function provideFileState(file: Ref<FileState | null>) {
   // file context
   const statementsUnordered = computed(() => file.value?.statementsUnordered ?? []);
   const statementsById = computed(() => {
-    const statementsById = {};
+    const statementsById: globalThis.Record<string, Statement> = {};
     statementsUnordered.value.forEach((statement) => {
       statementsById[statement.id] = statement;
     });
@@ -68,12 +68,12 @@ export function provideFileState(file: Ref<FileState | null>) {
   });
 
   // statementsByParentId must be ordered like orderedStatements
-  const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(() => {
-    const result: Record<string, StatementHeader[]> = {};
+  const statementsByParentId: Ref<Record<string, Statement[]>> = computed(() => {
+    const result: Record<string, Statement[]> = {};
     for (const statement of statements.value) {
       const parentId = statement.parent?.id ?? "";
       if (!result[parentId]) result[parentId] = [];
-      result[parentId].push(statement as StatementHeader);
+      result[parentId].push(statement as Statement);
     }
     return result;
   });
@@ -190,7 +190,7 @@ export type NavigationContext = FileContext & {
 
 export type CurrentNavigationContext = {
   statement: StatementHeader | null;
-  component: InstanceType<typeof Statement> | null;
+  component: InstanceType<typeof StatementComponent> | null;
   orderKey: string | null;
   previousSibling: StatementHeader | null;
   children: StatementHeader[];
@@ -831,7 +831,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       name: "content",
       tag: TypeTag.File,
       orderKey: INTEGER_ZERO,
-    });
+    } as Field);
     closeTransaction(tx);
 
     // insert files into dataset

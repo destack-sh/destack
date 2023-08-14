@@ -182,16 +182,6 @@ export type CommitPayload = {
 
 export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
 
-export type CrudModel = {
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  id: Scalars["GlobalID"];
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  updatedAt: Scalars["DateTime"];
-};
-
 export type Dataset = Node & {
   __typename?: "Dataset";
   id: Scalars["GlobalID"];
@@ -213,7 +203,7 @@ export type Environment = {
 
 export type EnvironmentOperationInfo = Environment | OperationInfo;
 
-export type Field = CrudModel &
+export type Field = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Field";
@@ -300,7 +290,7 @@ export type FieldUpdateTypeInput = {
   tag: TypeTag;
 };
 
-export type File = CrudModel &
+export type File = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "File";
@@ -375,6 +365,16 @@ export type FilePasteInput = {
 export type FileRenameInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
+};
+
+export type HasCrud = {
+  createdAt: Scalars["DateTime"];
+  createdBy?: Maybe<User>;
+  deletedAt?: Maybe<Scalars["DateTime"]>;
+  id: Scalars["GlobalID"];
+  lastEditedAt?: Maybe<Scalars["DateTime"]>;
+  lastEditedBy?: Maybe<User>;
+  updatedAt: Scalars["DateTime"];
 };
 
 export enum InterpScope {
@@ -1374,7 +1374,7 @@ export type ProjectUsage = {
   recordsActive: Scalars["Int"];
 };
 
-export type ProjectVersion = CrudModel &
+export type ProjectVersion = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "ProjectVersion";
@@ -1665,7 +1665,7 @@ export enum QueryOp {
   Within = "WITHIN",
 }
 
-export type Record = CrudModel & {
+export type Record = HasCrud & {
   __typename?: "Record";
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
@@ -2046,7 +2046,7 @@ export enum StartRunErrorType {
   Unavailable = "UNAVAILABLE",
 }
 
-export type Statement = CrudModel &
+export type Statement = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Statement";
@@ -2067,7 +2067,7 @@ export type Statement = CrudModel &
     lastEditedBy?: Maybe<User>;
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
-    parent?: Maybe<ModuleNode>;
+    parent: ModuleNode;
     projectVersion: ProjectVersion;
     reference?: Maybe<Statement>;
     resolvedFields?: Maybe<Array<Field>>;
@@ -2290,7 +2290,7 @@ export type SystemInfo = {
   version: Scalars["String"];
 };
 
-export type Tagging = CrudModel &
+export type Tagging = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Tagging";
@@ -2336,7 +2336,7 @@ export type TaggingUpdateInput = {
   metadata?: InputMaybe<Scalars["JSON"]>;
 };
 
-export type Trigger = CrudModel &
+export type Trigger = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Trigger";
@@ -3423,7 +3423,7 @@ export type OperationInfoContentFragment = {
   }>;
 } & { " $fragmentName"?: "OperationInfoContentFragment" };
 
-type CrudModelContent_Field_Fragment = {
+type HasCrudContent_Field_Fragment = {
   __typename?: "Field";
   id: any;
   createdAt: any;
@@ -3432,9 +3432,9 @@ type CrudModelContent_Field_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_Field_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_Field_Fragment" };
 
-type CrudModelContent_File_Fragment = {
+type HasCrudContent_File_Fragment = {
   __typename?: "File";
   id: any;
   createdAt: any;
@@ -3443,9 +3443,9 @@ type CrudModelContent_File_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_File_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_File_Fragment" };
 
-type CrudModelContent_ProjectVersion_Fragment = {
+type HasCrudContent_ProjectVersion_Fragment = {
   __typename?: "ProjectVersion";
   id: any;
   createdAt: any;
@@ -3454,9 +3454,9 @@ type CrudModelContent_ProjectVersion_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_ProjectVersion_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_ProjectVersion_Fragment" };
 
-type CrudModelContent_Record_Fragment = {
+type HasCrudContent_Record_Fragment = {
   __typename?: "Record";
   id: any;
   createdAt: any;
@@ -3465,9 +3465,9 @@ type CrudModelContent_Record_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_Record_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_Record_Fragment" };
 
-type CrudModelContent_Statement_Fragment = {
+type HasCrudContent_Statement_Fragment = {
   __typename?: "Statement";
   id: any;
   createdAt: any;
@@ -3476,9 +3476,9 @@ type CrudModelContent_Statement_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_Statement_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_Statement_Fragment" };
 
-type CrudModelContent_Tagging_Fragment = {
+type HasCrudContent_Tagging_Fragment = {
   __typename?: "Tagging";
   id: any;
   createdAt: any;
@@ -3487,9 +3487,9 @@ type CrudModelContent_Tagging_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_Tagging_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_Tagging_Fragment" };
 
-type CrudModelContent_Trigger_Fragment = {
+type HasCrudContent_Trigger_Fragment = {
   __typename?: "Trigger";
   id: any;
   createdAt: any;
@@ -3498,16 +3498,16 @@ type CrudModelContent_Trigger_Fragment = {
   lastEditedAt?: any | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
-} & { " $fragmentName"?: "CrudModelContent_Trigger_Fragment" };
+} & { " $fragmentName"?: "HasCrudContent_Trigger_Fragment" };
 
-export type CrudModelContentFragment =
-  | CrudModelContent_Field_Fragment
-  | CrudModelContent_File_Fragment
-  | CrudModelContent_ProjectVersion_Fragment
-  | CrudModelContent_Record_Fragment
-  | CrudModelContent_Statement_Fragment
-  | CrudModelContent_Tagging_Fragment
-  | CrudModelContent_Trigger_Fragment;
+export type HasCrudContentFragment =
+  | HasCrudContent_Field_Fragment
+  | HasCrudContent_File_Fragment
+  | HasCrudContent_ProjectVersion_Fragment
+  | HasCrudContent_Record_Fragment
+  | HasCrudContent_Statement_Fragment
+  | HasCrudContent_Tagging_Fragment
+  | HasCrudContent_Trigger_Fragment;
 
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
@@ -3553,12 +3553,12 @@ export type FileHeaderFragment = {
   updatedAt: any;
   lastEditedAt?: any | null;
   parent:
-    | { __typename?: "Field" }
+    | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
-    | { __typename?: "Statement" }
-    | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" };
+    | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any };
   projectVersion: { __typename?: "ProjectVersion"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3575,14 +3575,13 @@ export type StatementHeaderFragment = {
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
-  parent?:
+  parent:
     | { __typename?: "Field" }
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" }
-    | null;
+    | { __typename?: "Trigger" };
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
 export type FieldContentFragment = {
@@ -3664,14 +3663,13 @@ export type StatementContentFragment = {
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
-  parent?:
-    | { __typename?: "Field" }
+  parent:
+    | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
-    | { __typename?: "ProjectVersion" }
+    | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
-    | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" }
-    | null;
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any };
   reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
@@ -3716,12 +3714,12 @@ export type InterpFileFragment = {
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   parent:
-    | { __typename?: "Field" }
+    | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
-    | { __typename?: "Statement" }
-    | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" };
+    | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any };
   issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
 } & { " $fragmentName"?: "InterpFileFragment" };
 
@@ -3741,14 +3739,13 @@ export type InterpStatementFragment = {
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   file: { __typename?: "File"; id: any };
-  parent?:
-    | { __typename?: "Field" }
+  parent:
+    | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
-    | { __typename?: "ProjectVersion" }
+    | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
-    | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" }
-    | null;
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any };
   reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{
     __typename?: "Tagging";
@@ -4375,14 +4372,13 @@ export type CreateStatementMutation = {
         deletedAt?: any | null;
         lastEditedAt?: any | null;
         file: { __typename?: "File"; id: any };
-        parent?:
+        parent:
           | { __typename?: "Field" }
           | { __typename?: "File"; id: any }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
-          | { __typename?: "Trigger" }
-          | null;
+          | { __typename?: "Trigger" };
         reference?: { __typename?: "Statement"; id: any } | null;
         tags: Array<{ __typename?: "Tagging"; id: any }>;
         fields: Array<{ __typename?: "Field"; id: any }>;
@@ -4478,14 +4474,13 @@ export type MoveStatementMutation = {
         orderKey: string;
         revision: number;
         file: { __typename?: "File"; id: any };
-        parent?:
+        parent:
           | { __typename?: "Field" }
           | { __typename?: "File"; id: any }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
-          | { __typename?: "Trigger" }
-          | null;
+          | { __typename?: "Trigger" };
       };
 };
 
@@ -4510,14 +4505,13 @@ export type BatchMoveStatementMutation = {
           orderKey: string;
           revision: number;
           file: { __typename?: "File"; id: any };
-          parent?:
+          parent:
             | { __typename?: "Field" }
             | { __typename?: "File"; id: any }
             | { __typename?: "ProjectVersion" }
             | { __typename?: "Statement"; id: any }
             | { __typename?: "Tagging" }
-            | { __typename?: "Trigger" }
-            | null;
+            | { __typename?: "Trigger" };
         }>;
       };
 };
@@ -4823,7 +4817,7 @@ export type CreateFieldMutationVariables = Exact<{
   hint?: InputMaybe<TypeHint>;
   key: Scalars["String"];
   orderKey: Scalars["String"];
-  name: Scalars["String"];
+  name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
   referenceId?: InputMaybe<Scalars["GlobalID"]>;
@@ -5668,13 +5662,13 @@ export const OperationInfoContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<OperationInfoContentFragment, unknown>;
-export const CrudModelContentFragmentDoc = {
+export const HasCrudContentFragmentDoc = {
   kind: "Document",
   definitions: [
     {
       kind: "FragmentDefinition",
-      name: { kind: "Name", value: "CrudModelContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CrudModel" } },
+      name: { kind: "Name", value: "HasCrudContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "HasCrud" } },
       selectionSet: {
         kind: "SelectionSet",
         selections: [
@@ -5703,7 +5697,7 @@ export const CrudModelContentFragmentDoc = {
       },
     },
   ],
-} as unknown as DocumentNode<CrudModelContentFragment, unknown>;
+} as unknown as DocumentNode<HasCrudContentFragment, unknown>;
 export const ProjectVersionHeaderFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -5836,24 +5830,7 @@ export const FileHeaderFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           {
@@ -6180,24 +6157,7 @@ export const StatementContentFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "key" } },
@@ -6395,24 +6355,7 @@ export const InterpFileFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ProjectVersion" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           {
@@ -6476,24 +6419,7 @@ export const InterpStatementFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
@@ -14273,7 +14199,7 @@ export const CreateFieldDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
         },
         {
           kind: "VariableDefinition",

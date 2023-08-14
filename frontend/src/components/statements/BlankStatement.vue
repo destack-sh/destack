@@ -4,7 +4,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
-import { useFocus } from "@vueuse/core";
+import { useFocus, type MaybeElementRef } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { StatementType } from "@/gql/graphql";
 import {
@@ -52,7 +52,7 @@ const commandQuery: Ref<string> = ref("");
 const commandInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 const commandButtonRef: Ref<InstanceType<typeof ComboboxButton> | null> = ref(null);
 const commandOptionsRef: Ref<InstanceType<typeof ComboboxOptions> | null> = ref(null);
-const { focused: commandInputRefFocused } = useFocus(commandInputRef);
+const { focused: commandInputRefFocused } = useFocus(commandInputRef as MaybeElementRef);
 
 useActiveScroll(computed(() => commandOptionsRef.value?.$el));
 

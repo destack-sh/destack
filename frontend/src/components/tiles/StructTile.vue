@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Field } from "@/state/statement";
+import type { Field } from "@/state/module";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 
 const props = defineProps<{
