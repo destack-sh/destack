@@ -826,7 +826,6 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // create 'content' column with file type
     const contentKey = newFieldKey();
     ops.symbol.createField(tx, dataset.id, {
-      statementId: dataset.id,
       id: newFieldId(),
       key: contentKey,
       name: "content",

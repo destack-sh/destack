@@ -310,6 +310,7 @@ export function _useSessions(
       })
       .catch(() => {
         waking.value = false;
+        return false;
       });
   }
 

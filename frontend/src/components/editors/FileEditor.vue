@@ -298,7 +298,7 @@ const localClients = computed(() =>
 
 function getStatementBounding(statementId: string): { top: number; right: number } {
   const statement = statementsComponents.value[statementId];
-  if (statement == null) return { top: -100 };
+  if (statement == null) return { top: -100, right: -100 };
   const panel = props.panel;
   return {
     right: Math.round((statement.bounding.right.value + panel.scroll.value.x - panel.pos.value.left) * 100) / 100,

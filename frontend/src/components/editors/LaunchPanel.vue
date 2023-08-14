@@ -273,8 +273,8 @@ defineExpose({
         <!-- Runs -->
         <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
           <RunsTile
-            :project-id="bench.projectId"
-            :project-version-id="bench.projectVersionId"
+            :project-id="(bench.projectId as string)"
+            :project-version-id="(bench.projectVersionId as string)"
             include-ancestor-versions
             :runnable-id="panel?.statementId"
             :symbol-type="statement?.type"

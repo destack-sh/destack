@@ -6,7 +6,7 @@ import {
   type FieldCreateInput,
   type FieldUpdateInput,
   type Field,
-  TriggerType,
+  type Statement,
 } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { StatementAction } from "@/state/bench";
@@ -29,9 +29,7 @@ import {
   SparklesIcon as SparklesIconOutline,
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
-  ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconOutline,
   PaperAirplaneIcon as PaperAirplaneIconOutline,
-  ChevronDoubleDownIcon,
   Squares2X2Icon as Squares2X2IconOutline,
   Bars3BottomLeftIcon,
 } from "@heroicons/vue/24/outline";
@@ -44,9 +42,7 @@ import {
   ServerStackIcon as ServerStackIconSolid,
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
-  ChatBubbleBottomCenterTextIcon as ChatBubbleBottomCenterTextIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
-  Square2StackIcon as Square2StackIconSolid,
   Squares2X2Icon as Squares2X2IconSolid,
 } from "@heroicons/vue/24/solid";
 import { computed, inject, watch, type Ref } from "vue";
@@ -376,7 +372,7 @@ export function useStatementContext() {
       orderKey,
       reference: field.reference ? { id: field.reference.id } : undefined,
     };
-    createField(newFieldNode);
+    createField(newFieldNode as Field);
     return newFieldNode;
   }
 
@@ -410,7 +406,7 @@ export function useStatementContext() {
     if (!oldField) {
       throw new Error("cannot delete field that doesn't exist");
     }
-    ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField));
+    ops.symbol.softDeleteField(null, statement.value.id, makeFieldInput(statement.value.id, oldField as Field));
   }
 
   // basic inline actions
@@ -554,8 +550,7 @@ export function makeField(data: {
     hint: data.hint ?? null,
     key: data.key ?? newFieldKey(),
     orderKey: data.orderKey ?? INTEGER_ZERO,
-    value: data.value ?? null,
-    reference: data.reference,
+    reference: data.reference as Statement,
     flags: data.flags ?? 0,
   };
   return fieldData;

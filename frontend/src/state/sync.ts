@@ -96,7 +96,10 @@ export class ModuleMutationRegistry {
   ): UseMutationReturn<TResult, TVariables> {
     /* Registers a GQL mutation for multiplayer  */
 
-    const operationName = document.definitions[0].name.value; // fails if op could not be parsed, but this is usually obvious
+    const operationName = (document.definitions[0] as any)?.name?.value; // fails if op could not be parsed, but this is usually obvious
+    if (operationName == null) {
+      throw new Error(`could not parse operation name: ${type}`);
+    }
     const mutationString = print(document);
 
     // get the string between '... on' and '...OperationInfoContent'

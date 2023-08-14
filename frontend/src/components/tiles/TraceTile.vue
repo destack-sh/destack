@@ -47,11 +47,6 @@ const canvasBounding = useElementBounding(canvasRef);
 const focusedRunPopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const focusedNode = ref<OrderedNode | BarNode | null>(null);
 const focusedRunPin = pinAbsoluteElement(focusedRunPopoverRef, { pos: true, keepInView: true });
-const focusedRunFields = computed(() =>
-  focusedNode.value?.runnable == null
-    ? []
-    : module.statementOf(focusedNode.value?.runnable?.id)?.fields.map((f) => useFragment(FieldType, f)) ?? []
-);
 
 type OrderedNode = {
   id: string;
@@ -130,7 +125,7 @@ const barHeight = 32;
 const barGapY = 2;
 const barMinWidth = 4;
 
-const bgColorByNodeType = {
+const bgColorByNodeType: Partial<Record<StatementType, string>> = {
   [StatementType.Model]: "bg-teal-100 border-teal-200",
   [StatementType.Code]: "bg-blue-100 border-blue-200",
   [StatementType.Task]: "bg-orange-100 border-orange-200",
@@ -150,7 +145,7 @@ const bars = computed(() => {
     const timeOffset = DateTime.fromISO(node.run.startedAt).diff(rootStart, "seconds").seconds;
     const x = Math.round((timeOffset / root.duration) * targetWidth);
     const y = node.depth * (barHeight + barGapY);
-    const color = bgColorByNodeType[node.runnable?.type] ?? "bg-gray-600";
+    const color = bgColorByNodeType[node.runnable?.type ?? StatementType.Code] ?? "bg-gray-600";
     bars.push({ ...node, width, x, y, color });
   }
 
@@ -308,7 +303,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
       <RunTile
         :run="focusedNode.run"
         :project-version-id="module.id.value"
-        :project-id="bench.projectId"
+        :project-id="(bench.projectId as string)"
         show-controls
         view="metadata"
       />

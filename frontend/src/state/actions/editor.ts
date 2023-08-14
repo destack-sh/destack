@@ -38,8 +38,8 @@ export function useEditorActions() {
   });
 
   // close editor
-  const closeEditor = provideGlobalAction({
-    id: "bench.closeEditor",
+  const closePanel = provideGlobalAction({
+    id: "bench.closePanel",
     label: "Close Editor",
     shortcuts: ["alt+w", "ctrl+w", "meta+w"],
     enabled: computed(() => bench.focusedPanel != null),
@@ -62,7 +62,7 @@ export function useEditorActions() {
     focusNextPanelGroup,
     moveEditorLeft,
     moveEditorRight,
-    closeEditor,
+    closePanel,
     toggleDebugMode,
   };
 }

@@ -48,7 +48,7 @@ export function useSecretOps() {
     `)
   );
 
-  async function update(id: string, name: string, value: string) {
+  async function update(id: string, name: string | null, value: string) {
     return await ops.perform({
       type: "secret.update",
       do: async () => {

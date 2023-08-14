@@ -84,7 +84,7 @@ watch(
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
     <!-- Statement content -->
-    <div class="mt-8 flex flex-col bg-white" v-if="statement" v-show="statementComponentLoaded">
+    <div class="mt-8 flex flex-col bg-white" v-if="statement != null && file != null" v-show="statementComponentLoaded">
       <!-- Non-clickable invisible overlay if deleted -->
       <div v-if="statement?.deletedAt != null" class="absolute inset-0 z-20 flex justify-center opacity-100" />
       <!-- Editor inline header -->

@@ -62,7 +62,9 @@ const outputRef = ref<HTMLDivElement | null>(null);
 const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const showOutput: Ref<"logs" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
+const showOutput: Ref<"logs" | "tracebars" | "tracelist" | "error" | "metadata" | null> = ref(
+  context.standalone.value ? "logs" : null
+);
 
 watch(
   () => currentRun.value?.status,
@@ -158,8 +160,8 @@ const extraActions = computed(() => {
     label: "Launch",
     icon: WindowIcon,
     action: () => {
-      const nextGroup = bench.nextGroup(panel.editor.value.group as PanelGroup); // open in opposite group
-      bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+      const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
+      bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
     },
   });
 
@@ -170,8 +172,8 @@ context.setCustomActions(extraActions);
 async function run() {
   if (isCurrentRunActive.value) return;
   if (hasTypes.value) {
-    const nextGroup = bench.nextGroup(panel.editor.value.group as PanelGroup); // open in opposite group
-    bench.openRun(context.statement.value, { group: nextGroup, focus: true });
+    const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
+    bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
   } else {
     try {
       // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
@@ -302,8 +304,8 @@ defineExpose({
     ref="runTileRef"
     v-if="!hasTypes && currentRun != null && !folded && showOutput"
     class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-t-0 border-gray-200 px-3 py-1.5 transition duration-150"
-    :project-id="bench.projectId"
-    :project-version-id="bench.projectVersionId"
+    :project-id="(bench.projectId as string)"
+    :project-version-id="(bench.projectVersionId as string)"
     :run="currentRun"
     :key="currentRun?.id"
     :view="showOutput"

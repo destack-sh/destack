@@ -10,7 +10,7 @@ import {
   useBenchState,
   usePanelContext,
   type Action,
-  type EditorType,
+  type PanelType,
 } from "@/state/bench";
 import {
   ArrowsPointingInIcon,
@@ -36,7 +36,7 @@ const appearance = useAppearance();
 const auth = useAuth();
 
 // :EditorIcons
-const editorIcons: Record<EditorType, any> = {
+const editorIcons: Record<PanelType, any> = {
   file: CodeBracketIcon,
   statement: CodeBracketIcon,
   launch: WindowIcon,

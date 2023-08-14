@@ -81,7 +81,7 @@ async function createFileInPanelGroup() {
               'bg-orange-100 text-orange-600': selected,
               'border-b-orange-600 ': selected && focused,
             }"
-            @click.middle.prevent="bench.closeEditor(e)"
+            @click.middle.prevent="bench.closePanel(e)"
             @click.prevent="focus(e)"
           >
             {{ e.name.length > 0 ? e.name : "(Untitled)" }}
@@ -89,7 +89,7 @@ async function createFileInPanelGroup() {
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"
               :class="i == selectedTab ? 'text-gray-400' : 'text-transparent'"
-              @click.prevent="bench.closeEditor(e)"
+              @click.prevent="bench.closePanel(e)"
             >
               x
             </button>

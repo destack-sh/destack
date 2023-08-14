@@ -39,7 +39,10 @@ export function valueRef<T>(value: T) {
         const newValueType = typeof newValue;
         const valueType = typeof value;
         if (newValueType == valueType) {
-          if (newValueType == "number" && (newValue == value || (isNaN(newValue) && isNaN(value)))) {
+          if (
+            newValueType == "number" &&
+            (newValue == value || (isNaN(newValue as number) && isNaN(value as number)))
+          ) {
             return;
           } else if ((newValueType == "string" || newValueType == "boolean") && newValue == value) {
             return;

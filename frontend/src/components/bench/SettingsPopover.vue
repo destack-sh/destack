@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import Switch from "@/components/basic/Switch.vue";
-import { useAppearance } from "@/state/appearance";
+import { useAppearance, type Font } from "@/state/appearance";
 import { useBenchState } from "@/state/bench";
 import { VERSION } from "@/utils/globals";
 import { Popover, PopoverPanel } from "@headlessui/vue";
@@ -51,7 +51,7 @@ const fontOptions = [
               :key="font.key"
               class="flex flex-col items-center justify-center rounded-sm px-5 text-center hover:bg-orange-100"
               :class="font.style"
-              @click="appearance.font = font.key"
+              @click="appearance.font = font.key as Font"
             >
               <span class="text-2xl" :class="{ 'text-orange-600': appearance.font == font.key }">Ag</span>
               <span class="font-sans text-xs text-gray-500">{{ font.label }}</span>
