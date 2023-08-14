@@ -1,15 +1,14 @@
+import type { TypePolicies } from "@apollo/client";
 import { relayStylePagination } from "@apollo/client/utilities";
 
 const useIncoming = {
   merge: (existing: any, incoming: any) => incoming,
 };
 
-export const TYPE_POLICIES = {
+export const TYPE_POLICIES: TypePolicies = {
   User: {
     fields: {
-      notifications: {
-        edges: useIncoming,
-      },
+      notifications: useIncoming,
     },
   },
   File: {

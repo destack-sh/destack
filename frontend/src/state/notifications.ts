@@ -142,7 +142,7 @@ function _useNotifications() {
       status: NotificationStatus.Active,
     } as any,
     {
-      enabled: toRef(auth, "loggedIn"),
+      enabled: toRef(auth, "loggedIn") as any,
     }
   );
 

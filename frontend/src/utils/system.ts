@@ -4,7 +4,7 @@ import { VERSION } from "@/utils/globals";
 import { isSemVerNewer, parseSemVer, type SemVer } from "@/utils/semver";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/shared";
-import { computed, ref, watch } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
 function _useSystemVersioning(checkIntervalMs = 60 * 1000) {
   const { result: systemInfo, refetch } = useQuery(
@@ -29,7 +29,7 @@ function _useSystemVersioning(checkIntervalMs = 60 * 1000) {
       console.info("%cGit Commit: " + newSystemInfo?.systemInfo.gitCommit, "color:orangered");
       console.groupEnd();
     }
-    lastSystemInfo.value = newSystemInfo?.systemInfo;
+    lastSystemInfo.value = newSystemInfo?.systemInfo ?? null;
   });
 
   const outOfDate = computed(() => {

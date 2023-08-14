@@ -663,7 +663,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
 
 export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
-    return "An object type with multiple field";
+    return "An object type with multiple fields";
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
     return "A choice type with multiple options";
   } else {

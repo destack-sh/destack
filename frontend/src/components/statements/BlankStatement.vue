@@ -107,6 +107,7 @@ const commands = computed(() => {
 
     // advanced statements
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow),
   ];
 

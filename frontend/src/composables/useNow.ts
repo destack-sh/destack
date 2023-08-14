@@ -7,7 +7,7 @@ export function useNow(updateInterval = 60000) {
    */
   const now: Ref<DateTime> = ref(DateTime.now());
 
-  let interval: number;
+  let interval: any;
   onMounted(() => {
     interval = setInterval(() => (now.value = DateTime.now()), updateInterval);
   });
