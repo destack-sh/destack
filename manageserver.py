@@ -12,7 +12,7 @@ from bench.utils.analytics import init_sentry
 from bench.utils.cache import test_redis_connection
 from bench.utils.logging import configure_logging
 from bench.utils.monitoring import MonitoringServer
-from bench.utils.utils import DEBUG, get_from_env
+from bench.utils.utils import DEBUG, TEST, get_from_env
 
 logger = structlog.get_logger(__name__)
 
@@ -30,7 +30,8 @@ os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
 configure_logging(apply_logging=True, apply_structlog=True)
 
-init_sentry(django=False)
+if not (TEST or DEBUG):
+    init_sentry(django=False)
 
 django.setup()
 
