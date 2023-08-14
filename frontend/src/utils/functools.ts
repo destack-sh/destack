@@ -41,7 +41,7 @@ export function valueRef<T>(value: T) {
         if (newValueType == valueType) {
           if (
             newValueType == "number" &&
-            (newValue == value || (isNaN(newValue as number) && isNaN(value as number)))
+            (newValue == value || (isNaN(newValue as unknown as number) && isNaN(value as unknown as number)))
           ) {
             return;
           } else if ((newValueType == "string" || newValueType == "boolean") && newValue == value) {

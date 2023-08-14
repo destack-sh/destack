@@ -1,7 +1,6 @@
-import type { Field } from "@/state/statement";
 import { TypeHint, TypeTag } from "@/gql/graphql";
 import { isValidObjectRecord } from "@/state/object";
-import { TypeFlag } from "@/state/module";
+import { TypeFlag, type Field } from "@/state/module";
 import { isValidSecretRecord } from "@/state/secret";
 
 export type ValueInterface = {

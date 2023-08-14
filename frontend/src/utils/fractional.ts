@@ -264,7 +264,10 @@ function runTests(bigString: string, func: any, digits: string = BASE_95_DIGITS)
     .filter((x) => x)
     .map(
       (x) =>
-        (test(digits, ...x.split(" ").map((y, i) => (y === "[" ? "" : y === "]" ? null : y === "|" ? null : y)))
+        (test(
+          digits,
+          ...x.split(" ").map((y, i) => (y === "[" ? "" : y === "]" ? null : y === "|" ? null : y) as string)
+        )
           ? "PASS"
           : "FAIL") +
         " " +

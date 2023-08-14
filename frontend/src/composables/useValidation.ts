@@ -30,7 +30,7 @@ export function useValidSlug(slug: Ref<string | null>, me?: Ref<{ id: string } |
       slug: slug.value || "",
     })) as any,
     {
-      enabled: valid,
+      enabled: valid as any,
       // we don't want to cache this to (almost) guarantee that the slug is valid,
       // and to definitely re-fetch ownerBySlug when a slug is created/changed
       fetchPolicy: "no-cache",

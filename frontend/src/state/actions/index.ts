@@ -113,7 +113,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
       label: typeof action.label === "string" ? action.label : action.label.value,
       shortcuts: action.shortcuts,
       registered: action.registered ? action.registered.value : true,
-      enabled: action.enabled ? action.enabled.value : true,
+      enabled: action.enabled ? action.enabled.value ?? false : true,
       apply: action.apply,
     };
   }

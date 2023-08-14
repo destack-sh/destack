@@ -3,7 +3,7 @@ import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
 import { useOperations } from "@/state/operations";
-import { getUpdatedConnectionQuery } from "@/utils/connection";
+import { getUpdatedConnectionQuery, type Connection } from "@/utils/connection";
 import { toValueRef, wrapValueRefs } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
@@ -227,6 +227,12 @@ export function useConnectedClients(
           active: $active
         ) {
           totalCount
+          pageInfo {
+            hasNextPage
+            hasPreviousPage
+            startCursor
+            endCursor
+          }
           edges {
             node {
               ...ClientContentType
@@ -239,9 +245,8 @@ export function useConnectedClients(
       projectId: filter.projectId,
       projectVersionId: filter.projectVersionId,
       userId: filter.userId,
-      inSameOrganizations: filter.inSameOrganizations,
-      active: filter.active,
-      present: filter.present,
+      inSameOrganizations: filter.inSameOrganizations as any,
+      active: filter.active as any,
       first: options.first,
     }
   );
@@ -263,7 +268,7 @@ export function useConnectedClients(
         if (!subscriptionData.data) return prev;
         const client = useFragment(ClientContentType, subscriptionData.data.clientsChanged);
         return {
-          clients: getUpdatedConnectionQuery(client, prev.clients),
+          clients: getUpdatedConnectionQuery(client, prev.clients as Connection<any>),
         };
       },
     });

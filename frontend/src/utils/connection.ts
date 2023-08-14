@@ -1,7 +1,7 @@
 import type { PageInfo } from "@/gql/graphql";
 
 export type Connection<T> = {
-  totalCount: number;
+  totalCount?: number;
   edges: { cursor: string; node: T & { id: string } }[];
   pageInfo: PageInfo;
 };

@@ -66,9 +66,10 @@ export function useObjectOps() {
   async function prepareUpload(projectId: string, file: File): Promise<Omit<ObjectRecord, "id">> {
     const sha512 = await computeSHA512(file);
     return {
+      __typename: "RemoteObject",
       name: file.name,
-      contentType: file.type,
-      contentLength: file.size,
+      content_type: file.type,
+      content_length: file.size,
       sha512,
       status: RemoteObjectStatus.Prepared,
     };
