@@ -170,7 +170,7 @@ export const useOperationsStore = defineStore("operations", {
         if (this.completed.length > COMPLETED_STACK_SIZE) {
           this.completed = this.completed.slice(this.completed.length - COMPLETED_STACK_SIZE);
         }
-        return ret;
+        return ret as T | void | null;
       } catch (e) {
         if (!operation.suppressErrors) {
           onError(operation, e);

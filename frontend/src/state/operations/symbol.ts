@@ -276,7 +276,7 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; statementId: string; orderKey: string; value: any }) =>
+      optimisticResponse: (vars: { id: string; statementId: string; orderKey: string | null; value: any }) =>
         ({
           __typename: "Mutation",
           createRecord: {

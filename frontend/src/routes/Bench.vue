@@ -275,7 +275,7 @@ watch(
     if (module.idx.value != null && !consideredUrl.value && ready.value) {
       const hash = router.currentRoute.value.hash.slice(1);
       const matchingEditor = Object.values(PANEL_INSTANCE_TYPES)
-        .map((editorType) => editorType.parsePath(hash, module.idx.value as ModuleIndex))
+        .map((panelType) => panelType.parsePath(hash, module.idx.value as ModuleIndex))
         .find((e) => e != null);
       if (matchingEditor != null) {
         matchingEditor.onDeserialized(bench);

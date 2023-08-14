@@ -114,7 +114,7 @@ const editor = useEditor({
     StarterKit,
     shortcutsExtension,
     BubbleMenuExt.configure({
-      element: document.querySelector(".menu"),
+      element: document.querySelector(".menu") as HTMLElement,
     }),
   ],
   parseOptions: {

@@ -33,7 +33,7 @@ onMounted(() => {
   props.panel.onMounted?.(context);
 });
 onBeforeUnmount(() => {
-  props.panel.onUnmounted?.(context);
+  props.panel.onUnmounted?.();
 });
 
 defineExpose({
@@ -47,21 +47,21 @@ defineExpose({
     :panel="(context as PanelContext<FileEditor>)"
     :fileId="(panel as FileEditor).fileId"
     :focused="focused"
-    @close="bench.closeEditor(panel)"
+    @close="bench.closePanel(panel)"
   />
   <StatementPanelInterface
     ref="containerRef"
     v-else-if="panel.type == 'statement'"
     :panel="(context as PanelContext<StatementEditor>)"
     :focused="focused"
-    @close="bench.closeEditor(panel)"
+    @close="bench.closePanel(panel)"
   />
   <LaunchPanelInterface
     ref="containerRef"
     v-else-if="panel.type == 'launch'"
     :panel="(context as PanelContext<LaunchPanel>)"
     :focused="focused"
-    @close="bench.closeEditor(panel)"
+    @close="bench.closePanel(panel)"
   />
   <div v-else class="h-full w-full text-center">
     <span class="text-red-600">cannot render editor of type {{ panel.type }}</span>

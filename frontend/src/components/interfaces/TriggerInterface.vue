@@ -131,13 +131,12 @@ function update(properties: Partial<Trigger>) {
             max="60"
             class="w-full max-w-full flex-grow scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 px-1 text-right text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
             :value="(props.modelValue.interval ?? 0) / INTERVAL_UNITS[intervalDisplayUnit]"
-            @input="update({ interval: $event.target?.value * INTERVAL_UNITS[intervalDisplayUnit] })"
+            @input="update({ interval: ($event.target as any)?.value * INTERVAL_UNITS[intervalDisplayUnit] })"
           />
           <!-- Interval unit -->
           <Listbox
             as="div"
             class="relative w-full"
-            v-slot="{ open }"
             :model-value="intervalDisplayUnit"
             @update:model-value="setIntervalDisplayUnit"
           >

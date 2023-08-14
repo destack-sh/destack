@@ -110,7 +110,7 @@ watchEffect(() => {
     (name.value != null && name.value != profileResult.value?.ownerBySlug?.name) ||
     (description.value != null && description.value != (profileResult.value?.ownerBySlug?.description ?? ""))
   ) {
-    updateInfoDebounced(name.value, description.value);
+    updateInfoDebounced(name.value ?? "", description.value ?? "");
   }
 });
 </script>
@@ -178,7 +178,8 @@ watchEffect(() => {
           minlength="3"
           maxlength="128"
           :placeholder="isOrganization ? 'The best multinational conglomerate.' : 'The best user.'"
-          v-model="description"
+          :model-value="description ?? ''"
+          @input="description = ($event.target as any)?.value"
           class="mt-1 w-full resize-none rounded-sm border border-orange-900 border-opacity-[15%] py-1 placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
           spellcheck="false"
         />
