@@ -15,6 +15,7 @@ import {
 } from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
+import { usePanelContext } from "@/state/bench";
 
 defineProps<{ showDots?: boolean; folded?: boolean }>();
 const emit = defineEmits<{
@@ -31,6 +32,8 @@ const emit = defineEmits<{
 const context = useStatementContext();
 const query: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const panel = usePanelContext();
+const isInTopHalfOfPanel = computed(() => context.bounding.y.value < panel.size.value.height / 2);
 
 // open/close commanding and auto-convert to text on anything else
 watch(query, (query) => {
@@ -87,6 +90,11 @@ function singleStatementCommand(
   };
 }
 
+function morphToText() {
+  query.value = "";
+  nextTick(() => spanRef.value?.focus());
+}
+
 // TODO @UX: blank statement menu sucks
 const commands = computed(() => {
   const commands: Command[] = [
@@ -96,7 +104,7 @@ const commands = computed(() => {
       label: "Text",
       icon: getStatementIconSolid(StatementType.Text),
       description: "Just type for a markdown comment",
-      action: () => ((query.value = ""), nextTick(() => spanRef.value?.focus())),
+      action: morphToText,
     },
     singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Struct }),
     singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum }),
@@ -107,8 +115,10 @@ const commands = computed(() => {
 
     // advanced statements
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow),
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Block),
+    singleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
   ];
 
   return commands;
@@ -171,9 +181,19 @@ defineExpose({
       @escape="emit('escape')"
       @delete-left="context.deleteSelfLeft"
     />
+    <!-- Empty dots / prompt -->
+    <div
+      v-if="
+        showDots && context.statement.value.type == StatementType.Blank && query?.length == 0 && context.focused.value
+      "
+      class="h-full w-full select-none items-center group-hover:opacity-100"
+    >
+      <span class="text-gray-400" v-if="!context.editing.value"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
+      <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
+    </div>
     <!-- Command selection -->
     <Combobox
-      v-else
+      v-if="commanding"
       as="div"
       class="relative flex w-full flex-col"
       @update:model-value="selectCommand($event)"
@@ -191,13 +211,21 @@ defineExpose({
           class="w-full min-w-0 border-0 bg-transparent p-0 outline-none ring-0 focus:ring-0"
           :class="[appearance.textSmall ? 'text-sm' : 'text-md']"
           @keydown.backspace.exact="commandQuery.length > 0 || stopCommanding()"
-          @keydown.escape.prevent="emit('escape')"
+          @keydown.escape.prevent="morphToText(), emit('escape')"
         />
       </span>
+      <!-- Prevent scroll and capture click outside -->
+      <div
+        v-if="commanding"
+        class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+        @click.stop="commanding = false"
+      />
+      <!-- Command popup options -->
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"
-          class="absolute top-7 z-20 flex max-h-80 w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute z-50 flex max-h-80 w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          :class="[isInTopHalfOfPanel ? 'top-7' : 'bottom-7']"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">
             <span class="text-gray-700">No results</span>
@@ -237,15 +265,5 @@ defineExpose({
         </ComboboxOptions>
       </FadeTransition>
     </Combobox>
-    <!-- Empty dots / prompt -->
-    <div
-      v-if="
-        showDots && context.statement.value.type == StatementType.Blank && query?.length == 0 && context.focused.value
-      "
-      class="h-full w-full select-none items-center group-hover:opacity-100"
-    >
-      <span class="text-gray-400" v-if="!context.editing.value"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
-      <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
-    </div>
   </span>
 </template>

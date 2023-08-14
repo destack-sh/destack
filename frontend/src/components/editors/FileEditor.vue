@@ -119,7 +119,7 @@ watchEffect(() => {
       statementsComponents.value[panel.value.activeStatementId]?.focus();
       // scroll into view
       nextTick(() => {
-        statementsComponents.value[panel.value.activeStatementId as string].$el.parentNode?.scrollIntoView({
+        statementsComponents.value[panel.value.activeStatementId as string]?.$el?.parentNode?.scrollIntoView({
           behavior: "instant",
           block: "center",
           inline: "center",
@@ -213,11 +213,7 @@ whenever(
 
 function goToContent() {
   titleRef.value?.blur();
-  if (context.value?.positionedStatements.length == 0) {
-    insertStatementStart();
-  } else {
-    insertOrFocusStatementStart();
-  }
+  insertStatementStart();
 }
 
 // actions

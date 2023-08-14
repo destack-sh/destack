@@ -3,9 +3,7 @@ import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import { useCurrentSessions } from "@/state/session";
 import {
   Bars3Icon,
   DocumentChartBarIcon,

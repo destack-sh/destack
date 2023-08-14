@@ -99,27 +99,6 @@ const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
 );
 
-// provide context
-const destroyed = ref(false); // (useful for delete tracking if component had no time to update)
-onBeforeUnmount(() => {
-  destroyed.value = true;
-});
-const context = {
-  readonly: computed(() => bench.readonly || props.readonly),
-  active: isActive,
-  focused: isFocused,
-  editing: isEditing,
-  standalone: toRef(props, "standalone"),
-  depth: toRef(props, "depth"),
-  xOffset: contentOffsetX,
-  statement,
-  reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
-  file,
-  destroyed,
-  customActions: ref([]),
-} as StatementContext;
-provide(STATEMENT_CONTEXT, context);
-
 // manage interfaces
 type StatementInterface = {
   component: Component;
@@ -140,7 +119,7 @@ const statementInterface: Ref<StatementInterface> = computed(() => {
       component: TaskStatement,
       props: { isTyped: true },
     };
-  } else if (statement.value.type == StatementType.Expectation) {
+  } else if (statement.value.type == StatementType.Expectation || statement.value.type == StatementType.Tag) {
     return {
       component: TaskStatement,
       props: { isTyped: false },
@@ -237,14 +216,14 @@ watch(
   }
 );
 
-const altKeyState = useKeyModifier("Alt");
-const shiftKeyState = useKeyModifier("Shift");
+const altKey = useKeyModifier("Alt");
+const shiftKey = useKeyModifier("Shift");
 // cancel focus if clicked outside this statement in our editor (unless alt/shift is pressed)
 onClickOutside(containerRef, (e) => {
   if (
     isFocused.value &&
-    !altKeyState.value &&
-    !shiftKeyState.value &&
+    !altKey.value &&
+    !shiftKey.value &&
     panel.container.value?.parentNode?.contains(e.target as Node)
   ) {
     // we don't blur the statement interface here because the focus is already elsewhere
@@ -258,7 +237,7 @@ whenever(inStatementFocused, () => {
   if (!isFocused.value) {
     focusInEditor();
   }
-  if (altKeyState.value) {
+  if (altKey.value) {
     return;
   }
   if (!isEditing.value && !bench.readonly) {
@@ -301,6 +280,28 @@ function insertStatementOnClick(e: MouseEvent) {
   e.preventDefault();
   e.stopPropagation();
 }
+
+// provide context
+const destroyed = ref(false); // (useful for delete tracking if component had no time to update)
+onBeforeUnmount(() => {
+  destroyed.value = true;
+});
+const context = {
+  readonly: computed(() => bench.readonly || props.readonly),
+  active: isActive,
+  focused: isFocused,
+  editing: isEditing,
+  standalone: toRef(props, "standalone"),
+  depth: toRef(props, "depth"),
+  xOffset: contentOffsetX,
+  statement,
+  reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
+  file,
+  bounding: containerBounding,
+  destroyed,
+  customActions: ref([]),
+} as StatementContext;
+provide(STATEMENT_CONTEXT, context);
 
 // drag & drop
 const innerDrag = computed(() => (statementRef.value as any)?.innerDrag == true);

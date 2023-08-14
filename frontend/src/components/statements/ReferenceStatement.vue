@@ -14,6 +14,7 @@ import { useAppearance } from "@/state/appearance";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { onStartTyping, useKeyModifier } from "@vueuse/core";
 import StatementTriggers from "@/components/statements/StatementTriggers.vue";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -139,74 +140,80 @@ defineExpose({
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
       @click.stop="close()"
     />
-    <div
-      v-if="selectingReference"
-      ref="popoverRef"
-      class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-      :class="[popoverPin.pinned.value ? '' : 'absolute -top-9 left-5']"
-    >
-      <Combobox
-        as="div"
-        @update:model-value="(r) => (setReference(r), close())"
-        :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
+    <FadeTransition>
+      <div
+        v-if="selectingReference"
+        ref="popoverRef"
+        class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="[popoverPin.pinned.value ? '' : 'absolute -top-9 left-5']"
       >
-        <!-- Title -->
-        <h5 class="text-left text-sm font-semibold text-gray-900">Set statement reference</h5>
-        <!-- Input -->
-        <ComboboxInput
-          as="input"
-          ref="inputRef"
-          class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
-          @change="query = $event.target.value"
-          @keydown.enter.prevent.stop="close"
-          @keydown.escape.prevent.stop="close"
+        <Combobox
+          as="div"
+          @update:model-value="(r) => (setReference(r), close())"
           :class="{
             'font-mono': appearance.fontMono,
             'text-sm': appearance.textSmall,
             'text-md': !appearance.textSmall,
           }"
         >
-        </ComboboxInput>
-        <!-- Reference options -->
-        <ComboboxOptions
-          class="mt-1 max-h-48 overflow-auto"
-          static
-          :class="{
-            'font-mono': appearance.fontMono,
-            'text-sm': appearance.textSmall,
-            'text-md': !appearance.textSmall,
-          }"
-        >
-          <ComboboxOption
-            v-for="reference in filteredReferences"
-            :key="reference.id"
-            :value="reference"
-            v-slot="{ active, selected }"
+          <!-- Title -->
+          <h5 class="text-left text-sm font-semibold text-gray-900">Set statement reference</h5>
+          <!-- Input -->
+          <ComboboxInput
+            as="input"
+            ref="inputRef"
+            class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+            @change="query = $event.target.value"
+            @keydown.enter.prevent.stop="close"
+            @keydown.escape.prevent.stop="close"
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm': appearance.textSmall,
+              'text-md': !appearance.textSmall,
+            }"
           >
-            <li
-              :class="[
-                'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
-                active ? 'bg-orange-100' : '',
-                selected ? 'text-orange-600' : '',
-              ]"
+          </ComboboxInput>
+          <!-- Reference options -->
+          <ComboboxOptions
+            class="mt-1 max-h-48 overflow-auto"
+            static
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm': appearance.textSmall,
+              'text-md': !appearance.textSmall,
+            }"
+          >
+            <ComboboxOption
+              v-for="reference in filteredReferences"
+              :key="reference.id"
+              :value="reference"
+              v-slot="{ active, selected }"
             >
-              <div class="flex items-baseline justify-between">
-                <span class="flex flex-row items-center">
-                  <component
-                    :is="getStatementIconSolid(reference.type, reference.rootTypeTag)"
-                    class="h-4 w-4 text-orange-600"
-                  />
-                  <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>
-                </span>
-                <!-- Source -->
-                <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-                  {{ module.pathOf(reference.file) }}
-                </span>
-              </div>
-            </li>
-          </ComboboxOption>
-        </ComboboxOptions>
-      </Combobox>
-    </div>
+              <li
+                :class="[
+                  'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
+                  active ? 'bg-orange-100' : '',
+                  selected ? 'text-orange-600' : '',
+                ]"
+              >
+                <div class="flex items-baseline justify-between">
+                  <span class="flex flex-row items-center">
+                    <component
+                      :is="getStatementIconSolid(reference.type, reference.rootTypeTag)"
+                      class="h-4 w-4 text-orange-600"
+                    />
+                    <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>
+                  </span>
+                  <!-- Source -->
+                  <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
+                    {{ module.pathOf(reference.file) }}
+                  </span>
+                </div>
+              </li>
+            </ComboboxOption>
+          </ComboboxOptions>
+        </Combobox>
+      </div>
+    </FadeTransition>
   </div>
 </template>

@@ -198,7 +198,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
   }
 
-  function pathOf(fileOrStatement: { id: string }) {
+  function pathOf(fileOrStatement: { id: string }): string | undefined {
     // traverse parents
     const statement = idx.value?.statementsById[fileOrStatement.id];
     if (statement != null) {
@@ -209,8 +209,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  function pathOfFile(file: { id: string }) {
+  function pathOfFile(file: { id: string }): string | undefined {
     let f = idx.value?.filesById[file.id];
+    if (f == null) return undefined;
     const path: string[] = [];
     while (f != null) {
       path.push(f.name);
