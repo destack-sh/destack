@@ -71,9 +71,9 @@ const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
 
     // filter references
     if (props.refTypes != null) {
-      let refType: TypeTag | undefined = undefined;
+      let refType: TypeTag | null = null;
       if (symbol.type == StatementType.Type) {
-        refType = symbol.rootTypeTag;
+        refType = symbol.rootTypeTag ?? null;
       } else if (symbol.type == StatementType.Dataset) {
         refType = TypeTag.Struct;
       } else {
@@ -268,14 +268,14 @@ defineExpose({
     <ComboboxInput
       as="input"
       ref="inputRef"
-      class="w-full min-w-[280px] rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+      class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
       :class="{
         'font-mono': appearance.fontMono,
         'text-sm placeholder:text-sm': appearance.textSmall,
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el: any) => props.modelValue == null ? undefined : renderField(findByComboId(el) ?? value)"
+      :display-value="(el: any) => props.modelValue == null ? '' : renderField(findByComboId(el) ?? value)"
       placeholder="Search types"
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"
@@ -287,12 +287,7 @@ defineExpose({
       :class="{ 'font-mono': appearance.fontMono, 'text-sm': appearance.textSmall, 'text-md': !appearance.textSmall }"
     >
       <!-- Options -->
-      <ComboboxOption
-        v-for="node in filteredTypes"
-        :key="node.id"
-        :value="toComboId(node)"
-        v-slot="{ active, selected }"
-      >
+      <ComboboxOption v-for="ref in filteredTypes" :key="ref.id" :value="toComboId(ref)" v-slot="{ active, selected }">
         <li
           :class="[
             'relative cursor-default select-none px-1 py-[3px] text-gray-900',
@@ -301,10 +296,10 @@ defineExpose({
           ]"
         >
           <div class="flex items-baseline justify-between">
-            <TypePreview :type="node" show-type-name hide-flags />
+            <TypePreview :type="ref" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ node.reference == null ? "(builtin)" : module.pathOf(node.reference.file) }}
+              {{ ref.reference == null ? "(builtin)" : module.pathOf(ref.reference.file) }}
             </span>
           </div>
         </li>

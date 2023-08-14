@@ -22,7 +22,6 @@ import {
   ArrowUpRightIcon,
   CircleStackIcon as CircleStackIconOutline,
   CodeBracketSquareIcon as CodeBracketSquareIconOutline,
-  QueueListIcon,
   RectangleGroupIcon as RectangleGroupIconOutline,
   ServerStackIcon as ServerStackIconOutline,
   SparklesIcon as SparklesIconOutline,
@@ -43,7 +42,9 @@ import {
   RectangleGroupIcon as RectangleGroupIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
   Squares2X2Icon as Squares2X2IconSolid,
+  ListBulletIcon,
 } from "@heroicons/vue/24/solid";
+import type { UseElementBoundingReturn } from "@vueuse/core";
 import { computed, inject, watch, type Ref } from "vue";
 
 // not using Symbol here to improve hotreload experience (Symbol is not a constant)
@@ -60,6 +61,7 @@ export type StatementContext = {
   file: Ref<FileHeader>;
   destroyed: Ref<boolean>;
   standalone: Ref<boolean>;
+  bounding: UseElementBoundingReturn;
   customActions: Ref<StatementAction[] | undefined>;
 };
 
@@ -85,6 +87,7 @@ export function useStatementContext() {
   }
 
   function navigateDown() {
+    // TODO @UX: navigate down should auto-create a new statement if there is none below
     actions.apply("statement.moveFocusDown");
   }
 
@@ -421,6 +424,7 @@ export function useStatementContext() {
     xOffset: context.xOffset,
     typeRootTag: rootTypeTag,
     standalone: context.standalone,
+    bounding: context.bounding,
     symbolSubtype,
     // actions
     actions,
@@ -582,7 +586,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: ServerStackIconOutline,
   [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
-  [StatementType.Block]: QueueListIcon,
+  [StatementType.Block]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
@@ -595,7 +599,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: ServerStackIconSolid,
   [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
-  [StatementType.Block]: QueueListIcon,
+  [StatementType.Block]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 
@@ -654,11 +658,11 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Expectation]: "Tune desired AI behaviour",
   [StatementType.Value]: "Constants for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
-  [StatementType.Block]: "A group of related statements",
+  [StatementType.Block]: "Nest related statements",
   [StatementType.Flow]: "Connect code and tasks with triggers",
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
-  [StatementType.Tag]: "A tag for statements and such",
+  [StatementType.Tag]: "Group and transform statements",
 };
 
 export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {

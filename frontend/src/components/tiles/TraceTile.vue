@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
@@ -289,24 +290,26 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
       @click.stop="focusedNode = null"
     />
     <!-- Focused node -->
-    <div
-      v-if="focusedNode != null"
-      ref="focusedRunPopoverRef"
-      class="z-50 flex w-[400px] flex-col gap-2 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-      :style="focusedRunPin.pinned.value ? {} : getAbsoluteNodePosition(focusedNode)"
-      :class="[focusedRunPin.pinned.value ? '' : 'absolute']"
-    >
-      <!-- Runnable -->
-      <div class="flex flex-row">
-        <h2 class="font-semibold">{{ focusedNode?.runnable?.name }}</h2>
+    <FadeTransition>
+      <div
+        v-if="focusedNode != null"
+        ref="focusedRunPopoverRef"
+        class="z-50 flex w-[400px] flex-col gap-2 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :style="focusedRunPin.pinned.value ? {} : getAbsoluteNodePosition(focusedNode)"
+        :class="[focusedRunPin.pinned.value ? '' : 'absolute']"
+      >
+        <!-- Runnable -->
+        <div class="flex flex-row">
+          <h2 class="font-semibold">{{ focusedNode?.runnable?.name }}</h2>
+        </div>
+        <RunTile
+          :run="focusedNode.run"
+          :project-version-id="module.id.value"
+          :project-id="(bench.projectId as string)"
+          show-controls
+          view="metadata"
+        />
       </div>
-      <RunTile
-        :run="focusedNode.run"
-        :project-version-id="module.id.value"
-        :project-id="(bench.projectId as string)"
-        show-controls
-        view="metadata"
-      />
-    </div>
+    </FadeTransition>
   </div>
 </template>

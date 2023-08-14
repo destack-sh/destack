@@ -7,12 +7,13 @@ import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.v
 import { useNavigationGrid } from "@/composables/useGrid";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
-import { makeField, useStatementContext, type Field } from "@/state/statement";
+import { makeField, useStatementContext } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
 import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
+import type { Field } from "@/state/module";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();

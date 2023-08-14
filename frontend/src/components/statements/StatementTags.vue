@@ -12,6 +12,7 @@ import { useOperations } from "@/state/operations";
 import type { Tagging } from "@/gql/graphql";
 import type { Statement } from "@/gql/graphql";
 import { newTaggingId } from "@/state/operations/statement";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -96,67 +97,74 @@ defineExpose({
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
     <!-- Add tag popover -->
-    <div
-      v-if="addingTag"
-      ref="popoverRef"
-      class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-      :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
-    >
-      <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
-        <!-- Title -->
-        <h5 class="text-left text-sm font-semibold text-gray-900">
-          Add tag to {{ context.statement.value.name ?? "statement" }}
-        </h5>
-        <!-- Input -->
-        <ComboboxInput
-          as="input"
-          ref="inputRef"
-          class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
-          @change="query = $event.target.value"
-          @keydown.enter.prevent.stop="close"
-          @keydown.escape.prevent.stop="close"
-          :class="{
-            'font-mono': appearance.fontMono,
-            'text-sm': appearance.textSmall,
-            'text-md': !appearance.textSmall,
-          }"
-        >
-        </ComboboxInput>
-        <!-- Tag options -->
-        <ComboboxOptions
-          class="mt-1 max-h-48 overflow-auto"
-          static
-          :class="{
-            'font-mono': appearance.fontMono,
-            'text-sm': appearance.textSmall,
-            'text-md': !appearance.textSmall,
-          }"
-        >
-          <ComboboxOption v-for="tag in filteredTags" :key="tag.id" :value="tag" v-slot="{ active, selected }">
-            <li
-              :class="[
-                'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
-                active ? 'bg-orange-100' : '',
-                selected ? 'text-orange-900' : '',
-              ]"
-            >
-              <!-- Tag path -->
-              <div class="flex items-baseline justify-between">
-                <span class="flex flex-row items-center">
-                  <TagIconSolid class="h-4 w-4 text-orange-900" />
-                  <span class="ml-1 font-semibold text-orange-900">{{ tag.name }}</span>
+    <FadeTransition>
+      <div
+        v-if="addingTag"
+        ref="popoverRef"
+        class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
+      >
+        <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
+          <!-- Title -->
+          <h5 class="text-left text-sm font-semibold text-gray-900">
+            Add tag to {{ context.statement.value.name ?? "statement" }}
+          </h5>
+          <!-- Input -->
+          <ComboboxInput
+            as="input"
+            ref="inputRef"
+            class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+            @change="query = $event.target.value"
+            @keydown.enter.prevent.stop="close"
+            @keydown.escape.prevent.stop="close"
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm': appearance.textSmall,
+              'text-md': !appearance.textSmall,
+            }"
+          >
+          </ComboboxInput>
+          <!-- Tag options -->
+          <ComboboxOptions
+            class="mt-1 max-h-48 overflow-auto"
+            static
+            :class="{
+              'font-mono': appearance.fontMono,
+              'text-sm': appearance.textSmall,
+              'text-md': !appearance.textSmall,
+            }"
+          >
+            <ComboboxOption v-for="tag in filteredTags" :key="tag.id" :value="tag" v-slot="{ active, selected }">
+              <li
+                :class="[
+                  'relative flex cursor-default select-none flex-col px-1 py-[3px] text-gray-900',
+                  active ? 'bg-orange-100' : '',
+                  selected ? 'text-orange-900' : '',
+                ]"
+              >
+                <!-- Tag path -->
+                <div class="flex items-center justify-between">
+                  <span class="flex flex-row items-center">
+                    <TagIconOutline class="h-4 w-4 text-gray-400" />
+                    <span class="ml-1 text-gray-900">{{ tag.name }}</span>
+                  </span>
+                  <!-- Source -->
+                  <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
+                    {{ module.pathOf(tag.file) ?? "(builtin)" }}
+                  </span>
+                </div>
+                <!-- Tag description -->
+                <span
+                  class="ml-5 max-w-full truncate text-xs"
+                  :class="['', active ? 'text-gray-700' : 'text-gray-500']"
+                >
+                  {{ tag.description }}
                 </span>
-                <!-- Source -->
-                <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">(builtin)</span>
-              </div>
-              <!-- Tag description -->
-              <span class="max-w-full truncate text-xs" :class="['', active ? 'text-gray-700' : 'text-gray-500']">
-                {{ tag.description }}
-              </span>
-            </li>
-          </ComboboxOption>
-        </ComboboxOptions>
-      </Combobox>
-    </div>
+              </li>
+            </ComboboxOption>
+          </ComboboxOptions>
+        </Combobox>
+      </div>
+    </FadeTransition>
   </div>
 </template>

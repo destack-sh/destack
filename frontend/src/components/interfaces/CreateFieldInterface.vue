@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import type { Field } from "@/gql/graphql";
@@ -28,15 +29,22 @@ defineExpose({
 });
 </script>
 <template>
-  <div v-if="open" @keydown.escape="hide()">
-    <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="hide()" />
+  <div
+    v-if="open"
+    class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+    @keydown.escape="hide()"
+    @click.stop="hide()"
+  />
+  <FadeTransition>
     <div
+      v-if="open"
+      @keydown.escape="hide()"
       ref="popoverRef"
       class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-      :class="popoverPin.pinned.value ? '' : ''"
+      :class="popoverPin.pinned.value ? '' : 'absolute top-8'"
     >
       <h5 class="text-left text-sm font-semibold text-gray-900">{{ title }}</h5>
       <SelectTypeInterface class="mt-2" hide-flags @update:model-value="hide(), emit('select', $event)" />
     </div>
-  </div>
+  </FadeTransition>
 </template>

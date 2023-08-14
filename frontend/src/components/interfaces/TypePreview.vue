@@ -112,6 +112,7 @@ const icon = computed(() => {
     return null;
   }
 });
+const showName = computed(() => !icon.value || (props.showTypeName && props.type.reference == null));
 </script>
 <template>
   <div class="relative whitespace-nowrap">
@@ -121,12 +122,12 @@ const icon = computed(() => {
       &nbsp;
       <component :is="icon" class="absolute left-0 top-0.5 h-4 w-4" :class="showTypeName ? 'top-0.5' : 'top-0'" />
     </div>
-    <span v-if="!icon || (showTypeName && type.reference == null)">
+    <span v-if="showName" class="ml-1.5">
       {{ renderBuiltinType(resolvedTag, type.hint ?? null) }}
     </span>
     <span
       v-if="(resolvedTag == TypeTag.TypeReference || type.reference) && !hideReference"
-      class="mx-1"
+      class="ml-1.5 mr-1"
       :class="[altState ? 'decoration-gray-500 underline-offset-4 hover:underline' : '']"
       @click="
         (e) => {
