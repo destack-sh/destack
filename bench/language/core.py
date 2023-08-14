@@ -91,42 +91,44 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-if typing.TYPE_CHECKING:
-    node = dataclass
-else:
+_NodeT = typing.TypeVar("_NodeT")
 
-    def node(cls: Optional[type] = None, tracked: list[str] = None):
-        """
-        Decorator alias for module node.
-        Only tracked properties may be mutated during a session (by the user).
-        """
 
-        def decorate(cls):
-            cls = dataclass(cls, repr=False, eq=False)
-            cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]
-            # add @property methods to _PROPERTIES
-            for name, attr in cls.__dict__.items():
-                if isinstance(attr, property):
-                    cls._PROPERTIES.append(name)
-            # check that all tracked properties are actually properties
-            for prop in tracked or []:
-                if prop not in cls._PROPERTIES:
-                    raise ValueError(f"invalid tracked property: {prop}")
-            cls._TRACKED = tracked or []
-            # add tracked properties from base classes
-            for base in cls.__bases__:
-                if hasattr(base, "_TRACKED"):
-                    cls._TRACKED.extend(base._TRACKED)
-            # can only track properties inside a session
-            if cls._TRACKED and not issubclass(cls, HasSession):
-                raise ValueError("cannot have tracked properties without HasSession")
+@typing.dataclass_transform()
+def node(
+    cls: Optional[typing.Type] = None, tracked: list[str] = None
+) -> typing.Callable[[_NodeT], _NodeT]:
+    """
+    Decorator alias for module node.
+    Only tracked properties may be mutated during a session (by the user).
+    """
 
-            return cls
+    def decorate(cls: _NodeT) -> _NodeT:
+        cls = dataclass(cls, repr=False, eq=False)  # type: ignore
+        cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]  # type: ignore
+        # add @property methods to _PROPERTIES
+        for name, attr in cls.__dict__.items():
+            if isinstance(attr, property):
+                cls._PROPERTIES.append(name)  # type: ignore
+        # check that all tracked properties are actually properties
+        for prop in tracked or []:
+            if prop not in cls._PROPERTIES:  # type: ignore
+                raise ValueError(f"invalid tracked property: {prop}")
+        cls._TRACKED = tracked or []  # type: ignore
+        # add tracked properties from base classes
+        for base in cls.__bases__:  # type: ignore
+            if hasattr(base, "_TRACKED"):
+                cls._TRACKED.extend(base._TRACKED)  # type: ignore
+        # can only track properties inside a session
+        if cls._TRACKED and not issubclass(cls, HasSession):  # type: ignore
+            raise ValueError("cannot have tracked properties without HasSession")
 
-        if cls is not None:
-            return decorate(cls)
+        return cls
 
-        return decorate
+    if cls is not None:
+        return decorate(cls)
+
+    return decorate
 
 
 @node
@@ -174,7 +176,7 @@ class HasCrud(abc.ABC):
     revision: int = 0
 
 
-CRUD_PROPERTIES = HasCrud._PROPERTIES
+CRUD_PROPERTIES = HasCrud._PROPERTIES  # type: ignore
 
 
 @node
@@ -229,7 +231,7 @@ class HasSession(abc.ABC):
 
 @node
 class HasIssues(abc.ABC):
-    issues: list[Issue] | None = field(default_factory=list)
+    issues: list[Issue] = field(default_factory=list)
 
     @property
     def errors(self) -> list[Issue]:
@@ -274,6 +276,16 @@ class Scope:
             return self
         return self.parent._root_scope
 
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Statement", "Statement", "File", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        raise NotImplementedError
+
     def _get_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         if by == LookupBy.Name:
             return self._scopes_by_name.get(name)
@@ -298,7 +310,7 @@ class Scope:
         scope = self._find_scope(name, by)
         if scope is not None and not isinstance(scope, Statement):
             return None
-        return scope
+        return typing.cast(StatementT, scope)
 
     def lookup(
         self,
@@ -414,11 +426,11 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self,
         path: Union["StatementPath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        statement_t: typing.Type[StatementT] | None = None,
+        statement_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
         if isinstance(path, UUID):
-            return self._statements_by_id.get(path)
-        elif path.startswith("."):
+            return self._statements_by_id.get(path)  # type: ignore
+        elif isinstance(path, str) and path.startswith("."):
             return super().lookup(path, statement_t=statement_t, by=by)
         else:
             module_name, localized_path = parse_absolute_statement_reference(path)
@@ -530,16 +542,18 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     @staticmethod
     def interp_from(
-        module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
+        maybe_module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
     ) -> "Module":
         from bench.language import libs, wire
 
         # copy default dependencies
         dependencies = {name: dep.copy() for name, dep in libs.DEFAULT_MODULES.items()}
 
-        logger.debug("module.interp", module=module)
-        if isinstance(module, wire.ModuleTreeData):
-            module = wire.unpack_module(module, session=session)
+        logger.debug("module.interp", module=maybe_module)
+        if isinstance(maybe_module, wire.ModuleTreeData):
+            module: Module = wire.unpack_module(maybe_module, session=session)
+        else:
+            module = maybe_module
         module.add_builtin(dependencies["symbolx.lib"].get_file("builtins"))
         for dependency in dependencies.values():
             module.add_dependency(dependency)
@@ -642,16 +656,6 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def _interp(self):
         for statement in self.statements:
             statement._interp(statement)
-
-
-class _BlockAccessor:
-    """Access the nested statements of a block as attributes."""
-
-    def __init__(self, block: "Statement"):
-        self.block = block
-
-    def __getattr__(self, name: str) -> Optional["Statement"]:
-        return self.block._scopes_by_name.get(name)
 
 
 @node(tracked=["name"])
@@ -762,10 +766,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.children is not None:
             for child in self.children:
                 yield from child.walk_descendants()
-
-    @property
-    def b(self) -> _BlockAccessor:
-        return _BlockAccessor(self)
 
     def __getattr__(self, item):
         if item in self._PROPERTIES:
@@ -929,7 +929,7 @@ class Session:
         self.ctx = ctx
         self.module = module
         self.instances: dict[UUID, "HasSession"] = {}
-        self.default_models = [
+        self.default_models: list[Statement] = [
             module.lookup_or_error("openai.lib.chat.gpt4"),
             module.lookup_or_error("openai.lib.chat.gpt3"),
         ]
@@ -963,10 +963,10 @@ class Session:
         return f"<Session {self}>"
 
     def sync_to_async(self, fn: Callable) -> Callable[..., typing.Awaitable]:
-        return sync_to_async(fn, thread_sensitive=False, executor=self.executor)
+        return sync_to_async(fn, thread_sensitive=False, executor=self.executor)  # type: ignore
 
     def async_to_sync(self, fn: typing.Awaitable | typing.Callable | typing.Coroutine) -> Callable:
-        return async_to_sync(fn)
+        return async_to_sync(fn)  # type: ignore
 
     @property
     def is_open(self) -> bool:

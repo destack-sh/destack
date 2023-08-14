@@ -845,7 +845,7 @@ class RuntimeWorker:
         self.source = new_source
         old_module = self.module
         old_tree = self.module_tree
-        self.module = Module.interp_from(module=new_source, session=None)
+        self.module = Module.interp_from(new_source, session=None)
         self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
 
         # check for any interp changes

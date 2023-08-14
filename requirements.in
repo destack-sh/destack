@@ -19,7 +19,6 @@ django-loginas==0.3.11
 django-pgcrypto-fields==2.6.0
 django-prometheus==2.2.0
 django-structlog==4.0.1
-django-stubs-ext==0.7.0
 django==4.2.1
 django_choices_field==2.1
 djangorestframework-dataclasses==1.1.1

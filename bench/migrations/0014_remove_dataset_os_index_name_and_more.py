@@ -6,7 +6,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0013_remove_statement_bench_statement_reference_symbol_type_set_and_more"),
     ]

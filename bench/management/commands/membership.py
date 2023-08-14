@@ -24,7 +24,7 @@ class Command(BaseCommand):
         parser.add_argument(
             "--role",
             type=str,
-            choices=[l.name for l in OrganizationMembershipLevel],
+            choices=[level.name for level in OrganizationMembershipLevel],
             default=OrganizationMembershipLevel.Guest,
             help="Role to be assigned when adding a user to the organization",
         )

@@ -11,7 +11,6 @@ class PlaceholderEnum(models.TextChoices):
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0003_remove_worker_type_worker_tenancy_and_more"),
     ]

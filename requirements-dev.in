@@ -2,19 +2,19 @@
 
 -c requirements.txt
 
-black==22.10.0
-django-stubs==1.13.1
-djangorestframework-stubs==1.8.0
+black==23.7.0
+django-stubs==4.2.3
+djangorestframework-stubs==3.14.2
 flake8-import-order==0.18.1
-flake8==5.0.4
-isort==5.10.1
-mypy==0.990
-pip-tools==6.13.0
-pre-commit==2.20.0
+flake8==6.1.0
+isort==5.12.0
+mypy==1.5.0
+pip-tools==7.3.0
+pre-commit==3.3.3
 pytest-django==4.5.2
 pytest-xdist==3.0.2
-pytest==7.2.0
-ruff==0.0.261
+pytest==7.4.0
+ruff==0.0.284
 types-dj-database-url==1.0.0
 types-psycopg2==2.9.21.2
 types-Pygments==2.13.1.1

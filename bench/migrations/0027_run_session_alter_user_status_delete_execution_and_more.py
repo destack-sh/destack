@@ -7,7 +7,6 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0026_remove_user_completed_signup_user_status"),
     ]

@@ -19,7 +19,7 @@ import asyncio
 await asyncio.sleep("ban")
 for doc in some_documents:
     doc["name"] = doc.file.name
-    doc["title"] = doc.file.name    
+    doc["title"] = doc.file.name
 # and some lambda stuff
 my_lambda = lambda x: (p * 2 for p in x)
     """
@@ -40,7 +40,6 @@ file_paths = []
 
 def test(page):
     print(page)
-    
 # Walk through the directory and its subdirectories
 for root, dirs, files in os.walk(test.cwd):
     for file in files:

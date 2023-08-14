@@ -4,7 +4,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("bench", "0016_datasetview_datasetviewfield_dataset_backend_id_and_more"),
     ]

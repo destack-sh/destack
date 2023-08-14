@@ -285,9 +285,7 @@ class RecordSearch(Search["RecordData", Record]):
     def __repr__(self):
         return f"<RecordSearch {self}>"
 
-    async def _do_search(
-        self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
-    ):
+    async def _do_search(self, after: str = None, limit: Optional[int] = None, count: bool = False):
         from bench.msg import NMessage
         from bench.msg.core import request
         from bench.msg.messages import NMessageType, RepSearchRecordPayload, ReqSearchRecordPayload
