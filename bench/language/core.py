@@ -91,19 +91,14 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-_NodeT = typing.TypeVar("_NodeT")
-
-
 @typing.dataclass_transform()
-def node(
-    cls: Optional[typing.Type] = None, tracked: list[str] = None
-) -> typing.Callable[[_NodeT], _NodeT]:
+def node(cls: Optional[typing.Type] = None, tracked: list[str] = None):
     """
     Decorator alias for module node.
     Only tracked properties may be mutated during a session (by the user).
     """
 
-    def decorate(cls: _NodeT) -> _NodeT:
+    def decorate(cls):
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]  # type: ignore
         # add @property methods to _PROPERTIES

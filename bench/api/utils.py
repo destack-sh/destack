@@ -36,7 +36,7 @@ class Revisioned:
 
 
 @gql.interface
-class CrudModel:
+class HasCrud:
     id: GlobalID
     created_at: datetime
     updated_at: datetime

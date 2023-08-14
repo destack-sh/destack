@@ -15,22 +15,6 @@ const config: CodegenConfig = {
       },
       plugins: [],
     },
-    // below: alternative config if we want to put operations near their symbols
-    // "frontend/src/gql/types.ts": {
-    //   config: {
-    //     useTypeImports: true,
-    //     withCompositionFunctions: true,
-    //   },
-    //   plugins: ["typescript"],
-    // },
-    // "frontend/src/": {
-    //   preset: "near-operation-file",
-    //   presetConfig: {
-    //     extension: ".gql.ts",
-    //     baseTypesPath: "gql/types.ts",
-    //   },
-    //   plugins: ["typescript-operations", "typescript-vue-apollo"],
-    // },
   },
 };
 

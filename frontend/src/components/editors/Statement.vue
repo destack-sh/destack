@@ -21,10 +21,10 @@ import {
   type StatementHeader,
   FileEditor,
   type PanelGroup,
+  type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
-import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type File, type Statement } from "@/state/module";
 import { STATEMENT_CONTEXT, STATEMENT_TYPE_LABELS, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
@@ -41,17 +41,17 @@ import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whe
 import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
 
 const props = defineProps<{
-  file: FragmentType<typeof FileHeaderType>;
-  statement: FragmentType<typeof StatementContentType>;
+  file: FileHeader;
+  statement: Statement;
   depth: number;
-  ancestors: FragmentType<typeof StatementContentType>[];
+  ancestors: Statement[];
   readonly: boolean;
   standalone: boolean;
   shown?: boolean;
 }>();
-const file = computed(() => useFragment(FileHeaderType, props.file));
-const statement = computed(() => useFragment(StatementContentType, props.statement));
-const ancestors = computed(() => props.ancestors.map((s) => useFragment(StatementContentType, s)));
+const file = toRef(props, "file");
+const statement = toRef(props, "statement");
+const ancestors = toRef(props, "ancestors");
 
 const bench = useBenchState();
 const appearance = useAppearance();
@@ -311,7 +311,7 @@ const {
 } = useRelativeDropZone(
   containerRef,
   ["Statement", "NativeFile"],
-  onDrop,
+  (thing) => onDrop,
   computed(() => !innerDrag.value && !props.readonly)
 );
 
@@ -323,7 +323,7 @@ function onDragStart(e: DragEvent) {
   e.dataTransfer?.setDragImage(innerWrapperRef.value, 0, 0);
 }
 
-async function onDrop(thing: File[] | { type: string; id: string } | null) {
+async function onDrop(thing: any[] | { type: string; id: string } | null) {
   if (thing == null || nav == null) return;
   if (Array.isArray(thing)) {
     console.log("drop insert files into new statement", thing);

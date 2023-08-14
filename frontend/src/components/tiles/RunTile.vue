@@ -27,8 +27,6 @@ const props = defineProps<{
 
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
 
-const now = useTimeFromNow(100);
-const session = useCurrentSessions();
 const activeView = ref<View>(props.view ?? "logs");
 
 // sync props view into activeView on change
@@ -60,7 +58,7 @@ defineExpose({
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-          @click="activeView = view"
+          @click="activeView = (view as View)"
         >
           <component
             :is="

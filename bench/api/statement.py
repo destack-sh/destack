@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -16,7 +16,7 @@ from bench import language, models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import Issue, IssueFilter
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
-from bench.api.utils import CrudModel, ModuleNode, Revisioned, ThingBatch
+from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
 from bench.models import RefMappingKind
 from bench.utils.dt import utcnow_with_tz
@@ -68,7 +68,7 @@ TypeHint = gql.enum(language.TypeHint)
 
 
 @gql.django.type(models.Trigger)
-class Trigger(CrudModel, ModuleNode, Revisioned, gql.Node):
+class Trigger(HasCrud, ModuleNode, Revisioned, gql.Node):
     parent: "Statement" = gql.django.field(field_name="statement")
     type: TriggerType
     active: bool
@@ -82,7 +82,7 @@ class Trigger(CrudModel, ModuleNode, Revisioned, gql.Node):
 
 
 @gql.django.type(models.Tagging)
-class Tagging(CrudModel, ModuleNode, Revisioned, gql.Node):
+class Tagging(HasCrud, ModuleNode, Revisioned, gql.Node):
     parent: "Statement" = gql.django.field(field_name="statement")
     statement: "Statement"
     reference: "Statement"
@@ -91,7 +91,7 @@ class Tagging(CrudModel, ModuleNode, Revisioned, gql.Node):
 
 
 @gql.django.type(models.Field)
-class Field(CrudModel, ModuleNode, Revisioned, gql.Node):
+class Field(HasCrud, ModuleNode, Revisioned, gql.Node):
     parent: "Statement" = gql.django.field(field_name="statement")
     statement: "Statement"
     name: auto
@@ -106,10 +106,10 @@ class Field(CrudModel, ModuleNode, Revisioned, gql.Node):
 
 
 @gql.django.type(models.Statement)
-class Statement(CrudModel, ModuleNode, Revisioned, gql.Node):
+class Statement(HasCrud, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".file")]
-    parent: Optional["ModuleNode"]
+    parent: Union[ModuleNode]
     descendants: list["Statement"]
     type: StatementType
     name: auto

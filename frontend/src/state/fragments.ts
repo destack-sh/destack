@@ -21,8 +21,8 @@ export const OperationInfoContentType = graphql(/* GraphQL */ `
   }
 `);
 
-export const CrudModelType = graphql(/* GraphQL */ `
-  fragment CrudModelContent on CrudModel {
+export const HasCrudType = graphql(/* GraphQL */ `
+  fragment HasCrudContent on HasCrud {
     id
     createdAt
     updatedAt
@@ -96,12 +96,7 @@ export const FileHeaderType = graphql(/* GraphQL */ `
     revision
     name
     parent {
-      ... on File {
-        id
-      }
-      ... on ProjectVersion {
-        id
-      }
+      id
     }
     projectVersion {
       id
@@ -246,12 +241,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     name
     orderKey
     parent {
-      ... on Statement {
-        id
-      }
-      ... on File {
-        id
-      }
+      id
     }
     # symbol contents
     key
@@ -330,12 +320,7 @@ export const InterpFileType = graphql(/* GraphQL */ `
     revision
     name
     parent {
-      ... on File {
-        id
-      }
-      ... on ProjectVersion {
-        id
-      }
+      id
     }
     issues(filters: { scope: FILE }) {
       ...IssueContent
@@ -359,12 +344,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       id
     }
     parent {
-      ... on Statement {
-        id
-      }
-      ... on File {
-        id
-      }
+      id
     }
     orderKey
     key

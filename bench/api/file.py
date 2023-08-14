@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, Optional
+from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
 from django.core.exceptions import ValidationError
@@ -12,7 +12,7 @@ from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import IssueFilter
 from bench.api.sync import tracked_db_mutation
-from bench.api.utils import CrudModel, ModuleNode, Revisioned
+from bench.api.utils import HasCrud, ModuleNode, Revisioned
 from bench.language.mutate import MMT
 
 if TYPE_CHECKING:
@@ -32,10 +32,10 @@ class StatementFilter:
 
 
 @gql.django.type(models.File)
-class File(CrudModel, ModuleNode, Revisioned, gql.Node):
+class File(HasCrud, ModuleNode, Revisioned, gql.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     name: auto
-    parent: ModuleNode
+    parent: Union[ModuleNode]
     statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
         filters=StatementFilter
     )

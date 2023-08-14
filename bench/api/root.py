@@ -35,7 +35,7 @@ from bench.api.session import SessionMutation, SessionQuery, SessionSubscription
 from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
-from bench.api.utils import CrudModel, get_user_from_info
+from bench.api.utils import HasCrud, get_user_from_info
 from bench.models import OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
@@ -217,5 +217,5 @@ schema = SentryCaptureSchema(
     Mutation,
     Subscription,
     extensions=extensions,
-    types=[CrudModel],
+    types=[HasCrud],
 )

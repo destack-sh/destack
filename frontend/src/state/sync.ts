@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { ModuleMutationType, type ModuleMutation } from "@/gql/graphql";
+import { ModuleMutationType, type ModuleMutation, type ResolvedField } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { dedent, startStopIf, toValueRef } from "@/utils/functools";
 import type {
@@ -205,12 +205,12 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
           syncedOps.applyApiMutation(mutation);
         } else {
           // apply manually
-          syncedOps.applyRawMutation(mutation);
+          syncedOps.applyRawMutation(mutation as ModuleMutation);
         }
         // TODO @Broken: cascade mutation into relevant bumps
         const key = getMutationKey(mutation);
         for (const listener of mutationListeners[key] ?? []) {
-          listener(mutation);
+          listener(mutation as ModuleMutation);
         }
       }
     }
@@ -326,7 +326,7 @@ function useSyncedOps() {
         id: `Statement:${mutation.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
-            return [...existingResolvedFields, { __ref: `Field:${mutation.data?.field.id}` }];
+            return [...existingResolvedFields, { __ref: `Field:${(mutation.data as ResolvedField).field.id}` }];
           },
         },
       });

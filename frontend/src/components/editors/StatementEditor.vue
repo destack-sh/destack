@@ -4,9 +4,9 @@ import Statement from "@/components/editors/Statement.vue";
 import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import { graphql, useFragment } from "@/gql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type PanelContext, type StatementEditor } from "@/state/bench";
+import { useBenchState, type PanelContext, type StatementEditor, type FileHeader } from "@/state/bench";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type Statement as StatementType } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -41,7 +41,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
   })
 );
 
-const statement = computed(() => useFragment(StatementContentType, statementResult.value?.statement) ?? undefined);
+const statement = computed(() => statementResult.value?.statement as StatementType);
 const file = computed(() => useFragment(FileHeaderType, statementResult.value?.statement?.file) ?? undefined);
 const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 const statementComponentLoaded = ref(false);
@@ -100,7 +100,7 @@ watch(
           paddingLeft: `${panel.contentMarginX}px`,
           paddingRight: `${panel.contentMarginX}px`,
         }"
-        :file="file"
+        :file="(file as FileHeader)"
         :statement="statement"
         :readonly="bench.readonly"
         :depth="0"

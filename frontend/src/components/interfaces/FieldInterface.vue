@@ -3,7 +3,7 @@ import { useElementRefs } from "@/composables/useGrid";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import TypePreview from "@/components/interfaces/TypePreview.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { ANY_FIELD, getEnumColor, type Field } from "@/state/statement";
+import { ANY_FIELD, getEnumColor } from "@/state/statement";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import type { TypeAction } from "@/state/bench";
@@ -20,6 +20,7 @@ import TrashIcon from "@heroicons/vue/24/outline/TrashIcon";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { SortOrder, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
+import type { Field } from "@/state/module";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -187,7 +188,7 @@ function onDragStart(e: DragEvent) {
   e.dataTransfer?.setDragImage(buttonRef.value as HTMLElement, 20, 20);
 }
 
-function onDrop(thing: File[] | { type: string; id: string } | null) {
+function onDrop(thing: File[] | Dragged | null) {
   if (!Array.isArray(thing) && thing?.type == "Type") {
     const position =
       props.orientation == "horizontal"

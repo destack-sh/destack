@@ -566,7 +566,7 @@ export function useSymbolContentOps() {
         $hint: TypeHint
         $key: String!
         $orderKey: String!
-        $name: String!
+        $name: String
         $description: String
         $flags: Int!
         $referenceId: GlobalID
@@ -793,7 +793,7 @@ export function useSymbolContentOps() {
       description: input.description ?? null,
       referenceId: input.reference?.id ?? null,
       flags: input.flags ?? 0,
-    } as FieldCreateInput;
+    } as FieldCreateInput & { referenceId: string | null; flags: number };
   }
 
   async function createField(
@@ -930,10 +930,10 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateField",
       do: async () => {
-        return await updateFieldMut(newField);
+        return await updateFieldMut(newField as any);
       },
       undo: async () => {
-        return await updateFieldMut(oldField);
+        return await updateFieldMut(oldField as any);
       },
     });
   }
@@ -1240,10 +1240,10 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateTaggingMetadata",
       do: async () => {
-        return await updateTaggingMut(_toTaggingInput(newTagging));
+        return await updateTaggingMut(_toTaggingInput(newTagging as any) as any);
       },
       undo: async () => {
-        return await updateTaggingMut(_toTaggingInput(oldTagging));
+        return await updateTaggingMut(_toTaggingInput(oldTagging as any) as any);
       },
     });
   }
@@ -1322,11 +1322,11 @@ export function useSymbolContentOps() {
         active: boolean;
         mapping: any;
         scheduleType: ScheduleType | null;
-        timezone: string;
-        interval: number;
-        cron: string;
-        runnableId: string;
-        scopeId: string;
+        timezone: string | null;
+        interval: number | null;
+        cron: string | null;
+        runnableId: string | null;
+        scopeId: string | null;
       }) =>
         ({
           __typename: "Mutation",
@@ -1602,10 +1602,10 @@ export function useSymbolContentOps() {
       tx,
       type: "statement.updateTrigger",
       do: async () => {
-        return await updateTriggerMut(_toTriggerInput(newTrigger));
+        return await updateTriggerMut(_toTriggerInput(newTrigger) as any);
       },
       undo: async () => {
-        return await updateTriggerMut(_toTriggerInput(oldTrigger));
+        return await updateTriggerMut(_toTriggerInput(oldTrigger) as any);
       },
     });
   }

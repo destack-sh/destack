@@ -11,7 +11,7 @@ import TypedDeclarationCell from "@/components/statements/TypedStatementDeclarat
 import { useNavigationGrid } from "@/composables/useGrid";
 import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
-import { graphql, useFragment } from "@/gql";
+import { graphql } from "@/gql";
 import {
   QueryOp,
   SortOrder,
@@ -30,10 +30,10 @@ import {
   type StatementHeader,
 } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type Field } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { newRecordId } from "@/state/operations/statement";
-import { useStatementContext, type Field } from "@/state/statement";
+import { useStatementContext } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
@@ -62,7 +62,6 @@ import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
-import { FieldType } from "@/state/fragments";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import StatementTags from "@/components/statements/StatementTags.vue";
 
@@ -152,8 +151,7 @@ function getInlineQuery() {
   for (const enumField of enumFields.value) {
     const matchingMembers = module
       .statementOf(enumField.reference?.id)
-      ?.fields.map((m) => useFragment(FieldType, m))
-      .filter((m) => m.name?.toLowerCase().startsWith(properties.inlineQuery?.toLowerCase() ?? ""));
+      ?.fields.filter((m) => m.name?.toLowerCase().startsWith(properties.inlineQuery?.toLowerCase() ?? ""));
     if (matchingMembers == null || matchingMembers.length == 0) continue;
     subqueries.push({
       key: "value." + module.getTypedKey(enumField),
@@ -441,7 +439,7 @@ onStartTyping((e) => {
     const field = context.allFields.value.find((f) => f.key == cell.column);
     if (field == null) return;
     deleteRecordField(cell.rowId, module.getTypedKey(field) as string);
-    nextTick(() => cell.ref.edit?.());
+    nextTick(() => (cell.ref as unknown as { edit?: () => void }).edit?.());
   }
 });
 

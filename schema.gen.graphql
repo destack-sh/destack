@@ -168,16 +168,6 @@ type CommitPayload {
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
-interface CrudModel {
-  id: GlobalID!
-  createdAt: DateTime!
-  updatedAt: DateTime!
-  deletedAt: DateTime
-  createdBy: User
-  lastEditedAt: DateTime
-  lastEditedBy: User
-}
-
 type Dataset implements Node {
   id: GlobalID!
   key: String!
@@ -200,7 +190,7 @@ type Environment {
 
 union EnvironmentOperationInfo = Environment | OperationInfo
 
-type Field implements CrudModel & ModuleNode & Node {
+type Field implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -284,7 +274,7 @@ input FieldUpdateTypeInput {
   referenceId: GlobalID = null
 }
 
-type File implements CrudModel & ModuleNode & Node {
+type File implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -355,6 +345,16 @@ input FileRenameInput {
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
 scalar GlobalID @specifiedBy(url: "https://relay.dev/graphql/objectidentification.htm")
+
+interface HasCrud {
+  id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  deletedAt: DateTime
+  createdBy: User
+  lastEditedAt: DateTime
+  lastEditedBy: User
+}
 
 enum InterpScope {
   MODULE
@@ -1045,7 +1045,7 @@ type ProjectUsage {
   cacheBytesTotal: Int!
 }
 
-type ProjectVersion implements CrudModel & ModuleNode & Node {
+type ProjectVersion implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1330,7 +1330,7 @@ enum QueryOp {
   NEAR
 }
 
-type Record implements CrudModel {
+type Record implements HasCrud {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1699,7 +1699,7 @@ enum StartRunErrorType {
   ALREADY_SCHEDULED
 }
 
-type Statement implements CrudModel & ModuleNode & Node {
+type Statement implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1707,7 +1707,7 @@ type Statement implements CrudModel & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
-  parent: ModuleNode
+  parent: ModuleNode!
   revision: Int!
   projectVersion: ProjectVersion!
   file: File!
@@ -1891,7 +1891,7 @@ type SystemInfo {
   gitCommit: String!
 }
 
-type Tagging implements CrudModel & ModuleNode & Node {
+type Tagging implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1934,7 +1934,7 @@ input TaggingUpdateInput {
   metadata: JSON = null
 }
 
-type Trigger implements CrudModel & ModuleNode & Node {
+type Trigger implements HasCrud & ModuleNode & Node {
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
