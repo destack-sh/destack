@@ -33,14 +33,15 @@ REGISTERED_MESSAGE_PAYLOADS: dict["NMessageType", typing.Type] = {}
 class Payload:
     @property
     def topic(self):
-        return self.__class__.type.value
+        return self.__class__.type.value  # type: ignore
 
 
-def payload(message_type: "NMessageType"):
-    def wrapper(cls):
+@typing.dataclass_transform()
+def payload(message_type: "NMessageType") -> typing.Callable[[typing.Type], typing.Type]:
+    def wrapper(cls: typing.Type):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")
-        cls = dataclass(cls, slots=True)  # noqa: this is fine
+        cls = dataclass(cls, slots=True)  # type: ignore
         REGISTERED_MESSAGE_PAYLOADS[message_type] = cls
         cls.type = message_type
         return cls
@@ -192,7 +193,7 @@ class ProjectScoped:
 
     @property
     def topic(self):
-        return f"{self.__class__.type}.{self.project_id}"
+        return f"{self.__class__.type}.{self.project_id}"  # type: ignore
 
 
 @dataclass
@@ -202,7 +203,7 @@ class ModuleScoped:
 
     @property
     def topic(self):
-        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"
+        return f"{self.__class__.type}.{self.project_id}.{self.module_id}"  # type: ignore
 
 
 @dataclass(repr=False, slots=True)  # not sure where to put this?
@@ -373,36 +374,36 @@ class RepSearch(abc.ABC):
 
 
 @payload(NMessageType.SEARCH_RECORD)
-class ReqSearchRecordPayload(ReqSearch):
+class ReqSearchRecordPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
     keys: Optional[list[str]] = None
 
 
 @payload(NMessageType.SEARCH_RECORD_REP)
-class RepSearchRecordPayload(RepSearch):
+class RepSearchRecordPayload(RepSearch, Payload):
     elements: Optional[list[RecordData]] = None
 
 
 @payload(NMessageType.SEARCH_RUN)
-class ReqSearchRunPayload(ReqSearch):
+class ReqSearchRunPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.SEARCH_RUN_REP)
-class RepSearchRunPayload(RepSearch):
+class RepSearchRunPayload(RepSearch, Payload):
     elements: Optional[list[RunData]] = None
 
 
 @payload(NMessageType.SEARCH_LOG)
-class ReqSearchLogPayload(ReqSearch):
+class ReqSearchLogPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.SEARCH_LOG_REP)
-class RepSearchLogPayload(RepSearch):
+class RepSearchLogPayload(RepSearch, Payload):
     elements: Optional[list[LogEntryData]] = None
 
 
@@ -517,7 +518,7 @@ class ReqDoRestartWorkerNodePayload(Payload):
 
     @property
     def topic(self) -> str:
-        return f"{self.__class__.type}.{self.project_id}.{self.worker_set_id or 'all'}"
+        return f"{self.__class__.type}.{self.project_id}.{self.worker_set_id or 'all'}"  # type: ignore
 
 
 @payload(NMessageType.DO_RESTART_WORKER_NODE_REP)

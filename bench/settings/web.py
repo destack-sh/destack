@@ -2,7 +2,7 @@
 import os
 
 from bench.settings.base import DEBUG
-from bench.utils.utils import get_from_env, str_to_bool
+from bench.utils.utils import SOME_TYPE_CHECKING, get_from_env, str_to_bool
 
 INSTALLED_APPS = [
     "daphne",
@@ -61,7 +61,7 @@ WSGI_APPLICATION = "bench.wsgi.application"
 ASGI_APPLICATION = "bench.asgi.application"
 
 # Where are we?
-WEBAPP_URL = get_from_env("WEBAPP_URL", type_cast=str)
+WEBAPP_URL = get_from_env("WEBAPP_URL", type_cast=str, optional=SOME_TYPE_CHECKING)
 
 # Emails
 LOOPS_API_KEY = get_from_env("LOOPS_API_KEY", type_cast=str, optional=True)
@@ -128,7 +128,6 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": "django.contrib.auth.password_validation.NumericPasswordValidator",
     },
 ]
-
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/

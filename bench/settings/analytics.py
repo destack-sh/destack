@@ -2,10 +2,11 @@ import posthog
 
 from bench.settings import DEBUG, TEST
 from bench.utils.analytics import init_sentry
+from bench.utils.utils import SOME_TYPE_CHECKING
 
 # Sentry
 
-if not (TEST or DEBUG):
+if not (TEST or DEBUG or SOME_TYPE_CHECKING):
     init_sentry(django=True)
 
 # Posthog

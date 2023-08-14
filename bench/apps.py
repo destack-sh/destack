@@ -1,4 +1,3 @@
-import asyncio
 import sys
 
 from django.apps import AppConfig

@@ -6,6 +6,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 from bench.settings import get_from_env
 from bench.settings.base import BASE_DIR, DEBUG, ENVIRONMENT, TEST
+from bench.utils.utils import SOME_TYPE_CHECKING
 
 logger = structlog.stdlib.get_logger(__name__)
 
@@ -55,6 +56,8 @@ elif TEST:
         }
     }
     logger.warning("incompatible_database", databases=DATABASES, reason="test_fallback")
+elif SOME_TYPE_CHECKING:
+    DATABASES = {"default": {}}
 else:
     raise ImproperlyConfigured(
         "A Postgres-compatible database must be configured via 'DATABASE_URL' or 'BENCH_DB_NAME'"

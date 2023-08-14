@@ -1,6 +1,11 @@
 [tool.black]
 line-length = 100
 
+[tool.ruff]
+line-length = 100
+# ignore line too long
+ignore = ["E501"]
+
 [tool.django-stubs]
 django_settings_module = "bench.settings"
 
@@ -10,8 +15,10 @@ follow_imports = "normal"
 warn_redundant_casts = true
 warn_unused_ignores = true
 check_untyped_defs = true
+ignore_missing_imports = true
+strict_optional = false
 files = ["bench"]
-exclude = ["^bench/migrations", "^bench/demo", "test_[a-z_]*\\.py"]
+exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
 
 [[tool.mypy.overrides]]
 module = "uvicorn"
@@ -67,6 +74,22 @@ ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
 module = "cachetools"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "posthog"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "botocore"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "boto3"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "channels"
 ignore_missing_imports = true
 
 [tool.isort]

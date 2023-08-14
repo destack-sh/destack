@@ -49,7 +49,10 @@ def x_enum(name: str, description: str, *, file: File):
     return decorator
 
 
-def x_struct(name: str, description: str, *, file: File, return_type: bool = False):
+@typing.dataclass_transform()
+def x_struct(
+    name: str, description: str, *, file: File, return_type: bool = False
+) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         # turn it into dataclass that behaves like a dict
         # it needs to be a dataclass for getattr and getitem access
@@ -78,7 +81,10 @@ def x_struct(name: str, description: str, *, file: File, return_type: bool = Fal
     return decorator
 
 
-def x_task(name: str, description: str, *, file: File):
+@typing.dataclass_transform()
+def x_task(
+    name: str, description: str, *, file: File
+) -> typing.Callable[[typing.Callable], typing.Callable]:
     def decorator(fn):
         from bench.language.task import Task
 
@@ -93,7 +99,10 @@ def x_task(name: str, description: str, *, file: File):
     return decorator
 
 
-def x_tag(name: str, description: str, *, file: File):
+@typing.dataclass_transform()
+def x_tag(
+    name: str, description: str, *, file: File
+) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         from bench.language.tag import Tag
 
@@ -114,7 +123,10 @@ _model_impls: dict[str, typing.Callable] = {}
 _model_compilers: dict[str, typing.Callable] = {}
 
 
-def x_model(name: str, description: str, *, external_name: str, file: File):
+@typing.dataclass_transform()
+def x_model(
+    name: str, description: str, *, external_name: str, file: File
+) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         from bench.language.model import Model
 

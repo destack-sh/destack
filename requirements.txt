@@ -109,7 +109,6 @@ django==4.2.1
     #   django-cors-headers
     #   django-filter
     #   django-structlog
-    #   django-stubs-ext
     #   djangorestframework
     #   djangorestframework-dataclasses
     #   drf-nested-routers
@@ -136,8 +135,6 @@ django-pgcrypto-fields==2.6.0
 django-prometheus==2.2.0
     # via -r requirements.in
 django-structlog==4.0.1
-    # via -r requirements.in
-django-stubs-ext==0.7.0
     # via -r requirements.in
 djangorestframework==3.14.0
     # via
@@ -384,7 +381,6 @@ txaio==23.1.1
     # via autobahn
 typing-extensions==4.6.3
     # via
-    #   django-stubs-ext
     #   janus
     #   libcst
     #   opentelemetry-sdk

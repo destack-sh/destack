@@ -106,22 +106,22 @@ class Field:
     """
 
     type: FT
-    fields: dict[SubfieldType, "Field"] = None
-    properties: dict[str, "Field"] = None
-    meta: dict[str, str] = None
-    index: bool = None  # default: true
-    store: bool = None  # default: true
-    coerce: bool = None
+    fields: dict[SubfieldType, "Field"] | None = None
+    properties: dict[str, "Field"] | None = None
+    meta: dict[str, str] | None = None
+    index: bool | None = None  # default: true
+    store: bool | None = None  # default: true
+    coerce: bool | None = None
     dynamic: bool | typing.Literal["strict"] = None
-    enabled: bool = None  # default: true
+    enabled: bool | None = None  # default: true
     copy_to: str | list[str] = None
-    ignore_malformed: bool = None
-    ignore_above: int = None
-    analyzer: "Analyzer" = None
-    can_set_directly: bool = True
-    dimension: int = None  # for knn_vector
-    method: "KnnMethod" = None  # for knn_vector
-    _annotation: Any = None  # type annotation on the LHS of a field in a document
+    ignore_malformed: bool | None = None
+    ignore_above: int | None = None
+    analyzer: typing.Optional["Analyzer"] = None
+    can_set_directly: bool | None = True
+    dimension: int | None = None  # for knn_vector
+    method: typing.Optional["KnnMethod"] = None  # for knn_vector
+    _annotation: typing.Optional[Any] = None  # type annotation on the LHS of a field in a document
 
     def __post_init__(self):
         if self.coerce is None and self.type.coercible:
@@ -161,7 +161,7 @@ class Field:
         Convert this field to a dict wireable to OpenSearch.
         Empty fields are omitted.
         """
-        d = {"type": self.type.value}
+        d: dict[str, Any] = {"type": self.type.value}
         if self.ignore_malformed is not None:
             d["ignore_malformed"] = self.ignore_malformed
         if self.fields is not None:
@@ -311,12 +311,14 @@ class Document:
         return cls(**d)
 
 
-def document(
-    cls: typing.Optional[typing.Type[Document]], _type: str = None, store_type: bool = None
-):
+_DocumentT = typing.TypeVar("_DocumentT", bound=Document)
+
+
+@typing.dataclass_transform()
+def document(cls: typing.Optional[_DocumentT], _type: str = None, store_type: bool = None):
     """Decorator for mapping a class as an OpenSearch-style dataclass."""
 
-    def decorator(cls: typing.Type[Document]):
+    def decorator(cls: _DocumentT) -> _DocumentT:
         # first convert the fields to dataclass fields (and store the original fields)
         fields = {}
 
@@ -345,9 +347,9 @@ def document(
         for base in reversed(cls.__bases__):
             if base is Document:
                 continue
-            fields.update(base.__fields__)
+            fields.update(base.__fields__)  # type: ignore
         # then convert the class to a dataclass
-        cls = dataclasses.dataclass(cls, repr=False)
+        cls = dataclasses.dataclass(cls, repr=False)  # type: ignore
         # then add the fields back
         cls.__fields__ = fields
         # add a partial class with all fields optional (copy and set fields with default None)
@@ -362,7 +364,7 @@ def document(
                 if name in c.__annotations__:
                     partial_cls.__annotations__[name] = c.__annotations__[name]
         partial_cls.__annotations__["id"] = UUID
-        partial_cls = dataclasses.dataclass(partial_cls, repr=False)
+        partial_cls = dataclasses.dataclass(partial_cls, repr=False)  # type: ignore
         cls.Partial = partial_cls
         if _type is not None:
             if not isinstance(_type, str):
@@ -375,10 +377,6 @@ def document(
         return decorator
     else:
         return decorator(cls)
-
-
-if typing.TYPE_CHECKING:
-    document = dataclasses.dataclass  # noqa
 
 
 class Tokenizer(enum.StrEnum):
