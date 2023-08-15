@@ -2,12 +2,13 @@ import hashlib
 import json
 from typing import TYPE_CHECKING, Annotated, Optional
 
-from strawberry import auto, lazy
+import strawberry
+import strawberry_django
+from strawberry import auto, lazy, relay
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_write_project
@@ -21,35 +22,35 @@ def reveal_secret_value(root: models.Secret) -> str:
     return json.loads(root.value)  # :SecretJson
 
 
-@gql.django.type(models.Secret)
-class Secret(gql.Node):
+@strawberry_django.type(models.Secret)
+class Secret(relay.Node):
     created_at: auto
     updated_at: auto
     sha512: str
     name: Optional[str]
     project: Annotated["Project", lazy(".project")]
-    value_revealed: JSON = gql.field(resolver=reveal_secret_value)
+    value_revealed: JSON = strawberry_django.field(resolver=reveal_secret_value)
 
 
-@gql.input
+@strawberry.input
 class SecretCreateInput:
     name: Optional[str]
     value: JSON
     project_id: GlobalID
 
 
-@gql.input
-class SecretUpdateInput(gql.NodeInput):
+@strawberry.input
+class SecretUpdateInput(strawberry_django.NodeInput):
     name: Optional[str]
     value: JSON
 
 
-@gql.input
-class SecretDeleteInput(gql.NodeInput):
+@strawberry.input
+class SecretDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.type
+@strawberry.type
 class SecretMutation:
     @safe_mutation
     def create_secret(self, info: Info, input: SecretCreateInput) -> Secret | OperationInfo:

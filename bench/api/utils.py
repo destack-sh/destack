@@ -4,6 +4,8 @@ from datetime import datetime
 from typing import Iterable, Optional, Sequence, Union
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
@@ -11,13 +13,10 @@ from more_itertools import first
 from strawberry import lazy
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.mutations.fields import _map_exception
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
-from strawberry_django_plus.utils.resolvers import async_safe
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.language import Q, query
@@ -30,12 +29,16 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@gql.type
+def async_safe(func):
+    return func  # nocheckin
+
+
+@strawberry.type
 class Revisioned:
     revision: int
 
 
-@gql.interface
+@strawberry.interface
 class HasCrud:
     id: GlobalID
     created_at: datetime
@@ -46,14 +49,10 @@ class HasCrud:
     last_edited_by: Optional[typing.Annotated["User", lazy(".user")]]
 
 
-@gql.interface
+@strawberry.interface
 class ModuleNode:
     id: GlobalID
     parent: Optional["ModuleNode"]
-
-    @staticmethod
-    def is_type_of(self, *args, **kwargs) -> bool:
-        return True
 
 
 def safe_mutation(
@@ -77,7 +76,7 @@ def safe_mutation(
         else:
             wrapped_func = func
         wrapped_func = async_safe(wrapped_func)
-        return gql.mutation(wrapped_func, directives=directives, **kwargs)
+        return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
 
     if func is None:
         return wrapper
@@ -104,7 +103,7 @@ def asafe_mutation(
             wrapped_func = wrapped_atomic
         else:
             wrapped_func = func
-        return gql.mutation(wrapped_func, directives=directives, **kwargs)
+        return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
 
     if func is None:
         return wrapper
@@ -126,7 +125,7 @@ def asafe_subscription(func, **kwargs):
             )
             raise StopAsyncIteration from e
 
-    return gql.subscription(wrapped, **kwargs)
+    return strawberry.subscription(wrapped, **kwargs)
 
 
 def wrap_exceptions(func):
@@ -227,13 +226,13 @@ class ThingBatch(Iterable):
         return iter(self.things)
 
 
-SortOrder = gql.enum(query.SortOrder)
-SortMode = gql.enum(query.SortMode)
-QueryOp = gql.enum(query.QueryOp)
-AggregationOp = gql.enum(query.AggregationOp)
+SortOrder = strawberry.enum(query.SortOrder)
+SortMode = strawberry.enum(query.SortMode)
+QueryOp = strawberry.enum(query.QueryOp)
+AggregationOp = strawberry.enum(query.AggregationOp)
 
 
-@gql.input
+@strawberry.input
 class SearchQuery:
     op: QueryOp
     key: Optional[str] = None
@@ -245,7 +244,7 @@ class SearchQuery:
         return Q(self.op, queries=queries, key=self.key, value=self.value)
 
 
-@gql.input
+@strawberry.input
 class SearchSort:
     key: str
     order: SortOrder = SortOrder.ASCENDING

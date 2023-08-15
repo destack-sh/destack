@@ -4,7 +4,7 @@ from typing import Optional
 
 from django.db import models
 from django.db.models import Model
-from strawberry_django_plus import gql
+from strawberry_django.descriptors import model_property
 
 from bench.language.const import TriggerType
 from bench.language.session import RunStatus
@@ -67,7 +67,7 @@ class Run(UUIDTModel, HasTriggeredBy):
     error = models.JSONField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 
-    @gql.model_property(only=["started_at", "terminated_at"])
+    @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:
         if self.started_at and self.terminated_at:
             return (self.terminated_at - self.started_at).total_seconds()

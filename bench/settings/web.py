@@ -13,7 +13,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django.contrib.postgres",
-    "strawberry.django",
+    "strawberry_django",
     "rest_framework",
     "loginas",
     "corsheaders",
@@ -65,6 +65,13 @@ WEBAPP_URL = get_from_env("WEBAPP_URL", type_cast=str, optional=SOME_TYPE_CHECKI
 
 # Emails
 LOOPS_API_KEY = get_from_env("LOOPS_API_KEY", type_cast=str, optional=True)
+
+# Strawberry
+
+STRAWBERRY_DJANGO = {
+    "MUTATIONS_DEFAULT_HANDLE_ERRORS": True,
+    "MUTATIONS_DEFAULT_ARGUMENT_NAME": "input",
+}
 
 # Auth
 

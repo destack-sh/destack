@@ -2,23 +2,23 @@ from datetime import timedelta
 from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Iterable, Optional
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 import structlog
 from asgiref.sync import async_to_sync
 from channels.auth import login as channels_login
 from channels.auth import logout as channels_logout
 from django.core.exceptions import PermissionDenied
 from django.db.models import F, Q
-from strawberry import lazy
+from strawberry import auto, lazy, relay
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
+from strawberry.relay import GlobalID
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.gql import auto
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteUser, can_write_user, check_can_write_user
+from bench.api.auth import can_write_user, check_can_write_user
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import asafe_subscription, get_user_from_info, safe_mutation, to_uuid
@@ -40,7 +40,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@gql.django.filter(models.User)
+@strawberry_django.filter(models.User)
 class UserFilter:
     slug_prefix: Optional[str]
     email_equals: Optional[str]
@@ -53,11 +53,11 @@ class UserFilter:
         return queryset
 
 
-UserStatus = gql.enum(models.UserStatus)
+UserStatus = strawberry.enum(models.UserStatus)
 
 
-@gql.django.type(models.User)
-class User(gql.relay.Node, Owner):
+@strawberry_django.type(models.User)
+class User(relay.Node, Owner):
     username: auto
     email: auto
     created_at: auto
@@ -66,46 +66,46 @@ class User(gql.relay.Node, Owner):
     bot: auto
     description: auto
 
-    organizations: gql.relay.Connection[
+    organizations: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["Organization", lazy(".organization")]
-    ] = gql.django.connection()
-    organization_memberships: gql.relay.Connection[
+    ] = strawberry_django.connection()
+    organization_memberships: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["OrganizationMembership", lazy(".organization")]
-    ] = gql.django.connection()
-    projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
-        directives=[CanViewProject(at_root=False)]
-    )
-    access_tokens: gql.relay.Connection[
+    ] = strawberry_django.connection()
+    projects: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["Project", lazy(".project")]
+    ] = strawberry_django.connection(directives=[])
+    access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
-    ] = gql.django.connection(filters=AccessTokenFilter, directives=[CanWriteUser(at_root=False)])
-    notifications: gql.relay.Connection["Notification"] = gql.django.connection(
-        filters=NotificationFilter, directives=[CanWriteUser(at_root=False)]
-    )
+    ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
+    notifications: strawberry_django.relay.ListConnectionWithTotalCount[
+        "Notification"
+    ] = strawberry_django.connection(filters=NotificationFilter, directives=[])
 
-    @gql.field
-    def can_view_full(self, info: OperationInfo):
+    @strawberry_django.field
+    def can_view_full(self, info: Info) -> bool:
         user = get_user_from_info(info)
         return can_write_user(user, self)
 
-    @gql.field
-    def can_write(self, info: OperationInfo):
+    @strawberry_django.field
+    def can_write(self, info: Info) -> bool:
         user = get_user_from_info(info)
         return can_write_user(user, self)
 
-    @gql.django.field(only=["first_name"])
+    @strawberry_django.field(only=["first_name"])
     def name(self) -> str:
         return self.first_name
 
-    @gql.django.field(only=["owner_slug_id"])
+    @strawberry_django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
 
 
-ClientType = gql.enum(models.ClientType)
+ClientType = strawberry.enum(models.ClientType)
 
 
-@gql.django.type(models.Client)
-class Client(gql.relay.Node):
+@strawberry_django.type(models.Client)
+class Client(relay.Node):
     created_at: auto
     updated_at: auto
     last_seen_at: auto
@@ -123,25 +123,25 @@ class Client(gql.relay.Node):
     present: bool
 
 
-@gql.input
-class UserCompleteSignupInput(gql.NodeInput):
+@strawberry.input
+class UserCompleteSignupInput(strawberry_django.NodeInput):
     username: str
     full_name: str
 
 
-@gql.input
-class UserUpdateInput(gql.NodeInput):
+@strawberry.input
+class UserUpdateInput(strawberry_django.NodeInput):
     name: str
     description: str
 
 
-@gql.input
-class UserRenameInput(gql.NodeInput):
+@strawberry.input
+class UserRenameInput(strawberry_django.NodeInput):
     slug: str
 
 
-@gql.input
-class ClientUpsertInput(gql.NodeInput):
+@strawberry.input
+class ClientUpsertInput(strawberry_django.NodeInput):
     type: ClientType
     device_name: Optional[str]
     browser_name: Optional[str]
@@ -154,7 +154,7 @@ class ClientUpsertInput(gql.NodeInput):
     path: Optional[str]
 
 
-@gql.type
+@strawberry.type
 class UserMutation:
     # there's no create user mutation here because we only support social auth for now
 
@@ -315,9 +315,9 @@ def _publish_client_changed(client: models.Client, info: Info):
     )
 
 
-@gql.type
+@strawberry.type
 class ClientQuery:
-    @gql.django.connection
+    @strawberry_django.connection(strawberry_django.relay.ListConnectionWithTotalCount[Client])
     async def clients(
         self,
         info: Info,
@@ -368,7 +368,7 @@ class ClientQuery:
         return qs
 
 
-@gql.type
+@strawberry.type
 class ClientSubscription:
     @asafe_subscription
     async def clients_changed(

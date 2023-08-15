@@ -3,19 +3,17 @@ import typing
 from typing import TYPE_CHECKING, Annotated, List, Optional, Union
 
 import strawberry
+import strawberry_django
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
-from strawberry import lazy
+from strawberry import lazy, relay
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
+from strawberry.relay import GlobalID
 from strawberry.types import ExecutionContext, Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.directives import SchemaDirectiveExtension
-from strawberry_django_plus.optimizer import DjangoOptimizerExtension
-from strawberry_django_plus.relay import GlobalID
+from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.dataset import DataQuery, DatasetMutation
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node
@@ -121,37 +119,37 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 @strawberry.type
 class Query(SessionQuery, ClientQuery, DataQuery):
-    system_info: SystemInfo = gql.field(resolver=lambda: SYSTEM_INFO)
-    me: Optional[User] = gql.django.field(resolver=get_me)
-    user: Optional[User] = gql.relay.node()
-    users: gql.relay.Connection[User] = gql.django.connection(filters=UserFilter)
-    user_by_slug: Optional[User] = gql.django.field(resolver=get_user_by_slug)
-    organization: Optional[Organization] = gql.relay.node()
-    organizations: gql.relay.Connection[Organization] = gql.django.connection()
-    organization_by_slug: Optional[Organization] = gql.django.field(
+    system_info: SystemInfo = strawberry_django.field(resolver=lambda: SYSTEM_INFO)
+    me: Optional[User] = strawberry_django.field(resolver=get_me)
+    user: Optional[User] = strawberry_django.node()
+    users: relay.Connection[User] = strawberry_django.connection(filters=UserFilter)
+    user_by_slug: Optional[User] = strawberry_django.field(resolver=get_user_by_slug)
+    organization: Optional[Organization] = strawberry_django.node()
+    organizations: relay.Connection[Organization] = strawberry_django.connection()
+    organization_by_slug: Optional[Organization] = strawberry_django.field(
         resolver=get_organization_by_slug
     )
-    owner_by_slug: Optional[Union[User, Organization]] = gql.django.field(
+    owner_by_slug: Optional[Union[User, Organization]] = strawberry_django.field(
         resolver=get_user_or_organization_by_slug
     )
-    project: Optional[Project] = gql.relay.node(directives=[CanViewProject()])
-    project_by_slug: Optional[Project] = gql.django.field(
-        resolver=get_project_by_slug, directives=[CanViewProject()]
+    project: Optional[Project] = strawberry_django.node(directives=[])
+    project_by_slug: Optional[Project] = strawberry_django.field(
+        resolver=get_project_by_slug, directives=[]
     )
-    project_version: Optional[ProjectVersion] = gql.django.field(resolver=read_module_node)
-    project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
-        resolver=get_project_version_by_slug, directives=[CanViewProject()]
+    project_version: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node)
+    project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
+        resolver=get_project_version_by_slug, directives=[]
     )
-    project_version_by_tag: Optional[ProjectVersion] = gql.django.field(
-        resolver=get_project_version_by_tag, directives=[CanViewProject()]
+    project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
+        resolver=get_project_version_by_tag, directives=[]
     )
-    file: Optional[File] = gql.field(resolver=read_module_node)
-    statement: Optional[Annotated["Statement", lazy(".statement")]] = gql.django.field(
+    file: Optional[File] = strawberry_django.field(resolver=read_module_node)
+    statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         resolver=read_module_node
     )
-    remote_object: Optional[RemoteObject] = gql.relay.node(directives=[CanViewProject()])
-    secret: Optional[Secret] = gql.relay.node(directives=[CanWriteProject()])
-    featured_projects: gql.relay.Connection[Project] = gql.django.connection(
+    remote_object: Optional[RemoteObject] = strawberry_django.node(directives=[])
+    secret: Optional[Secret] = strawberry_django.node(directives=[])
+    featured_projects: relay.Connection[Project] = strawberry_django.connection(
         resolver=get_featured_projects
     )
 
@@ -187,7 +185,6 @@ class Subscription(
 default_extensions: list[Union[PyType[Extension], Extension]] = [
     DjangoOptimizerExtension,
     QueryDepthLimiter(max_depth=10),
-    SchemaDirectiveExtension,
     SentryPerformanceExtension,
 ]
 prod_extensions: list[Union[PyType[Extension], Extension]] = [

@@ -28,7 +28,7 @@ drf-exceptions-hog==0.2.0
 drf-extensions==0.7.1
 drf-nested-routers==0.93.4
 drf-spectacular==0.24.2
-gunicorn==20.1.0
+gunicorn==21.2.0
 janus==1.0.0
 json-stream==2.2.1
 kubernetes==27.2.0
@@ -48,6 +48,6 @@ pytz==2022.1
 redis[hiredis]==4.5.3
 sentry-sdk[django]==1.18.0
 social-auth-app-django==5.0.0
-strawberry-django-plus==2.3.2
-strawberry-graphql[channels,debug-server,opentelemetry]==0.184
-uvicorn==0.19.0
+strawberry-graphql-django==0.16.0
+strawberry-graphql[channels,debug-server,opentelemetry]==0.204
+uvicorn==0.23.2

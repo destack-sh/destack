@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
+import strawberry
+import strawberry_django
 import structlog
 from django.db.models import QuerySet
-from strawberry import lazy
-from strawberry_django_plus import gql
+from strawberry import lazy, relay
 
 from bench import language as language
 from bench import models
@@ -15,13 +16,13 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-InterpScope = gql.enum(models.InterpScope)
-IssueKind = gql.enum(models.IssueKind)
-IssueType = gql.enum(language.IssueType)
+InterpScope = strawberry.enum(models.InterpScope)
+IssueKind = strawberry.enum(models.IssueKind)
+IssueType = strawberry.enum(language.IssueType)
 
 
-@gql.django.type(models.Issue)
-class Issue(gql.Node, ModuleNode):
+@strawberry_django.type(models.Issue)
+class Issue(relay.Node, ModuleNode):
     parent: Optional[ModuleNode]
     scope: InterpScope
     kind: IssueKind
@@ -31,7 +32,7 @@ class Issue(gql.Node, ModuleNode):
     message: Optional[str]
 
 
-@gql.django.filter(models.Issue)
+@strawberry_django.filter(models.Issue)
 class IssueFilter:
     scope: InterpScope
 
@@ -41,8 +42,8 @@ class IssueFilter:
         return queryset
 
 
-@gql.django.type(models.ResolvedField)
-class ResolvedField(gql.Node):
+@strawberry_django.type(models.ResolvedField)
+class ResolvedField(relay.Node):
     # statement here is not actually optional but it needs to be to union with Issue
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     field: Annotated["Field", lazy(".statement")]

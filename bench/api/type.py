@@ -1,12 +1,12 @@
 import enum
 
-from strawberry_django_plus import gql
+import strawberry
 
 from bench.language.mutate import MMT
 
 # module mutations are special since they're used to sync semantic changes
 # so they're defined in the language/runtime
-ModuleMutationType = gql.enum(MMT)
+ModuleMutationType = strawberry.enum(MMT)
 MMT = ModuleMutationType
 
 
@@ -17,5 +17,5 @@ class ProjectMutationType(enum.StrEnum):
     RESTORE_PROJECT = "RESTORE_PROJECT"
 
 
-ProjectMutationType = gql.enum(ProjectMutationType)
+ProjectMutationType = strawberry.enum(ProjectMutationType)
 PMT = ProjectMutationType

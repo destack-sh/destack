@@ -1,16 +1,5 @@
-"""Can only be resolved by user with organization write permission"""
-directive @canWriteOrganization(atRoot: Boolean! = true) on FIELD_DEFINITION
-
-"""Can only be resolved by user with project view permission"""
-directive @canViewProject(atRoot: Boolean! = true) on FIELD_DEFINITION
-
-"""Can only be resolved by user with project write permission"""
-directive @canWriteProject(atRoot: Boolean! = true) on FIELD_DEFINITION
-
-"""Can only be resolved by user with user write permission"""
-directive @canWriteUser(atRoot: Boolean! = true) on FIELD_DEFINITION
-
 type AccessToken implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   token: String
   name: String
@@ -31,9 +20,6 @@ type AccessTokenConnection {
 
   """Contains the nodes in this connection"""
   edges: [AccessTokenEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 input AccessTokenCreateInput {
@@ -61,6 +47,8 @@ type AccessTokenEdge {
 
 input AccessTokenFilter {
   includeInactive: Boolean = false
+  AND: AccessTokenFilter
+  OR: AccessTokenFilter
 }
 
 union AccessTokenOperationInfo = AccessToken | OperationInfo
@@ -93,6 +81,7 @@ interface Change {
 }
 
 type Client implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -119,7 +108,7 @@ type ClientConnection {
   """Contains the nodes in this connection"""
   edges: [ClientEdge!]!
 
-  """Total quantity of existing nodes"""
+  """Total quantity of existing nodes."""
   totalCount: Int
 }
 
@@ -134,7 +123,6 @@ type ClientEdge {
 
 union ClientOperationInfo = Client | OperationInfo
 
-"""The type of device/client."""
 enum ClientType {
   DesktopBrowser
   MobileBrowser
@@ -169,6 +157,7 @@ type CommitPayload {
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
 type Dataset implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   key: String!
   versioned: Boolean!
@@ -191,6 +180,7 @@ type Environment {
 union EnvironmentOperationInfo = Environment | OperationInfo
 
 type Field implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -232,6 +222,8 @@ input FieldDeleteInput {
 
 input FieldFilter {
   isVisible: Boolean = true
+  AND: FieldFilter
+  OR: FieldFilter
 }
 
 input FieldMoveInput {
@@ -275,6 +267,7 @@ input FieldUpdateTypeInput {
 }
 
 type File implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -299,6 +292,8 @@ input FileCreateInput {
 
 input FileFilter {
   isVisible: Boolean = true
+  AND: FileFilter
+  OR: FileFilter
 }
 
 input FileMoveInput {
@@ -354,6 +349,8 @@ type Issue implements Node & ModuleNode {
 
 input IssueFilter {
   scope: InterpScope!
+  AND: IssueFilter
+  OR: IssueFilter
 }
 
 enum IssueKind {
@@ -400,27 +397,6 @@ type LogEntry {
   metadata: JSON
 }
 
-"""A connection to a list of items."""
-type LogEntryConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [LogEntryEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type LogEntryEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: LogEntry!
-}
-
 type ModuleChange implements Change {
   id: UUID!
   clientId: GlobalID
@@ -438,7 +414,6 @@ type ModuleMutation {
   properties: [String!]
 }
 
-"""Fine-grained atomic mutations for multiplayer modules."""
 enum ModuleMutationType {
   TRUNCATE_FILES
   BUMP_FILE
@@ -613,6 +588,7 @@ input NodeInput {
 }
 
 type Notification implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   type: NotificationType!
   status: NotificationStatus!
@@ -631,9 +607,6 @@ type NotificationConnection {
 
   """Contains the nodes in this connection"""
   edges: [NotificationEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -649,6 +622,8 @@ input NotificationFilter {
   status: NotificationStatus = null
   notArchived: Boolean = null
   createdAt_Gte: DateTime = null
+  AND: NotificationFilter
+  OR: NotificationFilter
 }
 
 input NotificationMarkInput {
@@ -673,13 +648,11 @@ input NotifyUploadedObjectInput {
   id: GlobalID!
 }
 
-"""Multiple messages returned by an operation."""
 type OperationInfo {
   """List of messages returned by the operation."""
   messages: [OperationMessage!]!
 }
 
-"""An error that happened while executing an operation."""
 type OperationMessage {
   """The kind of this message."""
   kind: OperationMessageKind!
@@ -693,7 +666,6 @@ type OperationMessage {
   field: String
 }
 
-"""The kind of the returned message."""
 enum OperationMessageKind {
   INFO
   WARNING
@@ -720,8 +692,10 @@ type Organization implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-  ): ProjectConnection! @canViewProject(atRoot: false)
+  ): ProjectConnection!
   accessTokens(
+    filters: AccessTokenFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -733,8 +707,7 @@ type Organization implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: AccessTokenFilter
-  ): AccessTokenConnection! @canWriteOrganization(atRoot: false)
+  ): AccessTokenConnection!
   canViewFull: Boolean!
   canWrite: Boolean!
   description: String
@@ -786,9 +759,6 @@ type OrganizationConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 input OrganizationCreateInput {
@@ -806,6 +776,7 @@ type OrganizationEdge {
 }
 
 type OrganizationInvite implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   organization: Organization!
   user: User
@@ -823,9 +794,6 @@ type OrganizationInviteConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationInviteEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -845,6 +813,7 @@ input OrganizationInviteInput {
 }
 
 type OrganizationMembership implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   organization: Organization!
   user: User!
@@ -860,9 +829,6 @@ type OrganizationMembershipConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationMembershipEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -936,6 +902,7 @@ type PageInfo {
 }
 
 type Project implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   name: String!
   slug: String!
@@ -947,6 +914,8 @@ type Project implements Node {
   updatedAt: DateTime!
   head: ProjectVersion!
   versions(
+    filters: ProjectVersionFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -958,7 +927,6 @@ type Project implements Node {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: ProjectVersionFilter
   ): ProjectVersionConnection!
   workerSet: WorkerSet!
   workerSets: [WorkerSet!]!
@@ -979,9 +947,6 @@ type ProjectConnection {
 
   """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 input ProjectCreateInput {
@@ -1026,6 +991,7 @@ type ProjectUsage {
 }
 
 type ProjectVersion implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1044,6 +1010,8 @@ type ProjectVersion implements HasCrud & ModuleNode & Node {
   committedAt: DateTime
   files(filters: FileFilter): [File!]!
   childRefs(
+    filters: RefMappingFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -1055,9 +1023,10 @@ type ProjectVersion implements HasCrud & ModuleNode & Node {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: RefMappingFilter
   ): RefMappingConnection!
   parentRefs(
+    filters: RefMappingFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -1069,7 +1038,6 @@ type ProjectVersion implements HasCrud & ModuleNode & Node {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: RefMappingFilter
   ): RefMappingConnection!
 }
 
@@ -1080,9 +1048,6 @@ type ProjectVersionConnection {
 
   """Contains the nodes in this connection"""
   edges: [ProjectVersionEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -1097,6 +1062,8 @@ type ProjectVersionEdge {
 input ProjectVersionFilter {
   fromId: GlobalID!
   toId: GlobalID!
+  AND: ProjectVersionFilter
+  OR: ProjectVersionFilter
 }
 
 union ProjectVersionOperationInfo = ProjectVersion | OperationInfo
@@ -1111,66 +1078,14 @@ type Query {
   session(
     """The ID of the object."""
     id: GlobalID!
-  ): Session @canViewProject(atRoot: true)
+  ): Session
   run(
     """The ID of the object."""
     id: GlobalID!
-  ): Run @canViewProject(atRoot: true)
+  ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
-  runs(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    projectId: GlobalID!
-    projectVersionId: GlobalID!
-    sessionId: GlobalID = null
-    runId: GlobalID = null
-    runnableIds: [GlobalID!] = null
-    rootOnly: Boolean = null
-    query: SearchQuery = null
-    sort: [SearchSort!] = null
-    limit: Int = null
-    count: Boolean = null
-  ): RunConnection!
-  logs(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-    projectId: GlobalID!
-    projectVersionId: GlobalID = null
-    sessionId: GlobalID = null
-    runId: GlobalID = null
-    runnableIds: [GlobalID!] = null
-    query: SearchQuery = null
-    sort: [SearchSort!] = null
-    limit: Int = null
-    count: Boolean = null
-  ): LogEntryConnection!
   clients(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
     projectId: GlobalID = null
     projectVersionId: GlobalID = null
     userId: GlobalID = null
@@ -1178,10 +1093,11 @@ type Query {
     inSameOrganizations: Boolean! = true
     active: Boolean = null
     present: Boolean = true
-  ): ClientConnection!
-  searchDataset(
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
+
+    """Returns the items in the list that come after the specified cursor."""
     after: String = null
 
     """Returns the first n items from the list."""
@@ -1189,12 +1105,7 @@ type Query {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    statementId: GlobalID!
-    query: SearchQuery = null
-    sort: [SearchSort!] = null
-    limit: Int = null
-    count: Boolean = null
-  ): RecordConnection!
+  ): ClientConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1202,6 +1113,8 @@ type Query {
     id: GlobalID!
   ): User
   users(
+    filters: UserFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -1213,7 +1126,6 @@ type Query {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: UserFilter
   ): UserConnection!
   userBySlug(slug: String!): User
   organization(
@@ -1238,42 +1150,21 @@ type Query {
   project(
     """The ID of the object."""
     id: GlobalID!
-  ): Project @canViewProject(atRoot: true)
-  projectBySlug(owner: String!, project: String!): Project @canViewProject(atRoot: true)
-
-  """
-  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-  Any nodes not in the tree will be fetched by the strawberry resolver.
-  
-  TODO @Broken: read module node assumes default filters
-  """
+  ): Project
+  projectBySlug(owner: String!, project: String!): Project
   projectVersion(id: GlobalID!): ProjectVersion
-  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
-  projectVersionByTag(projectId: GlobalID!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
-
-  """
-  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-  Any nodes not in the tree will be fetched by the strawberry resolver.
-  
-  TODO @Broken: read module node assumes default filters
-  """
+  projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion
+  projectVersionByTag(projectId: GlobalID!, tag: String!): ProjectVersion
   file(id: GlobalID!): File
-
-  """
-  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-  Any nodes not in the tree will be fetched by the strawberry resolver.
-  
-  TODO @Broken: read module node assumes default filters
-  """
   statement(id: GlobalID!): Statement
   remoteObject(
     """The ID of the object."""
     id: GlobalID!
-  ): RemoteObject @canViewProject(atRoot: true)
+  ): RemoteObject
   secret(
     """The ID of the object."""
     id: GlobalID!
-  ): Secret @canWriteProject(atRoot: true)
+  ): Secret
   featuredProjects(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -1287,26 +1178,6 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ProjectConnection!
-}
-
-enum QueryOp {
-  NOT
-  AND
-  OR
-  EQUALS
-  NOT_EQUALS
-  GREATER_THAN
-  GREATER_THAN_OR_EQUALS
-  LESS_THAN
-  LESS_THAN_OR_EQUALS
-  MATCHES
-  STARTS_WITH
-  EXISTS
-  DOES_NOT_EXIST
-  INTERSECTS
-  DISJOINT
-  WITHIN
-  NEAR
 }
 
 type Record implements HasCrud {
@@ -1339,18 +1210,6 @@ input RecordBatchSoftDeleteInput {
   ids: [GlobalID!]!
 }
 
-"""A connection to a list of items."""
-type RecordConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [RecordEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
 input RecordCreateInput {
   statementId: GlobalID!
   id: GlobalID!
@@ -1361,15 +1220,6 @@ input RecordCreateInput {
 input RecordDeleteInput {
   statementId: GlobalID!
   id: GlobalID!
-}
-
-"""An edge in a connection."""
-type RecordEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Record!
 }
 
 input RecordMoveInput {
@@ -1392,6 +1242,7 @@ input RecordUpdateInput {
 }
 
 type RefMapping implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   kind: RefMappingKind!
   sourceVersion: ProjectVersion!
@@ -1411,9 +1262,6 @@ type RefMappingConnection {
 
   """Contains the nodes in this connection"""
   edges: [RefMappingEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -1427,6 +1275,8 @@ type RefMappingEdge {
 
 input RefMappingFilter {
   kind: RefMappingKind = null
+  AND: RefMappingFilter
+  OR: RefMappingFilter
 }
 
 enum RefMappingKind {
@@ -1435,6 +1285,7 @@ enum RefMappingKind {
 }
 
 type RemoteObject implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   status: RemoteObjectStatus!
   sha512: String!
@@ -1462,6 +1313,7 @@ input RequestUploadObjectInput {
 }
 
 type ResolvedField implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   statement: Statement
   field: Field!
@@ -1483,6 +1335,7 @@ input RestoreInput {
 }
 
 type Run implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   projectVersion: ProjectVersion!
   session: Session
@@ -1513,28 +1366,6 @@ type RunCodeFrame {
   locals: JSON
 }
 
-"""A connection to a list of items."""
-type RunConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [RunEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
-}
-
-"""An edge in a connection."""
-type RunEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: Run!
-}
-
-"""Wire-able representation of an exception."""
 type RunError {
   kind: String!
   type: String!
@@ -1581,26 +1412,13 @@ type RunsChange {
   runs: [Run!]!
 }
 
-"""Schedules for runnables."""
 enum ScheduleType {
   INTERVAL
   CRON
 }
 
-input SearchQuery {
-  op: QueryOp!
-  key: String = null
-  value: JSON = null
-  queries: [SearchQuery!] = null
-}
-
-input SearchSort {
-  key: String!
-  order: SortOrder! = ASCENDING
-  mode: SortMode = null
-}
-
 type Secret implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1629,6 +1447,7 @@ input SecretUpdateInput {
 }
 
 type Session implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   project: Project!
   createdAt: DateTime!
@@ -1656,19 +1475,6 @@ type SessionState {
 
 union SessionStateOperationInfo = SessionState | OperationInfo
 
-enum SortMode {
-  MAX
-  MIN
-  AVERAGE
-  SUM
-  MEDIAN
-}
-
-enum SortOrder {
-  ASCENDING
-  DESCENDING
-}
-
 enum StartRunErrorType {
   UNAVAILABLE
   INVALID_RUN
@@ -1679,6 +1485,7 @@ enum StartRunErrorType {
 }
 
 type Statement implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1740,7 +1547,6 @@ input StatementBatchSoftDeleteInput {
   ids: [GlobalID!]!
 }
 
-"""Creates a full statement"""
 input StatementCreateInput {
   id: GlobalID = null
   fileId: GlobalID!
@@ -1765,6 +1571,8 @@ input StatementDeleteInput {
 
 input StatementFilter {
   isVisible: Boolean = true
+  AND: StatementFilter
+  OR: StatementFilter
 }
 
 input StatementMorphInput {
@@ -1798,7 +1606,6 @@ input StatementSoftDeleteInput {
   id: GlobalID!
 }
 
-"""The type of Bench statement."""
 enum StatementType {
   TAG
   TEXT
@@ -1815,7 +1622,6 @@ enum StatementType {
   BLOCK
 }
 
-"""Updates a statement"""
 input StatementUpdateInput {
   id: GlobalID!
   orderKey: String = null
@@ -1871,6 +1677,7 @@ type SystemInfo {
 }
 
 type Tagging implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1900,6 +1707,8 @@ input TaggingDeleteInput {
 
 input TaggingFilter {
   isVisible: Boolean = true
+  AND: TaggingFilter
+  OR: TaggingFilter
 }
 
 union TaggingOperationInfo = Tagging | OperationInfo
@@ -1914,6 +1723,7 @@ input TaggingUpdateInput {
 }
 
 type Trigger implements HasCrud & ModuleNode & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!
@@ -1954,6 +1764,8 @@ input TriggerDeleteInput {
 
 input TriggerFilter {
   isVisible: Boolean = true
+  AND: TriggerFilter
+  OR: TriggerFilter
 }
 
 union TriggerOperationInfo = Trigger | OperationInfo
@@ -1962,9 +1774,6 @@ input TriggerRestoreInput {
   id: GlobalID!
 }
 
-"""
-Triggers for runnables (for both actual runs and pre-defined triggers).
-"""
 enum TriggerType {
   INVOKE
   TIME
@@ -1988,7 +1797,6 @@ input TriggerUpdateInput {
   scopeId: GlobalID = null
 }
 
-"""Extra representation/semantics of a field/type."""
 enum TypeHint {
   NAME
   UUID
@@ -2018,7 +1826,6 @@ enum TypeHint {
   AUDIO
 }
 
-"""The Bench primitive type of a field/type."""
 enum TypeTag {
   STRING
   NUMBER
@@ -2063,8 +1870,10 @@ type User implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-  ): ProjectConnection! @canViewProject(atRoot: false)
+  ): ProjectConnection!
   accessTokens(
+    filters: AccessTokenFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -2076,12 +1885,9 @@ type User implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: AccessTokenFilter
-  ): AccessTokenConnection! @canWriteUser(atRoot: false)
+  ): AccessTokenConnection!
   canViewFull: Boolean!
   canWrite: Boolean!
-
-  """Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only."""
   username: String!
   email: String!
   status: UserStatus!
@@ -2114,6 +1920,8 @@ type User implements Node & Owner {
     last: Int = null
   ): OrganizationMembershipConnection!
   notifications(
+    filters: NotificationFilter
+
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
 
@@ -2125,8 +1933,7 @@ type User implements Node & Owner {
 
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
-    filters: NotificationFilter
-  ): NotificationConnection! @canWriteUser(atRoot: false)
+  ): NotificationConnection!
 }
 
 input UserCompleteSignupInput {
@@ -2142,9 +1949,6 @@ type UserConnection {
 
   """Contains the nodes in this connection"""
   edges: [UserEdge!]!
-
-  """Total quantity of existing nodes"""
-  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -2159,6 +1963,8 @@ type UserEdge {
 input UserFilter {
   slugPrefix: String
   emailEquals: String
+  AND: UserFilter
+  OR: UserFilter
 }
 
 union UserOperationInfo = User | OperationInfo
@@ -2219,6 +2025,7 @@ enum WorkerRegion {
 }
 
 type WorkerSet implements Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   project: Project!
   createdAt: DateTime!

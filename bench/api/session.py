@@ -4,22 +4,21 @@ from uuid import UUID
 
 import django.db.models
 import posthog
+import strawberry
+import strawberry_django
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import OuterRef, Subquery
 from nats.errors import NoRespondersError
-from strawberry import auto, lazy
+from strawberry import auto, lazy, relay
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
-from strawberry_django_plus.utils.resolvers import async_safe
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import (
-    CanViewProject,
     check_can_read_project,
     check_can_view_project_by_id,
     check_can_write_project,
@@ -31,6 +30,7 @@ from bench.api.utils import (
     SearchSort,
     asafe_mutation,
     asafe_subscription,
+    async_safe,
     get_user_from_info,
     to_global_id,
     to_uuid,
@@ -73,11 +73,11 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-RunStatus = gql.enum(models.RunStatus)
-TriggerType = gql.enum(models.TriggerType)
+RunStatus = strawberry.enum(models.RunStatus)
+TriggerType = strawberry.enum(models.TriggerType)
 
 
-@gql.type
+@strawberry.type
 class RunCodeFrame:
     filename: str
     lineno: int
@@ -96,7 +96,7 @@ class RunCodeFrame:
         )
 
 
-@gql.type
+@strawberry.type
 class RunError:
     """Wire-able representation of an exception."""
 
@@ -130,13 +130,13 @@ def get_error_nice(root: "Run") -> Optional[RunError]:
         return None
 
 
-WorkerProfile = gql.enum(models.WorkerProfile)
-WorkerRegion = gql.enum(models.WorkerRegion)
-WorkerSetStatus = gql.enum(models.WorkerSetStatus)
+WorkerProfile = strawberry.enum(models.WorkerProfile)
+WorkerRegion = strawberry.enum(models.WorkerRegion)
+WorkerSetStatus = strawberry.enum(models.WorkerSetStatus)
 
 
-@gql.django.type(models.WorkerSet)
-class WorkerSet(gql.Node):
+@strawberry_django.type(models.WorkerSet)
+class WorkerSet(relay.Node):
     project: Annotated["Project", lazy(".project")]
     created_at: auto
     updated_at: auto
@@ -152,8 +152,8 @@ class WorkerSet(gql.Node):
     last_active_at: auto
 
 
-@gql.django.type(models.Session)
-class Session(gql.Node):
+@strawberry_django.type(models.Session)
+class Session(relay.Node):
     project: Annotated["Project", lazy(".project")]
     created_at: auto
     updated_at: auto
@@ -167,8 +167,8 @@ class Session(gql.Node):
     access_token: Optional[Annotated["AccessToken", lazy(".token")]]
 
 
-@gql.django.type(models.Run)
-class Run(gql.Node):
+@strawberry_django.type(models.Run)
+class Run(relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     session: Optional[Session]
     trigger_type: Optional[TriggerType]
@@ -186,11 +186,13 @@ class Run(gql.Node):
     inputs: auto
     outputs: auto
     error: auto
-    error_nice: Optional[RunError] = gql.django.field(only=["error"], resolver=get_error_nice)
+    error_nice: Optional[RunError] = strawberry_django.field(
+        only=["error"], resolver=get_error_nice
+    )
     metadata: auto
 
 
-@gql.type
+@strawberry.type
 class LogEntry:
     id: GlobalID
     project_version_id: GlobalID
@@ -267,45 +269,45 @@ RUNS_LIMIT = 50
 LOGS_LIMIT = 200
 
 
-@gql.type
+@strawberry.type
 class SessionState:
     worker_set: Optional[WorkerSet]
     runs: list[Run]
 
 
-@gql.input
+@strawberry.input
 class WakeRuntimeInput:
     project_version_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class WakeRuntimePayload:
     success: bool
 
 
-@gql.input
+@strawberry.input
 class WakeWorkerSetInput:
     project_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class WakeWorkerSetPayload:
     worker_set: Optional[WorkerSet]
     success: bool
 
 
-@gql.input
+@strawberry.input
 class RestartWorkerSetInput:
     project_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class RestartWorkerSetPayload:
     worker_set: Optional[WorkerSet]
     success: bool
 
 
-@gql.input
+@strawberry.input
 class RunInput:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID] = None
@@ -317,10 +319,10 @@ class RunInput:
     timeout_seconds: Optional[int] = None
 
 
-ModuleRunErrorType = gql.enum(StartRunErrorType)
+ModuleRunErrorType = strawberry.enum(StartRunErrorType)
 
 
-@gql.type
+@strawberry.type
 class RunState:
     project_version_id: GlobalID
     runnable_id: Optional[GlobalID]
@@ -330,25 +332,25 @@ class RunState:
     logs: Optional[list[LogEntry]]
 
 
-@gql.input
+@strawberry.input
 class CancelRunInput:
     project_version_id: GlobalID
     run_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class CancelRunPayload:
     success: bool
     run: Optional[Run]
 
 
-@gql.type
+@strawberry.type
 class Package:
     name: str
     version: str
 
 
-@gql.type
+@strawberry.type
 class Environment:
     language: str
     version: str
@@ -356,9 +358,9 @@ class Environment:
     packages: list[Package]
 
 
-@gql.type
+@strawberry.type
 class SessionQuery:
-    @gql.field
+    @strawberry_django.field
     @async_safe
     def current_runs(
         self,
@@ -395,10 +397,10 @@ class SessionQuery:
         )
         return SessionState(worker_set=project.worker_set, runs=latest_run_instances)
 
-    session: Optional[Session] = gql.relay.node(directives=[CanViewProject()])
-    run: Optional[Run] = gql.relay.node(directives=[CanViewProject()])
+    session: Optional[Session] = strawberry_django.node(directives=[])
+    run: Optional[Run] = strawberry_django.node(directives=[])
 
-    @gql.field
+    @strawberry_django.field
     @async_safe
     async def environment(self, info: Info, project_id: GlobalID) -> Environment | OperationInfo:
         project_id = UUID(project_id.node_id)
@@ -428,9 +430,8 @@ class SessionQuery:
             ],
         )
 
-    @gql.relay.connection
     @async_safe
-    def runs(
+    def search_runs(
         self,
         info: Info,
         project_id: GlobalID,
@@ -444,7 +445,7 @@ class SessionQuery:
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> gql.relay.Connection[Run]:
+    ) -> strawberry_django.relay.ListConnectionWithTotalCount[Run]:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
@@ -482,20 +483,21 @@ class SessionQuery:
             doc = mirror.Run.from_dict(r["_source"], r["_id"], r["_version"])
             run = mirror.unmirror_node(doc)
             cursor = encode_cursor(r, after, i)
-            edge = gql.relay.Edge(node=run, cursor=cursor)
+            edge = relay.Edge(node=run, cursor=cursor)
             edges.append(edge)
-        page_info = gql.relay.PageInfo(
+        page_info = relay.Edge(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
+        return strawberry_django.relay.ListConnectionWithTotalCount(
+            edges=edges, page_info=page_info, total_count=total_count
+        )
 
-    @gql.relay.connection
     @async_safe
-    def logs(
+    def search_logs(
         self,
         info: Info,
         project_id: GlobalID,
@@ -508,7 +510,7 @@ class SessionQuery:
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> gql.relay.Connection[LogEntry]:
+    ) -> strawberry_django.relay.ListConnectionWithTotalCount[LogEntry]:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
@@ -544,19 +546,21 @@ class SessionQuery:
             doc = mirror.LogEntry.from_dict(r["_source"], r["_id"], r["_version"])
             node = LogEntry.from_os(doc)
             cursor = encode_cursor(r, after, i)
-            edge = gql.relay.Edge(node=node, cursor=cursor)
+            edge = relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
-        page_info = gql.relay.PageInfo(
+        page_info = relay.Edge(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
+        return strawberry_django.relay.ListConnectionWithTotalCount(
+            edges=edges, page_info=page_info, total_count=total_count
+        )
 
 
-@gql.type
+@strawberry.type
 class SessionMutation:
     @asafe_mutation
     async def wake_runtime(
@@ -694,28 +698,28 @@ class SessionMutation:
         return CancelRunPayload(success=success, run=run)
 
 
-@gql.type
+@strawberry.type
 class LogChange:
     logs: list[LogEntry]
 
 
-@gql.type
+@strawberry.type
 class SessionChange:
     session: Optional[Session]
     runs: list[Run]
 
 
-@gql.type
+@strawberry.type
 class RunsChange:
     runs: list[Run]
 
 
-@gql.type
+@strawberry.type
 class WorkerChange:
     worker_sets: list[WorkerSet]
 
 
-@gql.type
+@strawberry.type
 class SessionSubscription:
     @asafe_subscription
     async def sessions_changed(

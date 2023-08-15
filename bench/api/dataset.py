@@ -2,18 +2,27 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
+import strawberry
+import strawberry_django
+from strawberry import relay
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
-from strawberry_django_plus.utils.resolvers import async_safe
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
 from bench.api.type import MMT
-from bench.api.utils import HasCrud, Revisioned, SearchQuery, SearchSort, ThingBatch, to_global_id
+from bench.api.utils import (
+    HasCrud,
+    Revisioned,
+    SearchQuery,
+    SearchSort,
+    ThingBatch,
+    async_safe,
+    to_global_id,
+)
 from bench.language import Q, Query, QueryOp
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -23,13 +32,13 @@ from bench.opensearch.query import encode_cursor, prepare_search
 from bench.utils.dt import utcnow_with_tz
 
 
-@gql.django.type(models.Dataset)
-class Dataset(gql.Node):
+@strawberry_django.type(models.Dataset)
+class Dataset(relay.Node):
     key: str
     versioned: bool
 
 
-@gql.type
+@strawberry.type
 class Record(HasCrud, Revisioned):
     id: GlobalID
     dataset_id: str
@@ -53,7 +62,7 @@ class Record(HasCrud, Revisioned):
         )
 
 
-@gql.type
+@strawberry.type
 class RecordBatch(ThingBatch):
     records: list[Record]
 
@@ -68,44 +77,44 @@ class RecordBatch(ThingBatch):
         )
 
 
-@gql.input
+@strawberry.input
 class RecordInput:
     statement_id: GlobalID
 
 
-@gql.input
-class RecordCreateInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordCreateInput(RecordInput, strawberry_django.NodeInput):
     value: JSON
     order_key: Optional[str] = None
 
 
-@gql.input
-class RecordUpdateInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordUpdateInput(RecordInput, strawberry_django.NodeInput):
     value: JSON
 
 
-@gql.input
-class RecordUpdatePathInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordUpdatePathInput(RecordInput, strawberry_django.NodeInput):
     path: str
     value: Optional[JSON] = None
 
 
-@gql.input
-class RecordMoveInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordMoveInput(RecordInput, strawberry_django.NodeInput):
     order_key: Optional[str] = None
 
 
-@gql.input
-class RecordDeleteInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordDeleteInput(RecordInput, strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class RecordRestoreInput(RecordInput, gql.NodeInput):
+@strawberry.input
+class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
     pass
 
 
-@gql.input
+@strawberry.input
 class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
@@ -113,7 +122,7 @@ class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
         return [RecordDeleteInput(statement_id=self.statement_id, id=i) for i in self.ids]
 
 
-@gql.input
+@strawberry.input
 class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
     ids: list[GlobalID]
 
@@ -131,7 +140,7 @@ def _prep_write_dataset(
     return utcnow_with_tz(), project_v, statement
 
 
-@gql.type
+@strawberry.type
 class DatasetMutation:
     @tracked_os_mutation(MMT.CREATE_RECORD)
     def create_record(self, info: Info, input: RecordCreateInput) -> Record | OperationInfo:
@@ -262,9 +271,8 @@ class DatasetMutation:
 RECORDS_LIMIT = 100
 
 
-@gql.type
+@strawberry.type
 class DataQuery:  # avoid name conflict with DatasetQuery
-    @gql.relay.connection
     @async_safe
     def search_dataset(
         self,
@@ -275,7 +283,7 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> gql.Connection[Record]:
+    ) -> strawberry_django.relay.ListConnectionWithTotalCount[Record]:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
@@ -302,13 +310,15 @@ class DataQuery:  # avoid name conflict with DatasetQuery
             doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
             node = Record.from_os(doc)
             cursor = encode_cursor(r, after, i)
-            edge = gql.relay.Edge(node=node, cursor=cursor)
+            edge = relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
-        page_info = gql.relay.PageInfo(
+        page_info = relay.Edge(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return gql.relay.Connection(edges=edges, page_info=page_info, total_count=total_count)
+        return strawberry_django.relay.ListConnectionWithTotalCount(
+            edges=edges, page_info=page_info, total_count=total_count
+        )

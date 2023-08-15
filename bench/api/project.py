@@ -1,21 +1,21 @@
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
-from strawberry import UNSET, lazy
+from strawberry import UNSET, auto, lazy, relay
+from strawberry.relay import GlobalID
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.gql import auto
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
-from strawberry_django_plus.utils.resolvers import async_safe
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
 from bench.api.utils import (
     HasCrud,
     ModuleNode,
+    async_safe,
     get_client_origin_from_info,
     get_user_from_info,
     safe_mutation,
@@ -35,10 +35,10 @@ if TYPE_CHECKING:
     from bench.api.session import WorkerSet
     from bench.api.user import User
 
-StatementType = gql.enum(const.StatementType)
+StatementType = strawberry.enum(const.StatementType)
 
 
-@gql.django.filter(models.ProjectVersion)
+@strawberry_django.filter(models.ProjectVersion)
 class ProjectVersionFilter:
     from_id: GlobalID = UNSET
     to_id: GlobalID = UNSET
@@ -61,7 +61,7 @@ class ProjectVersionFilter:
         return queryset.order_by("created_at")
 
 
-@gql.django.filter(models.File)
+@strawberry_django.filter(models.File)
 class FileFilter:
     is_visible: Optional[bool] = True
 
@@ -71,10 +71,10 @@ class FileFilter:
         return queryset
 
 
-ProjectVisibility = gql.enum(models.ProjectVisibility)
+ProjectVisibility = strawberry.enum(models.ProjectVisibility)
 
 
-@gql.type
+@strawberry.type
 class ProjectMigrationInfo:
     is_reverse: bool
     source_version: "ProjectVersion"
@@ -82,7 +82,7 @@ class ProjectMigrationInfo:
     ref_mappings: list["RefMapping"]
 
 
-@gql.type
+@strawberry.type
 class ProjectUsage:
     records_active: int
     objects_bytes_total: int
@@ -132,8 +132,8 @@ REF_TYPE_TO_TYPE_NAME = {
 }
 
 
-@gql.django.type(models.Project)
-class Project(gql.Node):
+@strawberry_django.type(models.Project)
+class Project(relay.Node):
     name: auto
     slug: auto
     visibility: ProjectVisibility
@@ -143,20 +143,20 @@ class Project(gql.Node):
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"
-    versions: gql.relay.Connection["ProjectVersion"] = gql.django.connection(
+    versions: relay.Connection["ProjectVersion"] = strawberry_django.connection(
         filters=ProjectVersionFilter
     )
     worker_set: Annotated["WorkerSet", lazy(".session")]
     worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
-    usage: ProjectUsage = gql.field(resolver=get_project_usage)
+    usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)
 
     # TODO @Performance: specify only/select_related for can_write field
-    @gql.field
+    @strawberry_django.field
     def can_write(self, info: OperationInfo) -> bool:
         user = get_user_from_info(info)
         return can_write_project(user, self) is not None
 
-    @gql.field
+    @strawberry_django.field
     def migration_mappings(
         self, source_version_id: GlobalID, target_version_id: GlobalID
     ) -> ProjectMigrationInfo:
@@ -199,11 +199,11 @@ class Project(gql.Node):
         )
 
 
-RefMappingKind = gql.enum(models.RefMappingKind)
+RefMappingKind = strawberry.enum(models.RefMappingKind)
 
 
-@gql.django.type(models.RefMapping)
-class RefMapping(gql.Node):
+@strawberry_django.type(models.RefMapping)
+class RefMapping(relay.Node):
     kind: RefMappingKind
     source_version: "ProjectVersion"
     target_version: "ProjectVersion"
@@ -212,16 +212,16 @@ class RefMapping(gql.Node):
     target_id: GlobalID
     target_revision: int
 
-    @gql.field
+    @strawberry_django.field
     def source_version_id(self) -> GlobalID:
         return GlobalID("ProjectVersion", str(self.source_version_id))
 
-    @gql.field
+    @strawberry_django.field
     def target_version_id(self) -> GlobalID:
         return GlobalID("ProjectVersion", str(self.target_version_id))
 
 
-@gql.django.filter(models.RefMapping)
+@strawberry_django.filter(models.RefMapping)
 class RefMappingFilter:
     kind: Optional[RefMappingKind] = None
 
@@ -231,8 +231,8 @@ class RefMappingFilter:
         return queryset
 
 
-@gql.django.type(models.ProjectVersion)
-class ProjectVersion(HasCrud, ModuleNode, gql.Node):
+@strawberry_django.type(models.ProjectVersion)
+class ProjectVersion(HasCrud, ModuleNode, relay.Node):
     project: Project
     parent: Optional[ModuleNode]
     name: auto
@@ -242,12 +242,16 @@ class ProjectVersion(HasCrud, ModuleNode, gql.Node):
     children: list["ProjectVersion"]
     committed: auto
     committed_at: auto
-    files: list[Annotated["File", lazy(".file")]] = gql.django.field(filters=FileFilter)
-    child_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
-    parent_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
+    files: list[Annotated["File", lazy(".file")]] = strawberry_django.field(filters=FileFilter)
+    child_refs: relay.Connection[RefMapping] = strawberry_django.connection(
+        filters=RefMappingFilter
+    )
+    parent_refs: relay.Connection[RefMapping] = strawberry_django.connection(
+        filters=RefMappingFilter
+    )
 
 
-@gql.input
+@strawberry.input
 class ProjectCreateInput:
     owner_id: GlobalID
     name: str
@@ -255,17 +259,17 @@ class ProjectCreateInput:
     visibility: ProjectVisibility
 
 
-@gql.input
-class ProjectUpdateVisibilityInput(gql.NodeInput):
+@strawberry.input
+class ProjectUpdateVisibilityInput(strawberry_django.NodeInput):
     visibility: ProjectVisibility
 
 
-@gql.input
-class ProjectUpdateNameInput(gql.NodeInput):
+@strawberry.input
+class ProjectUpdateNameInput(strawberry_django.NodeInput):
     name: str
 
 
-@gql.type
+@strawberry.type
 class ProjectMutation:
     @safe_mutation
     def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
@@ -301,14 +305,14 @@ class ProjectMutation:
         return project
 
 
-@gql.input
-class UpdateProjectVersion(gql.NodeInput):
+@strawberry.input
+class UpdateProjectVersion(strawberry_django.NodeInput):
     name: str
     tag: Optional[str] = None  # :ProjectVersionTags
     description: Optional[str] = None
 
 
-@gql.input
+@strawberry.input
 class CommitInput:
     project_version_id: GlobalID
     name: Optional[str] = None
@@ -316,18 +320,18 @@ class CommitInput:
     description: Optional[str] = None
 
 
-@gql.input
+@strawberry.input
 class RestoreInput:
     project_version_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class CommitPayload:
     project: Project
     committed_version: ProjectVersion
 
 
-@gql.type
+@strawberry.type
 class ProjectVersionMutation:
     @safe_mutation
     def update_project_version(

@@ -1,11 +1,13 @@
 from typing import Optional
 
+import strawberry
+import strawberry_django
 import structlog
 from django.core.exceptions import ValidationError
+from strawberry import relay
+from strawberry.relay import GlobalID
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_write_project
@@ -15,11 +17,11 @@ from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
 
-RemoteObjectStatus = gql.enum(models.RemoteObjectStatus)
+RemoteObjectStatus = strawberry.enum(models.RemoteObjectStatus)
 
 
-@gql.django.type(models.RemoteObject)
-class RemoteObject(gql.Node):
+@strawberry_django.type(models.RemoteObject)
+class RemoteObject(relay.Node):
     status: RemoteObjectStatus
     sha512: str
     content_length: int
@@ -29,7 +31,7 @@ class RemoteObject(gql.Node):
     presigned_get: Optional[str]
 
 
-@gql.input
+@strawberry.input
 class RequestUploadObjectInput:
     project_id: GlobalID
     sha512: str
@@ -38,17 +40,17 @@ class RequestUploadObjectInput:
     name: Optional[str]
 
 
-@gql.input
-class NotifyUploadedObjectInput(gql.NodeInput):
+@strawberry.input
+class NotifyUploadedObjectInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class DeleteObjectInput(gql.NodeInput):
+@strawberry.input
+class DeleteObjectInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.type
+@strawberry.type
 class ObjectMutation:
     @safe_mutation
     def request_upload_object(

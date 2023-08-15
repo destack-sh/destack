@@ -1,16 +1,16 @@
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 import structlog
 from django.core.exceptions import ValidationError
 from django.db.models import F
-from strawberry import UNSET, lazy
+from strawberry import UNSET, auto, lazy, relay
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.gql import auto
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import check_can_read_project, check_can_write_project
@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 
 log = structlog.get_logger(__name__)
 
-StatementType = gql.enum(const.StatementType)
+StatementType = strawberry.enum(const.StatementType)
 
 
-@gql.django.filter(models.Trigger)
+@strawberry_django.filter(models.Trigger)
 class TriggerFilter:
     is_visible: Optional[bool] = True
 
@@ -40,7 +40,7 @@ class TriggerFilter:
         return queryset
 
 
-@gql.django.filter(models.Tagging)
+@strawberry_django.filter(models.Tagging)
 class TaggingFilter:
     is_visible: Optional[bool] = True
 
@@ -50,7 +50,7 @@ class TaggingFilter:
         return queryset
 
 
-@gql.django.filter(models.Field)
+@strawberry_django.filter(models.Field)
 class FieldFilter:
     is_visible: Optional[bool] = True
 
@@ -60,16 +60,16 @@ class FieldFilter:
         return queryset
 
 
-TypeStorageFormat = gql.enum(language.TypeStorageFormat)
-TypeTag = gql.enum(language.TypeTag)
-TriggerType = gql.enum(language.TriggerType)
-ScheduleType = gql.enum(language.ScheduleType)
-TypeHint = gql.enum(language.TypeHint)
+TypeStorageFormat = strawberry.enum(language.TypeStorageFormat)
+TypeTag = strawberry.enum(language.TypeTag)
+TriggerType = strawberry.enum(language.TriggerType)
+ScheduleType = strawberry.enum(language.ScheduleType)
+TypeHint = strawberry.enum(language.TypeHint)
 
 
-@gql.django.type(models.Trigger)
-class Trigger(HasCrud, ModuleNode, Revisioned, gql.Node):
-    parent: "Statement" = gql.django.field(field_name="statement")
+@strawberry_django.type(models.Trigger)
+class Trigger(HasCrud, ModuleNode, Revisioned, relay.Node):
+    parent: "Statement" = strawberry_django.field(field_name="statement")
     type: TriggerType
     active: bool
     mapping: auto
@@ -81,18 +81,18 @@ class Trigger(HasCrud, ModuleNode, Revisioned, gql.Node):
     scope: Optional["Statement"]
 
 
-@gql.django.type(models.Tagging)
-class Tagging(HasCrud, ModuleNode, Revisioned, gql.Node):
-    parent: "Statement" = gql.django.field(field_name="statement")
+@strawberry_django.type(models.Tagging)
+class Tagging(HasCrud, ModuleNode, Revisioned, relay.Node):
+    parent: "Statement" = strawberry_django.field(field_name="statement")
     statement: "Statement"
     reference: "Statement"
     key: auto
     metadata: auto
 
 
-@gql.django.type(models.Field)
-class Field(HasCrud, ModuleNode, Revisioned, gql.Node):
-    parent: "Statement" = gql.django.field(field_name="statement")
+@strawberry_django.type(models.Field)
+class Field(HasCrud, ModuleNode, Revisioned, relay.Node):
+    parent: "Statement" = strawberry_django.field(field_name="statement")
     statement: "Statement"
     name: auto
     key: auto
@@ -105,8 +105,8 @@ class Field(HasCrud, ModuleNode, Revisioned, gql.Node):
     metadata: auto
 
 
-@gql.django.type(models.Statement)
-class Statement(HasCrud, ModuleNode, Revisioned, gql.Node):
+@strawberry_django.type(models.Statement)
+class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     file: Annotated["File", lazy(".file")]
     parent: Union[ModuleNode]
@@ -121,19 +121,19 @@ class Statement(HasCrud, ModuleNode, Revisioned, gql.Node):
     dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
-    tags: list[Tagging] = gql.django.field(filters=TaggingFilter)
-    triggers: list[Trigger] = gql.django.field(filters=TriggerFilter)
-    fields: list[Field] = gql.django.field(filters=FieldFilter)
+    tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
+    triggers: list[Trigger] = strawberry_django.field(filters=TriggerFilter)
+    fields: list[Field] = strawberry_django.field(filters=FieldFilter)
     lang: auto
     code: auto
     description: auto
     value: auto
     # interp
-    issues: Optional[list[Issue]] = gql.django.field(filters=IssueFilter)
-    resolved_fields: Optional[list[Field]] = gql.django.field(filters=FieldFilter)
+    issues: Optional[list[Issue]] = strawberry_django.field(filters=IssueFilter)
+    resolved_fields: Optional[list[Field]] = strawberry_django.field(filters=FieldFilter)
 
 
-@gql.input
+@strawberry.input
 class StatementCreateInput:
     """Creates a full statement"""
 
@@ -154,8 +154,8 @@ class StatementCreateInput:
     value: Optional[JSON] = None
 
 
-@gql.input
-class StatementUpdateInput(gql.NodeInput):
+@strawberry.input
+class StatementUpdateInput(strawberry_django.NodeInput):
     """Updates a statement"""
 
     id: GlobalID
@@ -173,13 +173,13 @@ class StatementUpdateInput(gql.NodeInput):
     value: Optional[JSON] = None
 
 
-@gql.input
-class StatementDeleteInput(gql.NodeInput):
+@strawberry.input
+class StatementDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class StatementMorphInput(gql.NodeInput):
+@strawberry.input
+class StatementMorphInput(strawberry_django.NodeInput):
     type: StatementType
     name: Optional[str] = None
     root_type_tag: Optional[TypeTag] = None
@@ -187,32 +187,32 @@ class StatementMorphInput(gql.NodeInput):
     lang: Optional[str] = None
 
 
-@gql.django.partial(models.Statement)
-class StatementRenameInput(gql.NodeInput):
+@strawberry_django.partial(models.Statement)
+class StatementRenameInput(strawberry_django.NodeInput):
     name: auto
 
 
-@gql.input
-class StatementMoveInput(gql.NodeInput):
+@strawberry.input
+class StatementMoveInput(strawberry_django.NodeInput):
     file_id: GlobalID
     parent_id: Optional[GlobalID] = None
     order_key: Optional[str] = None
 
 
-@gql.input
-class StatementSoftDeleteInput(gql.NodeInput):
+@strawberry.input
+class StatementSoftDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class StatementRestoreInput(gql.NodeInput):
+@strawberry.input
+class StatementRestoreInput(strawberry_django.NodeInput):
     pass
 
 
 # batch operations
 
 
-@gql.input
+@strawberry.input
 class StatementBatchSoftDeleteInput(BatchMutationInput):
     ids: list[GlobalID]
 
@@ -220,7 +220,7 @@ class StatementBatchSoftDeleteInput(BatchMutationInput):
         return [StatementSoftDeleteInput(id=id) for id in self.ids]
 
 
-@gql.input
+@strawberry.input
 class StatementBatchRestoreInput(BatchMutationInput):
     ids: list[GlobalID]
 
@@ -228,7 +228,7 @@ class StatementBatchRestoreInput(BatchMutationInput):
         return [StatementRestoreInput(id=id) for id in self.ids]
 
 
-@gql.input
+@strawberry.input
 class StatementBatchMoveInput(BatchMutationInput):
     ids: list[GlobalID]
     file_id: GlobalID
@@ -247,7 +247,7 @@ class StatementBatchMoveInput(BatchMutationInput):
         ]
 
 
-@gql.input
+@strawberry.input
 class StatementBatchPasteInput:
     source_ids: list[GlobalID]
     target_ids: list[GlobalID]
@@ -256,7 +256,7 @@ class StatementBatchPasteInput:
     target_order_keys: list[str]
 
 
-@gql.type
+@strawberry.type
 class StatementBatch(ThingBatch):
     statements: list[Statement]
 
@@ -265,7 +265,7 @@ class StatementBatch(ThingBatch):
         return self.statements
 
 
-@gql.type
+@strawberry.type
 class StatementMutation:
     @tracked_db_mutation(MMT.CREATE_STATEMENT, atomic=True)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
@@ -469,37 +469,37 @@ class StatementMutation:
 #
 
 
-@gql.input
-class StatementUpdateTextInput(gql.NodeInput):
+@strawberry.input
+class StatementUpdateTextInput(strawberry_django.NodeInput):
     text: Optional[str] = None
 
 
-@gql.input
-class SymbolUpdateDescriptionInput(gql.NodeInput):
+@strawberry.input
+class SymbolUpdateDescriptionInput(strawberry_django.NodeInput):
     description: str
 
 
-@gql.input
-class StatementUpdateReferenceInput(gql.NodeInput):
+@strawberry.input
+class StatementUpdateReferenceInput(strawberry_django.NodeInput):
     reference_id: Optional[GlobalID] = None
 
 
-@gql.input
-class SymbolUpdateCodeInput(gql.NodeInput):
+@strawberry.input
+class SymbolUpdateCodeInput(strawberry_django.NodeInput):
     code: Optional[str] = None
 
 
-@gql.input
-class StatementUpdateLanguageInput(gql.NodeInput):
+@strawberry.input
+class StatementUpdateLanguageInput(strawberry_django.NodeInput):
     language: str
 
 
-@gql.input
-class SymbolUpdateValueInput(gql.NodeInput):
+@strawberry.input
+class SymbolUpdateValueInput(strawberry_django.NodeInput):
     value: Optional[JSON] = None
 
 
-@gql.input
+@strawberry.input
 class TaggingCreateInput:
     id: GlobalID
     statement_id: GlobalID
@@ -508,27 +508,27 @@ class TaggingCreateInput:
     metadata: Optional[JSON] = None
 
 
-@gql.input
-class TaggingUpdateInput(gql.NodeInput):
+@strawberry.input
+class TaggingUpdateInput(strawberry_django.NodeInput):
     metadata: Optional[JSON] = None
 
 
-@gql.input
-class TaggingDeleteInput(gql.NodeInput):
+@strawberry.input
+class TaggingDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class TaggingSoftDeleteInput(gql.NodeInput):
+@strawberry.input
+class TaggingSoftDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class TaggingRestoreInput(gql.NodeInput):
+@strawberry.input
+class TaggingRestoreInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
+@strawberry.input
 class TriggerCreateInput:
     id: GlobalID
     statement_id: GlobalID
@@ -543,8 +543,8 @@ class TriggerCreateInput:
     scope_id: Optional[GlobalID] = None
 
 
-@gql.input
-class TriggerUpdateInput(gql.NodeInput):
+@strawberry.input
+class TriggerUpdateInput(strawberry_django.NodeInput):
     type: TriggerType
     active: bool
     mapping: Optional[JSON] = None
@@ -556,22 +556,22 @@ class TriggerUpdateInput(gql.NodeInput):
     scope_id: Optional[GlobalID] = None
 
 
-@gql.input
-class TriggerDeleteInput(gql.NodeInput):
+@strawberry.input
+class TriggerDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class TriggerSoftDeleteInput(gql.NodeInput):
+@strawberry.input
+class TriggerSoftDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class TriggerRestoreInput(gql.NodeInput):
+@strawberry.input
+class TriggerRestoreInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
+@strawberry.input
 class FieldCreateInput:
     id: GlobalID
     key: str
@@ -586,8 +586,8 @@ class FieldCreateInput:
     metadata: Optional[JSON] = None
 
 
-@gql.input
-class FieldUpdateInput(gql.NodeInput):
+@strawberry.input
+class FieldUpdateInput(strawberry_django.NodeInput):
     name: Optional[str] = None
     tag: TypeTag
     hint: Optional[TypeHint] = None
@@ -597,40 +597,40 @@ class FieldUpdateInput(gql.NodeInput):
     metadata: Optional[JSON] = None
 
 
-@gql.input
-class FieldRenameInput(gql.NodeInput):
+@strawberry.input
+class FieldRenameInput(strawberry_django.NodeInput):
     name: Optional[str] = None
 
 
-@gql.input
-class FieldUpdateDescriptionInput(gql.NodeInput):
+@strawberry.input
+class FieldUpdateDescriptionInput(strawberry_django.NodeInput):
     description: Optional[str] = None
 
 
-@gql.input
-class FieldUpdateTypeInput(gql.NodeInput):
+@strawberry.input
+class FieldUpdateTypeInput(strawberry_django.NodeInput):
     tag: TypeTag
     hint: Optional[TypeHint] = None
     flags: int = 0
     reference_id: Optional[GlobalID] = None
 
 
-@gql.input
-class FieldMoveInput(gql.NodeInput):
+@strawberry.input
+class FieldMoveInput(strawberry_django.NodeInput):
     order_key: str
 
 
-@gql.input
-class FieldDeleteInput(gql.NodeInput):
+@strawberry.input
+class FieldDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class FieldRestoreInput(gql.NodeInput):
+@strawberry.input
+class FieldRestoreInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.type
+@strawberry.type
 class SymbolMutation:
     @tracked_db_mutation(MMT.UPDATE_STATEMENT_TEXT)
     def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:

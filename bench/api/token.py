@@ -1,24 +1,24 @@
 from datetime import datetime
 from typing import Annotated, Optional, Union
 
+import strawberry
+import strawberry_django
 from django.core.exceptions import PermissionDenied
-from strawberry import lazy
-from strawberry_django_plus import gql
-from strawberry_django_plus.gql import auto
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry import auto, lazy, relay
+from strawberry.relay import GlobalID
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import is_owner_or_member
 from bench.api.utils import get_user_from_info, safe_mutation
 from bench.models import Organization, User
 
-AccessTokenScope = gql.enum(models.AccessTokenScope)
-AccessTokenStatus = gql.enum(models.AccessTokenStatus)
+AccessTokenScope = strawberry.enum(models.AccessTokenScope)
+AccessTokenStatus = strawberry.enum(models.AccessTokenStatus)
 
 
-@gql.django.type(models.AccessToken)
-class AccessToken(gql.Node):
+@strawberry_django.type(models.AccessToken)
+class AccessToken(relay.Node):
     token: Optional[str]
     name: auto
     token_key: str
@@ -31,7 +31,7 @@ class AccessToken(gql.Node):
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
 
 
-@gql.input
+@strawberry.input
 class AccessTokenCreateInput:
     owner_id: GlobalID
     scopes: list[AccessTokenScope]
@@ -39,13 +39,13 @@ class AccessTokenCreateInput:
     name: Optional[str] = None
 
 
-@gql.type
+@strawberry.type
 class AccessTokenCreatePayload:
     access_token: AccessToken
     token: str
 
 
-@gql.type
+@strawberry.type
 class AccessTokenMutation:
     @safe_mutation
     def create_access_token(
