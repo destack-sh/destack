@@ -273,6 +273,7 @@ RECORDS_LIMIT = 100
 
 @strawberry.type
 class DataQuery:  # avoid name conflict with DatasetQuery
+    @strawberry_django.field
     @async_safe
     def search_dataset(
         self,

@@ -546,7 +546,7 @@ export function useRuns(
     count: options?.count,
   }));
   const RUNS_QUERY = graphql(/* GraphQL */ `
-    query runs(
+    query searchRuns(
       $projectId: GlobalID!
       $projectVersionId: GlobalID!
       $runnableIds: [GlobalID!]
@@ -556,7 +556,7 @@ export function useRuns(
       $limit: Int
       $count: Boolean
     ) {
-      runs(
+      searchRuns(
         projectId: $projectId
         projectVersionId: $projectVersionId
         runnableIds: $runnableIds
@@ -742,7 +742,7 @@ export function useLogs(
     count: options?.count,
   }));
   const LOGS_QUERY = graphql(/* GraphQL */ `
-    query logs(
+    query searchLogs(
       $projectId: GlobalID!
       $projectVersionId: GlobalID
       $runnableIds: [GlobalID!]
@@ -751,7 +751,7 @@ export function useLogs(
       $limit: Int
       $count: Boolean
     ) {
-      logs(
+      searchLogs(
         projectId: $projectId
         projectVersionId: $projectVersionId
         runnableIds: $runnableIds

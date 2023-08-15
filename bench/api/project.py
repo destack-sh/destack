@@ -143,9 +143,9 @@ class Project(relay.Node):
     created_at: auto
     updated_at: auto
     head: "ProjectVersion"
-    versions: relay.Connection["ProjectVersion"] = strawberry_django.connection(
-        filters=ProjectVersionFilter
-    )
+    versions: strawberry_django.relay.ListConnectionWithTotalCount[
+        "ProjectVersion"
+    ] = strawberry_django.connection(filters=ProjectVersionFilter)
     worker_set: Annotated["WorkerSet", lazy(".session")]
     worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
     usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)

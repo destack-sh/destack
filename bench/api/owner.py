@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Annotated, Optional
 import strawberry
 import strawberry_django
 from django.db.models import Q
-from strawberry import lazy, relay
+from strawberry import lazy
 from strawberry.relay import GlobalID
 
 from bench import models
@@ -34,7 +34,11 @@ class Owner:
     name: str
     created_at: datetime
     updated_at: datetime
-    projects: relay.Connection[Annotated["Project", lazy(".project")]]
-    access_tokens: relay.Connection[Annotated["AccessToken", lazy(".token")]]
+    projects: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["Project", lazy(".project")]
+    ]
+    access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
+        Annotated["AccessToken", lazy(".token")]
+    ]
     can_view_full: bool
     can_write: bool

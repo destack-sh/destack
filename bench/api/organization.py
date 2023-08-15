@@ -34,13 +34,16 @@ class Organization(relay.Node, Owner):
     created_at: auto
     updated_at: auto
     description: auto
-    members: relay.Connection[Annotated["User", lazy(".user")]] = strawberry_django.connection()
-    memberships: relay.Connection["OrganizationMembership"] = strawberry_django.connection()
-    invites: relay.Connection["OrganizationInvite"] = strawberry_django.connection()
-    projects: relay.Connection[
+    memberships: strawberry_django.relay.ListConnectionWithTotalCount[
+        "OrganizationMembership"
+    ] = strawberry_django.connection()
+    invites: strawberry_django.relay.ListConnectionWithTotalCount[
+        "OrganizationInvite"
+    ] = strawberry_django.connection()
+    projects: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["Project", lazy(".project")]
     ] = strawberry_django.connection(directives=[])
-    access_tokens: relay.Connection[
+    access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
     ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
 
