@@ -1239,20 +1239,35 @@ type Query {
     id: GlobalID!
   ): Project @canViewProject(atRoot: true)
   projectBySlug(owner: String!, project: String!): Project @canViewProject(atRoot: true)
-  projectVersion(
-    """The ID of the object."""
-    id: GlobalID!
-  ): ProjectVersion @canViewProject(atRoot: true)
+
+  """
+  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+  Any nodes not in the tree will be fetched by the strawberry resolver.
+  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
+  
+  TODO @Broken: read module node assumes default filters
+  """
+  projectVersion(id: GlobalID!): ProjectVersion
   projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
   projectVersionByTag(projectId: GlobalID!, tag: String!): ProjectVersion @canViewProject(atRoot: true)
-  file(
-    """The ID of the object."""
-    id: GlobalID!
-  ): File @canViewProject(atRoot: true)
-  statement(
-    """The ID of the object."""
-    id: GlobalID!
-  ): Statement @canViewProject(atRoot: true)
+
+  """
+  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+  Any nodes not in the tree will be fetched by the strawberry resolver.
+  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
+  
+  TODO @Broken: read module node assumes default filters
+  """
+  file(id: GlobalID!): File
+
+  """
+  Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+  Any nodes not in the tree will be fetched by the strawberry resolver.
+  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
+  
+  TODO @Broken: read module node assumes default filters
+  """
+  statement(id: GlobalID!): Statement
   remoteObject(
     """The ID of the object."""
     id: GlobalID!

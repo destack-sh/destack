@@ -17,7 +17,7 @@ from .session import Run, RunStatus, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
-from .utils import CrudModel
+from .utils import CrudModel, ModuleNode
 from .worker import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
 
 __all__ = [
@@ -36,6 +36,7 @@ __all__ = [
     "Notification",
     "NotificationStatus",
     "NotificationType",
+    "ModuleNode",
     "Organization",
     "OrganizationInvite",
     "OrganizationMembership",

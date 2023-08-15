@@ -24,7 +24,7 @@ from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization
-    from bench.models.packer import Packed, PackFilter
+    from bench.models.packer import PackFilter, _Packed
     from bench.models.user import User
 
 logger = structlog.get_logger(__name__)
@@ -403,7 +403,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         copy_revisions: bool = True,
         kind: RefMappingKind = None,
         filter: PackFilter = None,
-    ) -> tuple[Packed, list["RefMapping"], dict[UUID, UUID]]:
+    ) -> tuple[_Packed, list["RefMapping"], dict[UUID, UUID]]:
         """Packs a copy of the module tree at the given nodes."""
         from bench.models import packer
 
