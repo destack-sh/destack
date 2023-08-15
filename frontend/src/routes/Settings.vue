@@ -54,7 +54,7 @@ const { result: settingsResult, loading } = useQuery(
           updatedAt
           canViewFull
           canWrite
-          members {
+          memberships {
             totalCount
           }
           accessTokens(filters: { includeInactive: false }) {

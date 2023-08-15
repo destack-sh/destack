@@ -7,7 +7,7 @@ import strawberry_django
 from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
-from strawberry import lazy, relay
+from strawberry import lazy
 from strawberry.extensions import AddValidationRules, Extension, ParserCache, QueryDepthLimiter
 from strawberry.relay import GlobalID
 from strawberry.types import ExecutionContext, Info
@@ -122,10 +122,11 @@ class Query(SessionQuery, ClientQuery, DataQuery):
     system_info: SystemInfo = strawberry_django.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = strawberry_django.field(resolver=get_me)
     user: Optional[User] = strawberry_django.node()
-    users: relay.Connection[User] = strawberry_django.connection(filters=UserFilter)
+    users: strawberry_django.relay.ListConnectionWithTotalCount[
+        User
+    ] = strawberry_django.connection(filters=UserFilter)
     user_by_slug: Optional[User] = strawberry_django.field(resolver=get_user_by_slug)
     organization: Optional[Organization] = strawberry_django.node()
-    organizations: relay.Connection[Organization] = strawberry_django.connection()
     organization_by_slug: Optional[Organization] = strawberry_django.field(
         resolver=get_organization_by_slug
     )
@@ -149,9 +150,9 @@ class Query(SessionQuery, ClientQuery, DataQuery):
     )
     remote_object: Optional[RemoteObject] = strawberry_django.node(directives=[])
     secret: Optional[Secret] = strawberry_django.node(directives=[])
-    featured_projects: relay.Connection[Project] = strawberry_django.connection(
-        resolver=get_featured_projects
-    )
+    featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
+        Project
+    ] = strawberry_django.connection(resolver=get_featured_projects)
 
 
 @strawberry.type

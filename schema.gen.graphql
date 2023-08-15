@@ -20,6 +20,9 @@ type AccessTokenConnection {
 
   """Contains the nodes in this connection"""
   edges: [AccessTokenEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 input AccessTokenCreateInput {
@@ -397,6 +400,27 @@ type LogEntry {
   metadata: JSON
 }
 
+"""A connection to a list of items."""
+type LogEntryConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [LogEntryEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type LogEntryEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: LogEntry!
+}
+
 type ModuleChange implements Change {
   id: UUID!
   clientId: GlobalID
@@ -607,6 +631,9 @@ type NotificationConnection {
 
   """Contains the nodes in this connection"""
   edges: [NotificationEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -711,19 +738,6 @@ type Organization implements Node & Owner {
   canViewFull: Boolean!
   canWrite: Boolean!
   description: String
-  members(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): UserConnection!
   memberships(
     """Returns the items in the list that come before the specified cursor."""
     before: String = null
@@ -759,6 +773,9 @@ type OrganizationConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 input OrganizationCreateInput {
@@ -794,6 +811,9 @@ type OrganizationInviteConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationInviteEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -829,6 +849,9 @@ type OrganizationMembershipConnection {
 
   """Contains the nodes in this connection"""
   edges: [OrganizationMembershipEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -947,6 +970,9 @@ type ProjectConnection {
 
   """Contains the nodes in this connection"""
   edges: [ProjectEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 input ProjectCreateInput {
@@ -1048,6 +1074,9 @@ type ProjectVersionConnection {
 
   """Contains the nodes in this connection"""
   edges: [ProjectVersionEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -1085,6 +1114,8 @@ type Query {
   ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
+  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
+  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
   clients(
     projectId: GlobalID = null
     projectVersionId: GlobalID = null
@@ -1106,6 +1137,7 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ClientConnection!
+  searchDataset(statementId: GlobalID!, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1132,19 +1164,6 @@ type Query {
     """The ID of the object."""
     id: GlobalID!
   ): Organization
-  organizations(
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): OrganizationConnection!
   organizationBySlug(organization: String!): Organization
   ownerBySlug(slug: String!): UserOrganization
   project(
@@ -1180,6 +1199,26 @@ type Query {
   ): ProjectConnection!
 }
 
+enum QueryOp {
+  NOT
+  AND
+  OR
+  EQUALS
+  NOT_EQUALS
+  GREATER_THAN
+  GREATER_THAN_OR_EQUALS
+  LESS_THAN
+  LESS_THAN_OR_EQUALS
+  MATCHES
+  STARTS_WITH
+  EXISTS
+  DOES_NOT_EXIST
+  INTERSECTS
+  DISJOINT
+  WITHIN
+  NEAR
+}
+
 type Record implements HasCrud {
   id: GlobalID!
   createdAt: DateTime!
@@ -1210,6 +1249,18 @@ input RecordBatchSoftDeleteInput {
   ids: [GlobalID!]!
 }
 
+"""A connection to a list of items."""
+type RecordConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RecordEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
+}
+
 input RecordCreateInput {
   statementId: GlobalID!
   id: GlobalID!
@@ -1220,6 +1271,15 @@ input RecordCreateInput {
 input RecordDeleteInput {
   statementId: GlobalID!
   id: GlobalID!
+}
+
+"""An edge in a connection."""
+type RecordEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Record!
 }
 
 input RecordMoveInput {
@@ -1366,6 +1426,27 @@ type RunCodeFrame {
   locals: JSON
 }
 
+"""A connection to a list of items."""
+type RunConnection {
+  """Pagination data for this connection"""
+  pageInfo: PageInfo!
+
+  """Contains the nodes in this connection"""
+  edges: [RunEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
+}
+
+"""An edge in a connection."""
+type RunEdge {
+  """A cursor for use in pagination"""
+  cursor: String!
+
+  """The item at the end of the edge"""
+  node: Run!
+}
+
 type RunError {
   kind: String!
   type: String!
@@ -1415,6 +1496,19 @@ type RunsChange {
 enum ScheduleType {
   INTERVAL
   CRON
+}
+
+input SearchQuery {
+  op: QueryOp!
+  key: String = null
+  value: JSON = null
+  queries: [SearchQuery!] = null
+}
+
+input SearchSort {
+  key: String!
+  order: SortOrder! = ASCENDING
+  mode: SortMode = null
 }
 
 type Secret implements Node {
@@ -1474,6 +1568,19 @@ type SessionState {
 }
 
 union SessionStateOperationInfo = SessionState | OperationInfo
+
+enum SortMode {
+  MAX
+  MIN
+  AVERAGE
+  SUM
+  MEDIAN
+}
+
+enum SortOrder {
+  ASCENDING
+  DESCENDING
+}
 
 enum StartRunErrorType {
   UNAVAILABLE
@@ -1949,6 +2056,9 @@ type UserConnection {
 
   """Contains the nodes in this connection"""
   edges: [UserEdge!]!
+
+  """Total quantity of existing nodes."""
+  totalCount: Int
 }
 
 """An edge in a connection."""

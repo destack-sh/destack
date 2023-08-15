@@ -430,6 +430,7 @@ class SessionQuery:
             ],
         )
 
+    @strawberry_django.field
     @async_safe
     def search_runs(
         self,
@@ -496,6 +497,7 @@ class SessionQuery:
             edges=edges, page_info=page_info, total_count=total_count
         )
 
+    @strawberry_django.field
     @async_safe
     def search_logs(
         self,

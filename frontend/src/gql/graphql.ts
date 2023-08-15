@@ -25,6 +25,7 @@ export type AccessToken = Node & {
   __typename?: "AccessToken";
   createdAt: Scalars["DateTime"];
   expiresAt?: Maybe<Scalars["DateTime"]>;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   owner: UserOrganization;
@@ -43,7 +44,7 @@ export type AccessTokenConnection = {
   edges: Array<AccessTokenEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -72,6 +73,8 @@ export type AccessTokenEdge = {
 };
 
 export type AccessTokenFilter = {
+  AND?: InputMaybe<AccessTokenFilter>;
+  OR?: InputMaybe<AccessTokenFilter>;
   includeInactive?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -113,6 +116,7 @@ export type Client = Node & {
   createdAt: Scalars["DateTime"];
   deviceName?: Maybe<Scalars["String"]>;
   fileId?: Maybe<Scalars["UUID"]>;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   lastSeenAt?: Maybe<Scalars["DateTime"]>;
   path?: Maybe<Scalars["String"]>;
@@ -132,7 +136,7 @@ export type ClientConnection = {
   edges: Array<ClientEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -147,7 +151,6 @@ export type ClientEdge = {
 
 export type ClientOperationInfo = Client | OperationInfo;
 
-/** The type of device/client. */
 export enum ClientType {
   DesktopBrowser = "DesktopBrowser",
   MobileBrowser = "MobileBrowser",
@@ -184,6 +187,7 @@ export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
 
 export type Dataset = Node & {
   __typename?: "Dataset";
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   key: Scalars["String"];
   versioned: Scalars["Boolean"];
@@ -213,6 +217,7 @@ export type Field = HasCrud &
     description?: Maybe<Scalars["String"]>;
     flags: Scalars["Int"];
     hint?: Maybe<TypeHint>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     key: Scalars["String"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -247,6 +252,8 @@ export type FieldDeleteInput = {
 };
 
 export type FieldFilter = {
+  AND?: InputMaybe<FieldFilter>;
+  OR?: InputMaybe<FieldFilter>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -297,6 +304,7 @@ export type File = HasCrud &
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     issues: Array<Issue>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -325,6 +333,8 @@ export type FileCreateInput = {
 };
 
 export type FileFilter = {
+  AND?: InputMaybe<FileFilter>;
+  OR?: InputMaybe<FileFilter>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -377,6 +387,8 @@ export type Issue = ModuleNode &
   };
 
 export type IssueFilter = {
+  AND?: InputMaybe<IssueFilter>;
+  OR?: InputMaybe<IssueFilter>;
   scope: InterpScope;
 };
 
@@ -428,7 +440,7 @@ export type LogEntryConnection = {
   edges: Array<LogEntryEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -460,7 +472,6 @@ export type ModuleMutation = {
   type: ModuleMutationType;
 };
 
-/** Fine-grained atomic mutations for multiplayer modules. */
 export enum ModuleMutationType {
   BumpFile = "BUMP_FILE",
   BumpStatement = "BUMP_STATEMENT",
@@ -972,6 +983,7 @@ export type Notification = Node & {
   archivedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
   expiresAt?: Maybe<Scalars["DateTime"]>;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   invite: OrganizationInvite;
   readAt?: Maybe<Scalars["DateTime"]>;
@@ -987,7 +999,7 @@ export type NotificationConnection = {
   edges: Array<NotificationEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1001,6 +1013,8 @@ export type NotificationEdge = {
 };
 
 export type NotificationFilter = {
+  AND?: InputMaybe<NotificationFilter>;
+  OR?: InputMaybe<NotificationFilter>;
   createdAt_Gte?: InputMaybe<Scalars["DateTime"]>;
   notArchived?: InputMaybe<Scalars["Boolean"]>;
   status?: InputMaybe<NotificationStatus>;
@@ -1028,14 +1042,12 @@ export type NotifyUploadedObjectInput = {
   id: Scalars["GlobalID"];
 };
 
-/** Multiple messages returned by an operation. */
 export type OperationInfo = {
   __typename?: "OperationInfo";
   /** List of messages returned by the operation. */
   messages: Array<OperationMessage>;
 };
 
-/** An error that happened while executing an operation. */
 export type OperationMessage = {
   __typename?: "OperationMessage";
   /** The field that caused the error, or `null` if it isn't associated with any particular field. */
@@ -1046,7 +1058,6 @@ export type OperationMessage = {
   message: Scalars["String"];
 };
 
-/** The kind of the returned message. */
 export enum OperationMessageKind {
   Error = "ERROR",
   Info = "INFO",
@@ -1065,7 +1076,6 @@ export type Organization = Node &
     description?: Maybe<Scalars["String"]>;
     id: Scalars["GlobalID"];
     invites: OrganizationInviteConnection;
-    members: UserConnection;
     memberships: OrganizationMembershipConnection;
     name: Scalars["String"];
     projects: ProjectConnection;
@@ -1082,13 +1092,6 @@ export type OrganizationAccessTokensArgs = {
 };
 
 export type OrganizationInvitesArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-};
-
-export type OrganizationMembersArgs = {
   after?: InputMaybe<Scalars["String"]>;
   before?: InputMaybe<Scalars["String"]>;
   first?: InputMaybe<Scalars["Int"]>;
@@ -1116,7 +1119,7 @@ export type OrganizationConnection = {
   edges: Array<OrganizationEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1139,6 +1142,7 @@ export type OrganizationInvite = Node & {
   createdAt: Scalars["DateTime"];
   email: Scalars["String"];
   emailSentAt?: Maybe<Scalars["DateTime"]>;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   level: OrganizationMembershipLevel;
   organization: Organization;
@@ -1153,7 +1157,7 @@ export type OrganizationInviteConnection = {
   edges: Array<OrganizationInviteEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1176,6 +1180,7 @@ export type OrganizationInviteInput = {
 export type OrganizationMembership = Node & {
   __typename?: "OrganizationMembership";
   createdAt: Scalars["DateTime"];
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   level: OrganizationMembershipLevel;
   organization: Organization;
@@ -1190,7 +1195,7 @@ export type OrganizationMembershipConnection = {
   edges: Array<OrganizationMembershipEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1269,6 +1274,7 @@ export type Project = Node & {
   createdAt: Scalars["DateTime"];
   description?: Maybe<Scalars["String"]>;
   head: ProjectVersion;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   migrationMappings: ProjectMigrationInfo;
   name: Scalars["String"];
@@ -1309,7 +1315,7 @@ export type ProjectConnection = {
   edges: Array<ProjectEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1369,6 +1375,7 @@ export type ProjectVersion = HasCrud &
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
     files: Array<File>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
@@ -1408,7 +1415,7 @@ export type ProjectVersionConnection = {
   edges: Array<ProjectVersionEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1422,6 +1429,8 @@ export type ProjectVersionEdge = {
 };
 
 export type ProjectVersionFilter = {
+  AND?: InputMaybe<ProjectVersionFilter>;
+  OR?: InputMaybe<ProjectVersionFilter>;
   fromId: Scalars["GlobalID"];
   toId: Scalars["GlobalID"];
 };
@@ -1440,42 +1449,23 @@ export type Query = {
   currentRuns: SessionStateOperationInfo;
   environment: EnvironmentOperationInfo;
   featuredProjects: ProjectConnection;
-  /**
-   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-   * Any nodes not in the tree will be fetched by the strawberry resolver.
-   *
-   * TODO @Broken: read module node assumes default filters
-   */
   file?: Maybe<File>;
-  logs: LogEntryConnection;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
   organizationBySlug?: Maybe<Organization>;
-  organizations: OrganizationConnection;
   ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
-  /**
-   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-   * Any nodes not in the tree will be fetched by the strawberry resolver.
-   *
-   * TODO @Broken: read module node assumes default filters
-   */
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
   run?: Maybe<Run>;
-  runs: RunConnection;
   searchDataset: RecordConnection;
+  searchLogs: LogEntryConnection;
+  searchRuns: RunConnection;
   secret?: Maybe<Secret>;
   session?: Maybe<Session>;
-  /**
-   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-   * Any nodes not in the tree will be fetched by the strawberry resolver.
-   *
-   * TODO @Broken: read module node assumes default filters
-   */
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
@@ -1517,35 +1507,12 @@ export type QueryFileArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryLogsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  projectId: Scalars["GlobalID"];
-  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  query?: InputMaybe<SearchQuery>;
-  runId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
-  sessionId?: InputMaybe<Scalars["GlobalID"]>;
-  sort?: InputMaybe<Array<SearchSort>>;
-};
-
 export type QueryOrganizationArgs = {
   id: Scalars["GlobalID"];
 };
 
 export type QueryOrganizationBySlugArgs = {
   organization: Scalars["String"];
-};
-
-export type QueryOrganizationsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type QueryOwnerBySlugArgs = {
@@ -1584,12 +1551,31 @@ export type QueryRunArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QueryRunsArgs = {
+export type QuerySearchDatasetArgs = {
   after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort>>;
+  statementId: Scalars["GlobalID"];
+};
+
+export type QuerySearchLogsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  projectId: Scalars["GlobalID"];
+  projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
+  query?: InputMaybe<SearchQuery>;
+  runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  sort?: InputMaybe<Array<SearchSort>>;
+};
+
+export type QuerySearchRunsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
   limit?: InputMaybe<Scalars["Int"]>;
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
@@ -1599,18 +1585,6 @@ export type QueryRunsArgs = {
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
-};
-
-export type QuerySearchDatasetArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort>>;
-  statementId: Scalars["GlobalID"];
 };
 
 export type QuerySecretArgs = {
@@ -1700,7 +1674,7 @@ export type RecordConnection = {
   edges: Array<RecordEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1746,6 +1720,7 @@ export type RecordUpdateInput = {
 
 export type RefMapping = Node & {
   __typename?: "RefMapping";
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   kind: RefMappingKind;
   sourceId: Scalars["GlobalID"];
@@ -1765,8 +1740,6 @@ export type RefMappingConnection = {
   edges: Array<RefMappingEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 /** An edge in a connection. */
@@ -1779,6 +1752,8 @@ export type RefMappingEdge = {
 };
 
 export type RefMappingFilter = {
+  AND?: InputMaybe<RefMappingFilter>;
+  OR?: InputMaybe<RefMappingFilter>;
   kind?: InputMaybe<RefMappingKind>;
 };
 
@@ -1791,6 +1766,7 @@ export type RemoteObject = Node & {
   __typename?: "RemoteObject";
   contentLength: Scalars["Int"];
   contentType: Scalars["String"];
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   presignedGet?: Maybe<Scalars["String"]>;
@@ -1818,6 +1794,7 @@ export type RequestUploadObjectInput = {
 export type ResolvedField = Node & {
   __typename?: "ResolvedField";
   field: Field;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   statement?: Maybe<Statement>;
 };
@@ -1846,6 +1823,7 @@ export type Run = Node & {
   duration?: Maybe<Scalars["Float"]>;
   error?: Maybe<Scalars["JSON"]>;
   errorNice?: Maybe<RunError>;
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   inputs?: Maybe<Scalars["JSON"]>;
   metadata?: Maybe<Scalars["JSON"]>;
@@ -1878,7 +1856,7 @@ export type RunConnection = {
   edges: Array<RunEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -1891,7 +1869,6 @@ export type RunEdge = {
   node: Run;
 };
 
-/** Wire-able representation of an exception. */
 export type RunError = {
   __typename?: "RunError";
   kind: Scalars["String"];
@@ -1941,7 +1918,6 @@ export type RunsChange = {
   runs: Array<Run>;
 };
 
-/** Schedules for runnables. */
 export enum ScheduleType {
   Cron = "CRON",
   Interval = "INTERVAL",
@@ -1963,6 +1939,7 @@ export type SearchSort = {
 export type Secret = Node & {
   __typename?: "Secret";
   createdAt: Scalars["DateTime"];
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   name?: Maybe<Scalars["String"]>;
   project: Project;
@@ -1994,6 +1971,7 @@ export type Session = Node & {
   accessToken?: Maybe<AccessToken>;
   closedAt?: Maybe<Scalars["DateTime"]>;
   createdAt: Scalars["DateTime"];
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   metadata?: Maybe<Scalars["JSON"]>;
   openedAt?: Maybe<Scalars["DateTime"]>;
@@ -2055,6 +2033,7 @@ export type Statement = HasCrud &
     description?: Maybe<Scalars["String"]>;
     fields: Array<Field>;
     file: File;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     issues?: Maybe<Array<Issue>>;
     key?: Maybe<Scalars["String"]>;
@@ -2128,7 +2107,6 @@ export type StatementBatchSoftDeleteInput = {
   ids: Array<Scalars["GlobalID"]>;
 };
 
-/** Creates a full statement */
 export type StatementCreateInput = {
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
@@ -2152,6 +2130,8 @@ export type StatementDeleteInput = {
 };
 
 export type StatementFilter = {
+  AND?: InputMaybe<StatementFilter>;
+  OR?: InputMaybe<StatementFilter>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -2186,7 +2166,6 @@ export type StatementSoftDeleteInput = {
   id: Scalars["GlobalID"];
 };
 
-/** The type of Bench statement. */
 export enum StatementType {
   Blank = "BLANK",
   Block = "BLOCK",
@@ -2203,7 +2182,6 @@ export enum StatementType {
   Value = "VALUE",
 }
 
-/** Updates a statement */
 export type StatementUpdateInput = {
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
@@ -2293,6 +2271,7 @@ export type Tagging = HasCrud &
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     key: Scalars["String"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -2318,6 +2297,8 @@ export type TaggingDeleteInput = {
 };
 
 export type TaggingFilter = {
+  AND?: InputMaybe<TaggingFilter>;
+  OR?: InputMaybe<TaggingFilter>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -2341,6 +2322,7 @@ export type Trigger = HasCrud &
     createdBy?: Maybe<User>;
     cron?: Maybe<Scalars["String"]>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     interval?: Maybe<Scalars["Int"]>;
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -2375,6 +2357,8 @@ export type TriggerDeleteInput = {
 };
 
 export type TriggerFilter = {
+  AND?: InputMaybe<TriggerFilter>;
+  OR?: InputMaybe<TriggerFilter>;
   isVisible?: InputMaybe<Scalars["Boolean"]>;
 };
 
@@ -2384,7 +2368,6 @@ export type TriggerRestoreInput = {
   id: Scalars["GlobalID"];
 };
 
-/** Triggers for runnables (for both actual runs and pre-defined triggers). */
 export enum TriggerType {
   Api = "API",
   Edit = "EDIT",
@@ -2408,7 +2391,6 @@ export type TriggerUpdateInput = {
   type: TriggerType;
 };
 
-/** Extra representation/semantics of a field/type. */
 export enum TypeHint {
   Audio = "AUDIO",
   Checkbox = "CHECKBOX",
@@ -2438,7 +2420,6 @@ export enum TypeHint {
   Video = "VIDEO",
 }
 
-/** The Bench primitive type of a field/type. */
 export enum TypeTag {
   Any = "ANY",
   Boolean = "BOOLEAN",
@@ -2482,7 +2463,6 @@ export type User = Node &
     slug: Scalars["String"];
     status: UserStatus;
     updatedAt: Scalars["DateTime"];
-    /** Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only. */
     username: Scalars["String"];
   };
 
@@ -2536,7 +2516,7 @@ export type UserConnection = {
   edges: Array<UserEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
+  /** Total quantity of existing nodes. */
   totalCount?: Maybe<Scalars["Int"]>;
 };
 
@@ -2550,6 +2530,8 @@ export type UserEdge = {
 };
 
 export type UserFilter = {
+  AND?: InputMaybe<UserFilter>;
+  OR?: InputMaybe<UserFilter>;
   emailEquals?: InputMaybe<Scalars["String"]>;
   slugPrefix?: InputMaybe<Scalars["String"]>;
 };
@@ -2619,6 +2601,7 @@ export type WorkerSet = Node & {
   availableReplicas: Scalars["Int"];
   createdAt: Scalars["DateTime"];
   desiredReplicas: Scalars["Int"];
+  /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
   lastActiveAt?: Maybe<Scalars["DateTime"]>;
   lastBumpedAt?: Maybe<Scalars["DateTime"]>;
@@ -3247,7 +3230,7 @@ export type SettingsQuery = {
         updatedAt: any;
         canViewFull: boolean;
         canWrite: boolean;
-        members: { __typename?: "UserConnection"; totalCount?: number | null };
+        memberships: { __typename?: "OrganizationMembershipConnection"; totalCount?: number | null };
         accessTokens: { __typename?: "AccessTokenConnection"; totalCount?: number | null };
       }
     | {
@@ -5402,7 +5385,7 @@ export type SessionsChangedSubscription = {
       };
 };
 
-export type RunsQueryVariables = Exact<{
+export type SearchRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
@@ -5413,9 +5396,9 @@ export type RunsQueryVariables = Exact<{
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type RunsQuery = {
+export type SearchRunsQuery = {
   __typename?: "Query";
-  runs: {
+  searchRuns: {
     __typename?: "RunConnection";
     totalCount?: number | null;
     pageInfo: {
@@ -5447,7 +5430,7 @@ export type GetRunQuery = {
     | null;
 };
 
-export type LogsQueryVariables = Exact<{
+export type SearchLogsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
@@ -5457,9 +5440,9 @@ export type LogsQueryVariables = Exact<{
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type LogsQuery = {
+export type SearchLogsQuery = {
   __typename?: "Query";
-  logs: {
+  searchLogs: {
     __typename?: "LogEntryConnection";
     totalCount?: number | null;
     pageInfo: {
@@ -8883,7 +8866,7 @@ export const SettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "members" },
+                        name: { kind: "Name", value: "memberships" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "totalCount" } }],
@@ -16333,13 +16316,13 @@ export const SessionsChangedDocument = {
     ...WorkerSetContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SessionsChangedSubscription, SessionsChangedSubscriptionVariables>;
-export const RunsDocument = {
+export const SearchRunsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "runs" },
+      name: { kind: "Name", value: "searchRuns" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -16390,7 +16373,7 @@ export const RunsDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "runs" },
+            name: { kind: "Name", value: "searchRuns" },
             arguments: [
               {
                 kind: "Argument",
@@ -16476,7 +16459,7 @@ export const RunsDocument = {
     },
     ...RunContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<RunsQuery, RunsQueryVariables>;
+} as unknown as DocumentNode<SearchRunsQuery, SearchRunsQueryVariables>;
 export const GetRunDocument = {
   kind: "Document",
   definitions: [
@@ -16525,13 +16508,13 @@ export const GetRunDocument = {
     ...RunContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<GetRunQuery, GetRunQueryVariables>;
-export const LogsDocument = {
+export const SearchLogsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "logs" },
+      name: { kind: "Name", value: "searchLogs" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -16577,7 +16560,7 @@ export const LogsDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "logs" },
+            name: { kind: "Name", value: "searchLogs" },
             arguments: [
               {
                 kind: "Argument",
@@ -16658,7 +16641,7 @@ export const LogsDocument = {
     },
     ...LogEntryContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<LogsQuery, LogsQueryVariables>;
+} as unknown as DocumentNode<SearchLogsQuery, SearchLogsQueryVariables>;
 export const LogsChangedDocument = {
   kind: "Document",
   definitions: [

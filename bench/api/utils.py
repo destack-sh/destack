@@ -17,6 +17,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
+from strawberry_django.mutations.fields import _get_validation_errors
 
 from bench import models
 from bench.language import Q, query
@@ -30,7 +31,7 @@ logger = structlog.get_logger(__name__)
 
 
 def async_safe(func):
-    return func  # nocheckin
+    return func  # nocheckin is this still needed? seems fine without?
 
 
 @strawberry.type
@@ -94,13 +95,7 @@ def asafe_mutation(
     def wrapper(func):
         func = wrap_exceptions(func)
         if atomic:
-
-            @functools.wraps(func)
-            async def wrapped_atomic(*args, **kwargs):
-                async with transaction.atomic():
-                    return await func(*args, **kwargs)
-
-            wrapped_func = wrapped_atomic
+            raise NotImplementedError("atomic=True not supported for async mutations")
         else:
             wrapped_func = func
         return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
@@ -156,7 +151,7 @@ def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
     # extend strawberry's _map_exception
     if isinstance(e, IntegrityError):
         e = ValidationError(e.args[0])
-    return _map_exception(e)  # borrowed from strawberry_django_plus
+    return _get_validation_errors(e)  # borrowed from strawberry_django
 
 
 def to_uuid(id: str | UUID | GlobalID | None) -> UUID | None:
