@@ -75,7 +75,7 @@ const { result: existingTagResult, loading: tagLoading } = useQuery(
   {
     fetchPolicy: "no-cache",
     // only check if we're open
-    enabled: computed(() => panelHeaderRef.value != null && tag.value.length > 0),
+    enabled: computed(() => panelHeaderRef.value != null && tag.value.length > 0) as any,
   }
 );
 const availableTag = computed(

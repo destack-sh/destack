@@ -317,31 +317,11 @@ export type FileStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
 };
 
-/** A connection to a list of items. */
-export type FileConnection = {
-  __typename?: "FileConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<FileEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-  /** Total quantity of existing nodes */
-  totalCount?: Maybe<Scalars["Int"]>;
-};
-
 export type FileCreateInput = {
   id?: InputMaybe<Scalars["GlobalID"]>;
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
-};
-
-/** An edge in a connection. */
-export type FileEdge = {
-  __typename?: "FileEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: File;
 };
 
 export type FileFilter = {
@@ -1386,7 +1366,7 @@ export type ProjectVersion = HasCrud &
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
     description?: Maybe<Scalars["String"]>;
-    files: FileConnection;
+    files: Array<File>;
     id: Scalars["GlobalID"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
@@ -1408,11 +1388,7 @@ export type ProjectVersionChildRefsArgs = {
 };
 
 export type ProjectVersionFilesArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
   filters?: InputMaybe<FileFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 export type ProjectVersionParentRefsArgs = {
@@ -2719,14 +2695,7 @@ export type EmptyEditorSuggestedFilesQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
-    files: {
-      __typename?: "FileConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "FileEdge";
-        node: { __typename?: "File"; id: any; name: string; deletedAt?: any | null };
-      }>;
-    };
+    files: Array<{ __typename?: "File"; id: any; name: string; deletedAt?: any | null }>;
   } | null;
 };
 
@@ -3072,11 +3041,11 @@ export type ProjectBySlugQuery = {
     | null;
 };
 
-export type ProjectVersionContentQueryVariables = Exact<{
+export type ProjectVersionHeaderQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type ProjectVersionContentQuery = {
+export type ProjectVersionHeaderQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
@@ -3786,34 +3755,30 @@ export type InterpStatementFragment = {
   }>;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
-export type ModuleQueryVariables = Exact<{
+export type ModuleContentByIdQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type ModuleQuery = {
+export type ModuleContentByIdQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
     committed: boolean;
     project: { __typename?: "Project"; path: string; name: string };
-    files: {
-      __typename?: "FileConnection";
-      edges: Array<{
-        __typename?: "FileEdge";
-        node: {
-          __typename?: "File";
-          statements: Array<
-            {
-              __typename?: "Statement";
-              issues?: Array<
-                { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
-              > | null;
-            } & { " $fragmentRefs"?: { InterpStatementFragment: InterpStatementFragment } }
-          >;
-        } & { " $fragmentRefs"?: { InterpFileFragment: InterpFileFragment } };
-      }>;
-    };
+    files: Array<
+      {
+        __typename?: "File";
+        statements: Array<
+          {
+            __typename?: "Statement";
+            issues?: Array<
+              { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
+            > | null;
+          } & { " $fragmentRefs"?: { InterpStatementFragment: InterpStatementFragment } }
+        >;
+      } & { " $fragmentRefs"?: { InterpFileFragment: InterpFileFragment } }
+    >;
   } | null;
 };
 
@@ -7089,37 +7054,13 @@ export const EmptyEditorSuggestedFilesDocument = {
                         ],
                       },
                     },
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "last" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "last" } },
-                    },
                   ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "totalCount" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "edges" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "Field", name: { kind: "Name", value: "id" } },
-                                  { kind: "Field", name: { kind: "Name", value: "name" } },
-                                  { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                     ],
                   },
                 },
@@ -8396,13 +8337,13 @@ export const ProjectBySlugDocument = {
     ...ProjectVersionHeaderFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ProjectBySlugQuery, ProjectBySlugQueryVariables>;
-export const ProjectVersionContentDocument = {
+export const ProjectVersionHeaderDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "projectVersionContent" },
+      name: { kind: "Name", value: "projectVersionHeader" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -8441,7 +8382,7 @@ export const ProjectVersionContentDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<ProjectVersionContentQuery, ProjectVersionContentQueryVariables>;
+} as unknown as DocumentNode<ProjectVersionHeaderQuery, ProjectVersionHeaderQueryVariables>;
 export const ExistingProjectBySlugDocument = {
   kind: "Document",
   definitions: [
@@ -9312,13 +9253,13 @@ export const ClientsChangedDocument = {
     ...ClientContentTypeFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ClientsChangedSubscription, ClientsChangedSubscriptionVariables>;
-export const ModuleDocument = {
+export const ModuleContentByIdDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "module" },
+      name: { kind: "Name", value: "moduleContentById" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -9377,72 +9318,52 @@ export const ModuleDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
+                      { kind: "FragmentSpread", name: { kind: "Name", value: "InterpFile" } },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "edges" },
+                        name: { kind: "Name", value: "statements" },
+                        arguments: [
+                          {
+                            kind: "Argument",
+                            name: { kind: "Name", value: "filters" },
+                            value: {
+                              kind: "ObjectValue",
+                              fields: [
+                                {
+                                  kind: "ObjectField",
+                                  name: { kind: "Name", value: "isVisible" },
+                                  value: { kind: "BooleanValue", value: true },
+                                },
+                              ],
+                            },
+                          },
+                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
+                            { kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatement" } },
                             {
                               kind: "Field",
-                              name: { kind: "Name", value: "node" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "InterpFile" } },
-                                  {
-                                    kind: "Field",
-                                    name: { kind: "Name", value: "statements" },
-                                    arguments: [
+                              name: { kind: "Name", value: "issues" },
+                              arguments: [
+                                {
+                                  kind: "Argument",
+                                  name: { kind: "Name", value: "filters" },
+                                  value: {
+                                    kind: "ObjectValue",
+                                    fields: [
                                       {
-                                        kind: "Argument",
-                                        name: { kind: "Name", value: "filters" },
-                                        value: {
-                                          kind: "ObjectValue",
-                                          fields: [
-                                            {
-                                              kind: "ObjectField",
-                                              name: { kind: "Name", value: "isVisible" },
-                                              value: { kind: "BooleanValue", value: true },
-                                            },
-                                          ],
-                                        },
+                                        kind: "ObjectField",
+                                        name: { kind: "Name", value: "scope" },
+                                        value: { kind: "EnumValue", value: "STATEMENT" },
                                       },
                                     ],
-                                    selectionSet: {
-                                      kind: "SelectionSet",
-                                      selections: [
-                                        { kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatement" } },
-                                        {
-                                          kind: "Field",
-                                          name: { kind: "Name", value: "issues" },
-                                          arguments: [
-                                            {
-                                              kind: "Argument",
-                                              name: { kind: "Name", value: "filters" },
-                                              value: {
-                                                kind: "ObjectValue",
-                                                fields: [
-                                                  {
-                                                    kind: "ObjectField",
-                                                    name: { kind: "Name", value: "scope" },
-                                                    value: { kind: "EnumValue", value: "STATEMENT" },
-                                                  },
-                                                ],
-                                              },
-                                            },
-                                          ],
-                                          selectionSet: {
-                                            kind: "SelectionSet",
-                                            selections: [
-                                              { kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } },
-                                            ],
-                                          },
-                                        },
-                                      ],
-                                    },
                                   },
-                                ],
+                                },
+                              ],
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
                               },
                             },
                           ],
@@ -9461,7 +9382,7 @@ export const ModuleDocument = {
     ...IssueContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<ModuleQuery, ModuleQueryVariables>;
+} as unknown as DocumentNode<ModuleContentByIdQuery, ModuleContentByIdQueryVariables>;
 export const NewNotificationsDocument = {
   kind: "Document",
   definitions: [

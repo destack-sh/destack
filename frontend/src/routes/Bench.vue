@@ -198,7 +198,7 @@ watchEffect(() => {
 // TODO @Performance: consolidate project version load into project load (if version to view == head)
 const { error: versionError, result: versionResult } = useQuery(
   graphql(/* GraphQL */ `
-    query projectVersionContent($id: GlobalID!) {
+    query projectVersionHeader($id: GlobalID!) {
       projectVersion(id: $id) {
         id
         id

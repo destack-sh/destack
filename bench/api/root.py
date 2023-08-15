@@ -76,9 +76,6 @@ def get_user_or_organization_by_slug(
         return None
 
 
-# TODO @Cleanup: simplify get x by y wrappers (with None if does not exist error)
-
-
 def get_project_version_by_tag(project_id: GlobalID, tag: str):
     try:
         return models.ProjectVersion.objects.get_by_tag(project_id.node_id, tag)

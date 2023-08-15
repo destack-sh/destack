@@ -15,15 +15,10 @@ const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
     query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {
       projectVersion(id: $projectVersionId) {
-        files(filters: { isVisible: true }, last: $last) {
-          totalCount
-          edges {
-            node {
-              id
-              name
-              deletedAt
-            }
-          }
+        files(filters: { isVisible: true }) {
+          id
+          name
+          deletedAt
         }
       }
     }
@@ -37,9 +32,7 @@ const { result: suggestedFiles } = useQuery(
   }
 );
 const files = computed(() =>
-  suggestedFiles.value?.projectVersion?.files.edges
-    .map((edge) => edge.node)
-    .filter((file) => file.deletedAt == null && file.name.trim() !== "")
+  suggestedFiles.value?.projectVersion?.files.filter((file) => file.deletedAt == null && file.name.trim() !== "")
 );
 const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.totalCount);
 

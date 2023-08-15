@@ -72,7 +72,7 @@ export type ModuleIndex = {
 function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
   const { result: module, loading } = useQuery(
     graphql(/* GraphQL */ `
-      query module($projectVersionId: GlobalID!) {
+      query moduleContentById($projectVersionId: GlobalID!) {
         projectVersion(id: $projectVersionId) {
           id
           committed
@@ -81,15 +81,11 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
             name
           }
           files(filters: { isVisible: true }) {
-            edges {
-              node {
-                ...InterpFile
-                statements(filters: { isVisible: true }) {
-                  ...InterpStatement
-                  issues(filters: { scope: STATEMENT }) {
-                    ...IssueContent
-                  }
-                }
+            ...InterpFile
+            statements(filters: { isVisible: true }) {
+              ...InterpStatement
+              issues(filters: { scope: STATEMENT }) {
+                ...IssueContent
               }
             }
           }
@@ -110,11 +106,11 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
     const statementsByParentId: globalThis.Record<string, InterpStatement[]> = {};
     const filesById: globalThis.Record<string, InterpFile> = {};
 
-    for (const fileEdge of module.value.projectVersion.files.edges) {
-      const file = useFragment(InterpFileType, fileEdge.node);
+    // TODO @Cleanup: type module objects more correctly (file/statements/issues)
+    for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       filesById[file.id] = file;
-      for (const statement of fileEdge.node.statements.map((s) => s as InterpStatement)) {
+      for (const statement of (file as unknown as { statements: InterpStatement[] }).statements) {
         if (statement.deletedAt != null) continue;
         statementsById[statement.id] = statement;
         if (statementsByParentId[statement.parent?.id] == null) {
@@ -122,9 +118,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
         }
         statementsByParentId[statement.parent?.id].push(statement);
       }
-      statementsByFileId[file.id] = fileEdge.node.statements
-        .map((s) => s as InterpStatement)
-        .filter((s) => s.deletedAt == null);
+      statementsByFileId[file.id] = (file as unknown as { statements: InterpStatement[] }).statements.filter(
+        (s) => s.deletedAt == null
+      );
     }
     return {
       id: module.value.projectVersion.id,
@@ -138,15 +134,14 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   });
 
   const issues = computed(() => {
+    if (module.value?.projectVersion == null) return [];
     const issues: any[] = [];
-    for (const fileEdge of module.value?.projectVersion?.files?.edges ?? []) {
-      const file = useFragment(InterpFileType, fileEdge.node);
+    for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       file.issues.forEach((i) => issues.push(i));
-      for (const statementEdge of fileEdge.node.statements) {
-        const statement = useFragment(InterpStatementType, statementEdge);
+      for (const statement of (file as unknown as { statements: InterpStatement[] }).statements) {
         if (statement.deletedAt != null) continue;
-        statementEdge.issues?.forEach((i) => issues.push(i));
+        statement.issues?.forEach((i) => issues.push(i));
       }
     }
     return issues.map((i) => useFragment(IssueContentType, i));
