@@ -1,17 +1,16 @@
 from typing import Optional
 
-from more_itertools import first
 import structlog
+from more_itertools import first
+from strawberry.relay import GlobalID
 from strawberry.types import Info
 from strawberry.types.nodes import FragmentSpread, SelectedField
 from strawberry.utils.str_converters import to_camel_case
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
-from strawberry_django_plus.utils.resolvers import async_safe
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_read_project
-from bench.api.utils import ModuleNode
+from bench.api.utils import ModuleNode, async_safe
 from bench.models import packer
 from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
 
@@ -167,10 +166,8 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
                     (k for k in n._meta.fields if getattr(n, k.column) == n.parent_id)
                 )
                 # set id and relation field
-                # nocheckin parent is wrong type?
                 setattr(proxy_n, parent_field.attname, n.parent_id)
-                parent_stub = parent_field.related_model(id=n.parent_id)
-                setattr(proxy_n, parent_field.name, visited.visited.get(n.parent_id, parent_stub))
+                setattr(proxy_n, parent_field.name, parent_field.related_model(id=n.parent_id))
                 continue
 
             # relational field

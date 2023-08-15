@@ -1,18 +1,14 @@
 from typing import TYPE_CHECKING, Annotated, Optional
 
+import strawberry
+import strawberry_django
 from django.core.exceptions import PermissionDenied
-from strawberry import auto, lazy
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry import auto, lazy, relay
+from strawberry.relay import GlobalID
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import (
-    CanViewProject,
-    CanWriteOrganization,
-    can_write_organization,
-    check_can_write_organization,
-)
+from bench.api.auth import can_write_organization, check_can_write_organization
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import get_user_from_info, safe_mutation
 
@@ -22,7 +18,7 @@ if TYPE_CHECKING:
     from bench.api.user import User
 
 
-@gql.django.filter(models.Organization)
+@strawberry_django.filter(models.Organization)
 class OrganizationFilter:
     slug_prefix: Optional[str]
 
@@ -32,44 +28,42 @@ class OrganizationFilter:
         return queryset
 
 
-@gql.django.type(models.Organization)
-class Organization(gql.relay.Node, Owner):
+@strawberry_django.type(models.Organization)
+class Organization(relay.Node, Owner):
     name: auto
     created_at: auto
     updated_at: auto
     description: auto
-    members: gql.relay.Connection[Annotated["User", lazy(".user")]] = gql.django.connection()
-    memberships: gql.relay.Connection["OrganizationMembership"] = gql.django.connection()
-    invites: gql.relay.Connection["OrganizationInvite"] = gql.django.connection()
-    projects: gql.relay.Connection[Annotated["Project", lazy(".project")]] = gql.django.connection(
-        directives=[CanViewProject(at_root=False)]
-    )
-    access_tokens: gql.relay.Connection[
+    members: relay.Connection[Annotated["User", lazy(".user")]] = strawberry_django.connection()
+    memberships: relay.Connection["OrganizationMembership"] = strawberry_django.connection()
+    invites: relay.Connection["OrganizationInvite"] = strawberry_django.connection()
+    projects: relay.Connection[
+        Annotated["Project", lazy(".project")]
+    ] = strawberry_django.connection(directives=[])
+    access_tokens: relay.Connection[
         Annotated["AccessToken", lazy(".token")]
-    ] = gql.django.connection(
-        filters=AccessTokenFilter, directives=[CanWriteOrganization(at_root=False)]
-    )
+    ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
 
-    @gql.field
-    def can_view_full(self, info: OperationInfo):
+    @strawberry_django.field
+    def can_view_full(self, info: OperationInfo) -> bool:
         user = get_user_from_info(info)
         return can_write_organization(user, self)
 
-    @gql.field
-    def can_write(self, info: OperationInfo):
+    @strawberry_django.field
+    def can_write(self, info: OperationInfo) -> bool:
         user = get_user_from_info(info)
         return can_write_organization(user, self)
 
-    @gql.django.field(only=["owner_slug_id"])
+    @strawberry_django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
 
 
-OrganizationMembershipLevel = gql.enum(models.OrganizationMembershipLevel)
+OrganizationMembershipLevel = strawberry.enum(models.OrganizationMembershipLevel)
 
 
-@gql.django.type(models.OrganizationMembership)
-class OrganizationMembership(gql.Node):
+@strawberry_django.type(models.OrganizationMembership)
+class OrganizationMembership(relay.Node):
     organization: Organization
     user: Annotated["User", lazy(".user")]
     level: OrganizationMembershipLevel
@@ -77,8 +71,8 @@ class OrganizationMembership(gql.Node):
     updated_at: auto
 
 
-@gql.django.type(models.OrganizationInvite)
-class OrganizationInvite(gql.Node):
+@strawberry_django.type(models.OrganizationInvite)
+class OrganizationInvite(relay.Node):
     organization: Organization
     user: Optional[Annotated["User", lazy(".user")]]
     email: auto
@@ -88,42 +82,42 @@ class OrganizationInvite(gql.Node):
     email_sent_at: auto
 
 
-@gql.input
+@strawberry.input
 class OrganizationCreateInput:
     name: str
     slug: str
 
 
-@gql.input
-class OrganizationUpdateInput(gql.NodeInput):
+@strawberry.input
+class OrganizationUpdateInput(strawberry_django.NodeInput):
     name: str
     description: str
 
 
-@gql.input
-class OrganizationRenameInput(gql.NodeInput):
+@strawberry.input
+class OrganizationRenameInput(strawberry_django.NodeInput):
     slug: str
 
 
-@gql.input
-class OrganizationInviteInput(gql.NodeInput):
+@strawberry.input
+class OrganizationInviteInput(strawberry_django.NodeInput):
     emails: list[str]
     level: OrganizationMembershipLevel
     message: Optional[str] = None
 
 
-@gql.input
-class OrganizationUpdateMembershipInput(gql.NodeInput):
+@strawberry.input
+class OrganizationUpdateMembershipInput(strawberry_django.NodeInput):
     user_id: GlobalID
     level: OrganizationMembershipLevel
 
 
-@gql.input
-class OrganizationRemoveMembershipInput(gql.NodeInput):
+@strawberry.input
+class OrganizationRemoveMembershipInput(strawberry_django.NodeInput):
     user_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class OrganizationMutation:
     @safe_mutation(atomic=True)
     def create_organization(

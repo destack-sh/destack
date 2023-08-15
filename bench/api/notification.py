@@ -1,12 +1,13 @@
 from datetime import datetime
 from typing import TYPE_CHECKING, Annotated, Optional
 
+import strawberry
+import strawberry_django
 import structlog
 from django.db.models import Q
-from strawberry import auto, lazy
+from strawberry import auto, lazy, relay
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_write_user
@@ -19,11 +20,11 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-NotificationType = gql.enum(models.NotificationType)
-NotificationStatus = gql.enum(models.NotificationStatus)
+NotificationType = strawberry.enum(models.NotificationType)
+NotificationStatus = strawberry.enum(models.NotificationStatus)
 
 
-@gql.django.filter(models.Notification)
+@strawberry_django.filter(models.Notification)
 class NotificationFilter:
     status: Optional[NotificationStatus] = None
     not_archived: Optional[bool] = None
@@ -52,8 +53,8 @@ class NotificationFilter:
         return queryset
 
 
-@gql.django.type(models.Notification)
-class Notification(gql.Node):
+@strawberry_django.type(models.Notification)
+class Notification(relay.Node):
     type: NotificationType
     status: NotificationStatus
     user: Annotated["User", lazy(".user")]
@@ -66,12 +67,12 @@ class Notification(gql.Node):
     invite: Annotated["OrganizationInvite", lazy(".organization")]
 
 
-@gql.input
-class NotificationMarkInput(gql.NodeInput):
+@strawberry.input
+class NotificationMarkInput(strawberry_django.NodeInput):
     status: NotificationStatus
 
 
-@gql.type
+@strawberry.type
 class NotificationMutation:
     @safe_mutation
     def mark_notification(
@@ -83,6 +84,6 @@ class NotificationMutation:
         return notification
 
 
-@gql.type
+@strawberry.type
 class NotificationSubscription:
     pass

@@ -11,7 +11,7 @@ from django.core.validators import validate_slug
 from django.db import models, transaction
 from django.db.models import Q
 from django.db.models.expressions import RawSQL
-from strawberry_django_plus import gql
+from strawberry_django.descriptors import model_property
 
 from bench.language import wire
 from bench.language.wire import MOT_BY_DATA_CLASS
@@ -122,9 +122,7 @@ class Project(UUIDModel, CrudModel):
     def owner(self) -> Organization | User:
         return self.organization or self.user
 
-    @gql.model_property(
-        only=["user", "organization", "slug"], select_related=["user", "organization"]
-    )
+    @model_property(only=["user", "organization", "slug"], select_related=["user", "organization"])
     def path(self) -> str:
         return f"{self.owner.slug}.{self.slug}"
 
@@ -536,7 +534,7 @@ class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
             self.description = description
         self.save()
 
-    @gql.model_property(only=["committed_at"])
+    @model_property(only=["committed_at"])
     def committed(self) -> bool:
         return self.committed_at is not None
 
@@ -744,7 +742,7 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
         else:
             return f"{self.project_version}/{self.name}"
 
-    @gql.model_property(only=["name", "parent"], select_related=["parent"])
+    @model_property(only=["name", "parent"], select_related=["parent"])
     def path(self) -> str:
         return f"{self.parent_file.path}/{self.name}" if self.parent_file else f"{self.name}"
 

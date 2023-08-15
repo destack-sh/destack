@@ -199,7 +199,7 @@ def input_to_gql_jsonable(value: Any) -> Any:
     Walk and transform a GraphQL input into a JSON object that can be parsed into that input.
     Also rename keys from snake_case to camelCase.
     """
-    from strawberry_django_plus.relay import GlobalID
+    from strawberry.relay import GlobalID
 
     if isinstance(value, GlobalID):
         return str(value)
@@ -224,11 +224,11 @@ def input_to_gql_jsonable(value: Any) -> Any:
 
 
 def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
-    from strawberry_django_plus.relay import GlobalID
-
     # map id to global id with appropriate type name
     # we can't actually know whether parent id is a file or statement id
     # so we check against the mutation file id.. this should be fine?
+    from strawberry.relay import GlobalID
+
     if key == "parent_id" and mutation.type.mot == MOT.STATEMENT:
         if value == mutation.file_id:
             type_name = "File"

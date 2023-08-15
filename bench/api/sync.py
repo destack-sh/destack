@@ -5,18 +5,22 @@ from inspect import Signature
 from typing import Any, Optional, Sequence
 
 import posthog
+import strawberry_django
 import structlog
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.utils.resolvers import async_safe
 
 from bench import models
 from bench.api.auth import check_can_write_project
 from bench.api.type import MMT, PMT
-from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
+from bench.api.utils import (
+    async_safe,
+    get_client_origin_from_info,
+    get_user_from_info,
+    wrap_exceptions,
+)
 from bench.language import Statement
 from bench.language.mutate import ModuleMutation, ModuleMutationKind
 from bench.models import ProjectVersion
@@ -121,7 +125,9 @@ def tracked_db_mutation(
         else:
             rewrapped = wrapped_mutation
 
-        return gql.mutation(async_safe(wrap_exceptions(rewrapped)), directives=directives)
+        return strawberry_django.mutation(
+            async_safe(wrap_exceptions(rewrapped)), directives=directives
+        )
 
     return make_resolver
 
@@ -169,7 +175,7 @@ def tracked_os_mutation(
             ret = return_type.from_os(ret)
             return ret
 
-        return gql.mutation(async_safe(wrap_exceptions(wrapped_mutation)))
+        return strawberry_django.mutation(async_safe(wrap_exceptions(wrapped_mutation)))
 
     return make_resolver
 

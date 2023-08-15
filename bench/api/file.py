@@ -1,12 +1,13 @@
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 from django.core.exceptions import ValidationError
-from strawberry import UNSET, auto, lazy
+from strawberry import UNSET, auto, lazy, relay
+from strawberry.relay import GlobalID
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
-from strawberry_django_plus.types import OperationInfo
+from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
     from bench.api.statement import Statement
 
 
-@gql.django.filter(models.Statement)
+@strawberry_django.filter(models.Statement)
 class StatementFilter:
     is_visible: Optional[bool] = True
 
@@ -31,18 +32,18 @@ class StatementFilter:
         return queryset
 
 
-@gql.django.type(models.File)
-class File(HasCrud, ModuleNode, Revisioned, gql.Node):
+@strawberry_django.type(models.File)
+class File(HasCrud, ModuleNode, Revisioned, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     name: auto
     parent: Union[ModuleNode]
-    statements: list[Annotated["Statement", lazy(".statement")]] = gql.django.field(
+    statements: list[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         filters=StatementFilter
     )
-    issues: list[Annotated["Issue", lazy(".interp")]] = gql.django.field(filters=IssueFilter)
+    issues: list[Annotated["Issue", lazy(".interp")]] = strawberry_django.field(filters=IssueFilter)
 
 
-@gql.input
+@strawberry.input
 class FileCreateInput:
     id: Optional[GlobalID] = None
     project_version_id: GlobalID
@@ -50,22 +51,22 @@ class FileCreateInput:
     parent_id: Optional[GlobalID] = None
 
 
-@gql.input
-class FileDeleteInput(gql.NodeInput):
+@strawberry.input
+class FileDeleteInput(strawberry_django.NodeInput):
     pass
 
 
-@gql.input
-class FileRenameInput(gql.NodeInput):
+@strawberry.input
+class FileRenameInput(strawberry_django.NodeInput):
     name: str
 
 
-@gql.input
-class FileMoveInput(gql.NodeInput):
+@strawberry.input
+class FileMoveInput(strawberry_django.NodeInput):
     parent_id: Optional[GlobalID] = None
 
 
-@gql.input
+@strawberry.input
 class FilePasteInput:
     source_id: GlobalID
     target_version_id: GlobalID
@@ -73,7 +74,7 @@ class FilePasteInput:
     parent_id: Optional[GlobalID] = None
 
 
-@gql.type
+@strawberry.type
 class FileMutation:
     @tracked_db_mutation(MMT.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
@@ -93,19 +94,19 @@ class FileMutation:
         return file
 
     @tracked_db_mutation(MMT.DELETE_FILE, atomic=True)
-    def delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
+    def delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.delete()
         return file
 
     @tracked_db_mutation(MMT.SOFT_DELETE_FILE, atomic=True)
-    def soft_delete_file(self, input: gql.NodeInput) -> File | OperationInfo:
+    def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
     @tracked_db_mutation(MMT.RESTORE_FILE, atomic=True)
-    def restore_file(self, input: gql.NodeInput) -> File | OperationInfo:
+    def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()

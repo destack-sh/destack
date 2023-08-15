@@ -1,13 +1,14 @@
 from typing import AsyncGenerator, Optional, Union
 from uuid import UUID
 
+import strawberry
+import strawberry_django
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied
+from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
-from strawberry_django_plus import gql
-from strawberry_django_plus.relay import GlobalID
 
 from bench import models
 from bench.api import sync
@@ -23,29 +24,29 @@ from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChange
 logger = structlog.get_logger(__name__)
 
 
-@gql.interface
+@strawberry.interface
 class Change:
     id: UUID
     client_id: Optional[GlobalID]
 
 
-@gql.type
+@strawberry.type
 class ProjectMutation:
     type: ProjectMutationType
     project_version_id: GlobalID
 
 
-@gql.type
+@strawberry.type
 class ProjectChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
     # individual mutations are not needed for now
 
 
-ModuleMutationType = gql.enum(sync.MMT)
+ModuleMutationType = strawberry.enum(sync.MMT)
 
 
-@gql.type
+@strawberry.type
 class ModuleMutation:
     type: ModuleMutationType
     project_version_id: GlobalID
@@ -57,7 +58,7 @@ class ModuleMutation:
     properties: Optional[list[str]]
 
 
-@gql.type
+@strawberry.type
 class ModuleChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
@@ -96,7 +97,7 @@ async def unpack_module_mutations(
     return unpacked_mutations
 
 
-@gql.type
+@strawberry.type
 class MultiplayerSubscription:
     @asafe_subscription
     async def project_changed(
