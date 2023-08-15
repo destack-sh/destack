@@ -18,6 +18,7 @@ from bench import models
 from bench.api.auth import CanViewProject, CanWriteProject
 from bench.api.dataset import DataQuery, DatasetMutation
 from bench.api.file import File, FileMutation
+from bench.api.module import read_module_node
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.object import ObjectMutation, RemoteObject
@@ -137,16 +138,16 @@ class Query(SessionQuery, ClientQuery, DataQuery):
     project_by_slug: Optional[Project] = gql.django.field(
         resolver=get_project_by_slug, directives=[CanViewProject()]
     )
-    project_version: Optional[ProjectVersion] = gql.relay.node(directives=[CanViewProject()])
+    project_version: Optional[ProjectVersion] = gql.django.field(resolver=read_module_node)
     project_version_by_slug: Optional[ProjectVersion] = gql.django.field(
         resolver=get_project_version_by_slug, directives=[CanViewProject()]
     )
     project_version_by_tag: Optional[ProjectVersion] = gql.django.field(
         resolver=get_project_version_by_tag, directives=[CanViewProject()]
     )
-    file: Optional[File] = gql.relay.node(directives=[CanViewProject()])
-    statement: Optional[Annotated["Statement", lazy(".statement")]] = gql.relay.node(
-        directives=[CanViewProject()]
+    file: Optional[File] = gql.field(resolver=read_module_node)
+    statement: Optional[Annotated["Statement", lazy(".statement")]] = gql.django.field(
+        resolver=read_module_node
     )
     remote_object: Optional[RemoteObject] = gql.relay.node(directives=[CanViewProject()])
     secret: Optional[Secret] = gql.relay.node(directives=[CanWriteProject()])

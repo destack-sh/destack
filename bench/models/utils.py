@@ -38,6 +38,10 @@ class ModuleNode:
     """A node in the module graph"""
 
     @property
+    def id(self) -> uuid.UUID:
+        raise NotImplementedError
+
+    @property
     def parent_id(self) -> Optional[uuid.UUID]:
         raise NotImplementedError
 

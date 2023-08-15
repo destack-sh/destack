@@ -1,6 +1,9 @@
+import uuid
+from typing import Optional
+
 from django.db import models
 
-from bench.models.utils import UUIDModel
+from bench.models.utils import ModuleNode, UUIDModel
 
 
 class InterpScope(models.TextChoices):
@@ -9,7 +12,7 @@ class InterpScope(models.TextChoices):
     STATEMENT = "statement"
 
 
-class ResolvedField(UUIDModel):
+class ResolvedField(UUIDModel, ModuleNode):
     """A field that has been resolved to a statement."""
 
     project_version = models.ForeignKey(
@@ -19,6 +22,10 @@ class ResolvedField(UUIDModel):
         "Statement", on_delete=models.CASCADE, related_name="resolved_fields+"
     )
     field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="+")
+
+    @property
+    def parent_id(self) -> Optional[uuid.UUID]:
+        return self.statement_id
 
 
 class IssueKind(models.TextChoices):

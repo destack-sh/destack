@@ -9,7 +9,7 @@ from __future__ import annotations
 import abc
 import dataclasses
 import typing
-from collections import OrderedDict, defaultdict
+from collections import defaultdict
 from typing import Optional, TypeVar
 from uuid import UUID, uuid5
 
@@ -101,6 +101,7 @@ DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[tuple[typing.Type[NodeT], Optional[str]], NodePacker] = {}
 BASE_MODEL_CLASS_BY_MOT: dict[MOT, typing.Type[Model]] = {}
+MOT_BY_BASE_MODEL_CLASS: dict[typing.Type[Model], MOT] = {}
 
 
 def node_packer(
@@ -125,6 +126,7 @@ def node_packer(
         _node_packers_by_node[(node_t, subtype)] = packer
         if t not in BASE_MODEL_CLASS_BY_MOT:
             BASE_MODEL_CLASS_BY_MOT[t] = node_t
+            MOT_BY_BASE_MODEL_CLASS[node_t] = t
         elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MOT[t]):  # type: ignore
             raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MOT[t]}")
         return cls
@@ -150,20 +152,27 @@ def pack_module(
     return tree
 
 
-class Packed(typing.NamedTuple):
+class _Visited(typing.NamedTuple):
+    roots: list[NodeT]
+    visited: dict[UUID, NodeT]
+    visited_by_parent: dict[Optional[UUID], list[NodeT]]
+
+
+class _Packed(typing.NamedTuple):
     roots: list[NodeDataT]
     nodes: dict[UUID, NodeDataT]
     visited: dict[UUID, NodeT]
+    visited_by_parent: dict[Optional[UUID], list[NodeT]]
 
     def nodes_list(self):
         return list(self.nodes.values())
 
 
-def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> Packed:
-    """Pack a node and its descendants"""
+def collect_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _Visited:
+    """Collect a node and its descendants"""
     visited: dict[UUID, NodeT] = {}
-    packed: dict[UUID, NodeDataT] = OrderedDict()
-    packed_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
+    visited_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
+    visited_by_parent: dict[UUID, list[NodeT]] = defaultdict(list)
     ctx = PackContext()
 
     to_pack: list[ModelT] = [*models]
@@ -180,8 +189,8 @@ def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> Pack
         for packer, nodes in packers.items():
             for qs in packer.walk(nodes, ctx):
                 qs = filter(qs)
-                if packed_by_node_t[qs.model]:
-                    qs = qs.exclude(id__in=packed_by_node_t[qs.model])
+                if visited_by_node_t[qs.model]:
+                    qs = qs.exclude(id__in=visited_by_node_t[qs.model])
                 existing_qs = querysets.get(qs.model)
                 # skip if existing queryset is the same, otherwise union
                 if existing_qs is None:
@@ -190,16 +199,24 @@ def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> Pack
                     querysets[qs.model] = querysets[qs.model].union(qs)
             for node in nodes:
                 visited[node.id] = node
-                packed[node.id] = packer.pack(node)
-                packed_by_node_t[type(node)].append(node.id)
+                visited_by_node_t[type(node)].append(node.id)
+                visited_by_parent[node.parent_id].append(node)
 
         # get the next set of nodes to pack
         to_pack = []
         for qs in querysets.values():
             to_pack.extend(qs)
 
-    roots = [packed[node.id] for node in models]
-    return Packed(roots, packed, visited)
+    roots = [visited[node.id] for node in models]
+    return _Visited(roots, visited, visited_by_parent)
+
+
+def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _Packed:
+    """Pack a node and its descendants"""
+    visited = collect_node(*models, filter=filter)
+    nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
+    roots = [nodes[node.id] for node in visited.roots]
+    return _Packed(roots, nodes, visited.visited, visited.visited_by_parent)
 
 
 def unpack_nodes_tree(
@@ -394,6 +411,7 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
@@ -420,6 +438,7 @@ class BlockPacker(StatementPacker, NodePacker[wire.BlockData, models.Statement])
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
@@ -444,6 +463,7 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
@@ -474,6 +494,7 @@ class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
@@ -500,6 +521,7 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
@@ -525,6 +547,7 @@ class FlowPacker(StatementPacker, NodePacker[wire.FlowData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
@@ -567,6 +590,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
@@ -596,6 +620,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
@@ -624,6 +649,7 @@ class ValuePacker(StatementPacker, NodePacker[wire.ValueData, models.Statement])
         return [
             *super().walk(nodes, tree),
             models.Field.objects.filter(statement__in=nodes),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
 
@@ -650,6 +676,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return [
             *super().walk(nodes, tree),
             models.Field.objects.filter(statement__in=nodes),
+            models.ResolvedField.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
         ]
 
