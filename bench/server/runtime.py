@@ -228,6 +228,7 @@ class RuntimeServer(Monitored):
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
         module, project = await get_module(msg.p.ref)
+        logger.debug("module.read.done", msg=msg, module=module, project=project)
         await msg.reply(RepReadModulePayload(module=module, project_id=project.id))
 
     @message_handler

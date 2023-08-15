@@ -242,9 +242,7 @@ class ProjectVersion(HasCrud, ModuleNode, gql.Node):
     children: list["ProjectVersion"]
     committed: auto
     committed_at: auto
-    files: gql.relay.Connection[Annotated["File", lazy(".file")]] = gql.django.connection(
-        filters=FileFilter
-    )
+    files: list[Annotated["File", lazy(".file")]] = gql.django.field(filters=FileFilter)
     child_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
     parent_refs: gql.relay.Connection[RefMapping] = gql.django.connection(filters=RefMappingFilter)
 

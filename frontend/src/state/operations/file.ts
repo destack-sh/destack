@@ -111,11 +111,9 @@ export function useFileOps() {
         cache.modify({
           id: cache.identify(data.createFile?.projectVersion),
           fields: {
-            files(currentFiles = { edges: [] }) {
+            files(currentFiles = []) {
               const newRef = cache.identify(data?.createFile);
-              return {
-                edges: [...currentFiles.edges.filter((e: any) => e.node.__ref != newRef), { node: { __ref: newRef } }],
-              };
+              return [...currentFiles.filter((e: any) => e.__ref != newRef), { __ref: newRef }];
             },
           },
           optimistic: true,

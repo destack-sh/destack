@@ -98,7 +98,7 @@ function moveField(node: Field, position: "before" | "after", other: Field) {
   }
 }
 
-function dropField(droppedId: string, position: "above" | "below", fieldId: string) {
+function dropField(droppedId: string, position: "above" | "below" | "left" | "right", fieldId: string) {
   const dropped = context.selfFields.value.find((n) => n.id == droppedId);
   const field = context.selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
