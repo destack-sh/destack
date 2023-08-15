@@ -313,9 +313,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
             from bench.models import Dataset
 
             self.dataset = Dataset.objects.create(
-                id=Dataset.get_id(self),
-                statement=self,
-                key=new_dataset_key(),
+                id=Dataset.get_id(self), statement=self, key=new_dataset_key()
             )
 
     @property
@@ -326,6 +324,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.parent_statement_id or self.file_id
 
+    @property
     def parent(self) -> Union["Statement", "File"]:
         if self.parent_statement_id is not None:
             return self.parent_statement

@@ -7,6 +7,7 @@ from strawberry_django_plus import gql
 
 from bench import language as language
 from bench import models
+from bench.api.utils import ModuleNode
 
 if TYPE_CHECKING:
     from bench.api.project import File
@@ -20,7 +21,8 @@ IssueType = gql.enum(language.IssueType)
 
 
 @gql.django.type(models.Issue)
-class Issue(gql.Node):
+class Issue(gql.Node, ModuleNode):
+    parent: Optional[ModuleNode]
     scope: InterpScope
     kind: IssueKind
     type: IssueType

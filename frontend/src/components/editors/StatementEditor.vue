@@ -5,7 +5,7 @@ import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import { graphql, useFragment } from "@/gql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementEditor, type FileHeader } from "@/state/bench";
-import { FileHeaderType, StatementContentType } from "@/state/fragments";
+import { FileHeaderType } from "@/state/fragments";
 import { useCurrentModule, type Statement as StatementType } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";

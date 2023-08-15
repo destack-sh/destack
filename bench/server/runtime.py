@@ -99,8 +99,7 @@ MAX_SEARCH_RUN_LIMIT = 1000
 _cached_modules: dict[ModuleReference | UUID, tuple[wire.ModuleTreeData, models.Project]] = {}
 
 
-async def get_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, models.Project]:
-    # TODO @Cleanup @Architecture: ModuleDB fetch is suspiciously similar to interpreter fetch
+async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, models.Project]:
     if ref in _cached_modules:
         return _cached_modules[ref]
     id = ref if isinstance(ref, UUID) else ref.id
@@ -121,14 +120,16 @@ async def get_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, 
             .aget()
         )
         project_version = project_version.head
-    module = await sync_to_async(packer.pack_module)(project_version)
+    module = await sync_to_async(packer.pack_module)(
+        project_version, excluded=[models.ResolvedField, models.Issue]
+    )
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project
     return module, project_version.project
 
 
 async def fetch(ref: ModuleReference) -> wire.ModuleTreeData:
-    return (await get_module(ref))[0]
+    return (await read_module(ref))[0]
 
 
 record_packer = mirror.get_node_packer(mirror.Record)
@@ -227,7 +228,7 @@ class RuntimeServer(Monitored):
     @message_handler
     async def read_module(self, msg: NMessage[ReqReadModulePayload]) -> None:
         logger.debug("module.read", msg=msg)
-        module, project = await get_module(msg.p.ref)
+        module, project = await read_module(msg.p.ref)
         logger.debug("module.read.done", msg=msg, module=module, project=project)
         await msg.reply(RepReadModulePayload(module=module, project_id=project.id))
 
@@ -581,7 +582,7 @@ class RuntimeWorker:
 
     async def run(self) -> None:
         # fetch and interp module
-        source, project = await get_module(self.module_ref)
+        source, project = await read_module(self.module_ref)
         await self.interp(source)
 
         self.tasks.start(self.process_time_triggers_forever())

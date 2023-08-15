@@ -13,7 +13,7 @@ const actions = useActions();
 
 const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
-    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!, $last: Int!) {
+    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!) {
       projectVersion(id: $projectVersionId) {
         files(filters: { isVisible: true }) {
           id
@@ -23,18 +23,13 @@ const { result: suggestedFiles } = useQuery(
       }
     }
   `),
-  computed(() => ({
-    projectVersionId: bench.projectVersionId,
-    last: 8,
-  })) as any,
-  {
-    enabled: computed(() => !!bench.projectVersionId),
-  }
+  computed(() => ({ projectVersionId: bench.projectVersionId })) as any,
+  { enabled: computed(() => !!bench.projectVersionId) as any }
 );
 const files = computed(() =>
   suggestedFiles.value?.projectVersion?.files.filter((file) => file.deletedAt == null && file.name.trim() !== "")
 );
-const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.totalCount);
+const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.length);
 
 const createActions = computed(() => [
   {
@@ -57,7 +52,7 @@ const createActions = computed(() => [
   },
 ]);
 
-function openFile(file: { id: string; path: string }) {
+function openFile(file: { id: string; name: string }) {
   bench.openFile(file, { group: props.group, create: true, focus: true });
 }
 </script>

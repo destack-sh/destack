@@ -1,5 +1,6 @@
 from typing import Optional
 
+from more_itertools import first
 import structlog
 from strawberry.types import Info
 from strawberry.types.nodes import FragmentSpread, SelectedField
@@ -12,6 +13,7 @@ from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.utils import ModuleNode
 from bench.models import packer
+from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
 
@@ -21,21 +23,56 @@ class IdOnlyProxy:
         self.id = id
 
 
-_MODEL_FIELD_NAME_BY_GQL_NAME: dict[str, str] = {}
-_GQL_FIELD_NAME_BY_MODEL_NAME: dict[str, str] = {}
+class StaticPrefetchedQueryset:
+    """
+    Imitate a django queryset from a list of objects.
+    Any further filtering is ignored, we only return the objects we have.
+    """
+
+    def __init__(self, objects):
+        self._result_cache = objects
+
+    def _fetch_all(self):
+        pass  # we already have all the objects
+
+    def all(self):
+        return self
+
+    def filter(self, *args, **kwargs):
+        return self
+
+    def get(self, *args, **kwargs):
+        return first(self._result_cache)
+
+    def first(self):
+        return first(self._result_cache)
+
+    def __iter__(self):
+        return iter(self._result_cache)
+
+    def __bool__(self):
+        return bool(self._result_cache)
+
+    def __getitem__(self, item):
+        return self._result_cache[item]
+
+    def __len__(self):
+        return len(self._result_cache)
+
+
+_MODEL_FIELD_NAME_BY_CAMEL: dict[str, str] = {}
+_CAMEL_FIELD_NAME_BY_MODEL: dict[str, str] = {}
+_BASE_MODEL_BY_CAMEL_FIELD: dict[str, type] = {}
 
 
 def _add_field_name(name: str):
     gql_name = to_camel_case(name)
-    if (
-        gql_name in _MODEL_FIELD_NAME_BY_GQL_NAME
-        and _MODEL_FIELD_NAME_BY_GQL_NAME[gql_name] != name
-    ):
+    if gql_name in _MODEL_FIELD_NAME_BY_CAMEL and _MODEL_FIELD_NAME_BY_CAMEL[gql_name] != name:
         raise ValueError(
-            f"duplicate field name {gql_name} for {name} and {_MODEL_FIELD_NAME_BY_GQL_NAME[gql_name]}"
+            f"duplicate field name {gql_name} for {name} and {_MODEL_FIELD_NAME_BY_CAMEL[gql_name]}"
         )
-    _MODEL_FIELD_NAME_BY_GQL_NAME[gql_name] = name
-    _GQL_FIELD_NAME_BY_MODEL_NAME[name] = gql_name
+    _MODEL_FIELD_NAME_BY_CAMEL[gql_name] = name
+    _CAMEL_FIELD_NAME_BY_MODEL[name] = gql_name
 
 
 def _collect_fields():
@@ -43,10 +80,12 @@ def _collect_fields():
         for field in model._meta.fields:
             _add_field_name(field.name)
             # and related name if any
-            if hasattr(field, "remote_field") and field.remote_field:
+            if field.is_relation:
                 _add_field_name(field.remote_field.name)
-        for field_name in model._meta.fields_map.keys():
-            _add_field_name(field_name)
+        for field in model._meta.fields_map.values():
+            _add_field_name(field.name)
+            if field.is_relation:
+                _BASE_MODEL_BY_CAMEL_FIELD[to_camel_case(field.name)] = field.related_model
         for field in model._meta.many_to_many:
             _add_field_name(field.name)
 
@@ -55,6 +94,7 @@ _collect_fields()
 
 
 def _inline_fragments(fields: list[SelectedField | FragmentSpread]) -> list[SelectedField]:
+    """Inline any fragment spreads in the fields"""
     if not any(isinstance(f, FragmentSpread) for f in fields):
         return fields
     inlined = []
@@ -66,12 +106,25 @@ def _inline_fragments(fields: list[SelectedField | FragmentSpread]) -> list[Sele
     return inlined
 
 
+def _walk_fragments(fields: list[SelectedField | FragmentSpread]) -> list[SelectedField]:
+    """Recursively walk the fields and inline any fragment spreads"""
+    inlined = []
+    for f in fields:
+        if not isinstance(f, FragmentSpread):
+            inlined.append(f)
+        if f.selections:
+            inlined.extend(_walk_fragments(f.selections))
+    return inlined
+
+
+ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
+
+
 @async_safe
 def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
     """
     Reads a module node in an optimized way (that assumes tree-shaped retrieval).
     Any nodes not in the tree will be fetched by the strawberry resolver.
-    We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
 
     TODO @Broken: read module node assumes default filters
     """
@@ -84,60 +137,87 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
     check_can_read_project(info, node)
 
     logger.debug("module.read_node", id=id, node=node)
-    visited = packer.collect_node(node)  # nocheckin: filter to selected relations
+
+    # collect relevant nodes (naively filter by selected fields)
+    root_selections = _inline_fragments(info.selected_fields[0].selections)
+    included = {models.ProjectVersion, models.File, models.Statement}
+    for field in _walk_fragments(root_selections):
+        base_model = _BASE_MODEL_BY_CAMEL_FIELD.get(field.name)
+        if base_model and base_model not in included:
+            included.add(base_model)
+    excluded = MOT_BY_BASE_MODEL_CLASS.keys() - included
+    visited = packer.collect_node(node, excluded=excluded)
 
     # map relevant selected fields to the visited nodes
     def _resolve(n: models.ModuleNode, selections: list[SelectedField]) -> ModuleNode:
         model_name = n._meta.object_name
-        gql_type = info.schema.get_type_by_name(model_name)
 
-        gql_props = {}
+        proxy_n = n.__class__()
         for f in selections:
-            py_name = _MODEL_FIELD_NAME_BY_GQL_NAME.get(f.name, f.name)
+            py_name = _MODEL_FIELD_NAME_BY_CAMEL.get(f.name, f.name)
             # pass through non-relational fields
-            if f.name == "__typename":
-                gql_props[f.name] = gql_type.name
-                continue
-            elif f.name == "id":
-                gql_props[f.name] = GlobalID(type_name=gql_type.name, node_id=str(n.id))
-                continue
-            elif not f.selections:
-                gql_props[f.name] = getattr(n, py_name)
+            if f.name in ("__typename", "id") or not f.selections:
+                if hasattr(n, py_name):
+                    setattr(proxy_n, py_name, getattr(n, py_name))
                 continue
             # shortcut for parent (which isn't a real field)
             elif f.name == "parent":
-                # nocheckin: convert this
-                gql_props[f.name] = visited.visited.get(n.parent_id, IdOnlyProxy(n.parent_id))
+                # find the parent node in its fields (where its value == n.parent_id)
+                parent_field = first(
+                    (k for k in n._meta.fields if getattr(n, k.column) == n.parent_id)
+                )
+                # set id and relation field
+                # nocheckin parent is wrong type?
+                setattr(proxy_n, parent_field.attname, n.parent_id)
+                parent_stub = parent_field.related_model(id=n.parent_id)
+                setattr(proxy_n, parent_field.name, visited.visited.get(n.parent_id, parent_stub))
                 continue
 
             # relational field
             django_field = n._meta.get_field(py_name)
-            # for 1:1 relations use id only proxy
+            # error on invalid relations to models outside the module tree
+            if (
+                django_field.related_model not in packer.MOT_BY_BASE_MODEL_CLASS
+                and django_field.related_model not in ALLOWED_EXTERNAL_RELATIONS
+            ):
+                raise ValueError(
+                    f"invalid relation {django_field.related_model} for {model_name}.{py_name}"
+                )
             inner_selections = _inline_fragments(f.selections)
+            # for 1:1 relations use id only proxy
             if django_field.one_to_one or django_field.many_to_one:
-                assert len(inner_selections) == 2, f"unexpected {selections} for {django_field}"
-                gql_props[py_name] = IdOnlyProxy(getattr(n, py_name + "_id"))
+                if django_field.related_model in ALLOWED_EXTERNAL_RELATIONS:
+                    # external rotations are properly queried
+                    # this is okay because we only do this once usually (e.g. top-level project)
+                    setattr(proxy_n, py_name, getattr(n, py_name))
+                else:
+                    assert len(inner_selections) == 2, f"bad {inner_selections} for {django_field}"
+                    remote_stub = django_field.related_model(getattr(n, py_name + "_id"))
+                    setattr(proxy_n, py_name, remote_stub)
             # for 1:n relations get children
             elif django_field.one_to_many or django_field.many_to_many:
-                # error on invalid relations to fields not in the module tree
-                if django_field.related_model not in packer.MOT_BY_BASE_MODEL_CLASS:
-                    raise ValueError(
-                        f"invalid relation {django_field.related_model} for {model_name}.{py_name}"
-                    )
                 # resolve children
-                resolved_children = []
+                children = []
                 for child in visited.visited_by_parent.get(n.id, []):
-                    resolved_child = _resolve(child, inner_selections)
-                    resolved_children.append(resolved_child)
-                gql_props[py_name] = resolved_children
+                    if type(child) != django_field.related_model:
+                        continue  # ignore children of other types
+                    children.append(_resolve(child, inner_selections))
+                # set children list on proxy to 'cache' it in the Django model
+                if not hasattr(proxy_n, "_prefetched_objects_cache"):
+                    proxy_n._prefetched_objects_cache = {}
+                proxy_n._prefetched_objects_cache[py_name] = StaticPrefetchedQueryset(children)
             else:
                 raise ValueError(f"unexpected relation {django_field} for {model_name}.{py_name}")
 
-        return gql_type(**gql_props)
+        return proxy_n
 
-    logger.debug("module.read_node.resolve", id=id, node=node, nodes=len(visited.visited))
-    root_selections = _inline_fragments(info.selected_fields[0].selections)
+    logger.debug(
+        "module.read_node.resolve", id=id, node=node, nodes=len(visited.visited), excluded=excluded
+    )
     resolved_node = _resolve(node, root_selections)
 
-    logger.debug("module.read_node.done", id=id, node=node, resolved_node=resolved_node)
+    logger.debug(
+        "module.read_node.done", id=id, node=node, nodes=len(visited.visited), excluded=excluded
+    )
+
     return resolved_node

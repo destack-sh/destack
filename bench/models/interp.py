@@ -1,9 +1,12 @@
 import uuid
-from typing import Optional
+from typing import Optional, Union, TYPE_CHECKING
 
 from django.db import models
 
 from bench.models.utils import ModuleNode, UUIDModel
+
+if TYPE_CHECKING:
+    from bench.models import Statement, File
 
 
 class InterpScope(models.TextChoices):
@@ -34,7 +37,7 @@ class IssueKind(models.TextChoices):
     SUGGESTION = "suggestion"
 
 
-class Issue(UUIDModel):
+class Issue(UUIDModel, ModuleNode):
     """An error/warning/... about a part of a project."""
 
     project_version = models.ForeignKey(
@@ -54,3 +57,9 @@ class Issue(UUIDModel):
 
     def __repr__(self):
         return f"<Issue {self}>"
+
+    def parent(self) -> Union["Statement", "File"]:
+        if self.statement_id is not None:
+            return self.statement
+        else:
+            return self.file

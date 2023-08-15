@@ -285,7 +285,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     from bench.models import packer
 
     logger.info("os.update_mappings", project_version=project_v)
-    source = packer.pack_module(project_v)
+    source = packer.pack_module(
+        project_v, excluded=[models.Trigger, models.ResolvedField, models.Issue]
+    )
     module = wire.unpack_module(source, session=None)
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
