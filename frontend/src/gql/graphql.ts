@@ -363,16 +363,18 @@ export enum InterpScope {
   Statement = "STATEMENT",
 }
 
-export type Issue = Node & {
-  __typename?: "Issue";
-  file?: Maybe<File>;
-  id: Scalars["GlobalID"];
-  kind: IssueKind;
-  message?: Maybe<Scalars["String"]>;
-  scope: InterpScope;
-  statement?: Maybe<Statement>;
-  type: IssueType;
-};
+export type Issue = ModuleNode &
+  Node & {
+    __typename?: "Issue";
+    file?: Maybe<File>;
+    id: Scalars["GlobalID"];
+    kind: IssueKind;
+    message?: Maybe<Scalars["String"]>;
+    parent?: Maybe<ModuleNode>;
+    scope: InterpScope;
+    statement?: Maybe<Statement>;
+    type: IssueType;
+  };
 
 export type IssueFilter = {
   scope: InterpScope;
@@ -1438,6 +1440,12 @@ export type Query = {
   currentRuns: SessionStateOperationInfo;
   environment: EnvironmentOperationInfo;
   featuredProjects: ProjectConnection;
+  /**
+   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+   * Any nodes not in the tree will be fetched by the strawberry resolver.
+   *
+   * TODO @Broken: read module node assumes default filters
+   */
   file?: Maybe<File>;
   logs: LogEntryConnection;
   me?: Maybe<User>;
@@ -1447,6 +1455,12 @@ export type Query = {
   ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
+  /**
+   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+   * Any nodes not in the tree will be fetched by the strawberry resolver.
+   *
+   * TODO @Broken: read module node assumes default filters
+   */
   projectVersion?: Maybe<ProjectVersion>;
   projectVersionBySlug?: Maybe<ProjectVersion>;
   projectVersionByTag?: Maybe<ProjectVersion>;
@@ -1456,6 +1470,12 @@ export type Query = {
   searchDataset: RecordConnection;
   secret?: Maybe<Secret>;
   session?: Maybe<Session>;
+  /**
+   * Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+   * Any nodes not in the tree will be fetched by the strawberry resolver.
+   *
+   * TODO @Broken: read module node assumes default filters
+   */
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
@@ -2688,7 +2708,6 @@ export type NotificationsQuery = {
 
 export type EmptyEditorSuggestedFilesQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  last: Scalars["Int"];
 }>;
 
 export type EmptyEditorSuggestedFilesQuery = {
@@ -3531,6 +3550,7 @@ export type FileHeaderFragment = {
   parent:
     | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
+    | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
@@ -3554,6 +3574,7 @@ export type StatementHeaderFragment = {
   parent:
     | { __typename?: "Field" }
     | { __typename?: "File"; id: any }
+    | { __typename?: "Issue" }
     | { __typename?: "ProjectVersion" }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging" }
@@ -3642,6 +3663,7 @@ export type StatementContentFragment = {
   parent:
     | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
+    | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
@@ -3692,6 +3714,7 @@ export type InterpFileFragment = {
   parent:
     | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
+    | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
@@ -3718,6 +3741,7 @@ export type InterpStatementFragment = {
   parent:
     | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
+    | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
@@ -3917,6 +3941,7 @@ export type CreateFileMutation = {
         parent:
           | { __typename?: "Field" }
           | { __typename?: "File"; id: any }
+          | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion"; id: any }
           | { __typename?: "Statement" }
           | { __typename?: "Tagging" }
@@ -4347,6 +4372,7 @@ export type CreateStatementMutation = {
         parent:
           | { __typename?: "Field" }
           | { __typename?: "File"; id: any }
+          | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
@@ -4449,6 +4475,7 @@ export type MoveStatementMutation = {
         parent:
           | { __typename?: "Field" }
           | { __typename?: "File"; id: any }
+          | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
@@ -4480,6 +4507,7 @@ export type BatchMoveStatementMutation = {
           parent:
             | { __typename?: "Field" }
             | { __typename?: "File"; id: any }
+            | { __typename?: "Issue" }
             | { __typename?: "ProjectVersion" }
             | { __typename?: "Statement"; id: any }
             | { __typename?: "Tagging" }
@@ -7013,11 +7041,6 @@ export const EmptyEditorSuggestedFilesDocument = {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "last" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
       ],
       selectionSet: {

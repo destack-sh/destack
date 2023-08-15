@@ -10,7 +10,7 @@ import abc
 import dataclasses
 import typing
 from collections import defaultdict
-from typing import Optional, TypeVar
+from typing import Optional, TypeVar, Collection
 from uuid import UUID, uuid5
 
 from django.db import transaction
@@ -142,10 +142,12 @@ def get_node_packer(node: NodeT) -> NodePacker:
 
 
 def pack_module(
-    module: models.ProjectVersion, filter: PackFilter = DEFAULT_PACK_FILTER
+    module: models.ProjectVersion,
+    filter: PackFilter = DEFAULT_PACK_FILTER,
+    excluded: Collection[ModelT] = None,
 ) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
-    packed = pack_node(module, filter=filter)
+    packed = pack_node(module, filter=filter, excluded=excluded)
     tree = wire.ModuleTreeData(
         **packed.roots[0].__dict__, module=packed.roots[0], nodes=packed.nodes_list()
     )
@@ -168,7 +170,9 @@ class _Packed(typing.NamedTuple):
         return list(self.nodes.values())
 
 
-def collect_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _Visited:
+def collect_node(
+    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
+) -> _Visited:
     """Collect a node and its descendants"""
     visited: dict[UUID, NodeT] = {}
     visited_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
@@ -188,6 +192,8 @@ def collect_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _
         querysets: dict[typing.Type[ModelT], QuerySet[ModelT]] = {}
         for packer, nodes in packers.items():
             for qs in packer.walk(nodes, ctx):
+                if excluded and qs.model in excluded:
+                    continue
                 qs = filter(qs)
                 if visited_by_node_t[qs.model]:
                     qs = qs.exclude(id__in=visited_by_node_t[qs.model])
@@ -211,9 +217,11 @@ def collect_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _
     return _Visited(roots, visited, visited_by_parent)
 
 
-def pack_node(*models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER) -> _Packed:
+def pack_node(
+    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
+) -> _Packed:
     """Pack a node and its descendants"""
-    visited = collect_node(*models, filter=filter)
+    visited = collect_node(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
     return _Packed(roots, nodes, visited.visited, visited.visited_by_parent)

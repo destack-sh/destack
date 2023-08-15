@@ -341,8 +341,9 @@ enum InterpScope {
   STATEMENT
 }
 
-type Issue implements Node {
+type Issue implements Node & ModuleNode {
   id: GlobalID!
+  parent: ModuleNode
   scope: InterpScope!
   kind: IssueKind!
   type: IssueType!
@@ -1243,7 +1244,6 @@ type Query {
   """
   Reads a module node in an optimized way (that assumes tree-shaped retrieval).
   Any nodes not in the tree will be fetched by the strawberry resolver.
-  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
   
   TODO @Broken: read module node assumes default filters
   """
@@ -1254,7 +1254,6 @@ type Query {
   """
   Reads a module node in an optimized way (that assumes tree-shaped retrieval).
   Any nodes not in the tree will be fetched by the strawberry resolver.
-  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
   
   TODO @Broken: read module node assumes default filters
   """
@@ -1263,7 +1262,6 @@ type Query {
   """
   Reads a module node in an optimized way (that assumes tree-shaped retrieval).
   Any nodes not in the tree will be fetched by the strawberry resolver.
-  We map all models directly to the graphql type, so we mostly bypass the strawberry resolver.
   
   TODO @Broken: read module node assumes default filters
   """

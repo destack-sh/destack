@@ -256,11 +256,11 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
 
     def pack(self, node: NodeT) -> NodeDataT:
         """Packs the node itself into the wire format"""
-        raise NotImplementedError
+        raise NotImplementedError(f"pack not implemented for {self.__class__.__name__}")
 
     def unpack(self, node: NodeDataT, parent: Optional[NodeT], session: Optional[Session]) -> NodeT:
         """Unpacks the node itself from the wire format (plain or instrumented into session)"""
-        raise NotImplementedError
+        raise NotImplementedError(f"unpack not implemented for {self.__class__.__name__}")
 
     def unwalk(self, node: NodeT, tree: ModuleTree) -> None:
         """Re-assigns the node's children"""

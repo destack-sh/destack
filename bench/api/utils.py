@@ -51,6 +51,10 @@ class ModuleNode:
     id: GlobalID
     parent: Optional["ModuleNode"]
 
+    @staticmethod
+    def is_type_of(self, *args, **kwargs) -> bool:
+        return True
+
 
 def safe_mutation(
     func: Optional = None,
