@@ -117,6 +117,7 @@ def _walk_fragments(fields: list[SelectedField | FragmentSpread]) -> list[Select
 
 
 ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
+FLATTENED_RELATIONS = {(models.ProjectVersion, models.File), (models.File, models.Statement)}
 
 
 def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
@@ -193,17 +194,28 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
                     remote_stub = django_field.related_model(id=remote_id) if remote_id else None
                     setattr(proxy_n, py_name, remote_stub)
             # for 1:n relations get children
+            # for flattened relations get all descendants (of same type)
             elif django_field.one_to_many or django_field.many_to_many:
-                # resolve children
-                children = []
-                for child in visited.visited_by_parent.get(n.id, []):
-                    if type(child) != django_field.related_model:
-                        continue  # ignore children of other types
-                    children.append(_resolve(child, inner_selections))
+                related = []
+                if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
+                    # collect descendants of same type
+                    remaining = visited.visited_by_parent.get(n.id, [])
+                    while remaining:
+                        child = remaining.pop()
+                        if type(child) != django_field.related_model:
+                            continue
+                        related.append(_resolve(child, inner_selections))
+                        remaining.extend(visited.visited_by_parent.get(child.id, []))
+                else:
+                    # collect immediate children only
+                    for child in visited.visited_by_parent.get(n.id, []):
+                        if type(child) != django_field.related_model:
+                            continue  # ignore children of other types
+                        related.append(_resolve(child, inner_selections))
                 # set children list on proxy to 'cache' it in the Django model
                 if not hasattr(proxy_n, "_prefetched_objects_cache"):
                     proxy_n._prefetched_objects_cache = {}
-                proxy_n._prefetched_objects_cache[py_name] = StaticPrefetchedQueryset(children)
+                proxy_n._prefetched_objects_cache[py_name] = StaticPrefetchedQueryset(related)
             else:
                 raise ValueError(f"unexpected relation {django_field} for {model_name}.{py_name}")
 

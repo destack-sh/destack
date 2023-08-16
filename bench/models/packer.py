@@ -95,6 +95,7 @@ DEFAULT_PACK_FILTERS = [
     (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
+INTERP_MODEL_TYPES = {models.Issue, models.ResolvedField}
 
 # registered packers
 # some node models correspond to multiple actual module node / node data types

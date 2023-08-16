@@ -17,7 +17,7 @@ from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
-from strawberry_django.mutations.fields import _get_validation_errors
+from strawberry_django.mutations.fields import _handle_exception
 
 from bench import models
 from bench.language import Q, query
@@ -142,10 +142,7 @@ def wrap_exceptions(func):
             # extend strawberry_django's Django error mapping
             if isinstance(e, IntegrityError):
                 e = ValidationError(e.args[0])
-            e = _get_validation_errors(e)
-            if isinstance(e, OperationInfo):
-                return e
-            raise e
+            return _handle_exception(e)
 
     return wrapped
 
