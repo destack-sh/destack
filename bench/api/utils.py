@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 
 @strawberry.type(name="Connection", description="A connection to a list of items.")
 class ListConnectionWithTotalCount(relay.ListConnection[relay.NodeType]):
-    total_count: int = strawberry.field()
+    total_count: Optional[int] = strawberry.field()
 
 
 @strawberry.type

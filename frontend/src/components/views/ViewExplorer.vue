@@ -10,6 +10,7 @@ import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useBenchState } from "@/state/bench";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import PanelExplorer from "@/components/views/PanelExplorer.vue";
 
 const props = defineProps<{ active: boolean; focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
@@ -58,6 +59,7 @@ const panels: Ref<Panel[]> = computed(() => {
 });
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
+const panelExplorer: Ref<InstanceType<typeof PanelExplorer> | undefined> = ref(undefined);
 const fileExplorer: Ref<InstanceType<typeof FileExplorer> | undefined> = ref(undefined);
 const statementExplorer: Ref<InstanceType<typeof StatementExplorer> | undefined> = ref(undefined);
 
@@ -122,6 +124,13 @@ watch(
         <!-- Panel content -->
         <div class="min-h-0 overflow-y-auto">
           <FadeTransition mode="out-in">
+            <!-- TODO @UX: show panel explorer in a useful way -->
+            <PanelExplorer
+              :ref="(ref) => (panelExplorer = ref as any)"
+              v-if="panel.title == 'Open panels'"
+              :focused="props.focused"
+              @navigate-down="fileExplorer?.focus('first')"
+            />
             <FileExplorer
               :ref="(ref) => (fileExplorer = ref as any)"
               v-if="panel.title == 'Files'"
@@ -134,9 +143,7 @@ watch(
               v-else-if="panel.title == 'Outline' && !module.loading.value"
               :focused="props.focused"
               @navigate-up="fileExplorer?.focus('last')"
-              @navigate-down="fileExplorer?.focus('first')"
             />
-            <!-- <span v-else class="text-red-600">panic!</span> -->
           </FadeTransition>
         </div>
       </div>
