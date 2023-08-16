@@ -10,7 +10,7 @@ import abc
 import dataclasses
 import typing
 from collections import defaultdict
-from typing import Optional, TypeVar, Collection
+from typing import Collection, Optional, TypeVar
 from uuid import UUID, uuid5
 
 from django.db import transaction

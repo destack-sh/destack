@@ -1,12 +1,12 @@
 import uuid
-from typing import Optional, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional, Union
 
 from django.db import models
 
 from bench.models.utils import ModuleNode, UUIDModel
 
 if TYPE_CHECKING:
-    from bench.models import Statement, File
+    from bench.models import File, Statement
 
 
 class InterpScope(models.TextChoices):

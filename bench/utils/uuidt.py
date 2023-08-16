@@ -66,7 +66,7 @@ class UUIDT(uuid.UUID):
 
     @classmethod
     def is_valid_uuid(cls, candidate: Any) -> bool:
-        if type(candidate) != str:
+        if not isinstance(candidate, str):
             return False
         hex = candidate.replace("urn:", "").replace("uuid:", "")
         hex = hex.strip("{}")
