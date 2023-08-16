@@ -2,7 +2,6 @@ from typing import AsyncGenerator, Optional, Union
 from uuid import UUID
 
 import strawberry
-import strawberry_django
 import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import PermissionDenied

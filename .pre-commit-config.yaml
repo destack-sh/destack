@@ -1,11 +1,10 @@
 repos:
-  - repo: https://github.com/pycqa/flake8
-    rev: 6.0.0
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.0.284
     hooks:
-      - id: flake8
-        name: flake8 (py)
-        args: ["--max-line-length=100", "--select=C,E,F,W,B,B950", "--extend-ignore=E203,E501,W503,F722"]
-        exclude: ^bench/migrations|^bench/demo
+      - id: ruff
+        name: ruff (py)
+        exclude: ^bench/migrations
   - repo: https://github.com/psf/black
     rev: 23.3.0
     hooks:
