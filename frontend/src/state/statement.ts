@@ -7,7 +7,6 @@ import {
   useCurrentModule,
   type Field,
   type Statement,
-  type HasCrudKey,
   type Tagging,
   type Trigger,
 } from "@/state/module";
@@ -291,7 +290,11 @@ export function useStatementContext() {
     () => fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
   );
   const inheritedFields = computed(() => {
-    return resolvedFields.value?.filter((n) => !selfFields.value.find((f) => f.key == n.key)) ?? [];
+    return (
+      resolvedFields.value?.filter(
+        (n) => !selfFields.value.find((f) => f.key == n.key) && !(n.flags & TypeFlag.IsUnionWith)
+      ) ?? []
+    );
   });
   const allFields = computed(() => [...inheritedFields.value, ...selfFields.value]);
   const fieldsByName = computed(() => {

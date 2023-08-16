@@ -17,7 +17,7 @@ import {
 } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { FileEditor, useBenchState } from "@/state/bench";
-import { InterpFileType, InterpStatementType, IssueContentType } from "@/state/fragments";
+import { InterpFileType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
 import { toValueRef } from "@/utils/functools";

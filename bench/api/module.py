@@ -10,7 +10,7 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_read_project
-from bench.api.utils import ModuleNode, async_safe
+from bench.api.utils import ModuleNode
 from bench.models import packer
 from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
 
@@ -119,7 +119,6 @@ def _walk_fragments(fields: list[SelectedField | FragmentSpread]) -> list[Select
 ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
 
 
-@async_safe
 def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
     """
     Reads a module node in an optimized way (that assumes tree-shaped retrieval).
@@ -188,8 +187,10 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
                     # this is okay because we only do this once usually (e.g. top-level project)
                     setattr(proxy_n, py_name, getattr(n, py_name))
                 else:
+                    # assumes { __typename, id } selection only (that's all we know here)
                     assert len(inner_selections) == 2, f"bad {inner_selections} for {django_field}"
-                    remote_stub = django_field.related_model(getattr(n, py_name + "_id"))
+                    remote_id = getattr(n, py_name + "_id")
+                    remote_stub = django_field.related_model(id=remote_id) if remote_id else None
                     setattr(proxy_n, py_name, remote_stub)
             # for 1:n relations get children
             elif django_field.one_to_many or django_field.many_to_many:

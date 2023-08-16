@@ -15,7 +15,6 @@ from bench.api.auth import can_write_project, check_can_write_project, is_owner_
 from bench.api.utils import (
     HasCrud,
     ModuleNode,
-    async_safe,
     get_client_origin_from_info,
     get_user_from_info,
     safe_mutation,
@@ -89,7 +88,6 @@ class ProjectUsage:
     cache_bytes_total: int
 
 
-@async_safe
 def get_project_usage(info: Info) -> ProjectUsage:
     from bench.opensearch import mirror
     from bench.opensearch.client import os_client

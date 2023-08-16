@@ -83,7 +83,7 @@ function deleteField(fieldId: string) {
     return;
   }
   const field = context.selfFields.value?.[fieldIdx];
-  context.deleteField(field as any); // must exist
+  context.deleteField(field as Field); // must exist
   grid.focus(fieldIdx - 1, "type"); // move focus above
 }
 

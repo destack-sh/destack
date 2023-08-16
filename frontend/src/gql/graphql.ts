@@ -440,8 +440,7 @@ export type LogEntryConnection = {
   edges: Array<LogEntryEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount: Scalars["Int"];
 };
 
 /** An edge in a connection. */
@@ -1074,6 +1073,7 @@ export type Organization = Node &
     canWrite: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     invites: OrganizationInviteConnection;
     memberships: OrganizationMembershipConnection;
@@ -1674,8 +1674,7 @@ export type RecordConnection = {
   edges: Array<RecordEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount: Scalars["Int"];
 };
 
 export type RecordCreateInput = {
@@ -1856,8 +1855,7 @@ export type RunConnection = {
   edges: Array<RunEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  /** Total quantity of existing nodes. */
-  totalCount?: Maybe<Scalars["Int"]>;
+  totalCount: Scalars["Int"];
 };
 
 /** An edge in a connection. */
@@ -2454,6 +2452,7 @@ export type User = Node &
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
     email: Scalars["String"];
+    /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     name: Scalars["String"];
     notifications: NotificationConnection;
@@ -2950,7 +2949,7 @@ export type SearchDatasetQuery = {
   __typename?: "Query";
   searchDataset: {
     __typename?: "RecordConnection";
-    totalCount?: number | null;
+    totalCount: number;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -5400,7 +5399,7 @@ export type SearchRunsQuery = {
   __typename?: "Query";
   searchRuns: {
     __typename?: "RunConnection";
-    totalCount?: number | null;
+    totalCount: number;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -5444,7 +5443,7 @@ export type SearchLogsQuery = {
   __typename?: "Query";
   searchLogs: {
     __typename?: "LogEntryConnection";
-    totalCount?: number | null;
+    totalCount: number;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;

@@ -57,7 +57,7 @@ UserStatus = strawberry.enum(models.UserStatus)
 
 
 @strawberry_django.type(models.User)
-class User(relay.Node, Owner):
+class User(Owner, relay.Node):
     username: auto
     email: auto
     created_at: auto

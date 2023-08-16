@@ -16,11 +16,11 @@ from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os
 from bench.api.type import MMT
 from bench.api.utils import (
     HasCrud,
+    ListConnectionWithTotalCount,
     Revisioned,
     SearchQuery,
     SearchSort,
     ThingBatch,
-    async_safe,
     to_global_id,
 )
 from bench.language import Q, Query, QueryOp
@@ -274,7 +274,6 @@ RECORDS_LIMIT = 100
 @strawberry.type
 class DataQuery:  # avoid name conflict with DatasetQuery
     @strawberry_django.field
-    @async_safe
     def search_dataset(
         self,
         info: Info,
@@ -284,7 +283,7 @@ class DataQuery:  # avoid name conflict with DatasetQuery
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> strawberry_django.relay.ListConnectionWithTotalCount[Record]:
+    ) -> ListConnectionWithTotalCount[Record]:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
         check_can_read_project(info, statement.project_version)
 
@@ -313,13 +312,13 @@ class DataQuery:  # avoid name conflict with DatasetQuery
             cursor = encode_cursor(r, after, i)
             edge = relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
-        page_info = relay.Edge(
+        page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return strawberry_django.relay.ListConnectionWithTotalCount(
+        return ListConnectionWithTotalCount(
             edges=edges, page_info=page_info, total_count=total_count
         )

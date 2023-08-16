@@ -16,8 +16,8 @@ import { onStartTyping, useKeyModifier } from "@vueuse/core";
 import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 
-const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
+defineProps<{ folded?: boolean }>();
+defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 const context = useStatementContext();
 const module = useCurrentModule();
 const ops = useOperations();

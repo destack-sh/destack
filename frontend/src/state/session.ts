@@ -1,7 +1,18 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import { RunStatus, type Run, type LogEntry, type WorkerSet, WorkerProfile, WorkerSetStatus } from "@/gql/graphql";
+import type { SearchRunsQueryVariables } from "@/gql/graphql";
+import {
+  RunStatus,
+  type Run,
+  type LogEntry,
+  type WorkerSet,
+  WorkerProfile,
+  WorkerSetStatus,
+  type CurrentRunsQueryVariables,
+  type SearchLogsQueryVariables,
+  type LogsChangedSubscriptionVariables,
+} from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
 import { newRunId, newSessionId } from "@/state/module";
@@ -180,7 +191,7 @@ export function _useSessions(
         }
       }
     `),
-    filter as any,
+    filter as CurrentRunsQueryVariables,
     { enabled: computed(() => filter.projectId.value != null && filter.projectVersionId.value != null) } as any
   );
 
@@ -228,7 +239,7 @@ export function _useSessions(
           }
         }
       `),
-      { ...filter } as any,
+      { ...filter } as CurrentRunsQueryVariables,
       { enabled: computed(() => filter.projectId.value != null) as any }
     );
     onSessionChange((result) => {
@@ -535,7 +546,7 @@ export function useRuns(
    */
   filter = wrapValueRefs(filter);
 
-  const combinedVariables = computed(() => ({
+  const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
     runnableIds: filter.runnableIds.value,
@@ -601,11 +612,11 @@ export function useRuns(
       client.client.cache.updateQuery(
         {
           query: RUNS_QUERY,
-          variables: combinedVariables.value as any,
+          variables: combinedVariables.value,
         },
         (prev) => {
           return {
-            runs: getUpdatedConnectionQuery(run, prev?.runs as Connection<Run> | undefined, options?.limit),
+            searchRuns: getUpdatedConnectionQuery(run, prev?.searchRuns as Connection<Run> | undefined, options?.limit),
           };
         }
       );
@@ -615,8 +626,8 @@ export function useRuns(
 
   return {
     loading: initialLoading,
-    totalCount: computed(() => result.value?.runs.totalCount),
-    runs: computed(() => result.value?.runs.edges.map((e) => useFragment(RunContentType, e.node))),
+    totalCount: computed(() => result.value?.searchRuns.totalCount),
+    runs: computed(() => result.value?.searchRuns.edges.map((e) => useFragment(RunContentType, e.node))),
   };
 }
 
@@ -732,7 +743,7 @@ export function useLogs(
    */
   filter = wrapValueRefs(filter);
   const client = useApolloClient();
-  const combinedVariables = computed(() => ({
+  const combinedVariables: Ref<SearchLogsQueryVariables> = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
     runnableIds: filter.runnableIds.value,
@@ -777,11 +788,11 @@ export function useLogs(
     }
   `);
   // separate useQuery to read cache since useQuery doesn't react properly if not enabled
-  const { result: logs } = useQuery(LOGS_QUERY, combinedVariables as any, {
+  const { result: logs } = useQuery(LOGS_QUERY, combinedVariables, {
     fetchPolicy: "cache-only",
   });
   // only load if not skipping initial load
-  const { loading: initialLoading } = useQuery(LOGS_QUERY, combinedVariables as any, {
+  const { loading: initialLoading } = useQuery(LOGS_QUERY, combinedVariables, {
     enabled: computed(() => !options?.skipInitialLoad?.value) as any,
   });
 
@@ -792,9 +803,9 @@ export function useLogs(
       if (!options?.skipInitialLoad?.value) return;
       client.client.cache.writeQuery({
         query: LOGS_QUERY,
-        variables: combinedVariables.value as any,
+        variables: combinedVariables.value as SearchLogsQueryVariables,
         data: {
-          logs: {
+          searchLogs: {
             totalCount: 0,
             pageInfo: {
               hasNextPage: false,
@@ -834,7 +845,7 @@ export function useLogs(
           }
         }
       `),
-      combinedVariables as any
+      combinedVariables as Ref<LogsChangedSubscriptionVariables>
     );
     onLogsAdded((logs) => addLogs(logs.data?.logsChanged?.logs?.map((l) => useFragment(LogEntryContentType, l)) ?? []));
   }
@@ -847,7 +858,7 @@ export function useLogs(
       },
       (prev) => {
         return {
-          logs: getUpdatedConnectionQueryMany(logs, prev?.logs as Connection<LogEntry> | undefined),
+          searchLogs: getUpdatedConnectionQueryMany(logs, prev?.searchLogs as Connection<LogEntry> | undefined),
         };
       }
     );
@@ -855,7 +866,7 @@ export function useLogs(
 
   return {
     loading: initialLoading,
-    logs: computed(() => logs.value?.logs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
+    logs: computed(() => logs.value?.searchLogs.edges.map((e) => useFragment(LogEntryContentType, e.node))),
     addLogs,
   };
 }

@@ -2,7 +2,7 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 
-const props = defineProps<{ title?: string; description?: string; confirmText?: string; cancelText?: string }>();
+defineProps<{ title?: string; description?: string; confirmText?: string; cancelText?: string }>();
 const emit = defineEmits<{ (e: "action"): void; (e: "cancel"): void }>();
 </script>
 <template>

@@ -8,7 +8,6 @@ import { useClipboard } from "@vueuse/core";
 import { computed } from "vue";
 
 const props = defineProps<{ project: FragmentType<typeof ProjectHeaderType> }>();
-const emit = defineEmits<{ (e: "show"): void }>();
 
 const project = computed(() => useFragment(ProjectHeaderType, props.project));
 

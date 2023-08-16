@@ -5,10 +5,8 @@ import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunTile from "@/components/tiles/RunTile.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { formatDuration, useNow } from "@/composables/useNow";
-import { useFragment } from "@/gql";
 import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
-import { FieldType } from "@/state/fragments";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { TERMINAL_RUN_STATUSES, getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
@@ -64,7 +62,7 @@ type OrderedNode = {
 };
 
 // run trace
-const { run: root, loading, nodes, childrenByParentId } = useRun(toRef(props, "rootId"), { live: props.live });
+const { run: root, loading, childrenByParentId } = useRun(toRef(props, "rootId"), { live: props.live });
 
 const orderedNodes: Ref<OrderedNode[]> = computed(() => {
   // walk the tree and position nodes using children (by parent)
@@ -121,7 +119,6 @@ type BarNode = OrderedNode & {
   color: string;
 };
 const barPaddingX = 0;
-const barPaddingY = 4;
 const barHeight = 32;
 const barGapY = 2;
 const barMinWidth = 4;
