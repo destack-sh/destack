@@ -419,7 +419,9 @@ nats-py==2.2.0
     #   -c requirements.txt
     #   -r requirements.in
 nodeenv==1.8.0
-    # via pre-commit
+    # via
+    #   pre-commit
+    #   pyright
 numpy==1.25.2
     # via
     #   -c requirements.txt
@@ -527,6 +529,8 @@ pyopenssl==23.2.0
     #   twisted
 pyproject-hooks==1.0.0
     # via build
+pyright==1.1.322
+    # via -r requirements-dev.in
 pytest==7.4.0
     # via
     #   -r requirements-dev.in

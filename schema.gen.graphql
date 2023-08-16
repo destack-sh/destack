@@ -1158,12 +1158,10 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): UserConnection!
-  userBySlug(slug: String!): User
   organization(
     """The ID of the object."""
     id: GlobalID!
   ): Organization
-  organizationBySlug(organization: String!): Organization
   ownerBySlug(slug: String!): UserOrganization
   project(
     """The ID of the object."""

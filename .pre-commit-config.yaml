@@ -16,18 +16,11 @@ repos:
     hooks:
       - id: isort
         name: isort (py)
-#  TODO @Cleanup: fix mypy in pre-commit
-#  - repo: https://github.com/pre-commit/mirrors-mypy
-#    rev: v1.5.0
+#  TODO @Cleanup: fix typechecking in pre-commit
+#  - repo: https://github.com/RobertCraigie/pyright-python
+#    rev: v1.1.322
 #    hooks:
-#      - id: mypy
-#        name: mypy (py)
-#        args: [--strict-optional, --ignore-missing-imports, --follow-imports=skip, --config-file=pyproject.toml, --show-traceback]
-#        exclude: ^bench/migrations
-#        #  I couldn't figure out how to make mypy ignore missing imports (despite above args),
-#        #  so for now just run it in the system environment. This may fail in CI (?).
-#        language: system
-#        entry: mypy
+#      - id: pyright
   - repo: https://github.com/pre-commit/mirrors-eslint
     rev: v8.13.0
     hooks:
