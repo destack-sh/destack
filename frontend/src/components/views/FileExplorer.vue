@@ -71,7 +71,7 @@ defineExpose({
     <li
       v-for="file in filesSorted"
       :key="file.id"
-      :ref="(ref) => filesGrid.registerColumnRef(file.id, 'name', ref)"
+      :ref="(ref) => filesGrid.registerColumnRef(file.id, 'name', (ref as HTMLElement))"
       tabindex="-1"
       @keydown.up.exact.prevent="filesGrid.navigateUp(file.id, 'name')"
       @keydown.down.exact.prevent="filesGrid.navigateDown(file.id, 'name')"

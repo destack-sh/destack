@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import type { Field } from "@/state/statement";
 import { useAppearance } from "@/state/appearance";
+import type { Field } from "@/state/module";
 import { useSecrets, type SecretRecord } from "@/state/secret";
 import { syncProperty } from "@/utils/sync";
 import { PlusIcon, KeyIcon, EyeIcon, EyeSlashIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";

@@ -25,7 +25,7 @@ export function useElementRefs<RefType = HTMLInputElement>(options?: {
   }
 
   function focus(id: string) {
-    (refs.value[id] as HTMLElement)?.focus();
+    (refs.value[id] as { focus?: () => void })?.focus?.();
   }
 
   return {
@@ -140,7 +140,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
   }
 
   function blur() {
-    Object.values(columnRefs.value).forEach((ref) => (ref as HTMLElement).blur());
+    Object.values(columnRefs.value).forEach((ref) => (ref as unknown as { blur?: () => void })?.blur?.());
   }
 
   function focus(index: number | string, column: ColumnType) {
@@ -160,7 +160,7 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
       return;
     }
     const columnId = row.id + "." + column;
-    (columnRefs.value?.[columnId] as HTMLElement)?.focus();
+    (columnRefs.value?.[columnId] as { focus?: () => void })?.focus?.();
     options?.onFocus?.(row.id, column);
   }
 

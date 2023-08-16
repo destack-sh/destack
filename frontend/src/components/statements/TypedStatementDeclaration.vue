@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
+import type { Field } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
@@ -44,7 +45,7 @@ defineExpose({
         v-for="field of baseTypes"
         :ref="(el: any) => baseTypesRefs.registerRef(field.id, el)"
         :model-value="field"
-        @update:model-value="(val) => context.updateField(field, val)"
+        @update:model-value="(val) => context.updateField(field, val as Field)"
         @delete-self="context.deleteField(field)"
         @navigate-left="
           field.id == baseTypes[0].id

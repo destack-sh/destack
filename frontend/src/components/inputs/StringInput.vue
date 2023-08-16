@@ -43,7 +43,7 @@ defineExpose({
     type="text"
     :value="modelValue"
     @input="
-      emit('update:modelValue', $event.target?.value);
+      emit('update:modelValue', ($event.target as any)?.value);
       autosize();
     "
     spellcheck="false"

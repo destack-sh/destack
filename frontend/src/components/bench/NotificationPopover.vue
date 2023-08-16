@@ -68,8 +68,7 @@ const {
     first: 10,
   })) as any,
   {
-    // only enable if open
-    enabled: computed(() => panelHeaderRef.value != null),
+    enabled: computed(() => panelHeaderRef.value != null) as any,
   }
 );
 const notifications = computed(() => notificationsResult.value?.me?.notifications.edges.map((e) => e.node) ?? []);
@@ -108,8 +107,6 @@ const { getTimeFromNowString } = useTimeFromNow();
     <PopoverButton
       class="mt-1 rounded-sm p-1 text-sm text-orange-600 outline-none transition-colors hover:bg-orange-100"
       :class="{
-        '': !hasUnreadNotifications,
-        '': hasUnreadNotifications,
         'bg-orange-100': open,
       }"
     >

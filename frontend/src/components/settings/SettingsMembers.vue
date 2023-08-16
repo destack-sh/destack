@@ -15,7 +15,7 @@ import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, type Ref } from "vue";
 const props = defineProps<{ slug: string }>();
 
-const { result: membersResult, loading } = useQuery(
+const { result: membersResult } = useQuery(
   graphql(/* GraphQL */ `
     query organizationMembers($slug: String!) {
       ownerBySlug(slug: $slug) {
@@ -68,9 +68,12 @@ const { result: membersResult, loading } = useQuery(
 );
 
 const auth = useAuth();
-const memberships = computed(() => membersResult.value?.organizationBySlug?.memberships.edges.map((e) => e.node));
-const invites = computed(() => membersResult.value?.organizationBySlug?.invites.edges.map((e) => e.node));
-const canWrite = computed(() => membersResult.value?.organizationBySlug?.canWrite ?? false);
+const organization = computed(() =>
+  membersResult.value?.ownerBySlug?.__typename == "Organization" ? membersResult.value?.ownerBySlug : null
+);
+const memberships = computed(() => organization.value?.memberships.edges.map((e) => e.node));
+const invites = computed(() => organization.value?.invites.edges.map((e) => e.node));
+const canWrite = computed(() => organization.value?.canWrite ?? false);
 
 const showInvites = ref(true);
 const { getTimeFromNowLongString } = useTimeFromNow();
@@ -90,7 +93,7 @@ async function createInvites() {
   }
   // we also don't do any validation on which user can be added yet
 
-  const organizationId = membersResult.value?.organizationBySlug?.id;
+  const organizationId = organization.value?.id;
   const ret = await ops.organization.createInvites(organizationId, [invitingUser.value?.email], invitingLevel.value);
   if (ret?.data?.createOrganizationInvites?.__typename == "Organization") {
     // success
@@ -137,7 +140,7 @@ async function removeMembership(membership: OrganizationMembership) {
     </div>
     <table
       class="mt-3 min-w-full divide-y divide-orange-900 divide-opacity-[12%] rounded-sm border border-orange-900 border-opacity-[12%] bg-white text-sm"
-      v-show="membersResult?.organizationBySlug != null"
+      v-show="membersResult?.ownerBySlug != null"
     >
       <thead>
         <tr>

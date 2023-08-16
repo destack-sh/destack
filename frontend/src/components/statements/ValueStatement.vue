@@ -178,7 +178,7 @@ defineExpose({
     <CreateFieldInterface
       ref="createFieldRef"
       :title="'New field on ' + context.statement.value.name"
-      @select="createNewField"
+      @select="(f) => createNewField(f as Field)"
     />
   </div>
 </template>
