@@ -736,7 +736,7 @@ class SymbolMutation:
         return field
 
     @tracked_db_mutation(MMT.RESTORE_FIELD)
-    def restore_statement_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
+    def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.restore()
         return field

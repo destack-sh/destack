@@ -747,7 +747,7 @@ export function useSymbolContentOps() {
     ModuleMutationType.RestoreField,
     graphql(/* GraphQL */ `
       mutation restoreField($id: GlobalID!) {
-        restoreStatementField(input: { id: $id }) {
+        restoreField(input: { id: $id }) {
           ... on Field {
             id
             deletedAt
@@ -759,7 +759,7 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: { id: string }) =>
         ({
-          restoreStatementField: {
+          restoreField: {
             __typename: "Field",
             id: vars.id,
             deletedAt: null,

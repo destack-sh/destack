@@ -212,10 +212,14 @@ django-structlog==4.0.1
     #   -r requirements.in
 django-stubs==4.2.3
     # via
+    #   -c requirements.txt
     #   -r requirements-dev.in
+    #   -r requirements.in
     #   djangorestframework-stubs
 django-stubs-ext==4.2.2
-    # via django-stubs
+    # via
+    #   -c requirements.txt
+    #   django-stubs
 djangorestframework==3.14.0
     # via
     #   -c requirements.txt
@@ -400,6 +404,7 @@ multidict==6.0.4
     #   yarl
 mypy==1.5.0
     # via
+    #   -c requirements.txt
     #   -r requirements-dev.in
     #   django-stubs
     #   djangorestframework-stubs
@@ -692,9 +697,12 @@ types-psycopg2==2.9.21.2
 types-pygments==2.13.1.1
     # via -r requirements-dev.in
 types-pytz==2023.3.0.1
-    # via django-stubs
+    # via
+    #   -c requirements.txt
+    #   django-stubs
 types-pyyaml==6.0.12.11
     # via
+    #   -c requirements.txt
     #   django-stubs
     #   djangorestframework-stubs
 types-requests==2.31.0.2

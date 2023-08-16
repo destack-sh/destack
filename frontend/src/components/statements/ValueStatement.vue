@@ -133,11 +133,6 @@ defineExpose({
         :class="context.focused.value ? '' : 'opacity-0'"
       >
         <StatementActions :extra-actions="actions" />
-        <CreateFieldInterface
-          ref="createFieldRef"
-          :title="'New field on ' + context.statement.value.name"
-          @select="createNewField"
-        />
       </div>
     </div>
     <!-- Folded info -->
@@ -180,5 +175,10 @@ defineExpose({
         <PlusIcon class="h-4 w-4" /> Field
       </button>
     </div>
+    <CreateFieldInterface
+      ref="createFieldRef"
+      :title="'New field on ' + context.statement.value.name"
+      @select="createNewField"
+    />
   </div>
 </template>

@@ -4,16 +4,10 @@ import LogsTile from "@/components/tiles/LogsTile.vue";
 import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import {
-  Bars3Icon,
-  DocumentChartBarIcon,
-  ListBulletIcon,
-  Squares2X2Icon,
-  XCircleIcon,
-} from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChartBarIcon, DocumentChartBarIcon, FireIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "tracebars" | "tracelist" | "error" | "metadata";
+type View = "logs" | "flamegraph" | "trace" | "error" | "metadata";
 
 const props = defineProps<{
   projectId: string;
@@ -50,7 +44,7 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'tracelist', 'tracebars', 'error', 'metadata'].filter(
+          v-for="view in ['logs', 'trace', 'flamegraph', 'error', 'metadata'].filter(
             (v) => v != 'error' || run?.status == RunStatus.Failed
           )"
           :key="view"
@@ -62,8 +56,8 @@ defineExpose({
             :is="
               {
                 logs: Bars3Icon,
-                tracebars: Squares2X2Icon,
-                tracelist: ListBulletIcon,
+                flamegraph: FireIcon,
+                trace: ChartBarIcon,
                 error: XCircleIcon,
                 metadata: DocumentChartBarIcon,
               }[view]
@@ -83,10 +77,10 @@ defineExpose({
     <div ref="outputRef" class="mt-1">
       <!-- Output views -->
       <TraceTile
-        v-if="activeView == 'tracebars' || activeView == 'tracelist'"
+        v-if="activeView == 'flamegraph' || activeView == 'trace'"
         :session-id="run.session?.id"
         :root-id="run.id"
-        :layout="activeView == 'tracebars' ? 'bars' : 'list'"
+        :layout="activeView == 'flamegraph' ? 'bars' : 'list'"
         live
       />
       <LogsTile

@@ -110,6 +110,8 @@ django==4.2.1
     #   django-cors-headers
     #   django-filter
     #   django-structlog
+    #   django-stubs
+    #   django-stubs-ext
     #   djangorestframework
     #   djangorestframework-dataclasses
     #   drf-nested-routers
@@ -136,6 +138,10 @@ django-prometheus==2.2.0
     # via -r requirements.in
 django-structlog==4.0.1
     # via -r requirements.in
+django-stubs==4.2.3
+    # via -r requirements.in
+django-stubs-ext==4.2.2
+    # via django-stubs
 djangorestframework==3.14.0
     # via
     #   -r requirements.in
@@ -234,8 +240,12 @@ multidict==6.0.4
     # via
     #   aiohttp
     #   yarl
+mypy==1.5.0
+    # via django-stubs
 mypy-extensions==1.0.0
-    # via typing-inspect
+    # via
+    #   mypy
+    #   typing-inspect
 nats-py==2.2.0
     # via -r requirements.in
 numpy==1.25.2
@@ -388,10 +398,17 @@ txaio==23.1.1
     # via autobahn
 typer==0.9.0
     # via strawberry-graphql
+types-pytz==2023.3.0.1
+    # via django-stubs
+types-pyyaml==6.0.12.11
+    # via django-stubs
 typing-extensions==4.7.1
     # via
+    #   django-stubs
+    #   django-stubs-ext
     #   janus
     #   libcst
+    #   mypy
     #   opentelemetry-sdk
     #   strawberry-graphql
     #   twisted

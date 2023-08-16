@@ -62,7 +62,7 @@ const outputRef = ref<HTMLDivElement | null>(null);
 const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const showOutput: Ref<"logs" | "tracebars" | "tracelist" | "error" | "metadata" | null> = ref(
+const showOutput: Ref<"logs" | "flamegraph" | "trace" | "error" | "metadata" | null> = ref(
   context.standalone.value ? "logs" : null
 );
 

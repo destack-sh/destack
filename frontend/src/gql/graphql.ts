@@ -592,10 +592,10 @@ export type Mutation = {
   requestUploadObject: RemoteObjectOperationInfo;
   restartWorkerSet: RestartWorkerSetPayloadOperationInfo;
   restore: CommitPayloadOperationInfo;
+  restoreField: FieldOperationInfo;
   restoreFile: FileOperationInfo;
   restoreRecord: RecordOperationInfo;
   restoreStatement: StatementOperationInfo;
-  restoreStatementField: FieldOperationInfo;
   restoreTagging: TaggingOperationInfo;
   restoreTrigger: TriggerOperationInfo;
   revokeAccessToken: AccessTokenOperationInfo;
@@ -810,6 +810,10 @@ export type MutationRestoreArgs = {
   input: RestoreInput;
 };
 
+export type MutationRestoreFieldArgs = {
+  input: FieldRestoreInput;
+};
+
 export type MutationRestoreFileArgs = {
   input: NodeInput;
 };
@@ -820,10 +824,6 @@ export type MutationRestoreRecordArgs = {
 
 export type MutationRestoreStatementArgs = {
   input: StatementRestoreInput;
-};
-
-export type MutationRestoreStatementFieldArgs = {
-  input: FieldRestoreInput;
 };
 
 export type MutationRestoreTaggingArgs = {
@@ -4868,7 +4868,7 @@ export type RestoreFieldMutationVariables = Exact<{
 
 export type RestoreFieldMutation = {
   __typename?: "Mutation";
-  restoreStatementField:
+  restoreField:
     | { __typename?: "Field"; id: any; deletedAt?: any | null }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -14455,7 +14455,7 @@ export const RestoreFieldDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "restoreStatementField" },
+            name: { kind: "Name", value: "restoreField" },
             arguments: [
               {
                 kind: "Argument",
