@@ -1452,7 +1452,6 @@ export type Query = {
   file?: Maybe<File>;
   me?: Maybe<User>;
   organization?: Maybe<Organization>;
-  organizationBySlug?: Maybe<Organization>;
   ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
   projectBySlug?: Maybe<Project>;
@@ -1469,7 +1468,6 @@ export type Query = {
   statement?: Maybe<Statement>;
   systemInfo: SystemInfo;
   user?: Maybe<User>;
-  userBySlug?: Maybe<User>;
   users: UserConnection;
 };
 
@@ -1509,10 +1507,6 @@ export type QueryFileArgs = {
 
 export type QueryOrganizationArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type QueryOrganizationBySlugArgs = {
-  organization: Scalars["String"];
 };
 
 export type QueryOwnerBySlugArgs = {
@@ -1601,10 +1595,6 @@ export type QueryStatementArgs = {
 
 export type QueryUserArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type QueryUserBySlugArgs = {
-  slug: Scalars["String"];
 };
 
 export type QueryUsersArgs = {
@@ -2842,41 +2832,51 @@ export type OrganizationMembersQueryVariables = Exact<{
 
 export type OrganizationMembersQuery = {
   __typename?: "Query";
-  organizationBySlug?: {
-    __typename?: "Organization";
-    id: any;
-    canWrite: boolean;
-    memberships: {
-      __typename?: "OrganizationMembershipConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "OrganizationMembershipEdge";
-        node: {
-          __typename?: "OrganizationMembership";
-          id: any;
-          createdAt: any;
-          level: OrganizationMembershipLevel;
-          user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
+  ownerBySlug?:
+    | {
+        __typename?: "Organization";
+        id: any;
+        canWrite: boolean;
+        memberships: {
+          __typename?: "OrganizationMembershipConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "OrganizationMembershipEdge";
+            node: {
+              __typename?: "OrganizationMembership";
+              id: any;
+              createdAt: any;
+              level: OrganizationMembershipLevel;
+              user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
+            };
+          }>;
         };
-      }>;
-    };
-    invites: {
-      __typename?: "OrganizationInviteConnection";
-      totalCount?: number | null;
-      edges: Array<{
-        __typename?: "OrganizationInviteEdge";
-        node: {
-          __typename?: "OrganizationInvite";
-          id: any;
-          createdAt: any;
-          level: OrganizationMembershipLevel;
-          email: string;
-          emailSentAt?: any | null;
-          user?: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string } | null;
+        invites: {
+          __typename?: "OrganizationInviteConnection";
+          totalCount?: number | null;
+          edges: Array<{
+            __typename?: "OrganizationInviteEdge";
+            node: {
+              __typename?: "OrganizationInvite";
+              id: any;
+              createdAt: any;
+              level: OrganizationMembershipLevel;
+              email: string;
+              emailSentAt?: any | null;
+              user?: {
+                __typename?: "User";
+                id: any;
+                slug: string;
+                email: string;
+                name: string;
+                username: string;
+              } | null;
+            };
+          }>;
         };
-      }>;
-    };
-  } | null;
+      }
+    | { __typename?: "User" }
+    | null;
 };
 
 export type ProfileSettingsQueryVariables = Exact<{
@@ -7590,11 +7590,11 @@ export const OrganizationMembersDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "organizationBySlug" },
+            name: { kind: "Name", value: "ownerBySlug" },
             arguments: [
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "organization" },
+                name: { kind: "Name", value: "slug" },
                 value: { kind: "Variable", name: { kind: "Name", value: "slug" } },
               },
             ],

@@ -18,7 +18,7 @@ const props = defineProps<{ slug: string }>();
 const { result: membersResult, loading } = useQuery(
   graphql(/* GraphQL */ `
     query organizationMembers($slug: String!) {
-      organizationBySlug(organization: $slug) {
+      ownerBySlug(slug: $slug) {
         ... on Organization {
           id
           canWrite

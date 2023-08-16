@@ -4,7 +4,6 @@ from typing import TYPE_CHECKING, Annotated, List, Optional, Union
 
 import strawberry
 import strawberry_django
-from asgiref.sync import sync_to_async
 from django.contrib.auth.models import AnonymousUser
 from graphql import GraphQLError, NoSchemaIntrospectionCustomRule
 from strawberry import lazy
@@ -64,7 +63,6 @@ def get_me(self, info: Info) -> Optional[User]:
     return user
 
 
-@sync_to_async
 def get_user_or_organization_by_slug(
     self, info: Info, slug: str
 ) -> Optional[Union[User, Organization]]:
@@ -125,11 +123,7 @@ class Query(SessionQuery, ClientQuery, DataQuery):
     users: strawberry_django.relay.ListConnectionWithTotalCount[
         User
     ] = strawberry_django.connection(filters=UserFilter)
-    user_by_slug: Optional[User] = strawberry_django.field(resolver=get_user_by_slug)
     organization: Optional[Organization] = strawberry_django.node()
-    organization_by_slug: Optional[Organization] = strawberry_django.field(
-        resolver=get_organization_by_slug
-    )
     owner_by_slug: Optional[Union[User, Organization]] = strawberry_django.field(
         resolver=get_user_or_organization_by_slug
     )

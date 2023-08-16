@@ -20,6 +20,12 @@ strict_optional = false
 files = ["bench"]
 exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
 
+[tool.pyright]
+include = ["bench"]
+exclude = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
+ignore = ["^bench/migrations", "^venv|^venv-worker", "test_[a-z_]*\\.py"]
+venv = "venv"
+
 [[tool.mypy.overrides]]
 module = "uvicorn"
 ignore_missing_imports = true
