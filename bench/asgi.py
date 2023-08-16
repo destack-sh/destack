@@ -19,8 +19,10 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
+from bench.api.utils import BrotliCompressionMiddleware
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
 from bench.settings import (
+    BROTLI_COMPRESSION_ENABLED,
     CORS_ALLOWED_ORIGINS,
     RUN_LANGUAGE_SERVER_IN_API,
     RUN_ORCHESTRATION_SERVER_IN_API,
@@ -47,12 +49,19 @@ gql_http_consumer = CORSMiddleware(
     allow_methods=["*"],
     allow_credentials=True,
 )
+if BROTLI_COMPRESSION_ENABLED:
+    gql_http_consumer = BrotliCompressionMiddleware(gql_http_consumer)
 
 gql_ws_consumer = GraphQLWSConsumer.as_asgi(schema=schema)
 application = ProtocolTypeRouter(
     {
         "http": (
-            URLRouter([re_path("^graphql", gql_http_consumer), re_path("^", django_asgi_app)])
+            URLRouter(
+                [
+                    re_path("^graphql", (gql_http_consumer)),
+                    re_path("^", django_asgi_app),
+                ]
+            )
         ),
         "websocket": AllowedHostsOriginValidator(
             AuthMiddlewareStack(URLRouter(websocket_urlpatterns))

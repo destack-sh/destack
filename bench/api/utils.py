@@ -1,9 +1,11 @@
 import functools
+import time
 import typing
 from datetime import datetime
 from typing import Iterable, Optional, Sequence
 from uuid import UUID
 
+import brotli
 import strawberry
 import strawberry_django
 import structlog
@@ -22,7 +24,8 @@ from strawberry_django.mutations.fields import _handle_exception
 from bench import models
 from bench.language import Q, query
 from bench.msg.messages import ClientOrigin
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.settings import BROTLI_QUALITY_LEVEL
+from bench.utils.utils import DEBUG, LOCAL, sentry_capture_if_enabled
 
 if typing.TYPE_CHECKING:
     from bench.api.user import User
@@ -193,6 +196,47 @@ def get_user_from_info(info: Info) -> models.User:
         return request.consumer.scope["user"]._wrapped
     else:
         raise TypeError(f"unexpected request type: {request}")
+
+
+class BrotliCompressionMiddleware:
+    """Brotli ASGI compression middleware (for our Daphne API stack)."""
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # check for brotli support (headers is now a list of tuples)
+        accept_encoding = first(
+            (v for k, v in scope["headers"] if k.decode().lower() == "accept-encoding"), None
+        )
+        if not accept_encoding or b"br" not in accept_encoding:
+            await self.app(scope, receive, send)
+            return
+
+        # wrap send function to compress response
+        async def send_with_brotli(message):
+            if message["type"] == "http.response.start":
+                message["headers"].append((b"content-encoding", b"br"))
+                message["headers"].append((b"vary", b"accept-encoding"))
+                message["headers"].append((b"cache-control", b"no-cache"))
+            elif message["type"] == "http.response.body":
+                start_time = time.perf_counter()
+                message["body"] = brotli.compress(message["body"], quality=BROTLI_QUALITY_LEVEL)
+                if DEBUG or LOCAL:
+                    logger.debug(
+                        "brotli.compress",
+                        size=len(message["body"]),
+                        time=time.perf_counter() - start_time,
+                        quality=BROTLI_QUALITY_LEVEL,
+                    )
+            await send(message)
+
+        # call wrapped app
+        await self.app(scope, receive, send_with_brotli)
 
 
 class ThingBatch(Iterable):
