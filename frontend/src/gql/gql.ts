@@ -215,7 +215,7 @@ const documents = {
     types.DeleteFieldDocument,
   "\n      mutation softDeleteField($id: GlobalID!) {\n        softDeleteField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.SoftDeleteFieldDocument,
-  "\n      mutation restoreField($id: GlobalID!) {\n        restoreStatementField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation restoreField($id: GlobalID!) {\n        restoreField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreFieldDocument,
   "\n      mutation updateField(\n        $id: GlobalID!\n        $tag: TypeTag!\n        $hint: TypeHint\n        $name: String\n        $description: String\n        $flags: Int!\n        $referenceId: GlobalID\n        $metadata: JSON\n      ) {\n        updateField(\n          input: {\n            id: $id\n            tag: $tag\n            hint: $hint\n            name: $name\n            description: $description\n            flags: $flags\n            referenceId: $referenceId\n            metadata: $metadata\n          }\n        ) {\n          ... on Field {\n            id\n            tag\n            hint\n            updatedAt\n            revision\n            name\n            description\n            flags\n            reference {\n              id\n            }\n            metadata\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.UpdateFieldDocument,
@@ -905,8 +905,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation restoreField($id: GlobalID!) {\n        restoreStatementField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation restoreField($id: GlobalID!) {\n        restoreStatementField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation restoreField($id: GlobalID!) {\n        restoreField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation restoreField($id: GlobalID!) {\n        restoreField(input: { id: $id }) {\n          ... on Field {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

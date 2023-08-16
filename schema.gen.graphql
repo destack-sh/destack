@@ -558,7 +558,7 @@ type Mutation {
   moveField(input: FieldMoveInput!): FieldOperationInfo!
   softDeleteField(input: FieldDeleteInput!): FieldOperationInfo!
   deleteField(input: FieldDeleteInput!): FieldOperationInfo!
-  restoreStatementField(input: FieldRestoreInput!): FieldOperationInfo!
+  restoreField(input: FieldRestoreInput!): FieldOperationInfo!
   createTagging(input: TaggingCreateInput!): TaggingOperationInfo!
   updateTagging(input: TaggingUpdateInput!): TaggingOperationInfo!
   deleteTagging(input: TaggingDeleteInput!): TaggingOperationInfo!
