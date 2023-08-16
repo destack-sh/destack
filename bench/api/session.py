@@ -25,12 +25,12 @@ from bench.api.auth import (
 )
 from bench.api.statement import Statement
 from bench.api.utils import (
+    ListConnectionWithTotalCount,
     QueryOp,
     SearchQuery,
     SearchSort,
     asafe_mutation,
     asafe_subscription,
-    async_safe,
     get_user_from_info,
     to_global_id,
     to_uuid,
@@ -361,7 +361,6 @@ class Environment:
 @strawberry.type
 class SessionQuery:
     @strawberry_django.field
-    @async_safe
     def current_runs(
         self,
         info: Info,
@@ -401,7 +400,6 @@ class SessionQuery:
     run: Optional[Run] = strawberry_django.node(directives=[])
 
     @strawberry_django.field
-    @async_safe
     async def environment(self, info: Info, project_id: GlobalID) -> Environment | OperationInfo:
         project_id = UUID(project_id.node_id)
         project = await models.Project.objects.select_related("worker_set").aget(id=project_id)
@@ -431,7 +429,6 @@ class SessionQuery:
         )
 
     @strawberry_django.field
-    @async_safe
     def search_runs(
         self,
         info: Info,
@@ -446,7 +443,7 @@ class SessionQuery:
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> strawberry_django.relay.ListConnectionWithTotalCount[Run]:
+    ) -> ListConnectionWithTotalCount[Run]:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
@@ -486,19 +483,18 @@ class SessionQuery:
             cursor = encode_cursor(r, after, i)
             edge = relay.Edge(node=run, cursor=cursor)
             edges.append(edge)
-        page_info = relay.Edge(
+        page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return strawberry_django.relay.ListConnectionWithTotalCount(
+        return ListConnectionWithTotalCount(
             edges=edges, page_info=page_info, total_count=total_count
         )
 
     @strawberry_django.field
-    @async_safe
     def search_logs(
         self,
         info: Info,
@@ -512,7 +508,7 @@ class SessionQuery:
         after: Optional[str] = None,
         limit: Optional[int] = None,
         count: Optional[bool] = None,
-    ) -> strawberry_django.relay.ListConnectionWithTotalCount[LogEntry]:
+    ) -> ListConnectionWithTotalCount[LogEntry]:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
@@ -550,14 +546,14 @@ class SessionQuery:
             cursor = encode_cursor(r, after, i)
             edge = relay.Edge(node=node, cursor=cursor)
             edges.append(edge)
-        page_info = relay.Edge(
+        page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
             has_next_page=len(results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
-        return strawberry_django.relay.ListConnectionWithTotalCount(
+        return ListConnectionWithTotalCount(
             edges=edges, page_info=page_info, total_count=total_count
         )
 
@@ -575,6 +571,7 @@ class SessionMutation:
             NMessageType.WAKE_RUNTIME,
             ReqWakeRuntimePayload(module_id=project_version_id),
             reply_t=RepWakeRuntimePayload,
+            retry=3,
         )
         return WakeRuntimePayload(success=True)
 
@@ -589,6 +586,7 @@ class SessionMutation:
             NMessageType.WAKE_WORKER_SET,
             ReqWakeWorkerSetPayload(project_id=project_id),
             reply_t=RepWakeWorkerSetPayload,
+            retry=3,
         )
         if rep.payload.success:
             worker_set = await models.WorkerSet.objects.aget(id=rep.p.worker_set_id)
@@ -607,6 +605,7 @@ class SessionMutation:
             NMessageType.RESTART_WORKER_SET,
             ReqRestartWorkerSetPayload(project_id=project_id),
             reply_t=RepRestartWorkerSetPayload,
+            retry=3,
         )
         if rep.payload.success and rep.p.worker_set_id:
             worker_set = await models.WorkerSet.objects.aget(id=rep.p.worker_set_id)
@@ -641,6 +640,7 @@ class SessionMutation:
                 run,
                 reply_t=RepStartRunPayload,
                 timeout=input.timeout_seconds,
+                retry=2,
             )
             success = rep.p.error is None
             error = rep.p.error
@@ -683,9 +683,7 @@ class SessionMutation:
         )
         try:
             rep: NMessage[RepCancelRunPayload] = await request(
-                NMessageType.CANCEL_RUN,
-                cancel,
-                reply_t=RepCancelRunPayload,
+                NMessageType.CANCEL_RUN, cancel, reply_t=RepCancelRunPayload, retry=2
             )
             run = await models.Run.objects.filter(id=cancel.run_id).afirst()
             success = rep.p.success

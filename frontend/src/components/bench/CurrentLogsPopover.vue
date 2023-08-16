@@ -1,22 +1,7 @@
 <script lang="ts" setup>
-import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { RunStatus } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
-import { useCurrentModule, useNavigation } from "@/state/module";
-import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { Bars3BottomLeftIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
-import { Bars4Icon } from "@heroicons/vue/24/solid";
-import { useKeyModifier } from "@vueuse/core";
-import { computed } from "vue";
-
-const appearance = useAppearance();
-const module = useCurrentModule();
-const sessions = useCurrentSessions();
-const nav = useNavigation();
-
-const altKey = useKeyModifier("Alt");
+import { Bars3BottomLeftIcon } from "@heroicons/vue/24/outline";
 </script>
 <template>
   <Popover v-slot="{ open }" class="relative">

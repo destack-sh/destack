@@ -2,9 +2,9 @@
 import TiptapEditor from "@/components/basic/TiptapEditor.vue";
 import { useStatementContext } from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, ref, watch, type Ref } from "vue";
 
-const props = defineProps<{ folded?: boolean }>();
+defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();

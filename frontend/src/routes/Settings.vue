@@ -83,17 +83,17 @@ watchEffect(() => {
   }
 });
 
-type Tab = {
+type SettingsTab = {
   id: string;
   name: string;
-  icon: any;
-  component?: any;
+  icon: unknown;
+  component?: unknown;
   disabled?: boolean;
   count?: number;
 };
 
 const tabs = computed(() => {
-  const tabs: Tab[] = [
+  const tabs: SettingsTab[] = [
     {
       id: "profile",
       name: "Profile",
@@ -114,7 +114,7 @@ const tabs = computed(() => {
       id: "members",
       name: "Members",
       icon: UserGroupIcon,
-      count: organization.value?.members.totalCount ?? 0,
+      count: organization.value?.memberships.totalCount ?? 0,
       component: SettingsMembers,
     });
   }

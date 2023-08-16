@@ -17,7 +17,7 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { IssueKind, WorkerSetStatus } from "@/gql/graphql";
+import { WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
@@ -62,7 +62,6 @@ import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import {
   EyeIcon as EyeIconSolid,
-  CubeIcon as CubeIconSolid,
   SignalIcon,
   SignalSlashIcon,
   XCircleIcon,

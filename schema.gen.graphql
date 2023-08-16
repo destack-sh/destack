@@ -407,9 +407,7 @@ type LogEntryConnection {
 
   """Contains the nodes in this connection"""
   edges: [LogEntryEdge!]!
-
-  """Total quantity of existing nodes."""
-  totalCount: Int
+  totalCount: Int!
 }
 
 """An edge in a connection."""
@@ -701,7 +699,8 @@ enum OperationMessageKind {
   VALIDATION
 }
 
-type Organization implements Node & Owner {
+type Organization implements Owner & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   slug: String!
   name: String!
@@ -1256,9 +1255,7 @@ type RecordConnection {
 
   """Contains the nodes in this connection"""
   edges: [RecordEdge!]!
-
-  """Total quantity of existing nodes."""
-  totalCount: Int
+  totalCount: Int!
 }
 
 input RecordCreateInput {
@@ -1433,9 +1430,7 @@ type RunConnection {
 
   """Contains the nodes in this connection"""
   edges: [RunEdge!]!
-
-  """Total quantity of existing nodes."""
-  totalCount: Int
+  totalCount: Int!
 }
 
 """An edge in a connection."""
@@ -1959,7 +1954,8 @@ input UpdateProjectVersion {
   description: String = null
 }
 
-type User implements Node & Owner {
+type User implements Owner & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   slug: String!
   name: String!

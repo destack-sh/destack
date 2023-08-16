@@ -3,7 +3,7 @@ import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
-import { PlusIcon, TagIcon as TagIconOutline } from "@heroicons/vue/24/outline";
+import { TagIcon as TagIconOutline } from "@heroicons/vue/24/outline";
 import { TagIcon as TagIconSolid } from "@heroicons/vue/24/solid";
 import { computed, nextTick, ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";

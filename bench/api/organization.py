@@ -29,7 +29,7 @@ class OrganizationFilter:
 
 
 @strawberry_django.type(models.Organization)
-class Organization(relay.Node, Owner):
+class Organization(Owner, relay.Node):
     name: auto
     created_at: auto
     updated_at: auto

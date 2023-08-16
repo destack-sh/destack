@@ -36,8 +36,11 @@ class Payload:
         return self.__class__.type.value  # type: ignore
 
 
+_PayloadT = typing.TypeVar("_PayloadT", bound=Payload)
+
+
 @typing.dataclass_transform()
-def payload(message_type: "NMessageType") -> typing.Callable[[typing.Type], typing.Type]:
+def payload(message_type: "NMessageType") -> typing.Callable[[_PayloadT], _PayloadT]:
     def wrapper(cls: typing.Type):
         if message_type in REGISTERED_MESSAGE_PAYLOADS:
             raise RuntimeError(f"message type {message_type} already registered")

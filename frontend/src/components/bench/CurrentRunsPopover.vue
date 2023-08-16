@@ -1,8 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { RunStatus } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
@@ -10,7 +8,6 @@ import { PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
 
-const appearance = useAppearance();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const nav = useNavigation();

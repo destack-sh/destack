@@ -1,4 +1,5 @@
 import { graphql, useFragment } from "@/gql";
+import type { ConnectedClientsQueryVariables } from "@/gql/graphql";
 import { ClientType } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
@@ -241,14 +242,17 @@ export function useConnectedClients(
         }
       }
     `),
-    {
-      projectId: filter.projectId,
-      projectVersionId: filter.projectVersionId,
-      userId: filter.userId,
-      inSameOrganizations: filter.inSameOrganizations as any,
-      active: filter.active as any,
-      first: options.first,
-    }
+    computed(
+      () =>
+        ({
+          projectId: filter.projectId.value,
+          projectVersionId: filter.projectVersionId.value,
+          userId: filter.userId.value,
+          inSameOrganizations: filter.inSameOrganizations?.value,
+          active: filter.active.value,
+          first: options.first,
+        } as ConnectedClientsQueryVariables)
+    )
   );
 
   if (options.live) {

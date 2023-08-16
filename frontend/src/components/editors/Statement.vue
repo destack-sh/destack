@@ -10,7 +10,6 @@ import TaskStatement from "@/components/statements/TaskStatement.vue";
 import TextStatement from "@/components/statements/TextStatement.vue";
 import TypeStatement from "@/components/statements/TypeStatement.vue";
 import ValueStatement from "@/components/statements/ValueStatement.vue";
-import { useFragment, type FragmentType } from "@/gql";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
@@ -24,7 +23,7 @@ import {
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
-import { useCurrentModule, type File, type Statement } from "@/state/module";
+import { useCurrentModule, type Statement } from "@/state/module";
 import { STATEMENT_CONTEXT, STATEMENT_TYPE_LABELS, type StatementContext } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {

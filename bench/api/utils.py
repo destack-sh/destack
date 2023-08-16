@@ -1,7 +1,7 @@
 import functools
 import typing
 from datetime import datetime
-from typing import Iterable, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence
 from uuid import UUID
 
 import strawberry
@@ -10,7 +10,7 @@ import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
 from more_itertools import first
-from strawberry import lazy
+from strawberry import lazy, relay
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
 from strawberry.relay import GlobalID
@@ -30,8 +30,9 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-def async_safe(func):
-    return func  # nocheckin is this still needed? seems fine without?
+@strawberry.type(name="Connection", description="A connection to a list of items.")
+class ListConnectionWithTotalCount(relay.ListConnection[relay.NodeType]):
+    total_count: int = strawberry.field()
 
 
 @strawberry.type
@@ -76,7 +77,6 @@ def safe_mutation(
             wrapped_func = wrapped_atomic
         else:
             wrapped_func = func
-        wrapped_func = async_safe(wrapped_func)
         return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
 
     if func is None:
@@ -98,7 +98,7 @@ def asafe_mutation(
             raise NotImplementedError("atomic=True not supported for async mutations")
         else:
             wrapped_func = func
-        return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
+        return strawberry.mutation(wrapped_func, directives=directives, **kwargs)
 
     if func is None:
         return wrapper
@@ -139,19 +139,15 @@ def wrap_exceptions(func):
         try:
             return func(*args, **kwargs)
         except Exception as e:
-            e = map_exception(e)
+            # extend strawberry_django's Django error mapping
+            if isinstance(e, IntegrityError):
+                e = ValidationError(e.args[0])
+            e = _get_validation_errors(e)
             if isinstance(e, OperationInfo):
                 return e
             raise e
 
     return wrapped
-
-
-def map_exception(e: Exception) -> Union[OperationInfo, Exception]:
-    # extend strawberry's _map_exception
-    if isinstance(e, IntegrityError):
-        e = ValidationError(e.args[0])
-    return _get_validation_errors(e)  # borrowed from strawberry_django
 
 
 def to_uuid(id: str | UUID | GlobalID | None) -> UUID | None:
