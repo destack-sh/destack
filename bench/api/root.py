@@ -13,7 +13,7 @@ from strawberry.types import ExecutionContext, Info
 from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.dataset import DataQuery, DatasetMutation
+from bench.api.dataset import DatasetMutation, RecordQuery
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node
 from bench.api.multiplayer import MultiplayerSubscription
@@ -116,7 +116,7 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 
 
 @strawberry.type
-class Query(SessionQuery, ClientQuery, DataQuery):
+class Query(SessionQuery, ClientQuery, RecordQuery):
     system_info: SystemInfo = strawberry_django.field(resolver=lambda: SYSTEM_INFO)
     me: Optional[User] = strawberry_django.field(resolver=get_me)
     user: Optional[User] = strawberry_django.node()

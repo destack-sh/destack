@@ -272,9 +272,9 @@ RECORDS_LIMIT = 100
 
 
 @strawberry.type
-class DataQuery:  # avoid name conflict with DatasetQuery
+class RecordQuery:  # avoid name conflict with DatasetQuery
     @strawberry_django.field
-    def search_dataset(
+    def search_records(
         self,
         info: Info,
         statement_id: GlobalID,

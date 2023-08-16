@@ -407,7 +407,7 @@ type LogEntryConnection {
 
   """Contains the nodes in this connection"""
   edges: [LogEntryEdge!]!
-  totalCount: Int!
+  totalCount: Int
 }
 
 """An edge in a connection."""
@@ -1136,7 +1136,7 @@ type Query {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): ClientConnection!
-  searchDataset(statementId: GlobalID!, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
+  searchRecords(statementId: GlobalID!, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RecordConnection!
   systemInfo: SystemInfo!
   me: User
   user(
@@ -1253,7 +1253,7 @@ type RecordConnection {
 
   """Contains the nodes in this connection"""
   edges: [RecordEdge!]!
-  totalCount: Int!
+  totalCount: Int
 }
 
 input RecordCreateInput {
@@ -1428,7 +1428,7 @@ type RunConnection {
 
   """Contains the nodes in this connection"""
   edges: [RunEdge!]!
-  totalCount: Int!
+  totalCount: Int
 }
 
 """An edge in a connection."""

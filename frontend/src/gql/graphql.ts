@@ -440,7 +440,7 @@ export type LogEntryConnection = {
   edges: Array<LogEntryEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount: Scalars["Int"];
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 /** An edge in a connection. */
@@ -1460,8 +1460,8 @@ export type Query = {
   projectVersionByTag?: Maybe<ProjectVersion>;
   remoteObject?: Maybe<RemoteObject>;
   run?: Maybe<Run>;
-  searchDataset: RecordConnection;
   searchLogs: LogEntryConnection;
+  searchRecords: RecordConnection;
   searchRuns: RunConnection;
   secret?: Maybe<Secret>;
   session?: Maybe<Session>;
@@ -1545,15 +1545,6 @@ export type QueryRunArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type QuerySearchDatasetArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  count?: InputMaybe<Scalars["Boolean"]>;
-  limit?: InputMaybe<Scalars["Int"]>;
-  query?: InputMaybe<SearchQuery>;
-  sort?: InputMaybe<Array<SearchSort>>;
-  statementId: Scalars["GlobalID"];
-};
-
 export type QuerySearchLogsArgs = {
   after?: InputMaybe<Scalars["String"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
@@ -1565,6 +1556,15 @@ export type QuerySearchLogsArgs = {
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
+};
+
+export type QuerySearchRecordsArgs = {
+  after?: InputMaybe<Scalars["String"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort>>;
+  statementId: Scalars["GlobalID"];
 };
 
 export type QuerySearchRunsArgs = {
@@ -1664,7 +1664,7 @@ export type RecordConnection = {
   edges: Array<RecordEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount: Scalars["Int"];
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 export type RecordCreateInput = {
@@ -1845,7 +1845,7 @@ export type RunConnection = {
   edges: Array<RunEdge>;
   /** Pagination data for this connection */
   pageInfo: PageInfo;
-  totalCount: Scalars["Int"];
+  totalCount?: Maybe<Scalars["Int"]>;
 };
 
 /** An edge in a connection. */
@@ -2936,7 +2936,7 @@ export type UpdateUserMutation = {
     | { __typename?: "User"; id: any; name: string; description?: string | null };
 };
 
-export type SearchDatasetQueryVariables = Exact<{
+export type SearchRecordsQueryVariables = Exact<{
   statementId: Scalars["GlobalID"];
   query?: InputMaybe<SearchQuery>;
   sort?: InputMaybe<Array<SearchSort> | SearchSort>;
@@ -2945,11 +2945,11 @@ export type SearchDatasetQueryVariables = Exact<{
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
 
-export type SearchDatasetQuery = {
+export type SearchRecordsQuery = {
   __typename?: "Query";
-  searchDataset: {
+  searchRecords: {
     __typename?: "RecordConnection";
-    totalCount: number;
+    totalCount?: number | null;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -5399,7 +5399,7 @@ export type SearchRunsQuery = {
   __typename?: "Query";
   searchRuns: {
     __typename?: "RunConnection";
-    totalCount: number;
+    totalCount?: number | null;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -5443,7 +5443,7 @@ export type SearchLogsQuery = {
   __typename?: "Query";
   searchLogs: {
     __typename?: "LogEntryConnection";
-    totalCount: number;
+    totalCount?: number | null;
     pageInfo: {
       __typename?: "PageInfo";
       hasNextPage: boolean;
@@ -7941,13 +7941,13 @@ export const UpdateUserDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateUserMutation, UpdateUserMutationVariables>;
-export const SearchDatasetDocument = {
+export const SearchRecordsDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "searchDataset" },
+      name: { kind: "Name", value: "searchRecords" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7988,7 +7988,7 @@ export const SearchDatasetDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "searchDataset" },
+            name: { kind: "Name", value: "searchRecords" },
             arguments: [
               {
                 kind: "Argument",
@@ -8071,7 +8071,7 @@ export const SearchDatasetDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<SearchDatasetQuery, SearchDatasetQueryVariables>;
+} as unknown as DocumentNode<SearchRecordsQuery, SearchRecordsQueryVariables>;
 export const EnvironmentDocument = {
   kind: "Document",
   definitions: [

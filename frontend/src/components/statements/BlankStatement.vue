@@ -116,8 +116,8 @@ const commands = computed(() => {
     singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum, aliases: ["type", "enum"] }),
     singleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
     singleStatementCommand(GROUPS.BASIC, StatementType.Code),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model"] }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model"] }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
 
     // advanced statements
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),

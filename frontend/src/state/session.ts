@@ -1,7 +1,7 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import type { SearchRunsQueryVariables } from "@/gql/graphql";
+import type { SearchLogsQuery, SearchRunsQueryVariables } from "@/gql/graphql";
 import {
   RunStatus,
   type Run,
@@ -859,7 +859,7 @@ export function useLogs(
       (prev) => {
         return {
           searchLogs: getUpdatedConnectionQueryMany(logs, prev?.searchLogs as Connection<LogEntry> | undefined),
-        };
+        } as SearchLogsQuery;
       }
     );
   }

@@ -41,23 +41,18 @@ _symbolx_utils = symbolx_lib.create_file("utils")
 symbolx_lib.add_file(_symbolx_reflect)
 
 
-@x_tag("tool", "Mark as a tool", file=_symbolx_builtins)
+@x_tag("tool", "A tool in a flow", file=_symbolx_builtins)
 class Tool:
     pass
 
 
-@x_tag("step", "Mark as a required step", file=_symbolx_builtins)
+@x_tag("step", "A required step in a flow", file=_symbolx_builtins)
 class Step:
     pass
 
 
-@x_tag("consider", "Mark as something to consider", file=_symbolx_builtins)
+@x_tag("consider", "Ensure the bot knows this", file=_symbolx_builtins)
 class Consider:
-    pass
-
-
-@x_tag("check", "Mark as a mandatory check", file=_symbolx_builtins)
-class Check:
     pass
 
 
@@ -66,7 +61,7 @@ class Retry:  # like tenacity but maybe with autoheal?
     pass
 
 
-@x_tag("cache", "Auto-cache runs", file=_symbolx_builtins)
+@x_tag("cache", "Cache runs", file=_symbolx_builtins)
 class Cache:  # like cachetools
     pass
 
@@ -76,7 +71,7 @@ class Confirm:
     pass
 
 
-@x_tag("autoheal", "Auto-heal on error", file=_symbolx_builtins)
+@x_tag("autoheal", "Auto-heal this runnable on error", file=_symbolx_builtins)
 class Autoheal:
     pass
 

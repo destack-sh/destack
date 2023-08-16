@@ -19,7 +19,7 @@ import {
   TypeHint,
   type SearchSort,
   type SearchQuery,
-  type SearchDatasetQueryVariables,
+  type SearchRecordsQueryVariables,
 } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -197,7 +197,7 @@ const sort: Ref<SearchSort[] | null> = computed(() => {
 });
 
 const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchDataset(
+  query searchRecords(
     $statementId: GlobalID!
     $query: SearchQuery
     $sort: [SearchSort!]
@@ -205,7 +205,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     $limit: Int
     $count: Boolean
   ) {
-    searchDataset(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
+    searchRecords(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
       totalCount
       pageInfo {
         hasNextPage
@@ -228,7 +228,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
     }
   }
 `);
-const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
+const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
   () =>
     ({
       statementId: context.statement.value.id,
@@ -237,7 +237,7 @@ const searchQueryVariables: Ref<SearchDatasetQueryVariables> = computed(
       sort: sort.value,
       limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
       count: true,
-    } as SearchDatasetQueryVariables)
+    } as SearchRecordsQueryVariables)
 );
 const {
   loading: recordsLoading,
@@ -249,22 +249,22 @@ const {
   fetchPolicy: "network-only",
   enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
 });
-const pageInfo = computed(() => recordsFetchedResult.value?.searchDataset.pageInfo);
+const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
 const recordsFetched = computed(
   () =>
-    recordsFetchedResult.value?.searchDataset.edges
+    recordsFetchedResult.value?.searchRecords.edges
       .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
       .map((e) => e.node) ?? []
 );
 const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
-const totalCount = computed(() => recordsFetchedResult?.value?.searchDataset.totalCount ?? 0);
+const totalCount = computed(() => recordsFetchedResult?.value?.searchRecords.totalCount ?? 0);
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 const overfetchedRecord = computed(() =>
-  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.node : null
+  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.node : null
 );
 
 // auto refetch when bumped (1s is the OS indexing delay)
@@ -284,7 +284,7 @@ function loadMore() {
   if (!pageInfo.value?.hasNextPage) return;
   fetchMore({
     variables: {
-      after: recordsFetchedResult.value?.searchDataset.edges.slice(-1)[0]?.cursor,
+      after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
       limit: PAGE_SIZE + 1, // technically no need to overfetch but limit is a key arg for the relay style pagination merge policy
     },
   });
@@ -584,7 +584,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     },
     (
       data = {
-        searchDataset: {
+        searchRecords: {
           __typename: "RecordConnection" as any,
           totalCount: 0,
           edges: [],
@@ -592,20 +592,20 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
         },
       }
     ) => ({
-      searchDataset: {
-        ...data?.searchDataset,
-        pageInfo: data?.searchDataset.pageInfo ?? {
+      searchRecords: {
+        ...data?.searchRecords,
+        pageInfo: data?.searchRecords.pageInfo ?? {
           startCursor: null,
           endCursor: null,
           hasNextPage: false,
           hasPreviousPage: false,
         },
-        totalCount: (data?.searchDataset.totalCount ?? 0) + 1,
+        totalCount: (data?.searchRecords.totalCount ?? 0) + 1,
         edges: [
-          ...(data?.searchDataset.edges ?? []),
+          ...(data?.searchRecords.edges ?? []),
           {
             __typename: "RecordEdge" as any,
-            cursor: data?.searchDataset.pageInfo.endCursor ?? "0",
+            cursor: data?.searchRecords.pageInfo.endCursor ?? "0",
             node: { __ref: recordRef, ...optimisticRecord } as any,
           },
         ],
