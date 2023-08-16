@@ -120,6 +120,7 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
 
+# this is a hack until we have proper generated module GQL types
 REF_TYPE_TO_TYPE_NAME = {
     MOT.MODULE: "ProjectVersion",
     MOT.FILE: "File",
@@ -127,7 +128,14 @@ REF_TYPE_TO_TYPE_NAME = {
     MOT.RECORD: "Record",
     MOT.FIELD: "Field",
     MOT.TAGGING: "Tagging",
+    MOT.TRIGGER: "Trigger",
+    MOT.COMMENT: "Comment",
+    MOT.DATASET_VIEW: "DatasetView",
+    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
+    MOT.RESOLVED_FIELD: "ResolvedField",
+    MOT.ISSUE: "Issue",
 }
+assert len(REF_TYPE_TO_TYPE_NAME) == len(MOT), f"missing {set(MOT) - REF_TYPE_TO_TYPE_NAME.keys()}"
 
 
 @strawberry_django.type(models.Project)

@@ -429,10 +429,7 @@ onBeforeUnmount(() => {
         <!-- Home -->
         <HomeButton />
         <!-- Project menu -->
-        <div
-          v-if="projectLoading || projectLoaded"
-          class="ml-2.5 flex flex-row items-baseline gap-0.5 whitespace-nowrap"
-        >
+        <div v-if="projectLoading || projectLoaded" class="ml-1.5 flex flex-row items-baseline whitespace-nowrap">
           <!-- Owner -->
           <router-link :to="`/${props.owner}`" class="rounded-sm p-1 text-sm hover:bg-orange-100">
             {{ props.owner }}
@@ -453,6 +450,7 @@ onBeforeUnmount(() => {
           <span v-else class="truncate p-1 text-sm font-bold">
             {{ props.project }}
           </span>
+          <!-- Show ids for debugging (if enabled) -->
           <div
             v-if="bench.debug && bench.projectId && bench.projectVersionId"
             class="left-18 absolute top-7 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
@@ -535,7 +533,7 @@ onBeforeUnmount(() => {
         <div v-if="workerSet != null" class="ml-1 flex">
           <FadeTransition appear :duration="500">
             <span
-              class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+              class="group relative cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
               :class="[
                 workerSet.status == WorkerSetStatus.Pending || workerSet.status == WorkerSetStatus.Updating
                   ? 'animate-pulse '
@@ -546,6 +544,12 @@ onBeforeUnmount(() => {
               v-show="!workerSetHealthy"
             >
               <CubeIcon class="h-5 w-5" />
+              <!-- Tooltip -->
+              <span
+                class="pointer-events-none absolute -left-1/2 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
+              >
+                Workers are {{ workerSet.status.toLocaleLowerCase() }}
+              </span>
             </span>
           </FadeTransition>
         </div>
@@ -585,8 +589,10 @@ onBeforeUnmount(() => {
           'w-64': bench.showViewContent && !bench.showViewSelection,
         }"
       >
+        <!-- View buttons -->
+        <!-- inset 1px above to hide border bottom from top bar (experimental design tweak) -->
         <div
-          class="flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%]"
+          class="-mt-[1px] flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%] bg-white pt-[1px]"
           v-show="bench.showViewSelection"
         >
           <!-- Top of sidebar: view selection -->
