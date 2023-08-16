@@ -120,7 +120,7 @@ defineExpose({
         ref="valueRef"
         as="div"
         :model-value="value"
-        @update:model-value="writeValue($event), close()"
+        @update:model-value="writeValue($event as Field), close()"
         @escape="close"
         :inlined="inlined"
         :ref-only="refOnly"

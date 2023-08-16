@@ -39,7 +39,7 @@ const { result: matchingUsersResult } = useQuery(
     email: validEmail.value ? query.value : null,
   })) as any,
   {
-    enabled: computed(() => validSlug.value || validEmail.value),
+    enabled: computed(() => validSlug.value || validEmail.value) as any,
     fetchPolicy: "no-cache",
   }
 );

@@ -192,7 +192,7 @@ function initMonaco(monaco: Monaco) {
         });
         if (!openWidget) {
           emit("escape");
-          document.activeElement?.blur();
+          (document.activeElement as HTMLElement)?.blur?.();
         }
       }
     });

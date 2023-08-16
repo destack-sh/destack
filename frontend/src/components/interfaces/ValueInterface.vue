@@ -11,7 +11,7 @@ import StringInput from "@/components/inputs/StringInput.vue";
 import StructInput from "@/components/inputs/StructInput.vue";
 import ThumbsInput from "@/components/inputs/ThumbsInput.vue";
 import ToggleInput from "@/components/inputs/ToggleInput.vue";
-import type { Field } from "@/state/statement";
+import type { Field } from "@/state/module";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementSize } from "@/composables/useSize";
 import { useAppearance } from "@/state/appearance";
@@ -64,7 +64,7 @@ const emit = defineEmits<{
 
 function emitPrevent(event: any, e: string, ...args: any[]) {
   event.preventDefault();
-  emit(e, ...args);
+  emit(e as any, ...(args as []));
 }
 
 const editing = ref(false);

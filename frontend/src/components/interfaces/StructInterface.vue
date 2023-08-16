@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import type { Field } from "@/state/statement";
+import type { Field } from "@/state/module";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
@@ -124,7 +124,7 @@ defineExpose({
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :hide-outline="appearance.hideFieldOutline"
           :model-value="field"
-          @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key })"
+          @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key } as Field)"
           @delete-self="emit('delete:field', field)"
           @duplicate-self="emit('duplicate:field', field)"
           @navigate-up="grid.navigateUp(field?.id, 'type')"

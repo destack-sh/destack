@@ -27,7 +27,7 @@ defineExpose({
     class="w-full rounded-none border-none bg-transparent p-0 text-right outline-none ring-0 focus:ring-0"
     type="number"
     :value="modelValue"
-    @input="emit('update:modelValue', Number.parseFloat($event.target?.value))"
+    @input="emit('update:modelValue', Number.parseFloat(($event.target as any)?.value))"
     spellcheck="false"
   />
 </template>

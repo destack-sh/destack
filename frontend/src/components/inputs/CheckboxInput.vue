@@ -33,7 +33,7 @@ defineExpose({
       :checked="modelValue"
       @change="
         $event.stopPropagation();
-        emit('update:modelValue', $event.target?.checked);
+        emit('update:modelValue', ($event.target as any)?.checked);
       "
       :disabled="props.readonly"
       @click.stop

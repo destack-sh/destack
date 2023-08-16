@@ -199,7 +199,7 @@ defineExpose({
       id="fileChooser"
       type="file"
       class="hidden"
-      @change="(e) => doUpload(e.target?.files?.[0])"
+      @change="(e) => doUpload((e.target as any)?.files?.[0])"
       @click.stop
     />
   </div>

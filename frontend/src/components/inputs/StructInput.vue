@@ -110,7 +110,7 @@ defineExpose({
       <RectangleGroupIcon class="h-4 w-4 text-gray-700" />
       <!-- Struct title -->
       <span
-        v-if="struct[module.getTypedKey(titleField) ?? ''] != undefined"
+        v-if="titleField != null && struct[module.getTypedKey(titleField) ?? ''] != undefined"
         class="min-w-[10px] whitespace-nowrap text-gray-900"
         >{{ struct[module.getTypedKey(titleField) ?? ""] }}</span
       >

@@ -40,7 +40,7 @@ defineExpose({
     :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'"
     type="text"
     :value="modelValue"
-    @input="emit('update:modelValue', $event.target?.value)"
+    @input="emit('update:modelValue', ($event.target as any)?.value)"
     spellcheck="false"
   />
 </template>

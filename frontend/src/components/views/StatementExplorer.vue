@@ -29,9 +29,9 @@ const orderedStatements = computed(() => {
 function getStatementName(statement: {
   id: string;
   type: StatementType;
-  name?: string;
+  name?: string | null;
   reference?: { id: string };
-}): string | undefined {
+}): string | null | undefined {
   if (statement.type == StatementType.Reference) {
     return module.statementOf(statement.reference?.id ?? "")?.name ?? (statement.reference == null ? "..." : "???");
   } else {
@@ -78,7 +78,7 @@ defineExpose({
     <li
       v-for="ordered in orderedStatements"
       :key="ordered.id"
-      :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref)"
+      :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref as HTMLElement)"
       tabindex="-1"
       class="flex flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
@@ -101,7 +101,7 @@ defineExpose({
           :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
-      <span class="">{{ getStatementName(ordered.statement) }}</span>
+      <span class="">{{ getStatementName(ordered.statement as any) }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

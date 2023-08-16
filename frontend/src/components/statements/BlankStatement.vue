@@ -73,19 +73,21 @@ type Command = {
   label: string;
   icon: any;
   description: string;
+  aliases?: string[];
   action: () => void;
 };
 
 function singleStatementCommand(
   group: Group,
   type: StatementType,
-  options?: { rootTypeTag?: TypeTag; icon?: any; label?: string; description?: string }
+  options?: { rootTypeTag?: TypeTag; icon?: any; label?: string; description?: string; aliases?: string[] }
 ): Command {
   return {
     group,
     label: options?.label ?? getStatementLabel(type, options?.rootTypeTag),
     icon: options?.icon ?? getStatementIconSolid(type, options?.rootTypeTag),
     description: options?.description ?? getStatementDescription(type, options?.rootTypeTag),
+    aliases: options?.aliases,
     action: () => (context.morpthToSymbol({ type, rootTypeTag: options?.rootTypeTag }), emit("morphed")),
   };
 }
@@ -102,16 +104,20 @@ const commands = computed(() => {
     {
       group: GROUPS.BASIC,
       label: "Text",
+      aliases: ["comment", "markdown", "title", "header"],
       icon: getStatementIconSolid(StatementType.Text),
       description: "Just type for a markdown comment",
       action: morphToText,
     },
-    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Struct }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Dataset),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Type, {
+      rootTypeTag: TypeTag.Struct,
+      aliases: ["type", "struct"],
+    }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum, aliases: ["type", "enum"] }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
     singleStatementCommand(GROUPS.BASIC, StatementType.Code),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Task),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model"] }),
+    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model"] }),
 
     // advanced statements
     singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
@@ -125,9 +131,21 @@ const commands = computed(() => {
 });
 
 const filteredCommands = computed(() => {
-  return commands.value.filter((command) => {
-    return command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
-  });
+  return commands.value
+    .map((command) => {
+      const titleMatch = command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
+      const aliasMatch = command.aliases?.some((alias) =>
+        alias.toLowerCase().includes(commandQuery.value.toLowerCase())
+      );
+      const descriptionMatch = command.description.toLowerCase().includes(commandQuery.value.toLowerCase());
+
+      return {
+        ...command,
+        score: titleMatch ? 1 : aliasMatch ? 0.5 : descriptionMatch ? 0.25 : 0,
+      };
+    })
+    .filter((c) => c.score > 0)
+    .sort((a, b) => b.score - a.score);
 });
 
 function openCommandSelection() {

@@ -6,6 +6,7 @@ import CommitPopover from "@/components/bench/CommitPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
+import type { ProjectVersion } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type ProjectHeader } from "@/state/bench";
@@ -242,7 +243,7 @@ defineExpose({
       <!-- This is because it's easier to open the right popover in the right place that way -->
       <CommitPopover
         v-else-if="head != null && isCurrent(head)"
-        :version="head"
+        :version="(head as ProjectVersion)"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
         :is-head="true"
@@ -273,7 +274,7 @@ defineExpose({
         <li
           v-for="(version, versionIdx) in versions"
           :key="version.id"
-          :ref="(ref) => versionsGrid.registerColumnRef(version.id, 'name', ref)"
+          :ref="(ref) => versionsGrid.registerColumnRef(version.id, 'name', ref as HTMLElement)"
           tabindex="-1"
           @keydown.up.exact.prevent="versionsGrid.navigateUp(version.id, 'name')"
           @keydown.down.exact.prevent="versionsGrid.navigateDown(version.id, 'name')"
@@ -305,7 +306,7 @@ defineExpose({
               </span>
               <!-- Version info -->
               <CommitPopover
-                :version="version"
+                :version="(version as ProjectVersion)"
                 :projectId="props.project.id"
                 :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
                 :is-head="isHead(version)"
