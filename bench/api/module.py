@@ -11,10 +11,29 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_read_project
 from bench.api.utils import ModuleNode
+from bench.language.core import MOT
 from bench.models import packer
 from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
+
+# this is a hack until we have proper generated module GQL types
+GQL_NODE_NAME_BY_MOT = {
+    MOT.MODULE: "ProjectVersion",
+    MOT.FILE: "File",
+    MOT.STATEMENT: "Statement",
+    MOT.RECORD: "Record",
+    MOT.FIELD: "Field",
+    MOT.TAGGING: "Tagging",
+    MOT.TRIGGER: "Trigger",
+    MOT.COMMENT: "Comment",
+    MOT.DATASET_VIEW: "DatasetView",
+    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
+    MOT.RESOLVED_FIELD: "ResolvedField",
+    MOT.ISSUE: "Issue",
+}
+MOT_NAME_BY_GQL_NODE = {v: k for k, v in GQL_NODE_NAME_BY_MOT.items()}
+assert len(GQL_NODE_NAME_BY_MOT) == len(MOT), f"missing {set(MOT) - GQL_NODE_NAME_BY_MOT.keys()}"
 
 
 class IdOnlyProxy:
@@ -32,7 +51,7 @@ class StaticPrefetchedQueryset:
         self._result_cache = objects
 
     def _fetch_all(self):
-        pass  # we already have all the objects
+        pass  # we already have all the objects (this is called by strawberry)
 
     def all(self):
         return self

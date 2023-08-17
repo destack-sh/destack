@@ -21,7 +21,6 @@ from bench.api.utils import (
 )
 from bench.language import const
 from bench.language.cache import _get_usage_key
-from bench.language.mutate import MOT
 from bench.msg.core import publish_soon
 from bench.msg.messages import NMessageType, ProjectChangedPayload
 from bench.opensearch.query import prepare_search
@@ -120,24 +119,6 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
 
-# this is a hack until we have proper generated module GQL types
-REF_TYPE_TO_TYPE_NAME = {
-    MOT.MODULE: "ProjectVersion",
-    MOT.FILE: "File",
-    MOT.STATEMENT: "Statement",
-    MOT.RECORD: "Record",
-    MOT.FIELD: "Field",
-    MOT.TAGGING: "Tagging",
-    MOT.TRIGGER: "Trigger",
-    MOT.COMMENT: "Comment",
-    MOT.DATASET_VIEW: "DatasetView",
-    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
-    MOT.RESOLVED_FIELD: "ResolvedField",
-    MOT.ISSUE: "Issue",
-}
-assert len(REF_TYPE_TO_TYPE_NAME) == len(MOT), f"missing {set(MOT) - REF_TYPE_TO_TYPE_NAME.keys()}"
-
-
 @strawberry_django.type(models.Project)
 class Project(relay.Node):
     name: auto
@@ -166,6 +147,8 @@ class Project(relay.Node):
     def migration_mappings(
         self, source_version_id: GlobalID, target_version_id: GlobalID
     ) -> ProjectMigrationInfo:
+        from bench.api.module import GQL_NODE_NAME_BY_MOT
+
         source_version = models.ProjectVersion.objects.get(id=source_version_id.node_id)
         target_version = models.ProjectVersion.objects.get(id=target_version_id.node_id)
         if (
@@ -186,11 +169,11 @@ class Project(relay.Node):
                 source_version=source_version,
                 target_version=target_version,
                 source_id=GlobalID(
-                    REF_TYPE_TO_TYPE_NAME[ref_mapping.type], str(ref_mapping.source_id)
+                    GQL_NODE_NAME_BY_MOT[ref_mapping.type], str(ref_mapping.source_id)
                 ),
                 source_revision=ref_mapping.source_revision,
                 target_id=GlobalID(
-                    REF_TYPE_TO_TYPE_NAME[ref_mapping.type], str(ref_mapping.target_id)
+                    GQL_NODE_NAME_BY_MOT[ref_mapping.type], str(ref_mapping.target_id)
                 ),
                 target_revision=ref_mapping.target_revision,
             )
@@ -280,7 +263,8 @@ class ProjectMutation:
     @safe_mutation
     def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
         requesting_user = get_user_from_info(info)
-        owner = input.owner_id.resolve_node(info, required=True)
+        owner_model = models.User if input.owner_id.type_name == "User" else models.Organization
+        owner = owner_model.objects.get(id=input.owner_id.node_id)
         if not is_owner_or_member(requesting_user, owner):
             raise PermissionError("cannot create project for this owner")
         project = models.Project.objects.create_project(
