@@ -102,8 +102,11 @@ def _collect_fields():
                 _add_field_name(field.remote_field.name)
         for field in model._meta.fields_map.values():
             _add_field_name(field.name)
+            # add relations to enable lookup of related model by field name
             if field.is_relation:
-                _BASE_MODEL_BY_CAMEL_FIELD[to_camel_case(field.name)] = field.related_model
+                camel_name = to_camel_case(field.name).replace("+", "")
+                if camel_name:
+                    _BASE_MODEL_BY_CAMEL_FIELD[camel_name] = field.related_model
         for field in model._meta.many_to_many:
             _add_field_name(field.name)
 
@@ -116,20 +119,13 @@ def _inline_fragments(
     recursive: bool = False,
 ) -> list[SelectedField]:
     """Inline any fragment spreads in the fields"""
-    if not any(isinstance(f, (FragmentSpread, InlineFragment)) for f in fields):
-        return fields
     inlined = []
     for f in fields:
-        if isinstance(f, (FragmentSpread, InlineFragment)):
-            inlined.extend(_inline_fragments(f.selections))
-        else:
+        is_inner = isinstance(f, (FragmentSpread, InlineFragment))
+        if is_inner or f.selections and recursive:
+            inlined.extend(_inline_fragments(f.selections, recursive=recursive))
+        if not is_inner:
             inlined.append(f)
-
-    if recursive:
-        # also include descendants
-        for f in inlined:
-            if f.selections:
-                inlined.extend(_inline_fragments(f.selections, recursive=True))
     return inlined
 
 
@@ -140,7 +136,7 @@ FLATTENED_RELATIONS = {(models.ProjectVersion, models.File), (models.File, model
 def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
     assert len(info.selected_fields) == 1, "only one root field expected"
 
-    # get node and check permissions
+    # get root node and check permissions
     qs = models.__dict__[id.type_name].objects.all()
     node = qs.filter(id=id.node_id).first()
     if not node:
@@ -155,11 +151,11 @@ def read_module_node(
 ) -> ModuleNode:
     """
     Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-    Any nodes not in the tree will be fetched by the strawberry resolver.
+    Any nodes not in the tree will be fetched by the standard strawberry resolver.
 
     TODO @Broken: read module node assumes default filters (esp. deleted_at)
     """
-    logger.debug("module.read_node", id=id, node=node)
+    logger.debug("module.read_node", node=node)
 
     # collect relevant nodes (naively filter by selected fields)
     root_selections = _inline_fragments((root_fragment or info.selected_fields[0]).selections)
@@ -212,8 +208,7 @@ def read_module_node(
                     # this is okay because we only do this once usually (e.g. top-level project)
                     setattr(proxy_n, py_name, getattr(n, py_name))
                 else:
-                    # assumes { __typename, id } selection only (that's all we know here)
-                    assert len(inner_selections) == 2, f"bad {inner_selections} for {django_field}"
+                    # assumes { __typename, id } selection or similar (that's all we know here)
                     remote_id = getattr(n, py_name + "_id")
                     remote_stub = django_field.related_model(id=remote_id) if remote_id else None
                     setattr(proxy_n, py_name, remote_stub)

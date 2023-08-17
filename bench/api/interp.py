@@ -43,7 +43,7 @@ class IssueFilter:
 
 
 @strawberry_django.type(models.ResolvedField)
-class ResolvedField(relay.Node):
+class ResolvedField:
     # statement here is not actually optional but it needs to be to union with Issue
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     field: Annotated["Field", lazy(".statement")]

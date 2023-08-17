@@ -265,12 +265,14 @@ export const StatementContentType = graphql(/* GraphQL */ `
       ...TriggerContent
     }
     # interp
-    resolvedFields {
-      ...FieldContent
-    }
+    # TODO @Performance: could probably just use module interp state for statement, but would be less responsive on load
     issues(filters: { scope: STATEMENT }) {
       ...IssueContent
     }
+    resolvedFields {
+      ...ResolvedFieldContent
+    }
+    # crud
     createdAt
     updatedAt
     deletedAt
@@ -303,12 +305,11 @@ export const IssueContentType = graphql(/* GraphQL */ `
 
 export const ResolvedFieldContentType = graphql(/* GraphQL */ `
   fragment ResolvedFieldContent on ResolvedField {
-    id
     statement {
       id
     }
     field {
-      ...FieldContent
+      id
     }
   }
 `);
@@ -392,6 +393,12 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       createdAt
       updatedAt
       deletedAt
+    }
+    issues(filters: { scope: STATEMENT }) {
+      ...IssueContent
+    }
+    resolvedFields {
+      ...ResolvedFieldContent
     }
     createdAt
     updatedAt

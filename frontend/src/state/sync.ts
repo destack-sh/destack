@@ -293,6 +293,22 @@ function useSyncedOps() {
         });
         client.cache.gc();
       }
+    } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
+      client.cache.modify({
+        id: `Statement:${mutation.statementId}`,
+        fields: {
+          resolvedFields(existingResolvedFields = []) {
+            return [
+              ...existingResolvedFields,
+              {
+                __typename: "ResolvedField",
+                statement: { __ref: `Statement:${mutation.statementId}` },
+                field: { __ref: `Field:${(mutation.data as ResolvedField).field.id}` },
+              },
+            ];
+          },
+        },
+      });
     } else if (mutation.type == ModuleMutationType.TruncateIssues) {
       if (mutation.statementId != null) {
         client.cache.modify({
@@ -321,15 +337,6 @@ function useSyncedOps() {
         });
         client.cache.gc();
       }
-    } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
-      client.cache.modify({
-        id: `Statement:${mutation.statementId}`,
-        fields: {
-          resolvedFields(existingResolvedFields = []) {
-            return [...existingResolvedFields, { __ref: `Field:${(mutation.data as ResolvedField).field.id}` }];
-          },
-        },
-      });
     } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.statementId != null) {
       client.cache.modify({
         id: `Statement:${mutation.statementId}`,
@@ -353,9 +360,9 @@ function useSyncedOps() {
         id: `Statement:${mutation.statementId}`,
         fields: {
           issues(existingIssues = []) {
-            return existingIssues.filter(
-              (issue: any) => issue.id != mutation.data?.id && issue.__ref != `Issue:${mutation.data?.id}`
-            );
+            const issue = mutation.data;
+            if (issue?.__typename != "Issue") return existingIssues;
+            return existingIssues.filter((issue: any) => issue.id != issue?.id && issue.__ref != `Issue:${issue?.id}`);
           },
         },
       });
@@ -364,9 +371,9 @@ function useSyncedOps() {
         id: `File:${mutation.fileId}`,
         fields: {
           issues(existingIssues = []) {
-            return existingIssues.filter(
-              (issue: any) => issue.id != mutation.data?.id && issue.__ref != `Issue:${mutation.data?.id}`
-            );
+            const issue = mutation.data;
+            if (issue?.__typename != "Issue") return existingIssues;
+            return existingIssues.filter((issue: any) => issue.id != issue?.id && issue.__ref != `Issue:${issue?.id}`);
           },
         },
       });

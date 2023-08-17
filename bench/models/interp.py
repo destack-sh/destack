@@ -22,7 +22,7 @@ class ResolvedField(UUIDModel, ModuleNode):
         "ProjectVersion", on_delete=models.CASCADE, related_name="+"
     )
     statement = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="resolved_fields+"
+        "Statement", on_delete=models.CASCADE, related_name="resolved_fields"
     )
     field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="+")
 

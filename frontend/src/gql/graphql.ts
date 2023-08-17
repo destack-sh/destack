@@ -1780,11 +1780,9 @@ export type RequestUploadObjectInput = {
   sha512: Scalars["String"];
 };
 
-export type ResolvedField = Node & {
+export type ResolvedField = {
   __typename?: "ResolvedField";
   field: Field;
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
   statement?: Maybe<Statement>;
 };
 
@@ -2033,7 +2031,7 @@ export type Statement = HasCrud &
     parent: ModuleNode;
     projectVersion: ProjectVersion;
     reference?: Maybe<Statement>;
-    resolvedFields?: Maybe<Array<Field>>;
+    resolvedFields?: Maybe<Array<ResolvedField>>;
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
     rootTypeTag?: Maybe<TypeTag>;
@@ -2051,10 +2049,6 @@ export type StatementFieldsArgs = {
 
 export type StatementIssuesArgs = {
   filters?: InputMaybe<IssueFilter>;
-};
-
-export type StatementResolvedFieldsArgs = {
-  filters?: InputMaybe<FieldFilter>;
 };
 
 export type StatementTagsArgs = {
@@ -3656,11 +3650,13 @@ export type StatementContentFragment = {
   triggers: Array<
     { __typename?: "Trigger" } & { " $fragmentRefs"?: { TriggerContentFragment: TriggerContentFragment } }
   >;
-  resolvedFields?: Array<
-    { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }
-  > | null;
   issues?: Array<
     { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
+  > | null;
+  resolvedFields?: Array<
+    { __typename?: "ResolvedField" } & {
+      " $fragmentRefs"?: { ResolvedFieldContentFragment: ResolvedFieldContentFragment };
+    }
   > | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3679,9 +3675,8 @@ export type IssueContentFragment = {
 
 export type ResolvedFieldContentFragment = {
   __typename?: "ResolvedField";
-  id: any;
   statement?: { __typename?: "Statement"; id: any } | null;
-  field: { __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } };
+  field: { __typename?: "Field"; id: any };
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
 
 export type InterpFileFragment = {
@@ -3759,6 +3754,14 @@ export type InterpStatementFragment = {
     reference?: { __typename?: "Statement"; id: any } | null;
     parent: { __typename?: "Statement"; id: any };
   }>;
+  issues?: Array<
+    { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
+  > | null;
+  resolvedFields?: Array<
+    { __typename?: "ResolvedField" } & {
+      " $fragmentRefs"?: { ResolvedFieldContentFragment: ResolvedFieldContentFragment };
+    }
+  > | null;
 } & { " $fragmentName"?: "InterpStatementFragment" };
 
 export type ModuleContentByIdQueryVariables = Exact<{
@@ -3776,12 +3779,7 @@ export type ModuleContentByIdQuery = {
       {
         __typename?: "File";
         statements: Array<
-          {
-            __typename?: "Statement";
-            issues?: Array<
-              { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
-            > | null;
-          } & { " $fragmentRefs"?: { InterpStatementFragment: InterpStatementFragment } }
+          { __typename?: "Statement" } & { " $fragmentRefs"?: { InterpStatementFragment: InterpStatementFragment } }
         >;
       } & { " $fragmentRefs"?: { InterpFileFragment: InterpFileFragment } }
     >;
@@ -4363,7 +4361,11 @@ export type CreateStatementMutation = {
         tags: Array<{ __typename?: "Tagging"; id: any }>;
         fields: Array<{ __typename?: "Field"; id: any }>;
         triggers: Array<{ __typename?: "Trigger"; id: any }>;
-        resolvedFields?: Array<{ __typename?: "Field"; id: any }> | null;
+        resolvedFields?: Array<{
+          __typename?: "ResolvedField";
+          statement?: { __typename?: "Statement"; id: any } | null;
+          field: { __typename?: "Field"; id: any };
+        }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -6119,6 +6121,37 @@ export const IssueContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<IssueContentFragment, unknown>;
+export const ResolvedFieldContentFragmentDoc = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "FragmentDefinition",
+      name: { kind: "Name", value: "ResolvedFieldContent" },
+      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "statement" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "field" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ResolvedFieldContentFragment, unknown>;
 export const StatementContentFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -6232,14 +6265,6 @@ export const StatementContentFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "resolvedFields" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
-            },
-          },
-          {
-            kind: "Field",
             name: { kind: "Name", value: "issues" },
             arguments: [
               {
@@ -6260,6 +6285,14 @@ export const StatementContentFragmentDoc = {
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -6287,38 +6320,6 @@ export const StatementContentFragmentDoc = {
     },
   ],
 } as unknown as DocumentNode<StatementContentFragment, unknown>;
-export const ResolvedFieldContentFragmentDoc = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "FragmentDefinition",
-      name: { kind: "Name", value: "ResolvedFieldContent" },
-      typeCondition: { kind: "NamedType", name: { kind: "Name", value: "ResolvedField" } },
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          { kind: "Field", name: { kind: "Name", value: "id" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "field" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ResolvedFieldContentFragment, unknown>;
 export const InterpFileFragmentDoc = {
   kind: "Document",
   definitions: [
@@ -6516,6 +6517,38 @@ export const InterpStatementFragmentDoc = {
                 { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                 { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
               ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "issues" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "filters" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "scope" },
+                      value: { kind: "EnumValue", value: "STATEMENT" },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "resolvedFields" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ResolvedFieldContent" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -7169,6 +7202,7 @@ export const FileContentByIdDocument = {
     ...FieldContentFragmentDoc.definitions,
     ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<FileContentByIdQuery, FileContentByIdQueryVariables>;
 export const StatementContentByIdDocument = {
@@ -7232,6 +7266,7 @@ export const StatementContentByIdDocument = {
     ...FieldContentFragmentDoc.definitions,
     ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<StatementContentByIdQuery, StatementContentByIdQueryVariables>;
 export const ProfileAccessTokensDocument = {
@@ -9345,33 +9380,7 @@ export const ModuleContentByIdDocument = {
                         ],
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatement" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "issues" },
-                              arguments: [
-                                {
-                                  kind: "Argument",
-                                  name: { kind: "Name", value: "filters" },
-                                  value: {
-                                    kind: "ObjectValue",
-                                    fields: [
-                                      {
-                                        kind: "ObjectField",
-                                        name: { kind: "Name", value: "scope" },
-                                        value: { kind: "EnumValue", value: "STATEMENT" },
-                                      },
-                                    ],
-                                  },
-                                },
-                              ],
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
-                              },
-                            },
-                          ],
+                          selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "InterpStatement" } }],
                         },
                       },
                     ],
@@ -9386,6 +9395,7 @@ export const ModuleContentByIdDocument = {
     ...InterpFileFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleContentByIdQuery, ModuleContentByIdQueryVariables>;
 export const NewNotificationsDocument = {
@@ -10068,6 +10078,7 @@ export const CreateFileDocument = {
     ...FieldContentFragmentDoc.definitions,
     ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<CreateFileMutation, CreateFileMutationVariables>;
@@ -10455,6 +10466,7 @@ export const PasteFileDocument = {
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
     ...TriggerContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<PasteFileMutation, PasteFileMutationVariables>;
@@ -12011,7 +12023,24 @@ export const CreateStatementDocument = {
                         name: { kind: "Name", value: "resolvedFields" },
                         selectionSet: {
                           kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                          selections: [
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "statement" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                            {
+                              kind: "Field",
+                              name: { kind: "Name", value: "field" },
+                              selectionSet: {
+                                kind: "SelectionSet",
+                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                              },
+                            },
+                          ],
                         },
                       },
                       {
@@ -13181,6 +13210,7 @@ export const BatchPasteStatementDocument = {
     ...FieldContentFragmentDoc.definitions,
     ...TriggerContentFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
+    ...ResolvedFieldContentFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<BatchPasteStatementMutation, BatchPasteStatementMutationVariables>;
@@ -16812,7 +16842,6 @@ export const ModuleChangedDocument = {
     },
     ...IssueContentFragmentDoc.definitions,
     ...ResolvedFieldContentFragmentDoc.definitions,
-    ...FieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleChangedSubscription, ModuleChangedSubscriptionVariables>;
 export const ProjectChangedDocument = {
