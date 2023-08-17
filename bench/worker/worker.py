@@ -79,6 +79,11 @@ class WorkerNode(Monitored):
         self.tasks = TaskManager()
         self.cached_committed_modules: dict[ModuleReference, tuple[wire.ModuleTreeData, UUID]] = {}
         self._ready = asyncio.Event()
+        self.log = logger.bind(
+            worker_node=self.worker_node_id,
+            worker_set=self.worker_set_id,
+            project_id=self.project_id,
+        )
 
     def __str__(self):
         return f"{self.project_id} {self.worker_set_id} {self.worker_node_id}"
@@ -96,12 +101,7 @@ class WorkerNode(Monitored):
 
     async def run(self):
         await nc_init.wait()
-        logger.info(
-            "start",
-            worker_node=self.worker_node_id,
-            workset_set=self.worker_set_id,
-            project_id=self.project_id,
-        )
+        self.log.info("start")
         # topics for .project.module or just .project
         m_routing = f"{self.project_id}.*" if self.project_id else ">"
         p_routing = f"{self.project_id}" if self.project_id else "*"
@@ -158,10 +158,9 @@ class WorkerNode(Monitored):
     async def _mark_worker_as_active(self):
         # :WorkerSetActive
         active_key = f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at"
-        logger.debug(
-            "worker.mark_active", worker_set=self.worker_set_id, worker_node=self.worker_node_id
-        )
+        self.log.debug("mark_as_active", active_key=active_key)
         await redis.set(active_key, value=str(time.time()), ex=24 * 60 * 60)
+        self.log.debug("mark_as_active.done")
 
     async def mark_as_active_if_active_forever(self, interval: int):
         while True:
@@ -184,7 +183,7 @@ class WorkerNode(Monitored):
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
-        logger.debug("run.start", msg=msg, block=msg.p.block)
+        self.log.debug("run.start", msg=msg, block=msg.p.block)
         worker = await self._prepare_worker(msg.p.module_id)
         run_id = msg.p.run_id or UUIDT()
 
@@ -235,7 +234,7 @@ class WorkerNode(Monitored):
             run_job = worker.add_run(run_data, session_id)
             error = None
         except RunStartError as e:
-            logger.error("run.start.error", msg=msg, error=e)
+            self.log.error("run.start.error", msg=msg, error=e)
             await msg.reply(RepStartRunPayload(error=e.type))
             return
 
@@ -268,7 +267,7 @@ class WorkerNode(Monitored):
 
     async def get_module(self, ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData, UUID]:
         """Gets a modules wire data"""
-        log = logger.bind(ref=ref)
+        log = self.log.bind(ref=ref)
         cached = self.cached_committed_modules.get(ref)
         if cached is not None:
             log.debug("module.fetch", cached=True)
@@ -285,7 +284,7 @@ class WorkerNode(Monitored):
         return (await self.get_module(ref))[0]
 
     async def stop(self):
-        logger.info("stop", worker_node=self.worker_node_id, workset_set=self.worker_set_id)
+        self.log.info("stop")
         await self.tasks.stop()
         await asyncio.gather(*[sub.unsubscribe() for sub in self.subs])
         self._ready.clear()
