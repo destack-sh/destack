@@ -4,7 +4,7 @@ import structlog
 from more_itertools import first
 from strawberry.relay import GlobalID
 from strawberry.types import Info
-from strawberry.types.nodes import FragmentSpread, SelectedField
+from strawberry.types.nodes import FragmentSpread, InlineFragment, SelectedField
 from strawberry.utils.str_converters import to_camel_case
 from strawberry_django.fields.types import OperationInfo
 
@@ -111,27 +111,25 @@ def _collect_fields():
 _collect_fields()
 
 
-def _inline_fragments(fields: list[SelectedField | FragmentSpread]) -> list[SelectedField]:
+def _inline_fragments(
+    fields: list[SelectedField | FragmentSpread | InlineFragment],
+    recursive: bool = False,
+) -> list[SelectedField]:
     """Inline any fragment spreads in the fields"""
-    if not any(isinstance(f, FragmentSpread) for f in fields):
+    if not any(isinstance(f, (FragmentSpread, InlineFragment)) for f in fields):
         return fields
     inlined = []
     for f in fields:
-        if isinstance(f, FragmentSpread):
-            inlined.extend(f.selections)
+        if isinstance(f, (FragmentSpread, InlineFragment)):
+            inlined.extend(_inline_fragments(f.selections))
         else:
             inlined.append(f)
-    return inlined
 
-
-def _walk_fragments(fields: list[SelectedField | FragmentSpread]) -> list[SelectedField]:
-    """Recursively walk the fields and inline any fragment spreads"""
-    inlined = []
-    for f in fields:
-        if not isinstance(f, FragmentSpread):
-            inlined.append(f)
-        if f.selections:
-            inlined.extend(_walk_fragments(f.selections))
+    if recursive:
+        # also include descendants
+        for f in inlined:
+            if f.selections:
+                inlined.extend(_inline_fragments(f.selections, recursive=True))
     return inlined
 
 
@@ -139,32 +137,39 @@ ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
 FLATTENED_RELATIONS = {(models.ProjectVersion, models.File), (models.File, models.Statement)}
 
 
-def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
-    """
-    Reads a module node in an optimized way (that assumes tree-shaped retrieval).
-    Any nodes not in the tree will be fetched by the strawberry resolver.
-
-    TODO @Broken: read module node assumes default filters
-    """
+def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
     assert len(info.selected_fields) == 1, "only one root field expected"
 
+    # get node and check permissions
     qs = models.__dict__[id.type_name].objects.all()
     node = qs.filter(id=id.node_id).first()
     if not node:
         return None
     check_can_read_project(info, node)
 
+    return read_module_node(info, node)
+
+
+def read_module_node(
+    info: Info, node: ModuleNode, root_fragment: Optional[InlineFragment] = None
+) -> ModuleNode:
+    """
+    Reads a module node in an optimized way (that assumes tree-shaped retrieval).
+    Any nodes not in the tree will be fetched by the strawberry resolver.
+
+    TODO @Broken: read module node assumes default filters (esp. deleted_at)
+    """
     logger.debug("module.read_node", id=id, node=node)
 
     # collect relevant nodes (naively filter by selected fields)
-    root_selections = _inline_fragments(info.selected_fields[0].selections)
+    root_selections = _inline_fragments((root_fragment or info.selected_fields[0]).selections)
     included = {models.ProjectVersion, models.File, models.Statement}
-    for field in _walk_fragments(root_selections):
+    for field in _inline_fragments(root_selections, recursive=True):
         base_model = _BASE_MODEL_BY_CAMEL_FIELD.get(field.name)
         if base_model and base_model not in included:
             included.add(base_model)
     excluded = MOT_BY_BASE_MODEL_CLASS.keys() - included
-    visited = packer.collect_node(node, excluded=excluded)
+    tree = packer.collect_node(node, excluded=excluded)
 
     # map relevant selected fields to the visited nodes
     def _resolve(n: models.ModuleNode, selections: list[SelectedField]) -> ModuleNode:
@@ -203,7 +208,7 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
             # for 1:1 relations use id only proxy
             if django_field.one_to_one or django_field.many_to_one:
                 if django_field.related_model in ALLOWED_EXTERNAL_RELATIONS:
-                    # external rotations are properly queried
+                    # external relations are properly queried
                     # this is okay because we only do this once usually (e.g. top-level project)
                     setattr(proxy_n, py_name, getattr(n, py_name))
                 else:
@@ -218,16 +223,16 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
                 related = []
                 if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
                     # collect descendants of same type
-                    remaining = visited.visited_by_parent.get(n.id, [])
+                    remaining = tree.visited_by_parent.get(n.id, [])
                     while remaining:
                         child = remaining.pop()
                         if type(child) != django_field.related_model:
                             continue
                         related.append(_resolve(child, inner_selections))
-                        remaining.extend(visited.visited_by_parent.get(child.id, []))
+                        remaining.extend(tree.visited_by_parent.get(child.id, []))
                 else:
                     # collect immediate children only
-                    for child in visited.visited_by_parent.get(n.id, []):
+                    for child in tree.visited_by_parent.get(n.id, []):
                         if type(child) != django_field.related_model:
                             continue  # ignore children of other types
                         related.append(_resolve(child, inner_selections))
@@ -241,12 +246,12 @@ def read_module_node(info: Info, id: GlobalID) -> Optional[ModuleNode] | Operati
         return proxy_n
 
     logger.debug(
-        "module.read_node.resolve", id=id, node=node, nodes=len(visited.visited), excluded=excluded
+        "module.read_node.resolve", id=id, node=node, nodes=len(tree.visited), excluded=excluded
     )
     resolved_node = _resolve(node, root_selections)
 
     logger.debug(
-        "module.read_node.done", id=id, node=node, nodes=len(visited.visited), excluded=excluded
+        "module.read_node.done", id=id, node=node, nodes=len(tree.visited), excluded=excluded
     )
 
     return resolved_node

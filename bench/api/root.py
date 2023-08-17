@@ -15,7 +15,7 @@ from strawberry_django.optimizer import DjangoOptimizerExtension
 from bench import models
 from bench.api.dataset import DatasetMutation, RecordQuery
 from bench.api.file import File, FileMutation
-from bench.api.module import read_module_node
+from bench.api.module import read_module_node_by_id
 from bench.api.multiplayer import MultiplayerSubscription
 from bench.api.notification import NotificationMutation
 from bench.api.object import ObjectMutation, RemoteObject
@@ -131,16 +131,18 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     project_by_slug: Optional[Project] = strawberry_django.field(
         resolver=get_project_by_slug, directives=[]
     )
-    project_version: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node)
+    project_version: Optional[ProjectVersion] = strawberry_django.field(
+        resolver=read_module_node_by_id
+    )
     project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
         resolver=get_project_version_by_slug, directives=[]
     )
     project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
         resolver=get_project_version_by_tag, directives=[]
     )
-    file: Optional[File] = strawberry_django.field(resolver=read_module_node)
+    file: Optional[File] = strawberry_django.field(resolver=read_module_node_by_id)
     statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
-        resolver=read_module_node
+        resolver=read_module_node_by_id
     )
     remote_object: Optional[RemoteObject] = strawberry_django.node(directives=[])
     secret: Optional[Secret] = strawberry_django.node(directives=[])

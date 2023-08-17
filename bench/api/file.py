@@ -12,6 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
 from bench.api.interp import IssueFilter
+from bench.api.module import read_module_node
 from bench.api.sync import tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
 from bench.language.mutate import MMT
@@ -124,7 +125,7 @@ class FileMutation:
         file.name = input.name
         return file
 
-    @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_auth_check=True)
+    @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_save=True, skip_auth_check=True)
     def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
         from bench.models import RefMappingKind
 
@@ -150,4 +151,5 @@ class FileMutation:
             target_id=target_id,
             kind=RefMappingKind.PASTE,
         )
-        return target_file
+        root_fragment = info.selected_fields[0].selections[0]  # mutation, returned object is first
+        return read_module_node(info, target_file, root_fragment=root_fragment)  # type: ignore

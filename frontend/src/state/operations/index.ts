@@ -319,9 +319,8 @@ function onResponse(operation: Operation<unknown>, ret: unknown) {
   }
 }
 
-// rewrite so that onError has an array of errorListeners
 function onError(operation: Operation<unknown>, error: unknown) {
-  console.error(`operation ${operation.type} ${operation.id} failed`, error);
+  console.trace(`operation ${operation.type} ${operation.id} failed`, error);
   errorListeners.forEach((listener) => listener(operation, error));
   // capture with sentry
   captureException(error);
