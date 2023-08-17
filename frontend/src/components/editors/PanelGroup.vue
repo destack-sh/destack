@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import PanelInterface from "@/components/editors/Panel.vue";
-import EmptyEditor from "@/components/editors/EmptyEditor.vue";
+import BlankPanel from "@/components/editors/BlankPanel.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type Panel, type PanelGroup } from "@/state/bench";
@@ -122,7 +122,7 @@ async function createFileInPanelGroup() {
         >
           <PanelInterface :panel="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />
         </TabPanel>
-        <EmptyEditor
+        <BlankPanel
           v-if="bench.projectVersionId != null && group.activePanelId == null"
           class="relative h-full w-full"
           :group="group"

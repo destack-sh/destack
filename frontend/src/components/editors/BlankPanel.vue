@@ -35,13 +35,13 @@ const createActions = computed(() => [
   {
     label: "View files",
     icon: DocumentIcon,
-    action: () => actions.apply("bench.view.openExplorer"),
+    action: () => bench.openActiveView("explorer"),
     enabled: true,
   },
   {
     label: "Search files",
     icon: MagnifyingGlassIcon,
-    action: () => actions.apply("bench.view.openSearch"),
+    action: () => bench.openActiveView("search"),
     enabled: false,
   },
   {
@@ -97,6 +97,7 @@ function openFile(file: { id: string; name: string }) {
             <span class="px-1 py-0.5 text-gray-700 group-hover:text-gray-900">{{ file.name }}</span>
           </button>
         </div>
+        <div v-else class="mt-1 px-1 py-0.5 text-gray-400">Nothing yet</div>
       </div>
     </div>
   </div>
