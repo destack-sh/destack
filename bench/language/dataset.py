@@ -481,11 +481,10 @@ class Value(HasType, HasTags, Statement):
         else:
             candidates = {
                 **{f: f for f in self._PROPERTIES},
-                **{f.py_ident: f for f in self.parent.fields},
+                **{f.py_ident: f for f in self.fields},
             }
-            did_you_mean = did_you_mean_str(candidates, item)
             raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean}, available: {self.fields})"
+                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
             )
 
     def __setattr__(self, key, value):
@@ -502,10 +501,9 @@ class Value(HasType, HasTags, Statement):
         elif not isinstance(item, str):
             raise TypeError(f"cannot index {self} with {type(item)}")
         else:
-            candidates = {f.py_ident: f for f in self.parent.fields}
-            did_you_mean = did_you_mean_str(candidates, item)
+            candidates = {f.py_ident: f for f in self.fields}
             raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean}, available: {self.fields})"
+                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
             )
 
     def __iter__(self):
