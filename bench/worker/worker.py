@@ -157,12 +157,11 @@ class WorkerNode(Monitored):
 
     async def _mark_worker_as_active(self):
         # :WorkerSetActive
-        logger.debug("worker.mark_active", worker_set=self.worker_set_id)
-        await redis.set(
-            f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at",
-            value=str(time.time()),
-            ex=24 * 60 * 60,  # keep for 1 day
+        active_key = f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at"
+        logger.debug(
+            "worker.mark_active", worker_set=self.worker_set_id, worker_node=self.worker_node_id
         )
+        await redis.set(active_key, value=str(time.time()), ex=24 * 60 * 60)
 
     async def mark_as_active_if_active_forever(self, interval: int):
         while True:

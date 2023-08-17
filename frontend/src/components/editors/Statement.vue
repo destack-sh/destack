@@ -570,7 +570,7 @@ defineExpose({
       </div>
       <!-- Issues in right gutter -->
       <div
-        v-if="!standalone"
+        v-if="!standalone && hasIssues"
         class="group/issues absolute left-full top-[5px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,
@@ -587,7 +587,6 @@ defineExpose({
         </button>
         <!-- Preview on hover -->
         <div
-          v-if="hasIssues"
           class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
         >
           <span
