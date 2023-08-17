@@ -1,3 +1,6 @@
+import cProfile
+import io
+import pstats
 import time
 
 import brotli
@@ -49,3 +52,28 @@ class BrotliCompressionMiddleware:
 
         # call wrapped app
         await self.app(scope, receive, send_with_brotli)
+
+
+class CProfileMiddleware:
+    """CProfile ASGI middleware to capture request profiles (for our Daphne API stack)."""
+
+    def __init__(self, app):
+        self.app = app
+        self.profiler = cProfile.Profile()
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        # wrap send function to capture profile
+        self.profiler.enable()
+        await self.app(scope, receive, send)
+        self.profiler.disable()
+
+        # dump profile to log
+        s = io.StringIO()
+        sortby = "cumulative"
+        ps = pstats.Stats(self.profiler, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
