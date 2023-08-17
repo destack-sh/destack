@@ -329,11 +329,9 @@ export function useFileOps() {
         cache.modify({
           id: cache.identify(data.pasteFile?.projectVersion),
           fields: {
-            files(currentFiles = { edges: [] }) {
+            files(currentFiles = []) {
               const newRef = cache.identify(data?.pasteFile);
-              return {
-                edges: [...currentFiles.edges.filter((e: any) => e.node.__ref != newRef), { node: { __ref: newRef } }],
-              };
+              return [...currentFiles.filter((f: any) => f.__ref != newRef), { __ref: newRef }];
             },
           },
           optimistic: true,

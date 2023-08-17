@@ -155,7 +155,7 @@ def pack_module(
     return tree
 
 
-class _Visited(typing.NamedTuple):
+class _VisitedTree(typing.NamedTuple):
     roots: list[NodeT]
     visited: dict[UUID, NodeT]
     visited_by_parent: dict[Optional[UUID], list[NodeT]]
@@ -173,7 +173,7 @@ class _Packed(typing.NamedTuple):
 
 def collect_node(
     *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
-) -> _Visited:
+) -> _VisitedTree:
     """Collect a node and its descendants"""
     visited: dict[UUID, NodeT] = {}
     visited_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
@@ -215,7 +215,7 @@ def collect_node(
             to_pack.extend(qs)
 
     roots = [visited[node.id] for node in models]
-    return _Visited(roots, visited, visited_by_parent)
+    return _VisitedTree(roots, visited, visited_by_parent)
 
 
 def pack_node(

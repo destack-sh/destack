@@ -44,6 +44,7 @@ def tracked_db_mutation(
     *,
     atomic: bool = False,
     batch: bool = False,
+    skip_save: bool = False,
     skip_auth_check: bool = False,
     register: bool = True,
     directives: Optional[Sequence[object]] = None,
@@ -87,7 +88,7 @@ def tracked_db_mutation(
             )
 
             # save and bump revision (if not new or batched)
-            if not batch:
+            if not batch and not skip_save:
                 is_new = thing._state.adding or type.kind == ModuleMutationKind.CREATE
                 if not is_new:
                     thing.revision = F("revision") + 1
