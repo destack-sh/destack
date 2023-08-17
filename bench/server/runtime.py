@@ -81,7 +81,7 @@ from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
-from bench.server.observer import WorkerSetObserver
+from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
@@ -163,7 +163,7 @@ class RuntimeServer(Monitored):
         self.runtime_workers: dict[UUID, RuntimeWorker] = {}
         self.subs = []
         self.tasks = TaskManager()
-        self.user_worker_observer = WorkerSetObserver()
+        self.user_worker_observer = WorkerObserver()
         self._ready = False
 
     async def run(self):
@@ -540,7 +540,7 @@ class RuntimeWorker:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        workers_state: WorkerSetObserver,
+        workers_state: WorkerObserver,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
