@@ -649,8 +649,8 @@ class RuntimeWorker:
             # publish scheduled runs (should be project scoped later, but we don't have a session)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_to_start))
 
-            # start worker set if not already started
             if runs_to_start:
+                # start worker set if not already started
                 if not self.workers_watcher.is_healthy(self.project_id):
                     # not sure what to do after timeout here... retry? panic?
                     await self.workers_watcher.wake_until_healthy(self.project_id, timeout=300)
@@ -661,33 +661,31 @@ class RuntimeWorker:
                     fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
                 )
 
-                # send out run requests (could do this in parallel but doesn't matter for now)
-                for run in runs_to_start:
-                    req = ReqStartRunPayload(
-                        project_id=run.project_id,
-                        module_id=run.module_id,
-                        session_id=run.session_id,
-                        run_id=run.id,
-                        runnable=run.runnable_id,
-                        inputs=run.inputs,
-                        block=None,
-                        keyed=True,
-                        trigger_type=run.trigger_type,
-                        trigger_id=run.trigger_id,
-                        scheduled_at=run.scheduled_at,
+            # send out run requests (could do this in parallel but doesn't matter for now)
+            for run in runs_to_start:
+                req = ReqStartRunPayload(
+                    project_id=run.project_id,
+                    module_id=run.module_id,
+                    session_id=run.session_id,
+                    run_id=run.id,
+                    runnable=run.runnable_id,
+                    inputs=run.inputs,
+                    block=None,
+                    keyed=True,
+                    trigger_type=run.trigger_type,
+                    trigger_id=run.trigger_id,
+                    scheduled_at=run.scheduled_at,
+                )
+                try:
+                    rep: NMessage[RepStartRunPayload] = await request(
+                        NMessageType.START_RUN, req, reply_t=RepStartRunPayload, retry=3
                     )
-                    try:
-                        rep: NMessage[RepStartRunPayload] = await request(
-                            NMessageType.START_RUN, req, reply_t=RepStartRunPayload, retry=3
-                        )
-                        if rep.p.error:
-                            logger.error(
-                                "time_triggers.start_run.error", run=run, error=rep.p.error
-                            )
-                            continue
-                    except Exception as e:
-                        logger.error("time_triggers.start_run.error", run=run, exc_info=e)
+                    if rep.p.error:
+                        logger.error("time_triggers.start_run.error", run=run, error=rep.p.error)
                         continue
+                except Exception as e:
+                    logger.error("time_triggers.start_run.error", run=run, exc_info=e)
+                    continue
 
             # reset next occurrence for all triggers that fired
             for trigger_id in triggers_to_fire:

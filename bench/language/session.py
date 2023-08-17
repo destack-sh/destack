@@ -106,8 +106,8 @@ class Run:
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
     metadata: Optional[dict[str, Any]]
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow_with_tz)
+    updated_at: datetime = field(default_factory=utcnow_with_tz)
     children: list["Run"] = field(default_factory=list)
 
     def __post_init__(self):
