@@ -655,7 +655,7 @@ export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | n
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Text]: "A plain markdown comment",
   [StatementType.Type]: "A object, choice or union type",
-  [StatementType.Dataset]: "Context, examples, feedback with 1M+ records",
+  [StatementType.Dataset]: "Context, examples, feedback - any records",
   [StatementType.Code]: "Connect, test, customize with Python",
   [StatementType.Task]: "Instruct AI to do something",
   [StatementType.Expectation]: "Tune desired AI behaviour",

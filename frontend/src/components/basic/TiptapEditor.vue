@@ -46,7 +46,11 @@ const shortcutsExtension = Extension.create({
         return false;
       },
       Backspace: ({ editor }) => {
-        if (editor.state.selection.$from.pos === 1) {
+        if (
+          editor.state.selection.$from.pos === 1 &&
+          editor.state.selection.$to.pos === 1 &&
+          editor.state.selection.$from.parentOffset === 0
+        ) {
           emit("deleteStart");
           return true;
         }
