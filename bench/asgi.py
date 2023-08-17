@@ -19,7 +19,6 @@ from starlette.middleware.cors import CORSMiddleware
 from strawberry.channels import GraphQLHTTPConsumer, GraphQLWSConsumer
 from twisted.internet import reactor
 
-from bench.api.utils import BrotliCompressionMiddleware
 from bench.msg.core import drain_nats, init_nats, process_soon_queue
 from bench.settings import (
     BROTLI_COMPRESSION_ENABLED,
@@ -36,6 +35,7 @@ django_asgi_app = get_asgi_application()
 # import Strawberry schema after creating the django ASGI application
 # (ensures django.setup() has been called before any ORM models are imported)
 from bench.api import schema  # noqa
+from bench.api.middleware import BrotliCompressionMiddleware  # noqa
 
 websocket_urlpatterns = [
     re_path(r"graphql", GraphQLWSConsumer.as_asgi(schema=schema)),
