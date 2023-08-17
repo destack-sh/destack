@@ -301,7 +301,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement
     # interp state
     issues: models.QuerySet["Issue"]  # noqa via Issue.statement
-    resolved_fields = models.ManyToManyField("Field", related_name="+", through="ResolvedField")
+    resolved_fields: models.QuerySet["ResolvedField"]  # noqa via ResolvedField.statement
 
     def __str__(self):
         return f"{self.path} {self.type} {self.name}"

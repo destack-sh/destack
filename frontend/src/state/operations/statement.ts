@@ -141,7 +141,12 @@ export function useStatementOps() {
             }
             # interp
             resolvedFields {
-              id
+              statement {
+                id
+              }
+              field {
+                id
+              }
             }
             issues(filters: { scope: STATEMENT }) {
               id

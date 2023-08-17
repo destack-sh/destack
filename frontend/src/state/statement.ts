@@ -9,6 +9,7 @@ import {
   type Statement,
   type Tagging,
   type Trigger,
+  type ResolvedField,
 } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldId, newFieldKey } from "@/state/operations/statement";
@@ -281,8 +282,10 @@ export function useStatementContext() {
   const resolvedFields = computed(
     () =>
       statement.value.resolvedFields
-        ?.map((n) => n as Field)
-        .filter((n) => n.deletedAt == null)
+        ?.map((n) => n as ResolvedField)
+        .map((n) => (n?.field == null ? null : module.fieldOf(n.field.id)))
+        .filter((n) => n != null && n.deletedAt == null)
+        .map((n) => n as Field)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
   );
   const selfFields = computed(() => fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)) ?? []);

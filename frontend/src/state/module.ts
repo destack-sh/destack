@@ -10,6 +10,7 @@ import {
   type Statement as StatementGql,
   type File as FileGql,
   type Field as FieldGql,
+  type ResolvedField as ResolvedFieldGql,
   type Record as RecordGql,
   type Issue as IssueGql,
   type Tagging as TaggingGql,
@@ -35,6 +36,7 @@ export type Module = ProjectVersionGql;
 export type File = FileGql;
 export type Statement = StatementGql;
 export type Field = FieldGql;
+export type ResolvedField = ResolvedFieldGql;
 export type Record = RecordGql;
 export type Tagging = TaggingGql;
 export type Trigger = TriggerGql;
@@ -67,6 +69,7 @@ export type ModuleIndex = {
   statementsByFileId: globalThis.Record<string, InterpStatement[]>;
   statementsByParentId: globalThis.Record<string, InterpStatement[]>;
   filesById: globalThis.Record<string, InterpFile>;
+  fieldsById: globalThis.Record<string, Field>;
 };
 
 function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
@@ -84,9 +87,6 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
             ...InterpFile
             statements(filters: { isVisible: true }) {
               ...InterpStatement
-              issues(filters: { scope: STATEMENT }) {
-                ...IssueContent
-              }
             }
           }
         }
@@ -101,10 +101,12 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
+    // compile the primary index
     const statementsById: globalThis.Record<string, InterpStatement> = {};
     const statementsByFileId: globalThis.Record<string, InterpStatement[]> = {};
     const statementsByParentId: globalThis.Record<string, InterpStatement[]> = {};
     const filesById: globalThis.Record<string, InterpFile> = {};
+    const fieldsById: globalThis.Record<string, Field> = {};
 
     // TODO @Cleanup: type module objects more correctly (file/statements/issues)
     for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
@@ -117,6 +119,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
           statementsByParentId[statement.parent?.id] = [];
         }
         statementsByParentId[statement.parent?.id].push(statement);
+        for (const field of statement.fields) {
+          fieldsById[field.id] = field;
+        }
       }
       statementsByFileId[file.id] = (file as unknown as { statements: InterpStatement[] }).statements.filter(
         (s) => s.deletedAt == null
@@ -130,6 +135,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
       statementsByFileId: statementsByFileId,
       statementsByParentId: statementsByParentId,
       filesById: filesById,
+      fieldsById: fieldsById,
     } as ModuleIndex;
   });
 
@@ -239,6 +245,19 @@ function _useModule(projectVersionId: Ref<string | null>) {
     for (const i of [idx.value, ...dependenciesIndex.value]) {
       if (i && id in i.statementsById) {
         return i.statementsById[id];
+      }
+    }
+    return undefined;
+  }
+
+  function fieldOf(id: string) {
+    if (id == undefined) {
+      return undefined;
+    }
+    // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
+    for (const i of [idx.value, ...dependenciesIndex.value]) {
+      if (i && id in i.fieldsById) {
+        return i.fieldsById[id];
       }
     }
     return undefined;
@@ -377,6 +396,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     fileOf,
     pathOf,
     contextOf,
+    fieldOf,
     statementOf,
     relativePath,
     getTypedKey,

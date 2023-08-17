@@ -1367,9 +1367,7 @@ input RequestUploadObjectInput {
   name: String
 }
 
-type ResolvedField implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
+type ResolvedField {
   statement: Statement
   field: Field!
 }
@@ -1615,7 +1613,7 @@ type Statement implements HasCrud & ModuleNode & Node {
   description: String
   value: JSON
   issues(filters: IssueFilter): [Issue!]
-  resolvedFields(filters: FieldFilter): [Field!]
+  resolvedFields: [ResolvedField!]
 }
 
 type StatementBatch {
