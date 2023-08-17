@@ -19,7 +19,7 @@ from bench.msg.messages import (
 logger = structlog.get_logger(__name__)
 
 
-class WorkerSetObserver:
+class WorkerObserver:
     """Observe the state of all worker sets across all modules."""
 
     def __init__(self):
@@ -32,7 +32,7 @@ class WorkerSetObserver:
         return self._worker_sets_by_project_id.values()
 
     async def start(self):
-        logger.info("worker_set_observer.start")
+        logger.info("worker_observer.start")
         self._subs = [
             await subscribe(
                 f"{NMessageType.WORKERS_CHANGED}.>",
@@ -46,10 +46,10 @@ class WorkerSetObserver:
                 "project", "project__organization", "project__user"
             ).all()
         }
-        logger.info("worker_set_observer.ready", worker_sets=self.worker_sets)
+        logger.info("worker_observer.ready", worker_sets=self.worker_sets)
 
     async def _on_workers_changed(self, msg: NMessage[WorkersChangedPayload]):
-        logger.debug("worker_set_observer.change", msg=msg)
+        logger.debug("worker_observer.change", msg=msg)
         for updated_ws in msg.p.worker_sets:
             # upsert properties in local worker set
             updated_ws: models.WorkerSet = packer.unpack_data(updated_ws)
@@ -83,13 +83,18 @@ class WorkerSetObserver:
 
     async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
         """If not already healthy, wake the worker set and wait until it is healthy."""
-        logger.info("worker_set_observer.wait_until_healthy", project_id=project_id)
         worker_set = self._worker_sets_by_project_id.get(project_id)
+        logger.info(
+            "worker_observer.wait_until_healthy", project_id=project_id, worker_set=worker_set
+        )
         if worker_set and worker_set.status != models.WorkerSetStatus.HEALTHY:
-            return
+            return  # already good
+
+        # create waiter
         if project_id not in self._until_healthy_waiters:
             self._until_healthy_waiters[project_id] = asyncio.Event()
 
+        # wake if needed
         if not worker_set or worker_set.sleeping:
             rep: NMessage[RepWakeWorkerSetPayload] = await request(
                 NMessageType.WAKE_WORKER_SET,
@@ -99,11 +104,16 @@ class WorkerSetObserver:
             if not rep.p.success:
                 raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
 
+        # and wait
         if timeout:
             await asyncio.wait_for(self._until_healthy_waiters[project_id].wait(), timeout)
         else:
             await self._until_healthy_waiters[project_id].wait()
             del self._until_healthy_waiters[project_id]
+        worker_set = self._worker_sets_by_project_id.get(project_id)
+        logger.info(
+            "worker_observer.wait_until_healthy.done", project_id=project_id, worker_set=worker_set
+        )
 
     async def stop(self):
         for sub in self._subs:
