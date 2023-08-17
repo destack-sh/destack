@@ -84,9 +84,8 @@ class WorkerObserver:
     async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
         """If not already healthy, wake the worker set and wait until it is healthy."""
         worker_set = self._worker_sets_by_project_id.get(project_id)
-        logger.info(
-            "worker_observer.wait_until_healthy", project_id=project_id, worker_set=worker_set
-        )
+        log = logger.bind(project_id=project_id, worker_set=worker_set)
+        log.info("worker_observer.wait_until_healthy")
         if worker_set and worker_set.status != models.WorkerSetStatus.HEALTHY:
             return  # already good
 
@@ -96,10 +95,12 @@ class WorkerObserver:
 
         # wake if needed
         if not worker_set or worker_set.sleeping:
+            log.info("worker_observer.wait_until_healthy.wake")
             rep: NMessage[RepWakeWorkerSetPayload] = await request(
                 NMessageType.WAKE_WORKER_SET,
                 ReqWakeWorkerSetPayload(project_id=project_id),
                 reply_t=RepWakeWorkerSetPayload,
+                retry=3,
             )
             if not rep.p.success:
                 raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
@@ -110,10 +111,7 @@ class WorkerObserver:
         else:
             await self._until_healthy_waiters[project_id].wait()
             del self._until_healthy_waiters[project_id]
-        worker_set = self._worker_sets_by_project_id.get(project_id)
-        logger.info(
-            "worker_observer.wait_until_healthy.done", project_id=project_id, worker_set=worker_set
-        )
+        log.info("worker_observer.wait_until_healthy.done")
 
     async def stop(self):
         for sub in self._subs:
