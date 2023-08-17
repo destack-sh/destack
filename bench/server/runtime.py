@@ -540,12 +540,12 @@ class RuntimeWorker:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        workers_watcher: WorkerSetObserver,
+        workers_state: WorkerSetObserver,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
         self.tasks = tasks
-        self.workers_watcher = workers_watcher
+        self.workers_state = workers_state
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
@@ -626,7 +626,7 @@ class RuntimeWorker:
             self.log.debug(
                 "time_triggers.check",
                 process_up_to=process_up_to,
-                active_triggers=self.active_triggers,
+                active_triggers=self.active_triggers.values(),
             )
 
             # TODO @Robustness @UX: cancel pre-scheduled runs that no longer have an active trigger
@@ -651,14 +651,15 @@ class RuntimeWorker:
 
             if runs_to_start:
                 # start worker set if not already started
-                if not self.workers_watcher.is_healthy(self.project_id):
+                if not self.workers_state.is_healthy(self.project_id):
                     # not sure what to do after timeout here... retry? panic?
-                    await self.workers_watcher.wake_until_healthy(self.project_id, timeout=300)
+                    await self.workers_state.wake_until_healthy(self.project_id, timeout=300)
 
                 logger.debug(
                     "time_triggers.fire",
                     runs_to_start=runs_to_start,
                     fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
+                    worker_set=self.workers_state.get(self.project_id),
                 )
 
             # send out run requests (could do this in parallel but doesn't matter for now)

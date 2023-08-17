@@ -25,7 +25,7 @@ class WorkerSetObserver:
     def __init__(self):
         self._worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
         self._subs = []
-        self._until_healthy_events: dict[UUID, asyncio.Event] = {}
+        self._until_healthy_waiters: dict[UUID, asyncio.Event] = {}
 
     @property
     def worker_sets(self) -> typing.Collection[models.WorkerSet]:
@@ -54,25 +54,32 @@ class WorkerSetObserver:
             # upsert properties in local worker set
             updated_ws: models.WorkerSet = packer.unpack_data(updated_ws)
             if updated_ws.project_id not in self._worker_sets_by_project_id:
-                existing_ws = await models.WorkerSet.objects.select_related(
+                ws = await models.WorkerSet.objects.select_related(
                     "project", "project__organization", "project__user"
                 ).aget(project_id=updated_ws.project_id)
             else:
-                existing_ws = self._worker_sets_by_project_id[updated_ws.project_id]
+                ws = self._worker_sets_by_project_id[updated_ws.project_id]
             for field in models.WorkerSet._meta.fields:
                 # skip relational fields
                 if field.is_relation:
                     continue
-                setattr(existing_ws, field.name, getattr(updated_ws, field.name))
+                setattr(ws, field.name, getattr(updated_ws, field.name))
 
-            # trigger until_healthy events
-            if existing_ws.project_id in self._until_healthy_events:
-                self._until_healthy_events[existing_ws.project_id].set()
+            # trigger 'until healthy' wait events
+            if (
+                ws.status == models.WorkerSetStatus.HEALTHY
+                and ws.project_id in self._until_healthy_waiters
+            ):
+                self._until_healthy_waiters[ws.project_id].set()
 
     def is_healthy(self, project_id: UUID) -> bool:
         """Return whether the worker set is healthy."""
         worker_set = self._worker_sets_by_project_id.get(project_id)
         return worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY
+
+    def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
+        """Return the worker set if it exists."""
+        return self._worker_sets_by_project_id.get(project_id)
 
     async def wake_until_healthy(self, project_id: UUID, timeout: Optional[int] = None):
         """If not already healthy, wake the worker set and wait until it is healthy."""
@@ -80,8 +87,8 @@ class WorkerSetObserver:
         worker_set = self._worker_sets_by_project_id.get(project_id)
         if worker_set and worker_set.status != models.WorkerSetStatus.HEALTHY:
             return
-        if project_id not in self._until_healthy_events:
-            self._until_healthy_events[project_id] = asyncio.Event()
+        if project_id not in self._until_healthy_waiters:
+            self._until_healthy_waiters[project_id] = asyncio.Event()
 
         if not worker_set or worker_set.sleeping:
             rep: NMessage[RepWakeWorkerSetPayload] = await request(
@@ -93,10 +100,10 @@ class WorkerSetObserver:
                 raise RuntimeError(f"failed to wake worker set {worker_set}: {rep.p.error}")
 
         if timeout:
-            await asyncio.wait_for(self._until_healthy_events[project_id].wait(), timeout)
+            await asyncio.wait_for(self._until_healthy_waiters[project_id].wait(), timeout)
         else:
-            await self._until_healthy_events[project_id].wait()
-            del self._until_healthy_events[project_id]
+            await self._until_healthy_waiters[project_id].wait()
+            del self._until_healthy_waiters[project_id]
 
     async def stop(self):
         for sub in self._subs:
