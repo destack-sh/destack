@@ -33,6 +33,7 @@ jinja2==3.1.2
 jsonschema==4.16.0
 langchain==0.0.166
 langcodes==3.3.0
+linkedin_scraper==2.11.2
 lxml==4.9.1
 markdown==3.4.1
 markupsafe==2.1.1
@@ -56,6 +57,8 @@ psutil==5.9.2
 psycopg2==2.9.3
 pyarrow==10.0.1
 pydantic>=1.10.7,<2
+PyGithub==1.59.0
+pypandoc==1.11
 pytest==7.2.0
 python-dotenv==0.21.0
 pytz==2022.2.1
@@ -71,6 +74,4 @@ unstructured==0.6.6
 uvicorn==0.23.1
 watchdog==3.0.0
 wikipedia-api==0.6.0
-linkedin_scraper==2.11.2
-PyGithub==1.59.0
 yarl==1.8.1

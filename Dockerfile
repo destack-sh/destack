@@ -17,7 +17,7 @@ ENV PYTHONUNBUFFERED 1
 ENV PYTHONPATH "${PYTHONPATH}:/bench"
 
 
-# Define the API image
+# --- API / Server ---
 FROM base as bench-api
 
 COPY requirements.txt .
@@ -25,7 +25,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # (also worker requirements for inspection)
 COPY requirements-worker.txt .
 
-# Copy the application code into the container
+# Copy all server files
 COPY bench/ bench/
 COPY manage.py .
 COPY manageserver.py .
@@ -37,16 +37,17 @@ ARG VERSION
 ENV GIT_COMMIT $GIT_COMMIT
 ENV VERSION $VERSION
 
-# Expose port 80
 EXPOSE 80
 
-# Define the worker image
+# --- Worker ---
 FROM base as bench-worker
 
+# Install extra requirements for the worker
+RUN apt-get install -y pandoc
 COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 
-# Copy the specific directories and files for the worker
+# Copy worker-specific files (only!)
 COPY bench/utils bench/utils
 COPY bench/worker bench/worker
 COPY bench/language bench/language
@@ -59,3 +60,5 @@ ARG GIT_COMMIT
 ARG VERSION
 ENV GIT_COMMIT $GIT_COMMIT
 ENV VERSION $VERSION
+
+EXPOSE 80

@@ -164,10 +164,10 @@ class ModuleNode(abc.ABC):
 
 @node
 class HasCrud(abc.ABC):
-    created_at: datetime = field(default_factory=datetime.utcnow)
-    updated_at: datetime = field(default_factory=datetime.utcnow)
-    last_edited_at: datetime = field(default_factory=datetime.utcnow)
-    last_changed_at: datetime = field(default_factory=datetime.utcnow)
+    created_at: datetime = field(default_factory=utcnow_with_tz)
+    updated_at: datetime = field(default_factory=utcnow_with_tz)
+    last_edited_at: datetime = field(default_factory=utcnow_with_tz)
+    last_changed_at: datetime = field(default_factory=utcnow_with_tz)
     revision: int = 0
 
 
