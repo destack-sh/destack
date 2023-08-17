@@ -86,7 +86,7 @@ class WorkerObserver:
         worker_set = self._worker_sets_by_project_id.get(project_id)
         log = logger.bind(project_id=project_id, worker_set=worker_set)
         log.info("worker_observer.wait_until_healthy")
-        if worker_set and worker_set.status != models.WorkerSetStatus.HEALTHY:
+        if worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY:
             return  # already good
 
         # create waiter
