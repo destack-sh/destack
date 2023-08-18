@@ -1,15 +1,10 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
 from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
 from bench.models.utils import UUIDModel, get_choices
-
-if TYPE_CHECKING:
-    pass
 
 
 class WorkerSet(UUIDModel):

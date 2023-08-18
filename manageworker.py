@@ -34,7 +34,7 @@ if os.environ.get("DEBUG") == "1":
 else:
     # production mode, one worker per process
     worker_set_id = UUID(os.environ["WORKER_SET_ID"])
-    worker_node_id = os.environ["WORKER_NODE_ID"]
+    worker_node_id = os.environ["WORKER_NODE_ID"].replace(".", "-")
     project_id = UUID(os.environ["WORKER_PROJECT_ID"])
     nats_name = f"worker-{worker_set_id}-{worker_node_id}"
 
