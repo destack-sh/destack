@@ -159,7 +159,8 @@ class WorkerNode(Monitored):
         # :WorkerSetActive
         active_key = f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at"
         self.log.debug("mark_as_active", active_key=active_key)
-        await redis.set(active_key, value=str(time.time()), ex=24 * 60 * 60)
+        if not await redis.set(active_key, value=str(time.time()), ex=24 * 60 * 60):
+            logger.error("mark_as_active.failed", active_key=active_key)
         self.log.debug("mark_as_active.done")
 
     async def mark_as_active_if_active_forever(self, interval: int):
