@@ -561,11 +561,11 @@ onBeforeUnmount(() => {
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
             <CurrentRunsPopover />
-            <CurrentLogsPopover />
+            <!-- <CurrentLogsPopover /> -->
             <!-- Terminal (soon) -->
-            <button class="p-1" disabled>
+            <!-- <button class="p-1" disabled>
               <CommandLineIcon class="h-5 w-5 text-gray-400" />
-            </button>
+            </button> -->
             <OmniCreate @show="bench.showGlobalHeader = true" />
             <NotificationPopover @show="bench.showGlobalHeader = true" />
           </div>

@@ -1,8 +1,8 @@
 <script lang="ts" setup>
-import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
+import PanelStatusNotice from "@/components/editors/PanelStatusNotice.vue";
 import Statement from "@/components/editors/Statement.vue";
-import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
-import { graphql, useFragment } from "@/gql";
+import PanelHeader from "@/components/editors/PanelHeader.vue";
+import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementEditor, type FileHeader } from "@/state/bench";
 import { useCurrentModule, type Statement as StatementType } from "@/state/module";
@@ -60,17 +60,20 @@ watch(
     }
   }
 );
+
+const statementPath = computed(() => module.nodePathOf(statement.value));
 </script>
 <template>
   <div class="overflow-x-hidden bg-white">
-    <FixedInlineHeader
+    <PanelHeader
       :thing="statement"
       :actions="statementComponentRef?.allActions ?? []"
       :editing="false /* not sure */"
       :readonly="bench.readonly"
-      :path="panel.path"
+      :path="statementPath ?? []"
+      :self="(statementPath?.length ?? 0) - 1"
     />
-    <EditedThingBanner :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
+    <PanelStatusNotice :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
     <!-- Loading -->
     <div
       v-if="statementLoading || !statementComponentLoaded"
