@@ -33,7 +33,7 @@ import {
 import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, provide, ref, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
 
 export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "canWrite" | "createdAt" | "updatedAt">;
 export type ProjectVersionHeader = Pick<
@@ -578,7 +578,7 @@ function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: strin
   }
 }
 
-export function useBenchPersistence(intervalMs = 1000) {
+export function useBenchPersistence(minIntervalMs = 1000) {
   const bench = useBenchState();
 
   function save(projectId?: string) {
@@ -608,11 +608,18 @@ export function useBenchPersistence(intervalMs = 1000) {
   }
 
   // save every interval
-  const interval = setInterval(save, intervalMs);
+  const interval = setInterval(save, minIntervalMs);
   onBeforeUnmount(() => {
     save();
     clearInterval(interval);
   });
+
+  // and watch for any changes
+  watch(
+    () => bench.$state,
+    () => save(),
+    { deep: true }
+  );
 
   return { save, load };
 }

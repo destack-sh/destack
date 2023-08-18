@@ -111,8 +111,8 @@ class NMessageType(StrEnum):
     # running (routed via project id, maybe later worker set id too)
     START_RUN = "run.start"
     START_RUN_REP = "run.start.rep"
-    CANCEL_RUN = "run.cancel"
-    CANCEL_RUN_REP = "run.cancel.rep"
+    KILL_RUN = "run.kill"
+    KILL_RUN_REP = "run.kill.rep"
     PAUSE_RUN = "run.pause"
     PAUSE_RUN_REP = "run.pause.rep"
     RESUME_RUN = "run.resume"
@@ -137,7 +137,7 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
     NMessageType.START_RUN: NMessageType.START_RUN_REP,
-    NMessageType.CANCEL_RUN: NMessageType.CANCEL_RUN_REP,
+    NMessageType.KILL_RUN: NMessageType.KILL_RUN_REP,
     NMessageType.PAUSE_RUN: NMessageType.PAUSE_RUN_REP,
     NMessageType.RESUME_RUN: NMessageType.RESUME_RUN_REP,
     NMessageType.WAKE_RUNTIME: NMessageType.WAKE_RUNTIME_REP,
@@ -279,13 +279,13 @@ class RepStartRunPayload(Payload):
     logs: Optional[list[LogEntryData]] = None
 
 
-@payload(NMessageType.CANCEL_RUN)
-class ReqCancelRunPayload(ModuleScoped, Payload):
+@payload(NMessageType.KILL_RUN)
+class ReqKillRunPayload(ModuleScoped, Payload):
     run_id: UUID
 
 
-@payload(NMessageType.CANCEL_RUN_REP)
-class RepCancelRunPayload(Payload):
+@payload(NMessageType.KILL_RUN_REP)
+class RepKillRunPayload(Payload):
     success: bool
 
 

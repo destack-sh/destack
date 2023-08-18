@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useBenchState } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
@@ -8,6 +9,7 @@ import { PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
 import { computed } from "vue";
 
+const bench = useBenchState();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const nav = useNavigation();
@@ -42,7 +44,9 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       >
         <h2 class="font-bold text-gray-900">Runs</h2>
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
-          <div v-for="run in activeRunsDesc" :key="run.id" class="flex flex-row justify-between gap-1 py-0.5">
+          <!-- Run -->
+          <div v-for="run in activeRunsDesc" :key="run.id" class="relative flex flex-row justify-between gap-1 py-0.5">
+            <!-- Run preview -->
             <span class="flex flex-row items-center">
               <component
                 :is="getRunStatusIconSolid(run.status)"
@@ -60,12 +64,20 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
                 {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}
               </span>
             </span>
+            <!-- Controls -->
             <button
               class="p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click="sessions.cancel(run)"
             >
               <StopIcon class="h-4 w-4 text-gray-900" />
             </button>
+            <!-- Debug info -->
+            <span
+              v-if="bench.debug"
+              class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm"
+            >
+              {{ run.id }}
+            </span>
           </div>
         </div>
         <div v-if="activeRuns.length == 0" class="mt-1 text-center">

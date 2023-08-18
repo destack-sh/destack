@@ -26,17 +26,17 @@ from bench.msg.messages import (
     ClientOrigin,
     ModuleInternalChangedPayload,
     NMessageType,
-    RepCancelRunPayload,
     RepGetEnvironmentPayload,
     RepGetModuleHeadPayload,
+    RepKillRunPayload,
     RepPingWorkerSetPayload,
     RepReadModulePayload,
     RepStartRunPayload,
     RepWriteModulePayload,
     RepWriteSessionPayload,
-    ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
     ReqGetModuleHeadPayload,
+    ReqKillRunPayload,
     ReqPingWorkerSetPayload,
     ReqReadModulePayload,
     ReqStartRunPayload,
@@ -109,7 +109,7 @@ class WorkerNode(Monitored):
                 f"{NMessageType.MODULE_INTERNAL_CHANGED}.{m_routing}", cb=self.module_changed
             ),
             await handle_reply(f"{NMessageType.START_RUN}.{m_routing}", self.start_run),
-            await handle_reply(f"{NMessageType.CANCEL_RUN}.{m_routing}", self.cancel_run),
+            await handle_reply(f"{NMessageType.KILL_RUN}.{m_routing}", self.kill_run),
             await handle_reply(f"{NMessageType.GET_ENVIRONMENT}.{p_routing}", self.get_environment),
             await handle_reply(f"{NMessageType.PING_WORKER_SET}.{p_routing}", self.ping),
         ]
@@ -252,11 +252,11 @@ class WorkerNode(Monitored):
         await msg.reply(rep)
 
     @message_handler
-    async def cancel_run(self, msg: NMessage[ReqCancelRunPayload]):
+    async def kill_run(self, msg: NMessage[ReqKillRunPayload]):
         logger.debug("run.cancel", msg=msg)
         worker = await self._prepare_worker(msg.p.module_id)
-        success = await worker.cancel_run(msg.p.run_id)
-        await msg.reply(RepCancelRunPayload(success=success))
+        success = await worker.kill_run(msg.p.run_id)
+        await msg.reply(RepKillRunPayload(success=success))
 
     @message_handler
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
@@ -381,16 +381,19 @@ class ModuleWorkerProcess(ModuleWriter):
             if job.run_data.status != RunStatus.Queued:
                 continue
 
+            job.started.set()
+            session = None
             try:
-                job.started.set()
-                session = await self._do_run_job(job, WORKER_RUN_TIMEOUT)
-                if session.tracer.run.runs:
+                session, e = await self._do_run_job(job, WORKER_RUN_TIMEOUT)
+                if e:
+                    self.log.debug("run.failed", job=job, exc_info=e)
+            except Exception as e:
+                self.log.exception("run.init.failed", job=job, sentry=sentry_capture_if_enabled(e))
+            finally:
+                if session and session.tracer.run.runs:
                     job.run = session.tracer.run.runs[job.run_data.id]
                     job.run_data = wire.pack_data(job.run)
                     job.last_logs = session.tracer.cached_logs[:50]
-            except Exception as e:
-                self.log.exception("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
-            finally:
                 job.terminated.set()
                 self.queue.task_done()
 
@@ -444,33 +447,13 @@ class ModuleWorkerProcess(ModuleWriter):
 
         return job
 
-    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict) -> None:
-        """Actually runs the runnable in the session"""
+    async def _do_run_job(self, job: RunJob, timeout: float) -> tuple[Session, Optional[Exception]]:
+        """
+        Actually runs the job, and updates the job with the result.
+        This is a bit of a dance to ensure that we always return the session if in any way possible.
+        """
 
-        # open session
-        await session.aopen()
-        if not runnable._is_async:
-            runnable = runnable.to_async()
-
-        # run session
-        try:
-            await runnable(**inputs)
-        except Exception as e:
-            raise RunError(
-                kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=runnable
-            ) from e
-        finally:
-            # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
-            #  (where a queued run may be saved after a fast run has completed and flushed)
-            if session.ctx.first_run_id in self._dirty_dangling_runs:
-                del self._dirty_dangling_runs[session.ctx.first_run_id]
-
-            # close session
-            await session.aclose()
-
-    async def _do_run_job(self, job: RunJob, timeout: float) -> Session:
-        """Actually runs the job, and updates the job with the result"""
-
+        # init i.e. prepare session and run
         try:
             job.started.set()
             self.log.info("worker.run", job=job, timeout=timeout)
@@ -502,13 +485,20 @@ class ModuleWorkerProcess(ModuleWriter):
                 id=job.session_id,
                 mode=SessionMode.WRITE,
             )
+        except Exception:
+            job.terminated.set()
+            raise
+
+        # run in active session
+        try:
             self.module.activate_in(session)
 
-            # wait out schedule delay if needed
+            # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()
             if job.run_data.scheduled_at and job.run_data.scheduled_at > now:
                 # wait out the schedule delay if needed
                 delay = (job.run_data.scheduled_at - now).total_seconds()
+                assert delay < WORKER_SCHEDULE_BLOCK_AHEAD, "schedule delay too long"
                 self.log.info("worker.run.delay", job=job, delay=delay)
                 await asyncio.sleep(delay)
 
@@ -518,15 +508,40 @@ class ModuleWorkerProcess(ModuleWriter):
             self._last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
             job.last_logs = session.tracer.cached_logs[:50]
-
-            return session
+            return session, None
+        except Exception as e:
+            return session, e
         finally:
             job.terminated.set()
             self.module.deactivate()
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 
-    async def cancel_run(self, run_id: UUID) -> bool:
+    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict) -> None:
+        """Actually runs the runnable in the session"""
+
+        # open session
+        await session.aopen()
+        if not runnable._is_async:
+            runnable = runnable.to_async()
+
+        # run session
+        try:
+            await runnable(**inputs)
+        except Exception as e:
+            raise RunError(
+                kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=runnable
+            ) from e
+        finally:
+            # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
+            #  (where a queued run may be saved after a fast run has completed and flushed)
+            if session.ctx.first_run_id in self._dirty_dangling_runs:
+                del self._dirty_dangling_runs[session.ctx.first_run_id]
+
+            # close session
+            await session.aclose()
+
+    async def kill_run(self, run_id: UUID) -> bool:
         # TODO @Broken: implement cancel properly (interupts don't work)
         #  (currently we only do process restarts)
         return False
