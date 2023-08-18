@@ -46,6 +46,8 @@ export function useNavigationGrid<ColumnType = string, RefType = HTMLInputElemen
     gridNavigateRight?: (index: number, column: ColumnType, columnIndex: number) => void;
     nowrapLeft?: boolean;
     nowrapRight?: boolean;
+    nowrapTop?: boolean;
+    nowrapBottom?: boolean;
     onFocus?: (rowId: string, column: ColumnType) => void;
   } = {}
 ) {

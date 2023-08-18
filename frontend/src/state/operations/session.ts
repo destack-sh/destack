@@ -146,11 +146,11 @@ export function useSessionOps() {
     });
   }
 
-  const { mutate: cancelMut } = useMutation(
+  const { mutate: killMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation cancel($projectVersionId: GlobalID!, $runId: GlobalID!) {
-        cancelRun(input: { projectVersionId: $projectVersionId, runId: $runId }) {
-          ... on CancelRunPayload {
+      mutation kill($projectVersionId: GlobalID!, $runId: GlobalID!) {
+        killRun(input: { projectVersionId: $projectVersionId, runId: $runId }) {
+          ... on KillRunPayload {
             success
             run {
               id
@@ -168,13 +168,13 @@ export function useSessionOps() {
     `)
   );
 
-  async function cancel(runId: string) {
+  async function kill(runId: string) {
     return await ops.perform({
-      type: "runtime.cancel",
+      type: "runtime.kill",
       key: runId,
       stateless: true,
       do: async () => {
-        return await cancelMut({
+        return await killMut({
           projectVersionId: bench.projectVersionId,
           runId,
         });
@@ -187,6 +187,6 @@ export function useSessionOps() {
     wakeWorkerSet,
     restartWorkerSet,
     run,
-    cancel,
+    kill,
   };
 }

@@ -454,8 +454,8 @@ export function _useSessions(
     throw new Error("not implemented yet");
   }
 
-  function cancel(run: { id: string }): Promise<boolean> {
-    console.debug("run.cancel", run.id);
+  function kill(run: { id: string }): Promise<boolean> {
+    console.debug("run.kill", run.id);
     if (currentRuns.value[run.id] == null) {
       return Promise.resolve(false);
     }
@@ -511,7 +511,7 @@ export function _useSessions(
     run,
     pause,
     resume,
-    cancel,
+    cancel: kill,
     getDurationSeconds,
     getDurationFormatted,
   };

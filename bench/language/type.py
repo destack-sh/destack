@@ -902,8 +902,15 @@ def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
 @dataclass
 class StaticPyTypeMapper(TypeMapper):
     py_type: type
+    py_type_raw: type = field(init=False)
     tag: TypeTag
     hint: Optional[TypeHint] = None
+
+    def __post_init__(self):
+        self.py_type_raw = self.py_type
+        # strip newtype
+        if hasattr(self.py_type, "__supertype__"):
+            self.py_type_raw = self.py_type.__supertype__
 
     def is_instance_type(self, py_type: type) -> bool:
         return py_type == self.py_type
@@ -912,10 +919,19 @@ class StaticPyTypeMapper(TypeMapper):
         return Type(name=None, tag=self.tag, hint=self.hint)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, self.py_type)
+        return isinstance(value, self.py_type_raw)
 
     def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
+
+
+@dataclass
+class VectorTypeMapper(StaticPyTypeMapper):
+    py_type: type = Vector
+    tag: TypeTag = TypeTag.VECTOR
+
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, list)  # not quite right but good enough for now
 
 
 @dataclass
@@ -1238,7 +1254,7 @@ register_mapper(StaticPyTypeMapper(Key, TypeTag.STRING, TypeHint.KEY), hints=[Ty
 register_mapper(StaticPyTypeMapper(float, TypeTag.NUMBER), tags=[TypeTag.NUMBER])
 register_mapper(StaticPyTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
-register_mapper(StaticPyTypeMapper(Vector, TypeTag.VECTOR), tags=[TypeTag.VECTOR])
+register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
 register_mapper(FileMapper(), tags=[TypeTag.FILE])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Annotated, AsyncGenerator, Optional
 from uuid import UUID
 
 import django.db.models
-import posthog
 import strawberry
 import strawberry_django
 import structlog
@@ -44,14 +43,14 @@ from bench.msg.core import NMessage, request, subscribe, subscribe_many
 from bench.msg.messages import (
     LogsChangedPayload,
     NMessageType,
-    RepCancelRunPayload,
     RepGetEnvironmentPayload,
+    RepKillRunPayload,
     RepRestartWorkerSetPayload,
     RepStartRunPayload,
     RepWakeRuntimePayload,
     RepWakeWorkerSetPayload,
-    ReqCancelRunPayload,
     ReqGetEnvironmentPayload,
+    ReqKillRunPayload,
     ReqRestartWorkerSetPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
@@ -333,13 +332,13 @@ class RunState:
 
 
 @strawberry.input
-class CancelRunInput:
+class KillRunInput:
     project_version_id: GlobalID
     run_id: GlobalID
 
 
 @strawberry.type
-class CancelRunPayload:
+class KillRunPayload:
     success: bool
     run: Optional[Run]
 
@@ -652,11 +651,6 @@ class SessionMutation:
             rep = None
             success = False
             error = ModuleRunErrorType.UNAVAILABLE
-        posthog.capture(
-            str(user.id),
-            "run",
-            {"project_version_id": str(project_version_id), "success": success, "error": error},
-        )
         run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
@@ -669,33 +663,25 @@ class SessionMutation:
         )
 
     @asafe_mutation
-    async def cancel_run(
-        self, info: Info, input: CancelRunInput
-    ) -> CancelRunPayload | OperationInfo:
+    async def kill_run(self, info: Info, input: KillRunInput) -> KillRunPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
-        user = get_user_from_info(info)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_can_write_project)(info, project_version)
-        cancel = ReqCancelRunPayload(
+        kill = ReqKillRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
             run_id=to_uuid(input.run_id),
         )
         try:
-            rep: NMessage[RepCancelRunPayload] = await request(
-                NMessageType.CANCEL_RUN, cancel, reply_t=RepCancelRunPayload, retry=2
+            rep: NMessage[RepKillRunPayload] = await request(
+                NMessageType.KILL_RUN, kill, reply_t=RepKillRunPayload, retry=2
             )
-            run = await models.Run.objects.filter(id=cancel.run_id).afirst()
+            run = await models.Run.objects.filter(id=kill.run_id).afirst()
             success = rep.p.success
         except (NoRespondersError, TimeoutError):
             run = None
             success = False
-        posthog.capture(
-            str(user.id),
-            "cancel_run",
-            {"project_version_id": str(project_version_id), "success": success},
-        )
-        return CancelRunPayload(success=success, run=run)
+        return KillRunPayload(success=success, run=run)
 
 
 @strawberry.type

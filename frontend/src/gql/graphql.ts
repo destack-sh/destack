@@ -90,19 +90,6 @@ export enum AccessTokenStatus {
   Revoked = "REVOKED",
 }
 
-export type CancelRunInput = {
-  projectVersionId: Scalars["GlobalID"];
-  runId: Scalars["GlobalID"];
-};
-
-export type CancelRunPayload = {
-  __typename?: "CancelRunPayload";
-  run?: Maybe<Run>;
-  success: Scalars["Boolean"];
-};
-
-export type CancelRunPayloadOperationInfo = CancelRunPayload | OperationInfo;
-
 export type Change = {
   clientId?: Maybe<Scalars["GlobalID"]>;
   id: Scalars["UUID"];
@@ -413,6 +400,19 @@ export enum IssueType {
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 
+export type KillRunInput = {
+  projectVersionId: Scalars["GlobalID"];
+  runId: Scalars["GlobalID"];
+};
+
+export type KillRunPayload = {
+  __typename?: "KillRunPayload";
+  run?: Maybe<Run>;
+  success: Scalars["Boolean"];
+};
+
+export type KillRunPayloadOperationInfo = KillRunPayload | OperationInfo;
+
 export type LogChange = {
   __typename?: "LogChange";
   logs: Array<LogEntry>;
@@ -554,7 +554,6 @@ export type Mutation = {
   batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
-  cancelRun: CancelRunPayloadOperationInfo;
   closeClient?: Maybe<ClientOperationInfo>;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -577,6 +576,7 @@ export type Mutation = {
   deleteStatement: StatementOperationInfo;
   deleteTagging: TaggingOperationInfo;
   deleteTrigger: TriggerOperationInfo;
+  killRun: KillRunPayloadOperationInfo;
   logout?: Maybe<OperationInfo>;
   markNotification: NotificationOperationInfo;
   morphStatement: StatementOperationInfo;
@@ -666,10 +666,6 @@ export type MutationCancelOrganizationInviteArgs = {
   id: Scalars["GlobalID"];
 };
 
-export type MutationCancelRunArgs = {
-  input: CancelRunInput;
-};
-
 export type MutationCommitArgs = {
   input: CommitInput;
 };
@@ -752,6 +748,10 @@ export type MutationDeleteTaggingArgs = {
 
 export type MutationDeleteTriggerArgs = {
   input: TriggerDeleteInput;
+};
+
+export type MutationKillRunArgs = {
+  input: KillRunInput;
 };
 
 export type MutationMarkNotificationArgs = {
@@ -4286,16 +4286,16 @@ export type StartRunMutation = {
       };
 };
 
-export type CancelMutationVariables = Exact<{
+export type KillMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runId: Scalars["GlobalID"];
 }>;
 
-export type CancelMutation = {
+export type KillMutation = {
   __typename?: "Mutation";
-  cancelRun:
+  killRun:
     | {
-        __typename?: "CancelRunPayload";
+        __typename?: "KillRunPayload";
         success: boolean;
         run?: {
           __typename?: "Run";
@@ -11642,13 +11642,13 @@ export const StartRunDocument = {
     ...LogEntryContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<StartRunMutation, StartRunMutationVariables>;
-export const CancelDocument = {
+export const KillDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "cancel" },
+      name: { kind: "Name", value: "kill" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -11666,7 +11666,7 @@ export const CancelDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "cancelRun" },
+            name: { kind: "Name", value: "killRun" },
             arguments: [
               {
                 kind: "Argument",
@@ -11693,7 +11693,7 @@ export const CancelDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CancelRunPayload" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "KillRunPayload" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -11726,7 +11726,7 @@ export const CancelDocument = {
     },
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<CancelMutation, CancelMutationVariables>;
+} as unknown as DocumentNode<KillMutation, KillMutationVariables>;
 export const CreateStatementDocument = {
   kind: "Document",
   definitions: [

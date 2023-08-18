@@ -76,6 +76,11 @@ class Autoheal:
     pass
 
 
+@x_tag("test", "A test case", file=_symbolx_builtins)
+class Test:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
