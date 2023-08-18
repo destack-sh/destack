@@ -19,7 +19,7 @@ import {
   type PanelAppearance,
   type Theme,
 } from "@/state/appearance";
-import type { ModuleIndex } from "@/state/module";
+import type { ModuleIndex, NodeBase } from "@/state/module";
 import { randomHexString } from "@/utils/functools";
 import {
   ArrowLeftIcon,
@@ -383,10 +383,7 @@ export const useBenchState = defineStore("bench", {
       }
     },
 
-    openFile(
-      file: { id: string; name: string },
-      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
-    ): Panel {
+    openFile(file: NodeBase, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
       let panel = this.panels.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
       if (!panel || options?.create) {
         console.log(`create new file panel for ${file.id} ${file.name}`);
@@ -467,16 +464,26 @@ export const useBenchState = defineStore("bench", {
       panel.lastActiveAt = new Date().toISOString();
     },
 
-    focusFile(file: { id: string; name: string }, group?: PanelGroup): Panel {
+    focusFile(file: NodeBase, group?: PanelGroup): Panel {
       const panel = this.openFile(file, { group });
       this.focusPanel(panel);
       return panel;
     },
 
-    focusStatement(statement: StatementHeader, group?: PanelGroup): Panel {
+    focusStatement(statement: NodeBase, group?: PanelGroup): Panel {
       const panel = this.openStatement(statement, { group });
       this.focusPanel(panel);
       return panel;
+    },
+
+    focusNode(node: NodeBase, group?: PanelGroup): Panel {
+      if (node.__typename == "Statement") {
+        return this.focusStatement(node, group);
+      } else if (node.__typename == "File") {
+        return this.focusFile(node, group);
+      } else {
+        throw new Error(`cannot focus node ${node.__typename}`);
+      }
     },
 
     blur() {
@@ -946,8 +953,8 @@ export class FileEditor extends NavigablePanel {
   foldedStatementContentIds?: string[] = [];
   foldedStatementTreeIds?: string[] = [];
 
-  constructor(file: { id: string; name: string }) {
-    super("file", file.id + "-" + randomHexString(), file.name, file.name, null);
+  constructor(file: NodeBase) {
+    super("file", file.id + "-" + randomHexString(), file.name ?? "(Untitled)", file.name ?? "(Untitled)", null);
     this.fileId = file.id;
   }
 

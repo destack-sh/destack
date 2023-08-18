@@ -12,6 +12,7 @@ import {
   type Action,
   type PanelType,
 } from "@/state/bench";
+import type { NodeBase } from "@/state/module";
 import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
@@ -24,10 +25,11 @@ import { computed } from "vue";
 const props = defineProps<{
   thing: any;
   actions: Action<any>[];
-  path?: string | null;
-  subpath?: string | null;
+  path: NodeBase[];
+  self: number;
   editing: boolean;
 }>();
+const emit = defineEmits<{ (e: "focus", v: NodeBase): void }>();
 
 const bench = useBenchState();
 const panel = usePanelContext();
@@ -35,39 +37,46 @@ const panelAppearance = computed(() => panel.panel.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
 
-// :EditorIcons
-const editorIcons: Record<PanelType, any> = {
+// :PanelIcons
+const panelIcons: Record<PanelType, any> = {
   file: CodeBracketIcon,
   statement: CodeBracketIcon,
   launch: WindowIcon,
 };
-const icon = computed(() => editorIcons[panel.panel.value.type]);
+const icon = computed(() => panelIcons[panel.panel.value.type]);
 </script>
 <template>
   <div
-    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5"
+    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5 text-sm"
     :class="appearance.baseClass"
     :style="{ height: appearance.editorHeaderHeight + 'px', width: panel.size?.value?.width + 'px' }"
   >
     <!-- Main info -->
     <div class="flex flex-row items-center">
-      <!-- editor actions -->
+      <!-- Panel actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="panel.actions.value" :groups="panel.actionGroups?.value">
         <div class="p-0.5">
           <component :is="icon" class="h-4 w-4 text-gray-700" />
         </div>
       </ActionPopover>
-      <!-- editor path -->
-      <ActionPopover anchor="left" :thing="thing" :actions="actions" class="ml-1">
-        <span class="text-gray-900">{{ path }}</span>
-      </ActionPopover>
-      <!-- sub path inside editor -->
-      <FadeTransition mode="out-in">
-        <span v-if="subpath" :key="subpath" class="flex flex-row text-gray-900"
-          ><span class="text-gray-700"><ChevronRightIcon class="mr-0.5 mt-0.5 h-4 w-4 text-gray-400" /></span>
-          {{ subpath }}</span
-        >
-      </FadeTransition>
+      <!-- Panel path -->
+      <div class="flex flex-row items-center">
+        <template v-for="(node, i) in path" :key="i">
+          <ActionPopover v-if="i == self" anchor="left" :thing="thing" :actions="actions" class="ml-1">
+            <span class="font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
+          </ActionPopover>
+          <button
+            v-else
+            class="rounded-sm px-0.5 hover:bg-orange-100"
+            @click="i >= self ? emit('focus', node) : bench.focusNode(node, panel?.panel.value.group)"
+          >
+            {{ node.name ?? "(Untitled)" }}
+          </button>
+          <!-- Arrow -->
+          <ChevronRightIcon v-if="i < path.length - 1" class="h-4 w-4 text-gray-400" />
+        </template>
+      </div>
+      <!-- Debug info -->
       <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
         {{ editing ? "(editing)" : "" }}
         {{ bench.focusedPanelId == panel.panel.value.id ? "(focused)" : "" }}
@@ -84,7 +93,6 @@ const icon = computed(() => editorIcons[panel.panel.value.type]);
       <!-- Extra inline actions -->
       <button
         class="rounded-sm p-0.5 text-gray-600 transition-opacity duration-150 hover:bg-orange-100"
-        :class="panelAppearance.wide == undefined ? 'opacity-0 group-hover:opacity-100' : ''"
         @click.stop="panelAppearance.wide = !panel.panel.value.effectiveWide"
       >
         <component

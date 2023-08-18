@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import EditedThingBanner from "@/components/editors/EditedThingBanner.vue";
-import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
+import PanelStatusNotice from "@/components/editors/PanelStatusNotice.vue";
+import PanelHeader from "@/components/editors/PanelHeader.vue";
 import StatementComponent from "@/components/editors/Statement.vue";
 import StatementAddArea from "@/components/editors/StatementAddArea.vue";
 import TitleBanner from "@/components/editors/TitleBanner.vue";
@@ -11,7 +11,7 @@ import { useAppearance } from "@/state/appearance";
 import { FileEditor, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule, type Statement } from "@/state/module";
+import { useCurrentModule, type Statement, mergeNodePaths } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -267,6 +267,16 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   },
 ]);
 
+const filePath = computed(() => module.nodePathOf({ id: panel.value.fileId }));
+const focusPath = computed(() =>
+  panel.value.activeStatementId == null ? null : module.nodePathOf({ id: panel.value.activeStatementId })
+);
+const completePath = computed(() => {
+  if (filePath.value == null) return null;
+  if (focusPath.value == null) return filePath.value;
+  return mergeNodePaths(filePath.value, focusPath.value);
+});
+
 // statement add areas (computed absolutely because I'm so tired of flex)
 const statementAddAreaPositionX = computed(() => {
   const editorSize = props.panel.size.value;
@@ -307,14 +317,16 @@ function getStatementBounding(statementId: string): { top: number; right: number
   <!-- File container -->
   <!-- Only files have a white background :FileBackground -->
   <div class="relative overflow-x-hidden bg-white">
-    <FixedInlineHeader
+    <PanelHeader
       :thing="file"
       :actions="fileActions"
       :editing="panel.editing"
-      :path="name"
+      :path="completePath ?? []"
+      :self="completePath?.findIndex((n) => n.id == panel.fileId) ?? -1"
       :subpath="context?.statementsById[panel.activeStatementId ?? '']?.name"
+      @focus="panel.activeStatementId = $event.id"
     />
-    <!-- Loading -->
+    <!-- Loading / status -->
     <div
       v-if="fileLoading || !statementsLoaded"
       class="flex h-full w-full flex-col items-center justify-center"
@@ -325,8 +337,8 @@ function getStatementBounding(statementId: string): { top: number; right: number
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
+    <PanelStatusNotice :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
-    <EditedThingBanner :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- (bottom padding is in last StatementAddArea) -->
     <div class="relative flex flex-col bg-white" v-if="!fileLoading && fileHeader" v-show="statementsLoaded">
       <!-- Title & inline actions -->

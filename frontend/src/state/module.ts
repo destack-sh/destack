@@ -28,6 +28,7 @@ import { createSharedComposable } from "@vueuse/core";
 import { v4 as uuidv4 } from "uuid";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
+export type NodeBase = { __typename: string; id: string; name?: string | null };
 // TODO @Cleanup @Robustness: type module objects more correctly
 // full objects
 export type HasCrud = Omit<HasCrudGql, "__typename" | "id">;
@@ -200,25 +201,26 @@ function _useModule(projectVersionId: Ref<string | null>) {
   }
 
   function pathOf(fileOrStatement: { id: string }): string | undefined {
-    // traverse parents
-    const statement = idx.value?.statementsById[fileOrStatement.id];
-    if (statement != null) {
-      const filePath = pathOfFile(statement.file);
-      return filePath + "." + statement.name;
-    } else {
-      return pathOfFile(fileOrStatement);
-    }
+    return nodePathOf(fileOrStatement)
+      ?.map((e) => e.name)
+      .join(".");
   }
 
-  function pathOfFile(file: { id: string }): string | undefined {
-    let f = idx.value?.filesById[file.id];
-    if (f == null) return undefined;
-    const path: string[] = [];
-    while (f != null) {
-      path.push(f.name);
-      f = idx.value?.filesById[f.parent?.id ?? ""];
+  function nodePathOf(fileOrStatement: { id: string } | undefined): NodeBase[] | undefined {
+    // get all ancestors of file or statement
+    if (fileOrStatement == null) return undefined;
+    const statement = idx.value?.statementsById[fileOrStatement.id];
+    if (statement != null) {
+      const parentPath = nodePathOf(statement.parent);
+      if (parentPath == null) return undefined;
+      return [...parentPath, statement as NodeBase];
     }
-    return path.reverse().join(".");
+    const file = idx.value?.filesById[fileOrStatement.id];
+    if (file != null) {
+      const parentPath = nodePathOf(file.parent);
+      return [...(parentPath ?? []), file as NodeBase];
+    }
+    return undefined;
   }
 
   function contextOf(symbol: { id: string }) {
@@ -398,6 +400,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     contextOf,
     fieldOf,
     statementOf,
+    nodePathOf,
     relativePath,
     getTypedKey,
     effectiveTypeOf,
@@ -511,4 +514,11 @@ export function getSymbolSubtype(statement: {
     }
   }
   return null;
+}
+
+export function mergeNodePaths(a: NodeBase[], b: NodeBase[]): NodeBase[] {
+  // merge b into (just find first common ancestor)
+  const commonAncestor = a.findIndex((e) => b.find((e2) => e2.id == e.id) != null);
+  if (commonAncestor == -1) return a;
+  return [...a.slice(0, commonAncestor), ...b];
 }

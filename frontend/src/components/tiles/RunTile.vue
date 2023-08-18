@@ -7,7 +7,7 @@ import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { Bars3Icon, ChartBarIcon, DocumentChartBarIcon, FireIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "flamegraph" | "trace" | "error" | "metadata";
+type View = "logs" | "flamegraph" | "error" | "metadata";
 
 const props = defineProps<{
   projectId: string;
@@ -44,13 +44,13 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'trace', 'flamegraph', 'error', 'metadata'].filter(
+          v-for="view in ['logs', 'flamegraph', 'error', 'metadata'].filter(
             (v) => v != 'error' || run?.status == RunStatus.Failed
           )"
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-          @click="activeView = view as View"
+          @click="activeView = (view as View)"
         >
           <component
             :is="
@@ -77,7 +77,7 @@ defineExpose({
     <div ref="outputRef" class="mt-1">
       <!-- Output views -->
       <TraceTile
-        v-if="activeView == 'flamegraph' || activeView == 'trace'"
+        v-if="activeView == 'flamegraph'"
         :session-id="run.session?.id"
         :root-id="run.id"
         :layout="activeView == 'flamegraph' ? 'bars' : 'list'"

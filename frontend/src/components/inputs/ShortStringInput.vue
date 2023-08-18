@@ -24,7 +24,7 @@ defineExpose({
     v-if="preview && type.hint == TypeHint.Url"
     class="h-full w-full text-gray-500 underline decoration-gray-300 underline-offset-4"
     :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'"
-    :href="modelValue"
+    :href="(modelValue ?? '').length > 0 ? modelValue : undefined"
     target="_blank"
   >
     <span @click.stop>{{ modelValue }}</span>

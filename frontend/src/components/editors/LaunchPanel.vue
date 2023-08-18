@@ -1,15 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
+import PanelHeader from "@/components/editors/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { useFragment } from "@/gql";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementAction, type LaunchPanel } from "@/state/bench";
-import { FieldType } from "@/state/fragments";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
@@ -60,6 +58,8 @@ watch(path, () => {
   if (statement.value == null || module.idx.value == null) return;
   panel.value.updatePath(statement.value, module.idx.value);
 });
+
+const statementPath = computed(() => module.nodePathOf({ id: panel.value.statementId }));
 
 // running
 
@@ -142,12 +142,13 @@ defineExpose({
 <template>
   <div class="relative flex flex-col" :style="{ minHeight: editorSize.height + 'px' }">
     <!-- Fixed inline header -->
-    <FixedInlineHeader
+    <PanelHeader
       class="border-b border-orange-900 border-opacity-[12%]"
       :editing="false"
       :thing="statement"
       :actions="terminalActions"
-      :path="path"
+      :path="statementPath ?? []"
+      :self="(statementPath?.length ?? 0) - 1"
     />
     <!-- Tiles -->
     <div
