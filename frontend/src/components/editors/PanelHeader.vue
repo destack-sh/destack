@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import ClientsPopover from "@/components/basic/ClientsPopover.vue";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import {
@@ -18,6 +17,7 @@ import {
   ArrowsPointingOutIcon,
   ChevronRightIcon,
   CodeBracketIcon,
+  EllipsisHorizontalIcon,
   WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
@@ -51,7 +51,7 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
     :class="appearance.baseClass"
     :style="{ height: appearance.editorHeaderHeight + 'px', width: panel.size?.value?.width + 'px' }"
   >
-    <!-- Main info -->
+    <!-- Main info / left side -->
     <div class="flex flex-row items-center">
       <!-- Panel actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="panel.actions.value" :groups="panel.actionGroups?.value">
@@ -67,7 +67,7 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
           </ActionPopover>
           <button
             v-else
-            class="rounded-sm px-0.5 hover:bg-orange-100"
+            class="rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
             @click="i >= self ? emit('focus', node) : bench.focusNode(node, panel?.panel.value.group)"
           >
             {{ node.name ?? "(Untitled)" }}
@@ -82,6 +82,7 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
         {{ bench.focusedPanelId == panel.panel.value.id ? "(focused)" : "" }}
       </span>
     </div>
+    <!-- Right side secondary info / controls -->
     <div class="flex flex-row items-center gap-1">
       <!-- Other clients presence -->
       <ClientsPopover
@@ -90,9 +91,17 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
         :file-id="(panel.panel.value as FileEditor).fileId"
         :statement-id="(panel.panel.value as StatementEditor).statementId"
       />
-      <!-- Extra inline actions -->
+      <!-- Inline actions -->
       <button
-        class="rounded-sm p-0.5 text-gray-600 transition-opacity duration-150 hover:bg-orange-100"
+        v-for="action in actions.filter((a) => !a.hideInline && !a.disabled)"
+        :key="action.label"
+        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        @click="action.action(thing)"
+      >
+        <component :is="action.icon" class="h-4 w-4" />
+      </button>
+      <button
+        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
         @click.stop="panelAppearance.wide = !panel.panel.value.effectiveWide"
       >
         <component
@@ -100,6 +109,10 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
           class="h-4 w-4"
         />
       </button>
+      <!-- Popover -->
+      <ActionPopover anchor="left" :thing="thing" :actions="actions" :groups="[]">
+        <EllipsisHorizontalIcon class="h-6 w-6 text-gray-700" />
+      </ActionPopover>
     </div>
   </div>
 </template>
