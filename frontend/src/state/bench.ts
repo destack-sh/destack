@@ -995,7 +995,7 @@ export class FileEditor extends NavigablePanel {
   static parsePath(path: string, module: ModuleIndex): Panel | null {
     const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == path);
     if (matchingFile == null) return null;
-    return new FileEditor(matchingFile);
+    return new FileEditor(matchingFile as NodeBase);
   }
 }
 

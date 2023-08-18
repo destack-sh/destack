@@ -64,6 +64,7 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
 
 export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
+    __typename
     id
     visibility
     createdAt
@@ -92,6 +93,7 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
 
 export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
+    __typename
     id
     revision
     name
@@ -118,6 +120,7 @@ export const FileHeaderType = graphql(/* GraphQL */ `
 
 export const StatementHeaderType = graphql(/* GraphQL */ `
   fragment StatementHeader on Statement {
+    __typename
     id
     type
     revision
@@ -141,6 +144,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
 export const FieldType = graphql(/* GraphQL */ `
   fragment FieldContent on Field {
     # :FieldContent
+    __typename
     id
     revision
     name

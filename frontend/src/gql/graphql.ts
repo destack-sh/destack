@@ -3505,7 +3505,7 @@ export type ProjectVersionHeaderFragment = {
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
 
 export type ProjectHeaderFragment = {
-  __typename?: "Project";
+  __typename: "Project";
   id: any;
   visibility: ProjectVisibility;
   createdAt: any;
@@ -3522,7 +3522,7 @@ export type ProjectHeaderFragment = {
 } & { " $fragmentName"?: "ProjectHeaderFragment" };
 
 export type FileHeaderFragment = {
-  __typename?: "File";
+  __typename: "File";
   id: any;
   revision: number;
   name: string;
@@ -3544,7 +3544,7 @@ export type FileHeaderFragment = {
 } & { " $fragmentName"?: "FileHeaderFragment" };
 
 export type StatementHeaderFragment = {
-  __typename?: "Statement";
+  __typename: "Statement";
   id: any;
   type: StatementType;
   revision: number;
@@ -3565,7 +3565,7 @@ export type StatementHeaderFragment = {
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
 export type FieldContentFragment = {
-  __typename?: "Field";
+  __typename: "Field";
   id: any;
   revision: number;
   name?: string | null;
@@ -5749,6 +5749,7 @@ export const ProjectHeaderFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -5813,6 +5814,7 @@ export const FileHeaderFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
@@ -5869,6 +5871,7 @@ export const StatementHeaderFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
@@ -5973,6 +5976,7 @@ export const FieldContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },

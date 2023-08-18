@@ -240,7 +240,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       try {
         const ret = await ops.file.paste(null, fileHeader.value?.id, targetId, module.id.value, null);
         if (ret?.data?.pasteFile.__typename == "File") {
-          bench.focusFile({ id: targetId, name: fileHeader.value?.name ?? "" });
+          bench.focusFile({ __typename: "File", id: targetId, name: fileHeader.value?.name ?? "" });
         }
       } finally {
         duplicating.value = false;
@@ -264,6 +264,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       emit("close");
     },
     disabled: bench.readonly,
+    hideInline: true,
   },
 ]);
 

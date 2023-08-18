@@ -485,7 +485,7 @@ export function useNavigation() {
   function focusFile(file: { id: string }) {
     const file_ = module.fileOf({ id: file.id });
     if (file_ == null) return;
-    bench.focusFile(file_);
+    bench.focusFile(file_ as NodeBase);
   }
 
   return { focusStatement: focusSymbol, focusFile };
