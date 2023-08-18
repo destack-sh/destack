@@ -53,6 +53,7 @@ class OrchestrationServer(Monitored):
         self.subs = []
         self.tasks = TaskManager()
         self.worker_sets_by_project_id: dict[UUID, models.WorkerSet] = {}
+        self.worker_sets_by_id: dict[UUID, models.WorkerSet] = {}
         self._ready = False
 
     @property
@@ -81,6 +82,7 @@ class OrchestrationServer(Monitored):
         ]
         for worker_set in worker_sets:
             self.worker_sets_by_project_id[worker_set.project_id] = worker_set
+            self.worker_sets_by_id[worker_set.id] = worker_set
         logger.debug("workers.loaded_from_db", worker_sets=self.worker_sets)
 
         # initial sync
@@ -237,17 +239,14 @@ class OrchestrationServer(Monitored):
         for key, last_active_at in zip(active_keys, active_values):
             # update worker set
             try:
-                worker_set_id = UUID(key.split(".")[1])
-                last_active_at = float(last_active_at)
-            except (ValueError, IndexError, TypeError) as e:
+                worker_set_id = UUID(key.decode().split(".")[1])
+                last_active_at = float(last_active_at.decode())
+                worker_set = self.worker_sets_by_id[worker_set_id]
+                worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
+            except (ValueError, KeyError, IndexError, TypeError) as e:
                 logger.warning("workers.last_active_at.invalid", key=key, error=e)
                 keys_to_delete.append(key)  # delete invalid/stale keys
                 continue
-
-            worker_set = self.worker_sets_by_project_id.get(worker_set_id)
-            if worker_set is None or worker_set.status != WorkerSetStatus.HEALTHY:
-                keys_to_delete.append(key)  # delete stale keys
-            worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
         if keys_to_delete:
             await redis.delete(*keys_to_delete)
         logger.debug(
@@ -284,6 +283,7 @@ class OrchestrationServer(Monitored):
                 "worker_set__project__organization",
             ).aget(id=project_id)
             self.worker_sets_by_project_id[project_id] = project.worker_set
+            self.worker_sets_by_id[project.worker_set.id] = project.worker_set
             return project.worker_set
         else:
             return worker_set
