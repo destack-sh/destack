@@ -240,9 +240,8 @@ class OrchestrationServer(Monitored):
             # update worker set
             try:
                 worker_set_id = UUID(key.decode().split(".")[1])
-                last_active_at = float(last_active_at.decode())
                 worker_set = self.worker_sets_by_id[worker_set_id]
-                worker_set.last_active_at = datetime.fromtimestamp(last_active_at)
+                worker_set.last_active_at = datetime.fromisoformat(last_active_at.decode())
             except (ValueError, KeyError, IndexError, TypeError) as e:
                 logger.warning("workers.last_active_at.invalid", key=key, error=e)
                 keys_to_delete.append(key)  # delete invalid/stale keys
