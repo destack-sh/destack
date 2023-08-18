@@ -1,5 +1,4 @@
 import asyncio
-import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import timedelta
@@ -159,7 +158,7 @@ class WorkerNode(Monitored):
         # :WorkerSetActive
         active_key = f"worker_set.{self.worker_set_id}.{self.worker_node_id}.last_active_at"
         self.log.debug("mark_as_active", active_key=active_key)
-        if not await redis.set(active_key, value=str(time.time()), ex=24 * 60 * 60):
+        if not await redis.set(active_key, value=utcnow_with_tz().isoformat(), ex=24 * 60 * 60):
             self.log.error("mark_as_active.failed", active_key=active_key)
         else:
             self.log.debug("mark_as_active.done")
