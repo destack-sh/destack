@@ -13,7 +13,7 @@ from bench.language.flow import HasFlow, IsFlowable
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.tag import HasTags
-from bench.language.type import HasType, Type, check_type, instantiate_py_value_flat, map_value
+from bench.language.type import HasType, Type, check_type, instantiate_value_flat, map_value
 from bench.language.utils import Runnable
 from bench.utils.utils import DotDict, DotList
 
@@ -310,7 +310,7 @@ def _parse_string_output(output: str, type: Type):
         ret = map_value(
             ret,
             type,
-            map_v=instantiate_py_value_flat,
+            map_v=instantiate_value_flat,
             is_output=True,
             ignore_outer_map=True,
         )

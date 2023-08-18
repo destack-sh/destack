@@ -19,7 +19,7 @@ from bench.language.core import (
 )
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import Run, RunError, RunErrorKind, RunStatus
-from bench.language.type import instantiate_py_value_flat, map_value
+from bench.language.type import instantiate_value_flat, map_value
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (
@@ -346,7 +346,7 @@ class ModuleWorkerProcess(ModuleWriter):
         self._active_runs: dict[UUID, RunJob] = {}
         self._scheduled_runs: dict[UUID, RunJob] = {}
         self._last_run_job: Optional[RunJob] = None
-        self._dirty_runs: dict[UUID, wire.RunData] = {}
+        self._dirty_dangling_runs: dict[UUID, wire.RunData] = {}
 
     @property
     def active(self) -> bool:
@@ -415,7 +415,7 @@ class ModuleWorkerProcess(ModuleWriter):
             job.priority = priority
             run_data.status = RunStatus.Queued
             self.queue.put_nowait(job)
-            self._dirty_runs[run_data.id] = run_data
+            self._dirty_dangling_runs[run_data.id] = run_data
             self.log.debug("worker.queue", job=job)
             if job.run_data.id in self._scheduled_runs:
                 del self._scheduled_runs[job.run_data.id]
@@ -427,7 +427,7 @@ class ModuleWorkerProcess(ModuleWriter):
             delay = (run_data.scheduled_at - now).total_seconds() - WORKER_SCHEDULE_BLOCK_AHEAD
             if delay > 0:
                 self._scheduled_runs[run_data.id] = job
-                self._dirty_runs[run_data.id] = run_data
+                self._dirty_dangling_runs[run_data.id] = run_data
                 asyncio.get_running_loop().call_later(delay, _enqueue, 0)  # high priority
             else:
                 _enqueue(0)
@@ -444,7 +444,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
         return job
 
-    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict):
+    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict) -> None:
         """Actually runs the runnable in the session"""
 
         # open session
@@ -454,7 +454,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
         # run session
         try:
-            ret = await runnable(**inputs)
+            await runnable(**inputs)
         except Exception as e:
             raise RunError(
                 kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=runnable
@@ -462,13 +462,11 @@ class ModuleWorkerProcess(ModuleWriter):
         finally:
             # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
             #  (where a queued run may be saved after a fast run has completed and flushed)
-            if session.ctx.first_run_id in self._dirty_runs:
-                del self._dirty_runs[session.ctx.first_run_id]
+            if session.ctx.first_run_id in self._dirty_dangling_runs:
+                del self._dirty_dangling_runs[session.ctx.first_run_id]
 
-        # close session
-        await session.aclose()
-
-        return ret
+            # close session
+            await session.aclose()
 
     async def _do_run_job(self, job: RunJob, timeout: float) -> Session:
         """Actually runs the job, and updates the job with the result"""
@@ -483,7 +481,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 job.run_data.inputs,
                 runnable,
                 map_k=lambda f: (f.typed_key, f.py_ident),
-                map_v=instantiate_py_value_flat,
+                map_v=instantiate_value_flat,
                 is_output=False,
             )
 
@@ -535,10 +533,10 @@ class ModuleWorkerProcess(ModuleWriter):
 
     async def _flush_dirty_runs_forever(self, interval: float):
         while True:
-            if self._dirty_runs:
-                logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_runs))
-                runs = list(self._dirty_runs.values())
-                self._dirty_runs = {}
+            if self._dirty_dangling_runs:
+                logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
+                runs = list(self._dirty_dangling_runs.values())
+                self._dirty_dangling_runs = {}
                 await self.write_session(session=None, runs=runs, logs=[])
             await asyncio.sleep(interval)
 

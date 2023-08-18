@@ -32,7 +32,7 @@ from bench.language.task import (
     TaskErrorType,
     TaskRunner,
 )
-from bench.language.type import Key, TypeBase, Vector, check_type, map_value, strip_py_value_flat
+from bench.language.type import Key, TypeBase, Vector, check_type, map_value, strip_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
 symbolx_lib = Module(name="symbolx.lib")
@@ -439,7 +439,7 @@ class OpenAIChatCompiler(TaskCompiler):
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
                 name=function.py_ident,
-                content=json.dumps(map_value(result, function, map_v=strip_py_value_flat)),
+                content=json.dumps(map_value(result, function, map_v=strip_value_flat)),
             )
 
     async def run(self, model: OpenAIChatCompletionModel, runner: TaskRunner) -> dict:
@@ -453,7 +453,7 @@ class OpenAIChatCompiler(TaskCompiler):
             *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_py_value_flat)}",
+                content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_value_flat)}",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,

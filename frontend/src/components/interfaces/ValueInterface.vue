@@ -183,6 +183,7 @@ defineExpose({
 </script>
 <template>
   <!-- Value container -->
+  <!-- eslint-disable vue/use-v-on-exact -->
   <div
     class="group/iface relative"
     @click.stop.prevent="editing || (previewButtonRef?.parentNode?.contains($event.target as Node) && edit())"
@@ -196,14 +197,16 @@ defineExpose({
       tabindex="-1"
       :disabled="readonly"
       @click.stop="edit"
+      @keydown="editing || previewRef?.onKeydown?.($event)"
       @keydown.enter.exact.stop.prevent="edit"
       @keydown.space.exact="edit"
       @keydown.left.exact="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.right.exact="editing || emitPrevent($event, 'navigateRight')"
+      @keydown.tab.exact="editing || emitPrevent($event, 'navigateRight')"
+      @keydown.shift.tab.exact="editing || emitPrevent($event, 'navigateLeft')"
       @keydown.up.exact="editing || emitPrevent($event, 'navigateUp')"
       @keydown.down.exact="editing || emitPrevent($event, 'navigateDown')"
       @keydown.delete.exact.prevent.stop="editing || emit('deleteSelf')"
-      @keydown="editing || previewRef?.onKeydown?.($event)"
     >
       <component
         v-if="valueInterface"
@@ -248,6 +251,8 @@ defineExpose({
         v-bind="appearanceAttrs"
         @keydown.escape.exact.prevent.stop="close"
         @keydown.enter.exact.prevent.stop="enter"
+        @keydown.tab.exact.prevent.stop="close(), $nextTick(() => emit('navigateRight'))"
+        @keydown.shift.tab.exact.prevent.stop="close(), $nextTick(() => emit('navigateLeft'))"
         @close="close"
         @enter="enter"
       />
