@@ -23,7 +23,7 @@ const documents = {
     types.EmptyEditorSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        # :fileContentById\n        id\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n        issues(filters: { scope: FILE }) {\n          ...IssueContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
-  "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  ":
+  "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        parent {\n          id\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  ":
     types.StatementContentByIdDocument,
   "\n    query profileAccessTokens($slug: String!, $includeInactive: Boolean!) {\n      ownerBySlug(slug: $slug) {\n        ... on User {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n        ... on Organization {\n          id\n          accessTokens(filters: { includeInactive: $includeInactive }) {\n            totalCount\n            edges {\n              node {\n                id\n                name\n                tokenKey\n                createdAt\n                updatedAt\n                expiresAt\n                revokedAt\n                status\n                scopes\n              }\n            }\n          }\n        }\n      }\n    }\n  ":
     types.ProfileAccessTokensDocument,
@@ -329,8 +329,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "
-): typeof documents["\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        file {\n          ...FileHeader\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "];
+  source: "\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        parent {\n          id\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "
+): typeof documents["\n    query statementContentById($statementId: GlobalID!) {\n      statement(id: $statementId) {\n        id\n        projectVersion {\n          id\n        }\n        parent {\n          id\n        }\n        deletedAt\n        ...StatementContent\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

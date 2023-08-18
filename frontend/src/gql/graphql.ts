@@ -2714,7 +2714,14 @@ export type StatementContentByIdQuery = {
         id: any;
         deletedAt?: any | null;
         projectVersion: { __typename?: "ProjectVersion"; id: any };
-        file: { __typename?: "File" } & { " $fragmentRefs"?: { FileHeaderFragment: FileHeaderFragment } };
+        parent:
+          | { __typename?: "Field"; id: any }
+          | { __typename?: "File"; id: any }
+          | { __typename?: "Issue"; id: any }
+          | { __typename?: "ProjectVersion"; id: any }
+          | { __typename?: "Statement"; id: any }
+          | { __typename?: "Tagging"; id: any }
+          | { __typename?: "Trigger"; id: any };
       } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } })
     | null;
 };
@@ -7246,10 +7253,10 @@ export const StatementContentByIdDocument = {
                 },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "file" },
+                  name: { kind: "Name", value: "parent" },
                   selectionSet: {
                     kind: "SelectionSet",
-                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } }],
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                   },
                 },
                 { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -7260,7 +7267,6 @@ export const StatementContentByIdDocument = {
         ],
       },
     },
-    ...FileHeaderFragmentDoc.definitions,
     ...StatementContentFragmentDoc.definitions,
     ...TaggingContentFragmentDoc.definitions,
     ...FieldContentFragmentDoc.definitions,
