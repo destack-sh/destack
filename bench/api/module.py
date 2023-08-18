@@ -209,13 +209,14 @@ def read_module_node(
                     setattr(proxy_n, py_name, getattr(n, py_name))
                 else:
                     # assumes { __typename, id } selection or similar (that's all we know here)
-                    remote_id = getattr(n, py_name + "_id")
-                    remote_stub = django_field.related_model(id=remote_id) if remote_id else None
-                    setattr(proxy_n, py_name, remote_stub)
+                    assert len(inner_selections) == 2, f"bad 1:1 relation fields {inner_selections}"
+                    related_id = getattr(n, py_name + "_id")
+                    related = django_field.related_model(id=related_id) if related_id else None
+                    setattr(proxy_n, py_name, related)
             # for 1:n relations get children
-            # for flattened relations get all descendants (of same type)
             elif django_field.one_to_many or django_field.many_to_many:
                 related = []
+                # for flattened relations get all descendants (of same type)
                 if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
                     # collect descendants of same type
                     remaining = tree.visited_by_parent.get(n.id, [])

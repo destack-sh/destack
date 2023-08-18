@@ -5,7 +5,6 @@ import FixedInlineHeader from "@/components/editors/FixedInlineHeader.vue";
 import { graphql, useFragment } from "@/gql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementEditor, type FileHeader } from "@/state/bench";
-import { FileHeaderType } from "@/state/fragments";
 import { useCurrentModule, type Statement as StatementType } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
@@ -28,8 +27,8 @@ const { result: statementResult, loading: statementLoading } = useQuery(
         projectVersion {
           id
         }
-        file {
-          ...FileHeader
+        parent {
+          id
         }
         deletedAt
         ...StatementContent
@@ -42,7 +41,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
 );
 
 const statement = computed(() => statementResult.value?.statement as StatementType);
-const file = computed(() => useFragment(FileHeaderType, statementResult.value?.statement?.file) ?? undefined);
+const file = computed(() => module.fileOf(statement.value) as FileHeader | null);
 const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 const statementComponentLoaded = ref(false);
 watchEffect(() => {
