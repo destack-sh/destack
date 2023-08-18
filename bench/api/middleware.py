@@ -1,14 +1,12 @@
 import cProfile
 import io
 import pstats
-import time
 
 import brotli
 import structlog
 from more_itertools import first
 
 from bench.settings import BROTLI_QUALITY_LEVEL
-from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
 
@@ -39,15 +37,7 @@ class BrotliCompressionMiddleware:
                 message["headers"].append((b"vary", b"accept-encoding"))
                 message["headers"].append((b"cache-control", b"no-cache"))
             elif message["type"] == "http.response.body":
-                start_time = time.perf_counter()
                 message["body"] = brotli.compress(message["body"], quality=BROTLI_QUALITY_LEVEL)
-                if DEBUG or LOCAL:
-                    logger.debug(
-                        "brotli.compress",
-                        size=len(message["body"]),
-                        time=time.perf_counter() - start_time,
-                        quality=BROTLI_QUALITY_LEVEL,
-                    )
             await send(message)
 
         # call wrapped app

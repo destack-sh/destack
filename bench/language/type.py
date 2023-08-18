@@ -8,7 +8,6 @@ import typing
 import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
-from functools import cached_property
 from typing import Any, Callable, Collection, Optional, Self, Union
 from uuid import UUID, uuid4
 
@@ -404,7 +403,7 @@ class HasType(TypeBase, StatementBase):
             n.reference = statement
 
         # expand unions (recursively)
-        Type._resolve_unions(self, [])
+        _resolve_unions(self, [])
 
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""
@@ -488,57 +487,57 @@ class HasType(TypeBase, StatementBase):
     def t(self):
         return _FieldAccessor(self)
 
-    @staticmethod
-    def _resolve_unions(type: "Type", path: list[TypeBase]) -> None:
-        """
-        Resolves (and inlines) the union-ed fields of any union types in the type tree.
-        """
-        if any(n.id == type.id for n in path):
-            type._on_issue(
-                type=IssueType.CIRCULAR_UNION,
-                subject=type,
-                path="->".join(str(n) for n in path + [type]),
-            )
-            return  # circular
-        if type.resolved_fields is not None:
-            return  # already resolved
-        if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
-            type.resolved_fields = type.fields
-            return  # skip, not a union
-        path = path + [type]
 
-        resolved_fields = []
-        for maybe_union in type.fields:
-            if not maybe_union.flags & TypeFlag.IsUnionWith:
-                resolved_fields.append(maybe_union)
+def _resolve_unions(type: "HasType", path: list[TypeBase]) -> None:
+    """
+    Resolves (and inlines) the union-ed fields of any union types in the type tree.
+    """
+    if any(n.id == type.id for n in path):
+        type._on_issue(
+            type=IssueType.CIRCULAR_UNION,
+            subject=type,
+            path="->".join(str(n) for n in path + [type]),
+        )
+        return  # circular
+    if type.resolved_fields is not None:
+        return  # already resolved
+    if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
+        type.resolved_fields = type.fields
+        return  # skip, not a union
+    path = path + [type]
+
+    resolved_fields = []
+    for maybe_union in type.fields:
+        if not maybe_union.flags & TypeFlag.IsUnionWith:
+            resolved_fields.append(maybe_union)
+            continue
+        if not isinstance(maybe_union.reference, HasType):
+            continue  # ignore unresolved
+        _resolve_unions(maybe_union.reference, path)
+        if not maybe_union.reference.resolved_fields:
+            continue  # couldn't resolve *that* union
+        # inline child's type nodes
+        for child in maybe_union.reference.resolved_fields:
+            existing = first((n for n in resolved_fields if n.name == child.name), None)
+            # check if type is compatible if overlapping
+            if existing is not None and (
+                existing.tag != child.tag
+                or existing.flags != child.flags
+                or existing.hint != child.hint
+            ):
+                # TODO @Robustness: check union type compatibility properly/deeply
+                type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
                 continue
-            if not isinstance(maybe_union.reference, HasType):
-                continue  # ignore unresolved
-            Type._resolve_unions(maybe_union.reference, path)
-            if not maybe_union.reference.resolved_fields:
-                continue  # couldn't resolve *that* union
-            # inline child's type nodes
-            for child in maybe_union.reference.resolved_fields:
-                existing = first((n for n in resolved_fields if n.name == child.name), None)
-                # check if type is compatible if overlapping
-                if existing is not None and (
-                    existing.tag != child.tag
-                    or existing.flags != child.flags
-                    or existing.hint != child.hint
-                ):
-                    # TODO @Robustness: check union type compatibility properly/deeply
-                    type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
-                    continue
-                if isinstance(child, ResolvedField):
-                    child = child.field  # point directly to the field
-                resolved = ResolvedField(
-                    id=uuid.uuid5(child.id, type.id.hex),
-                    parent=type,
-                    field=child,
-                    **dict_minus(child.__dict__, ("id", "field", "parent", "py_type")),
-                )
-                resolved_fields.append(resolved)
-        type.resolved_fields = resolved_fields
+            if isinstance(child, ResolvedField):
+                child = child.field  # point directly to the field
+            resolved = ResolvedField(
+                id=uuid.uuid5(child.id, type.id.hex),
+                parent=type,
+                field=child,
+                **dict_minus(child.__dict__, ("id", "field", "parent", "py_type")),
+            )
+            resolved_fields.append(resolved)
+    type.resolved_fields = resolved_fields
 
 
 # avoid circular import because Tag is HasType but Type is HasTags
@@ -555,10 +554,6 @@ class Type(HasType, HasTags, Statement):
     hint = None
     reference = None
 
-    @cached_property
-    def py_type(self) -> type | enum.Enum:
-        return instantiate_py_type(self)
-
     def _clear(self) -> None:
         Statement._clear(self)
         HasType._clear(self)
@@ -567,7 +562,10 @@ class Type(HasType, HasTags, Statement):
         HasType._interp(self, scope)
 
     def __call__(self, *args, **kwargs):
-        return self.py_type(*args, **kwargs)
+        combined_kwargs = {**kwargs}
+        for i in range(len(args)):
+            combined_kwargs[self.fields[i].name] = args[i]
+        return DotDict(combined_kwargs)
 
     def __str__(self):
         path_str = f"{self.path} " if self.name else ""
@@ -588,7 +586,7 @@ class Type(HasType, HasTags, Statement):
 
     @staticmethod
     def from_py_type(py_type: Any):
-        return type_from_py_type(py_type)
+        return type_from_instance_type(py_type)
 
 
 def on_invalid_raise(
@@ -795,19 +793,24 @@ class TypeMapper:
     Don't bother with lists and optional types here.
     """
 
-    def to_py_type(self, type: TypeBase) -> type:
+    def is_instance_type(self, py_type: type) -> bool:
+        """Whether this mapper can represent the given Python instance type."""
         raise NotImplementedError
 
-    def maps_py_type(self, py_type: type) -> bool:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+        """Converts a Python instance type into a Bench Type."""
         raise NotImplementedError
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        """Whether this mapper can represent the given Python instance value."""
         raise NotImplementedError
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+        """Converts a value of the given flat type into an instance value."""
         return value
 
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
+        """Converts a value of the given flat type into a flat value."""
         return value
 
 
@@ -841,7 +844,7 @@ def register_mapper(
         _register(TypeSignature(tag, hint, flags))
 
 
-def get_flat_mapper_by_type(type: TypeBase) -> TypeMapper:
+def get_type_mapper_by_type(type: TypeBase) -> TypeMapper:
     """
     Gets the most appropriate mapping for the given type.
     (flat because we ignore list and optional types).
@@ -868,7 +871,7 @@ def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFla
     py_type, flags = _strip_py_type(py_type)
     # get mapping
     for mapping in type_mappers.values():
-        if mapping.maps_py_type(py_type):
+        if mapping.is_instance_type(py_type):
             return mapping, py_type, flags
     raise LookupError(f"no mapping found for {py_type} ({flags}, type={type(py_type)})")
 
@@ -896,84 +899,64 @@ def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
     return py_type, flags
 
 
-@dataclass(repr=False, slots=True)
-class StaticTypeMapper(TypeMapper):
+@dataclass
+class StaticPyTypeMapper(TypeMapper):
     py_type: type
     tag: TypeTag
     hint: Optional[TypeHint] = None
 
-    def to_py_type(self, type: TypeBase) -> type:
-        return self.py_type
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return py_type == self.py_type
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(name=None, tag=self.tag, hint=self.hint)
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, self.py_type)
+
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
 
-@dataclass(repr=False, slots=True)
-class NoopTypeMapper(TypeMapper):
-    def to_py_type(self, type: TypeBase) -> type:
-        return type
-
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
-        return value
-
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
-        return value
-
-
-@dataclass(repr=False, slots=True)
-class StringifyTypeMapping(StaticTypeMapper):
-    def maps_py_type(self, py_type: type) -> bool:
+@dataclass
+class StringifyTypeMapping(StaticPyTypeMapper):
+    def is_instance_type(self, py_type: type) -> bool:
         return self.py_type == py_type
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
-    def from_py_value(self, type: TypeBase, value: Any) -> str:
+    def to_flat_value(self, type: TypeBase, value: Any) -> str:
         return str(value)
 
 
-class IsoDtTypeMapping(StaticTypeMapper):
+class IsoDtTypeMapping(StaticPyTypeMapper):
     HINT_BY_PY_TYPE = {
         date: TypeHint.DATE,
         datetime: TypeHint.DATETIME,
         time: TypeHint.TIME,
     }
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
-        return self.py_type.fromisoformat(value)
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return inspect.isclass(py_type) and any(
             issubclass(py_type, t) for t in self.HINT_BY_PY_TYPE
         )
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+        return self.py_type.fromisoformat(value)
+
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
-    def from_py_value(self, type: TypeBase, value: Any) -> str:
+    def to_flat_value(self, type: TypeBase, value: Any) -> str:
         return value.isoformat()
 
 
 class EnumMapper(TypeMapper):
-    def to_py_type(self, type: TypeBase) -> Any:
-        members = {
-            to_pyidentifier(child.name, IdentifierType.CONSTANT): child.name
-            for child in type.fields
-        }
-        enum_name = type.name or "_anon_" + uuid4().hex
-        return enum.StrEnum(enum_name, members)
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
         assert issubclass(py_type, enum.StrEnum)
         if py_type in type_map:
             return type_map[py_type]
@@ -985,26 +968,29 @@ class EnumMapper(TypeMapper):
         type._assign_oks()
         return type
 
-    def to_py_value(self, type: Type, value: Any) -> Any:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, str) and type.has_field(value)
+
+    def to_instance_value(self, type: Type, value: Any) -> Any:
         field_ = type.get_field(value)
         return field_.name if field_ else value
 
-    def from_py_value(self, type: Type, value: Any) -> Any:
+    def to_flat_value(self, type: Type, value: Any) -> Any:
         field_ = type.get_field(value)
         return field_.key if field_ else value
 
 
 class FileMapper(TypeMapper):
-    def to_py_type(self, type: TypeBase) -> type:
-        return RemoteObject
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return py_type is RemoteObject
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
         return Type(name=None, tag=TypeTag.FILE)
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, RemoteObject)
+
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return RemoteObject(
             id=UUID(value["id"]),
             name=value["name"],
@@ -1014,7 +1000,7 @@ class FileMapper(TypeMapper):
             status=RemoteObjectStatus[value["status"]],
         )
 
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
             "id": str(value.id),
@@ -1027,22 +1013,22 @@ class FileMapper(TypeMapper):
 
 
 class SecretTypeMapper(TypeMapper):
-    def to_py_type(self, type: TypeBase) -> Any:
-        return Secret
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return py_type is Secret
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
         return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, Secret)
+
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return Secret(
             id=UUID(value["id"]),
             sha512=value["sha512"],
         )
 
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: SECRET_TYPENAME,
             "id": str(value.id),
@@ -1051,53 +1037,53 @@ class SecretTypeMapper(TypeMapper):
 
 
 class StructTypeMapper(TypeMapper):
-    def to_py_type(self, type: TypeBase) -> typing.TypedDict:
-        return typing.TypedDict(
-            type.name,
-            {member.py_ident: instantiate_py_type(member) for member in type.fields},
-        )
-
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return dataclasses.is_dataclass(py_type) or typing.is_typeddict(py_type)
 
-    def from_py_type(self, py_type: type, type_map: dict[str, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> Type:
         if py_type in type_map:
             return type_map[py_type]
         type = Type(name=py_type.__name__, tag=TypeTag.STRUCT)
         type_map[py_type] = type
         if dataclasses.is_dataclass(py_type):
             for py_field in dataclasses.fields(py_type):
-                field_ = field_from_py_field(py_field.type, py_field.name, type_map)
+                field_ = field_from_instance_field(py_field.type, py_field.name, type_map)
                 type.fields.append(field_)
         elif typing.is_typeddict(py_type):
             for py_field_name, py_field in typing.get_type_hints(py_type).items():
-                field_ = field_from_py_field(py_field, py_field_name, type_map)
+                field_ = field_from_instance_field(py_field, py_field_name, type_map)
                 type.fields.append(field_)
         else:
             raise ValueError(f"unsupported struct type: {py_type}")
         type._assign_oks()
         return type
 
-    def to_py_value(self, type: TypeBase, value: Any) -> Any:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, dict)
+
+    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return DotDict(value)
 
-    def from_py_value(self, type: TypeBase, value: Any) -> Any:
+    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
 
 
 class JsonTypeMapper(TypeMapper):
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return py_type is Json or py_type is dict or typing.get_origin(py_type) is dict
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(name=None, tag=TypeTag.JSON)
 
 
 class FunctionTypeMapper(TypeMapper):
-    def maps_py_type(self, py_type: type) -> bool:
+    def is_instance_type(self, py_type: type) -> bool:
         return inspect.isfunction(py_type)
 
-    def from_py_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return False  # no instance value for function
+
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         if py_type in type_map:
             return type_map[py_type]
         type = Type(name=py_type.__name__, tag=TypeTag.FUNCTION)
@@ -1109,13 +1095,13 @@ class FunctionTypeMapper(TypeMapper):
                 or py_param.annotation.__name__ is py_type.__name__
             ):
                 continue
-            param = field_from_py_field(py_param.annotation, py_param.name, type_map)
+            param = field_from_instance_field(py_param.annotation, py_param.name, type_map)
             type.fields.append(param)
 
         # output must be a struct, inline it with output flag
         if signature.return_annotation is inspect.Signature.empty:
             raise ValueError(f"missing return annotation for {py_type}")
-        output = type_from_py_type(signature.return_annotation, None, type_map)
+        output = type_from_instance_type(signature.return_annotation, None, type_map)
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
         for field_ in output.fields:
@@ -1129,22 +1115,10 @@ class FunctionTypeMapper(TypeMapper):
         return type
 
 
-def instantiate_py_type(node: TypeBase) -> type | Any | None:
-    """Create the Python-native type for the given type node."""
-    if node.tag == TypeTag.FUNCTION:
-        return None  # functions don't have a pytype
-    map = get_flat_mapper_by_type(node)
-    py_type = map.to_py_type(node)
-    if node.flags & TypeFlag.IsArray:
-        return list[py_type]
-    else:
-        return py_type
-
-
 _TYPE_MAP: dict[Any, Type] = {}
 
 
-def type_from_py_type(
+def type_from_instance_type(
     py_type: type, name: Optional[str], type_map: dict[Any, Type] = None
 ) -> "Type":
     """
@@ -1154,14 +1128,14 @@ def type_from_py_type(
     """
     type_map = type_map or _TYPE_MAP
     map, stripped, flags = get_flat_mapper_by_py_type(py_type)
-    type = map.from_py_type(stripped, type_map)
+    type = map.from_instance_type(stripped, type_map)
     if name:
         type.name = name
     type.flags |= flags
     return type
 
 
-def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
+def field_from_instance_field(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
     stripped, flags = _strip_py_type(py_type)
     if isinstance(stripped, str):
         # lookup by name in type_map
@@ -1178,7 +1152,7 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
     elif stripped in type_map:
         type = type_map[stripped]
     else:
-        type = type_from_py_type(py_type, name, type_map)
+        type = type_from_instance_type(py_type, name, type_map)
     # key is set to None so we error if they're not set later
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
         return Field(name=name, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
@@ -1186,38 +1160,40 @@ def field_from_py_field(py_type: type | str, name: str, type_map: dict[Any, Type
         return Field(name=name, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
-def instantiate_py_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
+def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
     """Maps to the Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
-    mapping = get_flat_mapper_by_type(type)
+    mapping = get_type_mapper_by_type(type)
     try:
         if type.flags & TypeFlag.IsArrayable:  # keep as is
             if not isinstance(value, list):
-                return mapping.to_py_value(type, value)
+                return mapping.to_instance_value(type, value)
             else:
-                return [mapping.to_py_value(type, v) for v in value]
+                return [mapping.to_instance_value(type, v) for v in value]
         elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
-            return [mapping.to_py_value(type, v) for v in value]
+            return [mapping.to_instance_value(type, v) for v in value]
         else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
-            return mapping.to_py_value(type, value)
+            return mapping.to_instance_value(type, value)
     except (KeyError, ValueError, TypeError):
         logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
         return value  # type checking is done elsewhere
 
 
-def strip_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+def strip_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
     """Maps back to the raw value from the Python representation."""
     # we don't auto-coerce here since that's only needed for external data
     if value is None:
         return None
-    mapping = get_flat_mapper_by_type(type)
-    return mapping.from_py_value(type, value)
+    mapping = get_type_mapper_by_type(type)
+    if not mapping.is_instance_value(type, value):
+        return None  # type-checking is done elsewhere
+    return mapping.to_flat_value(type, value)
 
 
 def instantiate_py_value(
@@ -1231,7 +1207,7 @@ def instantiate_py_value(
         value=value,
         type=type,
         map_k=lambda f: (f.typed_key, f.py_ident),
-        map_v=instantiate_py_value_flat,
+        map_v=instantiate_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
@@ -1249,7 +1225,7 @@ def strip_py_value(
         value=value,
         type=type,
         map_k=lambda f: (f.py_ident, f.typed_key),
-        map_v=strip_py_value_flat,
+        map_v=strip_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
@@ -1257,12 +1233,12 @@ def strip_py_value(
 
 
 # type tags
-register_mapper(StaticTypeMapper(str, TypeTag.STRING), tags=[TypeTag.STRING])
-register_mapper(StaticTypeMapper(Key, TypeTag.STRING, TypeHint.KEY), hints=[TypeHint.KEY])
-register_mapper(StaticTypeMapper(float, TypeTag.NUMBER), tags=[TypeTag.NUMBER])
-register_mapper(StaticTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
-register_mapper(StaticTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
-register_mapper(StaticTypeMapper(Vector, TypeTag.VECTOR), tags=[TypeTag.VECTOR])
+register_mapper(StaticPyTypeMapper(str, TypeTag.STRING), tags=[TypeTag.STRING])
+register_mapper(StaticPyTypeMapper(Key, TypeTag.STRING, TypeHint.KEY), hints=[TypeHint.KEY])
+register_mapper(StaticPyTypeMapper(float, TypeTag.NUMBER), tags=[TypeTag.NUMBER])
+register_mapper(StaticPyTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
+register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
+register_mapper(StaticPyTypeMapper(Vector, TypeTag.VECTOR), tags=[TypeTag.VECTOR])
 register_mapper(FileMapper(), tags=[TypeTag.FILE])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
@@ -1273,6 +1249,6 @@ register_mapper(StringifyTypeMapping(UUID, TypeTag.STRING, TypeHint.UUID), hints
 register_mapper(IsoDtTypeMapping(date, TypeTag.STRING), hints=[TypeHint.DATE])
 register_mapper(IsoDtTypeMapping(datetime, TypeTag.STRING), hints=[TypeHint.DATETIME])
 register_mapper(IsoDtTypeMapping(time, TypeTag.STRING), hints=[TypeHint.TIME])
-register_mapper(StaticTypeMapper(int, TypeTag.NUMBER, TypeHint.INTEGER), hints=[TypeHint.INTEGER])
+register_mapper(StaticPyTypeMapper(int, TypeTag.NUMBER, TypeHint.INTEGER), hints=[TypeHint.INTEGER])
 # other
 register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)

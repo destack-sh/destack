@@ -21,7 +21,7 @@ from bench.language.type import (
     check_type,
     map_value,
     strip_py_value,
-    strip_py_value_flat,
+    strip_value_flat,
 )
 from bench.language.utils import Runnable
 from bench.utils.dt import utcnow_with_tz
@@ -342,7 +342,7 @@ def is_run_value_truncated(value: Any, type: TypeBase) -> bool:
 
 
 def _strip_and_truncate_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
-    stripped = strip_py_value_flat(value, type, *args, **kwargs)
+    stripped = strip_value_flat(value, type, *args, **kwargs)
     if is_run_value_truncated(stripped, type):
         return None  # can't use OMITTED_SENTINEL because of type mismatch... hmm
     return stripped

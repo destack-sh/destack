@@ -10,7 +10,7 @@ from bench.language.type import (
     instantiate_py_value,
     new_field_key,
     strip_py_value,
-    type_from_py_type,
+    type_from_instance_type,
 )
 
 # changing this affects all downstream ids and requires a new version
@@ -36,7 +36,7 @@ def x_enum(name: str, description: str, *, file: File):
         for n, value in cls.__members__.items():
             if n != value.name:
                 raise ValueError(f"name must equal value in {cls}: {n} != {value.name}")
-        bench_type = type_from_py_type(cls, name=name)
+        bench_type = type_from_instance_type(cls, name=name)
         bench_type.description = description
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
@@ -58,7 +58,7 @@ def x_struct(
         # it needs to be a dataclass for getattr and getitem access
         # and it needs to be a real distinct class to type map references to it properly
         cls = dataclass(cls)
-        bench_type = type_from_py_type(cls, name=name)
+        bench_type = type_from_instance_type(cls, name=name)
         bench_type.description = description
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
@@ -91,7 +91,7 @@ def x_task(
         task = Task(name=name, description=description)
         file.append(task)
         task.id = _versioned_id(task.path)
-        task_type = type_from_py_type(fn, name=None)
+        task_type = type_from_instance_type(fn, name=None)
         task.fields = task_type._copy_fields(to=task)
         _assign_field_keys(task)
         return task
@@ -111,7 +111,7 @@ def x_tag(
         tag = Tag(name=name, description=description)
         file.append(tag)
         tag.id = _versioned_id(tag.path)
-        tag_type = type_from_py_type(cls, name=None)
+        tag_type = type_from_instance_type(cls, name=None)
         tag.fields = tag_type._copy_fields(to=tag)
         _assign_field_keys(tag)
         return cls
@@ -133,7 +133,7 @@ def x_model(
         model = Model(name=name, external_name=external_name, description=description)
         model.id = _versioned_id(model.path)
         file.append(model)
-        model_type = type_from_py_type(cls._endpoint, name=None)
+        model_type = type_from_instance_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
         _assign_field_keys(model)
 
