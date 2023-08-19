@@ -596,7 +596,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         else:
             return to_pyidentifier(self.name, IdentifierType.PATH)
 
-    def append(self, *statements: "Statement"):
+    def append_statement(self, *statements: "Statement"):
         """Appends the statements to this file."""
         last_ok = self.statements[-1].order_key if self.statements else None
         oks = generate_n_keys_between(last_ok, None, len(statements))
@@ -608,6 +608,8 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             for descendant in statement.walk_descendants():
                 descendant.file = self
                 self.statements.append(descendant)
+
+    append = append_statement  # alias for File
 
     def _assign_oks(self):
         for statements in self.statements_by_parent_id.values():
@@ -720,7 +722,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
 
-    def append_child(self, *statements: "Statement"):
+    def append_statement(self, *statements: "Statement"):
         last_ok = self.children[-1].order_key if self.children else None
         oks = generate_n_keys_between(last_ok, None, len(statements))
         for ok, statement in zip(oks, statements):

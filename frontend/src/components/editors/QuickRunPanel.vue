@@ -105,7 +105,7 @@ async function run() {
     }
   );
   const result = await runTask;
-  panel.value.lastOutput = result?.run.outputs;
+
   if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
     panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
     panel.value.lastOutput = result?.run.outputs;

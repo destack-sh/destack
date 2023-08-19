@@ -40,7 +40,7 @@ def x_enum(name: str, description: str, *, file: File):
         bench_type.description = description
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
-        file.append(bench_type)
+        file.append_statement(bench_type)
         bench_type.id = _versioned_id(bench_type.path)
         bench_type.key = new_field_key(bench_type.path)
         _assign_field_keys(bench_type)
@@ -62,7 +62,7 @@ def x_struct(
         bench_type.description = description
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
-        file.append(bench_type)
+        file.append_statement(bench_type)
         bench_type.id = _versioned_id(bench_type.path)
         bench_type.key = new_field_key(bench_type.path)
         _assign_field_keys(bench_type)
@@ -89,7 +89,7 @@ def x_task(
         from bench.language.task import Task
 
         task = Task(name=name, description=description)
-        file.append(task)
+        file.append_statement(task)
         task.id = _versioned_id(task.path)
         task_type = type_from_instance_type(fn, name=None)
         task.fields = task_type._copy_fields(to=task)
@@ -109,7 +109,7 @@ def x_tag(
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
         tag = Tag(name=name, description=description)
-        file.append(tag)
+        file.append_statement(tag)
         tag.id = _versioned_id(tag.path)
         tag_type = type_from_instance_type(cls, name=None)
         tag.fields = tag_type._copy_fields(to=tag)
@@ -132,7 +132,7 @@ def x_model(
 
         model = Model(name=name, external_name=external_name, description=description)
         model.id = _versioned_id(model.path)
-        file.append(model)
+        file.append_statement(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
         _assign_field_keys(model)
