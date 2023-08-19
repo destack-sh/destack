@@ -97,7 +97,7 @@ function update(properties: Partial<Trigger>) {
     <div class="flex flex-row items-center justify-between">
       <span
         class="inline-flex flex-row items-center"
-        :class="[props.modelValue.active ? 'text-orange-900' : 'text-gray-700']"
+        :class="[props.modelValue.active ? 'text-orange-600' : 'text-gray-700']"
       >
         <component :is="TRIGGER_ICONS_SOLID[props.modelValue.type]" class="mr-1 h-4 w-4" />
         <span class="font-bold">{{ toCamelCase(props.modelValue.type) }} trigger</span>
@@ -186,11 +186,11 @@ function update(properties: Partial<Trigger>) {
           <!-- Previous -->
           <div class="flex flex-row justify-between gap-2 px-1 py-0.5">
             <span class="h-fit rounded-xl bg-stone-50 px-2 text-stone-700 ring-1 ring-inset ring-stone-500/20">
-              last 1
+              last
             </span>
             <!-- Time (with relevant timezones) -->
             <span class="flex flex-col gap-0.5">
-              <span>
+              <span class="text-gray-700">
                 {{ schedule?.lastOccurrence?.setZone(timezone).toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
               </span>
               <!-- Other timezones (if different) -->
@@ -212,21 +212,18 @@ function update(properties: Partial<Trigger>) {
             <span
               class="rounded-xl"
               :class="[
-                i == 0
+                i == 0 && props.modelValue.active
                   ? 'bg-orange-50 px-2 text-orange-700 ring-1 ring-inset ring-orange-700/10'
                   : 'bg-stone-50 px-2 text-stone-700 ring-1 ring-inset ring-stone-500/20',
               ]"
             >
-              next {{ i + 1 }}
+              {{ i == 0 ? "next" : "then" }}
             </span>
             <!-- Time (with UTC) -->
             <!-- Other timezones (if different) -->
             <span class="flex flex-col gap-0.5">
               <span
-                :class="[
-                  i == 0 ? 'text-orange-600' : 'text-gray-900',
-                  i == 0 && props.modelValue.active ? 'font-semibold' : '',
-                ]"
+                :class="[i == 0 ? (props.modelValue.active ? 'text-orange-600' : 'text-gray-900') : 'text-gray-700']"
               >
                 {{ occurrence.setZone(timezone).toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
               </span>
