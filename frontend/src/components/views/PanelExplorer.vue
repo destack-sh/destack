@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
-import { Panel, useBenchState, type ViewId } from "@/state/bench";
+import { Panel, PANEL_ICONS_OUTLINE, PANEL_ICONS_SOLID, useBenchState, type ViewId } from "@/state/bench";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -74,11 +74,14 @@ defineExpose({
       @click="focusPanel(panel)"
       @keydown.enter.exact.prevent="focusPanelAndGoThere(panel)"
     >
-      <!-- Path -->
-      <span
-        class="decoration-none inline select-none truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
-      >
-        {{ panel.name.length > 0 ? panel.name : "(Untitled)" }}
+      <!-- Panel info -->
+      <span class="flex flex-row items-center">
+        <component :is="PANEL_ICONS_SOLID[panel.type]" class="mr-1.5 h-4 w-4 text-gray-500" />
+        <span
+          class="decoration-none inline select-none truncate text-ellipsis rounded-sm text-sm placeholder-gray-400 outline-none"
+        >
+          {{ panel.name.length > 0 ? panel.name : "(Untitled)" }}
+        </span>
       </span>
     </li>
   </ul>

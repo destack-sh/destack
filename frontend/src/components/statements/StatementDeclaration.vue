@@ -52,7 +52,7 @@ defineExpose({
       <component :is="icon" class="absolute top-0.5 h-4 w-4 text-orange-600" />
       <!-- Statement label on hover -->
       <span
-        class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 text-xs text-gray-900 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover/icon:opacity-100"
+        class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 py-0.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover/icon:opacity-100"
       >
         <span class="font-semibold">
           {{ getStatementLabel(context.statement.value.type, context.statement.value.rootTypeTag) }}</span

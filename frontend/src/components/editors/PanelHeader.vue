@@ -10,15 +10,14 @@ import {
   usePanelContext,
   type Action,
   type PanelType,
+  PANEL_ICONS_OUTLINE,
 } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
 import {
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
   ChevronRightIcon,
-  CodeBracketIcon,
   EllipsisHorizontalIcon,
-  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
@@ -37,13 +36,7 @@ const panelAppearance = computed(() => panel.panel.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
 
-// :PanelIcons
-const panelIcons: Record<PanelType, any> = {
-  file: CodeBracketIcon,
-  statement: CodeBracketIcon,
-  launch: WindowIcon,
-};
-const icon = computed(() => panelIcons[panel.panel.value.type]);
+const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
 </script>
 <template>
   <div
@@ -62,15 +55,27 @@ const icon = computed(() => panelIcons[panel.panel.value.type]);
       <!-- Panel path -->
       <div class="flex flex-row items-center">
         <template v-for="(node, i) in path" :key="i">
+          <!-- Self node with actions -->
           <ActionPopover v-if="i == self" anchor="left" :thing="thing" :actions="actions" class="ml-1">
             <span class="font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
           </ActionPopover>
+          <!-- Regular node -->
           <button
             v-else
-            class="rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
+            class="group/node relative rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
             @click="i >= self ? emit('focus', node) : bench.focusNode(node, panel?.panel.value.group)"
           >
             {{ node.name ?? "(Untitled)" }}
+            <!-- Tooltip -->
+            <span
+              class="pointer-events-none absolute left-0 top-6 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-150 group-hover/node:opacity-100"
+            >
+              {{
+                i >= self
+                  ? `Focus ${node.__typename.toLowerCase()} '${node.name}'`
+                  : `Open ${node.__typename.toLowerCase()} '${node.name}'`
+              }}
+            </span>
           </button>
           <!-- Arrow -->
           <ChevronRightIcon v-if="i < path.length - 1" class="h-4 w-4 text-gray-400" />

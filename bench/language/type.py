@@ -1088,6 +1088,9 @@ class JsonTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Json or py_type is dict or typing.get_origin(py_type) is dict
 
+    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        return isinstance(value, dict)
+
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(name=None, tag=TypeTag.JSON)
 
@@ -1097,7 +1100,7 @@ class FunctionTypeMapper(TypeMapper):
         return inspect.isfunction(py_type)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return False  # no instance value for function
+        return isinstance(value, dict)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         if py_type in type_map:

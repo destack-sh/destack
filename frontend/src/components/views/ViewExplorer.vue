@@ -33,21 +33,29 @@ type Action = {
   enabled: boolean;
 };
 
+const showPanels = false; // TODO @UX: figure out good way to show open panels (probably scrollable view sections)
+
 const panels: Ref<Panel[]> = computed(() => {
-  const panels = [
-    {
-      title: "Files",
-      count: fileExplorer.value?.count,
-      actions: [
-        {
-          icon: PlusIcon,
-          label: "File",
-          action: () => actions.file.create.value.apply(),
-          enabled: actions.file.create.value.enabled,
-        },
-      ],
-    } as Panel,
-  ];
+  const panels: Panel[] = [];
+  if (showPanels) {
+    panels.push({
+      title: "Panels",
+      count: bench.panels.length,
+      actions: [],
+    });
+  }
+  panels.push({
+    title: "Files",
+    count: fileExplorer.value?.count,
+    actions: [
+      {
+        icon: PlusIcon,
+        label: "File",
+        action: () => actions.file.create.value.apply(),
+        enabled: actions.file.create.value.enabled,
+      },
+    ],
+  } as Panel);
   if (bench.focusedFileId != null) {
     panels.push({
       title: "Outline",
@@ -124,10 +132,9 @@ watch(
         <!-- Panel content -->
         <div class="min-h-0 overflow-y-auto">
           <FadeTransition mode="out-in">
-            <!-- TODO @UX: show panel explorer in a useful way -->
             <PanelExplorer
               :ref="(ref) => (panelExplorer = ref as any)"
-              v-if="panel.title == 'Open panels'"
+              v-if="panel.title == 'Panels'"
               :focused="props.focused"
               @navigate-down="fileExplorer?.focus('first')"
             />

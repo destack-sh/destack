@@ -448,6 +448,9 @@ class OpenAIChatCompiler(TaskCompiler):
             )
 
     async def run(self, model: OpenAIChatCompletionModel, runner: TaskRunner) -> dict:
+        inputs = map_value(
+            self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_value_flat
+        )
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
@@ -458,7 +461,7 @@ class OpenAIChatCompiler(TaskCompiler):
             *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"Inputs for '{self.task.name}': \n\n: {map_value(self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_value_flat)}",
+                content=f"Inputs for '{self.task.name}': \n\n: {inputs}",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,

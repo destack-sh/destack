@@ -232,7 +232,7 @@ class WorkerNode(Monitored):
             # store session id separately from run because we write the run data directly
             #  (and the session doesn't actually exist until the run starts)
             session_id = msg.p.session_id or (UUIDT() if not msg.p.scheduled_at else None)
-            run_job = worker.add_run(run_data, session_id)
+            job = worker.add_run(run_data, session_id)
             error = None
         except RunStartError as e:
             self.log.error("run.start.error", msg=msg, error=e)
@@ -241,19 +241,29 @@ class WorkerNode(Monitored):
 
         if msg.p.block is not None:
             try:
-                await run_job.started.wait()
-                await asyncio.wait_for(run_job.terminated.wait(), timeout=msg.p.block)
+                await job.started.wait()
+                await asyncio.wait_for(job.terminated.wait(), timeout=msg.p.block)
             except asyncio.TimeoutError:
                 pass  # ignore
-        logs = [wire.pack_data(log) for log in run_job.last_logs] if run_job.last_logs else None
+
+        # update job's run_data from session
+        # (this doesn't feel like the right place for this, but we always need to do it to reply)
+        if job.session and job.session.tracer.run.runs:
+            run = job.session.tracer.run.runs[job.run_data.id]
+            job.run_data = wire.pack_data(run)
+            last_logs = job.session.tracer.cached_logs[:50]
+        else:
+            last_logs = None
+
+        logs = [wire.pack_data(log) for log in last_logs] if last_logs else None
         rep = RepStartRunPayload(
-            error=error, run=run_job.run_data if run_job else None, run_id=run_id, logs=logs
+            error=error, run=job.run_data if job else None, run_id=run_id, logs=logs
         )
         await msg.reply(rep)
 
     @message_handler
     async def kill_run(self, msg: NMessage[ReqKillRunPayload]):
-        logger.debug("run.cancel", msg=msg)
+        logger.debug("run.kill", msg=msg)
         worker = await self._prepare_worker(msg.p.module_id)
         success = await worker.kill_run(msg.p.run_id)
         await msg.reply(RepKillRunPayload(success=success))
@@ -296,9 +306,8 @@ class RunJob:
     run_data: RunData
     session_id: UUID
     priority: int = 10  # default
-    run: Optional[Run] = None
     task: asyncio.Task | None = None
-    last_logs: list[LogEntry] | None = None
+    session: Optional[Session] = None
     started: asyncio.Event = field(default_factory=asyncio.Event)
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
 
@@ -382,18 +391,13 @@ class ModuleWorkerProcess(ModuleWriter):
                 continue
 
             job.started.set()
-            session = None
             try:
-                session, e = await self._do_run_job(job, WORKER_RUN_TIMEOUT)
-                if e:
-                    self.log.debug("run.failed", job=job, exc_info=e)
+                await self._do_run_job(job, WORKER_RUN_TIMEOUT)
+            except RunError as e:
+                self.log.debug("run.failed", job=job, exc_info=e)
             except Exception as e:
-                self.log.exception("run.init.failed", job=job, sentry=sentry_capture_if_enabled(e))
+                self.log.error("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
             finally:
-                if session and session.tracer.run.runs:
-                    job.run = session.tracer.run.runs[job.run_data.id]
-                    job.run_data = wire.pack_data(job.run)
-                    job.last_logs = session.tracer.cached_logs[:50]
                 job.terminated.set()
                 self.queue.task_done()
 
@@ -447,14 +451,13 @@ class ModuleWorkerProcess(ModuleWriter):
 
         return job
 
-    async def _do_run_job(self, job: RunJob, timeout: float) -> tuple[Session, Optional[Exception]]:
+    async def _do_run_job(self, job: RunJob, timeout: float) -> None:
         """
         Actually runs the job, and updates the job with the result.
-        This is a bit of a dance to ensure that we always return the session if in any way possible.
         """
 
-        # init i.e. prepare session and run
         try:
+            # init i.e. prepare session and run
             job.started.set()
             self.log.info("worker.run", job=job, timeout=timeout)
 
@@ -478,20 +481,16 @@ class ModuleWorkerProcess(ModuleWriter):
                 trigger_id=job.run_data.trigger_id,
                 first_run_id=job.run_data.id,
             )
-            session = Session(
+            job.session = Session(
                 module=self.module,
                 writer=self,
                 ctx=session_ctx,
                 id=job.session_id,
                 mode=SessionMode.WRITE,
             )
-        except Exception:
-            job.terminated.set()
-            raise
 
-        # run in active session
-        try:
-            self.module.activate_in(session)
+            # run in active session
+            self.module.activate_in(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()
@@ -503,14 +502,10 @@ class ModuleWorkerProcess(ModuleWriter):
                 await asyncio.sleep(delay)
 
             # run
-            job.task = asyncio.create_task(self._do_run_in_session(session, runnable, inputs))
+            job.task = asyncio.create_task(self._do_run_in_session(job.session, runnable, inputs))
             self._active_runs[job.run_data.id] = job
             self._last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
-            job.last_logs = session.tracer.cached_logs[:50]
-            return session, None
-        except Exception as e:
-            return session, e
         finally:
             job.terminated.set()
             self.module.deactivate()
@@ -538,11 +533,11 @@ class ModuleWorkerProcess(ModuleWriter):
             if session.ctx.first_run_id in self._dirty_dangling_runs:
                 del self._dirty_dangling_runs[session.ctx.first_run_id]
 
-            # close session
+            # always close session
             await session.aclose()
 
     async def kill_run(self, run_id: UUID) -> bool:
-        # TODO @Broken: implement cancel properly (interupts don't work)
+        # TODO @Broken: implement kill (cancel/abort) properly (interupts don't work)
         #  (currently we only do process restarts)
         return False
 
@@ -588,6 +583,11 @@ class ModuleWorkerProcess(ModuleWriter):
         session_data = wire.pack_data(session) if session else None
         runs_data = [wire.pack_data(run) if isinstance(run, Run) else run for run in runs]
         logs_data = [wire.pack_data(log) if isinstance(log, LogEntry) else log for log in logs]
+
+        # remove runs from dirty dangling runs
+        for run in runs:
+            if run.id in self._dirty_dangling_runs:
+                del self._dirty_dangling_runs[run.id]
 
         req = ReqWriteSessionPayload(
             module_id=self.module_id,

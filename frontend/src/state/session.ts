@@ -279,6 +279,16 @@ export function _useSessions(
     };
   }
 
+  function subscribeToRun(run: { id: string }, subscriber: (run: Run) => void): void {
+    // register on run change subscriber until the given run has terminated
+    const unsub = onRunChange((r) => {
+      subscriber(r);
+      if (r.id === run.id && TERMINAL_RUN_STATUSES.includes(r.status)) {
+        unsub();
+      }
+    });
+  }
+
   function onWorkerSetChange(subscriber: (workerSet: WorkerSet) => void): () => void {
     if (!options.live) throw new Error("onWorkerSetChange only makes sense when live");
     onWorkerSetChangeSubscribers.value.push(subscriber);
@@ -506,6 +516,7 @@ export function _useSessions(
     activeRuns,
     activeRoots,
     onRunChange,
+    subscribeToRun,
     onWorkerSetChange,
     runsOf,
     run,
