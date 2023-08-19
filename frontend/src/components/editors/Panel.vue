@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import FilePanelInterface from "@/components/editors/FileEditor.vue";
 import StatementPanelInterface from "@/components/editors/StatementEditor.vue";
-import LaunchPanelInterface from "@/components/editors/LaunchPanel.vue";
+import QuickRunPanelInterface from "@/components/editors/QuickRunPanel.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import {
   providePanelContext,
@@ -9,7 +9,7 @@ import {
   type PanelContext,
   type FileEditor,
   StatementEditor,
-  LaunchPanel,
+  QuickRunPanel,
   Panel,
 } from "@/state/bench";
 import { useEventListener } from "@vueuse/core";
@@ -56,10 +56,10 @@ defineExpose({
     :focused="focused"
     @close="bench.closePanel(panel)"
   />
-  <LaunchPanelInterface
+  <QuickRunPanelInterface
     ref="containerRef"
-    v-else-if="panel.type == 'launch'"
-    :panel="(context as PanelContext<LaunchPanel>)"
+    v-else-if="panel.type == 'quick-run'"
+    :panel="(context as PanelContext<QuickRunPanel>)"
     :focused="focused"
     @close="bench.closePanel(panel)"
   />

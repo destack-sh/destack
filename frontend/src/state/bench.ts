@@ -26,10 +26,11 @@ import {
   ArrowRightIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
-  CodeBracketIcon,
-  WindowIcon,
+  CodeBracketIcon as CodeBracketIconOutline,
+  WindowIcon as WindowIconOutline,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
+import { CodeBracketIcon as CodeBracketIconSolid, WindowIcon as WindowIconSolid } from "@heroicons/vue/24/solid";
 import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -48,7 +49,7 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";
 
-export type PanelType = "file" | "statement" | "launch";
+export type PanelType = "file" | "statement" | "quick-run";
 
 const BENCH_STATE_VERSION = 3;
 
@@ -419,10 +420,10 @@ export const useBenchState = defineStore("bench", {
       statement: { id: string; name?: string | null },
       options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
     ): Panel {
-      let panel = this.panels.find((e) => e.type == "launch" && (e as LaunchPanel).statementId == statement.id);
+      let panel = this.panels.find((e) => e.type == "quick-run" && (e as QuickRunPanel).statementId == statement.id);
       if (!panel || options?.create) {
         console.log(`create new launch panel for ${statement.name}`);
-        panel = new LaunchPanel(statement);
+        panel = new QuickRunPanel(statement);
         panel.onDeserialized(this);
       }
       this.openPanel(panel, options?.group);
@@ -733,11 +734,7 @@ export function providePanelContext<T extends Panel>(
         actions.push({
           groupId: "jump",
           label: e.name.length > 0 ? e.name : "(Untitled)",
-          icon: {
-            file: CodeBracketIcon,
-            statement: CodeBracketIcon,
-            launch: WindowIcon,
-          }[e.type],
+          icon: PANEL_ICONS_OUTLINE[e.type],
           action: () => panelState.focusPanel(e),
         });
       });
@@ -1039,8 +1036,8 @@ export class StatementEditor extends NavigablePanel {
   }
 }
 
-export class LaunchPanel extends Panel {
-  type = "launch" as const;
+export class QuickRunPanel extends Panel {
+  type = "quick-run" as const;
   statementId: string;
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
@@ -1050,7 +1047,7 @@ export class LaunchPanel extends Panel {
   lastSessionId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
-    super("launch", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
+    super("quick-run", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
     this.statementId = statement.id;
     if (statement.__typename == "Task") {
       this.statementType = StatementType.Task;
@@ -1079,7 +1076,7 @@ export class LaunchPanel extends Panel {
       (s) => prettifySlug(s.name ?? "") == statementName
     );
     if (matchingStatement == null) return null;
-    return new LaunchPanel(matchingStatement);
+    return new QuickRunPanel(matchingStatement);
   }
 
   get hasWhiteBackground() {
@@ -1094,7 +1091,19 @@ export class LaunchPanel extends Panel {
 export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   file: FileEditor as any,
   statement: StatementEditor as any,
-  launch: LaunchPanel as any, // don't care about constructor type
+  "quick-run": QuickRunPanel as any, // don't care about constructor type
+};
+
+export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
+  file: CodeBracketIconOutline,
+  statement: CodeBracketIconOutline,
+  "quick-run": WindowIconOutline,
+};
+
+export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
+  file: CodeBracketIconSolid,
+  statement: CodeBracketIconSolid,
+  "quick-run": WindowIconSolid,
 };
 
 function instantiate(panelData: any, bench: ReturnType<typeof useBenchState>): Panel {

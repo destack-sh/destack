@@ -28,8 +28,8 @@ import {
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
   PaperAirplaneIcon as PaperAirplaneIconOutline,
-  Squares2X2Icon as Squares2X2IconOutline,
   Bars3BottomLeftIcon,
+  ViewColumnsIcon as ViewColumnsIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -41,8 +41,8 @@ import {
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
-  Squares2X2Icon as Squares2X2IconSolid,
   ListBulletIcon,
+  ViewColumnsIcon as ViewColumnsIconSolid,
 } from "@heroicons/vue/24/solid";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 import { computed, inject, watch, type Ref } from "vue";
@@ -613,7 +613,7 @@ export function getStatementIconOutline(type: StatementType, rootTypeTag?: TypeT
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIconOutline;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return Squares2X2IconOutline;
+    return ViewColumnsIconOutline;
   } else {
     return STATEMENT_ICONS_OUTLINE[type];
   }
@@ -623,7 +623,7 @@ export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
     return RectangleGroupIconSolid;
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return Squares2X2IconSolid;
+    return ViewColumnsIconSolid;
   } else {
     return STATEMENT_ICONS_SOLID[type];
   }

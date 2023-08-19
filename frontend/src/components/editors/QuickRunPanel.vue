@@ -7,15 +7,17 @@ import StructTile from "@/components/tiles/StructTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type PanelContext, type StatementAction, type LaunchPanel } from "@/state/bench";
+import { useBenchState, type PanelContext, type StatementAction, type QuickRunPanel } from "@/state/bench";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
-import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
+import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
+import { StopIcon } from "@heroicons/vue/24/outline";
 
-const props = defineProps<{ panel: PanelContext<LaunchPanel>; focused: boolean }>();
+const INLINE_RUNS_LIMIT = 10;
+const props = defineProps<{ panel: PanelContext<QuickRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
@@ -34,7 +36,23 @@ const statement = computed(() => module.statementOf(props.panel.panel.value.stat
 const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const terminalActions = computed(() => {
-  const actions: StatementAction[] = [];
+  const actions: StatementAction[] = [
+    {
+      label: "Run",
+      icon: PlayIcon,
+      action: () => run(),
+      active: isCurrentRunActive.value,
+      disabled: statement.value == null,
+      hideInline: true,
+    },
+    {
+      label: "Cancel",
+      icon: StopIcon,
+      action: () => cancel(),
+      disabled: !isCurrentRunActive.value,
+      hideInline: true,
+    },
+  ];
   return actions;
 });
 
@@ -77,7 +95,7 @@ async function run() {
   panel.value.lastRunId = newRunId();
   panel.value.lastSessionId = newSessionId();
   panel.value.lastOutput = undefined;
-  const { result: resultPromise } = await sessions.run(
+  const { run, result: runTask } = await sessions.run(
     { id: panel.value.statementId },
     {
       inputs: panel.value.inputs,
@@ -86,8 +104,20 @@ async function run() {
       sessionId: panel.value.lastSessionId,
     }
   );
-  const result = await resultPromise;
+  const result = await runTask;
   panel.value.lastOutput = result?.run.outputs;
+  if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
+    panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
+    panel.value.lastOutput = result?.run.outputs;
+  } else {
+    // subscribe to run changes
+    sessions.subscribeToRun(run, (run) => {
+      if (TERMINAL_RUN_STATUSES.includes(run.status)) {
+        panel.value.lastRunTerminatedAt = run.terminatedAt;
+        panel.value.lastOutput = run.outputs;
+      }
+    });
+  }
 }
 
 async function cancel() {
@@ -95,9 +125,7 @@ async function cancel() {
   await sessions.cancel(currentRun.value);
 }
 
-// tiling (crude placeholder to play around with)
-const showDots = ref(false);
-const dotSize = ref(1);
+// tiling
 const gridStepX = ref(36); // p-9
 const gridStepY = ref(18); // p-4.5
 
@@ -161,26 +189,6 @@ defineExpose({
         minHeight: editorSize.height - appearance.editorHeaderHeight + 'px',
       }"
     >
-      <!-- Dot background -->
-      <svg
-        v-if="showDots"
-        xmlns="http://www.w3.org/2000/svg"
-        class="absolute h-full w-full"
-        :style="{
-          top: gridStepY + 'px',
-          left: gridStepX + 'px',
-          maxWidth: 'calc(100% - ' + gridStepX + 'px)',
-          maxHeight: 'calc(100% - ' + gridStepY + 'px)',
-        }"
-      >
-        <defs>
-          <pattern id="dots" patternUnits="userSpaceOnUse" :width="gridStepX" :height="gridStepY">
-            <!-- color is gray-300 -->
-            <circle fill="#d4d4d8" :cx="dotSize" :cy="dotSize" :r="dotSize" />
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#dots)" />
-      </svg>
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
@@ -201,12 +209,8 @@ defineExpose({
             @keydown.enter.exact.prevent="run"
           >
             Run
-            <FadeTransition mode="out-in">
-              <component
-                :is="isCurrentRunActive ? BusySpinnerIcon : PlayIcon"
-                class="h-4 w-4"
-                :class="[isCurrentRunActive ? 'animate-spin' : '']"
-              />
+            <FadeTransition>
+              <PlayIcon v-if="!isCurrentRunActive" class="h-4 w-4" />
             </FadeTransition>
           </button>
         </div>
@@ -274,6 +278,7 @@ defineExpose({
             :runnable-id="panel?.statementId"
             :symbol-type="statement?.type"
             live
+            :limit="INLINE_RUNS_LIMIT"
           />
         </ContainerTile>
       </template>

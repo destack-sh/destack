@@ -100,9 +100,6 @@ class Tracer:
 
     # execution
 
-    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
-        pass
-
     def run_enter(self, statement: Runnable, inputs):
         pass
 
@@ -118,7 +115,7 @@ class Tracer:
         pass
 
 
-# TODO @Performance: investigate performance implication of contextual stdout/stderr redirect
+# TODO @Performance: check performance of contextual stdout/stderr redirect
 
 stderr_track: ContextVar[Callable[[str], None] | None] = ContextVar("stderr_track", default=None)
 stdout_track: ContextVar[Callable[[str], None] | None] = ContextVar("stdout_track", default=None)
@@ -307,10 +304,6 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.dataset_update(dataset, record, key)
 
-    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
-        for tracer in self.tracers:
-            tracer.run_cancel(statement, inputs)
-
     def run_enter(self, statement: Runnable, inputs):
         for tracer in self.tracers:
             tracer.run_enter(statement, inputs)
@@ -454,16 +447,6 @@ class RunTracer(Tracer):
         if parent is not None:
             parent.children.append(frame)
         return frame
-
-    def run_cancel(self, statement: Runnable, inputs: dict[str, Any]):
-        # don't trace this because it's not part of the stacktrace
-        frame = self._create_frame(
-            runnable=statement,
-            inputs=strip_py_value(inputs, statement, is_output=False),
-            trace=False,
-        )
-        self.track(frame)
-        logger.debug("trace.run.cancel", frame=frame)
 
     def run_enter(self, statement: Runnable, inputs):
         frame = self._create_frame(
