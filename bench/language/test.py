@@ -157,8 +157,8 @@ def test_nested_resolve():
     task = Task(name="Organize goats")
     dataset = Dataset(name="dataset")
     code = Code(name="load")
-    dataset.append_child(code)
-    file.append(struct, task, dataset)
+    dataset.append_statement(code)
+    file.append_statement(struct, task, dataset)
     module.index()
     module.interp()
 
