@@ -60,8 +60,9 @@ export const TYPE_POLICIES: TypePolicies = {
     },
   },
   Query: {
+    // :QueryFieldPolicies
     fields: {
-      searchDataset: relayStylePagination(["statementId", "query", "sort", "limit", "count"]),
+      searchRecords: relayStylePagination(["statementId", "query", "sort", "limit", "count"]),
     },
   },
 };

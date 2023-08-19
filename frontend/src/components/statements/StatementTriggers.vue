@@ -127,10 +127,7 @@ const actions = computed(() => [
             ]"
             :key="offset"
             class="flex flex-row justify-between gap-2.5"
-            :class="[
-              offset == 1 ? 'text-orange-600' : 'text-gray-400',
-              offset == 1 && trigger.active ? 'font-semibold' : '',
-            ]"
+            :class="[offset == 1 ? (trigger.active ? 'text-orange-600' : 'text-gray-700') : 'text-gray-400']"
           >
             <span>{{ offset == 0 ? "last" : "next" }}</span>
             <span>

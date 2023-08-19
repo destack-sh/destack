@@ -196,6 +196,7 @@ const sort: Ref<SearchSort[] | null> = computed(() => {
   return properties.sorts;
 });
 
+// :QueryFieldPolicies
 const SEARCH_QUERY = graphql(/* GraphQL */ `
   query searchRecords(
     $statementId: GlobalID!
