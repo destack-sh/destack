@@ -465,7 +465,7 @@ class OpenAIChatCompiler(TaskCompiler):
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now, perform the task '{self.task.name}' using the inputs as needed and call a relevant function as instructed.",
+                content=f"Now, perform the task '{self.task.name}' using the inputs as needed, considering the instructions carefully. Finally, call a relevant function as instructed.",
             ),
         ]
         functions: list[OpenAIFunction] = [

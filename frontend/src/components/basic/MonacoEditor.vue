@@ -153,6 +153,20 @@ function initMonaco(monaco: Monaco) {
     }
   });
 
+  function hasInnerWindowOpen() {
+    const widgetClasses = [".monaco-menu-container", ".monaco-dropdown", ".monaco-editor-hover", ".editor-widget"];
+    const openWidget = widgetClasses.find((c) => {
+      const els = document.querySelectorAll(c);
+      for (let i = 0; i < els.length; i++) {
+        const el = els[i] as HTMLElement;
+        if (el.style.display != "none" && el.getAttribute("aria-hidden") != "true") {
+          return true;
+        }
+      }
+    });
+    return openWidget != null;
+  }
+
   function handleCommands() {
     if (editor.value == null) return;
 
@@ -167,30 +181,21 @@ function initMonaco(monaco: Monaco) {
           emit("deleteIfEmpty");
         }
       } else if (e.keyCode === monaco.KeyCode.UpArrow) {
-        if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1) {
+        if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1 && !hasInnerWindowOpen()) {
           emit("navigateUp");
         }
       } else if (e.keyCode === monaco.KeyCode.DownArrow) {
         if (
           !e.shiftKey &&
           !e.altKey &&
-          editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount()
+          editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount() &&
+          !hasInnerWindowOpen()
         ) {
           emit("navigateDown");
         }
       } else if (e.keyCode == monaco.KeyCode.Escape) {
         // trigger outer escape if no widget is open and visible
-        const widgetClasses = [".monaco-menu-container", ".monaco-dropdown", ".monaco-editor-hover", ".editor-widget"];
-        const openWidget = widgetClasses.find((c) => {
-          const els = document.querySelectorAll(c);
-          for (let i = 0; i < els.length; i++) {
-            const el = els[i] as HTMLElement;
-            if (el.style.display != "none" && el.getAttribute("aria-hidden") != "true") {
-              return true;
-            }
-          }
-        });
-        if (!openWidget) {
+        if (!hasInnerWindowOpen()) {
           emit("escape");
           (document.activeElement as HTMLElement)?.blur?.();
         }
