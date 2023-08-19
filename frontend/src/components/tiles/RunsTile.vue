@@ -153,6 +153,7 @@ function isExpanded(runId: string) {
               maxWidth: previewWidth + 'px',
             }"
           >
+            <span v-if="previewFields.length == 0" class="text-sm text-gray-400">No inputs or outputs</span>
             <ValueInterface
               v-for="field in previewFields"
               :key="field.id"
