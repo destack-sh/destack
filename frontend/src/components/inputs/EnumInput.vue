@@ -22,7 +22,10 @@ const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
 const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
 
 const members = computed(() => {
-  return runtimeType.value?.fields.slice().sort((a, b) => a.orderKey.localeCompare(b.orderKey)) ?? [];
+  return (
+    runtimeType.value?.fields.filter((f) => f.deletedAt == null).sort((a, b) => a.orderKey.localeCompare(b.orderKey)) ??
+    []
+  );
 });
 const selectedMembers = computed(
   () => (props.modelValue?.map((v) => members.value.find((m) => m.key == v)).filter((m) => m != null) as Field[]) ?? []

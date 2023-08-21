@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import contextvars
+import dataclasses
 import enum
 import re
 import typing
@@ -91,7 +92,7 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-@typing.dataclass_transform()
+@typing.dataclass_transform(field_specifiers=(dataclasses.Field, dataclasses.field, required_field))
 def node(cls: Optional[typing.Type] = None, tracked: list[str] = None):
     """
     Decorator alias for module node.

@@ -80,8 +80,9 @@ class LazyRun:
         raise NotImplementedError
 
 
-@reflect_struct("RunMetadata", "Default metadata about a run", return_type=True)
+@reflect_struct("RunMetadata", "Default metadata of a run", return_type=True)
 class RunMetadata:
+    test: Optional[bool]
     queue_position: Optional[int]
     cached_generated_at: Optional[datetime]
     cached_duration: Optional[float]
@@ -179,14 +180,6 @@ class Run:
     @queue_position.setter
     def queue_position(self, value: Optional[int]):
         self.set_metadata(RunMetadata.queue_position, value)
-
-    @property
-    def progress(self) -> Optional[float]:
-        return self.get_metadata(RunMetadata.progress)
-
-    @progress.setter
-    def progress(self, value: Optional[float]):
-        self.set_metadata(RunMetadata.progress, value)
 
     @property
     def cached_generated_at(self) -> Optional[datetime]:
