@@ -28,6 +28,7 @@ class IssueType(enum.StrEnum):
     CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
     CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
     AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
+    UNCLEAR_INTENT = "UNCLEAR_INTENT"
 
     @property
     def description(self):
@@ -46,6 +47,7 @@ _ISSUE_MESSAGES = {
     IssueType.CODE_NOT_EXPORTABLE.value: "{subject} is not exportable",
     IssueType.CODE_REFERENCE_NOT_EXPORTED.value: "{path} is not exported",
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
+    IssueType.UNCLEAR_INTENT.value: "unclear intent: {reason}",
 }
 
 _ISSUE_KIND_BY_TYPE = {
@@ -60,6 +62,7 @@ _ISSUE_KIND_BY_TYPE = {
     IssueType.AMBIGUOUS_DEFINITION: IssueKind.WARNING,
     IssueType.CODE_NOT_EXPORTABLE: IssueKind.WARNING,
     IssueType.CODE_REFERENCE_NOT_EXPORTED: IssueKind.WARNING,
+    IssueType.UNCLEAR_INTENT: IssueKind.WARNING,
 }
 
 

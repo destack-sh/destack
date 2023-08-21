@@ -24,7 +24,12 @@ import {
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext } from "@/state/file";
 import { useCurrentModule, type Statement } from "@/state/module";
-import { STATEMENT_CONTEXT, STATEMENT_TYPE_LABELS, type StatementContext } from "@/state/statement";
+import {
+  STATEMENT_CONTEXT,
+  STATEMENT_STANDALONE_TYPES,
+  STATEMENT_TYPE_LABELS,
+  type StatementContext,
+} from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
@@ -349,7 +354,9 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
 }
 
 // actions
-const canOpenInStandaloneEditor = computed(() => !props.standalone);
+const canOpenInStandaloneEditor = computed(
+  () => !props.standalone && STATEMENT_STANDALONE_TYPES.includes(statement.value.type)
+);
 const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
   if (canOpenInStandaloneEditor.value) {
@@ -441,7 +448,7 @@ defineExpose({
   <!-- Statement wrapper -->
   <div
     class="group/statement relative w-full max-w-full"
-    :style="standalone ? {} : panel.panel.value.contentMarginXAsPaddingX"
+    :style="panel.panel.value.contentMarginXAsPaddingX"
     @click="onClickContainer"
   >
     <!-- Statement main -->

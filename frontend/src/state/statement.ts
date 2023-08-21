@@ -680,3 +680,5 @@ export function getStatementDescription(type: StatementType, rootTypeTag?: TypeT
     return STATEMENT_TYPE_DESCRIPTIONS[type];
   }
 }
+
+export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];

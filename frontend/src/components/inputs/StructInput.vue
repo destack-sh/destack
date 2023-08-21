@@ -12,6 +12,7 @@ const props = defineProps<{
   modelValue: Record<string, any>[];
   readonly?: boolean;
   preview?: boolean;
+  wrap?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -93,7 +94,11 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="flex h-full w-full flex-row flex-wrap gap-1" @mouseleave="(activeIndex = null), (editingIndex = false)">
+  <div
+    class="flex h-full w-full flex-row gap-1"
+    :class="[wrap ? 'flex-wrap' : '']"
+    @mouseleave="(activeIndex = null), (editingIndex = false)"
+  >
     <!-- Inline struct views -->
     <div
       v-for="(struct, i) in modelValue"

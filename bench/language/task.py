@@ -9,7 +9,8 @@ from bench.language.basic import Expectation
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import Scope, Statement, node
-from bench.language.flow import HasFlow, IsFlowable
+from bench.language.flow import HasFlow, IsFlowNode
+from bench.language.issue import IssueType
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.tag import HasTags
@@ -61,7 +62,7 @@ class TaskMetadata:
 
 
 @node(tracked=["description"])
-class Task(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
+class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
     description: Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
@@ -71,10 +72,34 @@ class Task(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
         Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
+        IsFlowNode._clear(self)
 
     def _interp(self, scope: Scope) -> None:
+        from bench.language.libs import symbolx_lib
+
+        # not great, see :CentralStdlibAccess
+        tool_tag = symbolx_lib.lookup_or_error(".builtins.tool")
+        consider_tag = symbolx_lib.lookup_or_error(".builtins.consider")
+
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
+        IsFlowNode._interp(self, scope)
+
+        # check that all children can be interpreted
+        for child in self.resolved_children:
+            statement = child.statement
+            if isinstance(statement, (IsFlowNode, Expectation)):
+                continue
+            elif isinstance(statement, Runnable) and child.has_tag(tool_tag):
+                continue
+            elif child.has_tag(consider_tag):
+                continue
+            else:
+                self._on_issue(
+                    type=IssueType.UNCLEAR_INTENT,
+                    subject=statement,
+                    reason=f"does not affect outer task {self.path}",
+                )
 
     async def __call__(
         self,

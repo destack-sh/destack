@@ -46,11 +46,6 @@ class Tool:
     pass
 
 
-@x_tag("step", "A required step in a flow", file=_symbolx_builtins)
-class Step:
-    pass
-
-
 @x_tag("consider", "Ensure the bot knows this", file=_symbolx_builtins)
 class Consider:
     pass

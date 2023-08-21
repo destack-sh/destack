@@ -27,7 +27,7 @@ from bench.language import (
 )
 from bench.language.cache import CacheAsync
 from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
-from bench.language.flow import IsFlowable, TriggerScheduleIterator, is_time_trigger_equal
+from bench.language.flow import IsFlowNode, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import RunStatus
@@ -782,7 +782,7 @@ class RuntimeWorker:
         # collect new (i.e. current) module's triggers
         new_active_triggers = {}
         for statement in self.module._statements_by_id.values():
-            if isinstance(statement, IsFlowable) and not statement.errors:
+            if isinstance(statement, IsFlowNode) and not statement.errors:
                 for trigger in statement.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
                         new_active_triggers[trigger.id] = trigger

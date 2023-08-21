@@ -157,13 +157,6 @@ export abstract class Panel {
       paddingRight: `${this.contentMarginX}px`,
     };
   }
-  get contentMarginXAsMarginX() {
-    return {
-      marginLeft: `${this.contentMarginX}px`,
-      marginRight: `${this.contentMarginX}px`,
-    };
-  }
-
   get focused() {
     return this._bench?.focusedPanelId == this.id;
   }
@@ -1010,6 +1003,11 @@ export class StatementEditor extends NavigablePanel {
   constructor(statement: { id: string; name?: string | null }) {
     super("statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
     this.statementId = statement.id;
+  }
+
+  get contentMarginX() {
+    // always full width
+    return 0;
   }
 
   resetId(): void {

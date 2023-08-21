@@ -8,7 +8,7 @@ export type PanelAppearance = {
   wide?: boolean;
 };
 
-export const CONTENT_WIDTH_NARROW = 800;
+export const CONTENT_WIDTH_NARROW = 880;
 export const CONTENT_WIDTH_WIDE = 3200;
 export const CONTENT_MARGIN_X_NARROW = 72;
 export const CONTENT_MARGIN_X_WIDE = 72;
@@ -57,12 +57,6 @@ export const useAppearanceState = defineStore("appearance", {
       return {
         paddingLeft: `${this.contentMarginX}px`,
         paddingRight: `${this.contentMarginX}px`,
-      };
-    },
-    contentMarginXAsMarginX() {
-      return {
-        marginLeft: `${this.contentMarginX}px`,
-        marginRight: `${this.contentMarginX}px`,
       };
     },
     baseClass(state) {

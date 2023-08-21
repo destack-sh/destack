@@ -60,7 +60,8 @@ class Tagging(HasCrud, HasSession, ModuleNode):
 class HasTags(StatementBase):
     tags: list[Tagging] = field(default_factory=list)
 
-    def _to_tag_key(self, key: typing.Union[str, "Tag", Tagging]) -> str:
+    @staticmethod
+    def _to_tag_key(key: typing.Union[str, "Tag", Tagging]) -> str:
         if isinstance(key, Tagging):
             key = key.key
         elif isinstance(key, Tag):
