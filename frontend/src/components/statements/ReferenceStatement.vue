@@ -125,7 +125,7 @@ defineExpose({
         {{ resolvedReference?.name ?? (context.statement.value.reference == null ? "..." : "???") }}
       </button>
       <StatementTags ref="tagsRef" class="ml-0.5" />
-      <StatementTriggers ref="tagsRef" class="ml-0.5" />
+      <StatementTriggers ref="triggersRef" class="ml-0.5" />
     </div>
     <!-- Controls -->
     <div

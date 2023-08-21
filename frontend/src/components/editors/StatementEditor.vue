@@ -72,6 +72,7 @@ const statementPath = computed(() => module.nodePathOf(statement.value));
       :readonly="bench.readonly"
       :path="statementPath ?? []"
       :self="(statementPath?.length ?? 0) - 1"
+      hide-wide-toggle
     />
     <PanelStatusNotice :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
     <!-- Loading -->
@@ -95,7 +96,7 @@ const statementPath = computed(() => module.nodePathOf(statement.value));
       <!-- Statement -->
       <Statement
         ref="statementComponentRef"
-        class="relative mx-auto w-full justify-between pb-10 pt-4"
+        class="relative mx-auto w-full justify-between"
         :class="appearance.baseClass"
         :style="{
           'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px',

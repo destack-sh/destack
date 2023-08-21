@@ -9,7 +9,6 @@ import {
   useBenchState,
   usePanelContext,
   type Action,
-  type PanelType,
   PANEL_ICONS_OUTLINE,
 } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
@@ -27,6 +26,7 @@ const props = defineProps<{
   path: NodeBase[];
   self: number;
   editing: boolean;
+  hideWideToggle?: boolean;
 }>();
 const emit = defineEmits<{ (e: "focus", v: NodeBase): void }>();
 
@@ -106,6 +106,7 @@ const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
         <component :is="action.icon" class="h-4 w-4" />
       </button>
       <button
+        v-if="!hideWideToggle"
         class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
         @click.stop="panelAppearance.wide = !panel.panel.value.effectiveWide"
       >

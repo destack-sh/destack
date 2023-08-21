@@ -54,7 +54,7 @@ class Trigger(ModuleNode, HasCrud, HasSession):
 
 
 @node
-class IsFlowable(Runnable, StatementBase):
+class IsFlowNode(Runnable, StatementBase):
     """A symbol that can participate in a flow."""
 
     triggers: list[Trigger] = field(default_factory=list)
@@ -63,6 +63,7 @@ class IsFlowable(Runnable, StatementBase):
         pass
 
     def _interp(self, scope: Scope) -> None:
+        # resolve triggers
         for trigger in self.triggers:
             # resolve runnable
             if trigger.runnable is not None and not isinstance(trigger.runnable, Runnable):
@@ -88,7 +89,7 @@ class IsFlowable(Runnable, StatementBase):
 
 @node
 class HasFlow(Runnable, StatementBase):
-    """A symbol that has a flow."""
+    """A symbol that has a flow of flow nodes."""
 
     def _clear(self) -> None:
         pass

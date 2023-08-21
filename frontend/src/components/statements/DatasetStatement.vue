@@ -356,7 +356,7 @@ watch(
     const targetMinTotalWidth =
       Math.min(panel.size.value.width - panel.panel.value.contentMarginX * 2, panel.panel.value.contentWidth) -
       context.xOffset.value -
-      8; // not sure why -8, probably some mx-1? borders?
+      8; // from Statement interface
     const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = context.allFields.value.map((f) =>
       getInterface(f)
     );
@@ -415,7 +415,7 @@ const gridBounding = useElementBounding(gridRef);
 const innerGridBounding = useElementBounding(innerGridRef);
 const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
-const hasFloatingHeader = computed(() => {
+const isHeaderRowFloating = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
   const editorTop = panel.pos.value.top + appearance.editorHeaderHeight;
   return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
@@ -921,15 +921,15 @@ defineExpose({
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
-        :class="(context.focused.value && !context.editing.value) || !hasFloatingHeader ? '' : 'bg-white'"
+        :class="(context.focused.value && !context.editing.value) || !isHeaderRowFloating ? '' : 'bg-white'"
         :style="{
-          position: hasFloatingHeader ? 'fixed' : 'absolute',
-          left: hasFloatingHeader
+          position: isHeaderRowFloating ? 'fixed' : 'absolute',
+          left: isHeaderRowFloating
             ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
             : -gridScrollOffsetX + 4 + 'px',
-          top: hasFloatingHeader ? panel.pos.value.top + appearance.editorHeaderHeight + 'px' : undefined,
+          top: isHeaderRowFloating ? panel.pos.value.top + appearance.editorHeaderHeight - 2 + 'px' : undefined,
           /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
-          clipPath: hasFloatingHeader ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
+          clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
         }"
       >
         <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">

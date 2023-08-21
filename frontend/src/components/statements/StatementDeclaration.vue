@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import {
+  STATEMENT_STANDALONE_TYPES,
   getStatementDescription,
   getStatementIconSolid,
   getStatementLabel,
@@ -27,6 +28,9 @@ context.syncName(
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
 
+const canOpenInStandaloneEditor = computed(
+  () => !context.standalone.value && STATEMENT_STANDALONE_TYPES.includes(context.statement.value.type)
+);
 const altKey = useKeyModifier("Alt");
 const panel = usePanelContext();
 
@@ -64,8 +68,12 @@ defineExpose({
     <EditableSpan
       ref="nameRef"
       class="text-md ml-[18px] px-0.5 font-semibold text-orange-600"
-      :class="altKey ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline' : 'cursor-text'"
-      @click="altKey && openInEditor()"
+      :class="
+        altKey && canOpenInStandaloneEditor
+          ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'
+          : 'cursor-text'
+      "
+      @click="altKey && canOpenInStandaloneEditor && openInEditor()"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"

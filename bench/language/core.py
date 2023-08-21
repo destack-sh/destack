@@ -28,6 +28,7 @@ from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 if typing.TYPE_CHECKING:
     from bench.language.mutate import ModuleMutation, ModuleMutator
     from bench.language.session import LogEntry, Run
+    from bench.language.tag import Tag, Tagging
     from bench.language.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -656,6 +657,22 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             statement._interp(statement)
 
 
+@dataclass
+class ResolvedStatement:
+    statement: "Statement"
+    tags: tuple["Tagging"] | None = None
+
+    def has_tag(self, tag: Union[str, "Tagging", "Tag"]) -> bool:
+        from bench.language import HasTags
+
+        if not isinstance(self.statement, HasTags):
+            return False
+        tag = HasTags._to_tag_key(tag)
+        return any(t.key == tag for t in self.tags or []) or any(
+            t.key == tag for t in self.statement.tags or []
+        )
+
+
 @node(tracked=["name"])
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A Bench statement."""
@@ -663,7 +680,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     file: File | None = None
     parent: Union["Statement", File] = None
     children: list["Statement"] | None = None
-    resolved_children: list["Statement"] | None = None
+    resolved_children: list[ResolvedStatement] | None = None
     order_key: str | None = None
     type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
@@ -739,15 +756,17 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self._resolve_children()
 
     def _resolve_children(self):
-        resolved_children = []
+        resolved_children: list[ResolvedStatement] = []
         for statement in self.children or []:
             if statement.type == StatementType.REFERENCE:
                 if isinstance(statement.reference, Statement):
-                    resolved_children.append(statement.reference)
+                    resolved_children.append(ResolvedStatement(statement.reference, statement.tags))
             elif statement.type == StatementType.BLOCK:
-                resolved_children.extend(statement.resolved_children)
+                resolved_children.extend(
+                    ResolvedStatement(s, statement.tags) for s in statement.children
+                )
             else:
-                resolved_children.append(statement)
+                resolved_children.append(ResolvedStatement(statement))
         self.resolved_children = resolved_children
 
     def get_children_by_type(
@@ -756,7 +775,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.resolved_children is None:
             raise RuntimeError(f"{self} is not indexed")
         types = [t if isinstance(t, StatementType) else t.type for t in types]
-        return [s for s in self.resolved_children if s.type in types]
+        return [s.statement for s in self.resolved_children if s.statement.type in types]
 
     def walk_descendants(self) -> typing.Iterator["Statement"]:
         """Yields all descendant statements in DFS order."""

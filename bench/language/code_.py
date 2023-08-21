@@ -18,7 +18,7 @@ from more_itertools import first, last
 
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import IssueType, LookupBy, Scope, Statement, StatementPath, node
-from bench.language.flow import HasFlow, IsFlowable
+from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
@@ -47,7 +47,7 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
+class Code(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
@@ -65,7 +65,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
         Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
-        IsFlowable._clear(self)
+        IsFlowNode._clear(self)
         HasFlow._clear(self)
         self._parse = None
         self._transform = None
@@ -77,7 +77,7 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
-        IsFlowable._interp(self, scope)
+        IsFlowNode._interp(self, scope)
         HasFlow._interp(self, scope)
 
         self._parse = _parse_code(self.code)
@@ -102,13 +102,14 @@ class Code(HasType, HasFlow, IsFlowable, HasTags, Runnable, Statement):
 
     @cached_property
     def cached(self) -> bool:
+        # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
         from bench.language.libs import symbolx_lib
 
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", statement_t=Tag))
 
     @cached_property
     def exported(self) -> bool:
-        from bench.language.libs import symbolx_lib
+        from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", statement_t=Tag))
 

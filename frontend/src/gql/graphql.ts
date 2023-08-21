@@ -397,6 +397,7 @@ export enum IssueType {
   Internal = "INTERNAL",
   MismatchedUnion = "MISMATCHED_UNION",
   MissingReference = "MISSING_REFERENCE",
+  UnclearIntent = "UNCLEAR_INTENT",
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 
