@@ -349,8 +349,8 @@ function getStatementBounding(statementId: string): { top: number; right: number
         :class="appearance.baseClass"
         :style="{
           'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px',
-          paddingLeft: `${panel.contentMarginX + 6}px`, // + for :StatementPadding
-          paddingRight: `${panel.contentMarginX + 6}px`,
+          paddingLeft: `${panel.contentMarginX + 8}px`, // + for :StatementPadding
+          paddingRight: `${panel.contentMarginX + 8}px`,
         }"
         v-model="name"
         @enter="goToContent"
