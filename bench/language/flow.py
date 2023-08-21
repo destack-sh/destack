@@ -171,7 +171,8 @@ class FlowProxy:  # :SyncProxy
 # :TriggerSchedule
 TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
 TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
-TRIGGER_INTERVAL_MIN = 300  # seconds :MinTriggerInterval
+TRIGGER_INTERVAL_USR_MIN = 300  # seconds :MinTriggerInterval
+TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
 class TriggerScheduleIterator:
@@ -201,18 +202,22 @@ class TriggerScheduleIterator:
 
         # :TriggerSchedule
         if self.type == ScheduleType.INTERVAL:
+            assert (self.trigger.interval or 0) >= TRIGGER_INTERVAL_ABS_MIN, "interval too small"
             self._next = TRIGGER_INTERVAL_ORIGIN_TIMESTAMP
             previous = self._next
-            while self._next < self.initial_now.timestamp():
+            initial_timestamp = self.initial_now.timestamp()
+            while self._next < initial_timestamp:
                 previous = self._next
                 self._next += self.trigger.interval
             self.last_occurrence_initial = datetime.fromtimestamp(previous, tz=pytz.utc)
         elif self.type == ScheduleType.CRON:
             if not croniter.is_valid(self.trigger.cron):
                 raise ValueError(f"invalid cron expression in {self.trigger}: {self.trigger.cron}")
-            self._croniter = croniter(self.trigger.cron, self.initial_now)
+            self._croniter = croniter(
+                self.trigger.cron, self.initial_now, max_years_between_matches=2
+            )
             self.last_occurrence_initial = croniter(self.trigger.cron, self.initial_now).get_prev(
-                self.trigger.cron
+                datetime
             )
         else:
             raise ValueError(f"unexpected schedule type in {self.trigger}: {self.type}")

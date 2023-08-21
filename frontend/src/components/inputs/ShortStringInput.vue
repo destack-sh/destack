@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { TypeHint, type Field } from "@/gql/graphql";
-import { ref, type Ref } from "vue";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{
   type: Field;
@@ -14,6 +14,8 @@ const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
 }>();
 
+const hasText = computed(() => (props.modelValue?.length ?? 0) > 0);
+
 defineExpose({
   focus: () => inputRef.value?.focus(),
   blur: () => inputRef.value?.blur(),
@@ -22,13 +24,13 @@ defineExpose({
 <template>
   <a
     v-if="preview && type.hint == TypeHint.Url"
-    class="h-full w-full text-gray-500 underline decoration-gray-300 underline-offset-4"
-    :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'"
-    :href="(modelValue ?? '').length > 0 ? modelValue : undefined"
+    class="h-full w-full text-gray-500 decoration-gray-300 underline-offset-4"
+    :class="[wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap', hasText ? 'underline' : '']"
+    :href="hasText ? modelValue : undefined"
     target="_blank"
   >
     <span @click.stop>{{ modelValue }}</span>
-    <template v-if="(modelValue ?? '') == ''">&nbsp;</template></a
+    <template v-if="!hasText">&nbsp;</template></a
   >
   <div v-else-if="preview" class="h-full w-full" :class="wrap ? 'whitespace-pre-wrap' : 'whitespace-nowrap'">
     {{ modelValue }}&nbsp;

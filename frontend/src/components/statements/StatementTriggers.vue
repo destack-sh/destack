@@ -129,7 +129,7 @@ const actions = computed(() => [
             class="flex flex-row justify-between gap-2.5"
             :class="[offset == 1 ? (trigger.active ? 'text-orange-600' : 'text-gray-700') : 'text-gray-400']"
           >
-            <span>{{ offset == 0 ? "last" : "next" }}</span>
+            <span>{{ { 0: "last", 1: "next" }[offset] ?? "then" }}</span>
             <span>
               {{ occurrence?.setZone(trigger.timezone ?? "UTC").toLocaleString(DateTime.DATETIME_FULL_WITH_SECONDS) }}
             </span>
