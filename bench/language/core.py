@@ -52,12 +52,6 @@ class ModuleObjectType(enum.StrEnum):
     COMMENT = "COMMENT"
 
 
-class InterpScope(enum.StrEnum):  # not sure if we still need this?
-    MODULE = "module"
-    FILE = "file"
-    STATEMENT = "statement"
-
-
 MOT = ModuleObjectType
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
@@ -94,7 +88,7 @@ class LookupBy(enum.StrEnum):
 
 
 @typing.dataclass_transform(field_specifiers=(dataclasses.Field, dataclasses.field, required_field))
-def node(cls: Optional[typing.Type] = None, tracked: list[str] = None):
+def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
     """
     Decorator alias for module node.
     Only tracked properties may be mutated during a session (by the user).
@@ -830,7 +824,7 @@ class StatementBase(abc.ABC):
 
     parent: Statement | File
     session: "Session"
-    resolved_children: list["Statement"]
+    resolved_children: list["ResolvedStatement"]
     _scopes_by_name: dict[str, Scope] | None
     _names_by_py_ident: dict[str, str] | None
 

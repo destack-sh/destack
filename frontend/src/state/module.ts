@@ -223,6 +223,14 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return undefined;
   }
 
+  function nodeOf(fileOrStatement: { id: string }): NodeBase | undefined {
+    const statement = idx.value?.statementsById[fileOrStatement.id];
+    if (statement != null) return statement as NodeBase;
+    const file = idx.value?.filesById[fileOrStatement.id];
+    if (file != null) return file as NodeBase;
+    return undefined;
+  }
+
   function contextOf(symbol: { id: string }) {
     for (const i of [idx.value, ...dependenciesIndex.value]) {
       if (i && symbol.id in i.statementsById) {
@@ -243,7 +251,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (id == undefined) {
       return undefined;
     }
-    // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
     for (const i of [idx.value, ...dependenciesIndex.value]) {
       if (i && id in i.statementsById) {
         return i.statementsById[id];
@@ -256,7 +263,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (id == undefined) {
       return undefined;
     }
-    // TODO @Performance: symbol lookup by id is awfully inefficient (iterates dependencies)
     for (const i of [idx.value, ...dependenciesIndex.value]) {
       if (i && id in i.fieldsById) {
         return i.fieldsById[id];
@@ -277,8 +283,19 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
   }
 
-  function localIssuesOf(statement: Ref<{ id: string }>) {
-    return computed(() => issues.value?.filter((e) => e.statement?.id == statement.value.id));
+  function issuesOfRef(node: Ref<{ id: string }>) {
+    return computed(() => issues.value?.filter((e) => e.parent?.id == node.value.id));
+  }
+
+  function issuesOf(node: { id: string }, filter?: { kind: IssueKind }): Issue[] {
+    return issues.value?.filter((e) => e.parent?.id == node.id && (filter == null || e.kind == filter.kind)) ?? [];
+  }
+
+  function issuesIn(node: { id: string }, filter?: { kind: IssueKind }): Issue[] {
+    const descendants = descendantsOf(node);
+    return issues.value?.filter(
+      (e) => descendants.find((d) => d.id == e.parent?.id) != null && (filter == null || e.kind == filter.kind)
+    );
   }
 
   function statementsLike(filter: Ref<StatementFilter> | StatementFilter) {
@@ -318,9 +335,13 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return tagsByKey;
   });
 
-  function getDescendantsOf(statementId: { id: string }) {
-    const statement = idx.value?.statementsById[statementId.id];
-    if (statement == null) return [];
+  function descendantsOf(node: { id: string }): Array<InterpStatement | InterpFile> {
+    const statement = idx.value?.statementsById[node.id];
+    if (statement == null) {
+      const file = idx.value?.filesById[node.id];
+      if (file == null) return [];
+      return idx.value?.statementsByFileId[file.id].flatMap((s) => descendantsOf(s)) ?? [];
+    }
     const descendants: InterpStatement[] = [];
     const walkDfs = (statement: InterpStatement) => {
       descendants.push(statement);
@@ -400,15 +421,18 @@ function _useModule(projectVersionId: Ref<string | null>) {
     contextOf,
     fieldOf,
     statementOf,
+    nodeOf,
     nodePathOf,
     relativePath,
     getTypedKey,
     effectiveTypeOf,
-    localIssuesOf,
+    issuesOfRef,
+    issuesOf,
+    issuesIn,
     statementsLike,
     tags,
     tagsByKey,
-    getDescendantsOf,
+    getDescendantsOf: descendantsOf,
   };
 }
 

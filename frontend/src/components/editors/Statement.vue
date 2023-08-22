@@ -427,7 +427,7 @@ function showActionsPopover() {
 }
 
 // runtime
-const issues = module.localIssuesOf(statement);
+const issues = module.issuesOfRef(statement);
 const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
 const hasErrors = computed(() => issues.value?.find((i) => i.kind == IssueKind.Error));
 

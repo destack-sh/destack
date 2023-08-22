@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 if TYPE_CHECKING:
-    from bench.language.core import File, InterpScope, Statement
+    from bench.language.core import File, Statement
 
 
 class IssueKind(enum.StrEnum):
@@ -78,19 +78,12 @@ class Issue:
     kind: IssueKind
     type: IssueType
     message: str
-    scope: Optional["InterpScope"] = None
     subject: Union["Statement", "Statement", "File", None] = None
 
     def __init__(
         self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
     ):
-        from bench.language.core import (
-            File,
-            InterpScope,
-            Statement,
-            StatementPath,
-            statement_path_as_str,
-        )
+        from bench.language.core import File, Statement, StatementPath, statement_path_as_str
 
         # auto convert kwargs
         for key, value in kwargs.items():
@@ -102,10 +95,8 @@ class Issue:
         self.type = type
         self.subject = subject
         if isinstance(subject, File):
-            self.scope = InterpScope.FILE
             self.subject = subject
         elif isinstance(subject, (Statement, Statement)):
-            self.scope = InterpScope.STATEMENT
             self.subject = subject
 
         if "subject" in type.description:
@@ -131,24 +122,6 @@ class Issue:
     @property
     def subject_id(self) -> UUID | None:
         return self.subject.id if self.subject is not None else None
-
-    @property
-    def statement_id(self) -> UUID | None:
-        from bench.language.core import InterpScope
-
-        if self.scope == InterpScope.STATEMENT:
-            return self.subject.id
-        return None
-
-    @property
-    def file_id(self) -> UUID | None:
-        from bench.language.core import InterpScope
-
-        if self.scope == InterpScope.FILE:
-            return self.subject.id
-        if self.scope == InterpScope.STATEMENT:
-            return self.subject.file.id
-        return None
 
     def to_error(self) -> BenchError:
         return BenchError(self)

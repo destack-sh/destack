@@ -62,11 +62,11 @@ export function useFileOps() {
             # :InterpFile :InterpStatement
             statements(filters: { isVisible: true }) {
               ...StatementContent
-              issues(filters: { scope: STATEMENT }) {
+              issues {
                 ...IssueContent
               }
             }
-            issues(filters: { scope: FILE }) {
+            issues {
               ...IssueContent
             }
           }

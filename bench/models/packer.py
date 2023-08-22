@@ -19,7 +19,7 @@ from django.db.models import Model, QuerySet
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
-from bench.language.core import InterpScope, ModuleObjectType
+from bench.language.core import ModuleObjectType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
 from bench.language.wire import ModuleTree, ModuleTreeData
@@ -322,7 +322,9 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
 @node_packer(MOT.FILE, wire.FileData, models.File)
 class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
-        return [models.Statement.objects.filter(file__in=nodes)]
+        return [
+            models.Statement.objects.filter(file__in=nodes),
+        ]
 
     def pack(self, file: models.File) -> wire.FileData:
         return wire.FileData(
@@ -353,6 +355,9 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
 
 @node_packer(MOT.STATEMENT, wire.StatementData, models.Statement)
 class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
+    def walk(self, nodes: list[models.Statement], tree: "PackContext") -> list[QuerySet[Model]]:
+        return [models.Issue.objects.filter(parent_statement__in=nodes)]
+
     def pack(self, statement: models.Statement) -> wire.StatementData:
         return wire.StatementData(
             id=statement.id,
@@ -713,7 +718,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
 
 
 @node_packer(MOT.FIELD, wire.FieldData, models.Field)
-class FieldPacker(StatementPacker, NodePacker[wire.FieldData, models.Field]):
+class FieldPacker(NodePacker[wire.FieldData, models.Field]):
     def pack(self, node: models.Field) -> wire.FieldData:
         return wire.FieldData(
             id=node.id,
@@ -822,8 +827,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
             id=issue.id,
-            parent_id=issue.statement_id or issue.file_id or issue.project_version_id,
-            scope=InterpScope(issue.scope),
+            parent_id=issue.parent_statement_id or issue.parent_file_id or issue.project_version_id,
             kind=IssueKind(issue.kind),
             type=IssueType(issue.type),
             message=issue.message,
@@ -834,24 +838,23 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     ) -> models.Issue:
         if isinstance(parent, models.Statement):
             project_version_id = parent.project_version_id
-            statement_id = parent.id
-            file_id = parent.file_id
+            parent_statement_id = parent.id
+            parent_file_id = parent.file_id
         elif isinstance(parent, models.File):
             project_version_id = parent.project_version_id
-            statement_id = None
-            file_id = parent.id
+            parent_statement_id = None
+            parent_file_id = parent.id
         elif isinstance(parent, models.ProjectVersion):
             project_version_id = parent.id
-            statement_id = None
-            file_id = None
+            parent_statement_id = None
+            parent_file_id = None
         else:
             raise ValueError(f"unexpected parent type: {parent}")
         return models.Issue(
             id=data.id,
             project_version_id=project_version_id,
-            file_id=file_id,
-            statement_id=statement_id,
-            scope=data.scope.value,
+            parent_file_id=parent_file_id,
+            parent_statement_id=parent_statement_id,
             kind=data.kind.value,
             type=data.type.value,
             message=data.message,

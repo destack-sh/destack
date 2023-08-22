@@ -1,7 +1,8 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
+import { IssueKind } from "@/gql/graphql";
 import { useBenchState, type FileHeader, type ViewId } from "@/state/bench";
-import { useCurrentModule } from "@/state/module";
+import { useCurrentModule, type NodeBase } from "@/state/module";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -34,12 +35,12 @@ const filesGrid = useNavigationGrid<"name", HTMLElement>(
 
 function focusFile(file: FileHeader) {
   const focusedViewId = bench.focusedViewId;
-  bench.focusFile(file);
+  bench.focusFile(file as NodeBase);
   bench.focusView(focusedViewId as ViewId); // keep focused view
 }
 
 function focusFileAndGoThere(file: FileHeader) {
-  bench.focusFile(file);
+  bench.focusFile(file as NodeBase);
 }
 
 // blur focused file if clicking outside file explorer
@@ -88,6 +89,17 @@ defineExpose({
         class="decoration-none inline select-none truncate text-ellipsis rounded-sm bg-transparent text-sm text-inherit placeholder-gray-400 outline-none"
       >
         {{ file.name.length > 0 ? file.name : "(Untitled)" }}
+      </span>
+      <!-- Extra info -->
+      <span class="absolute right-2.5 top-0.5 flex flex-row-reverse gap-0.5">
+        <!-- Issues -->
+        <span v-if="module.issuesIn(file, { kind: IssueKind.Warning }).length > 0" class="text-yellow-700">
+          {{ module.issuesIn(file, { kind: IssueKind.Warning }).length }}
+        </span>
+        <span v-if="module.issuesIn(file, { kind: IssueKind.Error }).length > 0" class="text-red-600">
+          {{ module.issuesIn(file, { kind: IssueKind.Error }).length }}
+        </span>
+        <!-- Other clients -->
       </span>
     </li>
   </ul>
