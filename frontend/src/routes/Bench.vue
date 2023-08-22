@@ -12,7 +12,7 @@ import HelpPopover from "@/components/bench/HelpPopover.vue";
 import NotificationPopover from "@/components/bench/NotificationPopover.vue";
 import ProjectPopover from "@/components/bench/ProjectPopover.vue";
 import SettingsPopover from "@/components/bench/SettingsPopover.vue";
-import PanelGroup from "@/components/editors/PanelGroup.vue";
+import PanelGroup from "@/components/panels/PanelGroup.vue";
 import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";

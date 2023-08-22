@@ -151,8 +151,16 @@ class WorkerSet(relay.Node):
     last_active_at: auto
 
 
+@strawberry.interface
+class HasTriggeredBy:
+    trigger_type: Optional[TriggerType]
+    trigger_user: Optional[Annotated["User", lazy(".user")]]
+    trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+    trigger: Optional[Annotated["Statement", lazy(".statement")]]
+
+
 @strawberry_django.type(models.Session)
-class Session(relay.Node):
+class Session(HasTriggeredBy, relay.Node):
     project: Annotated["Project", lazy(".project")]
     created_at: auto
     updated_at: auto
@@ -162,15 +170,15 @@ class Session(relay.Node):
     runs: list["Run"]
     # trigger
     trigger_type: Optional[TriggerType]
-    user: Optional[Annotated["User", lazy(".user")]]
-    access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+    trigger_user: Optional[Annotated["User", lazy(".user")]]
+    trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+    trigger: Optional[Annotated["Statement", lazy(".statement")]]
 
 
 @strawberry_django.type(models.Run)
-class Run(relay.Node):
+class Run(HasTriggeredBy, relay.Node):
     project_version: Annotated["ProjectVersion", lazy(".project")]
     session: Optional[Session]
-    trigger_type: Optional[TriggerType]
     root: Optional["Run"]
     parent: Optional["Run"]
     children: list["Run"]
@@ -189,6 +197,11 @@ class Run(relay.Node):
         only=["error"], resolver=get_error_nice
     )
     metadata: auto
+    # trigger
+    trigger_type: Optional[TriggerType]
+    trigger_user: Optional[Annotated["User", lazy(".user")]]
+    trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
+    trigger: Optional[Annotated["Statement", lazy(".statement")]]
 
 
 @strawberry.type

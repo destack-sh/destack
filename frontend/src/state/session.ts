@@ -107,7 +107,6 @@ export const RunContentType = graphql(/* GraphQL */ `
       tag
       name
     }
-    triggerType
     session {
       id
     }
@@ -133,6 +132,21 @@ export const RunContentType = graphql(/* GraphQL */ `
     }
     metadata
     runnable {
+      id
+      name
+    }
+    # trigger
+    triggerType
+    trigger {
+      id
+      name
+    }
+    triggerUser {
+      id
+      username
+      name
+    }
+    triggerAccessToken {
       id
       name
     }

@@ -70,7 +70,7 @@ const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }
 
 const context = useStatementContext();
 const module = useCurrentModule();
-const PAGE_SIZE = context.standalone.value ? 50 : 15;
+const PAGE_SIZE = context.standalone.value ? 50 : 10;
 const panel = usePanelContext();
 const addingDescription = ref(false);
 const showDescription = computed(() => description.value.length > 0 || addingDescription.value);

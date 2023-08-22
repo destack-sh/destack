@@ -13,7 +13,7 @@ const actions = useActions();
 
 const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
-    query emptyEditorSuggestedFiles($projectVersionId: GlobalID!) {
+    query emptyPanelsuggestedFiles($projectVersionId: GlobalID!) {
       projectVersion(id: $projectVersionId) {
         files(filters: { isVisible: true }) {
           id

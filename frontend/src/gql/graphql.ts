@@ -350,6 +350,13 @@ export type HasCrud = {
   updatedAt: Scalars["DateTime"];
 };
 
+export type HasTriggeredBy = {
+  trigger?: Maybe<Statement>;
+  triggerAccessToken?: Maybe<AccessToken>;
+  triggerType?: Maybe<TriggerType>;
+  triggerUser?: Maybe<User>;
+};
+
 export type Issue = ModuleNode &
   Node & {
     __typename?: "Issue";
@@ -1784,30 +1791,34 @@ export type RestoreInput = {
   projectVersionId: Scalars["GlobalID"];
 };
 
-export type Run = Node & {
-  __typename?: "Run";
-  children: Array<Run>;
-  createdAt: Scalars["DateTime"];
-  descendants: Array<Run>;
-  duration?: Maybe<Scalars["Float"]>;
-  error?: Maybe<Scalars["JSON"]>;
-  errorNice?: Maybe<RunError>;
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  inputs?: Maybe<Scalars["JSON"]>;
-  metadata?: Maybe<Scalars["JSON"]>;
-  outputs?: Maybe<Scalars["JSON"]>;
-  parent?: Maybe<Run>;
-  projectVersion: ProjectVersion;
-  root?: Maybe<Run>;
-  runnable?: Maybe<Statement>;
-  session?: Maybe<Session>;
-  startedAt?: Maybe<Scalars["DateTime"]>;
-  status: RunStatus;
-  terminatedAt?: Maybe<Scalars["DateTime"]>;
-  triggerType?: Maybe<TriggerType>;
-  updatedAt: Scalars["DateTime"];
-};
+export type Run = HasTriggeredBy &
+  Node & {
+    __typename?: "Run";
+    children: Array<Run>;
+    createdAt: Scalars["DateTime"];
+    descendants: Array<Run>;
+    duration?: Maybe<Scalars["Float"]>;
+    error?: Maybe<Scalars["JSON"]>;
+    errorNice?: Maybe<RunError>;
+    /** The Globally Unique ID of this object */
+    id: Scalars["GlobalID"];
+    inputs?: Maybe<Scalars["JSON"]>;
+    metadata?: Maybe<Scalars["JSON"]>;
+    outputs?: Maybe<Scalars["JSON"]>;
+    parent?: Maybe<Run>;
+    projectVersion: ProjectVersion;
+    root?: Maybe<Run>;
+    runnable?: Maybe<Statement>;
+    session?: Maybe<Session>;
+    startedAt?: Maybe<Scalars["DateTime"]>;
+    status: RunStatus;
+    terminatedAt?: Maybe<Scalars["DateTime"]>;
+    trigger?: Maybe<Statement>;
+    triggerAccessToken?: Maybe<AccessToken>;
+    triggerType?: Maybe<TriggerType>;
+    triggerUser?: Maybe<User>;
+    updatedAt: Scalars["DateTime"];
+  };
 
 export type RunCodeFrame = {
   __typename?: "RunCodeFrame";
@@ -1934,21 +1945,23 @@ export type SecretUpdateInput = {
   value: Scalars["JSON"];
 };
 
-export type Session = Node & {
-  __typename?: "Session";
-  accessToken?: Maybe<AccessToken>;
-  closedAt?: Maybe<Scalars["DateTime"]>;
-  createdAt: Scalars["DateTime"];
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  metadata?: Maybe<Scalars["JSON"]>;
-  openedAt?: Maybe<Scalars["DateTime"]>;
-  project: Project;
-  runs: Array<Run>;
-  triggerType?: Maybe<TriggerType>;
-  updatedAt: Scalars["DateTime"];
-  user?: Maybe<User>;
-};
+export type Session = HasTriggeredBy &
+  Node & {
+    __typename?: "Session";
+    closedAt?: Maybe<Scalars["DateTime"]>;
+    createdAt: Scalars["DateTime"];
+    /** The Globally Unique ID of this object */
+    id: Scalars["GlobalID"];
+    metadata?: Maybe<Scalars["JSON"]>;
+    openedAt?: Maybe<Scalars["DateTime"]>;
+    project: Project;
+    runs: Array<Run>;
+    trigger?: Maybe<Statement>;
+    triggerAccessToken?: Maybe<AccessToken>;
+    triggerType?: Maybe<TriggerType>;
+    triggerUser?: Maybe<User>;
+    updatedAt: Scalars["DateTime"];
+  };
 
 export type SessionChange = {
   __typename?: "SessionChange";
@@ -2650,11 +2663,11 @@ export type NotificationsQuery = {
   } | null;
 };
 
-export type EmptyEditorSuggestedFilesQueryVariables = Exact<{
+export type EmptyPanelsuggestedFilesQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type EmptyEditorSuggestedFilesQuery = {
+export type EmptyPanelsuggestedFilesQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
@@ -5291,10 +5304,10 @@ export type RunContentFragment = {
   terminatedAt?: any | null;
   duration?: number | null;
   status: RunStatus;
-  triggerType?: TriggerType | null;
   inputs?: any | null;
   outputs?: any | null;
   metadata?: any | null;
+  triggerType?: TriggerType | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
@@ -5314,6 +5327,9 @@ export type RunContentFragment = {
     }> | null;
   } | null;
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  trigger?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  triggerUser?: { __typename?: "User"; id: any; username: string; name: string } | null;
+  triggerAccessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "RunContentFragment" };
 
 export type LogEntryContentFragment = {
@@ -6629,7 +6645,6 @@ export const RunContentFragmentDoc = {
               ],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "session" },
@@ -6686,6 +6701,41 @@ export const RunContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "runnable" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          { kind: "Field", name: { kind: "Name", value: "triggerType" } },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "trigger" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerUser" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "username" } },
+                { kind: "Field", name: { kind: "Name", value: "name" } },
+              ],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "triggerAccessToken" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -6982,13 +7032,13 @@ export const NotificationsDocument = {
     },
   ],
 } as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
-export const EmptyEditorSuggestedFilesDocument = {
+export const EmptyPanelsuggestedFilesDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "emptyEditorSuggestedFiles" },
+      name: { kind: "Name", value: "emptyPanelsuggestedFiles" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7047,7 +7097,7 @@ export const EmptyEditorSuggestedFilesDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<EmptyEditorSuggestedFilesQuery, EmptyEditorSuggestedFilesQueryVariables>;
+} as unknown as DocumentNode<EmptyPanelsuggestedFilesQuery, EmptyPanelsuggestedFilesQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [

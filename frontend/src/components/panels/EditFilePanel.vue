@@ -1,14 +1,14 @@
 <script lang="ts" setup>
-import PanelStatusNotice from "@/components/editors/PanelStatusNotice.vue";
-import PanelHeader from "@/components/editors/PanelHeader.vue";
-import StatementComponent from "@/components/editors/Statement.vue";
-import StatementAddArea from "@/components/editors/StatementAddArea.vue";
-import TitleBanner from "@/components/editors/TitleBanner.vue";
+import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
+import PanelHeader from "@/components/panels/PanelHeader.vue";
+import StatementComponent from "@/components/panels/Statement.vue";
+import StatementAddArea from "@/components/panels/StatementAddArea.vue";
+import TitleBanner from "@/components/panels/TitleBanner.vue";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { FileEditor, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
+import { EditFilePanel, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule, type Statement, mergeNodePaths } from "@/state/module";
@@ -23,7 +23,7 @@ import { newFileId } from "@/state/operations/file";
 import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 
-const props = defineProps<{ panel: PanelContext<FileEditor>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();
@@ -280,9 +280,9 @@ const completePath = computed(() => {
 
 // statement add areas (computed absolutely because I'm so tired of flex)
 const statementAddAreaPositionX = computed(() => {
-  const editorSize = props.panel.size.value;
-  if (editorSize.width > panel.value.contentWidthWithMargin) {
-    const marginX = (editorSize.width - panel.value.contentWidth) / 2;
+  const panelsize = props.panel.size.value;
+  if (panelsize.width > panel.value.contentWidthWithMargin) {
+    const marginX = (panelsize.width - panel.value.contentWidth) / 2;
     return {
       width: panel.value.contentWidth - 4 + "px",
       marginLeft: marginX - 4 + "px", // no, not sure where the 4 comes from
@@ -290,7 +290,7 @@ const statementAddAreaPositionX = computed(() => {
     };
   } else {
     return {
-      width: editorSize.width - panel.value.contentMarginX * 2 + "px",
+      width: panelsize.width - panel.value.contentMarginX * 2 + "px",
       marginLeft: panel.value.contentMarginX + "px",
       marginRight: panel.value.contentMarginX + "px",
     };

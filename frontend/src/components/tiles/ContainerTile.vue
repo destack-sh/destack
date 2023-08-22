@@ -13,7 +13,7 @@ const labelPosition = computed(() => props.labelPosition ?? "above");
     <!-- Label above -->
     <span v-if="label && labelPosition == 'above'" class="px-2 text-sm font-semibold"
       >{{ label }}
-      <span v-if="subLabel" class="ml-1 font-light text-gray-400">{{ subLabel }}</span>
+      <span v-if="subLabel" class="ml-1 font-normal text-gray-400">{{ subLabel }}</span>
     </span>
     <div
       class="flex h-full w-full flex-1 flex-col rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
@@ -21,7 +21,7 @@ const labelPosition = computed(() => props.labelPosition ?? "above");
       <!-- Label inside on top -->
       <span v-if="label && labelPosition == 'top'" class="text-sm font-semibold"
         >{{ label }}
-        <span v-if="subLabel" class="ml-1 font-light text-gray-400">{{ subLabel }}</span>
+        <span v-if="subLabel" class="ml-1 font-normal text-gray-400">{{ subLabel }}</span>
       </span>
       <!-- Content -->
       <slot />

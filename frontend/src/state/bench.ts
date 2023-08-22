@@ -26,11 +26,16 @@ import {
   ArrowRightIcon,
   ArrowsPointingInIcon,
   ArrowsPointingOutIcon,
+  Bars4Icon as Bars4IconOutline,
   CodeBracketIcon as CodeBracketIconOutline,
-  WindowIcon as WindowIconOutline,
+  PlayIcon as PlayIconOutline,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
-import { CodeBracketIcon as CodeBracketIconSolid, WindowIcon as WindowIconSolid } from "@heroicons/vue/24/solid";
+import {
+  CodeBracketIcon as CodeBracketIconSolid,
+  PlayIcon as PlayIconSolid,
+  Bars4Icon as Bars4IconSolid,
+} from "@heroicons/vue/24/solid";
 import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -49,9 +54,9 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";
 
-export type PanelType = "file" | "statement" | "quick-run";
+export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 
-const BENCH_STATE_VERSION = 3;
+const BENCH_STATE_VERSION = 4;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -247,10 +252,10 @@ export const useBenchState = defineStore("bench", {
       return this.panels.find((e) => e.id == this.focusedPanelId);
     },
     focusedFileId(): string | null {
-      return this.focusedPanel?.type == "file" ? (this.focusedPanel as FileEditor).fileId : null;
+      return this.focusedPanel?.type == "edit-file" ? (this.focusedPanel as EditFilePanel).fileId : null;
     },
-    focusedFile(): FileEditor | undefined {
-      return this.focusedPanel?.type == "file" ? (this.focusedPanel as FileEditor) : undefined;
+    focusedFile(): EditFilePanel | undefined {
+      return this.focusedPanel?.type == "edit-file" ? (this.focusedPanel as EditFilePanel) : undefined;
     },
     focusedStatementId(): string | null {
       return this.focusedFile?.activeStatementId ?? null;
@@ -378,10 +383,10 @@ export const useBenchState = defineStore("bench", {
     },
 
     openFile(file: NodeBase, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
-      let panel = this.panels.find((e) => e.type == "file" && (e as FileEditor).fileId == file.id);
+      let panel = this.panels.find((e) => e.type == "edit-file" && (e as EditFilePanel).fileId == file.id);
       if (!panel || options?.create) {
         console.log(`create new file panel for ${file.id} ${file.name}`);
-        panel = new FileEditor(file);
+        panel = new EditFilePanel(file);
         panel.onDeserialized(this);
       }
       this.openPanel(panel, options?.group);
@@ -395,10 +400,12 @@ export const useBenchState = defineStore("bench", {
       statement: { id: string; name?: string | null },
       options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
     ): Panel {
-      let panel = this.panels.find((e) => e.type == "statement" && (e as StatementEditor).statementId == statement.id);
+      let panel = this.panels.find(
+        (e) => e.type == "edit-statement" && (e as EditStatementPanel).statementId == statement.id
+      );
       if (!panel || options?.create) {
         console.log(`create new statement panel for ${statement.name}`);
-        panel = new StatementEditor(statement);
+        panel = new EditStatementPanel(statement);
         panel.appearance.wide = true; // default to wide
         panel.onDeserialized(this);
       }
@@ -413,10 +420,10 @@ export const useBenchState = defineStore("bench", {
       statement: { id: string; name?: string | null },
       options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
     ): Panel {
-      let panel = this.panels.find((e) => e.type == "quick-run" && (e as QuickRunPanel).statementId == statement.id);
+      let panel = this.panels.find((e) => e.type == "launch-run" && (e as LaunchRunPanel).statementId == statement.id);
       if (!panel || options?.create) {
         console.log(`create new launch panel for ${statement.name}`);
-        panel = new QuickRunPanel(statement);
+        panel = new LaunchRunPanel(statement);
         panel.onDeserialized(this);
       }
       this.openPanel(panel, options?.group);
@@ -516,8 +523,8 @@ export const useBenchState = defineStore("bench", {
       const targetRefs = Object.values(refMappings);
       for (const panel of this.panels) {
         let panelRef = null;
-        if (panel.type == "file") {
-          panelRef = (panel as FileEditor).fileId;
+        if (panel.type == "edit-file") {
+          panelRef = (panel as EditFilePanel).fileId;
         }
         if (panelRef != null && !targetRefs.includes(panelRef)) {
           console.debug(`close outdated panel ${panel.path} (${panel.id} pointed to ${panelRef})`);
@@ -595,7 +602,7 @@ export function useBenchPersistence(minIntervalMs = 1000) {
         console.log(`restored bench state for project ${projectId}`);
         return true;
       } catch (e) {
-        console.error(`unable to restore bench state for project ${projectId}`, e);
+        console.warn(`unable to restore bench state for project ${projectId}`, e);
       }
     }
     return false;
@@ -944,14 +951,14 @@ export abstract class NavigablePanel extends Panel {
   }
 }
 
-export class FileEditor extends NavigablePanel {
-  type = "file" as const;
+export class EditFilePanel extends NavigablePanel {
+  type = "edit-file" as const;
   fileId: string;
   foldedStatementContentIds?: string[] = [];
   foldedStatementTreeIds?: string[] = [];
 
   constructor(file: NodeBase) {
-    super("file", file.id + "-" + randomHexString(), file.name ?? "(Untitled)", file.name ?? "(Untitled)", null);
+    super("edit-file", file.id + "-" + randomHexString(), file.name ?? "(Untitled)", file.name ?? "(Untitled)", null);
     this.fileId = file.id;
   }
 
@@ -992,16 +999,16 @@ export class FileEditor extends NavigablePanel {
   static parsePath(path: string, module: ModuleIndex): Panel | null {
     const matchingFile = Object.values(module.filesById).find((f) => prettifySlug(f.name) == path);
     if (matchingFile == null) return null;
-    return new FileEditor(matchingFile as NodeBase);
+    return new EditFilePanel(matchingFile as NodeBase);
   }
 }
 
-export class StatementEditor extends NavigablePanel {
-  type = "statement" as const;
+export class EditStatementPanel extends NavigablePanel {
+  type = "edit-statement" as const;
   statementId: string;
 
   constructor(statement: { id: string; name?: string | null }) {
-    super("statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
+    super("edit-statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
     this.statementId = statement.id;
   }
 
@@ -1030,12 +1037,12 @@ export class StatementEditor extends NavigablePanel {
       (s) => prettifySlug(s.name ?? "") == statementName
     );
     if (matchingStatement == null) return null;
-    return new StatementEditor(matchingStatement);
+    return new EditStatementPanel(matchingStatement);
   }
 }
 
-export class QuickRunPanel extends Panel {
-  type = "quick-run" as const;
+export class LaunchRunPanel extends Panel {
+  type = "launch-run" as const;
   statementId: string;
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
@@ -1045,7 +1052,7 @@ export class QuickRunPanel extends Panel {
   lastSessionId?: string;
 
   constructor(statement: { id: string; name?: string | null; __typename?: string }) {
-    super("quick-run", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
+    super("launch-run", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
     this.statementId = statement.id;
     if (statement.__typename == "Task") {
       this.statementType = StatementType.Task;
@@ -1074,7 +1081,7 @@ export class QuickRunPanel extends Panel {
       (s) => prettifySlug(s.name ?? "") == statementName
     );
     if (matchingStatement == null) return null;
-    return new QuickRunPanel(matchingStatement);
+    return new LaunchRunPanel(matchingStatement);
   }
 
   get hasWhiteBackground() {
@@ -1086,22 +1093,92 @@ export class QuickRunPanel extends Panel {
   }
 }
 
+export class RunsPanel extends Panel {
+  type = "view-runs" as const;
+
+  constructor() {
+    super("view-runs", "runs-" + randomHexString(), "Runs", "Runs");
+  }
+
+  resetId(): void {
+    this.id = "runs-" + randomHexString();
+  }
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    return null;
+  }
+
+  get hasWhiteBackground() {
+    return false;
+  }
+}
+
+export class RunPanel extends Panel {
+  type = "view-run" as const;
+  runId: string;
+
+  constructor(run: { id: string }) {
+    super("view-run", run.id + "-" + randomHexString(), "Run", "Run");
+    this.runId = run.id;
+  }
+
+  resetId(): void {
+    this.id = this.runId + "-" + randomHexString();
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    return null;
+  }
+
+  get hasWhiteBackground() {
+    return false;
+  }
+}
+
+export class LogsPanel extends Panel {
+  type = "view-logs" as const;
+
+  constructor() {
+    super("view-logs", "logs-" + randomHexString(), "Logs", "Logs");
+  }
+
+  resetId(): void {
+    this.id = "logs-" + randomHexString();
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    return null;
+  }
+
+  get hasWhiteBackground() {
+    return false;
+  }
+}
+
 export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
-  file: FileEditor as any,
-  statement: StatementEditor as any,
-  "quick-run": QuickRunPanel as any, // don't care about constructor type
+  "edit-file": EditFilePanel as any,
+  "edit-statement": EditStatementPanel as any,
+  "launch-run": LaunchRunPanel as any, // don't care about constructor type
+  "view-runs": RunsPanel as any,
+  "view-run": RunPanel as any,
+  "view-logs": LogsPanel as any,
 };
 
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
-  file: CodeBracketIconOutline,
-  statement: CodeBracketIconOutline,
-  "quick-run": WindowIconOutline,
+  "edit-file": CodeBracketIconOutline,
+  "edit-statement": CodeBracketIconOutline,
+  "launch-run": PlayIconOutline,
+  "view-runs": PlayIconOutline,
+  "view-run": PlayIconOutline,
+  "view-logs": Bars4IconOutline,
 };
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
-  file: CodeBracketIconSolid,
-  statement: CodeBracketIconSolid,
-  "quick-run": WindowIconSolid,
+  "edit-file": CodeBracketIconSolid,
+  "edit-statement": CodeBracketIconSolid,
+  "launch-run": PlayIconSolid,
+  "view-runs": PlayIconSolid,
+  "view-run": PlayIconSolid,
+  "view-logs": Bars4IconSolid,
 };
 
 function instantiate(panelData: any, bench: ReturnType<typeof useBenchState>): Panel {
