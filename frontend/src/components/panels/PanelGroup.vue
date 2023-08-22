@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
-import PanelInterface from "@/components/editors/Panel.vue";
-import BlankPanel from "@/components/editors/BlankPanel.vue";
+import PanelInterface from "@/components/panels/PanelInterface.vue";
+import BlankPanel from "@/components/panels/BlankPanel.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type Panel, type PanelGroup } from "@/state/bench";
@@ -39,7 +39,7 @@ watch(
 );
 
 // compute editor size absolutely
-const editorSize = computed(() => {
+const panelsize = computed(() => {
   return {
     width: containerSize.width.value + "px",
     height: containerSize.height.value - (bench.showPanelGroupHeader ? appearance.editorHeaderHeight : 0) + "px",
@@ -58,7 +58,7 @@ async function createFileInPanelGroup() {
 }
 </script>
 <template>
-  <!-- Tabbed editors for this group -->
+  <!-- Tabbed panels for this group -->
   <div class="relative flex flex-col" ref="containerRef">
     <TabGroup :selected-index="selectedTab" :default-index="selectedTab">
       <!-- Tabs -->
@@ -108,14 +108,14 @@ async function createFileInPanelGroup() {
         </button>
       </TabList>
       <!-- Contents -->
-      <TabPanels :style="editorSize">
-        <!-- Only file editors have a white background :FileBackground -->
+      <TabPanels :style="panelsize">
+        <!-- Only file panels have a white background :FileBackground -->
         <TabPanel
           :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
           class="overflow-y-scroll outline-none"
           :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50']"
-          :style="editorSize"
+          :style="panelsize"
           v-for="e in group.panels"
           :key="e.id"
           unmount

@@ -1,16 +1,16 @@
 <script lang="ts" setup>
-import PanelStatusNotice from "@/components/editors/PanelStatusNotice.vue";
-import Statement from "@/components/editors/Statement.vue";
-import PanelHeader from "@/components/editors/PanelHeader.vue";
+import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
+import Statement from "@/components/panels/Statement.vue";
+import PanelHeader from "@/components/panels/PanelHeader.vue";
 import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type PanelContext, type StatementEditor, type FileHeader } from "@/state/bench";
+import { useBenchState, type PanelContext, type EditStatementPanel, type FileHeader } from "@/state/bench";
 import { useCurrentModule, type Statement as StatementType } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 
-const props = defineProps<{ panel: PanelContext<StatementEditor>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<EditStatementPanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
 const bench = useBenchState();
 const module = useCurrentModule();

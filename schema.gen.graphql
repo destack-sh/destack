@@ -321,6 +321,13 @@ interface HasCrud {
   lastEditedBy: User
 }
 
+interface HasTriggeredBy {
+  triggerType: TriggerType
+  triggerUser: User
+  triggerAccessToken: AccessToken
+  trigger: Statement
+}
+
 type Issue implements Node & ModuleNode {
   id: GlobalID!
   parent: ModuleNode
@@ -1373,12 +1380,16 @@ input RestoreInput {
   projectVersionId: GlobalID!
 }
 
-type Run implements Node {
+type Run implements HasTriggeredBy & Node {
+  triggerType: TriggerType
+  triggerUser: User
+  triggerAccessToken: AccessToken
+  trigger: Statement
+
   """The Globally Unique ID of this object"""
   id: GlobalID!
   projectVersion: ProjectVersion!
   session: Session
-  triggerType: TriggerType
   root: Run
   parent: Run
   children: [Run!]!
@@ -1517,7 +1528,12 @@ input SecretUpdateInput {
   value: JSON!
 }
 
-type Session implements Node {
+type Session implements HasTriggeredBy & Node {
+  triggerType: TriggerType
+  triggerUser: User
+  triggerAccessToken: AccessToken
+  trigger: Statement
+
   """The Globally Unique ID of this object"""
   id: GlobalID!
   project: Project!
@@ -1527,9 +1543,6 @@ type Session implements Node {
   closedAt: DateTime
   metadata: JSON
   runs: [Run!]!
-  triggerType: TriggerType
-  user: User
-  accessToken: AccessToken
 }
 
 type SessionChange {

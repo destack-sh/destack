@@ -1,7 +1,7 @@
-import type StatementComponent from "@/components/editors/Statement.vue";
+import type StatementComponent from "@/components/panels/Statement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
-import { FileEditor, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
+import { EditFilePanel, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
 import { orderStatements, TypeFlag, type OrderedStatement, type Field, type Statement } from "@/state/module";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
@@ -12,7 +12,7 @@ import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
 export type FileState = {
-  panel: FileEditor;
+  panel: EditFilePanel;
   editing: boolean;
   focused: boolean;
   file: FileHeader;

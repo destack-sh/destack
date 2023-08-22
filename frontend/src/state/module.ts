@@ -17,7 +17,7 @@ import {
   type Trigger as TriggerGql,
 } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
-import { FileEditor, useBenchState } from "@/state/bench";
+import { EditFilePanel, useBenchState } from "@/state/bench";
 import { InterpFileType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
@@ -502,7 +502,7 @@ export function useNavigation() {
     if (!context?.file) return;
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
-    const panel = bench.focusFile(context.file as any) as FileEditor;
+    const panel = bench.focusFile(context.file as any) as EditFilePanel;
     panel.editElement(symbol as any);
   }
 

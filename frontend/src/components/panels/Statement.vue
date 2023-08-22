@@ -18,7 +18,7 @@ import {
   usePanelContext,
   type StatementAction,
   type StatementHeader,
-  FileEditor,
+  EditFilePanel,
   type PanelGroup,
   type FileHeader,
 } from "@/state/bench";
@@ -76,18 +76,18 @@ const canContentFold = computed(
     statement.value.type != StatementType.Block
 );
 const isContentFolded = computed(
-  () => !props.standalone && (panel.panel.value as FileEditor).isStatementContentFolded(statement.value)
+  () => !props.standalone && (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value)
 );
 
 function toggleContentFold(descendants?: boolean) {
   if (props.standalone) return;
   if (descendants) {
-    (panel.panel.value as FileEditor).setStatementContentsFolded(
+    (panel.panel.value as EditFilePanel).setStatementContentsFolded(
       module.getDescendantsOf(statement.value),
       !isContentFolded.value
     );
   } else {
-    (panel.panel.value as FileEditor).toggleStatementContentFolded(statement.value);
+    (panel.panel.value as EditFilePanel).toggleStatementContentFolded(statement.value);
   }
 }
 

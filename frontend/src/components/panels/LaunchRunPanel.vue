@@ -1,13 +1,13 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import PanelHeader from "@/components/editors/PanelHeader.vue";
+import PanelHeader from "@/components/panels/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type PanelContext, type StatementAction, type QuickRunPanel } from "@/state/bench";
+import { useBenchState, type PanelContext, type StatementAction, type LaunchRunPanel } from "@/state/bench";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
 import { PlayIcon } from "@heroicons/vue/24/solid";
 import { computed, ref, watch, watchEffect } from "vue";
@@ -15,9 +15,10 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { StopIcon } from "@heroicons/vue/24/outline";
+import { useTiling } from "@/state/screen";
 
 const INLINE_RUNS_LIMIT = 10;
-const props = defineProps<{ panel: PanelContext<QuickRunPanel>; focused: boolean }>();
+const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
 }>();
@@ -25,7 +26,7 @@ const emit = defineEmits<{
 const bench = useBenchState();
 const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
-const editorSize = computed(() => props.panel.size.value);
+const panelsize = computed(() => props.panel.size.value);
 const now = useTimeFromNow();
 
 // state
@@ -125,32 +126,7 @@ async function cancel() {
   await sessions.cancel(currentRun.value);
 }
 
-// tiling
-const gridStepX = ref(36); // p-9
-const gridStepY = ref(18); // p-4.5
-
-function getTileWidth(targetWidth?: number) {
-  return Math.min(
-    targetWidth ?? panel.value.contentWidth,
-    props.panel.size.value.width - 2 * panel.value.contentMarginX
-  );
-}
-
-function getTileOffsetX(targetWidth?: number) {
-  return (props.panel.size.value.width - getTileWidth(targetWidth)) / 2;
-}
-
-function getTilePositionX(targetWidth?: number) {
-  const tileWidth = getTileWidth(targetWidth);
-  const tileOffsetX = getTileOffsetX(targetWidth);
-  return {
-    width: tileWidth + "px",
-    marginLeft: tileOffsetX + "px",
-    marginRight: tileOffsetX + "px",
-  };
-}
-
-const baseTilePositionX = computed(() => getTilePositionX());
+const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(props.panel);
 
 // navigation
 
@@ -168,7 +144,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex flex-col" :style="{ minHeight: editorSize.height + 'px' }">
+  <div class="relative flex flex-col" :style="{ minHeight: panelsize.height + 'px' }">
     <!-- Fixed inline header -->
     <PanelHeader
       class="border-b border-orange-900 border-opacity-[12%]"
@@ -186,7 +162,7 @@ defineExpose({
         marginTop: appearance.editorHeaderHeight + 'px',
         paddingTop: gridStepY + 'px',
         paddingBottom: gridStepY + 'px',
-        minHeight: editorSize.height - appearance.editorHeaderHeight + 'px',
+        minHeight: panelsize.height - appearance.editorHeaderHeight + 'px',
       }"
     >
       <!-- Header -->
@@ -220,21 +196,12 @@ defineExpose({
       </div>
       <template v-else>
         <!-- Input -->
-        <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
-          <StructTile
-            v-if="inputFields.length > 0"
-            v-model="panel.inputs"
-            :fields="inputFields"
-            full-inputs
-            readonly-type
-            class=""
-          />
-          <div v-else class="flex h-full w-full flex-col items-center justify-center">
-            <span class="text-sm text-gray-400">No input</span>
-          </div>
+        <ContainerTile v-if="inputFields.length > 0" label="Input" :style="{ ...baseTilePositionX }">
+          <StructTile v-model="panel.inputs" :fields="inputFields" full-inputs readonly-type class="" />
         </ContainerTile>
         <!-- Trace -->
         <ContainerTile
+          v-if="panel.lastRunId"
           label="Trace"
           :sub-label="
             panel.lastRunTerminatedAt != null
@@ -243,13 +210,11 @@ defineExpose({
           "
           :style="{ ...baseTilePositionX }"
         >
-          <TraceTile v-if="panel.lastRunId" :root-id="panel.lastRunId" layout="list" live />
-          <div v-else class="flex h-full w-full flex-col items-center justify-center">
-            <span class="text-sm text-gray-400">No trace</span>
-          </div>
+          <TraceTile :root-id="panel.lastRunId" layout="list" live />
         </ContainerTile>
         <!-- Output -->
         <ContainerTile
+          v-if="panel.lastOutput && outputFields.length > 0"
           label="Output"
           :sub-label="
             panel.lastRunTerminatedAt != null
@@ -258,19 +223,15 @@ defineExpose({
           "
           :style="{ ...baseTilePositionX }"
         >
-          <StructTile
-            v-if="panel.lastOutput && outputFields.length > 0"
-            :model-value="panel.lastOutput"
-            :fields="outputFields"
-            readonly
-            class=""
-          />
-          <div v-else class="flex h-full w-full flex-col items-center justify-center">
-            <span class="text-sm text-gray-400">No output</span>
-          </div>
+          <StructTile :model-value="panel.lastOutput" :fields="outputFields" readonly class="" />
         </ContainerTile>
         <!-- Runs -->
-        <ContainerTile v-if="statement != null" label="Runs" :style="{ ...baseTilePositionX }">
+        <ContainerTile
+          v-if="statement != null"
+          label="Runs"
+          :sub-label="`last ${INLINE_RUNS_LIMIT}`"
+          :style="{ ...baseTilePositionX }"
+        >
           <RunsTile
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"

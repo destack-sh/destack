@@ -2,16 +2,15 @@
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useElementRefs } from "@/composables/useGrid";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, type Run, TriggerType } from "@/gql/graphql";
+import { type Run, TriggerType } from "@/gql/graphql";
 import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, TypeFlag, useNavigation } from "@/state/module";
-import { ChevronDoubleDownIcon, ChevronDoubleUpIcon } from "@heroicons/vue/24/solid";
 import { useElementSize, useKeyModifier } from "@vueuse/core";
 import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import RunTile from "@/components/tiles/RunTile.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 
 const props = defineProps<{
   runnableId: string;
@@ -42,13 +41,12 @@ const { runs, loading, totalCount } = useRuns(
     runId: ref(null),
     rootOnly: toRef(props, "rootOnly"),
   },
-  { live: props.live, limit: props.limit }
+  { live: props.live, limit: props.limit, count: true }
 );
 const runRefs = useElementRefs<HTMLDivElement>();
 const statement = computed(() => module.statementOf(props.runnableId));
 const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
 const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
-const expandedRunId = ref<string | null>(null);
 
 // navigation
 
@@ -58,30 +56,9 @@ const altKey = useKeyModifier("Alt");
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
-const previewFields = computed(() => [...inputFields.value.slice(0, 1), ...outputFields.value.slice(0, 2)]);
-const headerHeight = 64;
-const bodyHeight = 512;
-const metadataWidth = 200;
-const previewWidth = computed(() => {
-  return containerSize.width.value - metadataWidth - 4 * 2;
-});
-
-function toggleExpanded(runId: string) {
-  if (expandedRunId.value == runId) {
-    expandedRunId.value = null;
-  } else {
-    expandedRunId.value = runId;
-  }
-}
-
-function isExpanded(runId: string) {
-  return expandedRunId.value == runId;
-}
 </script>
 <template>
   <div ref="containerRef" class="flex flex-col">
-    <!-- Header with filters  -->
-    <!-- not yet -->
     <!-- Runs -->
     <div v-if="totalCount == 0" class="flex h-full w-full items-center justify-center text-gray-400">No runs</div>
     <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
@@ -89,112 +66,83 @@ function isExpanded(runId: string) {
     </div>
     <div v-else class="relative flex flex-col">
       <div v-if="(runs?.length ?? 0) == 0" class="w-full text-center"><span class="text-gray-400">No runs</span></div>
+      <!-- Each run -->
       <div
-        :ref="(el: any) => runRefs.registerRef(run.id, el)"
-        tabindex="-1"
         v-for="(run, y) in runs"
         :key="run.id"
-        class="group/run flex flex-col px-1 py-2"
+        :ref="(el: any) => runRefs.registerRef(run.id, el)"
+        tabindex="-1"
+        class="group/run flex flex-row justify-between gap-5 rounded-sm px-1 py-2"
         :class="[y > 0 ? 'border-t- border-orange-900 border-opacity-[12%]' : '']"
-        :style="{
-          height: isExpanded(run.id) ? undefined : headerHeight + 'px',
-        }"
-        @click.stop="toggleExpanded(run.id)"
-        @keydown.enter.stop="toggleExpanded(run.id)"
       >
-        <!-- Header -->
-        <div class="flex flex-row justify-between gap-5 rounded-sm">
-          <!-- Metadata -->
-          <div class="flex flex-col self-start" :style="{ width: metadataWidth + 'px' }">
-            <!-- Status & timing -->
-            <span class="transtion flex max-w-full flex-row items-center" :class="getRunStatusColor(run.status)">
-              <!-- Status -->
-              <component
-                :is="getRunStatusIconSolid(run.status)"
-                class="h-4 w-4"
-                :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
-              />
-              <!-- Runnable -->
-              <span
-                class="ml-1 max-w-full truncate font-semibold underline-offset-4"
-                :class="[altKey ? 'cursor-pointer hover:underline' : '']"
-                @click="
-                  (e) =>
-                    altKey && run.runnable != null
-                      ? (nav.focusStatement(run.runnable), e.stopPropagation(), e.preventDefault())
-                      : undefined
-                "
-                >{{ statement?.name }}</span
-              >
-              <!-- Duration -->
-              <span class="group/cache ml-1 flex flex-row flex-nowrap items-center" v-if="run.startedAt != null">
-                <span class="font-semibold">
-                  {{
-                    run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt)
-                  }}
-                </span>
-                <RunCacheInfo :run="(run as Run)" />
+        <!-- Metadata -->
+        <div class="flex w-48 flex-shrink-0 flex-col self-start">
+          <!-- Status & timing -->
+          <span class="transtion flex max-w-full flex-row items-center" :class="getRunStatusColor(run.status)">
+            <!-- Status -->
+            <component
+              :is="getRunStatusIconSolid(run.status)"
+              class="h-4 w-4"
+              :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
+            />
+            <!-- Runnable -->
+            <span
+              class="ml-1 max-w-full truncate font-semibold underline-offset-4"
+              :class="[altKey ? 'cursor-pointer hover:underline' : '']"
+              @click="
+                (e) =>
+                  altKey && run.runnable != null
+                    ? (nav.focusStatement(run.runnable), e.stopPropagation(), e.preventDefault())
+                    : undefined
+              "
+              >{{ statement?.name }}</span
+            >
+            <!-- Duration -->
+            <span class="group/cache ml-1 flex flex-row flex-nowrap items-center" v-if="run.startedAt != null">
+              <span class="font-semibold">
+                {{
+                  run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt)
+                }}
               </span>
+              <RunCacheInfo :run="(run as Run)" />
             </span>
-            <!-- Trigger -->
-            <span class="flex w-full flex-row items-center gap-1">
-              <!-- Type -->
-              <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
-              <!-- From -->
-              <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
-            </span>
-          </div>
-          <!-- Selected fields as a preview -->
-          <!-- TODO @UX: select and render run fields preview more intelligently -->
+          </span>
+          <!-- Trigger -->
+          <span class="flex w-full flex-row items-center gap-1">
+            <!-- Type -->
+            <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
+            <!-- From -->
+            <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
+            <!-- Detail -->
+          </span>
+        </div>
+        <!-- Selected fields as a preview: inputs top, outputs bottom -->
+        <div class="flex flex-1 flex-col">
           <div
-            class="relative flex w-full flex-row justify-normal gap-x-3 overflow-hidden"
-            :style="{
-              width: previewWidth + 'px',
-              maxWidth: previewWidth + 'px',
-            }"
+            v-for="k in ['inputs', 'outputs']"
+            :key="k"
+            class="relative flex w-full max-w-full flex-row justify-normal gap-x-3 overflow-hidden truncate"
           >
-            <span v-if="previewFields.length == 0" class="text-sm text-gray-400">No inputs or outputs</span>
+            <span v-if="(k == 'inputs' ? inputFields : outputFields).length == 0" class="text-sm text-gray-400">
+              No {{ k }}
+            </span>
             <ValueInterface
-              v-for="field in previewFields"
+              v-for="field in k == 'inputs' ? inputFields : outputFields"
               :key="field.id"
               :type="module.effectiveTypeOf(field)"
               readonly
               active
-              wrap
-              :model-value="run.inputs?.[module.getTypedKey(field) as string] ?? run.outputs?.[module.getTypedKey(field) as string]"
+              :wrap="false"
+              :model-value="run[k as keyof typeof run]?.[module.getTypedKey(field) as string]"
               class="overflow-hidden"
-              :style="{
-                // 12 = gap-x-3
-                width: previewWidth / previewFields.length - (12 * previewFields.length - 1) + 'px',
-                height: headerHeight - 24 + 'px',
-              }"
             />
-            <!-- fade to white towards bottom -->
-            <div
-              class="pointer-events-none absolute bottom-0 left-0 h-5 w-full bg-gradient-to-tl from-white to-transparent"
-            >
-              &nbsp;
-            </div>
           </div>
-          <!-- Controls -->
-          <button class="self-start p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700">
-            <component :is="isExpanded(run.id) ? ChevronDoubleUpIcon : ChevronDoubleDownIcon" class="h-4 w-4" />
-          </button>
         </div>
-        <!-- Body / run tile preview -->
-        <RunTile
-          v-if="expandedRunId === run.id"
-          @click.stop
-          class="scroll-hidden my-3 w-full gap-5 overflow-y-auto"
-          :project-id="props.projectId"
-          :project-version-id="props.projectVersionId"
-          :run="(run as Run)"
-          :style="{
-            maxHeight: bodyHeight + 'px',
-          }"
-          view="metadata"
-          show-controls
-        />
+        <!-- Metadata & id -->
+        <div class="flex flex-1 flex-col">
+          <span class="text-sm text-gray-400">No metadata</span>
+          <span class="text-sm text-gray-400">#{{ getUUIDFromGlobalID(run.id) }}</span>
+        </div>
       </div>
     </div>
     <!-- Load more -->

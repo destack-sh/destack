@@ -4,8 +4,8 @@ import ClientsPopover from "@/components/basic/ClientsPopover.vue";
 import { useAppearance } from "@/state/appearance";
 import { useAuth } from "@/state/auth";
 import {
-  FileEditor,
-  StatementEditor,
+  EditFilePanel,
+  EditStatementPanel,
   useBenchState,
   usePanelContext,
   type Action,
@@ -93,8 +93,8 @@ const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
       <ClientsPopover
         v-if="auth.loggedIn.value && ['statement', 'file'].includes(panel.panel.value.type)"
         size="small"
-        :file-id="(panel.panel.value as FileEditor).fileId"
-        :statement-id="(panel.panel.value as StatementEditor).statementId"
+        :file-id="(panel.panel.value as EditFilePanel).fileId"
+        :statement-id="(panel.panel.value as EditStatementPanel).statementId"
       />
       <!-- Inline actions -->
       <button

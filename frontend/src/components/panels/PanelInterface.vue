@@ -1,25 +1,23 @@
 <script lang="ts" setup>
-import FilePanelInterface from "@/components/editors/FileEditor.vue";
-import StatementPanelInterface from "@/components/editors/StatementEditor.vue";
-import QuickRunPanelInterface from "@/components/editors/QuickRunPanel.vue";
+import EditFilePanelInterface from "@/components/panels/EditFilePanel.vue";
+import EditStatementPanelInterface from "@/components/panels/EditStatementPanel.vue";
+import LaunchRunPanelInterface from "@/components/panels/LaunchRunPanel.vue";
 import { useActiveScroll } from "@/composables/useScroll";
-import {
-  providePanelContext,
-  useBenchState,
-  type PanelContext,
-  type FileEditor,
-  StatementEditor,
-  QuickRunPanel,
-  Panel,
-} from "@/state/bench";
+import { providePanelContext, useBenchState, type PanelContext, Panel, type PanelType } from "@/state/bench";
 import { useEventListener } from "@vueuse/core";
 import { computed, onBeforeUnmount, onMounted, ref, toRef } from "vue";
 
 const bench = useBenchState();
 const props = defineProps<{ panel: Panel; containerEl: HTMLElement | null }>();
-const containerRef = ref<InstanceType<typeof FilePanelInterface> | null>(null);
+const containerRef = ref<InstanceType<typeof EditFilePanelInterface> | null>(null);
 const containerEl = toRef(props, "containerEl");
 const focused = computed(() => bench.focusedPanelId == props.panel.id);
+
+const componentsByPanel: Partial<Record<PanelType, any>> = {
+  "edit-file": EditFilePanelInterface,
+  "edit-statement": EditStatementPanelInterface,
+  "launch-run": LaunchRunPanelInterface,
+};
 
 const scroll = useActiveScroll(containerEl);
 // auto focus on click
@@ -41,25 +39,11 @@ defineExpose({
 });
 </script>
 <template>
-  <FilePanelInterface
+  <component
+    v-if="componentsByPanel[panel.type] != null"
+    :is="componentsByPanel[panel.type]"
     ref="containerRef"
-    v-if="panel.type == 'file'"
-    :panel="(context as PanelContext<FileEditor>)"
-    :fileId="(panel as FileEditor).fileId"
-    :focused="focused"
-    @close="bench.closePanel(panel)"
-  />
-  <StatementPanelInterface
-    ref="containerRef"
-    v-else-if="panel.type == 'statement'"
-    :panel="(context as PanelContext<StatementEditor>)"
-    :focused="focused"
-    @close="bench.closePanel(panel)"
-  />
-  <QuickRunPanelInterface
-    ref="containerRef"
-    v-else-if="panel.type == 'quick-run'"
-    :panel="(context as PanelContext<QuickRunPanel>)"
+    :panel="(context as PanelContext<any>)"
     :focused="focused"
     @close="bench.closePanel(panel)"
   />
