@@ -28,12 +28,12 @@ import {
   ArrowsPointingOutIcon,
   Bars4Icon as Bars4IconOutline,
   CodeBracketIcon as CodeBracketIconOutline,
-  PlayIcon as PlayIconOutline,
+  PlayCircleIcon as PlayCircleIconOutline,
   XCircleIcon,
 } from "@heroicons/vue/24/outline";
 import {
   CodeBracketIcon as CodeBracketIconSolid,
-  PlayIcon as PlayIconSolid,
+  PlayCircleIcon as PlayCircleIconSolid,
   Bars4Icon as Bars4IconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient } from "@vue/apollo-composable";
@@ -1166,18 +1166,18 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
   "edit-file": CodeBracketIconOutline,
   "edit-statement": CodeBracketIconOutline,
-  "launch-run": PlayIconOutline,
-  "view-runs": PlayIconOutline,
-  "view-run": PlayIconOutline,
+  "launch-run": PlayCircleIconOutline,
+  "view-runs": PlayCircleIconOutline,
+  "view-run": PlayCircleIconOutline,
   "view-logs": Bars4IconOutline,
 };
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
   "edit-file": CodeBracketIconSolid,
   "edit-statement": CodeBracketIconSolid,
-  "launch-run": PlayIconSolid,
-  "view-runs": PlayIconSolid,
-  "view-run": PlayIconSolid,
+  "launch-run": PlayCircleIconSolid,
+  "view-runs": PlayCircleIconSolid,
+  "view-run": PlayCircleIconSolid,
   "view-logs": Bars4IconSolid,
 };
 

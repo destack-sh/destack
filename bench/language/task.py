@@ -1,8 +1,5 @@
 import abc
 import enum
-import json
-import re
-from json import JSONDecodeError
 from typing import Collection, Optional, Self
 
 from bench.language.basic import Expectation
@@ -15,7 +12,7 @@ from bench.language.issue import IssueType
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.tag import HasTags
-from bench.language.type import HasType, Type, check_type, instantiate_value_flat, map_value
+from bench.language.type import HasType
 from bench.language.utils import Runnable
 from bench.utils.utils import DotDict, DotList
 
@@ -226,6 +223,7 @@ class TaskRunner(abc.ABC):
         consider_tag = symbolx_lib.lookup_or_error(".builtins.consider")
 
         compiler = model.compile(self.task, inputs, is_batched)
+        # TODO @Instruction @Broken: handle instruction tags through proxies (e.g. a referenced type)
         for child in self.task.resolved_children:
             statement = child.statement
             if isinstance(statement, Expectation):
@@ -241,9 +239,6 @@ class TaskRunner(abc.ABC):
             if not isinstance(step, Task):
                 continue  # report issue?
             compiler.add_step(step)
-
-        # TODO @Broken: add all type instruction
-        # TODO @Broken: add code and dataset instructions
 
         # run
         # should probably track task runner state in run metadata?
@@ -300,7 +295,7 @@ class TaskCompiler(abc.ABC):
         self.expectations: list[Expectation] = []
 
     @property
-    def functions(self) -> Collection[Task | Code | Model]:
+    def tools(self) -> Collection[Task | Code | Model]:
         return self.tools_by_py_ident.values()
 
     def add_step(self, step: Task) -> None:
@@ -318,52 +313,3 @@ class TaskCompiler(abc.ABC):
     async def run(self, model: Model, runner: TaskRunner) -> dict | TaskError:
         """Runs the compiled task and returns the result"""
         raise NotImplementedError
-
-
-def _parse_json_from_string(output: str, type: Type):
-    """Parse json output from a string."""
-
-    # escape/try to parse the output if needed (handles trivial model confusions)
-    value = output.strip()
-    if not value.startswith("{"):
-        # sometimes the model prefixes the output with some explanation, find the { ... }
-        value = re.compile(r"\{.*}", re.DOTALL).search(value)
-        if value:
-            value = value.group(0)
-        else:
-            raise TaskError(
-                TaskErrorType.INVALID_FORMAT,
-                f"output does not contain JSON object: {output}",
-            )
-
-    # escape strings with multiline content
-    # these aren't technically valid JSON, but they're very useful for model output
-    def sub_multiline_str(match):
-        # replace line breaks with \n escape sequence
-        modified_string = match.group(1).replace("\n", "\\n").replace("\r", "")
-        return f'"{modified_string}"'
-
-    value = re.compile(r'"(.*?)(?<!\\)"', re.DOTALL).sub(sub_multiline_str, value)
-
-    try:
-        ret = json.loads(value)
-        ret = map_value(
-            ret,
-            type,
-            map_v=instantiate_value_flat,
-            is_output=True,
-            ignore_outer_map=True,
-        )
-        check_type(ret, type, is_output=True)
-        ret = DotDict(**ret)  # behave like a typed dict
-        return ret
-    except Exception as e:
-        if isinstance(e, JSONDecodeError):
-            error_type = TaskErrorType.INVALID_FORMAT
-        elif isinstance(e, TypeError):
-            error_type = TaskErrorType.INVALID_TYPE
-        else:
-            error_type = TaskErrorType.UNKNOWN
-        raise TaskError(
-            type=error_type, message=f"output is invalid for {type}: {e}", path=None
-        ) from e

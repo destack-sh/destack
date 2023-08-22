@@ -1,3 +1,4 @@
+import asyncio
 import enum
 import json
 import typing
@@ -7,6 +8,7 @@ from typing import Any, Optional
 import anthropic
 import openai
 
+from bench.language import Dataset, Value
 from bench.language.basic import Expectation
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
@@ -401,11 +403,11 @@ class OpenAIChatCompiler(TaskCompiler):
         ),
     )
 
-    def _compile_function(self, function: Code | Task | Model) -> OpenAIFunction:
+    def _compile_tool(self, tool: Code | Task | Model) -> OpenAIFunction:
         return OpenAIFunction(
-            name=function.py_ident,
-            description=function.description,
-            parameters=_type_to_json_schema(function, is_output=False),
+            name=tool.py_ident,
+            description=tool.description,
+            parameters=_type_to_json_schema(tool, is_output=False),
         )
 
     def _compile_terminate_function(self) -> OpenAIFunction:
@@ -420,6 +422,25 @@ class OpenAIChatCompiler(TaskCompiler):
             role=OpenAIChatRole.system,
             content=f"Expectation '{expectation.name}': {expectation.description}",
         )
+
+    async def _compile_consideration(self, consideration: Value | Dataset) -> OpenAIChatMessage:
+        if isinstance(consideration, Value):
+            value_str = json.dumps(consideration._raw_named_value())
+            return OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"Consideration '{consideration.name}': {consideration.description} = {value_str}",
+            )
+        elif isinstance(consideration, Dataset):
+            # TODO @Performance: cache dataset when used in task
+            # TODO @Instruction: use datasets more intelligently
+            records = await consideration.limit(10).atolist()
+            records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
+            return OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"Consideration '{consideration.name}': {consideration.description} = \n{records_str}",
+            )
+        else:
+            raise NotImplementedError
 
     def _compile_error(self, error: TaskError) -> OpenAIChatMessage:
         return OpenAIChatMessage(
@@ -446,6 +467,9 @@ class OpenAIChatCompiler(TaskCompiler):
         inputs = map_value(
             self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_value_flat
         )
+        considerations = await asyncio.gather(
+            *(self._compile_consideration(consideration) for consideration in self.considerations)
+        )
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
@@ -453,6 +477,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 content=f"Your task is '{self.task.name}': {self.task.description}."
                 f"You will be given user inputs and you must call the most appropriate function.",
             ),
+            *considerations,
             *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
@@ -464,7 +489,7 @@ class OpenAIChatCompiler(TaskCompiler):
             ),
         ]
         functions: list[OpenAIFunction] = [
-            *(self._compile_function(function) for function in self.functions),
+            *(self._compile_tool(tool) for tool in self.tools),
             # include function to terminate with a result for overall task
             self._compile_terminate_function(),
             self.PANIC_FUNCTION,

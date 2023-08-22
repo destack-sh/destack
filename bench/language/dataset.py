@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.language.tag import HasTags
-from bench.language.type import Field, HasType, instantiate_py_value, strip_py_value
+from bench.language.type import Field, HasType, instantiate_py_value, map_value, strip_py_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
@@ -75,11 +75,22 @@ class Record(ModuleNode, HasSession, HasCrud):
         super().activate_in(session)
 
     def _raw_value(self) -> dict:
+        """The raw/stripped value with field keys."""
         if not self._instantiated:
             return self.value
         else:
             value = unproxy_value(self.value)
             return strip_py_value(value, self.parent, ignore_array=True, ignore_outer_map=True)
+
+    def _raw_named_value(self):
+        """The raw/stripped value with field names."""
+        return map_value(
+            self._raw_value(),
+            self.parent,
+            ignore_array=True,
+            ignore_outer_map=True,
+            map_k=lambda f: (f.typed_key, f.py_ident),
+        )
 
     def _onread(self, key: Optional[str]):
         pass
@@ -464,10 +475,21 @@ class Value(HasType, HasTags, Statement):
             self._instantiated = False
 
     def _raw_value(self) -> dict:
+        """The raw/stripped value with field keys."""
         if not self._instantiated:
             return self.value
         else:
             return strip_py_value(self.value, self, ignore_array=True, ignore_outer_map=True)
+
+    def _raw_named_value(self):
+        """The raw/stripped value with field names."""
+        return map_value(
+            self._raw_value(),
+            self,
+            ignore_array=True,
+            ignore_outer_map=True,
+            map_k=lambda f: (f.typed_key, f.py_ident),
+        )
 
     def __getattr__(self, item):
         if item in self._PROPERTIES:
