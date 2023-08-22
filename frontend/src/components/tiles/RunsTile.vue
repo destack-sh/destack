@@ -58,7 +58,7 @@ const altKey = useKeyModifier("Alt");
   <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
     <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
   </div>
-  <div v-else-if="view == 'list'" class="relative grid grid-cols-3 gap-x-3 gap-y-0.5 px-1 py-1">
+  <div v-else-if="view == 'list'" class="relative grid grid-cols-3 gap-x-4 gap-y-0.5 px-1 py-1">
     <div v-if="(runs?.length ?? 0) == 0" class="w-full text-center"><span class="text-gray-400">No runs</span></div>
     <!-- Each run -->
     <template v-for="(run, i) in runs" :key="run.id">
@@ -66,7 +66,7 @@ const altKey = useKeyModifier("Alt");
       <!-- Status & timing -->
       <span
         class="transtion flex max-w-full flex-row items-center"
-        :class="[getRunStatusColor(run.status), i != 0 ? 'mt-2' : '']"
+        :class="[getRunStatusColor(run.status), i != 0 ? 'mt-3.5' : '']"
       >
         <!-- Status -->
         <component
@@ -95,9 +95,9 @@ const altKey = useKeyModifier("Alt");
         </span>
       </span>
       <!-- Metadata -->
-      <span class="text-gray-400" :class="[i != 0 ? 'mt-2' : '']"> No metadata </span>
+      <span class="text-gray-400" :class="[i != 0 ? 'mt-3.5' : '']"> No metadata </span>
       <!-- ID (copy on click) -->
-      <span class="truncate text-sm text-gray-400" :class="[i != 0 ? 'mt-2' : '']"
+      <span class="truncate text-sm text-gray-400" :class="[i != 0 ? 'mt-3.5' : '']"
         >#{{ getUUIDFromGlobalID(run.id) }}</span
       >
 
@@ -123,17 +123,17 @@ const altKey = useKeyModifier("Alt");
         <div
           v-for="field in (kind == 'inputs' ? inputFields : outputFields).filter(f => run[kind as keyof typeof run]?.[module.getTypedKey(f) as string] != null)"
           :key="field.id"
-          class="flex max-w-full flex-row rounded-2xl bg-orange-50 px-1.5 py-0.5 ring-1 ring-inset ring-orange-900 ring-opacity-[12%]"
+          class="flex max-w-full flex-row rounded-2xl ring-inset ring-orange-900 ring-opacity-[12%]"
           :class="[]"
         >
-          <span class="mr-1 text-gray-500">{{ field.name }}</span>
+          <!-- <span class="mr-1 text-gray-400">{{ field.name }}:</span> -->
           <ValueInterface
             :type="module.effectiveTypeOf(field)"
             readonly
             active
             :wrap="false"
             :model-value="run[kind as keyof typeof run]?.[module.getTypedKey(field) as string]"
-            class="overflow-hidden truncate"
+            class="truncate"
           />
         </div>
       </div>
