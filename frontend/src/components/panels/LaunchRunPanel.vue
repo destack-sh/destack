@@ -240,6 +240,7 @@ defineExpose({
             :symbol-type="statement?.type"
             live
             :limit="INLINE_RUNS_LIMIT"
+            view="list"
           />
         </ContainerTile>
       </template>
