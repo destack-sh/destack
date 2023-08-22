@@ -520,7 +520,7 @@ class OpenAIChatCompiler(TaskCompiler):
                     return arguments
                 except (ValueError, TypeError, TaskError) as e:
                     await _error(e)
-            elif m.function_call.name not in self.functions_by_py_ident:
+            elif m.function_call.name not in self.tools_by_py_ident:
                 await _error(
                     TaskError(
                         TaskErrorType.INVALID_FORMAT,
@@ -528,7 +528,7 @@ class OpenAIChatCompiler(TaskCompiler):
                     )
                 )
             else:
-                function = self.functions_by_py_ident[m.function_call.name]
+                function = self.tools_by_py_ident[m.function_call.name]
                 ret = await runner.call_function(function, arguments)
                 messages.append(self._compile_function_result(function, ret))
 

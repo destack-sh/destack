@@ -148,7 +148,7 @@ export function useStatementOps() {
                 id
               }
             }
-            issues(filters: { scope: STATEMENT }) {
+            issues {
               id
             }
             # crud

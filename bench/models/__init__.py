@@ -1,7 +1,7 @@
 from django.db.models import Q
 
 from .dataset import Dataset, Record, RecordRelation
-from .interp import InterpScope, Issue, IssueKind, ResolvedField
+from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
 from .organization import (
@@ -30,7 +30,6 @@ __all__ = [
     "Dataset",
     "Field",
     "File",
-    "InterpScope",
     "Issue",
     "IssueKind",
     "Notification",

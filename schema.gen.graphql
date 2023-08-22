@@ -271,7 +271,7 @@ type File implements HasCrud & ModuleNode & Node {
   projectVersion: ProjectVersion!
   name: String!
   statements(filters: StatementFilter): [Statement!]!
-  issues(filters: IssueFilter): [Issue!]!
+  issues: [Issue!]!
 }
 
 input FileCreateInput {
@@ -321,27 +321,12 @@ interface HasCrud {
   lastEditedBy: User
 }
 
-enum InterpScope {
-  MODULE
-  FILE
-  STATEMENT
-}
-
 type Issue implements Node & ModuleNode {
   id: GlobalID!
   parent: ModuleNode
-  scope: InterpScope!
   kind: IssueKind!
   type: IssueType!
-  file: File
-  statement: Statement
   message: String
-}
-
-input IssueFilter {
-  scope: InterpScope!
-  AND: IssueFilter
-  OR: IssueFilter
 }
 
 enum IssueKind {
@@ -1613,7 +1598,7 @@ type Statement implements HasCrud & ModuleNode & Node {
   code: String
   description: String
   value: JSON
-  issues(filters: IssueFilter): [Issue!]
+  issues: [Issue!]
   resolvedFields: [ResolvedField!]
 }
 

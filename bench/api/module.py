@@ -1,4 +1,5 @@
 from typing import Optional
+from uuid import UUID
 
 import structlog
 from more_itertools import first
@@ -49,6 +50,12 @@ class StaticPrefetchedQueryset:
 
     def __init__(self, objects):
         self._result_cache = objects
+
+    def __str__(self):
+        return str(self._result_cache)
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self._result_cache}>"
 
     def _fetch_all(self):
         pass  # we already have all the objects (this is called by strawberry)
@@ -153,11 +160,11 @@ def read_module_node(
     Reads a module node in an optimized way (that assumes tree-shaped retrieval).
     Any nodes not in the tree will be fetched by the standard strawberry resolver.
 
-    TODO @Broken: read module node assumes default filters (esp. deleted_at)
+    TODO @Broken: read module node assumes default filters (i.e. deleted_at=None)
     """
     logger.debug("module.read_node", node=node)
 
-    # collect relevant nodes (naively filter by selected fields)
+    # figure out which nodes to query (naively filter by selected fields)
     root_selections = _inline_fragments((root_fragment or info.selected_fields[0]).selections)
     included = {models.ProjectVersion, models.File, models.Statement}
     for field in _inline_fragments(root_selections, recursive=True):
@@ -165,89 +172,93 @@ def read_module_node(
         if base_model and base_model not in included:
             included.add(base_model)
     excluded = MOT_BY_BASE_MODEL_CLASS.keys() - included
+
+    # collect them
     tree = packer.collect_node(node, excluded=excluded)
-
-    # map relevant selected fields to the visited nodes
-    def _resolve(n: models.ModuleNode, selections: list[SelectedField]) -> ModuleNode:
-        model_name = n._meta.object_name
-
-        proxy_n = n.__class__()
-        for f in selections:
-            py_name = _MODEL_FIELD_NAME_BY_CAMEL.get(f.name, f.name)
-            # pass through non-relational fields
-            if f.name in ("__typename", "id") or not f.selections:
-                if hasattr(n, py_name):
-                    setattr(proxy_n, py_name, getattr(n, py_name))
-                continue
-            # shortcut for parent (which isn't a real field)
-            elif f.name == "parent":
-                # find the parent node in its fields (where its value == n.parent_id)
-                parent_field = first(
-                    (k for k in n._meta.fields if getattr(n, k.column) == n.parent_id)
-                )
-                # set id and relation field
-                setattr(proxy_n, parent_field.attname, n.parent_id)
-                setattr(proxy_n, parent_field.name, parent_field.related_model(id=n.parent_id))
-                continue
-
-            # relational field
-            django_field = n._meta.get_field(py_name)
-            # error on invalid relations to models outside the module tree
-            if (
-                django_field.related_model not in packer.MOT_BY_BASE_MODEL_CLASS
-                and django_field.related_model not in ALLOWED_EXTERNAL_RELATIONS
-            ):
-                raise ValueError(
-                    f"invalid relation {django_field.related_model} for {model_name}.{py_name}"
-                )
-            inner_selections = _inline_fragments(f.selections)
-            # for 1:1 relations use id only proxy
-            if django_field.one_to_one or django_field.many_to_one:
-                if django_field.related_model in ALLOWED_EXTERNAL_RELATIONS:
-                    # external relations are properly queried
-                    # this is okay because we only do this once usually (e.g. top-level project)
-                    setattr(proxy_n, py_name, getattr(n, py_name))
-                else:
-                    # assumes { __typename, id } selection or similar (that's all we know here)
-                    assert len(inner_selections) == 2, f"bad 1:1 relation fields {inner_selections}"
-                    related_id = getattr(n, py_name + "_id")
-                    related = django_field.related_model(id=related_id) if related_id else None
-                    setattr(proxy_n, py_name, related)
-            # for 1:n relations get children
-            elif django_field.one_to_many or django_field.many_to_many:
-                related = []
-                # for flattened relations get all descendants (of same type)
-                if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
-                    # collect descendants of same type
-                    remaining = tree.visited_by_parent.get(n.id, [])
-                    while remaining:
-                        child = remaining.pop()
-                        if type(child) != django_field.related_model:
-                            continue
-                        related.append(_resolve(child, inner_selections))
-                        remaining.extend(tree.visited_by_parent.get(child.id, []))
-                else:
-                    # collect immediate children only
-                    for child in tree.visited_by_parent.get(n.id, []):
-                        if type(child) != django_field.related_model:
-                            continue  # ignore children of other types
-                        related.append(_resolve(child, inner_selections))
-                # set children list on proxy to 'cache' it in the Django model
-                if not hasattr(proxy_n, "_prefetched_objects_cache"):
-                    proxy_n._prefetched_objects_cache = {}
-                proxy_n._prefetched_objects_cache[py_name] = StaticPrefetchedQueryset(related)
-            else:
-                raise ValueError(f"unexpected relation {django_field} for {model_name}.{py_name}")
-
-        return proxy_n
-
     logger.debug(
         "module.read_node.resolve", id=id, node=node, nodes=len(tree.visited), excluded=excluded
     )
-    resolved_node = _resolve(node, root_selections)
-
+    # 'resolve' them into a proxy models.ModuleNode (with all relevant fields set/cached)
+    resolved_node = _resolve_node(node, root_selections, children=tree.visited_by_parent)
     logger.debug(
         "module.read_node.done", id=id, node=node, nodes=len(tree.visited), excluded=excluded
     )
 
     return resolved_node
+
+
+def _resolve_node(
+    n: models.ModuleNode,
+    selections: list[SelectedField],
+    children: dict[UUID, list[models.ModuleNode]],
+) -> ModuleNode:
+    """Map relevant selections to the node's fields"""
+    model_name = n._meta.object_name
+
+    proxy_n = n.__class__()
+    for f in selections:
+        py_name = _MODEL_FIELD_NAME_BY_CAMEL.get(f.name, f.name)
+        # pass through non-relational fields
+        if f.name in ("__typename", "id") or not f.selections:
+            if hasattr(n, py_name):
+                setattr(proxy_n, py_name, getattr(n, py_name))
+            continue
+        # shortcut for parent (which isn't a real field)
+        elif f.name == "parent":
+            # find the parent node in its fields (where its value == n.parent_id)
+            parent_field = first((k for k in n._meta.fields if getattr(n, k.column) == n.parent_id))
+            # set id and relation field
+            setattr(proxy_n, parent_field.attname, n.parent_id)
+            setattr(proxy_n, parent_field.name, parent_field.related_model(id=n.parent_id))
+            continue
+
+        # relational field
+        django_field = n._meta.get_field(py_name)
+        # error on invalid relations to models outside the module tree
+        if (
+            django_field.related_model not in packer.MOT_BY_BASE_MODEL_CLASS
+            and django_field.related_model not in ALLOWED_EXTERNAL_RELATIONS
+        ):
+            raise ValueError(
+                f"invalid relation {django_field.related_model} for {model_name}.{py_name}"
+            )
+        inner_selections = _inline_fragments(f.selections)
+        # for 1:1 relations use id only proxy
+        if django_field.one_to_one or django_field.many_to_one:
+            if django_field.related_model in ALLOWED_EXTERNAL_RELATIONS:
+                # external relations are properly queried
+                # this is okay because we only do this once usually (e.g. top-level project)
+                setattr(proxy_n, py_name, getattr(n, py_name))
+            else:
+                # assumes { __typename, id } selection or similar (that's all we know here)
+                assert len(inner_selections) == 2, f"bad 1:1 relation fields {inner_selections}"
+                related_id = getattr(n, py_name + "_id")
+                related = django_field.related_model(id=related_id) if related_id else None
+                setattr(proxy_n, py_name, related)
+        # for 1:n relations get children
+        elif django_field.one_to_many or django_field.many_to_many:
+            related = []
+            # for flattened relations get all descendants (of same type)
+            if (type(n), django_field.related_model) in FLATTENED_RELATIONS:
+                # collect descendants of same type
+                remaining = children.get(n.id, [])
+                while remaining:
+                    child = remaining.pop()
+                    if type(child) != django_field.related_model:
+                        continue
+                    related.append(_resolve_node(child, inner_selections, children))
+                    remaining.extend(children.get(child.id, []))
+            else:
+                # collect immediate children only
+                for child in children.get(n.id, []):
+                    if type(child) != django_field.related_model:
+                        continue  # ignore children of other types
+                    related.append(_resolve_node(child, inner_selections, children))
+            # set children list on proxy to 'cache' it in the Django model
+            if not hasattr(proxy_n, "_prefetched_objects_cache"):
+                proxy_n._prefetched_objects_cache = {}
+            proxy_n._prefetched_objects_cache[py_name] = StaticPrefetchedQueryset(related)
+        else:
+            raise ValueError(f"unexpected relation {django_field} for {model_name}.{py_name}")
+
+    return proxy_n

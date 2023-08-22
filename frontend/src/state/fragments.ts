@@ -270,7 +270,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     }
     # interp
     # TODO @Performance: could probably just use module interp state for statement, but would be less responsive on load
-    issues(filters: { scope: STATEMENT }) {
+    issues {
       ...IssueContent
     }
     resolvedFields {
@@ -294,14 +294,10 @@ export const IssueContentType = graphql(/* GraphQL */ `
   fragment IssueContent on Issue {
     # :IssueContent
     id
-    scope
     kind
     type
     message
-    file {
-      id
-    }
-    statement {
+    parent {
       id
     }
   }
@@ -327,7 +323,7 @@ export const InterpFileType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    issues(filters: { scope: FILE }) {
+    issues {
       ...IssueContent
     }
     createdAt
@@ -398,7 +394,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       updatedAt
       deletedAt
     }
-    issues(filters: { scope: STATEMENT }) {
+    issues {
       ...IssueContent
     }
     resolvedFields {

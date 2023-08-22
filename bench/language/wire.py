@@ -19,15 +19,7 @@ from bench.language.const import (
     TypeHint,
     TypeTag,
 )
-from bench.language.core import (
-    CRUD_PROPERTIES,
-    MOT,
-    InterpScope,
-    Module,
-    ModuleNode,
-    ModuleObjectType,
-    Session,
-)
+from bench.language.core import CRUD_PROPERTIES, MOT, Module, ModuleNode, ModuleObjectType, Session
 from bench.language.issue import IssueKind, IssueType
 from bench.language.query import Query, Sort
 from bench.language.session import (
@@ -1444,7 +1436,6 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
 
 @dataclass
 class IssueData(NodeData):
-    scope: InterpScope
     kind: IssueKind
     type: IssueType
     message: Optional[str]
@@ -1457,8 +1448,7 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
     def pack(self, issue: lang.Issue) -> "IssueData":
         return IssueData(
             id=issue.id,
-            parent_id=issue.statement_id or issue.file_id,
-            scope=issue.scope,
+            parent_id=issue.subject_id,
             kind=issue.kind,
             type=issue.type,
             message=issue.message,

@@ -9,6 +9,7 @@ from bench.language.basic import Expectation
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import Scope, Statement, node
+from bench.language.dataset import Dataset, Value
 from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.issue import IssueType
 from bench.language.model import Model
@@ -98,7 +99,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
                 self._on_issue(
                     type=IssueType.UNCLEAR_INTENT,
                     subject=statement,
-                    reason=f"does not affect outer task {self.path}",
+                    reason="does not affect outer task",
                 )
 
     async def __call__(
@@ -217,13 +218,23 @@ class TaskRunner(abc.ABC):
 
     async def __call__(self, model: Model, inputs: dict, is_batched: bool):
         """Runs a single contiguous 'block' of a task on a single model."""
+        from bench.language.libs import symbolx_lib
 
         # compile
+        # not great, see :CentralStdlibAccess
+        tool_tag = symbolx_lib.lookup_or_error(".builtins.tool")
+        consider_tag = symbolx_lib.lookup_or_error(".builtins.consider")
+
         compiler = model.compile(self.task, inputs, is_batched)
-        for function in self.task.get_children_by_type(Code, Task, Model):
-            compiler.add_function(function)
-        for expectation in self.task.get_children_by_type(Expectation):
-            compiler.add_expectation(expectation)
+        for child in self.task.resolved_children:
+            statement = child.statement
+            if isinstance(statement, Expectation):
+                compiler.add_expectation(statement)
+            elif child.has_tag(tool_tag):
+                compiler.add_tool(statement)
+            elif child.has_tag(consider_tag):
+                compiler.add_consideration(statement)
+
         for step in self.task.get_children_by_tag(
             self.task.module.lookup("symbolx.lib.builtins.step")
         ):
@@ -284,28 +295,32 @@ class TaskCompiler(abc.ABC):
         self.inputs = inputs
         self.is_batched = is_batched
         self.steps: list[Task] = []
-        self.functions_by_py_ident: dict[str, Task | Code | Model] = {}
+        self.considerations: list[Value | Dataset] = []
+        self.tools_by_py_ident: dict[str, Task | Code | Model] = {}
         self.expectations: list[Expectation] = []
 
     @property
     def functions(self) -> Collection[Task | Code | Model]:
-        return self.functions_by_py_ident.values()
+        return self.tools_by_py_ident.values()
 
     def add_step(self, step: Task) -> None:
         self.steps.append(step)
 
-    def add_function(self, function: Task | Code | Model) -> None:
-        self.functions_by_py_ident[function.py_ident] = function
+    def add_tool(self, function: Task | Code | Model) -> None:
+        self.tools_by_py_ident[function.py_ident] = function
 
     def add_expectation(self, expectation: Expectation) -> None:
         self.expectations.append(expectation)
+
+    def add_consideration(self, consideration: Value | Dataset) -> None:
+        self.considerations.append(consideration)
 
     async def run(self, model: Model, runner: TaskRunner) -> dict | TaskError:
         """Runs the compiled task and returns the result"""
         raise NotImplementedError
 
 
-def _parse_string_output(output: str, type: Type):
+def _parse_json_from_string(output: str, type: Type):
     """Parse json output from a string."""
 
     # escape/try to parse the output if needed (handles trivial model confusions)

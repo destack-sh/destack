@@ -11,7 +11,6 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_can_read_project, check_can_write_project
-from bench.api.interp import IssueFilter
 from bench.api.module import read_module_node
 from bench.api.sync import tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
@@ -41,7 +40,7 @@ class File(HasCrud, ModuleNode, Revisioned, relay.Node):
     statements: list[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         filters=StatementFilter
     )
-    issues: list[Annotated["Issue", lazy(".interp")]] = strawberry_django.field(filters=IssueFilter)
+    issues: list[Annotated["Issue", lazy(".interp")]] = strawberry_django.field()
 
 
 @strawberry.input

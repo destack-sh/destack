@@ -304,10 +304,6 @@ export type File = HasCrud &
     updatedAt: Scalars["DateTime"];
   };
 
-export type FileIssuesArgs = {
-  filters?: InputMaybe<IssueFilter>;
-};
-
 export type FileStatementsArgs = {
   filters?: InputMaybe<StatementFilter>;
 };
@@ -354,30 +350,15 @@ export type HasCrud = {
   updatedAt: Scalars["DateTime"];
 };
 
-export enum InterpScope {
-  File = "FILE",
-  Module = "MODULE",
-  Statement = "STATEMENT",
-}
-
 export type Issue = ModuleNode &
   Node & {
     __typename?: "Issue";
-    file?: Maybe<File>;
     id: Scalars["GlobalID"];
     kind: IssueKind;
     message?: Maybe<Scalars["String"]>;
     parent?: Maybe<ModuleNode>;
-    scope: InterpScope;
-    statement?: Maybe<Statement>;
     type: IssueType;
   };
-
-export type IssueFilter = {
-  AND?: InputMaybe<IssueFilter>;
-  OR?: InputMaybe<IssueFilter>;
-  scope: InterpScope;
-};
 
 export enum IssueKind {
   Error = "ERROR",
@@ -2048,10 +2029,6 @@ export type StatementFieldsArgs = {
   filters?: InputMaybe<FieldFilter>;
 };
 
-export type StatementIssuesArgs = {
-  filters?: InputMaybe<IssueFilter>;
-};
-
 export type StatementTagsArgs = {
   filters?: InputMaybe<TaggingFilter>;
 };
@@ -3673,12 +3650,18 @@ export type StatementContentFragment = {
 export type IssueContentFragment = {
   __typename?: "Issue";
   id: any;
-  scope: InterpScope;
   kind: IssueKind;
   type: IssueType;
   message?: string | null;
-  file?: { __typename?: "File"; id: any } | null;
-  statement?: { __typename?: "Statement"; id: any } | null;
+  parent?:
+    | { __typename?: "Field"; id: any }
+    | { __typename?: "File"; id: any }
+    | { __typename?: "Issue"; id: any }
+    | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "Statement"; id: any }
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any }
+    | null;
 } & { " $fragmentName"?: "IssueContentFragment" };
 
 export type ResolvedFieldContentFragment = {
@@ -6108,21 +6091,12 @@ export const IssueContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "scope" } },
           { kind: "Field", name: { kind: "Name", value: "kind" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "message" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "file" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "statement" },
+            name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
@@ -6278,22 +6252,6 @@ export const StatementContentFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "issues" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "scope" },
-                      value: { kind: "EnumValue", value: "STATEMENT" },
-                    },
-                  ],
-                },
-              },
-            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -6356,22 +6314,6 @@ export const InterpFileFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "issues" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "scope" },
-                      value: { kind: "EnumValue", value: "FILE" },
-                    },
-                  ],
-                },
-              },
-            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -6534,22 +6476,6 @@ export const InterpStatementFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "issues" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "filters" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "scope" },
-                      value: { kind: "EnumValue", value: "STATEMENT" },
-                    },
-                  ],
-                },
-              },
-            ],
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -7181,22 +7107,6 @@ export const FileContentByIdDocument = {
                 {
                   kind: "Field",
                   name: { kind: "Name", value: "issues" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "filters" },
-                      value: {
-                        kind: "ObjectValue",
-                        fields: [
-                          {
-                            kind: "ObjectField",
-                            name: { kind: "Name", value: "scope" },
-                            value: { kind: "EnumValue", value: "FILE" },
-                          },
-                        ],
-                      },
-                    },
-                  ],
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -10026,22 +9936,6 @@ export const CreateFileDocument = {
                             {
                               kind: "Field",
                               name: { kind: "Name", value: "issues" },
-                              arguments: [
-                                {
-                                  kind: "Argument",
-                                  name: { kind: "Name", value: "filters" },
-                                  value: {
-                                    kind: "ObjectValue",
-                                    fields: [
-                                      {
-                                        kind: "ObjectField",
-                                        name: { kind: "Name", value: "scope" },
-                                        value: { kind: "EnumValue", value: "STATEMENT" },
-                                      },
-                                    ],
-                                  },
-                                },
-                              ],
                               selectionSet: {
                                 kind: "SelectionSet",
                                 selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -10053,22 +9947,6 @@ export const CreateFileDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "issues" },
-                        arguments: [
-                          {
-                            kind: "Argument",
-                            name: { kind: "Name", value: "filters" },
-                            value: {
-                              kind: "ObjectValue",
-                              fields: [
-                                {
-                                  kind: "ObjectField",
-                                  name: { kind: "Name", value: "scope" },
-                                  value: { kind: "EnumValue", value: "FILE" },
-                                },
-                              ],
-                            },
-                          },
-                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "IssueContent" } }],
@@ -12057,22 +11935,6 @@ export const CreateStatementDocument = {
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "issues" },
-                        arguments: [
-                          {
-                            kind: "Argument",
-                            name: { kind: "Name", value: "filters" },
-                            value: {
-                              kind: "ObjectValue",
-                              fields: [
-                                {
-                                  kind: "ObjectField",
-                                  name: { kind: "Name", value: "scope" },
-                                  value: { kind: "EnumValue", value: "STATEMENT" },
-                                },
-                              ],
-                            },
-                          },
-                        ],
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],

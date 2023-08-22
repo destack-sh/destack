@@ -14,7 +14,7 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import language, models
 from bench.api.auth import check_can_read_project, check_can_write_project
-from bench.api.interp import Issue, IssueFilter, ResolvedField
+from bench.api.interp import Issue, ResolvedField
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
@@ -129,7 +129,7 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     description: auto
     value: auto
     # interp
-    issues: Optional[list[Issue]] = strawberry_django.field(filters=IssueFilter)
+    issues: Optional[list[Issue]] = strawberry_django.field()
     resolved_fields: Optional[list[ResolvedField]] = strawberry_django.field()
 
 
