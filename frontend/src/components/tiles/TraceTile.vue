@@ -302,7 +302,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
             class="cursor-pointer font-semibold underline-offset-2 hover:underline"
             @click="bench.openRun(focusedNode, { focus: true })"
           >
-            {{ focusedNode?.runnable?.name }} #{{ getUUIDFromGlobalID(focusedNode.runnable.id).slice(-6, -1) }}
+            {{ focusedNode?.runnable?.name }} #{{ getUUIDFromGlobalID(focusedNode.runnable.id).slice(-7, -1) }}
           </a>
         </div>
         <RunTile

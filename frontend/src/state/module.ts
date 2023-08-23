@@ -170,14 +170,17 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const errors = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Error));
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
 
-  // TODO @Performance: cache symbolx lib (and other default module dependencies)
-  // TODO @Broken: don't hardcode symbolx.lib id
-  // (this is not that terrible since the project version id is static for now, see :LibImplementation)
+  // TODO @Performance: cache default libs (and other default module dependencies)
+  // TODO @Broken: don't hardcode default libs ids
+  // (this is not _that_ terrible since the project version id is static for now, see :LibImplementation)
   const symbolxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"), {
     cache: true,
   });
+  const openaiLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjE5ZTIyOWItMTI2YS01NWEzLWFlNWEtZmU5NjU2NGRlYjA4"), {
+    cache: true,
+  });
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
-    [symbolxLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
+    [symbolxLib.idx.value, openaiLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
   );
 
   // run metadata fields are hardcoded for now

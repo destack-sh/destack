@@ -6,6 +6,7 @@ import { PlusIcon, RectangleGroupIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
+import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   type: Field;
@@ -133,21 +134,23 @@ defineExpose({
     <!-- Struct preview on hover -->
     <!-- TODO @Broken: fix struct editability -->
     <!-- The use of pin & fixed here is not incidental, value interfaces are usually clipped so we can't use absolute. -->
-    <div
-      v-if="activeIndex != null"
-      ref="structRef"
-      class="fixed z-20 mt-5 w-96 rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm"
-    >
-      <StructInterface
-        :fields="fields"
-        :model-value="modelValue[activeIndex ?? 0]"
-        @update:modelValue="update(activeIndex ?? 0, $event)"
-        @close="(activeIndex = null), (editingIndex = false)"
-        debounced
-        :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
-        class=""
-      />
-    </div>
+    <FadeTransition>
+      <div
+        v-if="activeIndex != null"
+        ref="structRef"
+        class="fixed z-20 mt-5 w-96 rounded-sm border bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-[12%]"
+      >
+        <StructInterface
+          :fields="fields"
+          :model-value="modelValue[activeIndex ?? 0]"
+          @update:modelValue="update(activeIndex ?? 0, $event)"
+          @close="(activeIndex = null), (editingIndex = false)"
+          debounced
+          :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
+          class=""
+        />
+      </div>
+    </FadeTransition>
     <!-- Add button -->
     <button
       v-if="!preview && !readonly && (isArray || modelValue.length == 0)"
