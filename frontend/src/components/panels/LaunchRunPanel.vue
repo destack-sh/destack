@@ -17,7 +17,7 @@ import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
 
-const INLINE_RUNS_LIMIT = 10;
+const RUNS_HISTORY_LIMIT = 15;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
@@ -126,6 +126,7 @@ async function cancel() {
   await sessions.cancel(currentRun.value);
 }
 
+const runsTileRef = ref<InstanceType<typeof RunsTile> | null>(null);
 const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(props.panel);
 
 // navigation
@@ -168,10 +169,8 @@ defineExpose({
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
-        <div class="flex flex-col">
-          <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "" }}&nbsp;</h1>
-        </div>
-        <!-- Run button -->
+        <h1 class="text-3xl font-bold text-gray-900">Run: {{ statement?.name ?? "" }}&nbsp;</h1>
+        <!-- Run controls -->
         <div
           class=""
           :style="{
@@ -191,12 +190,14 @@ defineExpose({
           </button>
         </div>
       </div>
+      <!-- Body -->
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
         <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-white" />
       </div>
       <template v-else>
         <!-- Input -->
-        <ContainerTile v-if="inputFields.length > 0" label="Input" :style="{ ...baseTilePositionX }">
+        <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
+          <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructTile v-model="panel.inputs" :fields="inputFields" full-inputs readonly-type class="" />
         </ContainerTile>
         <!-- Trace -->
@@ -214,7 +215,7 @@ defineExpose({
         </ContainerTile>
         <!-- Output -->
         <ContainerTile
-          v-if="panel.lastOutput && outputFields.length > 0"
+          v-if="panel.lastOutput"
           label="Output"
           :sub-label="
             panel.lastRunTerminatedAt != null
@@ -223,43 +224,33 @@ defineExpose({
           "
           :style="{ ...baseTilePositionX }"
         >
+          <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
           <StructTile :model-value="panel.lastOutput" :fields="outputFields" readonly class="" />
         </ContainerTile>
-        <!-- Runs -->
+        <!-- Runs  -->
         <ContainerTile
           v-if="statement != null"
           label="Runs"
-          :sub-label="`last ${INLINE_RUNS_LIMIT}`"
+          :sub-label="
+            runsTileRef?.totalCount != null ? `last ${RUNS_HISTORY_LIMIT} of ${runsTileRef?.totalCount}` : undefined
+          "
           :style="{ ...baseTilePositionX }"
         >
           <RunsTile
+            ref="runsTileRef"
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
-            include-ancestor-versions
             :runnable-ids="[panel.statementId]"
-            :symbol-type="statement?.type"
             live
-            :limit="INLINE_RUNS_LIMIT"
-            view="list"
-          />
-        </ContainerTile>
-        <!-- Runs nocheckin grid view for testing -->
-        <ContainerTile
-          v-if="statement != null"
-          label="Runs"
-          :sub-label="`last ${INLINE_RUNS_LIMIT}`"
-          :style="{ ...baseTilePositionX }"
-        >
-          <RunsTile
-            :project-id="(bench.projectId as string)"
-            :project-version-id="(bench.projectVersionId as string)"
-            include-ancestor-versions
-            :runnable-ids="[panel.statementId]"
-            :symbol-type="statement?.type"
-            live
-            :limit="INLINE_RUNS_LIMIT"
-            view="grid"
-          />
+            :limit="RUNS_HISTORY_LIMIT"
+            class="max-w-full overflow-x-auto"
+            hide-header
+          >
+            <template v-slot:sublabel>
+              <!-- nocheckin view all button -->
+              sublabel
+            </template>
+          </RunsTile>
         </ContainerTile>
       </template>
     </div>

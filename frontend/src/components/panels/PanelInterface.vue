@@ -3,6 +3,7 @@ import EditFilePanelInterface from "@/components/panels/EditFilePanel.vue";
 import EditStatementPanelInterface from "@/components/panels/EditStatementPanel.vue";
 import LaunchRunPanelInterface from "@/components/panels/LaunchRunPanel.vue";
 import ViewRunsPanelInterface from "@/components/panels/ViewRunsPanel.vue";
+import ViewRunPanelInterface from "@/components/panels/ViewRunPanel.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import { providePanelContext, useBenchState, type PanelContext, Panel, type PanelType } from "@/state/bench";
 import { useEventListener } from "@vueuse/core";
@@ -19,6 +20,7 @@ const componentsByPanel: Partial<Record<PanelType, any>> = {
   "edit-statement": EditStatementPanelInterface,
   "launch-run": LaunchRunPanelInterface,
   "view-runs": ViewRunsPanelInterface,
+  "view-run": ViewRunPanelInterface,
 };
 
 const scroll = useActiveScroll(containerEl);

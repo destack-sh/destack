@@ -304,7 +304,7 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
           :project-version-id="module.id.value"
           :project-id="(bench.projectId as string)"
           show-controls
-          view="metadata"
+          view="logs"
         />
       </div>
     </FadeTransition>

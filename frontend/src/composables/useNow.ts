@@ -18,7 +18,7 @@ export function useNow(updateInterval = 60000) {
 
 export function useTimeFromNow(updateInterval = 60000) {
   const now = useNow(updateInterval);
-  function getTimeFromNow(dt: DateTime): string | null {
+  function getTimeFromNow(dt: DateTime, options?: { useNow?: boolean }): string | null {
     const delta = now.value.diff(dt);
     // get relative like 2h or 6d if less than 1 week
     // get absolute if more than 1 week
@@ -29,7 +29,8 @@ export function useTimeFromNow(updateInterval = 60000) {
       const hours = Math.round(delta.as("hours"));
       const days = Math.round(delta.as("days"));
       if (minutes < 1) {
-        return "now";
+        if (options?.useNow) return "now";
+        return "<1m";
       } else if (hours < 1) {
         return `${minutes}m`;
       } else if (days < 1) {
@@ -58,8 +59,8 @@ export function useTimeFromNow(updateInterval = 60000) {
     }
   }
 
-  function getTimeFromNowString(dt: string): string | null {
-    return getTimeFromNow(DateTime.fromISO(dt));
+  function getTimeFromNowString(dt: string, options?: { useNow?: boolean }): string | null {
+    return getTimeFromNow(DateTime.fromISO(dt), options);
   }
 
   function getTimeFromNowLongString(dt: string): string | null {

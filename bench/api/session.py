@@ -475,6 +475,9 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
+
+        logger.debug("runs.search", project_id=project_id, query=query, sort=sort)
+        # query id only and then fetch full run from DB
         search = prepare_search(
             type=mirror.DocumentType.RUN,
             project_version_id=str(project_version_id) if project_version_id else None,
@@ -483,26 +486,39 @@ class SessionQuery:
             after=after,
             sort=sort,
             query=query,
+            fields=[],
+            source=False,
         )
-
-        results = os_client.search(
+        os_results = os_client.search(
             index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
         )
 
+        logger.debug("runs.search.db", project_id=project_id, hits=len(os_results["hits"]["hits"]))
         edges = []
-        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
-            doc = mirror.Run.from_dict(r["_source"], r["_id"], r["_version"])
-            run = mirror.unmirror_node(doc)
+        run_ids = [r["_id"] for r in os_results["hits"]["hits"]]
+        runs = models.Run.objects.filter(id__in=run_ids).prefetch_related(
+            "trigger", "trigger_user", "trigger_access_token"
+        )
+        logger.debug("runs.search.resolve", project_id=project_id, hits=len(runs))
+        for i, r in enumerate(os_results["hits"]["hits"][0:effective_limit]):
             cursor = encode_cursor(r, after, i)
-            edge = relay.Edge(node=run, cursor=cursor)
-            edges.append(edge)
+            edges.append(relay.Edge(node=runs[i], cursor=cursor))
+            # pres-set related fields where we know we only need the id
+            run = runs[i]
+            run.project_version = models.ProjectVersion(id=run.project_version_id)
+            run.session = models.Session(id=run.session_id) if run.session_id else None
+            run.runnable = models.Statement(id=run.runnable_id)
+            run.root = models.Run(id=run.root_id) if run.root_id else None
+            run.parent = models.Run(id=run.parent_id) if run.parent_id else None
+
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(results["hits"]["hits"]) > effective_limit,
+            has_next_page=len(os_results["hits"]["hits"]) > effective_limit,
             has_previous_page=False,
         )
-        total_count = results["hits"]["total"]["value"] if count else None
+        total_count = os_results["hits"]["total"]["value"] if count else None
+        logger.debug("runs.search.done", project_id=project_id, total_count=total_count)
         return ListConnectionWithTotalCount(
             edges=edges, page_info=page_info, total_count=total_count
         )

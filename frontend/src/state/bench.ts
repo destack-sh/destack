@@ -435,11 +435,25 @@ export const useBenchState = defineStore("bench", {
       return panel;
     },
 
-    openRuns(options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
-      let panel = this.panels.find((e) => e.type == "view-runs");
+    openRuns(query?: RunsQuery, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
+      let panel = this.panels.find((e) => e.type == "view-runs" && (e as ViewRunsPanel).query == query);
       if (!panel || options?.create) {
         console.log(`create new runs panel`);
-        panel = new ViewRunsPanel();
+        panel = new ViewRunsPanel(query);
+        panel.onDeserialized(this);
+      }
+      this.openPanel(panel, options?.group);
+      if (options?.focus) {
+        this.focusPanel(panel);
+      }
+      return panel;
+    },
+
+    openRun(run: { id: string }, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
+      let panel = this.panels.find((e) => e.type == "view-run" && (e as ViewRunPanel).runId == run.id);
+      if (!panel || options?.create) {
+        console.log(`create new run panel for ${run.id}`);
+        panel = new ViewRunPanel(run);
         panel.onDeserialized(this);
       }
       this.openPanel(panel, options?.group);
@@ -1111,11 +1125,15 @@ export class LaunchRunPanel extends Panel {
 
 export class ViewRunsPanel extends Panel {
   type = "view-runs" as const;
+  limit: number;
   query?: RunsQuery;
   sort?: SearchSort;
 
-  constructor() {
+  constructor(query?: RunsQuery, sort?: SearchSort) {
     super("view-runs", "runs-" + randomHexString(), "Runs", "Runs");
+    this.limit = 50;
+    this.query = query;
+    this.sort = sort;
   }
 
   resetId(): void {

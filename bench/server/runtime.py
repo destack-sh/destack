@@ -283,6 +283,7 @@ class RuntimeServer(Monitored):
                 after=req.after,
                 sort=req.sort,
                 query=Query.and_if_set(req.query, extra_query),
+                version=True,
             )
             results = os_client.search(
                 index=IndexType.BENCH.get_index_name(project_id=project_v.project_id),

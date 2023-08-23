@@ -1,7 +1,7 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import type { SearchLogsQuery, SearchQuery, SearchRunsQueryVariables } from "@/gql/graphql";
+import type { SearchLogsQuery, SearchQuery, SearchRunsQueryVariables, SearchSort } from "@/gql/graphql";
 import {
   RunStatus,
   type Run,
@@ -115,9 +115,6 @@ export const RunContentType = graphql(/* GraphQL */ `
     }
     parent {
       id
-      runnable {
-        id
-      }
     }
     inputs
     outputs
@@ -136,7 +133,6 @@ export const RunContentType = graphql(/* GraphQL */ `
     metadata
     runnable {
       id
-      name
     }
     # trigger
     triggerType
@@ -566,11 +562,13 @@ export function useRuns(
   filter: {
     projectId: Ref<string | null>;
     projectVersionId: Ref<string | null | undefined>;
-    runnableIds: Ref<string[] | null>;
+    runnableIds: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
     query: Ref<SearchQuery | null | undefined>;
+    sort: Ref<SearchSort[] | null | undefined>;
+    after: Ref<string | null | undefined>;
   },
   options?: {
     live?: boolean;
@@ -591,6 +589,8 @@ export function useRuns(
     runId: filter.runId.value,
     rootOnly: filter.rootOnly.value,
     query: filter.query.value,
+    sort: filter.sort.value,
+    after: filter.after.value,
     limit: options?.limit,
     count: options?.count,
   }));
@@ -603,6 +603,8 @@ export function useRuns(
       $runId: GlobalID
       $rootOnly: Boolean!
       $query: SearchQuery
+      $sort: [SearchSort!]
+      $after: String
       $limit: Int
       $count: Boolean
     ) {
@@ -614,6 +616,8 @@ export function useRuns(
         runId: $runId
         rootOnly: $rootOnly
         query: $query
+        sort: $sort
+        after: $after
         limit: $limit
         count: $count
       ) {
@@ -667,15 +671,16 @@ export function useRuns(
   return {
     loading: initialLoading,
     totalCount: computed(() => result.value?.searchRuns.totalCount),
+    pageInfo: computed(() => result.value?.searchRuns.pageInfo),
     runs: computed(() => result.value?.searchRuns.edges.map((e) => useFragment(RunContentType, e.node))),
   };
 }
 
-export function useRun(rootId: Ref<string>, options?: { live?: boolean }) {
+export function useRun(rootId: Ref<string | null>, options?: { live?: boolean }) {
   /**
    * Gets the entire trace of a single session/run
    */
-  rootId = toValueRef(rootId);
+  // rootId = toValueRef(rootId);
   const RUN_QUERY = graphql(/* GraphQL */ `
     query getRun($id: GlobalID!) {
       run(id: $id) {
@@ -689,6 +694,7 @@ export function useRun(rootId: Ref<string>, options?: { live?: boolean }) {
 
   const { result: initialResult, loading: initialLoading } = useQuery(RUN_QUERY, { id: rootId } as any, {
     fetchPolicy: "network-only",
+    enabled: computed(() => rootId.value != null) as any,
   });
 
   const client = useApolloClient();
@@ -782,6 +788,8 @@ export function useLogs(
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
     query: Ref<SearchQuery | null | undefined>;
+    sort: Ref<SearchSort[] | null | undefined>;
+    after: Ref<string | null | undefined>;
   },
   options?: { live?: boolean; limit?: number; count?: boolean; skipInitialLoad?: Ref<boolean> }
 ) {
@@ -797,6 +805,8 @@ export function useLogs(
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     query: filter.query.value,
+    sort: filter.sort.value,
+    after: filter.after.value,
     limit: options?.limit,
     count: options?.count,
   }));
@@ -807,6 +817,9 @@ export function useLogs(
       $runnableIds: [GlobalID!]
       $sessionId: GlobalID
       $runId: GlobalID
+      $query: SearchQuery
+      $sort: [SearchSort!]
+      $after: String
       $limit: Int
       $count: Boolean
     ) {
@@ -816,6 +829,9 @@ export function useLogs(
         runnableIds: $runnableIds
         sessionId: $sessionId
         runId: $runId
+        query: $query
+        sort: $sort
+        after: $after
         limit: $limit
         count: $count
       ) {
