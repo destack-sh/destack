@@ -42,8 +42,12 @@ const { run } = useRun(
   { live: true }
 );
 const statement = computed(() => (run.value?.runnable != null ? module.statementOf(run.value.runnable.id) : null));
-const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const inputFields = computed(
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
+);
+const outputFields = computed(
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IsOutput) ?? []
+);
 const terminalActions = computed(() => []);
 
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
