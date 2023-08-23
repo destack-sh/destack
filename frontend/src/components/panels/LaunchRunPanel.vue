@@ -34,8 +34,12 @@ const now = useTimeFromNow();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const statement = computed(() => module.statementOf(props.panel.panel.value.statementId));
-const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.flags & TypeFlag.IsOutput)) ?? []);
-const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
+const inputFields = computed(
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
+);
+const outputFields = computed(
+  () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IsOutput) ?? []
+);
 const terminalActions = computed(() => {
   const actions: StatementAction[] = [
     {
