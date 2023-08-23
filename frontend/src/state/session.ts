@@ -1,7 +1,7 @@
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { graphql, useFragment } from "@/gql";
-import type { SearchLogsQuery, SearchRunsQueryVariables } from "@/gql/graphql";
+import type { SearchLogsQuery, SearchQuery, SearchRunsQueryVariables } from "@/gql/graphql";
 import {
   RunStatus,
   type Run,
@@ -115,6 +115,9 @@ export const RunContentType = graphql(/* GraphQL */ `
     }
     parent {
       id
+      runnable {
+        id
+      }
     }
     inputs
     outputs
@@ -139,7 +142,7 @@ export const RunContentType = graphql(/* GraphQL */ `
     triggerType
     trigger {
       id
-      name
+      type
     }
     triggerUser {
       id
@@ -551,6 +554,14 @@ function _useCurrentSessions() {
 
 export const useCurrentSessions = createSharedComposable(_useCurrentSessions);
 
+export type RunsQuery = {
+  runnableIds?: string[];
+  sessionId?: string;
+  runId?: string;
+  rootOnly?: boolean;
+  query?: SearchQuery;
+};
+
 export function useRuns(
   filter: {
     projectId: Ref<string | null>;
@@ -559,6 +570,7 @@ export function useRuns(
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
+    query: Ref<SearchQuery | null | undefined>;
   },
   options?: {
     live?: boolean;
@@ -578,6 +590,7 @@ export function useRuns(
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     rootOnly: filter.rootOnly.value,
+    query: filter.query.value,
     limit: options?.limit,
     count: options?.count,
   }));
@@ -589,6 +602,7 @@ export function useRuns(
       $sessionId: GlobalID
       $runId: GlobalID
       $rootOnly: Boolean!
+      $query: SearchQuery
       $limit: Int
       $count: Boolean
     ) {
@@ -599,6 +613,7 @@ export function useRuns(
         sessionId: $sessionId
         runId: $runId
         rootOnly: $rootOnly
+        query: $query
         limit: $limit
         count: $count
       ) {
@@ -662,7 +677,6 @@ export function useRun(rootId: Ref<string>, options?: { live?: boolean }) {
    */
   rootId = toValueRef(rootId);
   const RUN_QUERY = graphql(/* GraphQL */ `
-    # getRun as not to conflict with run from runtime
     query getRun($id: GlobalID!) {
       run(id: $id) {
         ...RunContent
@@ -753,6 +767,13 @@ export function useRun(rootId: Ref<string>, options?: { live?: boolean }) {
   };
 }
 
+export type LogsQuery = {
+  runnableIds?: string[] | null | undefined;
+  sessionId?: string | null | undefined;
+  runId?: string | null | undefined;
+  query?: SearchQuery | null | undefined;
+};
+
 export function useLogs(
   filter: {
     projectId: Ref<string>;
@@ -760,6 +781,7 @@ export function useLogs(
     runnableIds: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
+    query: Ref<SearchQuery | null | undefined>;
   },
   options?: { live?: boolean; limit?: number; count?: boolean; skipInitialLoad?: Ref<boolean> }
 ) {
@@ -774,6 +796,7 @@ export function useLogs(
     runnableIds: filter.runnableIds.value,
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
+    query: filter.query.value,
     limit: options?.limit,
     count: options?.count,
   }));

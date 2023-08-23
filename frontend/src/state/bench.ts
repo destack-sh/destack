@@ -9,6 +9,7 @@ import {
   type ProjectVersion,
   type Scalars,
   type Statement,
+  type SearchSort,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -20,6 +21,7 @@ import {
   type Theme,
 } from "@/state/appearance";
 import type { ModuleIndex, NodeBase } from "@/state/module";
+import type { LogsQuery, RunsQuery } from "@/state/session";
 import { randomHexString } from "@/utils/functools";
 import {
   ArrowLeftIcon,
@@ -424,6 +426,20 @@ export const useBenchState = defineStore("bench", {
       if (!panel || options?.create) {
         console.log(`create new launch panel for ${statement.name}`);
         panel = new LaunchRunPanel(statement);
+        panel.onDeserialized(this);
+      }
+      this.openPanel(panel, options?.group);
+      if (options?.focus) {
+        this.focusPanel(panel);
+      }
+      return panel;
+    },
+
+    openRuns(options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
+      let panel = this.panels.find((e) => e.type == "view-runs");
+      if (!panel || options?.create) {
+        console.log(`create new runs panel`);
+        panel = new ViewRunsPanel();
         panel.onDeserialized(this);
       }
       this.openPanel(panel, options?.group);
@@ -1093,8 +1109,10 @@ export class LaunchRunPanel extends Panel {
   }
 }
 
-export class RunsPanel extends Panel {
+export class ViewRunsPanel extends Panel {
   type = "view-runs" as const;
+  query?: RunsQuery;
+  sort?: SearchSort;
 
   constructor() {
     super("view-runs", "runs-" + randomHexString(), "Runs", "Runs");
@@ -1112,7 +1130,7 @@ export class RunsPanel extends Panel {
   }
 }
 
-export class RunPanel extends Panel {
+export class ViewRunPanel extends Panel {
   type = "view-run" as const;
   runId: string;
 
@@ -1134,8 +1152,10 @@ export class RunPanel extends Panel {
   }
 }
 
-export class LogsPanel extends Panel {
+export class ViewLogsPanel extends Panel {
   type = "view-logs" as const;
+  query?: LogsQuery;
+  sort?: SearchSort;
 
   constructor() {
     super("view-logs", "logs-" + randomHexString(), "Logs", "Logs");
@@ -1158,9 +1178,9 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   "edit-file": EditFilePanel as any,
   "edit-statement": EditStatementPanel as any,
   "launch-run": LaunchRunPanel as any, // don't care about constructor type
-  "view-runs": RunsPanel as any,
-  "view-run": RunPanel as any,
-  "view-logs": LogsPanel as any,
+  "view-runs": ViewRunsPanel as any,
+  "view-run": ViewRunPanel as any,
+  "view-logs": ViewLogsPanel as any,
 };
 
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {

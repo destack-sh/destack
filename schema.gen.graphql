@@ -325,7 +325,7 @@ interface HasTriggeredBy {
   triggerType: TriggerType
   triggerUser: User
   triggerAccessToken: AccessToken
-  trigger: Statement
+  trigger: Trigger
 }
 
 type Issue implements Node & ModuleNode {
@@ -1384,7 +1384,7 @@ type Run implements HasTriggeredBy & Node {
   triggerType: TriggerType
   triggerUser: User
   triggerAccessToken: AccessToken
-  trigger: Statement
+  trigger: Trigger
 
   """The Globally Unique ID of this object"""
   id: GlobalID!
@@ -1532,7 +1532,7 @@ type Session implements HasTriggeredBy & Node {
   triggerType: TriggerType
   triggerUser: User
   triggerAccessToken: AccessToken
-  trigger: Statement
+  trigger: Trigger
 
   """The Globally Unique ID of this object"""
   id: GlobalID!

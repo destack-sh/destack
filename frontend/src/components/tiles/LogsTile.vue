@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import type { LogEntry } from "@/gql/graphql";
+import type { LogEntry, SearchQuery } from "@/gql/graphql";
 import { useLogs } from "@/state/session";
 import { ChevronDoubleDownIcon } from "@heroicons/vue/24/outline";
 import { useElementBounding, useScroll } from "@vueuse/core";
@@ -13,6 +13,7 @@ const props = defineProps<{
   runnableIds?: string[];
   runId?: string;
   sessionId?: string;
+  query?: SearchQuery;
   live?: boolean;
   limit?: number;
   skipInitialLoad?: boolean;
@@ -33,6 +34,7 @@ const { logs, loading, addLogs } = useLogs(
     runnableIds: toRef(props, "runnableIds"),
     sessionId: toRef(props, "sessionId"),
     runId: toRef(props, "runId"),
+    query: toRef(props, "query"),
   },
   {
     live: props.live,

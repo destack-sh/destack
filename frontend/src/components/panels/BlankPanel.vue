@@ -2,6 +2,7 @@
 import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
 import { useBenchState, type PanelGroup } from "@/state/bench";
+import type { NodeBase } from "@/state/module";
 import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
@@ -53,7 +54,7 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; name: string }) {
-  bench.openFile(file, { group: props.group, create: true, focus: true });
+  bench.openFile(file as NodeBase, { group: props.group, create: true, focus: true });
 }
 </script>
 <template>

@@ -26,7 +26,7 @@ const emit = defineEmits<{
 const bench = useBenchState();
 const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
-const panelsize = computed(() => props.panel.size.value);
+const panelSize = computed(() => props.panel.size.value);
 const now = useTimeFromNow();
 
 // state
@@ -144,7 +144,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex flex-col" :style="{ minHeight: panelsize.height + 'px' }">
+  <div class="relative flex flex-col" :style="{ minHeight: panelSize.height + 'px' }">
     <!-- Fixed inline header -->
     <PanelHeader
       class="border-b border-orange-900 border-opacity-[12%]"
@@ -162,7 +162,7 @@ defineExpose({
         marginTop: appearance.editorHeaderHeight + 'px',
         paddingTop: gridStepY + 'px',
         paddingBottom: gridStepY + 'px',
-        minHeight: panelsize.height - appearance.editorHeaderHeight + 'px',
+        minHeight: panelSize.height - appearance.editorHeaderHeight + 'px',
       }"
     >
       <!-- Header -->
@@ -236,11 +236,29 @@ defineExpose({
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
             include-ancestor-versions
-            :runnable-id="panel?.statementId"
+            :runnable-ids="[panel.statementId]"
             :symbol-type="statement?.type"
             live
             :limit="INLINE_RUNS_LIMIT"
             view="list"
+          />
+        </ContainerTile>
+        <!-- Runs nocheckin grid view for testing -->
+        <ContainerTile
+          v-if="statement != null"
+          label="Runs"
+          :sub-label="`last ${INLINE_RUNS_LIMIT}`"
+          :style="{ ...baseTilePositionX }"
+        >
+          <RunsTile
+            :project-id="(bench.projectId as string)"
+            :project-version-id="(bench.projectVersionId as string)"
+            include-ancestor-versions
+            :runnable-ids="[panel.statementId]"
+            :symbol-type="statement?.type"
+            live
+            :limit="INLINE_RUNS_LIMIT"
+            view="grid"
           />
         </ContainerTile>
       </template>

@@ -42,7 +42,12 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       <PopoverPanel
         class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col gap-2 rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
-        <h2 class="font-bold text-gray-900">Runs</h2>
+        <h2
+          class="font-bold text-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
+          @click="bench.openRuns()"
+        >
+          Runs
+        </h2>
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
           <!-- Run -->
           <div v-for="run in activeRunsDesc" :key="run.id" class="relative flex flex-row justify-between gap-1 py-0.5">
@@ -80,8 +85,11 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
             </span>
           </div>
         </div>
-        <div v-if="activeRuns.length == 0" class="mt-1 text-center">
-          <span class="px-3 text-gray-400">No active runs.</span>
+        <div v-if="activeRuns.length == 0" class="mt-1 px-3 text-center">
+          <span class="text-gray-400"
+            >No active runs.
+            <a href="#" class="hover:underline" @click="bench.openRuns()">View all.</a>
+          </span>
         </div>
       </PopoverPanel>
     </FadeTransition>
