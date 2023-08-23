@@ -20,15 +20,16 @@ import {
 } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
+type NamedElement = { __typename: string; id?: string; name?: string };
 const props = defineProps<{
   thing: any;
   actions: Action<any>[];
-  path: NodeBase[];
+  path: Array<NamedElement | NodeBase>;
   self: number;
   editing: boolean;
   hideWideToggle?: boolean;
 }>();
-const emit = defineEmits<{ (e: "focus", v: NodeBase): void }>();
+const emit = defineEmits<{ (e: "focus", v: NamedElement | NodeBase): void }>();
 
 const bench = useBenchState();
 const panel = usePanelContext();
@@ -63,7 +64,11 @@ const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
           <button
             v-else
             class="group/node relative rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
-            @click="i >= self ? emit('focus', node) : bench.focusNode(node, panel?.panel.value.group)"
+            @click="
+              i >= self || node.id == null
+                ? emit('focus', node)
+                : bench.focusNode(node as NodeBase, panel?.panel.value.group)
+            "
           >
             {{ node.name ?? "(Untitled)" }}
             <!-- Tooltip -->

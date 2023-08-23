@@ -67,6 +67,7 @@ from bench.opensearch.query import encode_cursor, prepare_search
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
+    from bench.api.statement import Trigger
     from bench.api.token import AccessToken
     from bench.api.user import User
 
@@ -156,7 +157,7 @@ class HasTriggeredBy:
     trigger_type: Optional[TriggerType]
     trigger_user: Optional[Annotated["User", lazy(".user")]]
     trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
-    trigger: Optional[Annotated["Statement", lazy(".statement")]]
+    trigger: Optional[Annotated["Trigger", lazy(".statement")]]
 
 
 @strawberry_django.type(models.Session)
@@ -172,7 +173,7 @@ class Session(HasTriggeredBy, relay.Node):
     trigger_type: Optional[TriggerType]
     trigger_user: Optional[Annotated["User", lazy(".user")]]
     trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
-    trigger: Optional[Annotated["Statement", lazy(".statement")]]
+    trigger: Optional[Annotated["Trigger", lazy(".statement")]]
 
 
 @strawberry_django.type(models.Run)
@@ -201,7 +202,7 @@ class Run(HasTriggeredBy, relay.Node):
     trigger_type: Optional[TriggerType]
     trigger_user: Optional[Annotated["User", lazy(".user")]]
     trigger_access_token: Optional[Annotated["AccessToken", lazy(".token")]]
-    trigger: Optional[Annotated["Statement", lazy(".statement")]]
+    trigger: Optional[Annotated["Trigger", lazy(".statement")]]
 
 
 @strawberry.type

@@ -351,7 +351,7 @@ export type HasCrud = {
 };
 
 export type HasTriggeredBy = {
-  trigger?: Maybe<Statement>;
+  trigger?: Maybe<Trigger>;
   triggerAccessToken?: Maybe<AccessToken>;
   triggerType?: Maybe<TriggerType>;
   triggerUser?: Maybe<User>;
@@ -1813,7 +1813,7 @@ export type Run = HasTriggeredBy &
     startedAt?: Maybe<Scalars["DateTime"]>;
     status: RunStatus;
     terminatedAt?: Maybe<Scalars["DateTime"]>;
-    trigger?: Maybe<Statement>;
+    trigger?: Maybe<Trigger>;
     triggerAccessToken?: Maybe<AccessToken>;
     triggerType?: Maybe<TriggerType>;
     triggerUser?: Maybe<User>;
@@ -1956,7 +1956,7 @@ export type Session = HasTriggeredBy &
     openedAt?: Maybe<Scalars["DateTime"]>;
     project: Project;
     runs: Array<Run>;
-    trigger?: Maybe<Statement>;
+    trigger?: Maybe<Trigger>;
     triggerAccessToken?: Maybe<AccessToken>;
     triggerType?: Maybe<TriggerType>;
     triggerUser?: Maybe<User>;
@@ -5311,7 +5311,7 @@ export type RunContentFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent?: { __typename?: "Run"; id: any } | null;
+  parent?: { __typename?: "Run"; id: any; runnable?: { __typename?: "Statement"; id: any } | null } | null;
   errorNice?: {
     __typename?: "RunError";
     kind: string;
@@ -5327,7 +5327,7 @@ export type RunContentFragment = {
     }> | null;
   } | null;
   runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
-  trigger?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  trigger?: { __typename?: "Trigger"; id: any; type: TriggerType } | null;
   triggerUser?: { __typename?: "User"; id: any; username: string; name: string } | null;
   triggerAccessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "RunContentFragment" };
@@ -5400,6 +5400,7 @@ export type SearchRunsQueryVariables = Exact<{
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   rootOnly: Scalars["Boolean"];
+  query?: InputMaybe<SearchQuery>;
   limit?: InputMaybe<Scalars["Int"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
@@ -6666,7 +6667,17 @@ export const RunContentFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "runnable" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+              ],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -6717,7 +6728,7 @@ export const RunContentFragmentDoc = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
+                { kind: "Field", name: { kind: "Name", value: "type" } },
               ],
             },
           },
@@ -16311,6 +16322,11 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
@@ -16356,6 +16372,11 @@ export const SearchRunsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "rootOnly" },
                 value: { kind: "Variable", name: { kind: "Name", value: "rootOnly" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "query" },
+                value: { kind: "Variable", name: { kind: "Name", value: "query" } },
               },
               {
                 kind: "Argument",
