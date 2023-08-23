@@ -1,26 +1,28 @@
 <script lang="ts" setup>
-import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
-import { type Run, TriggerType, type SearchQuery } from "@/gql/graphql";
+import { TriggerType, type SearchQuery, type SearchSort } from "@/gql/graphql";
 import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
-import { useCurrentModule, useNavigation } from "@/state/module";
+import { useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
 import { useKeyModifier } from "@vueuse/core";
-import { ref, toRef } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
+import { useBenchState } from "@/state/bench";
+import { getStatementIconSolid } from "@/state/statement";
 
 const props = defineProps<{
-  runnableIds: string[];
   projectId: string;
   projectVersionId?: string;
   rootOnly?: boolean;
+  runnableIds?: string[];
   query?: SearchQuery;
+  sort?: [SearchSort];
   live?: boolean;
+  after?: string;
   limit?: number;
-  view: "list" | "grid";
+  hideHeader?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
@@ -29,11 +31,12 @@ const emit = defineEmits<{
 
 // state
 
+const bench = useBenchState();
 const module = useCurrentModule();
 const now = useTimeFromNow(100);
 const nav = useNavigation();
 
-const { runs, loading, totalCount } = useRuns(
+const { runs, loading, totalCount, pageInfo } = useRuns(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
@@ -42,15 +45,33 @@ const { runs, loading, totalCount } = useRuns(
     runId: ref(null),
     rootOnly: toRef(props, "rootOnly"),
     query: toRef(props, "query"),
+    sort: toRef(props, "sort"),
+    after: toRef(props, "after"),
   },
   { live: props.live, limit: props.limit, count: true }
 );
+
+const statements: Ref<Record<string, InterpStatement | null>> = computed(() => {
+  const statementsById: Record<string, InterpStatement | null> = {};
+
+  for (const run of runs.value ?? []) {
+    if (statementsById[run.runnable?.id] != null) continue;
+    const statement = module.statementOf(run.runnable?.id);
+    if (statement != null) {
+      statementsById[run.runnable?.id] = statement;
+    }
+  }
+
+  return statementsById;
+});
 
 // navigation
 
 const altKey = useKeyModifier("Alt");
 
 // display
+
+defineExpose({ runs, loading, totalCount, pageInfo });
 </script>
 <template>
   <!-- Runs -->
@@ -58,95 +79,81 @@ const altKey = useKeyModifier("Alt");
   <div v-else-if="loading" class="flex h-full w-full items-center justify-center">
     <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
   </div>
-  <div v-else-if="view == 'list'" class="relative flex flex-col gap-y-2">
-    <div v-if="(runs?.length ?? 0) == 0" class="w-full text-center"><span class="text-gray-400">No runs</span></div>
-    <!-- Each run -->
-    <div
-      v-for="(run, i) in runs"
-      :key="run.id"
-      class="group/run flex flex-row items-baseline gap-2.5 px-0.5 py-0.5 hover:cursor-pointer hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-40 focus:bg-orange-100"
-    >
-      <!-- Status & timing -->
-      <span class="transtion inline-flex max-w-full flex-row items-center" :class="[getRunStatusColor(run.status)]">
+  <table v-else class="min-w-full divide-y divide-orange-900 divide-opacity-[12%]">
+    <!-- Header -->
+    <thead v-if="!hideHeader">
+      <tr>
+        <th scope="col" class="px-2.5 py-1 text-left text-sm font-semibold text-gray-900">Statement</th>
+        <th scope="col" class="px-2.5 py-1 text-left text-sm font-semibold text-gray-900">Run</th>
+        <th scope="col" class="px-2.5 py-1 text-left text-sm font-semibold text-gray-900">Status</th>
+        <th scope="col" class="px-2.5 py-1 text-left text-sm font-semibold text-gray-900">Trigger</th>
+      </tr>
+    </thead>
+    <!-- Runs -->
+    <tbody class="divide-y divide-orange-900 divide-opacity-[12%]">
+      <tr v-for="run in runs" :key="run.id" class="group/run divide-orange-900 divide-opacity-[12%]">
+        <!-- Statement -->
+        <td class="whitespace-nowrap px-2.5 py-1.5">
+          <button
+            v-if="statements[run.runnable?.id] != null"
+            class="flex flex-row items-center underline-offset-2 hover:underline"
+            @click="nav.focusStatement(run.runnable as NodeBase)"
+          >
+            <component
+              :is="getStatementIconSolid((statements[run.runnable?.id] as InterpStatement).type)"
+              class="mr-1 h-4 w-4 text-gray-400"
+            />
+            <span>{{ (statements[run.runnable?.id] as InterpStatement).name }}</span>
+          </button>
+        </td>
+        <!-- ID (to copy) -->
+        <td class="whitespace-nowrap px-2.5 py-1.5">
+          <button
+            class="inline-flex flex-row items-center text-gray-400 hover:underline"
+            @click="bench.openRun(run, { focus: true })"
+          >
+            <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-6, -1) }}</span>
+          </button>
+        </td>
         <!-- Status -->
-        <component
-          :is="getRunStatusIconSolid(run.status)"
-          class="h-4 w-4"
-          :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
-        />
-        <!-- Runnable -->
-        <span
-          class="ml-1 max-w-full truncate font-semibold underline-offset-4"
-          :class="[altKey ? 'cursor-pointer hover:underline' : '']"
-          @click="
-            (e) =>
-              altKey && run.runnable != null
-                ? (nav.focusStatement(run.runnable), e.stopPropagation(), e.preventDefault())
-                : undefined
-          "
-          >{{ run.runnable != null ? module.statementOf(run.runnable?.id)?.name : "???" }}</span
-        >
-        <!-- Duration -->
-        <span class="group/cache ml-1 flex flex-row flex-nowrap items-center" v-if="run.startedAt != null">
-          <span class="font-semibold">
-            {{ run.duration != null ? formatDuration(run.duration * 1000) : now.getTimeFromNowString(run.startedAt) }}
+        <td class="whitespace-nowrap px-2.5 py-1.5">
+          <span class="inline-flex flex-row items-center gap-1" :class="[getRunStatusColor(run.status)]">
+            <component :is="getRunStatusIconSolid(run.status)" class="h-4 w-4" />
+            <span>{{ run.status }}</span>
+            <!-- Duration -->
+            <span v-if="run.startedAt != null">
+              {{ run.terminatedAt != null ? "in" : "for" }}
+              {{
+                run.duration != null
+                  ? formatDuration(run.duration * 1000)
+                  : now.getTimeFromNowString(run.startedAt, { useNow: false })
+              }}
+            </span>
           </span>
-          <RunCacheInfo :run="(run as Run)" />
-        </span>
-      </span>
-      <!-- Trigger -->
-      <span class="inline-flex flex-row items-center gap-1">
-        <!-- Type -->
-        <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
-        <!-- From -->
-        <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
-        <!-- Detail -->
-        <span class="text-gray-400">
-          <span v-if="run.triggerUser != null">by {{ run.triggerUser.username }}</span>
-          <span v-else-if="run.triggerAccessToken != null">via API</span>
-          <span v-else-if="run.parent != null">in {{ module.nodeOf(run.parent.runnable?.id)?.name }}</span>
-          <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>
-          <span v-else-if="IS_DEBUG" class="text-red-600">???</span>
-        </span>
-      </span>
-      <!-- ID -->
-      <span class="text-sm text-gray-400 group-hover/run:underline"
-        >#{{ "..." + getUUIDFromGlobalID(run.id).slice(-6, -1) }}</span
-      >
-    </div>
-  </div>
-  <div v-else-if="view == 'grid'">
-    <table class="mx-1 min-w-full divide-y divide-orange-900 divide-opacity-[12%]">
-      <!-- Header -->
-      <thead>
-        <tr>
-          <th scope="col" class="py-1 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">ID</th>
-          <th scope="col" class="py-1 pl-4 pr-3 text-left text-sm font-semibold text-gray-900 sm:pl-0">Status</th>
-          <th scope="col" class="px-3 py-1 text-left text-sm font-semibold text-gray-900 sm:pl-0">Runnable</th>
-          <th scope="col" class="px-3 py-1 text-left text-sm font-semibold text-gray-900 sm:pl-0">Trigger</th>
-          <th scope="col" class="px-3 py-1 text-left text-sm font-semibold text-gray-900 sm:pl-0">Inputs</th>
-          <th scope="col" class="px-3 py-1 text-left text-sm font-semibold text-gray-900 sm:pl-0">Outputs</th>
-        </tr>
-      </thead>
-      <!-- Runs -->
-      <tbody class="divide-y divide-orange-900 divide-opacity-[12%]">
-        <tr v-for="run in runs" :key="run.id" class="divde-x divide-orange-900 divide-opacity-[12%]">
-          <!-- ID (to copy) -->
-          <td class="whitespace-nowrap py-2 pl-4 pr-3">
-            <span class="inline-flex flex-row items-center text-gray-400">
-              <span>#{{ "..." + getUUIDFromGlobalID(run.id).slice(-6, -1) }}</span>
+        </td>
+        <!-- Trigger -->
+        <td class="whitespace-nowrap px-2.5 py-1.5">
+          <div class="flex flex-row items-center gap-1">
+            <!-- Type -->
+            <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
+            <!-- From -->
+            <span class="text-gray-900">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
+            <!-- Detail -->
+            <span class="text-gray-900">
+              <span v-if="run.triggerUser != null">by {{ run.triggerUser.username }}</span>
+              <span v-else-if="run.triggerAccessToken != null">via API</span>
+              <span v-else-if="run.parent != null">
+                in
+                <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent)">
+                  #{{ getUUIDFromGlobalID(run.parent.id).slice(-6, -1) }}
+                </button>
+              </span>
+              <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>
+              <span v-else-if="IS_DEBUG" class="text-red-600">???</span>
             </span>
-          </td>
-          <!-- Status -->
-          <td class="whitespace-nowrap px-3 py-2">
-            <span class="inline-flex flex-row items-center gap-1" :class="[getRunStatusColor(run.status)]">
-              <component :is="getRunStatusIconSolid(run.status)" class="h-4 w-4" />
-              <span>{{ run.status }}</span>
-            </span>
-          </td>
-          <!-- Runnable -->
-        </tr>
-      </tbody>
-    </table>
-  </div>
+          </div>
+        </td>
+      </tr>
+    </tbody>
+  </table>
 </template>

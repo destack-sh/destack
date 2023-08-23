@@ -68,9 +68,6 @@ class Packer(Generic[ModelT, MirrorT, DataT]):
     def mirror(self, project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
         raise NotImplementedError
 
-    def unmirror(self, mirror: MirrorT) -> ModelT:
-        raise NotImplementedError
-
     def pack(self, mirror: MirrorT) -> DataT:
         raise NotImplementedError
 
@@ -115,11 +112,6 @@ def has_mirror(node: ModelT) -> bool:
 def mirror_node(project_v: models.ProjectVersion | None, node: ModelT) -> MirrorT:
     packer = _packers_by_model[type(node)]
     return packer.mirror(project_v, node)
-
-
-def unmirror_node(mirror: MirrorT) -> ModelT:
-    packer = _packers_by_mirror[type(mirror)]
-    return packer.unmirror(mirror)
 
 
 def pack_node_flat(node: MirrorT) -> DataT:
@@ -471,28 +463,6 @@ class Run(os.Document):
 
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
-    def unmirror(self, mirror: Run) -> models.Run:
-        return models.Run(
-            id=mirror.id,
-            project_id=mirror.project_id,
-            project_version_id=mirror.project_version_id,
-            worker_node_id=mirror.worker_node_id,
-            worker_process_id=mirror.worker_process_id,
-            session_id=mirror.session_id,
-            trigger_type=mirror.trigger_type,
-            runnable_id=mirror.runnable_id,
-            created_at=mirror.created_at,
-            updated_at=mirror.updated_at,
-            scheduled_at=mirror.scheduled_at,
-            started_at=mirror.started_at,
-            terminated_at=mirror.terminated_at,
-            status=mirror.status,
-            inputs=mirror.inputs,
-            outputs=mirror.outputs,
-            error=None,
-            metadata=mirror.metadata,
-        )
-
     def pack(self, mirror: Run) -> wire.RunData:
         runnable_type = wire.StatementType(mirror.runnable_type) if mirror.runnable_type else None
         return wire.RunData(

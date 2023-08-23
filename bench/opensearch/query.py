@@ -163,6 +163,9 @@ def prepare_search(
     after: Optional[str] = None,
     sort: Optional[list[Sort]] = None,
     query: Optional[Query] = None,
+    version: bool = False,
+    fields: Optional[list[str]] = None,
+    source: bool = True,
 ) -> dict:
     combined_query = Q(
         QueryOp.AND,
@@ -186,8 +189,11 @@ def prepare_search(
         "query": compiled_query,
         "sort": compiled_sort,
         "track_total_hits": count,
-        "version": True,  # for revisions, until we have revisions in DB again
+        "version": version,
+        "_source": source,
     }
+    if fields is not None:
+        search["fields"] = fields
     if after:
         # cursor is base64 encoded json of search after if it exists,
         # otherwise just from for relevance-scored search (opaque to client)

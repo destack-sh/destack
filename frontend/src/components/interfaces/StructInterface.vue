@@ -123,6 +123,7 @@ defineExpose({
           orientation="vertical"
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :hide-outline="appearance.hideFieldOutline"
+          hide-description
           :model-value="field"
           @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key } as Field)"
           @delete-self="emit('delete:field', field)"

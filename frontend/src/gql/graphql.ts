@@ -5311,7 +5311,7 @@ export type RunContentFragment = {
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
-  parent?: { __typename?: "Run"; id: any; runnable?: { __typename?: "Statement"; id: any } | null } | null;
+  parent?: { __typename?: "Run"; id: any } | null;
   errorNice?: {
     __typename?: "RunError";
     kind: string;
@@ -5326,7 +5326,7 @@ export type RunContentFragment = {
       locals?: any | null;
     }> | null;
   } | null;
-  runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  runnable?: { __typename?: "Statement"; id: any } | null;
   trigger?: { __typename?: "Trigger"; id: any; type: TriggerType } | null;
   triggerUser?: { __typename?: "User"; id: any; username: string; name: string } | null;
   triggerAccessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
@@ -5401,6 +5401,8 @@ export type SearchRunsQueryVariables = Exact<{
   runId?: InputMaybe<Scalars["GlobalID"]>;
   rootOnly: Scalars["Boolean"];
   query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  after?: InputMaybe<Scalars["String"]>;
   limit?: InputMaybe<Scalars["Int"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
@@ -5445,6 +5447,9 @@ export type SearchLogsQueryVariables = Exact<{
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  after?: InputMaybe<Scalars["String"]>;
   limit?: InputMaybe<Scalars["Int"]>;
   count?: InputMaybe<Scalars["Boolean"]>;
 }>;
@@ -6667,17 +6672,7 @@ export const RunContentFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "runnable" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "inputs" } },
@@ -6714,10 +6709,7 @@ export const RunContentFragmentDoc = {
             name: { kind: "Name", value: "runnable" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
@@ -16327,6 +16319,19 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
@@ -16377,6 +16382,16 @@ export const SearchRunsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "query" },
                 value: { kind: "Variable", name: { kind: "Name", value: "query" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sort" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } },
               },
               {
                 kind: "Argument",
@@ -16519,6 +16534,24 @@ export const SearchLogsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
@@ -16559,6 +16592,21 @@ export const SearchLogsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "runId" },
                 value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "query" },
+                value: { kind: "Variable", name: { kind: "Name", value: "query" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sort" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } },
               },
               {
                 kind: "Argument",

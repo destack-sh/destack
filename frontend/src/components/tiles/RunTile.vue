@@ -1,13 +1,12 @@
 <script lang="ts" setup>
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
-import RunMetadataTile from "@/components/tiles/RunMetadataTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import { Bars3Icon, ChartBarIcon, DocumentChartBarIcon, FireIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChartBarIcon, FireIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "flamegraph" | "error" | "metadata";
+type View = "logs" | "flamegraph" | "error";
 
 const props = defineProps<{
   projectId: string;
@@ -44,9 +43,7 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'flamegraph', 'error', 'metadata'].filter(
-            (v) => v != 'error' || run?.status == RunStatus.Failed
-          )"
+          v-for="view in ['logs', 'flamegraph', 'error'].filter((v) => v != 'error' || run?.status == RunStatus.Failed)"
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
@@ -59,7 +56,6 @@ defineExpose({
                 flamegraph: FireIcon,
                 trace: ChartBarIcon,
                 error: XCircleIcon,
-                metadata: DocumentChartBarIcon,
               }[view]
             "
             class="h-4 w-4"
@@ -99,7 +95,6 @@ defineExpose({
         :limit="500"
       />
       <ErrorTraceback v-else-if="activeView == 'error'" :run="run" />
-      <RunMetadataTile v-else-if="activeView == 'metadata'" :run="run" />
     </div>
   </div>
 </template>

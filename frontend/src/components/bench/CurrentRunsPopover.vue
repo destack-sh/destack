@@ -44,7 +44,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
       >
         <h2
           class="font-bold text-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
-          @click="bench.openRuns()"
+          @click="bench.openRuns(undefined, { focus: true })"
         >
           Runs
         </h2>

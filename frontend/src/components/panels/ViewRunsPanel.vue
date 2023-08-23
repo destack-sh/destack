@@ -3,15 +3,14 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
-import { useTimeFromNow } from "@/composables/useNow";
+import { humanizeNumber, useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type ViewRunsPanel, type PanelContext } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { useTiling } from "@/state/screen";
 import { useCurrentSessions } from "@/state/session";
-import { computed } from "vue";
-
-const RUNS_PAGE_SIZE = 50;
+import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/vue/24/outline";
+import { computed, ref, type Ref } from "vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunsPanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -24,6 +23,21 @@ const now = useTimeFromNow();
 
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
+
+const runsTileRef: Ref<InstanceType<typeof RunsTile> | null> = ref(null);
+
+// basic pagination that just remembers the last cursors
+// for something more proper we'll need to reverse the sort and such
+const runsAfter = ref<string | undefined>(undefined);
+const previousCursors = ref<(string | null)[]>([]);
+function pageForward() {
+  previousCursors.value.push(runsAfter.value ?? null);
+  runsAfter.value = runsTileRef.value?.pageInfo?.endCursor ?? undefined;
+}
+
+function pageBackward() {
+  runsAfter.value = previousCursors.value.pop() ?? undefined;
+}
 
 const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(props.panel);
 </script>
@@ -52,25 +66,57 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
         minHeight: panelSize.height - appearance.editorHeaderHeight + 'px',
       }"
     >
-      <!-- Filters -->
-      <ContainerTile>
-        <div class="flex flex-row gap-2">
-          <!-- Status -->
-          <!-- Runnable -->
-          <!-- Time -->
-        </div>
-      </ContainerTile>
+      <!-- Header -->
+      <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
+        <!-- Title & source -->
+        <h1 class="text-3xl font-bold text-gray-900">Runs</h1>
+      </div>
+      <!-- TODO @UX: runs panel filters (status/runnable/query/etc.) -->
       <!-- Runs grid -->
-      <ContainerTile>
-        <!-- Header with pagination -->
-        <div class="flex flex-row justify-between">
-          <div>Runs</div>
-          <!-- Pagination -->
-          <div>pagination</div>
-        </div>
+      <ContainerTile
+        :label="runsTileRef?.totalCount == null ? `Runs` : `${humanizeNumber(runsTileRef.totalCount)} runs`"
+        :style="{ ...baseTilePositionX }"
+      >
+        <!-- Pagination  -->
+        <template v-slot:sublabel>
+          <span class="inline-flex flex-row items-center gap-1 font-normal text-gray-500">
+            <!-- Navigate backward -->
+            <button
+              class="p-0.5"
+              :class="[
+                previousCursors.length > 0 ? 'text-gray-400 hover:bg-orange-100 hover:text-gray-900' : 'text-gray-200',
+              ]"
+              :disabled="previousCursors.length === 0"
+              @click="pageBackward()"
+            >
+              <ArrowLeftIcon class="h-3 w-3 text-gray-700" />
+            </button>
+            <span>page {{ previousCursors.length + 1 }} of {{ (runsTileRef?.totalCount ?? 0) / panel.limit }}</span>
+            <!-- Navigate forward -->
+            <button
+              class="p-0.5"
+              :class="[
+                runsTileRef?.pageInfo?.hasNextPage
+                  ? 'text-gray-400 hover:bg-orange-100 hover:text-gray-900'
+                  : 'text-gray-200',
+              ]"
+              :disabled="!runsTileRef?.pageInfo?.hasNextPage"
+              @click="pageForward()"
+            >
+              <ArrowRightIcon class="h-3 w-3 text-gray-700" />
+            </button>
+          </span>
+        </template>
         <!-- Results -->
-        <!-- <RunsTile
-        view="grid" /> -->
+        <RunsTile
+          ref="runsTileRef"
+          hide-header
+          :project-id="(bench.projectId as string)"
+          :project-version-id="(bench.projectVersionId as string)"
+          live
+          :after="runsAfter"
+          :limit="panel.limit"
+        />
       </ContainerTile>
     </div>
   </div>

@@ -298,6 +298,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
             after=after,
             sort=[s.to_dsl() for s in sort] if sort else None,
             query=query,
+            version=True,
         )
 
         results = os_client.search(

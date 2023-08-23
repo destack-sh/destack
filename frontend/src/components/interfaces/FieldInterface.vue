@@ -35,6 +35,7 @@ const props = defineProps<{
   isEnum?: boolean;
   isView?: boolean;
   hideOutline?: boolean;
+  hideDescription?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
 }>();
@@ -306,7 +307,9 @@ defineExpose({
           >
           <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
         </div>
-        <span v-if="description" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">{{ description }}</span>
+        <span v-if="description && !hideDescription" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
+          {{ description }}
+        </span>
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->

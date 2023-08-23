@@ -37,11 +37,6 @@ MOT_NAME_BY_GQL_NODE = {v: k for k, v in GQL_NODE_NAME_BY_MOT.items()}
 assert len(GQL_NODE_NAME_BY_MOT) == len(MOT), f"missing {set(MOT) - GQL_NODE_NAME_BY_MOT.keys()}"
 
 
-class IdOnlyProxy:
-    def __init__(self, id: GlobalID):
-        self.id = id
-
-
 class StaticPrefetchedQueryset:
     """
     Imitate a django queryset from a list of objects.
