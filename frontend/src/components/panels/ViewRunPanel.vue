@@ -1,19 +1,24 @@
 <script lang="ts" setup>
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
-import { useTimeFromNow } from "@/composables/useNow";
+import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, ViewRunPanel } from "@/state/bench";
-import { TypeFlag, useCurrentModule } from "@/state/module";
+import { TypeFlag, useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
 import { computed, ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { useCurrentSessions, useRun } from "@/state/session";
+import { getRunStatusColor, getRunStatusIconSolid, useCurrentSessions, useRun } from "@/state/session";
 import { useTiling } from "@/state/screen";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import StructTile from "@/components/tiles/StructTile.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
+import { getStatementIconSolid } from "@/state/statement";
+import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
+import { IS_DEBUG } from "@/utils/globals";
+import { TriggerType } from "@/gql/graphql";
+import { DateTime } from "luxon";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -24,7 +29,8 @@ const bench = useBenchState();
 const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
-const now = useTimeFromNow();
+const now = useTimeFromNow(1000);
+const nav = useNavigation();
 
 // state
 
@@ -40,9 +46,8 @@ const inputFields = computed(() => statement.value?.fields?.filter((t) => !(t.fl
 const outputFields = computed(() => statement.value?.fields?.filter((t) => t.flags & TypeFlag.IsOutput) ?? []);
 const terminalActions = computed(() => []);
 
-const runsTileRef = ref<InstanceType<typeof RunsTile> | null>(null);
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
-const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(props.panel);
+const { gridStepY, baseTilePositionX } = useTiling(props.panel);
 
 // navigation
 
@@ -101,7 +106,74 @@ defineExpose({
       </div>
       <template v-else-if="run != null">
         <!-- Metadata -->
-        <!-- nocheckin: run metadata -->
+        <div class="flex flex-row flex-wrap gap-x-5 gap-y-2.5 px-2" :style="{ ...baseTilePositionX }">
+          <!-- TODO @Cleanup: these elements are mostly copied (almost) verbatim from RunsTile -->
+          <!-- Statement -->
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold text-gray-500">Statement</span>
+            <button
+              v-if="statement != null"
+              class="flex flex-row items-center whitespace-nowrap underline-offset-2 hover:underline"
+              @click="nav.focusStatement(run.runnable as NodeBase)"
+            >
+              <component
+                :is="getStatementIconSolid((statement as InterpStatement).type)"
+                class="mr-1 h-4 w-4 text-gray-400"
+              />
+              <span>{{ (statement as InterpStatement).name }}</span>
+            </button>
+          </div>
+          <!-- Status -->
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold text-gray-500">Status</span>
+            <span
+              class="inline-flex flex-row items-center gap-1 whitespace-nowrap"
+              :class="[getRunStatusColor(run.status)]"
+            >
+              <component :is="getRunStatusIconSolid(run.status)" class="h-4 w-4" />
+              <span>{{ run.status }}</span>
+              <!-- Duration -->
+              <span v-if="run.startedAt != null">
+                {{ run.terminatedAt != null ? "in" : "for" }}
+                {{
+                  run.duration != null
+                    ? formatDuration(run.duration * 1000)
+                    : now.getTimeFromNowString(run.startedAt, { useNow: false })
+                }}
+              </span>
+            </span>
+          </div>
+          <!-- Trigger -->
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold text-gray-500">Trigger</span>
+            <div class="flex flex-row items-center gap-1 whitespace-nowrap">
+              <!-- Type -->
+              <component :is="TRIGGER_ICONS_SOLID[run.triggerType ?? TriggerType.Time]" class="h-4 w-4 text-gray-400" />
+              <!-- From -->
+              <span class="text-gray-900">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
+              <!-- Detail -->
+              <span class="text-gray-900">
+                <span v-if="run.triggerUser != null">by {{ run.triggerUser.username }}</span>
+                <span v-else-if="run.triggerAccessToken != null">via API</span>
+                <span v-else-if="run.parent != null">
+                  in
+                  <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent)">
+                    #{{ getUUIDFromGlobalID(run.parent.id).slice(-6, -1) }}
+                  </button>
+                </span>
+                <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>
+                <span v-else-if="IS_DEBUG" class="text-red-600">???</span>
+              </span>
+            </div>
+          </div>
+          <!-- Last updated -->
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs text-xs font-semibold text-gray-500">Updated</span>
+            <span class="text-gray-900">
+              {{ run.updatedAt != null ? run.updatedAt.toString(DateTime.DATETIME_MED_WITH_WEEKDAY) : "..." }}
+            </span>
+          </div>
+        </div>
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>

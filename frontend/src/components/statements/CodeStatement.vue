@@ -62,9 +62,7 @@ const outputRef = ref<HTMLDivElement | null>(null);
 const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
-const showOutput: Ref<"logs" | "flamegraph" | "trace" | "error" | "metadata" | null> = ref(
-  context.standalone.value ? "logs" : null
-);
+const showOutput: Ref<"logs" | "flamegraph" | "trace" | "error" | null> = ref(context.standalone.value ? "logs" : null);
 
 watch(
   () => currentRun.value?.status,
@@ -227,8 +225,9 @@ defineExpose({
     </div>
     <!-- Meta info & controls -->
     <div
-      class="group/info flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
+      class="group/info flex flex-shrink-0 flex-row items-center gap-1 underline-offset-2 transition duration-150 hover:cursor-pointer hover:underline group-hover/statement:opacity-100"
       :class="context.focused.value || isCurrentRunActive ? '' : 'opacity-0'"
+      @click="bench.openRun(currentRun, { focus: true })"
     >
       <!-- Run time -->
       <span

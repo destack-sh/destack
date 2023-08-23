@@ -9,6 +9,7 @@ import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphq
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { TERMINAL_RUN_STATUSES, getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 import { useElementBounding, useKeyModifier } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref, watch } from "vue";
@@ -296,8 +297,13 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         :class="[focusedRunPin.pinned.value ? '' : 'absolute']"
       >
         <!-- Runnable -->
-        <div class="flex flex-row">
-          <h2 class="font-semibold">{{ focusedNode?.runnable?.name }}</h2>
+        <div class="flex flex-row" v-if="focusedNode.runnable != null">
+          <a
+            class="cursor-pointer font-semibold underline-offset-2 hover:underline"
+            @click="bench.openRun(focusedNode, { focus: true })"
+          >
+            {{ focusedNode?.runnable?.name }} #{{ getUUIDFromGlobalID(focusedNode.runnable.id).slice(-6, -1) }}
+          </a>
         </div>
         <RunTile
           :run="focusedNode.run"

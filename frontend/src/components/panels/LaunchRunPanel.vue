@@ -236,6 +236,14 @@ defineExpose({
           "
           :style="{ ...baseTilePositionX }"
         >
+          <template v-slot:sublabel>
+            <button
+              class="font-normal underline-offset-2 hover:underline"
+              @click="bench.openRuns(undefined, { focus: true })"
+            >
+              (view all)
+            </button>
+          </template>
           <RunsTile
             ref="runsTileRef"
             :project-id="(bench.projectId as string)"
@@ -246,10 +254,6 @@ defineExpose({
             class="max-w-full overflow-x-auto"
             hide-header
           >
-            <template v-slot:sublabel>
-              <!-- nocheckin view all button -->
-              sublabel
-            </template>
           </RunsTile>
         </ContainerTile>
       </template>
