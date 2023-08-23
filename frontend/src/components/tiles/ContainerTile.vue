@@ -9,9 +9,9 @@ const props = defineProps<{
     <!-- Label above -->
     <div v-if="label" class="w-full flex-row justify-between px-2 text-sm font-semibold">
       {{ label }}
-      <span>
-        <span v-if="subLabel" class="ml-1 font-normal text-gray-400">{{ subLabel }}</span>
-        <slot name="sublabel" class="ml-1 font-normal" />
+      <span class="inline-flex flex-row gap-2 font-normal text-gray-400">
+        <span v-if="subLabel" class="ml-1">{{ subLabel }}</span>
+        <slot name="sublabel" class="ml-1" />
       </span>
     </div>
     <div
