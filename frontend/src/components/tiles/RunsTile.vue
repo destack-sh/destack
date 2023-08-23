@@ -112,7 +112,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
             class="inline-flex flex-row items-center text-gray-400 hover:underline"
             @click="bench.openRun(run, { focus: true })"
           >
-            <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-6, -1) }}</span>
+            <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
           </button>
         </td>
         <!-- Status -->
@@ -145,7 +145,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
               <span v-else-if="run.parent != null">
                 in
                 <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent)">
-                  #{{ getUUIDFromGlobalID(run.parent.id).slice(-6, -1) }}
+                  #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                 </button>
               </span>
               <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>

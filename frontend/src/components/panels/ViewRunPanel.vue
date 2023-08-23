@@ -74,7 +74,7 @@ defineExpose({
       :actions="terminalActions"
       :path="[
         { __typename: 'Panel', name: 'Runs' },
-        { __typename: 'Run', id: panel.runId, name: `Run #${runUuid.slice(-6, -1)}` },
+        { __typename: 'Run', id: panel.runId, name: `Run #${runUuid.slice(-7, -1)}` },
       ]"
       :self="1"
       @focus="
@@ -99,7 +99,7 @@ defineExpose({
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
-        <h1 class="text-3xl font-bold text-gray-900">Run: #{{ runUuid.slice(-6, -1) }}&nbsp;</h1>
+        <h1 class="text-3xl font-bold text-gray-900">Run: #{{ runUuid.slice(-7, -1) }}&nbsp;</h1>
       </div>
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
         <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-white" />
@@ -158,7 +158,7 @@ defineExpose({
                 <span v-else-if="run.parent != null">
                   in
                   <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent)">
-                    #{{ getUUIDFromGlobalID(run.parent.id).slice(-6, -1) }}
+                    #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                   </button>
                 </span>
                 <span v-else-if="run.trigger != null">by {{ run.trigger.type.toLowerCase() }} trigger</span>
@@ -168,7 +168,7 @@ defineExpose({
           </div>
           <!-- Last updated -->
           <div class="flex flex-col gap-0.5">
-            <span class="text-xs text-xs font-semibold text-gray-500">Updated</span>
+            <span class="text-xs font-semibold text-gray-500">Updated</span>
             <span class="text-gray-900">
               {{ run.updatedAt != null ? run.updatedAt.toString(DateTime.DATETIME_MED_WITH_WEEKDAY) : "..." }}
             </span>
@@ -194,11 +194,15 @@ defineExpose({
             No logs
           </span>
           <LogsTile
+            class="max-h-[500px] overflow-auto px-1 py-1"
             ref="logsTileRef"
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
-            :run-id="panel.runId"
             :session-id="run.session?.id"
+            highlight
+            :focus="{
+              runId: panel.runId,
+            }"
             :limit="100"
           />
         </ContainerTile>

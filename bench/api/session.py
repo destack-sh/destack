@@ -562,6 +562,7 @@ class SessionQuery:
             after=after,
             sort=sort,
             query=query,
+            version=True,
         )
 
         results = os_client.search(

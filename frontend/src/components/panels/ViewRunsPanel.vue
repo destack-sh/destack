@@ -91,7 +91,10 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
             >
               <ArrowLeftIcon class="h-3 w-3 text-gray-700" />
             </button>
-            <span>page {{ previousCursors.length + 1 }} of {{ (runsTileRef?.totalCount ?? 0) / panel.limit }}</span>
+            <span
+              >page {{ previousCursors.length + 1 }} of
+              {{ Math.round((runsTileRef?.totalCount ?? 0 + panel.limit - 1) / panel.limit) }}</span
+            >
             <!-- Navigate forward -->
             <button
               class="p-0.5"
