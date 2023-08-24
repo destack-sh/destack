@@ -35,6 +35,7 @@ const props = defineProps<{
   isEnum?: boolean;
   isView?: boolean;
   hideOutline?: boolean;
+  hideType?: boolean;
   hideDescription?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
@@ -312,7 +313,7 @@ defineExpose({
             ]"
             >{{ value.name }}</span
           >
-          <TypePreview v-if="!isEnum" :type="value" :hide-icon="value.reference != null" />
+          <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.reference != null" />
         </div>
         <span v-if="description && !hideDescription" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
           {{ description }}

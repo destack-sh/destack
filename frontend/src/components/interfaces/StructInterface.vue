@@ -13,6 +13,8 @@ type StructAppearance = {
   maxRowHeight?: number;
   rowPadding?: number;
   hideFieldOutline?: boolean;
+  hideFieldType?: boolean;
+  minimalFields?: boolean;
 };
 
 const DEFAULT_APPEARANCE = {
@@ -21,6 +23,8 @@ const DEFAULT_APPEARANCE = {
   maxRowHeight: 220,
   rowPadding: 4,
   hideFieldOutline: true,
+  hideFieldType: true,
+  minimalFields: false,
 };
 
 const props = defineProps<{
@@ -113,9 +117,11 @@ defineExpose({
     <tr
       v-for="(field, y) in fields"
       :key="field.id"
-      :class="[y < fields.length - 1 ? 'border-b border-orange-900 border-opacity-[12%]' : '']"
+      :class="[
+        y < fields.length - 1 && !appearance.minimalFields ? 'border-b border-orange-900 border-opacity-[12%]' : '',
+      ]"
     >
-      <td class="w-1/3 self-start">
+      <td class="w-1/3 self-start" v-if="!appearance.minimalFields">
         <FieldInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
@@ -139,6 +145,9 @@ defineExpose({
         />
       </td>
       <td class="w-full">
+        <div class="w-full px-1" v-if="appearance.minimalFields">
+          <span class="text-xs font-semibold text-gray-500">{{ field.name }}</span>
+        </div>
         <ValueInterface
           :ref="(el: any) => grid.registerColumnRef(field.id, 'value', el)"
           :model-value="readField(field)"
