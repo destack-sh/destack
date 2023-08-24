@@ -126,7 +126,7 @@ const auth = useAuth();
         />
       </button>
       <!-- Popover -->
-      <ActionPopover anchor="left" small :thing="thing" :actions="actions" :groups="[]">
+      <ActionPopover v-if="actions.length > 0" anchor="left" small :thing="thing" :actions="actions" :groups="[]">
         <EllipsisHorizontalIcon class="h-6 w-6 text-gray-700" />
       </ActionPopover>
     </div>

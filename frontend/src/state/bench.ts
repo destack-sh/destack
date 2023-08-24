@@ -60,7 +60,7 @@ export type ViewId = "explorer" | "search" | "history" | "issues" | "environment
 
 export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 
-const BENCH_STATE_VERSION = 5;
+const BENCH_STATE_VERSION = 6;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -213,6 +213,8 @@ function makePanelGroup(id: string, name: string): PanelGroup {
   };
 }
 
+export const RECENTLY_CLOSED_PANELS_LIMIT = 64;
+
 export const useBenchState = defineStore("bench", {
   state: () => {
     return {
@@ -227,6 +229,7 @@ export const useBenchState = defineStore("bench", {
       // panels
       left: makePanelGroup("left", "Left"),
       right: makePanelGroup("right", "Right"),
+      recentlyClosedPanels: [] as Panel[],
       focusedPanelId: null as string | null,
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
@@ -367,11 +370,28 @@ export const useBenchState = defineStore("bench", {
       if (panel.groupId != null) {
         this._removePanelFromGroup(panel);
       }
+      if (!this.recentlyClosedPanels.find((e) => e.id == panel.id)) {
+        if (this.recentlyClosedPanels.length >= RECENTLY_CLOSED_PANELS_LIMIT) {
+          this.recentlyClosedPanels.shift();
+        }
+        this.recentlyClosedPanels.push(panel);
+      }
     },
 
     closePanelGroup(group: PanelGroup): void {
       console.log(`close panel group ${group.id}`);
       group.panels.forEach((e) => this.closePanel(e));
+    },
+
+    reopenLastClosedPanel(options?: { focus: boolean }): Panel | undefined {
+      const panel = this.recentlyClosedPanels.pop();
+      if (panel == null) return;
+      console.log(`reopen last closed panel ${panel.path}`);
+      this.openPanel(panel);
+      if (options?.focus) {
+        this.focusPanel(panel);
+      }
+      return panel;
     },
 
     movePanel(panel: Panel, group: PanelGroup, options?: { copy?: boolean }): void {
@@ -589,6 +609,7 @@ function benchStateToJson(bench: ReturnType<typeof useBenchState>): string {
       ...bench.$state.right,
       panels: bench.$state.right.panels.map((e) => stripPanel(e)),
     },
+    recentlyClosedPanels: bench.$state.recentlyClosedPanels.map((e) => stripPanel(e)),
   };
   return JSON.stringify(state);
 }

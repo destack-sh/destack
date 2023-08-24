@@ -1,4 +1,4 @@
-import { useEditorActions } from "@/state/actions/editor";
+import { useBenchActions } from "@/state/actions/bench";
 import { useFileActions } from "@/state/actions/file";
 import { useOperationsActions } from "@/state/actions/operations";
 import { useUserActions } from "@/state/actions/user";
@@ -169,7 +169,7 @@ export function useActions() {
 
   return {
     user: useUserActions(),
-    editor: useEditorActions(),
+    editor: useBenchActions(),
     operations: useOperationsActions(),
     file: useFileActions(),
     get,
