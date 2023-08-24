@@ -423,7 +423,7 @@ onBeforeUnmount(() => {
   <!-- Root -->
   <div class="relative flex h-full flex-col bg-gray-50">
     <!-- Header with controls and auth -->
-    <FatHeader v-show="bench.showGlobalHeader">
+    <FatHeader v-show="bench.showBenchHeader">
       <!-- Left side: organizational & status -->
       <template v-slot:left>
         <!-- Home -->
@@ -566,8 +566,8 @@ onBeforeUnmount(() => {
             <!-- <button class="p-1" disabled>
               <CommandLineIcon class="h-5 w-5 text-gray-400" />
             </button> -->
-            <OmniCreate @show="bench.showGlobalHeader = true" />
-            <NotificationPopover @show="bench.showGlobalHeader = true" />
+            <OmniCreate @show="bench.showBenchHeader = true" />
+            <NotificationPopover @show="bench.showBenchHeader = true" />
           </div>
         </FadeTransition>
         <ClientsPopover v-if="auth.loggedIn.value" class="ml-2" size="large" />

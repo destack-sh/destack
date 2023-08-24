@@ -9,7 +9,7 @@ import {
   useBenchState,
   usePanelContext,
   type Action,
-  PANEL_ICONS_OUTLINE,
+  PANEL_ICONS_SOLID,
 } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
 import {
@@ -17,7 +17,7 @@ import {
   ArrowsPointingOutIcon,
   ChevronRightIcon,
   EllipsisHorizontalIcon,
-} from "@heroicons/vue/24/outline";
+} from "@heroicons/vue/24/solid";
 import { computed } from "vue";
 
 type NamedElement = { __typename: string; id?: string; name?: string };
@@ -37,27 +37,27 @@ const panelAppearance = computed(() => panel.panel.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
 
-const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
+const icon = computed(() => PANEL_ICONS_SOLID[panel.panel.value.type]);
 </script>
 <template>
   <div
-    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5 text-sm"
+    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5 text-xs"
     :class="appearance.baseClass"
-    :style="{ height: appearance.editorHeaderHeight + 'px', width: panel.size?.value?.width + 'px' }"
+    :style="{ height: appearance.editorHeaderHeight - 4 + 'px', width: panel.size?.value?.width + 'px' }"
   >
     <!-- Main info / left side -->
     <div class="flex flex-row items-center">
       <!-- Panel actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="panel.actions.value" :groups="panel.actionGroups?.value">
-        <div class="p-0.5">
-          <component :is="icon" class="h-4 w-4 text-gray-700" />
+        <div class="pb-0.5 pr-0.5">
+          <component :is="icon" class="h-4 w-4 text-gray-600" />
         </div>
       </ActionPopover>
       <!-- Panel path -->
       <div class="flex max-w-full flex-row items-center truncate whitespace-nowrap">
         <template v-for="(node, i) in path" :key="i">
           <!-- Self node with actions -->
-          <span v-if="i == self" class="ml-1 font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
+          <span v-if="i == self" class="px-0.5 font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
           <!-- Regular node -->
           <button
             v-else
@@ -81,7 +81,7 @@ const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
             </span>
           </button>
           <!-- Arrow -->
-          <ChevronRightIcon v-if="i < path.length - 1" class="h-4 w-4 text-gray-400" />
+          <ChevronRightIcon v-if="i < path.length - 1" class="-mx-0.5 h-4 w-4 text-gray-400" />
         </template>
       </div>
       <!-- Debug info -->

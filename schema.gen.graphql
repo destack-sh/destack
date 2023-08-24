@@ -1932,7 +1932,6 @@ enum TypeTag {
   STRUCT
   JSON
   FUNCTION
-  UNION
   ENUM
   LITERAL
   NULL

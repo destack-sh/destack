@@ -22,7 +22,7 @@ import {
 } from "@/state/appearance";
 import type { ModuleIndex, NodeBase } from "@/state/module";
 import type { LogsQuery, RunsQuery } from "@/state/session";
-import { randomHexString } from "@/utils/functools";
+import { getUUIDFromGlobalID, randomHexString } from "@/utils/functools";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -228,9 +228,8 @@ export const useBenchState = defineStore("bench", {
       focusedPanelId: null as string | null,
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
-      showGenerated: true,
-      showPanelGroupHeader: false,
-      showGlobalHeader: true,
+      showPanelTabs: true,
+      showBenchHeader: true,
       showViewSelection: true,
       showViewContent: false,
       zenMode: false,
@@ -527,7 +526,7 @@ export const useBenchState = defineStore("bench", {
       const appearance = useAppearanceState();
       this.zenMode = zenMode;
       this.showViewContent = !zenMode;
-      this.showGlobalHeader = !zenMode;
+      this.showBenchHeader = !zenMode;
       appearance.fullscreen = zenMode;
     },
 
@@ -759,7 +758,7 @@ export function providePanelContext<T extends Panel>(
       const actions: PanelAction[] = [];
 
       // open other panels in this group if there are any
-      if (!bench.showPanelGroupHeader) {
+      if (!bench.showPanelTabs) {
         panel.value.group?.panels.forEach((e) => {
           if (e.id == panel.value.id) return;
           actions.push({
@@ -1078,6 +1077,7 @@ export class LaunchRunPanel extends Panel {
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
+  lastError?: Record<string, any> = {};
   lastRunTerminatedAt?: string;
   lastRunId?: string;
   lastSessionId?: string;
@@ -1131,7 +1131,7 @@ export class ViewRunsPanel extends Panel {
   sort?: SearchSort;
 
   constructor(query?: RunsQuery, sort?: SearchSort) {
-    super("view-runs", "runs-" + randomHexString(), "Runs", "Runs");
+    super("view-runs", "runs-" + randomHexString(), "Runs", "runs");
     this.limit = 50;
     this.query = query;
     this.sort = sort;
@@ -1154,7 +1154,12 @@ export class ViewRunPanel extends Panel {
   runId: string;
 
   constructor(run: { id: string }) {
-    super("view-run", run.id + "-" + randomHexString(), "Run", "Run");
+    super(
+      "view-run",
+      run.id + "-" + randomHexString(),
+      "Run #" + getUUIDFromGlobalID(run.id).slice(-7, -1),
+      "run:" + run.id
+    );
     this.runId = run.id;
   }
 

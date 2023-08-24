@@ -23,7 +23,7 @@ import {
   CircleStackIcon as CircleStackIconOutline,
   CodeBracketSquareIcon as CodeBracketSquareIconOutline,
   RectangleGroupIcon as RectangleGroupIconOutline,
-  ServerStackIcon as ServerStackIconOutline,
+  CpuChipIcon as CpuChipIconOutline,
   SparklesIcon as SparklesIconOutline,
   TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
@@ -37,7 +37,7 @@ import {
   TableCellsIcon as TableCellsIconSolid,
   CircleStackIcon as CircleStackIconSolid,
   CodeBracketSquareIcon as CodeBracketSquareIconSolid,
-  ServerStackIcon as ServerStackIconSolid,
+  CpuChipIcon as CpuChipIconSolid,
   AdjustmentsHorizontalIcon as AdjustmentsHorizontalIconSolid,
   RectangleGroupIcon as RectangleGroupIconSolid,
   PaperAirplaneIcon as PaperAirplaneIconSolid,
@@ -326,7 +326,7 @@ export function useStatementContext() {
     });
   }
 
-  function createNewField(template: Pick<Field, "id" | "tag" | "hint" | "flags" | "reference" | "metadata">) {
+  function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata"> & Partial<Field>) {
     const nextOrderKey = generateKeyBetween(
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
@@ -336,6 +336,7 @@ export function useStatementContext() {
     const name: string =
       TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
     const field = makeField({
+      ...template,
       id: template.id ?? newFieldId(),
       name: name.toLowerCase(),
       tag: template.tag,
@@ -592,7 +593,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Dataset]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
   [StatementType.Flow]: PaperAirplaneIconOutline,
-  [StatementType.Model]: ServerStackIconOutline,
+  [StatementType.Model]: CpuChipIconOutline,
   [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
   [StatementType.Block]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
@@ -605,7 +606,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Dataset]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
   [StatementType.Flow]: PaperAirplaneIconSolid,
-  [StatementType.Model]: ServerStackIconSolid,
+  [StatementType.Model]: CpuChipIconSolid,
   [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
   [StatementType.Block]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,

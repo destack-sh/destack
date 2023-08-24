@@ -50,7 +50,6 @@ class TypeTag(enum.StrEnum):
     STRUCT = "struct"
     JSON = "json"
     FUNCTION = "function"
-    UNION = "union"
     ENUM = "enum"
     LITERAL = "literal"
     NULL = "null"

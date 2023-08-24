@@ -2406,7 +2406,6 @@ export enum TypeTag {
   String = "STRING",
   Struct = "STRUCT",
   TypeReference = "TYPE_REFERENCE",
-  Union = "UNION",
   Vector = "VECTOR",
 }
 
