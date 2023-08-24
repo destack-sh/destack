@@ -330,7 +330,9 @@ export const useBenchState = defineStore("bench", {
       panel.groupId = null;
       if (group.activePanelId == panel.id) {
         // if active panel was removed, set last focused panel as active
-        const nextToFocus = group.panels.sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
+        const nextToFocus = group.panels
+          .slice()
+          .sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
         if (nextToFocus != null) {
           group.activePanelId = nextToFocus.id;
           nextToFocus.lastActiveAt = new Date().toISOString();
@@ -380,9 +382,9 @@ export const useBenchState = defineStore("bench", {
         const focusLost = this._removePanelFromGroup(panel);
         // move focus to remaining panel group if focus was lost
         if (focusLost) {
-          const nextToFocus = this.panels.sort((a, b) =>
-            (a.lastFocusedAt ?? "") > (b.lastFocusedAt ?? "") ? -1 : 1
-          )[0];
+          const nextToFocus = this.panels
+            .slice()
+            .sort((a, b) => ((a.lastFocusedAt ?? "") > (b.lastFocusedAt ?? "") ? -1 : 1))[0];
           if (nextToFocus != null) {
             this.focusPanel(nextToFocus);
           }

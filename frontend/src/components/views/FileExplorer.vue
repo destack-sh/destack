@@ -4,7 +4,7 @@ import { IssueKind } from "@/gql/graphql";
 import { useBenchState, type FileHeader, type ViewId, type FileAction } from "@/state/bench";
 import { useCurrentModule, type NodeBase, type InterpFile } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { ArrowsPointingOutIcon, DocumentDuplicateIcon } from "@heroicons/vue/24/outline";
+import { ArrowsPointingOutIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -49,7 +49,7 @@ const contextMenuActions: Ref<FileAction[]> = computed(
           },
           {
             label: "Delete",
-            icon: DocumentDuplicateIcon,
+            icon: TrashIcon,
             action: () => ops.file.softDelete(null, contextMenuFile.value?.id),
           },
         ]) as FileAction[]

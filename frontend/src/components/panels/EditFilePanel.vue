@@ -16,7 +16,7 @@ import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { whenever } from "@vueuse/core";
+import { useMouse, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { newFileId } from "@/state/operations/file";
@@ -297,6 +297,47 @@ const statementAddAreaPositionX = computed(() => {
   }
 });
 
+// drag select area
+const mainContentRef = ref<HTMLElement | null>(null);
+const { x: mouseX, y: mouseY } = useMouse();
+const dragSelectStart = ref<{ x: number; y: number } | null>(null);
+
+function startDragSelectMaybe(e: MouseEvent) {
+  if (e.button != 0 || e.altKey || e.shiftKey) return;
+  if (panel.value.editing) return;
+  // must be at target or in statement components margin
+  console.log(e.target, mainContentRef.value); // nocheckin
+  // nocheckin: drag doesn't respect margins
+  // nocheckin: drag doesn't work for scrolling
+  // TODO @UX: drag should also work for fields/records/etc. (detect if entirely in statement)
+  if (e.target != mainContentRef.value && (e.target as HTMLElement).parentNode != mainContentRef.value) return;
+  panel.value.clearSelection();
+  dragSelectStart.value = { x: e.clientX, y: e.clientY };
+  e.stopPropagation();
+}
+
+function updateDragSelectMaybe(e: MouseEvent) {
+  if (dragSelectStart.value == null) return;
+  // select all statements components intersecting with the drag select area
+  panel.value.selectedElementIds = [];
+  for (const statement of context.value?.positionedStatements ?? []) {
+    const bounding = statementsComponents.value[statement.statement.id]?.bounding;
+    if (bounding == null) continue;
+    if (
+      bounding.left.value < Math.max(e.clientX, dragSelectStart.value.x) &&
+      bounding.right.value > Math.min(e.clientX, dragSelectStart.value.x) &&
+      bounding.top.value < Math.max(e.clientY, dragSelectStart.value.y) &&
+      bounding.bottom.value > Math.min(e.clientY, dragSelectStart.value.y)
+    ) {
+      panel.value.selectedElementIds.push(statement.statement.id);
+    }
+  }
+}
+
+function stopDragSelect() {
+  dragSelectStart.value = null;
+}
+
 // other clients
 const clients = useCurrentClients();
 const localClients = computed(() =>
@@ -341,7 +382,28 @@ function getStatementBounding(statementId: string): { top: number; right: number
     <PanelStatusNotice :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
     <!-- File main content -->
     <!-- (bottom padding is in last StatementAddArea) -->
-    <div class="relative flex flex-col bg-white" v-if="!fileLoading && fileHeader" v-show="statementsLoaded">
+    <div
+      ref="mainContentRef"
+      class="relative flex flex-col bg-white"
+      v-if="!fileLoading && fileHeader"
+      v-show="statementsLoaded"
+      @mousedown="startDragSelectMaybe"
+      @mousemove="updateDragSelectMaybe"
+      @mouseup="stopDragSelect"
+      @keydown.escape="stopDragSelect"
+      :class="[dragSelectStart ? 'select-none' : '']"
+    >
+      <!-- Drag select area -->
+      <div
+        v-if="dragSelectStart"
+        class="fixed z-50 bg-orange-200 opacity-30"
+        :style="{
+          left: Math.min(mouseX, dragSelectStart.x) + 'px',
+          top: Math.min(mouseY, dragSelectStart.y) + 'px',
+          width: Math.abs(mouseX - dragSelectStart.x) + 'px',
+          height: Math.abs(mouseY - dragSelectStart.y) + 'px',
+        }"
+      />
       <!-- Title & inline actions -->
       <TitleBanner
         ref="titleRef"
