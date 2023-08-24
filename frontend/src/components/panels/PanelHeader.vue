@@ -47,7 +47,13 @@ const auth = useAuth();
     <!-- Main info / left side -->
     <div class="flex flex-row items-center">
       <!-- Panel actions -->
-      <ActionPopover anchor="left" :thing="thing" :actions="panel.actions.value" :groups="panel.actionGroups?.value">
+      <ActionPopover
+        anchor="left"
+        small
+        :thing="thing"
+        :actions="panel.actions.value"
+        :groups="panel.actionGroups?.value"
+      >
         <div class="pb-0.5 pr-0.5">
           <component :is="PANEL_ICONS_OUTLINE[panel.panel.value.type]" class="h-4 w-4 text-gray-700" />
         </div>
@@ -56,11 +62,13 @@ const auth = useAuth();
       <div class="flex max-w-full flex-row items-center truncate whitespace-nowrap">
         <template v-for="(node, i) in path" :key="i">
           <!-- Self node with actions -->
-          <span v-if="i == self" class="px-0.5 font-semibold text-gray-900">{{ node.name ?? "(Unnamed)" }}</span>
+          <span v-if="i == self" class="select-none px-0.5 font-semibold text-gray-900">
+            {{ node.name ?? "(Unnamed)" }}
+          </span>
           <!-- Regular node -->
           <button
             v-else
-            class="group/node relative rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
+            class="group/node relative select-none rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
             @click="
               i >= self || node.id == null
                 ? emit('focus', node)
@@ -118,7 +126,7 @@ const auth = useAuth();
         />
       </button>
       <!-- Popover -->
-      <ActionPopover anchor="left" :thing="thing" :actions="actions" :groups="[]">
+      <ActionPopover anchor="left" small :thing="thing" :actions="actions" :groups="[]">
         <EllipsisHorizontalIcon class="h-6 w-6 text-gray-700" />
       </ActionPopover>
     </div>

@@ -60,7 +60,7 @@ export type ViewId = "explorer" | "search" | "history" | "issues" | "environment
 
 export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 
-const BENCH_STATE_VERSION = 4;
+const BENCH_STATE_VERSION = 5;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -375,7 +375,7 @@ export const useBenchState = defineStore("bench", {
     },
 
     movePanel(panel: Panel, group: PanelGroup, options?: { copy?: boolean }): void {
-      const wasFocused = panel == this.focusedPanel;
+      const wasFocused = panel.id == this.focusedPanelId;
       if (options?.copy) {
         panel = panel.copy();
       }
@@ -738,6 +738,94 @@ export type PanelContext<T extends Panel> = {
 
 export const PANEL_CONTEXT = "__panel__";
 
+export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchState>) {
+  const actions: PanelAction[] = [];
+
+  // open other panels in this group if there are any
+  if (!bench.showPanelTabs) {
+    panel.group?.panels.forEach((e) => {
+      if (e.id == panel.id) return;
+      actions.push({
+        groupId: "jump",
+        label: e.name.length > 0 ? e.name : "(Unnamed)",
+        icon: PANEL_ICONS_OUTLINE[e.type],
+        action: () => bench.focusPanel(e),
+      });
+    });
+  }
+
+  // close
+  const closeActions = [
+    {
+      groupId: "close",
+      label: "Close",
+      icon: XCircleIcon,
+      action: () => bench.closePanel(panel),
+    },
+    {
+      groupId: "close",
+      label: "Close Others",
+      icon: XCircleIcon,
+      action: () => panel.group?.panels.filter((e) => e != panel).forEach((e) => bench.closePanel(e)),
+    },
+    {
+      groupId: "close",
+      label: "Close All",
+      icon: XCircleIcon,
+      action: () => bench.closePanelGroup(panel.group as PanelGroup),
+    },
+  ];
+  actions.push(...closeActions);
+
+  // view
+  if (panel.effectiveWide) {
+    actions.push({
+      groupId: "view",
+      label: "Narrow",
+      icon: ArrowsPointingInIcon,
+      action: () => (panel.appearance.wide = false),
+    });
+  } else {
+    actions.push({
+      groupId: "view",
+      label: "Expand",
+      icon: ArrowsPointingOutIcon,
+      action: () => (panel.appearance.wide = true),
+    });
+  }
+
+  // move
+  // should clean this up
+  if (panel.groupId == bench.left.id) {
+    actions.push({
+      groupId: "move",
+      label: "Move Right",
+      icon: ArrowRightIcon,
+      action: () => bench.movePanel(panel, bench.right),
+    });
+    actions.push({
+      groupId: "move",
+      label: "Split Right",
+      icon: ArrowRightIcon,
+      action: () => bench.movePanel(panel, bench.right, { copy: true }),
+    });
+  } else {
+    actions.push({
+      groupId: "move",
+      label: "Move Left",
+      icon: ArrowLeftIcon,
+      action: () => bench.movePanel(panel, bench.left),
+    });
+    actions.push({
+      groupId: "move",
+      label: "Split Left",
+      icon: ArrowLeftIcon,
+      action: () => bench.movePanel(panel, bench.left, { copy: true }),
+    });
+  }
+  return actions;
+}
+
 export function providePanelContext<T extends Panel>(
   panel: Ref<T>,
   component: Ref<any>,
@@ -756,93 +844,7 @@ export function providePanelContext<T extends Panel>(
       top: elementBounding.top.value,
     })),
     scroll: computed(() => ({ x: scroll.x.value, y: scroll.y.value })),
-    actions: computed(() => {
-      const actions: PanelAction[] = [];
-
-      // open other panels in this group if there are any
-      if (!bench.showPanelTabs) {
-        panel.value.group?.panels.forEach((e) => {
-          if (e.id == panel.value.id) return;
-          actions.push({
-            groupId: "jump",
-            label: e.name.length > 0 ? e.name : "(Unnamed)",
-            icon: PANEL_ICONS_OUTLINE[e.type],
-            action: () => bench.focusPanel(e),
-          });
-        });
-      }
-
-      // close
-      const closeActions = [
-        {
-          groupId: "close",
-          label: "Close",
-          icon: XCircleIcon,
-          action: () => bench.closePanel(panel.value),
-        },
-        {
-          groupId: "close",
-          label: "Close Others",
-          icon: XCircleIcon,
-          action: () => panel.value.group?.panels.filter((e) => e != panel.value).forEach((e) => bench.closePanel(e)),
-        },
-        {
-          groupId: "close",
-          label: "Close All",
-          icon: XCircleIcon,
-          action: () => bench.closePanelGroup(panel.value.group as PanelGroup),
-        },
-      ];
-      actions.push(...closeActions);
-
-      // view
-      if (panel.value.effectiveWide) {
-        actions.push({
-          groupId: "view",
-          label: "Narrow",
-          icon: ArrowsPointingInIcon,
-          action: () => (panel.value.appearance.wide = false),
-        });
-      } else {
-        actions.push({
-          groupId: "view",
-          label: "Expand",
-          icon: ArrowsPointingOutIcon,
-          action: () => (panel.value.appearance.wide = true),
-        });
-      }
-
-      // move
-      // should clean this up
-      if (panel.value.groupId == bench.left.id) {
-        actions.push({
-          groupId: "move",
-          label: "Move Right",
-          icon: ArrowRightIcon,
-          action: () => bench.movePanel(panel.value, bench.right),
-        });
-        actions.push({
-          groupId: "move",
-          label: "Split Right",
-          icon: ArrowRightIcon,
-          action: () => bench.movePanel(panel.value, bench.right, { copy: true }),
-        });
-      } else {
-        actions.push({
-          groupId: "move",
-          label: "Move Left",
-          icon: ArrowLeftIcon,
-          action: () => bench.movePanel(panel.value, bench.left),
-        });
-        actions.push({
-          groupId: "move",
-          label: "Split Left",
-          icon: ArrowLeftIcon,
-          action: () => bench.movePanel(panel.value, bench.left, { copy: true }),
-        });
-      }
-      return actions;
-    }),
+    actions: computed(() => getPanelActions(panel.value, bench)),
     actionGroups: computed(() => [
       { id: "close", label: "Close" },
       { id: "view", label: "View" },
@@ -1160,7 +1162,7 @@ export class ViewRunPanel extends Panel {
       "view-run",
       run.id + "-" + randomHexString(),
       "Run #" + getUUIDFromGlobalID(run.id).slice(-7, -1),
-      "run:" + run.id
+      "run:" + getUUIDFromGlobalID(run.id)
     );
     this.runId = run.id;
   }

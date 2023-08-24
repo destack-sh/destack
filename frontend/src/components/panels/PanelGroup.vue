@@ -4,11 +4,12 @@ import PanelInterface from "@/components/panels/PanelInterface.vue";
 import BlankPanel from "@/components/panels/BlankPanel.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type Panel, type PanelGroup, PANEL_ICONS_OUTLINE, PANEL_ICONS_SOLID } from "@/state/bench";
+import { useBenchState, type Panel, type PanelGroup, PANEL_ICONS_SOLID, getPanelActions } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { useActiveScroll } from "@/composables/useScroll";
 const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
@@ -18,7 +19,19 @@ const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const containerSize = useElementSize(containerRef);
 // keep panel refs to pass to editor interface for scroll context
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
-const focused = computed(() => bench.focusedPanel?.groupId == props.group.id);
+const tabListRef: Ref<InstanceType<typeof TabList> | null> = ref(null);
+const contextMenuPanel: Ref<Panel | null> = ref(null);
+const contextMenuPosition: Ref<{ x: number; y: number } | null> = ref(null);
+const contextMenuActions = computed(() =>
+  contextMenuPanel.value == null ? [] : getPanelActions(contextMenuPanel.value, bench)
+);
+
+function closeContextMenu() {
+  contextMenuPanel.value = null;
+  contextMenuPosition.value = null;
+}
+
+useActiveScroll(computed(() => tabListRef.value?.$el));
 
 // auto update selected tab
 watch(
@@ -39,7 +52,7 @@ watch(
 );
 
 // compute editor size absolutely
-const panelsize = computed(() => {
+const panelSize = computed(() => {
   return {
     width: containerSize.width.value + "px",
     height: containerSize.height.value - (bench.showPanelTabs ? appearance.editorHeaderHeight : 0) + "px",
@@ -60,36 +73,40 @@ async function createFileInPanelGroup() {
 <template>
   <!-- Tabbed panels for this group -->
   <div class="relative flex flex-col" ref="containerRef">
+    <!-- Tabs -->
     <TabGroup :selected-index="selectedTab" :default-index="selectedTab">
-      <!-- Tabs -->
       <!-- Note that we use @click.prevent on the button instead of @onchange from TabGroup
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
       <TabList
+        ref="tabListRef"
         class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-white"
         v-show="bench.showPanelTabs"
-        :style="{
-          height: appearance.editorHeaderHeight + 'px',
-        }"
       >
         <!-- Editor tab -->
-        <Tab as="template" v-for="(e, i) in group.panels" :key="e.id" v-slot="{ selected }">
+        <Tab as="template" v-for="(p, i) in group.panels" :key="p.id" v-slot="{ selected }">
           <button
-            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2 pr-1 outline-none"
+            class="group flex max-w-[20rem] flex-shrink-0 select-none flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2 pr-1 outline-none"
             :class="{
               'border-orange-900 border-opacity-[12%] bg-white text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
             }"
-            @click.middle.prevent="bench.closePanel(e)"
-            @click.prevent="focus(e)"
+            @click.middle.prevent="bench.closePanel(p)"
+            @click.left.prevent="focus(p)"
+            @contextmenu.prevent="
+              (e) => {
+                contextMenuPanel = p;
+                contextMenuPosition = { x: e.clientX, y: e.clientY };
+              }
+            "
           >
-            <component :is="PANEL_ICONS_SOLID[e.type]" class="mr-0.5 h-4 w-4" />
-            <span class="text-xs">{{ e.name.length > 0 ? e.name : "(Unnamed)" }}</span>
+            <component :is="PANEL_ICONS_SOLID[p.type]" class="mr-0.5 h-4 w-4 flex-shrink-0" />
+            <span class="text-xs">{{ p.name.length > 0 ? p.name : "(Unnamed)" }}</span>
             <!-- Close button -->
             <button
-              class="duratoin-150 h-fit max-h-fit rounded-sm px-1 text-xs transition hover:bg-gray-200 group-hover:text-gray-700"
+              class="h-fit max-h-fit rounded-sm px-1 text-xs transition duration-150 hover:bg-gray-200 hover:text-gray-700 group-hover:text-gray-400"
               :class="i == selectedTab ? 'text-gray-400' : 'opacity-0 group-hover:opacity-100'"
-              @click.prevent="bench.closePanel(e)"
+              @click.prevent="bench.closePanel(p)"
             >
               x
             </button>
@@ -107,15 +124,45 @@ async function createFileInPanelGroup() {
           />
         </button>
       </TabList>
+      <!-- Tab context menu -->
+      <div v-if="contextMenuPanel != null && contextMenuPosition != null">
+        <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
+        <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="closeContextMenu" />
+        <!-- Tab context menu popover (similar to action popover) -->
+        <div
+          class="fixed z-50 flex w-40 flex-col rounded-sm bg-white p-1 text-xs shadow-md ring-1 ring-orange-900 ring-opacity-40"
+          :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+        >
+          <div
+            v-for="(action, i) in contextMenuActions"
+            :key="action.label"
+            class="w-full"
+            :class="[
+              i > 0 && contextMenuActions[i - 1].groupId != action.groupId
+                ? 'mt-0.5 border-t border-orange-900 border-opacity-[12%] pt-0.5'
+                : '',
+            ]"
+            @click.prevent.stop="action.action(contextMenuPanel), closeContextMenu()"
+          >
+            <button
+              class="flex w-full flex-row items-center gap-2 rounded-sm px-1 py-1 hover:bg-orange-100 focus:outline-none"
+              :class="[action.disabled || action.active ? 'cursor-not-allowed opacity-50' : '']"
+            >
+              <component :is="action.icon" class="h-4 w-4" />
+              <span class="text-gray-700">{{ action.label }}</span>
+            </button>
+          </div>
+        </div>
+      </div>
       <!-- Contents -->
-      <TabPanels :style="panelsize">
+      <TabPanels :style="panelSize">
         <!-- Only file panels have a white background :FileBackground -->
         <TabPanel
           :ref="(el: any) => panelRefs.registerRef(e.id, el)"
           as="div"
           class="overflow-y-scroll outline-none"
           :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50']"
-          :style="panelsize"
+          :style="panelSize"
           v-for="e in group.panels"
           :key="e.id"
           unmount
