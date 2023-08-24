@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 from typing import Optional
+from uuid import UUID
 
 from django.db import models
 from django.db.models import Model
+from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
 from bench.language.const import TriggerType
@@ -38,6 +40,25 @@ class Session(UUIDTModel, HasTriggeredBy):
     metadata = models.JSONField(null=True, blank=True)
 
 
+class RunManager(models.Manager):
+    def get_descendants(self, run_ids: list[UUID]):
+        """Gets descendants of runs with given ids (including the runs themselves)"""
+        query = """
+          WITH RECURSIVE descendants(id, parent_id) AS (
+              SELECT id, parent_id
+              FROM bench_run
+              WHERE id = ANY(%s)
+              UNION ALL
+              SELECT bench_run.id, bench_run.parent_id
+              FROM bench_run
+              INNER JOIN descendants ON descendants.id = bench_run.parent_id
+         )
+         SELECT DISTINCT id
+         FROM descendants
+         """
+        return Run._base_manager.filter(id__in=RawSQL(query, (run_ids,)))
+
+
 class Run(UUIDTModel, HasTriggeredBy):
     project = models.ForeignKey("Project", on_delete=models.CASCADE, null=True, blank=True)
     project_version = models.ForeignKey("ProjectVersion", on_delete=models.CASCADE)
@@ -47,11 +68,13 @@ class Run(UUIDTModel, HasTriggeredBy):
         "Session", on_delete=models.CASCADE, null=True, blank=True, related_name="runs"
     )
     root = models.ForeignKey(
-        "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="descendants"
+        "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="root_descendants"
     )
     parent = models.ForeignKey(
         "Run", on_delete=models.CASCADE, null=True, blank=True, related_name="children"
     )
+    root_descendants: models.QuerySet[Run]  # noqa via Run.root
+    children: models.QuerySet[Run]  # noqa via Run.parent
 
     status = models.CharField(max_length=32, choices=get_choices(RunStatus))
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,6 +100,14 @@ class Run(UUIDTModel, HasTriggeredBy):
         root_str = f"root={self.root_id}" if self.root_id else ""
         parent_str = f"parent={self.parent_id}" if self.parent_id else ""
         return f"{self.id} {self.status} ({(root_str + ' ' + parent_str).strip()})"
+
+    objects = RunManager()
+
+    def descendants(self) -> models.QuerySet[Run]:
+        if self.parent_id is None:
+            return self.root_descendants.all()
+        else:
+            return Run.objects.get_descendants([self.id])
 
     class Meta:
         ordering = ["-created_at"]
