@@ -60,7 +60,7 @@ export type ViewId = "explorer" | "search" | "history" | "issues" | "environment
 
 export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 
-const BENCH_STATE_VERSION = 6;
+const BENCH_STATE_VERSION = 7;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -90,11 +90,10 @@ export abstract class Panel {
     this.groupId = groupId;
   }
 
-  copy(): Panel {
-    // serialize, deserialize and reset id
+  copy(options?: { resetId?: boolean }): Panel {
     const serialized = JSON.stringify(stripPanel(this));
     const copy = instantiate(JSON.parse(serialized), this.bench);
-    copy.resetId();
+    if (options?.resetId) copy.resetId();
     return copy;
   }
 
@@ -322,13 +321,15 @@ export const useBenchState = defineStore("bench", {
 
     // panels
 
-    _removePanelFromGroup(panel: Panel): void {
-      if (panel.groupId == null) return;
+    _removePanelFromGroup(panel: Panel): boolean {
+      /** Remove panel from its group, return whether focus is lost now */
+      if (panel.groupId == null) return false;
       const group = this.group(panel.groupId);
-      if (group == null) return;
+      if (group == null) return false;
       group.panels = group.panels.filter((e) => e != panel);
+      panel.groupId = null;
       if (group.activePanelId == panel.id) {
-        // if active panel was removed, set first panel as active
+        // if active panel was removed, set last focused panel as active
         const nextToFocus = group.panels.sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1))[0];
         if (nextToFocus != null) {
           group.activePanelId = nextToFocus.id;
@@ -340,10 +341,12 @@ export const useBenchState = defineStore("bench", {
           this.focusedPanelId = group.activePanelId;
           if (nextToFocus != null) {
             nextToFocus.lastFocusedAt = new Date().toISOString();
+          } else {
+            return true;
           }
         }
       }
-      panel.groupId = null;
+      return false;
     },
 
     openPanel(panel: Panel, group?: PanelGroup): Panel {
@@ -367,14 +370,23 @@ export const useBenchState = defineStore("bench", {
 
     closePanel(panel: Panel): void {
       console.log(`close panel ${panel.path}`);
-      if (panel.groupId != null) {
-        this._removePanelFromGroup(panel);
-      }
       if (!this.recentlyClosedPanels.find((e) => e.id == panel.id)) {
         if (this.recentlyClosedPanels.length >= RECENTLY_CLOSED_PANELS_LIMIT) {
           this.recentlyClosedPanels.shift();
         }
-        this.recentlyClosedPanels.push(panel);
+        this.recentlyClosedPanels.push(panel.copy());
+      }
+      if (panel.groupId != null) {
+        const focusLost = this._removePanelFromGroup(panel);
+        // move focus to remaining panel group if focus was lost
+        if (focusLost) {
+          const nextToFocus = this.panels.sort((a, b) =>
+            (a.lastFocusedAt ?? "") > (b.lastFocusedAt ?? "") ? -1 : 1
+          )[0];
+          if (nextToFocus != null) {
+            this.focusPanel(nextToFocus);
+          }
+        }
       }
     },
 
@@ -386,8 +398,10 @@ export const useBenchState = defineStore("bench", {
     reopenLastClosedPanel(options?: { focus: boolean }): Panel | undefined {
       const panel = this.recentlyClosedPanels.pop();
       if (panel == null) return;
-      console.log(`reopen last closed panel ${panel.path}`);
-      this.openPanel(panel);
+      console.log(`reopen last closed panel ${panel.path} in group ${panel.groupId}`);
+      const group = this.groups.find((g) => g.id == panel.groupId) || this.left;
+      this.openPanel(panel, group);
+      group.panels.push(panel);
       if (options?.focus) {
         this.focusPanel(panel);
       }
@@ -397,7 +411,7 @@ export const useBenchState = defineStore("bench", {
     movePanel(panel: Panel, group: PanelGroup, options?: { copy?: boolean }): void {
       const wasFocused = panel.id == this.focusedPanelId;
       if (options?.copy) {
-        panel = panel.copy();
+        panel = panel.copy({ resetId: true });
       }
       this.openPanel(panel, group);
       if (wasFocused) {
@@ -629,6 +643,7 @@ function benchInitFromJson(bench: ReturnType<typeof useBenchState>, state: strin
   for (const group of bench.groups) {
     group.panels = group.panels.map((e) => instantiate(e, bench));
   }
+  bench.recentlyClosedPanels = bench.recentlyClosedPanels.map((e) => instantiate(e, bench));
 }
 
 export function useBenchPersistence(minIntervalMs = 1000) {
