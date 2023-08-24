@@ -162,7 +162,10 @@ defineExpose({
                 <span v-else-if="run.triggerAccessToken != null">via API</span>
                 <span v-else-if="run.parent != null">
                   in
-                  <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent)">
+                  <button
+                    class="underline-offset-2 hover:underline"
+                    @click="bench.openRun(run.parent, { focus: true })"
+                  >
                     #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                   </button>
                 </span>
