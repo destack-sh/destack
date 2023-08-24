@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
-import StructInterface from "@/components/tiles/StructInterface.vue";
+import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";

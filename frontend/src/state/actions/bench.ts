@@ -2,13 +2,13 @@ import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type Panel } from "@/state/bench";
 import { computed } from "vue";
 
-export function useEditorActions() {
+export function useBenchActions() {
   const bench = useBenchState();
 
   // jump around
   const focusNextPanelGroup = provideGlobalAction({
     id: "bench.focusNextPanelGroup",
-    label: "Focus Next Editor Group",
+    label: "Focus Next Panel Group",
     shortcuts: ["meta+shift+space"],
     enabled: computed(() => bench.focusedPanel != null),
     apply: () => {
@@ -21,29 +21,38 @@ export function useEditorActions() {
     },
   });
 
-  // move editor
-  const moveEditorLeft = provideGlobalAction({
-    id: "bench.moveEditorLeft",
-    label: "Move Editor Left",
+  // move panel
+  const movePanelLeft = provideGlobalAction({
+    id: "bench.movePanelLeft",
+    label: "Move Panel Left",
     shortcuts: ["ctrl+shift+left", "meta+shift+left"],
     enabled: computed(() => bench.focusedPanel != null),
     apply: () => bench.movePanel(bench.focusedPanel as Panel, bench.left),
   });
-  const moveEditorRight = provideGlobalAction({
-    id: "bench.moveEditorRight",
-    label: "Move Editor Right",
+  const movePanelRight = provideGlobalAction({
+    id: "bench.movePanelRight",
+    label: "Move Panel Right",
     shortcuts: ["ctrl+shift+right", "meta+shift+right"],
     enabled: computed(() => bench.focusedPanel != null),
     apply: () => bench.movePanel(bench.focusedPanel as Panel, bench.right),
   });
 
-  // close editor
+  // close panel
   const closePanel = provideGlobalAction({
     id: "bench.closePanel",
-    label: "Close Editor",
+    label: "Close Panel",
     shortcuts: ["alt+w", "ctrl+w", "meta+w"],
     enabled: computed(() => bench.focusedPanel != null),
     apply: () => bench.closePanel(bench.focusedPanel as Panel),
+  });
+
+  // reopen last closed panel
+  const reopenLastClosedPanel = provideGlobalAction({
+    id: "bench.reopenLastClosedPanel",
+    label: "Reopen Last Closed Panel",
+    shortcuts: ["ctrl+shift+t", "meta+shift+t", "alt+shift+t"],
+    enabled: computed(() => bench.recentlyClosedPanels.length > 0),
+    apply: () => bench.reopenLastClosedPanel({ focus: true }),
   });
 
   // toggle debug mode
@@ -60,9 +69,10 @@ export function useEditorActions() {
 
   return {
     focusNextPanelGroup,
-    moveEditorLeft,
-    moveEditorRight,
+    movePanelLeft,
+    movePanelRight,
     closePanel,
+    reopenLastClosedPanel,
     toggleDebugMode,
   };
 }
