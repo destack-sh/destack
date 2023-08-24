@@ -57,7 +57,9 @@ function createOption() {
     orderKey,
   });
   context.createField(newField);
-  nextTick(() => grid.focus(newField.id, "type"));
+  nextTick(() => {
+    grid.getRef(newField.id, "type").open("all");
+  });
 }
 
 function createUnionField() {
@@ -67,13 +69,17 @@ function createUnionField() {
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
   const field = context.createNewField(template);
-  nextTick(() => grid.focus(field.id, "type"));
+  nextTick(() => {
+    grid.getRef(field.id, "type").open("all");
+  });
 }
 
 function duplicateField(fieldId: string) {
   const newField = context.duplicateField(fieldId);
   if (newField != null) {
-    nextTick(() => grid.focus(newField?.id, "type"));
+    nextTick(() => {
+      grid.getRef(newField?.id, "type").open("all");
+    });
   }
 }
 

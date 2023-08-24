@@ -31,7 +31,7 @@ from bench.language.flow import IsFlowNode, TriggerScheduleIterator, is_time_tri
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import RunStatus
-from bench.language.type import instantiate_py_value, strip_py_value
+from bench.language.type import instantiate_value, strip_value
 from bench.language.utils import get_run_cache_subkey
 from bench.language.wire import ModuleTree
 from bench.models import Project, ProjectVersion, packer
@@ -468,7 +468,7 @@ class RuntimeServer(Monitored):
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
             cache = CacheAsync(module=None, subkey=model.id.hex, project_id=msg.p.project_id)
-            inputs = instantiate_py_value(msg.p.inputs, model, is_output=False)
+            inputs = instantiate_value(msg.p.inputs, model, is_output=False)
             output = await asyncio.wait_for(
                 asyncio.shield(
                     model._inference(inputs=inputs, cache_subkey=cache_subkey, log=log, cache=cache)
@@ -482,7 +482,7 @@ class RuntimeServer(Monitored):
             model = None
             timeout = isinstance(e, asyncio.TimeoutError)
         outputs = (
-            strip_py_value(output, model, is_output=True, ignore_outer_map=True) if output else None
+            strip_value(output, model, is_output=True, ignore_outer_map=True) if output else None
         )
         await msg.reply(RepRunInferencePayload(outputs=outputs, timeout=timeout))
 

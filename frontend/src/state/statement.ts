@@ -326,7 +326,7 @@ export function useStatementContext() {
     });
   }
 
-  function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">) {
+  function createNewField(template: Pick<Field, "id" | "tag" | "hint" | "flags" | "reference" | "metadata">) {
     const nextOrderKey = generateKeyBetween(
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
@@ -336,6 +336,7 @@ export function useStatementContext() {
     const name: string =
       TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
     const field = makeField({
+      id: template.id ?? newFieldId(),
       name: name.toLowerCase(),
       tag: template.tag,
       hint: template.hint ?? null,
@@ -540,6 +541,7 @@ export function isTypeTagCompatible(tag: TypeTag, type: StatementType): boolean 
 }
 
 export function makeField(data: {
+  id?: string | null;
   name?: string | null;
   tag: TypeTag;
   hint?: TypeHint | null;
@@ -550,7 +552,7 @@ export function makeField(data: {
   flags?: number;
 }): Field {
   const fieldData = {
-    id: newFieldId(),
+    id: data.id ?? newFieldId(),
     name: data.name ?? null,
     tag: data.tag,
     hint: data.hint ?? null,

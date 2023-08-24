@@ -743,7 +743,7 @@ export function providePanelContext<T extends Panel>(
   container: Ref<HTMLElement | null>,
   scroll: { x: Ref<number>; y: Ref<number> }
 ) {
-  const panelState = useBenchState();
+  const bench = useBenchState();
   const elementBounding = useElementBounding(container);
   const context: PanelContext<T> = {
     panel: panel,
@@ -758,16 +758,18 @@ export function providePanelContext<T extends Panel>(
     actions: computed(() => {
       const actions: PanelAction[] = [];
 
-      // open other panels in this group
-      panel.value.group?.panels.forEach((e) => {
-        if (e.id == panel.value.id) return;
-        actions.push({
-          groupId: "jump",
-          label: e.name.length > 0 ? e.name : "(Untitled)",
-          icon: PANEL_ICONS_OUTLINE[e.type],
-          action: () => panelState.focusPanel(e),
+      // open other panels in this group if there are any
+      if (!bench.showPanelGroupHeader) {
+        panel.value.group?.panels.forEach((e) => {
+          if (e.id == panel.value.id) return;
+          actions.push({
+            groupId: "jump",
+            label: e.name.length > 0 ? e.name : "(Untitled)",
+            icon: PANEL_ICONS_OUTLINE[e.type],
+            action: () => bench.focusPanel(e),
+          });
         });
-      });
+      }
 
       // close
       const closeActions = [
@@ -775,20 +777,19 @@ export function providePanelContext<T extends Panel>(
           groupId: "close",
           label: "Close",
           icon: XCircleIcon,
-          action: () => panelState.closePanel(panel.value),
+          action: () => bench.closePanel(panel.value),
         },
         {
           groupId: "close",
           label: "Close Others",
           icon: XCircleIcon,
-          action: () =>
-            panel.value.group?.panels.filter((e) => e != panel.value).forEach((e) => panelState.closePanel(e)),
+          action: () => panel.value.group?.panels.filter((e) => e != panel.value).forEach((e) => bench.closePanel(e)),
         },
         {
           groupId: "close",
           label: "Close All",
           icon: XCircleIcon,
-          action: () => panelState.closePanelGroup(panel.value.group as PanelGroup),
+          action: () => bench.closePanelGroup(panel.value.group as PanelGroup),
         },
       ];
       actions.push(...closeActions);
@@ -812,31 +813,31 @@ export function providePanelContext<T extends Panel>(
 
       // move
       // should clean this up
-      if (panel.value.groupId == panelState.left.id) {
+      if (panel.value.groupId == bench.left.id) {
         actions.push({
           groupId: "move",
           label: "Move Right",
           icon: ArrowRightIcon,
-          action: () => panelState.movePanel(panel.value, panelState.right),
+          action: () => bench.movePanel(panel.value, bench.right),
         });
         actions.push({
           groupId: "move",
           label: "Split Right",
           icon: ArrowRightIcon,
-          action: () => panelState.movePanel(panel.value, panelState.right, { copy: true }),
+          action: () => bench.movePanel(panel.value, bench.right, { copy: true }),
         });
       } else {
         actions.push({
           groupId: "move",
           label: "Move Left",
           icon: ArrowLeftIcon,
-          action: () => panelState.movePanel(panel.value, panelState.left),
+          action: () => bench.movePanel(panel.value, bench.left),
         });
         actions.push({
           groupId: "move",
           label: "Split Left",
           icon: ArrowLeftIcon,
-          action: () => panelState.movePanel(panel.value, panelState.left, { copy: true }),
+          action: () => bench.movePanel(panel.value, bench.left, { copy: true }),
         });
       }
       return actions;

@@ -204,12 +204,17 @@ function onDrop(thing: File[] | Dragged | null) {
   }
 }
 
-function open() {
+function open(select?: "all") {
   if (props.readonly) return;
   if (!editing.value) {
     editing.value = true;
     if (!props.readonly) {
-      nextTick(() => nameRef.value?.focus());
+      nextTick(() => {
+        nameRef.value?.focus();
+        if (select == "all") {
+          nameRef.value?.selectAll();
+        }
+      });
     }
   }
 }
@@ -234,6 +239,8 @@ defineExpose({
   editing,
   focus,
   blur,
+  open,
+  close,
   previewSize,
 });
 </script>
@@ -270,11 +277,11 @@ defineExpose({
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
-      @keydown.enter.exact.prevent="open"
+      @keydown.enter.exact.prevent="open()"
       @keydown.tab.exact.prevent="editing || emit('navigateRight')"
       @keydown.shift.tab.exact.prevent="editing || emit('navigateLeft')"
-      @click.stop="open"
-      @contextmenu.prevent.stop="open"
+      @click.stop="open()"
+      @contextmenu.prevent.stop="open()"
       @dragstart.stop="onDragStart"
       @mousedown="buttonRef?.setAttribute('draggable', 'true')"
       @mouseup="buttonRef?.setAttribute('draggable', 'false')"

@@ -75,7 +75,7 @@ async function createFileInPanelGroup() {
         <!-- Editor tab -->
         <Tab as="template" v-for="(e, i) in group.panels" :key="e.id" v-slot="{ selected }">
           <button
-            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 text-sm outline-none"
+            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 outline-none"
             :class="{
               'border-gray-50 bg-gray-50 text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
@@ -84,7 +84,7 @@ async function createFileInPanelGroup() {
             @click.middle.prevent="bench.closePanel(e)"
             @click.prevent="focus(e)"
           >
-            {{ e.name.length > 0 ? e.name : "(Untitled)" }}
+            <span class="text-xs">{{ e.name.length > 0 ? e.name : "(Untitled)" }}</span>
             <!-- Close button -->
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"

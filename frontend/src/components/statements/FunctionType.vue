@@ -10,6 +10,7 @@ import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
 import { usePanelContext } from "@/state/bench";
+import { GraphQLID } from "graphql";
 
 const context = useStatementContext();
 
@@ -85,7 +86,10 @@ function insertBelow(
     flags: (kind == "output" ? TypeFlag.IsOutput : 0) | (template.flags ?? 0),
   });
   context.createNewField(newFieldNode);
-  nextTick(() => (kind == "input" ? inputGrid : outputGrid).focus(-1, "type"));
+  nextTick(() => {
+    const grid = kind == "input" ? inputGrid : outputGrid;
+    grid.getRef(newFieldNode.id, "type").open("all");
+  });
 }
 
 function moveField(node: Field, position: "before" | "after", other: Field) {
@@ -206,12 +210,8 @@ defineExpose({
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Input
-        <CreateFieldInterface
-          ref="createInputRef"
-          :title="'New input to ' + context.statement.value.name"
-          @select="insertBelow('input', $event)"
-        />
       </button>
+      <CreateFieldInterface ref="createInputRef" title="Add input to" @select="insertBelow('input', $event)" />
     </div>
     <!-- Lil' arrow -->
     <component
@@ -219,7 +219,7 @@ defineExpose({
       class="mt-1 h-5 w-5 self-center text-gray-700"
     />
     <!-- Outputs -->
-    <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication -->
+    <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
     <div class="-mx-1 flex h-fit w-fit flex-1 flex-shrink-0 flex-col gap-0.5">
       <template v-for="field of outputs" :key="field.id">
         <FieldInterface
@@ -255,12 +255,8 @@ defineExpose({
         @keydown.left.exact.prevent="addInputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Output
-        <CreateFieldInterface
-          ref="createOutputRef"
-          :title="'New output of ' + context.statement.value.name"
-          @select="insertBelow('output', $event)"
-        />
       </button>
+      <CreateFieldInterface ref="createOutputRef" title="Add output" @select="insertBelow('output', $event)" />
     </div>
   </div>
 </template>
