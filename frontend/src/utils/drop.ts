@@ -1,7 +1,7 @@
 import { useEventListener, useMouseInElement } from "@vueuse/core";
 import { computed, ref, type Ref } from "vue";
 
-export type DraggedType = "Statement" | "Type" | "Record" | "File" | "Tile" | "Editor" | "NativeFile";
+export type DraggedType = "Statement" | "Type" | "Record" | "File" | "Tile" | "Editor" | "BrowserFile";
 export type Dragged = {
   type: DraggedType;
   id: string;
@@ -34,7 +34,7 @@ export function useRelativeDropZone(
         }
       }
       if (event.dataTransfer.types.includes("Files")) {
-        return "NativeFile";
+        return "BrowserFile";
       }
     }
     return null;
@@ -81,7 +81,7 @@ export function useRelativeDropZone(
     event.preventDefault();
     counter = 0;
     const type = getType(event);
-    if (type == "NativeFile") {
+    if (type == "BrowserFile") {
       const files = Array.from(event.dataTransfer?.files ?? []);
       onDrop?.(files.length === 0 ? null : files);
     } else if (type != null) {

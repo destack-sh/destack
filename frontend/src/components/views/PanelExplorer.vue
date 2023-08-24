@@ -80,7 +80,7 @@ defineExpose({
         <span
           class="decoration-none inline select-none truncate text-ellipsis rounded-sm text-sm placeholder-gray-400 outline-none"
         >
-          {{ panel.name.length > 0 ? panel.name : "(Untitled)" }}
+          {{ panel.name.length > 0 ? panel.name : "(Unnamed)" }}
         </span>
       </span>
     </li>

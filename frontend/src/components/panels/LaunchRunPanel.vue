@@ -16,9 +16,8 @@ import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
-import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 
-const RUNS_HISTORY_LIMIT = 15;
+const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
@@ -75,8 +74,7 @@ watchEffect(() => {
 // sync name/path into editor
 const path = computed(() => {
   if (statement.value == null) return null;
-  if (module.fileOf(statement.value) == null) return null;
-  return module.fileOf(statement.value)?.name + ":" + statement.value?.name;
+  return module.pathOf(statement.value);
 });
 watch(path, () => {
   if (statement.value == null || module.idx.value == null) return;
@@ -177,7 +175,7 @@ defineExpose({
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
-        <h1 class="text-3xl font-bold text-gray-900">Run: {{ statement?.name ?? "" }}&nbsp;</h1>
+        <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "(unnamed)" }}&nbsp;</h1>
         <!-- Run controls -->
         <div
           class=""

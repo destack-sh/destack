@@ -6,7 +6,7 @@ import { ref } from "vue";
 
 const props = defineProps<{ position: "start" | "end" }>();
 const buttonRef = ref(null);
-const { isOverDropZone } = useRelativeDropZone(buttonRef, ["NativeFile"], onDrop);
+const { isOverDropZone } = useRelativeDropZone(buttonRef, ["BrowserFile"], onDrop);
 const magic = useMagicActions(ref(null));
 const nav = useNavigationContext();
 const bench = useBenchState();
