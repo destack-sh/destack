@@ -127,6 +127,7 @@ defineExpose({
               />
               <span>{{ (statement as InterpStatement).name }}</span>
             </button>
+            <span v-else class="text-gray-500">(deleted)</span>
           </div>
           <!-- Status -->
           <div class="flex flex-col gap-0.5">

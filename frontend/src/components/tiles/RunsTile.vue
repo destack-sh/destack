@@ -105,6 +105,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
             />
             <span>{{ (statements[run.runnable?.id] as InterpStatement).name }}</span>
           </button>
+          <span v-else class="text-gray-400">(deleted)</span>
         </td>
         <!-- ID (to copy) -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
