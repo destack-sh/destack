@@ -34,7 +34,7 @@ const uploadButtonRef = ref<HTMLButtonElement | null>(null);
 const dropZoneRef = ref<HTMLDivElement>();
 const { isOverDropZone: dragOver } = useRelativeDropZone(
   dropZoneRef,
-  ["NativeFile", "Record"],
+  ["BrowserFile", "Record"],
   onDrop,
   computed(() => !props.readonly)
 );

@@ -315,8 +315,8 @@ const {
   inBottomHalf: dragInBottomHalf,
 } = useRelativeDropZone(
   containerRef,
-  ["Statement", "NativeFile"],
-  (thing) => onDrop,
+  ["Statement", "BrowserFile"],
+  (thing) => onDrop(thing),
   computed(() => !innerDrag.value && !props.readonly)
 );
 

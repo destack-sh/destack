@@ -10,6 +10,7 @@ import {
   usePanelContext,
   type Action,
   PANEL_ICONS_SOLID,
+  PANEL_ICONS_OUTLINE,
 } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
 import {
@@ -36,8 +37,6 @@ const panel = usePanelContext();
 const panelAppearance = computed(() => panel.panel.value.appearance);
 const appearance = useAppearance();
 const auth = useAuth();
-
-const icon = computed(() => PANEL_ICONS_SOLID[panel.panel.value.type]);
 </script>
 <template>
   <div
@@ -50,14 +49,14 @@ const icon = computed(() => PANEL_ICONS_SOLID[panel.panel.value.type]);
       <!-- Panel actions -->
       <ActionPopover anchor="left" :thing="thing" :actions="panel.actions.value" :groups="panel.actionGroups?.value">
         <div class="pb-0.5 pr-0.5">
-          <component :is="icon" class="h-4 w-4 text-gray-600" />
+          <component :is="PANEL_ICONS_OUTLINE[panel.panel.value.type]" class="h-4 w-4 text-gray-700" />
         </div>
       </ActionPopover>
       <!-- Panel path -->
       <div class="flex max-w-full flex-row items-center truncate whitespace-nowrap">
         <template v-for="(node, i) in path" :key="i">
           <!-- Self node with actions -->
-          <span v-if="i == self" class="px-0.5 font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
+          <span v-if="i == self" class="px-0.5 font-semibold text-gray-900">{{ node.name ?? "(Unnamed)" }}</span>
           <!-- Regular node -->
           <button
             v-else
@@ -68,7 +67,7 @@ const icon = computed(() => PANEL_ICONS_SOLID[panel.panel.value.type]);
                 : bench.focusNode(node as NodeBase, panel?.panel.value.group)
             "
           >
-            {{ node.name ?? "(Untitled)" }}
+            {{ node.name ?? "(Unnamed)" }}
             <!-- Tooltip -->
             <span
               class="pointer-events-none absolute left-0 top-6 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-150 group-hover/node:opacity-100"

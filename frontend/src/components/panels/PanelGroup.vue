@@ -4,7 +4,7 @@ import PanelInterface from "@/components/panels/PanelInterface.vue";
 import BlankPanel from "@/components/panels/BlankPanel.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type Panel, type PanelGroup } from "@/state/bench";
+import { useBenchState, type Panel, type PanelGroup, PANEL_ICONS_OUTLINE, PANEL_ICONS_SOLID } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
@@ -75,7 +75,7 @@ async function createFileInPanelGroup() {
         <!-- Editor tab -->
         <Tab as="template" v-for="(e, i) in group.panels" :key="e.id" v-slot="{ selected }">
           <button
-            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2.5 pr-1 outline-none"
+            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2 pr-1 outline-none"
             :class="{
               'border-orange-900 border-opacity-[12%] bg-white text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
@@ -83,7 +83,8 @@ async function createFileInPanelGroup() {
             @click.middle.prevent="bench.closePanel(e)"
             @click.prevent="focus(e)"
           >
-            <span class="text-xs">{{ e.name.length > 0 ? e.name : "(Untitled)" }}</span>
+            <component :is="PANEL_ICONS_SOLID[e.type]" class="mr-0.5 h-4 w-4" />
+            <span class="text-xs">{{ e.name.length > 0 ? e.name : "(Unnamed)" }}</span>
             <!-- Close button -->
             <button
               class="duratoin-150 h-fit max-h-fit rounded-sm px-1 text-xs transition hover:bg-gray-200 group-hover:text-gray-700"

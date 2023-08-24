@@ -30,13 +30,15 @@ import {
   ArrowsPointingOutIcon,
   Bars4Icon as Bars4IconOutline,
   CodeBracketIcon as CodeBracketIconOutline,
-  PlayCircleIcon as PlayCircleIconOutline,
+  PlayIcon as PlayIconOutline,
   XCircleIcon,
+  WindowIcon as WindowIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   CodeBracketIcon as CodeBracketIconSolid,
-  PlayCircleIcon as PlayCircleIconSolid,
+  PlayIcon as PlayIconSolid,
   Bars4Icon as Bars4IconSolid,
+  WindowIcon as WindowIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
@@ -763,7 +765,7 @@ export function providePanelContext<T extends Panel>(
           if (e.id == panel.value.id) return;
           actions.push({
             groupId: "jump",
-            label: e.name.length > 0 ? e.name : "(Untitled)",
+            label: e.name.length > 0 ? e.name : "(Unnamed)",
             icon: PANEL_ICONS_OUTLINE[e.type],
             action: () => bench.focusPanel(e),
           });
@@ -988,7 +990,7 @@ export class EditFilePanel extends NavigablePanel {
   foldedStatementTreeIds?: string[] = [];
 
   constructor(file: NodeBase) {
-    super("edit-file", file.id + "-" + randomHexString(), file.name ?? "(Untitled)", file.name ?? "(Untitled)", null);
+    super("edit-file", file.id + "-" + randomHexString(), file.name ?? "(Unnamed)", file.name ?? "(Unnamed)", null);
     this.fileId = file.id;
   }
 
@@ -1210,18 +1212,18 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
   "edit-file": CodeBracketIconOutline,
   "edit-statement": CodeBracketIconOutline,
-  "launch-run": PlayCircleIconOutline,
-  "view-runs": PlayCircleIconOutline,
-  "view-run": PlayCircleIconOutline,
+  "launch-run": WindowIconOutline,
+  "view-runs": PlayIconOutline,
+  "view-run": PlayIconOutline,
   "view-logs": Bars4IconOutline,
 };
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
   "edit-file": CodeBracketIconSolid,
   "edit-statement": CodeBracketIconSolid,
-  "launch-run": PlayCircleIconSolid,
-  "view-runs": PlayCircleIconSolid,
-  "view-run": PlayCircleIconSolid,
+  "launch-run": WindowIconSolid,
+  "view-runs": PlayIconSolid,
+  "view-run": PlayIconSolid,
   "view-logs": Bars4IconSolid,
 };
 

@@ -66,7 +66,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
                 :class="[altKey ? 'cursor-pointer hover:underline' : '']"
                 @click="() => (altKey ? nav.focusStatement(run.runnable?.id) : null)"
               >
-                {{ module.statementOf(run.runnable?.id)?.name ?? "untitled" }}
+                {{ module.statementOf(run.runnable?.id)?.name ?? "unnamed" }}
               </span>
             </span>
             <!-- Controls -->

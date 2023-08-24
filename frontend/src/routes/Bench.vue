@@ -186,7 +186,7 @@ watchEffect(() => {
     title.value = "Page not found";
   } else {
     if (bench.focusedPanel != null) {
-      title.value = (bench.focusedPanel.name || "(Untitled)") + " • " + `${props.owner}/${props.project}`;
+      title.value = (bench.focusedPanel.name || "(Unnamed)") + " • " + `${props.owner}/${props.project}`;
     } else {
       title.value = `${props.owner}/${props.project}${project.value ? " • " + project.value.name : ""}`;
     }

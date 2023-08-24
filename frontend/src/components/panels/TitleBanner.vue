@@ -46,7 +46,7 @@ defineExpose({
           v-if="modelValue?.trim().length == 0"
           @click="nameRef?.focus()"
         >
-          Untitled
+          Unnamed
         </span>
       </span>
       <!-- Actions -->
