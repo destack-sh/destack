@@ -25,12 +25,12 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
 </script>
 <template>
   <!-- Deleted thing status and restore -->
-  <div v-if="isDeleted && thing != null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
+  <div v-if="isDeleted && thing != null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-1">
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-bold text-white">
+      <div class="text-sm font-semibold text-white">
         This {{ name }} is in trash (was deleted {{ now.getTimeFromNowLongString(thing.deletedAt as string) }}).
       </div>
       <button
@@ -44,13 +44,13 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
   <!-- Other version thing -->
   <div
     v-else-if="!isLoading && !isDeleted && isOtherVersion"
-    class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-2"
+    class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-1"
   >
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-bold text-white">This {{ name }} is from another Bench version.</div>
+      <div class="text-sm font-semibold text-white">This {{ name }} is from another Bench version.</div>
       <router-link
         class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
         :to="{ query: { version: thing?.projectVersion?.id } }"
@@ -60,12 +60,12 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
     </div>
   </div>
   <!-- Thing failed to load -->
-  <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-2">
+  <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-1">
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-bold text-white">{{ nameCamelCase }} failed to load.</div>
+      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} failed to load.</div>
     </div>
   </div>
 </template>

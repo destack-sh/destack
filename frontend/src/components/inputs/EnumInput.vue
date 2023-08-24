@@ -60,26 +60,24 @@ defineExpose({
   <div class="flex h-full w-full flex-row flex-wrap gap-1">
     <!-- :EnumStyle -->
     <!-- Existing members -->
-    <template v-if="isArray || preview">
-      <span
-        v-for="member in selectedMembers"
-        :key="member.key"
-        class="inline-flex items-center gap-x-1.5 rounded-sm bg-stone-100 px-2 text-gray-900 ring-1 ring-inset ring-stone-500/10"
+    <span
+      v-for="member in selectedMembers"
+      :key="member.key"
+      class="inline-flex items-center gap-x-1.5 rounded-sm bg-stone-100 px-2 text-gray-900 ring-1 ring-inset ring-stone-500/10"
+    >
+      <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+        <circle cx="3" cy="3" r="3" />
+      </svg>
+      {{ member.name }}
+      <!-- Delete button -->
+      <button
+        v-if="!preview && !readonly"
+        class="p-0.5 text-gray-300 hover:text-gray-700"
+        @click="removeValue(member.key)"
       >
-        <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
-          <circle cx="3" cy="3" r="3" />
-        </svg>
-        {{ member.name }}
-        <!-- Delete button -->
-        <button
-          v-if="!preview && !readonly && isArray"
-          class="p-0.5 text-gray-300 hover:text-gray-700"
-          @click="removeValue(member.key)"
-        >
-          x
-        </button>
-      </span>
-    </template>
+        x
+      </button>
+    </span>
     <!-- Ensure there's always something -->
     <template v-if="selectedMembers.length == 0 && preview">&nbsp;</template>
     <!-- TODO @Feature @UX: add missing enum members inline -->
@@ -115,7 +113,10 @@ defineExpose({
         "
       >
       </ComboboxInput>
-      <ComboboxOptions class="flex max-h-80 w-full flex-col gap-1 overflow-auto py-1 focus:outline-none" static>
+      <ComboboxOptions
+        class="mt-1 flex max-h-80 w-full flex-col gap-1 overflow-auto border-t py-1 pt-1.5 focus:outline-none"
+        static
+      >
         <ComboboxOption
           v-for="member in filteredMembers"
           :key="member.name ?? ''"

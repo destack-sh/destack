@@ -44,7 +44,12 @@ const BUILTIN_TYPES: (TypeHint | TypeTag)[] = [
   TypeTag.File,
   ...(Object.keys(SUPPORTED_TYPEHINTS) as TypeHint[]),
 ];
-const BUILTINS_TYPES_NODES = BUILTIN_TYPES.map((tag) => {
+const BUILTIN_TYPES_ALIASES: Partial<Record<TypeHint | TypeTag, string[]>> = {
+  [TypeTag.String]: ["string", "str", "char"],
+  [TypeTag.Boolean]: ["bool", "boolean", "true", "false"],
+  [TypeTag.Number]: ["number", "num", "int", "integer", "float", "double"],
+};
+const BUILTINS_TYPES_FIELDS = BUILTIN_TYPES.map((tag) => {
   if (Object.values(TypeTag).includes(tag as TypeTag)) {
     return makeField({ tag: tag as TypeTag });
   } else if (tag in SUPPORTED_TYPEHINTS) {
@@ -59,11 +64,17 @@ const availableSymbols = module.statementsLike({
   // TODO @UX @Feature: also support code & dataset type references
   //  (right now this is too noisy and confusing, too much code & 'does database mean relation?', also see :DbRecord)
 });
-const availableTypes: Ref<Field[] & { primitive?: boolean }> = computed(() => {
-  const types = [];
+type FieldInfo = { primitive?: boolean; alias?: string[] };
+const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
+  const types: Array<Field & FieldInfo> = [];
   // builtin types
   if (!props.refOnly) {
-    types.push(...BUILTINS_TYPES_NODES.map((t) => ({ ...t, flags: getDefaultFlags(t.hint ?? t.tag) })));
+    types.push(
+      ...BUILTINS_TYPES_FIELDS.map((t) => {
+        const alias = BUILTIN_TYPES_ALIASES[t.hint ?? t.tag];
+        return { ...t, flags: getDefaultFlags(t.hint ?? t.tag), primitive: true, alias };
+      })
+    );
   }
   // references
   for (const symbol of availableSymbols.value) {
@@ -97,7 +108,12 @@ const uf = new uFuzzy({ intraMode: 0 });
 const filteredTypes = computed(() => {
   if (query.value.trim() == "") return availableTypes.value;
   const [idxs] = uf.search(
-    availableTypes.value.map((t) => renderField(t)),
+    availableTypes.value.map((t) => {
+      if (t.alias != null) {
+        return `${renderField(t)} ${t.alias.join(" ")}}`;
+      }
+      return renderField(t);
+    }),
     query.value
   );
   return idxs?.map((idx) => availableTypes.value[idx]) ?? [];

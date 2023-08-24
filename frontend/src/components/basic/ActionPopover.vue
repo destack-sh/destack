@@ -21,6 +21,7 @@ const props = defineProps<{
   groups?: ActionGroup[];
   thing: any;
   anchor: "left" | "right";
+  small?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "mousedown", v: MouseEvent): void;
@@ -100,8 +101,8 @@ defineExpose({
       <PopoverPanel
         ref="popoverPanelRef"
         as="div"
-        class="z-50 flex w-64 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="[popoverPin.pinned.value ? '' : 'absolute ' + anchor]"
+        class="z-50 flex flex-col gap-2 rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        :class="[popoverPin.pinned.value ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-64 p-2 ']"
         unmount
       >
         <span ref="popoverOpenRef" class="hidden" />
@@ -109,6 +110,7 @@ defineExpose({
         <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click) -->
         <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (doActionIfOpen(action), close())">
           <ComboboxInput
+            v-if="!small"
             as="input"
             ref="inputRef"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
@@ -122,12 +124,12 @@ defineExpose({
             @keydown.enter.prevent.stop="close"
           />
           <ComboboxOptions
-            class="scroll-hidden mt-1 max-h-[220px] w-60 overflow-auto"
+            class="max-h-[220px] overflow-auto"
             static
             :class="{
               'font-mono': appearance.fontMono,
-              'text-sm': appearance.textSmall,
-              'text-md': !appearance.textSmall,
+              'mt-1 text-sm': !small,
+              'text-xs': small,
             }"
           >
             <!-- Options -->
@@ -140,7 +142,7 @@ defineExpose({
               @click.prevent.stop="doActionIfOpen(action), close()"
               :class="[
                 i > 0 && filteredActions[i - 1].groupId != action.groupId
-                  ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-1'
+                  ? ' border-t border-orange-900 border-opacity-[12%] ' + (small ? 'mt-0.5 pt-0.5' : 'mt-1 pt-1')
                   : '',
               ]"
             >

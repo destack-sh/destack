@@ -11,7 +11,6 @@ export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
   [TypeTag.Json]: "json",
   [TypeTag.Literal]: "literal",
   [TypeTag.Struct]: "type",
-  [TypeTag.Union]: "union",
 };
 export const TYPETAG_BY_KEYWORD: Partial<Record<string, TypeTag>> = reverseRecord(TYPETAG_KEYWORD);
 export const TYPEHINT_KEYWORD: Partial<Record<TypeHint, string>> = {
