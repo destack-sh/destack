@@ -403,6 +403,13 @@ class OpenAIChatCompiler(TaskCompiler):
         ),
     )
 
+    def render_value_flat(self, value: Any, type: TypeBase, *args, **kwargs) -> Any:
+        """Model-friendly rendering of instantiated value."""
+        if type.tag == TypeTag.ENUM:
+            return value.name
+        else:
+            return strip_value_flat(value, type, *args, **kwargs)
+
     def _compile_tool(self, tool: Code | Task | Model) -> OpenAIFunction:
         return OpenAIFunction(
             name=tool.py_ident,
@@ -460,12 +467,15 @@ class OpenAIChatCompiler(TaskCompiler):
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
                 name=function.py_ident,
-                content=json.dumps(map_value(result, function, map_v=strip_value_flat)),
+                content=json.dumps(map_value(result, function, map_v=self.render_value_flat)),
             )
 
     async def run(self, model: OpenAIChatCompletionModel, runner: TaskRunner) -> dict:
         inputs = map_value(
-            self.inputs, self.task, map_k=lambda f: (f.py_ident, f.py_ident), map_v=strip_value_flat
+            self.inputs,
+            self.task,
+            map_k=lambda f: (f.py_ident, f.py_ident),
+            map_v=self.render_value_flat,
         )
         considerations = await asyncio.gather(
             *(self._compile_consideration(consideration) for consideration in self.considerations)

@@ -7,9 +7,9 @@ from bench.language.const import TypeTag
 from bench.language.core import File
 from bench.language.type import (
     HasType,
-    instantiate_py_value,
+    instantiate_value,
     new_field_key,
-    strip_py_value,
+    strip_value,
     type_from_instance_type,
 )
 
@@ -70,8 +70,8 @@ def x_struct(
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
         cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
         cls.__contains__ = lambda self, key: hasattr(self, key) and getattr(self, key) is not None
-        cls.instantiate_from = lambda value: instantiate_py_value(value, bench_type)
-        cls.strip = lambda self: strip_py_value(self, bench_type)
+        cls.instantiate_from = lambda value: instantiate_value(value, bench_type)
+        cls.strip = lambda self: strip_value(self, bench_type)
 
         if return_type:
             return bench_type

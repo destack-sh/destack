@@ -20,7 +20,7 @@ from bench.language.type import (
     TypeTag,
     check_type,
     map_value,
-    strip_py_value,
+    strip_value,
     strip_value_flat,
 )
 from bench.language.utils import Runnable
@@ -450,7 +450,7 @@ class RunTracer(Tracer):
 
     def run_enter(self, statement: Runnable, inputs):
         frame = self._create_frame(
-            runnable=statement, inputs=strip_py_value(inputs, statement, is_output=False)
+            runnable=statement, inputs=strip_value(inputs, statement, is_output=False)
         )
         self.stacktrace.append(frame)
         self._cvar_tokens[frame.id] = _active_run.set(frame)

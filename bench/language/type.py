@@ -1215,7 +1215,7 @@ def strip_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
     return mapping.to_flat_value(type, value)
 
 
-def instantiate_py_value(
+def instantiate_value(
     value: Any,
     type: HasType,
     ignore_array: bool = False,
@@ -1233,7 +1233,7 @@ def instantiate_py_value(
     )
 
 
-def strip_py_value(
+def strip_value(
     value: Any,
     type: HasType,
     ignore_array: bool = False,

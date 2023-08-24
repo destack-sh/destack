@@ -106,7 +106,7 @@ defineExpose({
       >
         <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
           <!-- Title -->
-          <h5 class="text-left text-sm font-semibold text-gray-900">
+          <h5 class="px-1 text-left text-xs font-semibold text-gray-500">
             Add tag to {{ context.statement.value.name ?? "statement" }}
           </h5>
           <!-- Input -->

@@ -24,7 +24,7 @@ from bench.language.core import (
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.language.tag import HasTags
-from bench.language.type import Field, HasType, instantiate_py_value, map_value, strip_py_value
+from bench.language.type import Field, HasType, instantiate_value, map_value, strip_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
@@ -67,7 +67,7 @@ class Record(ModuleNode, HasSession, HasCrud):
             self.value = self._raw_value()
             self._instantiated = False
         # proxy
-        self.value = instantiate_py_value(
+        self.value = instantiate_value(
             self.value, self.parent, ignore_array=True, ignore_outer_map=True
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
@@ -80,7 +80,7 @@ class Record(ModuleNode, HasSession, HasCrud):
             return self.value
         else:
             value = unproxy_value(self.value)
-            return strip_py_value(value, self.parent, ignore_array=True, ignore_outer_map=True)
+            return strip_value(value, self.parent, ignore_array=True, ignore_outer_map=True)
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""
@@ -461,9 +461,7 @@ class Value(HasType, HasTags, Statement):
             self.value = self._raw_value()
             self._instantiated = False
         # proxy
-        self.value = instantiate_py_value(
-            self.value, self, ignore_array=True, ignore_outer_map=True
-        )
+        self.value = instantiate_value(self.value, self, ignore_array=True, ignore_outer_map=True)
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
         super().activate_in(session)
@@ -479,7 +477,7 @@ class Value(HasType, HasTags, Statement):
         if not self._instantiated:
             return self.value
         else:
-            return strip_py_value(self.value, self, ignore_array=True, ignore_outer_map=True)
+            return strip_value(self.value, self, ignore_array=True, ignore_outer_map=True)
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""

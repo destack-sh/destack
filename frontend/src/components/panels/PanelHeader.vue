@@ -57,9 +57,7 @@ const icon = computed(() => PANEL_ICONS_OUTLINE[panel.panel.value.type]);
       <div class="flex max-w-full flex-row items-center truncate whitespace-nowrap">
         <template v-for="(node, i) in path" :key="i">
           <!-- Self node with actions -->
-          <ActionPopover v-if="i == self" anchor="left" :thing="thing" :actions="actions" class="ml-1">
-            <span class="font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
-          </ActionPopover>
+          <span v-if="i == self" class="ml-1 font-semibold text-gray-900">{{ node.name ?? "(Untitled)" }}</span>
           <!-- Regular node -->
           <button
             v-else

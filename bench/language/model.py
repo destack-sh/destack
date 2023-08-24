@@ -16,7 +16,7 @@ from bench.language.const import StatementType
 from bench.language.core import Scope, Statement, node
 from bench.language.flow import IsFlowNode
 from bench.language.tag import HasTags
-from bench.language.type import HasType, TypeTag, check_type, instantiate_py_value, strip_py_value
+from bench.language.type import HasType, TypeTag, check_type, instantiate_value, strip_value
 from bench.language.utils import Runnable, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
@@ -75,7 +75,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
     async def __call__(self, timeout: int = None, cache: bool = None, **inputs):
         if cache is None:
             cache = self.should_cache
-        inputs_raw = strip_py_value(inputs, self, is_output=False, ignore_outer_map=True)
+        inputs_raw = strip_value(inputs, self, is_output=False, ignore_outer_map=True)
         cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw)
         log = logger.bind(model=self, inputs=describe_type(inputs), cache_subkey=cache_subkey)
         log.debug("inference.enter.pre")
@@ -87,7 +87,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
             if cached_inference is not None:
                 try:
                     inference = Inference.from_json_bytes(cached_inference)
-                    outputs = instantiate_py_value(
+                    outputs = instantiate_value(
                         inference.outputs, self, ignore_outer_map=True, is_output=True
                     )
                     log.debug("inference.cache.hit", output=describe_type(outputs))
@@ -126,7 +126,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                 )
                 if rep.p.outputs is None:
                     raise RuntimeError(f"remote {self} failed")
-                outputs = instantiate_py_value(rep.p.outputs, self, is_output=True)
+                outputs = instantiate_value(rep.p.outputs, self, is_output=True)
                 self.session.tracer.run_exit(self, outputs)
                 return DotDict(outputs)
             except (ValueError, RuntimeError, TypeError) as e:
@@ -175,8 +175,8 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
             inference = Inference(
                 generated_at=now,
                 duration=duration,
-                inputs=strip_py_value(inputs, self, is_output=False, ignore_outer_map=True),
-                outputs=strip_py_value(output, self, is_output=True, ignore_outer_map=True),
+                inputs=strip_value(inputs, self, is_output=False, ignore_outer_map=True),
+                outputs=strip_value(output, self, is_output=True, ignore_outer_map=True),
             )
             await cache.set(cache_subkey, inference.to_json_bytes(), expire=INFERENCE_CACHE_EXPIRY)
         log.debug("inference.exit", ret=describe_type(output), duration=duration)

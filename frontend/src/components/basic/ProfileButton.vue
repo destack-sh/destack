@@ -50,10 +50,12 @@ const userNavigation = computed(() => [
           class="absolute right-1 top-12 z-30 mt-0 w-48 origin-top-right rounded-sm bg-white px-1 py-1 shadow-md outline-none ring-1 ring-orange-900 ring-opacity-40"
         >
           <div class="flex flex-row items-center gap-1 px-2">
-            <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-8 w-8" />
+            <div class="p-1">
+              <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-6 w-6" />
+            </div>
             <p class="flex max-w-full flex-col px-2 py-2">
               <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>
-              <span class="truncate text-sm text-gray-500">{{ auth.me.value?.name }}</span>
+              <span class="truncate text-xs text-gray-500">{{ auth.me.value?.name }}</span>
               <!-- Future plan info -->
             </p>
           </div>
