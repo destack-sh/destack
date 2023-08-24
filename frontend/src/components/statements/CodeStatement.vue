@@ -225,30 +225,38 @@ defineExpose({
     </div>
     <!-- Meta info & controls -->
     <div
-      class="group/info flex flex-shrink-0 flex-row items-center gap-1 underline-offset-2 transition duration-150 hover:cursor-pointer hover:underline group-hover/statement:opacity-100"
+      class="group/info flex flex-shrink-0 flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
       :class="context.focused.value || isCurrentRunActive ? '' : 'opacity-0'"
-      @click="bench.openRun(currentRun, { focus: true })"
     >
-      <!-- Run time -->
+      <BusySpinnerIcon
+        v-if="preparingRun || (currentRun != null && currentRun.startedAt == null)"
+        class="h-4 w-4 animate-spin"
+      />
       <span
-        v-if="!hasTypes && currentRun != null"
-        :class="[preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
+        class="underline-offset-2 hover:cursor-pointer hover:underline"
+        @click="bench.openRun(currentRun, { focus: true })"
       >
-        <BusySpinnerIcon v-if="preparingRun || currentRun.startedAt == null" class="h-4 w-4 animate-spin" />
-        <span v-else>{{ sessions.getDurationFormatted(currentRun) }}</span>
+        <!-- Duration -->
+        <span
+          v-if="!hasTypes && currentRun != null"
+          :class="[preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]"
+        >
+          {{ sessions.getDurationFormatted(currentRun) }}
+        </span>
+        <!-- Age -->
+        <span
+          v-if="!hasTypes"
+          class="ml-1"
+          :class="[
+            preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun?.status, { gray: 'text-gray-400' }),
+            currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
+          ]"
+        >
+          {{ now.getTimeFromNowString(currentRun?.updatedAt) }}</span
+        >
       </span>
       <!-- Cache info -->
       <RunCacheInfo v-if="!hasTypes && currentRun != null" :run="currentRun" class="relative mr-0.5 py-1" />
-      <!-- Age -->
-      <span
-        v-if="!hasTypes"
-        :class="[
-          preparingRun ? 'text-gray-400' : getRunStatusColor(currentRun?.status, { gray: 'text-gray-400' }),
-          currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
-        ]"
-      >
-        {{ now.getTimeFromNowString(currentRun?.updatedAt) }}</span
-      >
       <InlineActions :extraActions="extraActions" />
     </div>
   </div>

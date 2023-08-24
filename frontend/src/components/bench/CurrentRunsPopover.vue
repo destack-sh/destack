@@ -88,7 +88,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
         <div v-if="activeRuns.length == 0" class="mt-1 px-3 text-center">
           <span class="text-gray-400"
             >No active runs.
-            <a href="#" class="hover:underline" @click="bench.openRuns()">View all.</a>
+            <a href="#" class="hover:underline" @click="bench.openRuns(undefined, { focus: true })">View all.</a>
           </span>
         </div>
       </PopoverPanel>

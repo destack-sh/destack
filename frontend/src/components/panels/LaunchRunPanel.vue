@@ -16,6 +16,7 @@ import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 
 const RUNS_HISTORY_LIMIT = 15;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -100,6 +101,7 @@ async function run() {
   panel.value.lastRunId = newRunId();
   panel.value.lastSessionId = newSessionId();
   panel.value.lastOutput = undefined;
+  panel.value.lastError = undefined;
   const { run, result: runTask } = await sessions.run(
     { id: panel.value.statementId },
     {
@@ -114,12 +116,14 @@ async function run() {
   if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
     panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
     panel.value.lastOutput = result?.run.outputs;
+    panel.value.lastError = result?.run.error;
   } else {
     // subscribe to run changes
     sessions.subscribeToRun(run, (run) => {
       if (TERMINAL_RUN_STATUSES.includes(run.status)) {
         panel.value.lastRunTerminatedAt = run.terminatedAt;
         panel.value.lastOutput = run.outputs;
+        panel.value.lastError = run.error;
       }
     });
   }
@@ -219,7 +223,7 @@ defineExpose({
         </ContainerTile>
         <!-- Output -->
         <ContainerTile
-          v-if="panel.lastOutput"
+          v-if="panel.lastOutput != null"
           label="Output"
           :sub-label="
             panel.lastRunTerminatedAt != null
@@ -236,7 +240,9 @@ defineExpose({
           v-if="statement != null"
           label="Runs"
           :sub-label="
-            runsTileRef?.totalCount != null ? `last ${RUNS_HISTORY_LIMIT} of ${runsTileRef?.totalCount}` : undefined
+            runsTileRef?.totalCount != null
+              ? `last ${Math.min(RUNS_HISTORY_LIMIT, runsTileRef?.totalCount)} of ${runsTileRef?.totalCount}`
+              : undefined
           "
           :style="{ ...baseTilePositionX }"
         >

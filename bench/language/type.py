@@ -152,6 +152,7 @@ STORAGE_FORMAT_BY_TYPE_TAG = {
     TypeTag.FILE: TypeStorageFormat.OBJECT,
     TypeTag.STRUCT: TypeStorageFormat.OBJECT,
     TypeTag.ENUM: TypeStorageFormat.KEYWORD,
+    TypeTag.LITERAL: TypeStorageFormat.KEYWORD,
 }
 STORAGE_FORMAT_BY_TYPE_HINT = {
     # for special types that are not the same as their type tag
@@ -595,119 +596,6 @@ def on_invalid_raise(
     raise TypeError(value, expected, message, suberrors)
 
 
-def check_type(
-    value: Any,
-    expected: TypeBase,
-    eager_error: bool = True,
-    on_invalid=on_invalid_raise,
-    ignore_array: bool = False,
-    is_output: bool = None,
-):
-    """
-    Checks whether the given value has the expected type (recursively).
-    Raises TypeError if not.
-    TODO @Cleanup: move/merge check_type into TypeMapping constructs (incl. coercion)
-    """
-
-    _suberrors = []
-
-    def _on_invalid_collect(
-        value: Any,
-        expected: TypeBase,
-        message: str = None,
-        suberrors: list[TypeError] = None,
-    ):
-        _suberrors.append(TypeError(value, expected, message, suberrors))
-
-    def _check(valid: bool, message: str):
-        if not valid:
-            if eager_error:
-                on_invalid(value, expected, message)
-            else:
-                _on_invalid_collect(value, expected, message)
-        return valid
-
-    if expected.flags & TypeFlag.IsOptional and value is None:
-        return
-    elif expected.flags & TypeFlag.IsArray and not ignore_array:
-        if _check(isinstance(value, Collection), "expected array"):
-            for item in value:
-                check_type(
-                    item,
-                    expected,
-                    eager_error=eager_error,
-                    on_invalid=on_invalid,
-                    ignore_array=True,
-                )
-    elif (
-        expected.flags & TypeFlag.IsArrayable
-        and not ignore_array
-        and not _is_arrayable_single(expected, value)
-    ):
-        for item in value:
-            check_type(
-                item, expected, eager_error=eager_error, on_invalid=on_invalid, ignore_array=True
-            )
-    elif expected.flags & TypeFlag.IsSecret:
-        _check(isinstance(value, Secret), "expected secret")
-    elif expected.hint == TypeHint.DATETIME:
-        _check(isinstance(value, datetime), "expected datetime")
-    elif expected.effective_tag == TypeTag.STRING:
-        _check(isinstance(value, str), "expected string")
-    elif expected.effective_tag == TypeTag.NUMBER:
-        _check(isinstance(value, (int, float)), "expected number")
-    elif expected.effective_tag == TypeTag.BOOLEAN:
-        _check(isinstance(value, bool), "expected boolean")
-    elif expected.effective_tag == TypeTag.VECTOR:
-        _check(isinstance(value, Collection), "expected vector")
-        if value:
-            _check(isinstance(value[0], float), "expected vector of numbers")
-    elif expected.effective_tag == TypeTag.ENUM:
-        # assumes literal/value enums
-        _check(any(member.name == value for member in expected.fields), "expected enum member")
-    elif expected.effective_tag == TypeTag.STRUCT or expected.effective_tag == TypeTag.FUNCTION:
-        if expected.tag == TypeTag.FUNCTION and is_output and not expected.outputs:
-            value = value or {}  # None is allowed for empty outputs
-        if _check(
-            isinstance(value, typing.Mapping) or dataclasses.is_dataclass(value), "expected struct"
-        ):
-            is_dataclass = dataclasses.is_dataclass(value)  # used for model internals
-            for f in expected.resolved_fields or expected.fields:
-                if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
-                    continue
-                if is_dataclass:
-                    subvalue = getattr(value, f.py_ident)
-                else:
-                    subvalue = value.get(f.name, value.get(f.py_ident))
-                if subvalue is None:
-                    _check(bool(f.flags & TypeFlag.IsOptional), "expected required value")
-                else:
-                    check_type(subvalue, f, eager_error=eager_error, on_invalid=on_invalid)
-            if isinstance(value, typing.Mapping):
-                for key in value.keys():
-                    if not expected.has_field(key):
-                        _check(False, f"extraneous field {key}")
-    elif expected.effective_tag in (TypeTag.FILE,):
-        _check(isinstance(value, RemoteObject), "expected remote object")
-    elif expected.effective_tag == TypeTag.UNION:
-        for option in expected.fields:
-            try:
-                check_type(value, option)
-                return
-            except TypeError:
-                pass
-        _check(False, "expected one of the union types")
-    elif expected.effective_tag == TypeTag.NULL:
-        _check(value is None, "expected null")
-    elif expected.effective_tag in (TypeTag.ANY, TypeTag.JSON):
-        pass
-    else:
-        raise RuntimeError(f"unexpected type {expected.tag}")
-
-    if not eager_error and _suberrors:
-        on_invalid(value, expected, suberrors=_suberrors)
-
-
 def _map_v_noop(value: Any, *args, **kwargs):
     return value
 
@@ -716,7 +604,7 @@ def _map_k_noop(field: Field):
     return field.name, field.name
 
 
-def _is_arrayable_single(type: Field, value: Any) -> bool:
+def _is_arrayable_not_an_array(type: Field, value: Any) -> bool:
     return (
         not isinstance(value, Collection)
         or isinstance(value, str)
@@ -740,13 +628,13 @@ def map_value(
     """Walks the value and reassembles with new keys and values."""
     map_v = map_v or _map_v_noop
     map_k = map_k or _map_k_noop
-    # communicate via yield/send
+
     if type.flags & TypeFlag.IsArray and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             return value  # type error, ignore here
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
-        if _is_arrayable_single(type, value):
+        if _is_arrayable_not_an_array(type, value):
             return map_value(value, type, map_v, map_k, ignore_array=True)
         return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
     elif type.effective_tag in PRIMITIVE_TYPES:
@@ -756,9 +644,11 @@ def map_value(
     elif type.effective_tag == TypeTag.JSON:
         return value  # nothing to do ?
     elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
-        raise TypeError(value, type, "expected struct-like")
+        raise RuntimeError(f"expected struct-like {type} at {value}")
     if not isinstance(value, typing.Mapping) and not dataclasses.is_dataclass(value):
         return value  # type error, ignore here
+
+    # map into a dict
     mapped = {}
     if type.fields and type.resolved_fields is None:
         raise RuntimeError(f"unexpected unresolved type {type}")
@@ -787,6 +677,67 @@ TypeSignature = typing.NamedTuple(
 )
 
 
+def check_type(
+    value: Any,
+    type: TypeBase,
+    get_k: Callable[[Field], str] = None,
+    on_invalid=on_invalid_raise,
+    is_output: bool = None,
+    ignore_array: bool = False,
+) -> None:
+    """
+    Checks whether the given value has the expected type (recursively).
+    Raises TypeError if not.
+    """
+
+    get_k = get_k or (lambda f: f.py_ident)
+
+    def _check(valid: bool, message: str = None):
+        if not valid:
+            on_invalid(value, type, message)
+        return valid
+
+    # optional / list types
+    if type.flags & TypeFlag.IsOptional and value is None:
+        return
+    elif type.flags & TypeFlag.IsArray and not ignore_array:
+        if _check(isinstance(value, Collection)):
+            for item in value:
+                check_type(item, type, get_k=get_k, on_invalid=on_invalid, ignore_array=True)
+        return
+    elif (
+        type.flags & TypeFlag.IsArrayable
+        and not ignore_array
+        and not _is_arrayable_not_an_array(type, value)
+    ):
+        for item in value:
+            check_type(item, type, get_k=get_k, on_invalid=on_invalid, ignore_array=True)
+        return
+
+    # basic instance value check
+    mapper = get_type_mapper_by_type(type)
+    if not _check(mapper.is_instance_value(type, value)):
+        return
+
+    # walk struct-like types
+    if type.effective_tag == TypeTag.STRUCT or type.effective_tag == TypeTag.FUNCTION:
+        if type.tag == TypeTag.FUNCTION and is_output and not type.outputs:
+            value = value or {}  # None is allowed for empty outputs
+        is_dataclass = dataclasses.is_dataclass(value)
+        for f in type.resolved_fields or type.fields:
+            if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
+                continue
+            k = get_k(f)
+            if is_dataclass:
+                subvalue = getattr(value, k)
+            else:
+                subvalue = value.get(k)
+            check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
+        if hasattr(value, "keys"):
+            for key in value.keys():
+                _check(type.has_field(key), f"extraneous field {key}")
+
+
 class TypeMapper:
     """
     Maps specific types (and values) into and from Python.
@@ -802,7 +753,10 @@ class TypeMapper:
         raise NotImplementedError
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        """Whether this mapper can represent the given Python instance value."""
+        """
+        Whether this mapper can represent the given Python instance value.
+        For nested types (like structs) this only checks the top-level value (no walking).
+        """
         raise NotImplementedError
 
     def to_instance_value(self, type: TypeBase, value: Any) -> Any:
@@ -863,7 +817,7 @@ def get_type_mapper_by_type(type: TypeBase) -> TypeMapper:
     raise LookupError(f"no mapping found for {type}")
 
 
-def get_flat_mapper_by_py_type(py_type: type) -> tuple[TypeMapper, type, TypeFlag]:
+def get_type_mapper_by_instance_type(py_type: type) -> tuple[TypeMapper, type, TypeFlag]:
     """
     Gets the most appropriate mapping for the given Python type.
     (flat because we "ignore" list and optional types (inside the mapper)).
@@ -931,7 +885,8 @@ class VectorTypeMapper(StaticPyTypeMapper):
     tag: TypeTag = TypeTag.VECTOR
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, list)  # not quite right but good enough for now
+        # not quite right but good enough for now
+        return isinstance(value, list) and len(value) > 0 and isinstance(value[0], float)
 
 
 @dataclass
@@ -985,14 +940,18 @@ class EnumMapper(TypeMapper):
         return type
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, str) and type.has_field(value)
+        if isinstance(value, str):
+            # allow string values for built-in enums
+            # (that also function as regular enums in code)
+            return type.has_field(value)
+        return isinstance(value, Field) and type.has_field(value.key)
 
     def to_instance_value(self, type: Type, value: Any) -> Any:
         field_ = type.get_field(value)
         return field_.name if field_ else value
 
     def to_flat_value(self, type: Type, value: Any) -> Any:
-        field_ = type.get_field(value)
+        field_ = type.get_field(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
 
@@ -1063,11 +1022,11 @@ class StructTypeMapper(TypeMapper):
         type_map[py_type] = type
         if dataclasses.is_dataclass(py_type):
             for py_field in dataclasses.fields(py_type):
-                field_ = field_from_instance_field(py_field.type, py_field.name, type_map)
+                field_ = field_from_instance_type(py_field.type, py_field.name, type_map)
                 type.fields.append(field_)
         elif typing.is_typeddict(py_type):
             for py_field_name, py_field in typing.get_type_hints(py_type).items():
-                field_ = field_from_instance_field(py_field, py_field_name, type_map)
+                field_ = field_from_instance_type(py_field, py_field_name, type_map)
                 type.fields.append(field_)
         else:
             raise ValueError(f"unsupported struct type: {py_type}")
@@ -1075,7 +1034,7 @@ class StructTypeMapper(TypeMapper):
         return type
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, dict)
+        return isinstance(value, dict) or dataclasses.is_dataclass(value)
 
     def to_instance_value(self, type: TypeBase, value: Any) -> Any:
         return DotDict(value)
@@ -1089,7 +1048,7 @@ class JsonTypeMapper(TypeMapper):
         return py_type is Json or py_type is dict or typing.get_origin(py_type) is dict
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, dict)
+        return True  # not sure how to check this
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(name=None, tag=TypeTag.JSON)
@@ -1100,7 +1059,7 @@ class FunctionTypeMapper(TypeMapper):
         return inspect.isfunction(py_type)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, dict)
+        return value is None or isinstance(value, dict)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         if py_type in type_map:
@@ -1114,7 +1073,7 @@ class FunctionTypeMapper(TypeMapper):
                 or py_param.annotation.__name__ is py_type.__name__
             ):
                 continue
-            param = field_from_instance_field(py_param.annotation, py_param.name, type_map)
+            param = field_from_instance_type(py_param.annotation, py_param.name, type_map)
             type.fields.append(param)
 
         # output must be a struct, inline it with output flag
@@ -1146,7 +1105,7 @@ def type_from_instance_type(
     Types are keyed by name since we have no way to associate keys over time.
     """
     type_map = type_map or _TYPE_MAP
-    map, stripped, flags = get_flat_mapper_by_py_type(py_type)
+    map, stripped, flags = get_type_mapper_by_instance_type(py_type)
     type = map.from_instance_type(stripped, type_map)
     if name:
         type.name = name
@@ -1154,7 +1113,7 @@ def type_from_instance_type(
     return type
 
 
-def field_from_instance_field(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
+def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
     stripped, flags = _strip_py_type(py_type)
     if isinstance(stripped, str):
         # lookup by name in type_map
@@ -1180,7 +1139,7 @@ def field_from_instance_field(py_type: type | str, name: str, type_map: dict[Any
 
 
 def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
-    """Maps to the Python representation of the given value."""
+    """Maps to the proper Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
     # auto coerce lists to element and vice versa (like in frontend) :ArrayCoercion
@@ -1194,11 +1153,13 @@ def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = Fals
         elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
-            return [mapping.to_instance_value(type, v) for v in value]
+            else:
+                return [mapping.to_instance_value(type, v) for v in value]
         else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
-            return mapping.to_instance_value(type, value)
+            else:
+                return mapping.to_instance_value(type, value)
     except (KeyError, ValueError, TypeError):
         logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
         return value  # type checking is done elsewhere

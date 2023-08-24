@@ -42,7 +42,7 @@ watch(
 const panelsize = computed(() => {
   return {
     width: containerSize.width.value + "px",
-    height: containerSize.height.value - (bench.showPanelGroupHeader ? appearance.editorHeaderHeight : 0) + "px",
+    height: containerSize.height.value - (bench.showPanelTabs ? appearance.editorHeaderHeight : 0) + "px",
   };
 });
 
@@ -66,8 +66,8 @@ async function createFileInPanelGroup() {
        because we want to trigger re-focus even if it's already selected
       (happens if there are multiple active editor groups)  -->
       <TabList
-        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
-        v-show="bench.showPanelGroupHeader"
+        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-white"
+        v-show="bench.showPanelTabs"
         :style="{
           height: appearance.editorHeaderHeight + 'px',
         }"
@@ -75,11 +75,10 @@ async function createFileInPanelGroup() {
         <!-- Editor tab -->
         <Tab as="template" v-for="(e, i) in group.panels" :key="e.id" v-slot="{ selected }">
           <button
-            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-b-2 border-r border-r-gray-200 py-1 pl-3 pr-1 outline-none"
+            class="group flex max-w-[20rem] flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2.5 pr-1 outline-none"
             :class="{
-              'border-gray-50 bg-gray-50 text-gray-500 hover:text-orange-600': !selected,
+              'border-orange-900 border-opacity-[12%] bg-white text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
-              'border-b-orange-600 ': selected && focused,
             }"
             @click.middle.prevent="bench.closePanel(e)"
             @click.prevent="focus(e)"
@@ -87,8 +86,8 @@ async function createFileInPanelGroup() {
             <span class="text-xs">{{ e.name.length > 0 ? e.name : "(Untitled)" }}</span>
             <!-- Close button -->
             <button
-              class="h-fit max-h-fit rounded-sm px-1 text-xs hover:bg-gray-200 group-hover:text-gray-700"
-              :class="i == selectedTab ? 'text-gray-400' : 'text-transparent'"
+              class="duratoin-150 h-fit max-h-fit rounded-sm px-1 text-xs transition hover:bg-gray-200 group-hover:text-gray-700"
+              :class="i == selectedTab ? 'text-gray-400' : 'opacity-0 group-hover:opacity-100'"
               @click.prevent="bench.closePanel(e)"
             >
               x

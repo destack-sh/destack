@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import PanelHeader from "@/components/panels/PanelHeader.vue";
-import RunsTile from "@/components/tiles/RunsTile.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, ViewRunPanel } from "@/state/bench";
@@ -19,6 +18,8 @@ import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
 import { IS_DEBUG } from "@/utils/globals";
 import { TriggerType } from "@/gql/graphql";
 import { DateTime } from "luxon";
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
+import type { Run } from "@/gql/graphql";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -103,7 +104,7 @@ defineExpose({
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
-        <h1 class="text-3xl font-bold text-gray-900">Run: #{{ runUuid.slice(-7, -1) }}&nbsp;</h1>
+        <h1 class="text-3xl font-bold text-gray-900">Run #{{ runUuid.slice(-7, -1) }}&nbsp;</h1>
       </div>
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
         <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-white" />
@@ -171,10 +172,10 @@ defineExpose({
             </div>
           </div>
           <!-- Last updated -->
-          <div class="flex flex-col gap-0.5">
+          <div class="flex flex-col gap-0.5" v-if="run.updatedAt != null">
             <span class="text-xs font-semibold text-gray-500">Updated</span>
             <span class="text-gray-900">
-              {{ run.updatedAt != null ? run.updatedAt.toString(DateTime.DATETIME_MED_WITH_WEEKDAY) : "..." }}
+              {{ DateTime.fromISO(run.updatedAt).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS) }}
             </span>
           </div>
         </div>
@@ -184,9 +185,13 @@ defineExpose({
           <StructTile :model-value="run.inputs ?? {}" :fields="inputFields" full-inputs readonly class="" />
         </ContainerTile>
         <!-- Output -->
-        <ContainerTile label="Output" :style="{ ...baseTilePositionX }">
+        <ContainerTile v-if="run.errorNice == null" label="Output" :style="{ ...baseTilePositionX }">
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
           <StructTile :model-value="run.outputs ?? {}" :fields="outputFields" full-inputs readonly class="" />
+        </ContainerTile>
+        <!-- Error -->
+        <ContainerTile v-else-if="run.errorNice != null" label="Error" :style="{ ...baseTilePositionX }">
+          <ErrorTraceback :run="(run as Run)" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
         <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
@@ -203,7 +208,7 @@ defineExpose({
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
             :session-id="run.session?.id"
-            highlight
+            lowlight
             :focus="{
               runId: panel.runId,
             }"

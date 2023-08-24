@@ -114,6 +114,7 @@ const STORAGE_FORMAT_BY_TYPE_TAG: Partial<{ [key in TypeTag]: TypeStorageFormat 
   FILE: TypeStorageFormat.OBJECT,
   STRUCT: TypeStorageFormat.OBJECT,
   ENUM: TypeStorageFormat.KEYWORD,
+  LITERAL: TypeStorageFormat.KEYWORD,
 };
 
 const STORAGE_FORMAT_BY_TYPE_HINT: Partial<{ [key in TypeHint]: TypeStorageFormat }> = {
