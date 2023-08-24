@@ -48,6 +48,7 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
         >
           Runs
         </h2>
+        <!-- Active runs -->
         <div v-if="activeRuns.length > 0" class="mt-1 flex flex-col gap-0.5">
           <!-- Run -->
           <div v-for="run in activeRunsDesc" :key="run.id" class="relative flex flex-row justify-between gap-1 py-0.5">
@@ -85,12 +86,10 @@ const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.
             </span>
           </div>
         </div>
-        <div v-if="activeRuns.length == 0" class="mt-1 px-3 text-center">
-          <span class="text-gray-400"
-            >No active runs.
-            <a href="#" class="hover:underline" @click="bench.openRuns(undefined, { focus: true })">View all.</a>
-          </span>
-        </div>
+        <!-- Recent runs -->
+        <!-- nocheckin -->
+        <!-- Runnables -->
+        <!-- nocheckin -->
       </PopoverPanel>
     </FadeTransition>
   </Popover>
