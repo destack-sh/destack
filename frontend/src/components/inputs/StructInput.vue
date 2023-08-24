@@ -150,7 +150,7 @@ defineExpose({
           @close="(activeIndex = null), (editingIndex = false)"
           debounced
           :readonly="!editingIndex || true /* TODO @Broken: editing structs in struct input fails */"
-          class=""
+          :appearance="{ minimalFields: true, hideFieldType: true }"
         />
       </div>
     </FadeTransition>

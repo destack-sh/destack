@@ -3,7 +3,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
-import StructTile from "@/components/tiles/StructTile.vue";
+import StructInterface from "@/components/tiles/StructInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
@@ -204,7 +204,13 @@ defineExpose({
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
-          <StructTile v-model="panel.inputs" :fields="inputFields" full-inputs readonly-type class="" />
+          <StructInterface
+            v-model="panel.inputs"
+            :fields="inputFields"
+            full-inputs
+            readonly-type
+            :appearance="{ minimalFields: true, hideFieldType: true }"
+          />
         </ContainerTile>
         <!-- Trace -->
         <ContainerTile
@@ -231,7 +237,12 @@ defineExpose({
           :style="{ ...baseTilePositionX }"
         >
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
-          <StructTile :model-value="panel.lastOutput" :fields="outputFields" readonly class="" />
+          <StructInterface
+            :model-value="panel.lastOutput"
+            :fields="outputFields"
+            readonly
+            :appearance="{ minimalFields: true, hideFieldType: true }"
+          />
         </ContainerTile>
         <!-- Runs  -->
         <ContainerTile

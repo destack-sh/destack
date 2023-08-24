@@ -158,6 +158,7 @@ defineExpose({
       @navigate-down="focusEnd"
       :readonly="context.readonly.value"
       :active="context.focused.value"
+      :appearance="{ hideFieldType: false, minimalFields: false }"
       debounced
     />
     <div v-if="!folded" class="mb-1">

@@ -10,7 +10,6 @@ import { getRunStatusColor, getRunStatusIconSolid, useCurrentSessions, useRun } 
 import { useTiling } from "@/state/screen";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import ContainerTile from "@/components/tiles/ContainerTile.vue";
-import StructTile from "@/components/tiles/StructTile.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { getStatementIconSolid } from "@/state/statement";
@@ -20,6 +19,7 @@ import { TriggerType } from "@/gql/graphql";
 import { DateTime } from "luxon";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import type { Run } from "@/gql/graphql";
+import StructInterface from "@/components/interfaces/StructInterface.vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -185,12 +185,24 @@ defineExpose({
         <!-- Input -->
         <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
-          <StructTile :model-value="run.inputs ?? {}" :fields="inputFields" full-inputs readonly class="" />
+          <StructInterface
+            :model-value="run.inputs ?? {}"
+            :fields="inputFields"
+            full-inputs
+            readonly
+            :appearance="{ minimalFields: true, hideFieldType: true }"
+          />
         </ContainerTile>
         <!-- Output -->
         <ContainerTile v-if="run.errorNice == null" label="Output" :style="{ ...baseTilePositionX }">
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
-          <StructTile :model-value="run.outputs ?? {}" :fields="outputFields" full-inputs readonly class="" />
+          <StructInterface
+            :model-value="run.outputs ?? {}"
+            :fields="outputFields"
+            full-inputs
+            readonly
+            :appearance="{ minimalFields: true, hideFieldType: true }"
+          />
         </ContainerTile>
         <!-- Error -->
         <ContainerTile v-else-if="run.errorNice != null" label="Error" :style="{ ...baseTilePositionX }">
