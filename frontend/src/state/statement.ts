@@ -3,7 +3,7 @@ import { useActions } from "@/state/actions";
 import type { FileHeader, StatementAction } from "@/state/bench";
 import {
   TypeFlag,
-  getSymbolSubtype,
+  getStatementSubtype,
   useCurrentModule,
   type Field,
   type Statement,
@@ -76,7 +76,7 @@ export function useStatementContext() {
   const module = useCurrentModule();
   const statement = context.statement;
   const file = context.file;
-  const symbolSubtype: Ref<string | null> = computed(() => getSymbolSubtype(statement.value));
+  const symbolSubtype: Ref<string | null> = computed(() => getStatementSubtype(statement.value));
 
   // basic actions
 

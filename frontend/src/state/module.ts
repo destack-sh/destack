@@ -173,20 +173,20 @@ function _useModule(projectVersionId: Ref<string | null>) {
   // TODO @Performance: cache default libs (and other default module dependencies)
   // TODO @Broken: don't hardcode default libs ids
   // (this is not _that_ terrible since the project version id is static for now, see :LibImplementation)
-  const symbolxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"), {
+  const statementxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"), {
     cache: true,
   });
   const openaiLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjE5ZTIyOWItMTI2YS01NWEzLWFlNWEtZmU5NjU2NGRlYjA4"), {
     cache: true,
   });
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
-    [symbolxLib.idx.value, openaiLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
+    [statementxLib.idx.value, openaiLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
   );
 
   // run metadata fields are hardcoded for now
   const runMetadataFields = computed(() => {
     return (
-      Object.values(symbolxLib.idx.value?.statementsById ?? {})
+      Object.values(statementxLib.idx.value?.statementsById ?? {})
         .find((s) => s.name == "RunMetadata")
         ?.fields.map((f) => f as Field) ?? []
     );
@@ -234,15 +234,15 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return undefined;
   }
 
-  function contextOf(symbol: { id: string }) {
+  function contextOf(statement: { id: string }) {
     for (const i of [idx.value, ...dependenciesIndex.value]) {
-      if (i && symbol.id in i.statementsById) {
-        const statement = i.statementsById[symbol.id];
+      if (i && statement.id in i.statementsById) {
+        const statementRef = i.statementsById[statement.id];
         return {
           id: i.id,
           name: i.name,
           path: i.path,
-          file: i.filesById[statement.file?.id],
+          file: i.filesById[statementRef.file?.id],
           statement,
         };
       }
@@ -414,7 +414,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     errors,
     warnings,
     idx,
-    symbolxLib,
+    statementxLib,
     dependenciesIndex,
     // utils
     runMetadataFields,
@@ -500,13 +500,13 @@ export function useNavigation() {
   const bench = useBenchState();
   const module = useCurrentModule();
 
-  function focusSymbol(symbol: { id: string }) {
-    const context = module.contextOf(symbol);
+  function focusStatement(statement: { id: string }) {
+    const context = module.contextOf(statement);
     if (!context?.file) return;
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
     const panel = bench.focusFile(context.file as any) as EditFilePanel;
-    panel.editElement(symbol as any);
+    panel.editElement(statement as any);
   }
 
   function focusFile(file: { id: string }) {
@@ -515,7 +515,7 @@ export function useNavigation() {
     bench.focusFile(file_ as NodeBase);
   }
 
-  return { focusStatement: focusSymbol, focusFile };
+  return { focusStatement: focusStatement, focusFile };
 }
 
 export function newRunId(): string {
@@ -528,7 +528,7 @@ export function newSessionId(): string {
   return btoa(`Session:${nodeId}`);
 }
 
-export function getSymbolSubtype(statement: {
+export function getStatementSubtype(statement: {
   type?: StatementType | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
