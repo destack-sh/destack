@@ -6,6 +6,7 @@ import { graphql } from "@/gql";
 import type { ProjectVersion } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer, type SemVer } from "@/utils/semver";
+import { VALID_NAME_REGEX } from "@/utils/validation";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -130,6 +131,7 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
               maxlength="128"
               :placeholder="suggestedName"
               v-model="name"
+              :pattern="VALID_NAME_REGEX"
               class="flex-1 rounded-l-sm border-0 py-1 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
@@ -144,6 +146,7 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
                 minlength="3"
                 maxlength="32"
                 :placeholder="suggestedTag"
+                :pattern="VALID_NAME_REGEX"
                 v-model="tag"
                 class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
                 :class="{ 'text-yellow-600': !validTag, 'text-red-600': !availableTag }"

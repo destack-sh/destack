@@ -35,6 +35,7 @@ defineExpose({
           :class="appearance.baseClassUnsized"
           suppress-shortcuts
           :readonly="readonly"
+          regex="name"
           :model-value="modelValue"
           @update:model-value="emit('update:modelValue', $event)"
           @enter="emit('enter')"

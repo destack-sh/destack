@@ -337,6 +337,7 @@ defineExpose({
           <!-- Name -->
           <EditableSpan
             ref="nameRef"
+            regex="name"
             v-model="name"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
@@ -400,6 +401,7 @@ defineExpose({
         >
           <EditableSpan
             ref="descriptionRef"
+            regex="name"
             v-model="description"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden whitespace-normal"

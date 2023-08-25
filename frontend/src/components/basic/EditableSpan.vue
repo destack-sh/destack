@@ -1,12 +1,25 @@
 <script lang="ts" setup>
+import { VALID_NAME_REGEXP } from "@/utils/validation";
 import { useFocus } from "@vueuse/core";
-import { ref } from "vue";
+import { computed, ref } from "vue";
 
 const props = defineProps<{
   modelValue: string;
   readonly: boolean;
   suppressAllShortcuts?: boolean;
+  regex?: string | RegExp | "name";
 }>();
+
+const regexp = computed(() => {
+  if (props.regex == null) return null;
+  if (props.regex == "name") {
+    return VALID_NAME_REGEXP;
+  }
+  if (typeof props.regex == "string") {
+    return new RegExp(props.regex);
+  }
+  return props.regex;
+});
 
 const emit = defineEmits<{
   (e: "update:modelValue", v: string): void;
@@ -54,23 +67,7 @@ const spanRef = ref<HTMLElement | null>(null);
 
 function focus() {
   spanRef.value?.focus();
-  const selection = window.getSelection();
-  if (selection && spanRef.value != null) {
-    // select end of text
-    if (spanRef.value.childNodes.length > 0) {
-      selection.selectAllChildren(spanRef.value.childNodes[0]);
-      selection.setBaseAndExtent(
-        spanRef.value.childNodes[0],
-        props.modelValue.length,
-        spanRef.value.childNodes[0],
-        props.modelValue.length
-      );
-    } else {
-      // span has no text content yet
-      selection.selectAllChildren(spanRef.value);
-      selection.collapseToEnd();
-    }
-  }
+  selectEnd();
 }
 
 function blur() {
@@ -89,7 +86,38 @@ function selectAll() {
   }
 }
 
+function selectEnd() {
+  const selection = window.getSelection();
+  if (selection && spanRef.value != null) {
+    // select end of text
+    if (spanRef.value.childNodes.length > 0) {
+      selection.selectAllChildren(spanRef.value.childNodes[0]);
+      selection.setBaseAndExtent(
+        spanRef.value.childNodes[0],
+        props.modelValue.length,
+        spanRef.value.childNodes[0],
+        props.modelValue.length
+      );
+    } else {
+      // span has no text content yet
+      selection.selectAllChildren(spanRef.value);
+      selection.collapseToEnd();
+    }
+  }
+}
 const { focused } = useFocus(spanRef);
+
+function onInput(e: InputEvent) {
+  const value = (e.target as HTMLElement).innerText;
+  if (regexp.value != null && !regexp.value.test(value)) {
+    // invalid input, revert
+    (e.target as HTMLElement).innerText = props.modelValue;
+    // move cursor to end
+    selectEnd();
+  } else {
+    emit("update:modelValue", value);
+  }
+}
 
 defineExpose({
   focus,
@@ -117,7 +145,7 @@ defineExpose({
     @keydown.enter.exact.prevent="emit('enter', modelValue)"
     @keydown.backspace.exact="deleteLeftIfEmpty"
     @keydown.escape.prevent="emit('escape')"
-    @input="emit('update:modelValue', spanRef?.innerText.replace('\n', ' ') ?? '')"
+    @input="e => onInput(e as InputEvent)"
   >
     {{ modelValue }}
   </span>
