@@ -5,12 +5,12 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useCurrentModule } from "@/state/module";
 import { PlusIcon } from "@heroicons/vue/24/outline";
-import { useFocusWithin } from "@vueuse/core";
-import { computed, ref, toRef, watch, type Component, type Ref } from "vue";
+import { useElementBounding, useFocusWithin } from "@vueuse/core";
+import { computed, ref, watch, type Component, type Ref } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useBenchState } from "@/state/bench";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import PanelExplorer from "@/components/views/PanelExplorer.vue";
+import { useElementRefs } from "@/composables/useGrid";
 
 const props = defineProps<{ active: boolean; focused: boolean }>();
 const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
@@ -20,10 +20,10 @@ const appearance = useAppearance();
 const module = useCurrentModule();
 const bench = useBenchState();
 
-type Panel = {
+type Explorer = {
   title: string;
   actions: Action[];
-  count?: number;
+  component: Component;
 };
 
 type Action = {
@@ -33,20 +33,18 @@ type Action = {
   enabled: boolean;
 };
 
-const showPanels = false; // TODO @UX: figure out good way to show open panels (probably scrollable view sections)
-
-const panels: Ref<Panel[]> = computed(() => {
-  const panels: Panel[] = [];
-  if (showPanels) {
-    panels.push({
+const explorers: Ref<Explorer[]> = computed(() => {
+  const explorers: Explorer[] = [];
+  if (bench.showPanelExplorer && bench.panels.length > 0) {
+    explorers.push({
       title: "Panels",
-      count: bench.panels.length,
+      component: PanelExplorer,
       actions: [],
     });
   }
-  panels.push({
+  explorers.push({
     title: "Files",
-    count: fileExplorer.value?.count,
+    component: FileExplorer,
     actions: [
       {
         icon: PlusIcon,
@@ -55,22 +53,37 @@ const panels: Ref<Panel[]> = computed(() => {
         enabled: actions.file.create.value.enabled,
       },
     ],
-  } as Panel);
+  } as Explorer);
   if (bench.focusedFileId != null) {
-    panels.push({
+    explorers.push({
       title: "Outline",
-      count: statementExplorer.value?.count,
+      component: StatementExplorer,
       actions: [],
-    } as Panel);
+    } as Explorer);
   }
-  return panels;
+  return explorers;
 });
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
-const panelExplorer: Ref<InstanceType<typeof PanelExplorer> | undefined> = ref(undefined);
-const fileExplorer: Ref<InstanceType<typeof FileExplorer> | undefined> = ref(undefined);
-const statementExplorer: Ref<InstanceType<typeof StatementExplorer> | undefined> = ref(undefined);
+const containerBounding = useElementBounding(containerRef);
+const explorerRefs =
+  useElementRefs<InstanceType<typeof PanelExplorer | typeof FileExplorer | typeof StatementExplorer>>();
 
+function onNavigateUp(panel: Explorer) {
+  const index = explorers.value.indexOf(panel);
+  if (index > 0) {
+    explorerRefs.getRef(explorers.value[index - 1].title)?.focus("last");
+  }
+}
+
+function onNavigateDown(panel: Explorer) {
+  const index = explorers.value.indexOf(panel);
+  if (index < explorers.value.length - 1) {
+    explorerRefs.getRef(explorers.value[index + 1].title)?.focus("first");
+  }
+}
+
+// handle focus
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 
 // focus view when getting focus
@@ -83,16 +96,15 @@ watch(inContainerFocused, () => {
 });
 // handle explorer view focus and editor focus
 watch(
-  toRef(props, "focused"),
+  () => props.focused,
   () => {
     if (props.focused) {
       if (!inContainerFocused.value) {
         // start to focus files if nothing was directly focused
-        fileExplorer.value?.focus();
+        explorerRefs.getRef("Files")?.focus();
       }
     } else {
-      fileExplorer.value?.blur();
-      statementExplorer.value?.blur();
+      explorerRefs.refs.value.forEach((ref) => ref.blur());
     }
   },
   { immediate: true }
@@ -102,8 +114,8 @@ watch(
   <div ref="containerRef" class="relative flex h-full flex-col">
     <!-- View panels -->
     <div class="flex flex-1 flex-col gap-y-3 pb-10">
-      <div v-for="panel in panels" :key="panel.title" class="min-h-0">
-        <!-- Panel header -->
+      <div v-for="explorer in explorers" :key="explorer.title" class="min-h-0">
+        <!-- Explorer header -->
         <div
           class="flex flex-shrink-0 flex-row items-center justify-between px-3"
           :style="{
@@ -111,15 +123,15 @@ watch(
           }"
         >
           <span class="select-none text-xs font-semibold tracking-wide text-gray-500">
-            {{ panel.title }}
+            {{ explorer.title }}
           </span>
-          <!-- Panel actions -->
+          <!-- Explorer actions -->
           <div v-if="module.loading.value">
             <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
           </div>
           <span class="inline-flex flex-row gap-1" v-else>
             <button
-              v-for="action in panel.actions.filter((action) => action.enabled)"
+              v-for="action in explorer.actions.filter((action) => action.enabled)"
               :key="action.label"
               class="inline-flex flex-row rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
               @click.prevent="action.action"
@@ -129,29 +141,21 @@ watch(
             </button>
           </span>
         </div>
-        <!-- Panel content -->
-        <div class="min-h-0 overflow-y-auto">
-          <FadeTransition mode="out-in">
-            <PanelExplorer
-              :ref="(ref) => (panelExplorer = ref as any)"
-              v-if="panel.title == 'Panels'"
-              :focused="props.focused"
-              @navigate-down="fileExplorer?.focus('first')"
-            />
-            <FileExplorer
-              :ref="(ref) => (fileExplorer = ref as any)"
-              v-if="panel.title == 'Files'"
-              :focused="props.focused"
-              @navigate-down="statementExplorer?.focus('first')"
-              @navigate-up="statementExplorer?.focus('last')"
-            />
-            <StatementExplorer
-              :ref="(ref) => (statementExplorer = ref as any)"
-              v-else-if="panel.title == 'Outline' && !module.loading.value"
-              :focused="props.focused"
-              @navigate-up="fileExplorer?.focus('last')"
-            />
-          </FadeTransition>
+        <!-- Explorer content -->
+        <!-- TODO @UX: view sections are not sized properly if heights are unbalanced (e.g. in explorer view) -->
+        <div
+          class="scroll-hidden min-h-0 overflow-y-auto"
+          :style="{
+            maxHeight: containerBounding.height.value / explorers.length - appearance.panelHeaderHeight + 'px',
+          }"
+        >
+          <component
+            :is="explorer.component"
+            :ref="(ref: any) => explorerRefs.registerRef(explorer.title, ref)"
+            :focused="props.focused"
+            @navigate-up="onNavigateUp(explorer)"
+            @navigate-down="onNavigateDown(explorer)"
+          />
         </div>
       </div>
     </div>
