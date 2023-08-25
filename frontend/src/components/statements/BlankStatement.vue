@@ -242,7 +242,7 @@ defineExpose({
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"
-          class="absolute z-50 flex h-[340px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute z-50 flex h-fit max-h-[340px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
           :class="[isInTopHalfOfPanel ? 'top-7' : 'bottom-7']"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">

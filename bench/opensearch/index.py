@@ -402,6 +402,7 @@ def batch_duplicate_records(
     source_project_v: models.ProjectVersion,
     target_project_v: models.ProjectVersion,
     new_dataset_ids: dict[str, str],
+    new_statement_ids: dict[UUID, UUID],
     batch_size: int = 512,
 ):
     """
@@ -459,9 +460,8 @@ def batch_duplicate_records(
         os_operations = []
         for hit in hits:
             document = hit["_source"]
-            dataset_id = document["dataset_id"]
-            target_dataset_id = new_dataset_ids[dataset_id]
-            document["dataset_id"] = target_dataset_id
+            document["dataset_id"] = new_dataset_ids[document["dataset_id"]]
+            document["statement_id"] = str(new_statement_ids[UUID(document["statement_id"])])
             os_operations.append({"index": {"_index": index_name, "_id": str(uuid4())}})
             os_operations.append(document)
         num_duplicated += len(hits)

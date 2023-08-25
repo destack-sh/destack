@@ -20,6 +20,7 @@ import { DateTime } from "luxon";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import type { Run } from "@/gql/graphql";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
+import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -38,7 +39,7 @@ const nav = useNavigation();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const runUuid = getUUIDFromGlobalID(panel.value.runId);
-const { run } = useRun(
+const { run, loading } = useRun(
   computed(() => panel.value.runId),
   { live: true }
 );
@@ -90,6 +91,19 @@ defineExpose({
         }
       "
     />
+    <!-- Loading / status -->
+    <div
+      v-if="loading"
+      class="flex h-full w-full flex-col items-center justify-center"
+      :style="{
+        width: props.panel.size.value?.width + 'px',
+        height: props.panel.size.value?.height + 'px',
+      }"
+    >
+      <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
+    </div>
+    <PanelStatusNotice :thing="run" name="run" :is-loading="loading" />
+
     <!-- Tiles -->
     <div
       class="relative flex h-full w-full flex-col gap-6"
@@ -226,9 +240,6 @@ defineExpose({
         </ContainerTile>
         <!-- Logs -->
         <ContainerTile label="Logs" :style="{ ...baseTilePositionX }">
-          <span v-if="logsTileRef != null && logsTileRef.logs?.length == 0" class="w-full text-center text-gray-400">
-            No logs
-          </span>
           <LogsTile
             class="max-h-[500px] overflow-auto px-1 py-1"
             ref="logsTileRef"

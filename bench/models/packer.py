@@ -1141,12 +1141,12 @@ def write_mutations(
             file_ids = [m.file_id for m in batch if m.file_id is not None]
             model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
             if statement_ids:
-                if model_cls._meta.has_field("statement"):
+                if hasattr(model_cls, "statement"):
                     model_cls.objects.filter(statement_id__in=statement_ids).delete()
                 else:
                     model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
             elif file_ids:
-                if model_cls._meta.has_field("file"):
+                if hasattr(model_cls, "file"):
                     model_cls.objects.filter(file_id__in=file_ids).delete()
                 else:
                     model_cls.objects.filter(parent_file_id__in=file_ids).delete()

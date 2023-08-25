@@ -359,10 +359,10 @@ export function useFileOps() {
         });
       },
       undo: async () => {
-        return await softDeleteFileMut({ id: sourceId });
+        return await softDeleteFileMut({ id: targetId });
       },
       redo: async () => {
-        return await restoreFileMut({ id: sourceId });
+        return await restoreFileMut({ id: targetId });
       },
     });
   }
