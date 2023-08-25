@@ -127,7 +127,7 @@ const statusIconSolid = computed(() =>
     <div
       class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
       :style="{
-        height: appearance.editorHeaderHeight + 'px',
+        height: appearance.panelHeaderHeight + 'px',
       }"
     >
       <span class="text-xs font-semibold tracking-wide text-gray-500">Environment</span>
@@ -264,7 +264,7 @@ const statusIconSolid = computed(() =>
         class="relative mt-1 w-full"
         :style="{
           // max height - header height
-          height: 'calc(100% - ' + appearance.editorHeaderHeight + 'px)',
+          height: 'calc(100% - ' + appearance.panelHeaderHeight + 'px)',
         }"
       >
         <div class="absolute left-0 top-0 h-full w-full overflow-y-scroll" ref="packagesTableRef">

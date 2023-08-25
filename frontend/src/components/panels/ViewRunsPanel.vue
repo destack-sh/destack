@@ -60,10 +60,10 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
       class="relative flex h-full w-full flex-col gap-6 px-2"
       :class="appearance.baseClass"
       :style="{
-        marginTop: appearance.editorHeaderHeight + 'px',
+        marginTop: appearance.panelHeaderHeight + 'px',
         paddingTop: gridStepY + 'px',
         paddingBottom: gridStepY + 'px',
-        minHeight: panelSize.height - appearance.editorHeaderHeight + 'px',
+        minHeight: panelSize.height - appearance.panelHeaderHeight + 'px',
       }"
     >
       <!-- Header -->

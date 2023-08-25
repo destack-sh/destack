@@ -30,6 +30,7 @@ const module = useCurrentModule();
 const appearance = useAppearance();
 const actions = useActions();
 const panel = computed(() => props.panel.panel.value);
+const scroll = computed(() => props.panel.scroll.value);
 const ops = useOperations();
 
 // file state
@@ -197,14 +198,6 @@ async function insertOrFocusStatementEnd() {
   }
 }
 
-// left click anywhere clears editor selection
-function clearSelectionIfLeftClick(e: MouseEvent) {
-  if (e.button == 0 && !e.altKey && !e.shiftKey) {
-    panel.value?.clearSelection();
-  }
-}
-document.addEventListener("click", clearSelectionIfLeftClick);
-onBeforeUnmount(() => document.removeEventListener("click", clearSelectionIfLeftClick));
 // whenever editing -> clears selection
 whenever(
   computed(() => panel.value.editing),
@@ -298,41 +291,92 @@ const statementAddAreaPositionX = computed(() => {
 });
 
 // drag select area
+// TODO @UX: drag should also work for fields/records/etc. (detect if entirely in statement)
 const mainContentRef = ref<HTMLElement | null>(null);
+const statementAddAreaEndRef = ref<InstanceType<typeof StatementAddArea> | null>(null);
 const { x: mouseX, y: mouseY } = useMouse();
 const dragSelectStart = ref<{ x: number; y: number } | null>(null);
 
 function startDragSelectMaybe(e: MouseEvent) {
   if (e.button != 0 || e.altKey || e.shiftKey) return;
-  if (panel.value.editing) return;
-  // must be at target or in statement components margin
-  console.log(e.target, mainContentRef.value); // nocheckin
-  // nocheckin: drag doesn't respect margins
-  // nocheckin: drag doesn't work for scrolling
-  // TODO @UX: drag should also work for fields/records/etc. (detect if entirely in statement)
-  if (e.target != mainContentRef.value && (e.target as HTMLElement).parentNode != mainContentRef.value) return;
+  // must be clicking on or in statement components margin
+  if (e.target != mainContentRef.value && e.target != statementAddAreaEndRef.value?.$el) {
+    // find next element with 'group/statement' class up (if exists)
+    let el = e.target as HTMLElement;
+    while (el != null && !el.classList.contains("group/statement")) {
+      el = el.parentElement as HTMLElement;
+    }
+    if (el == null) return;
+    // only start drag select if not within statement content (i.e. inside left/right margins)
+    const outsideContent =
+      e.clientX < el.getBoundingClientRect().left + appearance.contentMarginX ||
+      e.clientX > el.getBoundingClientRect().right - appearance.contentMarginX;
+    if (!outsideContent) return;
+  }
   panel.value.clearSelection();
-  dragSelectStart.value = { x: e.clientX, y: e.clientY };
+  dragSelectStart.value = { x: e.clientX + scroll.value.x, y: e.clientY + scroll.value.y };
   e.stopPropagation();
 }
 
-function updateDragSelectMaybe(e: MouseEvent) {
+function updateDragSelectMaybe(e: { clientX: number; clientY: number }) {
   if (dragSelectStart.value == null) return;
   // select all statements components intersecting with the drag select area
   panel.value.selectedElementIds = [];
+  panel.value.selectedElementType = "Statement";
   for (const statement of context.value?.positionedStatements ?? []) {
     const bounding = statementsComponents.value[statement.statement.id]?.bounding;
     if (bounding == null) continue;
     if (
-      bounding.left.value < Math.max(e.clientX, dragSelectStart.value.x) &&
-      bounding.right.value > Math.min(e.clientX, dragSelectStart.value.x) &&
-      bounding.top.value < Math.max(e.clientY, dragSelectStart.value.y) &&
-      bounding.bottom.value > Math.min(e.clientY, dragSelectStart.value.y)
+      bounding.left.value < Math.max(e.clientX, dragSelectStart.value.x - scroll.value.x) &&
+      bounding.right.value > Math.min(e.clientX, dragSelectStart.value.x - scroll.value.x) &&
+      bounding.top.value < Math.max(e.clientY, dragSelectStart.value.y - scroll.value.y) &&
+      bounding.bottom.value > Math.min(e.clientY, dragSelectStart.value.y - scroll.value.y)
     ) {
       panel.value.selectedElementIds.push(statement.statement.id);
     }
   }
+  // smooth scroll up/down if near top/bottom
+  const scrollMargin = 100;
+  if (e.clientY - appearance.panelHeaderHeight < scrollMargin) {
+    props.panel.container.value?.scrollTo({ left: scroll.value.x, top: scroll.value.y - 10 });
+  } else if (e.clientY > window.innerHeight - scrollMargin) {
+    props.panel.container.value?.scrollTo({ left: scroll.value.y, top: scroll.value.y + 10 });
+  }
 }
+
+const dragSelectArea: Ref<{ left: number; top: number; width: number; height: number } | null> = computed(() => {
+  if (dragSelectStart.value == null) return null;
+  let top = Math.min(mouseY.value, dragSelectStart.value.y - scroll.value.y);
+  let height = Math.abs(mouseY.value - (dragSelectStart.value.y - scroll.value.y));
+  let left = Math.min(mouseX.value, dragSelectStart.value.x - scroll.value.x);
+  let width = Math.abs(mouseX.value - (dragSelectStart.value.x - scroll.value.x));
+
+  // clip to panel
+  const panelPos = { top: props.panel.pos.value.top + appearance.panelHeaderHeight, left: props.panel.pos.value.left };
+  const panelSize = props.panel.size.value;
+  if (top < panelPos.top) {
+    height -= panelPos.top - top;
+    top = panelPos.top;
+  }
+  if (top + height > panelPos.top + panelSize.height) {
+    height -= top + height - (panelPos.top + panelSize.height);
+  }
+  if (left < panelPos.left) {
+    width -= panelPos.left - left;
+    left = panelPos.left;
+  }
+  if (left + width > panelPos.left + panelSize.width) {
+    width -= left + width - (panelPos.left + panelSize.width);
+  }
+
+  return { left, top, width, height };
+});
+
+const updateDragInterval = setInterval(() => {
+  if (dragSelectStart.value == null) return;
+  updateDragSelectMaybe({ clientX: mouseX.value, clientY: mouseY.value });
+}, 10);
+onBeforeUnmount(() => clearInterval(updateDragInterval));
 
 function stopDragSelect() {
   dragSelectStart.value = null;
@@ -349,8 +393,8 @@ function getStatementBounding(statementId: string): { top: number; right: number
   if (statement == null) return { top: -100, right: -100 };
   const panel = props.panel;
   return {
-    right: Math.round((statement.bounding.right.value + panel.scroll.value.x - panel.pos.value.left) * 100) / 100,
-    top: Math.round((statement.bounding.top.value + panel.scroll.value.y - panel.pos.value.top) * 100) / 100,
+    right: Math.round((statement.bounding.right.value + scroll.value.x - panel.pos.value.left) * 100) / 100,
+    top: Math.round((statement.bounding.top.value + scroll.value.y - panel.pos.value.top) * 100) / 100,
   };
 }
 </script>
@@ -393,15 +437,15 @@ function getStatementBounding(statementId: string): { top: number; right: number
       @keydown.escape="stopDragSelect"
       :class="[dragSelectStart ? 'select-none' : '']"
     >
-      <!-- Drag select area -->
+      <!-- Drag select area (clipped to panel boundary) -->
       <div
-        v-if="dragSelectStart"
+        v-if="dragSelectArea"
         class="fixed z-50 bg-orange-200 opacity-30"
         :style="{
-          left: Math.min(mouseX, dragSelectStart.x) + 'px',
-          top: Math.min(mouseY, dragSelectStart.y) + 'px',
-          width: Math.abs(mouseX - dragSelectStart.x) + 'px',
-          height: Math.abs(mouseY - dragSelectStart.y) + 'px',
+          left: dragSelectArea.left + 'px',
+          top: dragSelectArea.top + 'px',
+          width: dragSelectArea.width + 'px',
+          height: dragSelectArea.height + 'px',
         }"
       />
       <!-- Title & inline actions -->
@@ -450,6 +494,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
       </div>
       <!-- Add statement to end -->
       <StatementAddArea
+        ref="statementAddAreaEndRef"
         class="flex-1 pb-96"
         :style="statementAddAreaPositionX"
         position="end"

@@ -42,7 +42,7 @@ const auth = useAuth();
   <div
     class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5 text-xs"
     :class="appearance.baseClass"
-    :style="{ height: appearance.editorHeaderHeight - 4 + 'px', width: panel.size?.value?.width + 'px' }"
+    :style="{ height: appearance.panelHeaderHeight - 4 + 'px', width: panel.size?.value?.width + 'px' }"
   >
     <!-- Main info / left side -->
     <div class="flex flex-row items-center">

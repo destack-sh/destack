@@ -64,7 +64,7 @@ function openFile(file: { id: string; name: string }) {
     >
       <!-- Actions -->
       <div class="flex-1 p-1">
-        <h3 class="px-1 text-lg font-bold text-gray-900">Tools</h3>
+        <h3 class="px-1 text-xs font-semibold text-gray-700">Tools</h3>
         <!-- Create actions -->
         <div class="my-1 flex flex-col gap-1.5">
           <button
@@ -86,7 +86,7 @@ function openFile(file: { id: string; name: string }) {
       </div>
       <!-- Recent files -->
       <div class="flex-1 p-1">
-        <h3 class="px-1 text-lg font-bold text-gray-900">Files</h3>
+        <h3 class="px-1 text-xs font-semibold text-gray-700">Files</h3>
         <!-- Files -->
         <div class="my-1 flex flex-col gap-1.5" v-if="(totalCount ?? 0) > 0">
           <button

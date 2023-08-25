@@ -107,7 +107,7 @@ watch(
         <div
           class="flex flex-shrink-0 flex-row items-center justify-between px-3"
           :style="{
-            height: appearance.editorHeaderHeight + 'px',
+            height: appearance.panelHeaderHeight + 'px',
           }"
         >
           <span class="select-none text-xs font-semibold tracking-wide text-gray-500">
