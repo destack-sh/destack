@@ -417,7 +417,7 @@ const gridScroll = useScroll(gridRef);
 const gridScrollOffsetX = computed(() => gridScroll.x.value);
 const isHeaderRowFloating = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
-  const editorTop = panel.pos.value.top + appearance.editorHeaderHeight;
+  const editorTop = panel.pos.value.top + appearance.panelHeaderHeight;
   return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
 });
 const gridOverhangLeft = computed(() => {
@@ -927,7 +927,7 @@ defineExpose({
           left: isHeaderRowFloating
             ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
             : -gridScrollOffsetX + 4 + 'px',
-          top: isHeaderRowFloating ? panel.pos.value.top + appearance.editorHeaderHeight - 2 + 'px' : undefined,
+          top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 2 + 'px' : undefined,
           /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
           clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
         }"

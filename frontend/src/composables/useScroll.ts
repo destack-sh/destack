@@ -4,7 +4,7 @@ import { ref, watch, type Ref } from "vue";
 export const SCROLL_ACTIVE_TIMEOUT = 2000;
 
 export function useActiveScroll(el: Ref<HTMLElement | null>) {
-  const scroll = useScroll(el);
+  const scroll = useScroll(el, { behavior: "smooth" });
 
   // add scroll-active whenever isScrolling for SCROLL_ACTIVE_TIMEOUT
   const timeout = ref<any>(null);

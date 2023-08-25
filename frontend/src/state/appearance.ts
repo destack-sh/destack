@@ -24,7 +24,7 @@ export const useAppearanceState = defineStore("appearance", {
     inlineMetrics: false,
     contentWide: false,
     benchHeaderHeight: 52,
-    editorHeaderHeight: 28,
+    panelHeaderHeight: 28,
   }),
   getters: {
     fontMono(state) {

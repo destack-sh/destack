@@ -91,6 +91,8 @@ function toggleContentFold(descendants?: boolean) {
   }
 }
 
+// highlighting
+const INDENT_OFFSET_X = 28;
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
   ancestors.value.findIndex(
@@ -98,9 +100,9 @@ const ancestorHighlightDepth = computed(() =>
   )
 );
 const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
-const contentOffsetX = computed(() => props.depth * 20);
+const contentOffsetX = computed(() => props.depth * INDENT_OFFSET_X);
 const highlightOffsetX = computed(() =>
-  isAncestorHighlight.value ? ancestorHighlightDepth.value * 20 : contentOffsetX.value
+  isAncestorHighlight.value ? ancestorHighlightDepth.value * INDENT_OFFSET_X : contentOffsetX.value
 );
 
 // manage interfaces
@@ -109,6 +111,7 @@ type StatementInterface = {
   props?: any;
 };
 
+// TODO @Cleanup @Architecture: unify statement interfaces/components
 const statementInterface: Ref<StatementInterface> = computed(() => {
   if (statement.value.type == StatementType.Text) {
     return {
@@ -172,10 +175,7 @@ whenever(isActive, () => {
   const editorRect = panel.container.value?.getBoundingClientRect();
   const containerRect = containerRef.value?.getBoundingClientRect();
   if (editorRect != null && containerRect != null) {
-    if (
-      containerRect.top < editorRect.top + appearance.editorHeaderHeight ||
-      containerRect.bottom > editorRect.bottom
-    ) {
+    if (containerRect.top < editorRect.top + appearance.panelHeaderHeight || containerRect.bottom > editorRect.bottom) {
       // TODO @UX: improve scroll behavior (feels a bit janky sometimes)
       containerRef.value?.scrollIntoView(false);
     }
@@ -446,6 +446,7 @@ defineExpose({
 </script>
 <template>
   <!-- Statement wrapper -->
+  <!-- The :group/statement here is used in file editor -->
   <div
     class="group/statement relative w-full max-w-full"
     :style="panel.panel.value.contentMarginXAsPaddingX"

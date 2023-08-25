@@ -26,7 +26,7 @@ function focusIssue(issue: IssueContentFragment) {
     <div
       class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
       :style="{
-        height: appearance.editorHeaderHeight + 'px',
+        height: appearance.panelHeaderHeight + 'px',
       }"
     >
       <span class="text-xs font-semibold tracking-wide text-gray-500">Issues</span>
