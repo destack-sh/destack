@@ -179,6 +179,13 @@ defineExpose({
               </span>
             </div>
           </div>
+          <!-- Run ID -->
+          <div class="flex flex-col gap-0.5">
+            <span class="text-xs font-semibold text-gray-500">Run ID</span>
+            <span class="select-all font-mono text-gray-900">
+              {{ getUUIDFromGlobalID(run.id) }}
+            </span>
+          </div>
           <!-- Last updated -->
           <div class="flex flex-col gap-0.5" v-if="run.updatedAt != null">
             <span class="text-xs font-semibold text-gray-500">Updated</span>

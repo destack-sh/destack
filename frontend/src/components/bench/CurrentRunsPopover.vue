@@ -6,8 +6,9 @@ import { useBenchState } from "@/state/bench";
 import { useCurrentModule, useNavigation, type InterpStatement, TypeFlag } from "@/state/module";
 import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { getStatementIconSolid } from "@/state/statement";
+import { getUUIDFromGlobalID } from "@/utils/functools";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { PlayIcon, StopIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
 import { useKeyModifier } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -27,9 +28,12 @@ const runnables = module.statementsLike({
 });
 const suggestedPreviewLength = ref(5);
 const suggestedRunnables = computed(() => {
-  let candidates = runnables.value.slice().sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  // sort by most recently edited but put those in the current focused file first
+  let candidates = runnables.value
+    .filter((n) => (n.name ?? "").trim().length > 0)
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   if (bench.focusedFileId != null) {
-    // put those on top that are in the same file
+    // shift focused file's statements to top
     candidates = candidates
       .filter((r) => r.file.id == bench.focusedFileId)
       .concat(candidates.filter((r) => r.file.id != bench.focusedFileId));
@@ -37,7 +41,15 @@ const suggestedRunnables = computed(() => {
   return candidates;
 });
 
+function hasInputs(statement: InterpStatement) {
+  return statement.fields.filter((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput)).length > 0;
+}
+
 function run(statement: InterpStatement) {
+  sessions.run(statement);
+}
+
+function launch(statement: InterpStatement) {
   bench.openLaunch(statement, { focus: true });
 }
 </script>
@@ -75,20 +87,28 @@ function run(statement: InterpStatement) {
           <div v-for="run in activeRunsDesc" :key="run.id" class="relative flex flex-row justify-between gap-1 py-0.5">
             <!-- Run preview -->
             <div class="flex flex-row items-center">
+              <!-- Status -->
               <component
                 :is="getRunStatusIconSolid(run.status)"
                 class="h-4 w-4"
                 :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
               />
-              <span class="ml-1.5" :class="[getRunStatusColor(run.status)]">
-                {{ run.startedAt == null ? "..." : sessions.getDurationFormatted(run) }}
+              <span v-if="run.startedAt" class="ml-1.5" :class="[getRunStatusColor(run.status)]">
+                {{ sessions.getDurationFormatted(run) }}
               </span>
+              <!-- Statement -->
               <span
-                class="ml-1 text-gray-900 decoration-gray-700 underline-offset-4"
-                :class="[altKey ? 'cursor-pointer hover:underline' : '']"
-                @click="() => (altKey ? nav.focusStatement(run.runnable?.id) : null)"
+                class="ml-1 cursor-pointer text-gray-900 decoration-gray-700 underline-offset-2 hover:underline"
+                @click="nav.focusStatement(run.runnable?.id)"
               >
                 {{ module.statementOf(run.runnable?.id)?.name ?? "unnamed" }}
+              </span>
+              <!-- Run id -->
+              <span
+                class="ml-1 cursor-pointer text-gray-400 underline-offset-2 transition duration-150 hover:text-gray-700 hover:underline"
+                @click="bench.openRun(run, { focus: true })"
+              >
+                #{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}
               </span>
             </div>
             <!-- Controls -->
@@ -114,17 +134,32 @@ function run(statement: InterpStatement) {
             <!-- Statement -->
             <div class="flex flex-row items-center gap-1">
               <component :is="getStatementIconSolid(statement.type)" class="h-4 w-4 text-gray-500" />
-              <span class="text-gray-900">{{ statement.name ?? "(unnamed)" }}</span>
+              <a
+                class="cursor-pointer text-gray-900 underline-offset-2 hover:underline"
+                @click="nav.focusStatement(statement)"
+              >
+                {{ statement.name ?? "(unnamed)" }}
+              </a>
             </div>
             <!-- Controls -->
             <div class="flex flex-row">
-              <button class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700" @click="() => run(statement)">
+              <button
+                v-if="!hasInputs(statement)"
+                class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+                @click="() => run(statement)"
+              >
                 <PlayIcon class="h-4 w-4" />
+              </button>
+              <button
+                class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+                @click="() => launch(statement)"
+              >
+                <WindowIcon class="h-4 w-4" />
               </button>
             </div>
           </div>
           <!-- Show more -->
-          <div v-if="suggestedRunnables.length > suggestedPreviewLength" class="flex flex-row justify-center">
+          <div v-if="suggestedRunnables.length > suggestedPreviewLength" class="mt-1 flex flex-row justify-center">
             <button
               class="text-xs text-gray-400 hover:text-gray-700 hover:underline"
               @click="suggestedPreviewLength += 5"
