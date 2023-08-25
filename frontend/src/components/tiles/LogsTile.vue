@@ -100,6 +100,7 @@ defineExpose({
 <template>
   <div ref="containerRef" class="relative" @scroll="disableAutoscrollIfUser">
     <!-- Actual logs -->
+    <!-- (pretty crude for now, missing pagination, detail views, highlights, ...) -->
     <div ref="logsRef" class="flex w-full flex-col" v-if="!loading">
       <span
         v-for="log in logsSorted"
@@ -119,6 +120,9 @@ defineExpose({
     </div>
     <!-- Loading -->
     <div v-if="loading" class="h-4 w-full animate-pulse rounded-sm bg-gray-200 opacity-80" />
+    <!-- Empty indicator -->
+    <div v-else-if="logsSorted.length == 0" class="w-full text-center text-gray-400">No logs</div>
+    <!-- Autoscroll toggle/indicator on bottom right -->
     <button
       v-if="!loading"
       v-show="containerHeight && logsBounding.height.value > containerHeight"

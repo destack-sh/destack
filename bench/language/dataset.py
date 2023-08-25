@@ -326,14 +326,18 @@ class RecordSearch(Search["RecordData", Record]):
             raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
         return rep
 
-    def _unpack_element_data(self, element_data: "RecordData") -> ElementT:
+    def _unpack_element_data(self, record_data: "RecordData") -> ElementT:
         from bench.language import wire
 
-        parent = self.module._statements_by_id[element_data.parent_id]
-        element = wire.unpack_node_flat(element_data, parent, self.module.session)
-        element._instantiated = False
-        element.activate_in(self.module.session)
-        return element
+        parent = self.module._statements_by_id.get(record_data.parent_id)
+        if parent is None:
+            raise RuntimeError(
+                f"parent statement {record_data.parent_id} of{record_data.id} not found"
+            )
+        record = wire.unpack_node_flat(record_data, parent, self.module.session)
+        record._instantiated = False
+        record.activate_in(self.module.session)
+        return record
 
     def filter(self, query: Query) -> "RecordSearch":
         combined_query = Query.and_if_set(self._query, query)

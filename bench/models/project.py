@@ -473,7 +473,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         versioned_datasets = [
             n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
         ]
-        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets)
+        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
         # save ref mappings
         if invert_mappings:
             for mapping in mappings:
@@ -691,7 +691,7 @@ class FileManager(models.Manager):
         versioned_datasets = [
             n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
         ]
-        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets)
+        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
         # save mappings
         RefMapping.objects.bulk_create(mappings)
 

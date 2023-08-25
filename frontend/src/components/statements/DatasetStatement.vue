@@ -495,7 +495,7 @@ function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "refere
   const field = context.createNewField(template);
   nextTick(() => {
     grid.flush();
-    nextTick(() => grid.focus("", field.key));
+    nextTick(() => (grid.getRef("", field.key) as InstanceType<typeof FieldInterface>).open("all"));
   });
 }
 

@@ -102,7 +102,7 @@ class TypeFlag(enum.IntFlag):
     IsArray = 2**1
     IsOptional = 2**2
     IsUnionWith = 2**3
-    # TODO @Cleanup: IsSecret shouldn't be a flag
+    # TODO @Cleanup @Architecture: IsSecret shouldn't be a flag
     IsSecret = 2**4
     IsStoreOnly = 2**5
     IsArrayable = 2**6

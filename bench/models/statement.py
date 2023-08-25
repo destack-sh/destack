@@ -172,14 +172,18 @@ class StatementManager(models.Manager["Statement"]):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
     def duplicate_datasets_inplace(
-        self, source: ProjectVersion, target: ProjectVersion, datasets: list["Dataset"]
+        self,
+        source: ProjectVersion,
+        target: ProjectVersion,
+        datasets: list["Dataset"],
+        target_ids: dict[UUID, UUID],
     ) -> None:
         """Duplicates the given datasets in-place to the target version"""
         from bench.models import Dataset
         from bench.opensearch.index import batch_duplicate_records
 
         new_dataset_ids = {d.key: new_dataset_key() for d in datasets}
-        batch_duplicate_records(source, target, new_dataset_ids)
+        batch_duplicate_records(source, target, new_dataset_ids, target_ids)
         for dataset in datasets:
             dataset.key = new_dataset_ids[dataset.key]
         Dataset.objects.bulk_update(datasets, ["key"])
@@ -233,7 +237,7 @@ class StatementManager(models.Manager["Statement"]):
         versioned_datasets = [
             n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
         ]
-        self.duplicate_datasets_inplace(source, target, versioned_datasets)
+        self.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
         # save mappings
         RefMapping.objects.bulk_create(mappings)
 
