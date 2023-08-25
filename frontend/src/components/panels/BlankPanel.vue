@@ -54,7 +54,7 @@ const createActions = computed(() => [
 ]);
 
 function openFile(file: { id: string; name: string }) {
-  bench.openFile(file as NodeBase, { group: props.group, create: true, focus: true });
+  bench.openEditFile(file as NodeBase, { group: props.group, create: true, focus: true });
 }
 </script>
 <template>

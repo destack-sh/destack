@@ -43,8 +43,7 @@ const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
 
 function run() {
-  const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
-  bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
+  bench.openLaunchRun(context.statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
 }
 
 function unfoldIfFolded() {

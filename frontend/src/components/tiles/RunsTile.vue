@@ -111,7 +111,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         <td class="whitespace-nowrap px-2.5 py-1.5">
           <button
             class="inline-flex flex-row items-center text-gray-400 hover:underline"
-            @click="bench.openRun(run, { focus: true })"
+            @click="bench.openViewRun(run, { focus: true })"
           >
             <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
           </button>
@@ -149,7 +149,10 @@ defineExpose({ runs, loading, totalCount, pageInfo });
               <span v-else-if="run.triggerAccessToken != null">via API</span>
               <span v-else-if="run.parent != null">
                 in
-                <button class="underline-offset-2 hover:underline" @click="bench.openRun(run.parent, { focus: true })">
+                <button
+                  class="underline-offset-2 hover:underline"
+                  @click="bench.openViewRun(run.parent, { focus: true })"
+                >
                   #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                 </button>
               </span>

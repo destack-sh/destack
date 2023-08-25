@@ -258,7 +258,7 @@ defineExpose({
           <template v-slot:sublabel>
             <button
               class="font-normal underline-offset-2 hover:underline"
-              @click="bench.openRuns(undefined, { focus: true })"
+              @click="bench.openViewRuns(undefined, { focus: true })"
             >
               (view all)
             </button>

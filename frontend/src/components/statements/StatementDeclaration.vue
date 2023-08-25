@@ -35,7 +35,7 @@ const altKey = useKeyModifier("Alt");
 const panel = usePanelContext();
 
 function openInEditor() {
-  panel.panel.value.bench.openStatement(context.statement.value as StatementHeader, { focus: true });
+  panel.panel.value.bench.openEditStatement(context.statement.value as StatementHeader, { focus: true });
 }
 
 function focus(position: "first" | "last" = "first") {

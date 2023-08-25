@@ -214,6 +214,13 @@ function makePanelGroup(id: string, name: string): PanelGroup {
 
 export const RECENTLY_CLOSED_PANELS_LIMIT = 64;
 
+export type PanelOpenOptions = {
+  group?: PanelGroup;
+  opposite?: boolean;
+  create?: boolean;
+  focus?: boolean;
+};
+
 export const useBenchState = defineStore("bench", {
   state: () => {
     return {
@@ -421,83 +428,62 @@ export const useBenchState = defineStore("bench", {
       }
     },
 
-    openFile(file: NodeBase, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
-      let panel = this.panels.find((e) => e.type == "edit-file" && (e as EditFilePanel).fileId == file.id);
+    _openMaybe(filter: (panel: Panel) => boolean, create: () => Panel, options?: PanelOpenOptions): Panel {
+      let panel = this.panels.find(filter);
       if (!panel || options?.create) {
-        console.log(`create new file panel for ${file.id} ${file.name}`);
-        panel = new EditFilePanel(file);
+        panel = create();
+        console.log(`create new panel ${panel.path}`);
         panel.onDeserialized(this);
       }
-      this.openPanel(panel, options?.group);
+      let group = options?.group;
+      if (options?.opposite) {
+        group = this.nextGroup(group ?? this.focusedGroup ?? this.left);
+      }
+      this.openPanel(panel, group);
       if (options?.focus) {
         this.focusPanel(panel);
       }
       return panel;
     },
 
-    openStatement(
-      statement: { id: string; name?: string | null },
-      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
-    ): Panel {
-      let panel = this.panels.find(
-        (e) => e.type == "edit-statement" && (e as EditStatementPanel).statementId == statement.id
+    openEditFile(file: NodeBase, options?: PanelOpenOptions): Panel {
+      return this._openMaybe(
+        (p) => p.type == "edit-file" && (p as EditFilePanel).fileId == file.id,
+        () => new EditFilePanel(file),
+        options
       );
-      if (!panel || options?.create) {
-        console.log(`create new statement panel for ${statement.name}`);
-        panel = new EditStatementPanel(statement);
-        panel.appearance.wide = true; // default to wide
-        panel.onDeserialized(this);
-      }
-      this.openPanel(panel, options?.group);
-      if (options?.focus) {
-        this.focusPanel(panel);
-      }
-      return panel;
     },
 
-    openLaunch(
-      statement: { id: string; name?: string | null },
-      options?: { group?: PanelGroup; create?: boolean; focus?: boolean }
-    ): Panel {
-      let panel = this.panels.find((e) => e.type == "launch-run" && (e as LaunchRunPanel).statementId == statement.id);
-      if (!panel || options?.create) {
-        console.log(`create new launch panel for ${statement.name}`);
-        panel = new LaunchRunPanel(statement);
-        panel.onDeserialized(this);
-      }
-      this.openPanel(panel, options?.group);
-      if (options?.focus) {
-        this.focusPanel(panel);
-      }
-      return panel;
+    openEditStatement(statement: { id: string; name?: string | null }, options?: PanelOpenOptions): Panel {
+      return this._openMaybe(
+        (p) => p.type == "edit-statement" && (p as EditStatementPanel).statementId == statement.id,
+        () => new EditStatementPanel(statement),
+        options
+      );
     },
 
-    openRuns(query?: RunsQuery, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
-      let panel = this.panels.find((e) => e.type == "view-runs" && (e as ViewRunsPanel).query == query);
-      if (!panel || options?.create) {
-        console.log(`create new runs panel`);
-        panel = new ViewRunsPanel(query);
-        panel.onDeserialized(this);
-      }
-      this.openPanel(panel, options?.group);
-      if (options?.focus) {
-        this.focusPanel(panel);
-      }
-      return panel;
+    openLaunchRun(statement: { id: string; name?: string | null }, options?: PanelOpenOptions): Panel {
+      return this._openMaybe(
+        (p) => p.type == "launch-run" && (p as LaunchRunPanel).statementId == statement.id,
+        () => new LaunchRunPanel(statement),
+        options
+      );
     },
 
-    openRun(run: { id: string }, options?: { group?: PanelGroup; create?: boolean; focus?: boolean }): Panel {
-      let panel = this.panels.find((e) => e.type == "view-run" && (e as ViewRunPanel).runId == run.id);
-      if (!panel || options?.create) {
-        console.log(`create new run panel for ${run.id}`);
-        panel = new ViewRunPanel(run);
-        panel.onDeserialized(this);
-      }
-      this.openPanel(panel, options?.group);
-      if (options?.focus) {
-        this.focusPanel(panel);
-      }
-      return panel;
+    openViewRuns(query?: RunsQuery, options?: PanelOpenOptions): Panel {
+      return this._openMaybe(
+        (p) => p.type == "view-runs",
+        () => new ViewRunsPanel(query),
+        options
+      );
+    },
+
+    openViewRun(run: { id: string }, options?: PanelOpenOptions): Panel {
+      return this._openMaybe(
+        (p) => p.type == "view-run" && (p as ViewRunPanel).runId == run.id,
+        () => new ViewRunPanel(run),
+        options
+      );
     },
 
     nextGroup(group: PanelGroup): PanelGroup | undefined {
@@ -533,13 +519,13 @@ export const useBenchState = defineStore("bench", {
     },
 
     focusFile(file: NodeBase, group?: PanelGroup): Panel {
-      const panel = this.openFile(file, { group });
+      const panel = this.openEditFile(file, { group });
       this.focusPanel(panel);
       return panel;
     },
 
     focusStatement(statement: NodeBase, group?: PanelGroup): Panel {
-      const panel = this.openStatement(statement, { group });
+      const panel = this.openEditStatement(statement, { group });
       this.focusPanel(panel);
       return panel;
     },
@@ -1082,6 +1068,7 @@ export class EditStatementPanel extends NavigablePanel {
   constructor(statement: { id: string; name?: string | null }) {
     super("edit-statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
     this.statementId = statement.id;
+    this.appearance.wide = true; // default to wide
   }
 
   get contentMarginX() {

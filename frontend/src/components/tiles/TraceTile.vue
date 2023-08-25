@@ -1,12 +1,9 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import FadeTransition from "@/components/basic/FadeTransition.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
-import RunTile from "@/components/tiles/RunTile.vue";
-import { pinAbsoluteElement } from "@/composables/useFixed";
 import { formatDuration, useNow } from "@/composables/useNow";
 import { RunStatus, StatementType, type Run, type Statement } from "@/gql/graphql";
-import { useBenchState } from "@/state/bench";
+import { useBenchState, type PanelGroup, usePanelContext } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
 import { TERMINAL_RUN_STATUSES, getRunStatusColor, getRunStatusIconSolid, useRun } from "@/state/session";
 import { getUUIDFromGlobalID } from "@/utils/functools";
@@ -29,6 +26,7 @@ const props = defineProps<{
 const layout = ref<TRACE_LAYOUT>(props.layout);
 const bench = useBenchState();
 const module = useCurrentModule();
+const panel = usePanelContext();
 const nav = useNavigation();
 const now = useNow(100);
 const altKey = useKeyModifier("Alt");
@@ -43,10 +41,6 @@ watch(
 
 const canvasRef: Ref<HTMLDivElement | null> = ref(null);
 const canvasBounding = useElementBounding(canvasRef);
-
-const focusedRunPopoverRef: Ref<HTMLDivElement | null> = ref(null);
-const focusedNode = ref<OrderedNode | BarNode | null>(null);
-const focusedRunPin = pinAbsoluteElement(focusedRunPopoverRef, { pos: true, keepInView: true });
 
 type OrderedNode = {
   id: string;
@@ -152,22 +146,8 @@ const bars = computed(() => {
 });
 const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y + barHeight), 0));
 
-function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; left: string } {
-  if (layout.value == "bars") {
-    return {
-      top: (node as BarNode).y + "px",
-      left: (node as BarNode).x + "px",
-    };
-  } else if (layout.value == "list") {
-    // it's laid out linearly, so just use the offset * 20px
-    const idx = orderedNodes.value.findIndex((n) => n.id == node.id);
-    return {
-      top: 32 * idx + "px",
-      left: node.depth * 20 + "px",
-    };
-  } else {
-    throw new Error(`unexpected layout: ${layout.value}`);
-  }
+function openRun(run: Run) {
+  bench.openViewRun(run, { focus: true, group: panel.panel.value.group, opposite: true });
 }
 
 // other traces will come later (timeline, mutations, logs, etc.)
@@ -185,15 +165,12 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
       <div
         v-for="node in orderedNodes"
         :key="node.id"
-        class="flex flex-row items-center rounded-sm p-1 hover:cursor-pointer hover:bg-orange-100"
-        :class="[
-          getRunStatusColor(node.run.status),
-          focusedNode?.id == node.id ? 'ring-inset-1 ring-1 ring-orange-600 ring-opacity-40' : '',
-        ]"
+        class="group/run flex flex-row items-center rounded-sm p-1 hover:cursor-pointer hover:bg-orange-100"
+        :class="[getRunStatusColor(node.run.status)]"
         :style="{
           marginLeft: node.depth * 20 + 'px',
         }"
-        @click="focusedNode = node"
+        @click="openRun(node.run)"
       >
         <!-- Status -->
         <component
@@ -202,17 +179,9 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
           :class="[getRunStatusIconSolid(node.run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
         />
         <!-- Runnable -->
-        <span
-          class="ml-1 max-w-full truncate font-semibold underline-offset-4"
-          :class="[altKey && node.runnable != null ? 'cursor-pointer hover:underline' : '']"
-          @click="
-            (e) =>
-              altKey && node.runnable != null
-                ? (nav.focusStatement(node.runnable), e.stopPropagation(), e.preventDefault())
-                : undefined
-          "
-          >{{ node.runnable?.name ?? "???" }}</span
-        >
+        <span class="ml-1 max-w-full truncate font-semibold">
+          {{ node.runnable?.name ?? "???" }}
+        </span>
         <!-- Duration -->
         <span class="ml-1">
           <span class="font-semibold">{{ formatDuration(node.duration * 1000) }}</span>
@@ -220,6 +189,10 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
             /
             <span class="font-light">{{ formatDuration(node.durationSelf * 1000) }}</span>
           </template>
+        </span>
+        <!-- Run id -->
+        <span class="ml-1 font-normal text-gray-400 underline-offset-4 group-hover/run:underline">
+          #{{ getUUIDFromGlobalID(node.id).slice(-7, -1) }}
         </span>
       </div>
     </div>
@@ -234,14 +207,14 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         v-for="node in bars"
         :key="node.id"
         class="absolute flex max-h-full max-w-full flex-row items-center truncate rounded-sm border border-opacity-60 bg-opacity-60 p-1 transition-all hover:z-10 hover:min-w-fit hover:cursor-pointer hover:border-opacity-100 hover:bg-opacity-100"
-        :class="[node.color, focusedNode?.id == node.id ? 'ring-1 ring-inset ring-orange-600 ring-opacity-40' : '']"
+        :class="[node.color]"
         :style="{
           left: node.x + 'px',
           top: node.y + 'px',
           width: node.width + 'px',
           height: barHeight + 'px',
         }"
-        @click="focusedNode = node"
+        @click="openRun(node.run)"
       >
         <!-- Status -->
         <component
@@ -281,38 +254,5 @@ function getAbsoluteNodePosition(node: OrderedNode | BarNode): { top: string; le
         </span>
       </div>
     </div>
-    <!-- Prevent scroll and capture click outside -->
-    <div
-      v-if="focusedRunPopoverRef != null"
-      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
-      @click.stop="focusedNode = null"
-    />
-    <!-- Focused node -->
-    <FadeTransition>
-      <div
-        v-if="focusedNode != null"
-        ref="focusedRunPopoverRef"
-        class="z-50 flex w-[400px] flex-col gap-2 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :style="focusedRunPin.pinned.value ? {} : getAbsoluteNodePosition(focusedNode)"
-        :class="[focusedRunPin.pinned.value ? '' : 'absolute']"
-      >
-        <!-- Runnable -->
-        <div class="flex flex-row" v-if="focusedNode.runnable != null">
-          <a
-            class="cursor-pointer font-semibold underline-offset-2 hover:underline"
-            @click="bench.openRun(focusedNode, { focus: true })"
-          >
-            {{ focusedNode?.runnable?.name }} #{{ getUUIDFromGlobalID(focusedNode.runnable.id).slice(-7, -1) }}
-          </a>
-        </div>
-        <RunTile
-          :run="focusedNode.run"
-          :project-version-id="module.id.value"
-          :project-id="(bench.projectId as string)"
-          show-controls
-          view="logs"
-        />
-      </div>
-    </FadeTransition>
   </div>
 </template>
