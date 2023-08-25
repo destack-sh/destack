@@ -158,8 +158,11 @@ const extraActions = computed(() => {
     label: "Launch",
     icon: WindowIcon,
     action: () => {
-      const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
-      bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
+      bench.openLaunchRun(context.statement.value, {
+        group: panel.panel.value.group,
+        focus: true,
+        opposite: true,
+      });
     },
   });
 
@@ -170,8 +173,7 @@ context.setCustomActions(extraActions);
 async function run() {
   if (isCurrentRunActive.value) return;
   if (hasTypes.value) {
-    const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
-    bench.openLaunch(context.statement.value, { group: nextGroup, focus: true });
+    bench.openLaunchRun(context.statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
   } else {
     try {
       // TODO @Robustness: ensure that executed code is always exact same as in editor (wait for revision?)
@@ -234,7 +236,7 @@ defineExpose({
       />
       <span
         class="underline-offset-2 hover:cursor-pointer hover:underline"
-        @click="bench.openRun(currentRun, { focus: true })"
+        @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
       >
         <!-- Duration -->
         <span

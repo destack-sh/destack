@@ -366,7 +366,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        nav?.value?.panel.bench.openStatement(statement.value, { focus: true });
+        nav?.value?.panel.bench.openEditStatement(statement.value, { focus: true });
       },
     });
     actions.push({
@@ -375,8 +375,11 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       disabled: props.standalone,
       action: () => {
-        const nextGroup = bench.nextGroup(panel.panel.value.group as PanelGroup); // open in opposite group
-        nav?.value?.panel.bench.openStatement(statement.value, { group: nextGroup, focus: true });
+        nav?.value?.panel.bench.openEditStatement(statement.value, {
+          group: panel.panel.value.group,
+          focus: true,
+          opposite: true,
+        });
       },
     });
     actions.push({

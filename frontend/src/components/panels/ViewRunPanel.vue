@@ -86,7 +86,7 @@ defineExpose({
       @focus="
         (e) => {
           if (e.name == 'Runs') {
-            bench.openRuns(undefined, { focus: true });
+            bench.openViewRuns(undefined, { focus: true });
           }
         }
       "
@@ -183,7 +183,7 @@ defineExpose({
                   in
                   <button
                     class="underline-offset-2 hover:underline"
-                    @click="bench.openRun(run.parent, { focus: true })"
+                    @click="bench.openViewRun(run.parent, { focus: true })"
                   >
                     #{{ getUUIDFromGlobalID(run.parent.id).slice(-7, -1) }}
                   </button>
@@ -235,8 +235,13 @@ defineExpose({
           <ErrorTraceback :run="(run as Run)" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
+        <!-- TODO @Performance: pass in run to trace tiles (they all use the same data) -->
         <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
           <TraceTile :root-id="panel.runId" layout="list" live />
+        </ContainerTile>
+        <!-- Flamegraph -->
+        <ContainerTile label="Flamegraph" :style="{ ...baseTilePositionX }">
+          <TraceTile :root-id="panel.runId" layout="bars" live />
         </ContainerTile>
         <!-- Logs -->
         <ContainerTile label="Logs" :style="{ ...baseTilePositionX }">

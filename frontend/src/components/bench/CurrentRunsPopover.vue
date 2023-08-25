@@ -50,7 +50,7 @@ function run(statement: InterpStatement) {
 }
 
 function launch(statement: InterpStatement) {
-  bench.openLaunch(statement, { focus: true });
+  bench.openLaunchRun(statement, { focus: true });
 }
 </script>
 <template>
@@ -77,7 +77,7 @@ function launch(statement: InterpStatement) {
       >
         <h2
           class="font-bold text-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"
-          @click="bench.openRuns(undefined, { focus: true })"
+          @click="bench.openViewRuns(undefined, { focus: true })"
         >
           Runs
         </h2>
@@ -106,7 +106,7 @@ function launch(statement: InterpStatement) {
               <!-- Run id -->
               <span
                 class="ml-1 cursor-pointer text-gray-400 underline-offset-2 transition duration-150 hover:text-gray-700 hover:underline"
-                @click="bench.openRun(run, { focus: true })"
+                @click="bench.openViewRun(run, { focus: true })"
               >
                 #{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}
               </span>
