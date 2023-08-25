@@ -136,7 +136,11 @@ defineExpose({
               class="inline-flex flex-row items-center gap-1 whitespace-nowrap"
               :class="[getRunStatusColor(run.status)]"
             >
-              <component :is="getRunStatusIconSolid(run.status)" class="h-4 w-4" />
+              <component
+                :is="getRunStatusIconSolid(run.status)"
+                class="h-4 w-4"
+                :class="getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : ''"
+              />
               <span>{{ run.status }}</span>
               <!-- Duration -->
               <span v-if="run.startedAt != null">

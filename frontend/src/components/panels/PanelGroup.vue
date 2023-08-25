@@ -80,7 +80,7 @@ async function createFileInPanelGroup() {
       (happens if there are multiple active editor groups)  -->
       <TabList
         ref="tabListRef"
-        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
+        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-white"
         v-show="bench.showPanelTabs"
       >
         <!-- Editor tab -->
