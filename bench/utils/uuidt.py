@@ -7,6 +7,7 @@ from typing import Any, Dict, Optional
 
 MAX_NAME_LENGTH = 256
 MAX_DESCRIPTION_LENGTH = 512
+# :NameValidation
 # names can be alphanumeric, hyphen, underscore, dot, spaces (but no tabs or newlines)
 # leading and trailing spaces are fine
 # TODO @Robustness: not sure if \xa0 (non-breaking space) in name is a good idea

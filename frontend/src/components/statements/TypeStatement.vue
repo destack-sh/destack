@@ -241,6 +241,7 @@ defineExpose({
     ref="descriptionRef"
     v-if="!folded"
     :class="addingDescription ? '' : 'h-0'"
+    regex="name"
     v-model="description"
     :readonly="context.readonly.value"
     @navigate-left="declarationRef?.focus()"

@@ -74,6 +74,7 @@ defineExpose({
           : 'cursor-text'
       "
       @click="altKey && canOpenInStandaloneEditor && openInEditor()"
+      regex="name"
       v-model="name"
       :readonly="context.readonly.value"
       @navigate-up="context.navigateUp"

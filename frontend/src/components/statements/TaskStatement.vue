@@ -161,6 +161,7 @@ defineExpose({
     <EditableSpan
       ref="descriptionRef"
       :class="showDescription ? '' : 'h-0'"
+      regex="name"
       v-model="description"
       :readonly="context.readonly.value"
       @navigate-left="declarationRef?.focus()"
