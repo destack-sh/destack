@@ -14,7 +14,6 @@ import {
   WORKER_STATUS_ICON_SOLID,
   WORKER_STATUS_TITLE,
 } from "@/state/session";
-import { PlayIcon } from "@heroicons/vue/24/outline";
 import {
   ClockIcon,
   DocumentIcon,

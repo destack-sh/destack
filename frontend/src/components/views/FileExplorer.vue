@@ -139,7 +139,7 @@ defineExpose({
     <div v-if="contextMenuFile != null && contextMenuPosition != null">
       <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
       <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="closeContextMenu" />
-      <!-- Tab context menu popover (similar to action popover) -->
+      <!-- File context menu popover (similar to action popover) -->
       <div
         class="fixed z-50 flex w-40 flex-col rounded-sm bg-white p-1 text-xs shadow-md ring-1 ring-orange-900 ring-opacity-40"
         :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"

@@ -240,6 +240,7 @@ export const useBenchState = defineStore("bench", {
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
       showPanelTabs: true,
+      showPanelExplorer: false,
       showBenchHeader: true,
       showViewSelection: true,
       showViewContent: false,

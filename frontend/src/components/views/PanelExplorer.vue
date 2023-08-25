@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import { useNavigationGrid } from "@/composables/useGrid";
-import { Panel, PANEL_ICONS_OUTLINE, PANEL_ICONS_SOLID, useBenchState, type ViewId } from "@/state/bench";
+import { useElementRefs } from "@/composables/useGrid";
+import { Panel, PANEL_ICONS_SOLID, useBenchState, type ViewId } from "@/state/bench";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
@@ -10,18 +10,8 @@ const emit = defineEmits<{
 }>();
 
 const bench = useBenchState();
-const panelsSorted = computed(() =>
-  bench.panels.slice().sort((a, b) => (b.lastFocusedAt ?? "").localeCompare(a.lastFocusedAt ?? ""))
-);
-const focusedPanelId = computed(() => panelsSorted.value.find((f) => f.id == bench.focusedPanelId)?.id);
-const panelsGrid = useNavigationGrid<"name", HTMLElement>(
-  computed(() => ["name"]),
-  panelsSorted,
-  {
-    gridNavigateUp: () => emit("navigateUp"),
-    gridNavigateDown: () => emit("navigateDown"),
-  }
-);
+const groups = computed(() => bench.groups.filter((g) => g.panels.length > 0));
+const panelRefs = useElementRefs<HTMLElement>();
 
 function focusPanel(panel: Panel) {
   const focusedViewId = bench.focusedViewId;
@@ -39,50 +29,59 @@ const { focused: listRefFocused } = useFocusWithin(listRef);
 
 function focus(target?: "first" | "last") {
   // focus currently focused panel if nothing was directly selected (and thus focused)
-  if (!target && focusedPanelId.value != null && !listRefFocused.value) {
-    nextTick(() => panelsGrid.focus(focusedPanelId.value as string, "name"));
-  } else if (!listRefFocused.value && (panelsSorted.value.length ?? 0) > 0) {
-    nextTick(() => panelsGrid.focus(target == "first" ? 0 : -1, "name"));
+  if (!target && bench.focusedPanelId != null && !listRefFocused.value) {
+    nextTick(() => panelRefs.focus(bench.focusedPanelId as string));
+  } else if (!listRefFocused.value && (bench.panels.length ?? 0) > 0) {
+    if (target == "first") {
+      nextTick(() => panelRefs.focus(bench.panels[0].id));
+    } else {
+      nextTick(() => panelRefs.focus(bench.panels[bench.panels.length - 1].id));
+    }
   }
 }
 
 function blur() {
-  panelsGrid.blur();
+  panelRefs.refs.value.forEach((ref) => ref.blur());
 }
 
 defineExpose({
-  count: computed(() => panelsSorted.value.length),
+  count: computed(() => bench.panels.length),
   focus,
   blur,
 });
 </script>
 <template>
   <!-- Panel: panel explorer -->
-  <ul ref="listRef" role="list" class="flex flex-col text-sm">
-    <li
-      v-for="panel in panelsSorted"
-      :key="panel.id"
-      :ref="(ref) => panelsGrid.registerColumnRef(panel.id, 'name', (ref as HTMLElement))"
-      tabindex="-1"
-      @keydown.up.exact.prevent="panelsGrid.navigateUp(panel.id, 'name')"
-      @keydown.down.exact.prevent="panelsGrid.navigateDown(panel.id, 'name')"
-      class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
-      :class="{
-        'text-orange-600': panel.id == bench?.focusedPanelId,
-        'text-gray-700 hover:text-orange-600': panel.id != bench?.focusedPanelId,
-      }"
-      @click="focusPanel(panel)"
-      @keydown.enter.exact.prevent="focusPanelAndGoThere(panel)"
-    >
-      <!-- Panel info -->
-      <span class="flex flex-row items-center">
-        <component :is="PANEL_ICONS_SOLID[panel.type]" class="mr-1.5 h-4 w-4 text-gray-500" />
-        <span
-          class="decoration-none inline select-none truncate text-ellipsis rounded-sm text-sm placeholder-gray-400 outline-none"
-        >
-          {{ panel.name.length > 0 ? panel.name : "(Unnamed)" }}
+  <div class="flex flex-col gap-2">
+    <!-- Each group -->
+    <ul ref="listRef" role="list" class="flex flex-col text-sm" v-for="group in groups" :key="group.id">
+      <h3 v-if="groups.length > 1" class="px-3 text-xs font-semibold text-gray-500">
+        {{ group.name }}
+      </h3>
+      <!-- Each panel -->
+      <li
+        v-for="panel in group.panels"
+        :key="panel.id"
+        :ref="(ref: any) => panelRefs.registerRef(panel.id, ref)"
+        tabindex="-1"
+        class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
+        :class="{
+          'text-orange-600': panel.id == bench?.focusedPanelId,
+          'text-gray-700 hover:text-orange-600': panel.id != bench?.focusedPanelId,
+        }"
+        @click="focusPanel(panel)"
+        @keydown.enter.exact.prevent="focusPanelAndGoThere(panel)"
+      >
+        <!-- Panel info -->
+        <span class="flex flex-row items-center">
+          <component :is="PANEL_ICONS_SOLID[panel.type]" class="mr-1.5 h-4 w-4" />
+          <span
+            class="decoration-none inline select-none truncate text-ellipsis rounded-sm text-sm placeholder-gray-400 outline-none"
+          >
+            {{ panel.name.length > 0 ? panel.name : "(Unnamed)" }}
+          </span>
         </span>
-      </span>
-    </li>
-  </ul>
+      </li>
+    </ul>
+  </div>
 </template>
