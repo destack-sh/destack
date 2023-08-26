@@ -48,28 +48,26 @@ class Organization(Owner, relay.Node):
     ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
 
     @strawberry_django.field
-    def can_view_full(self, info: OperationInfo) -> bool:
-        user = get_user_from_info(info)
-        return can_write_organization(user, self)
+    def can_view_detail(self, info: OperationInfo) -> bool:
+        return can_write_organization(info, self)
 
     @strawberry_django.field
     def can_write(self, info: OperationInfo) -> bool:
-        user = get_user_from_info(info)
-        return can_write_organization(user, self)
+        return can_write_organization(info, self)
 
     @strawberry_django.field(only=["owner_slug_id"])
     def slug(self, info) -> str:
         return self.owner_slug_id
 
 
-OrganizationMembershipLevel = strawberry.enum(models.OrganizationMembershipLevel)
+OrganizationRole = strawberry.enum(models.OrganizationRole)
 
 
 @strawberry_django.type(models.OrganizationMembership)
 class OrganizationMembership(relay.Node):
     organization: Organization
     user: Annotated["User", lazy(".user")]
-    level: OrganizationMembershipLevel
+    level: OrganizationRole
     created_at: auto
     updated_at: auto
 
@@ -79,7 +77,7 @@ class OrganizationInvite(relay.Node):
     organization: Organization
     user: Optional[Annotated["User", lazy(".user")]]
     email: auto
-    level: OrganizationMembershipLevel
+    level: OrganizationRole
     created_at: auto
     updated_at: auto
     email_sent_at: auto
@@ -105,14 +103,14 @@ class OrganizationRenameInput(strawberry_django.NodeInput):
 @strawberry.input
 class OrganizationInviteInput(strawberry_django.NodeInput):
     emails: list[str]
-    level: OrganizationMembershipLevel
+    level: OrganizationRole
     message: Optional[str] = None
 
 
 @strawberry.input
 class OrganizationUpdateMembershipInput(strawberry_django.NodeInput):
     user_id: GlobalID
-    level: OrganizationMembershipLevel
+    level: OrganizationRole
 
 
 @strawberry.input
@@ -132,7 +130,7 @@ class OrganizationMutation:
         organization = models.Organization.objects.create_organization(
             name=input.name, slug=input.slug
         )
-        user.join_organization(organization, OrganizationMembershipLevel.Owner)
+        organization.add_member(user, OrganizationRole.Owner)
         return organization
 
     @safe_mutation
@@ -151,11 +149,10 @@ class OrganizationMutation:
         self, info, input: OrganizationInviteInput
     ) -> Organization | OperationInfo:
         organization = models.Organization.objects.get(id=input.id.node_id)
+        user = get_user_from_info(info)
         check_can_write_organization(info, organization)
         for email in input.emails:
-            invite = organization.create_invite(
-                email, input.level, input.message, created_by=get_user_from_info(info)
-            )
+            invite = organization.create_invite(email, input.level, input.message, created_by=user)
             invite.full_clean()
         return organization
 

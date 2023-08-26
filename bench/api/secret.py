@@ -11,8 +11,9 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_can_write_project
+from bench.api.auth import check_project_access
 from bench.api.utils import safe_mutation
+from bench.models import ProjectAccessLevel
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -55,7 +56,7 @@ class SecretMutation:
     @safe_mutation
     def create_secret(self, info: Info, input: SecretCreateInput) -> Secret | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
-        check_can_write_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Edit)
         value_str = json.dumps(input.value, indent=0)  # :SecretJson
         sha512 = hashlib.sha512(value_str.encode("utf-8")).hexdigest()
         secret = models.Secret.objects.create(
@@ -66,7 +67,7 @@ class SecretMutation:
     @safe_mutation
     def update_secret(self, info: Info, input: SecretUpdateInput) -> Secret | OperationInfo:
         secret = models.Secret.objects.get(id=input.id.node_id)
-        check_can_write_project(info, secret.project)
+        check_project_access(info, secret.project_id, ProjectAccessLevel.Edit)
         secret.name = input.name
         secret.value = json.dumps(input.value, indent=0)
         secret.sha512 = hashlib.sha512(secret.value.encode("utf-8")).hexdigest()
@@ -76,6 +77,6 @@ class SecretMutation:
     @safe_mutation
     def delete_secret(self, info: Info, input: SecretDeleteInput) -> None | OperationInfo:
         secret = models.Secret.objects.get(id=input.id.node_id)
-        check_can_write_project(info, secret.project)
+        check_project_access(info, secret.project_id, ProjectAccessLevel.Edit)
         secret.delete()
         return None

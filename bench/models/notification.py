@@ -7,6 +7,9 @@ from bench.utils.dt import utcnow_with_tz
 
 class NotificationType(models.TextChoices):
     ORGANIZATION_INVITE = "organization_invite"
+    PROJECT_INVITE = "project_invite"
+    RUN_FAILED = "run_failed"
+    RUN_SUSPENDED = "run_suspended"
 
 
 class NotificationStatus(models.TextChoices):
@@ -25,9 +28,14 @@ class Notification(UUIDModel):
     read_at = models.DateTimeField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
 
-    invite = models.ForeignKey(
+    # related objects
+    organization_invite = models.ForeignKey(
         "OrganizationInvite", on_delete=models.CASCADE, null=True, related_name="+"
     )
+    project_invite = models.ForeignKey(
+        "ProjectInvite", on_delete=models.CASCADE, null=True, related_name="+"
+    )
+    run = models.ForeignKey("Run", on_delete=models.CASCADE, null=True, related_name="+")
 
     def __str__(self):
         return f"{self.type} -> {self.user}"
@@ -49,7 +57,6 @@ class Notification(UUIDModel):
 
     @property
     def status(self) -> NotificationStatus:
-        # TODO @Cleanup: move computed Notification.status into a status column
         if self.read_at:
             return NotificationStatus.READ
         elif self.archived_at:
@@ -67,14 +74,16 @@ def create_notifications_on_signup(user: User):
     """Create onboarding notifications, recover invite notifications sent before signup"""
 
     # recover invite notifications
-    notifications: list[Notification] = []
-    for invite in user.invites.all():
-        notification = Notification(
-            type=NotificationType.ORGANIZATION_INVITE,
-            user=user,
-            invite=invite,
+    organization_invites = [
+        Notification(
+            type=NotificationType.ORGANIZATION_INVITE, user=user, organization_invite=invite
         )
-        notifications.append(notification)
+        for invite in user.organization_invites.all()
+    ]
+    project_invites = [
+        Notification(type=NotificationType.PROJECT_INVITE, user=user, project_invite=invite)
+        for invite in user.project_invites.all()
+    ]
 
     # bulk create notifications
-    Notification.objects.bulk_create(notifications)
+    Notification.objects.bulk_create(organization_invites + project_invites)

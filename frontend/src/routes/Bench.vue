@@ -17,7 +17,7 @@ import ViewExplorer from "@/components/views/ViewExplorer.vue";
 import ViewHistory from "@/components/views/ViewHistory.vue";
 import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
-import { WorkerSetStatus } from "@/gql/graphql";
+import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { useAuth } from "@/state/auth";
 import {
@@ -70,7 +70,6 @@ import {
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
-import CurrentLogsPopover from "@/components/bench/CurrentLogsPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -240,7 +239,7 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const auth = useAuth();
 // syncs need to instantiated for the Bench lifetime
-useModuleSync(versionToViewId);
+useModuleSync(toRef(bench, "projectId"), versionToViewId);
 useProjectSync(toRef(bench, "projectId"));
 
 // status
@@ -356,7 +355,10 @@ watchEffect(() => {
     !versionLoaded.value ||
     migrating.value ||
     versionToViewId.value != projectHead.value?.id ||
-    !project.value?.canWrite ||
+    (project.value?.accessLevel != null &&
+      ![ProjectAccessLevel.Admin, ProjectAccessLevel.Manage, ProjectAccessLevel.Edit].includes(
+        project.value?.accessLevel
+      )) ||
     version.value?.committed == true;
 });
 
@@ -474,13 +476,12 @@ onBeforeUnmount(() => {
               >
                 Back
               </router-link>
-              <button
-                v-if="project?.canWrite"
+              <!-- <button
                 class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
                 @click="actions.apply('version.restore')"
               >
                 Restore
-              </button>
+              </button> -->
             </div>
           </FadeTransition>
           <!-- Read-only project notice -->

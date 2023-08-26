@@ -47,9 +47,18 @@ const {
               archivedAt
               expiresAt
               status
-              invite {
+              organizationInvite {
                 id
                 organization {
+                  id
+                  slug
+                  name
+                }
+                level
+              }
+              projectInvite {
+                id
+                project {
                   id
                   slug
                   name

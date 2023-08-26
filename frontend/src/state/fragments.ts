@@ -66,15 +66,18 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
     __typename
     id
-    visibility
     createdAt
     updatedAt
     name
     slug
-    canWrite
     head {
       ...ProjectVersionHeader
     }
+    visibility
+    accessLevel
+    sharingEnabled
+    sharingToken
+    sharingLevel
     owner {
       ... on Organization {
         id

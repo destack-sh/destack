@@ -11,7 +11,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_project, check_can_write_project, is_owner_or_member
+from bench.api.auth import check_project_access, has_project_access, is_owner_or_member
 from bench.api.utils import (
     HasCrud,
     ModuleNode,
@@ -119,29 +119,37 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
 
+ProjectAccessLevel = strawberry.enum(models.ProjectAccessLevel)
+
+
 @strawberry_django.type(models.Project)
 class Project(relay.Node):
+    created_at: auto
+    updated_at: auto
     name: auto
     slug: auto
     visibility: ProjectVisibility
     path: auto
     description: auto
+
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
-    created_at: auto
-    updated_at: auto
+    sharing_enabled: bool
+    sharing_token: Optional[UUID]
+    sharing_level: ProjectAccessLevel
+
     head: "ProjectVersion"
     versions: strawberry_django.relay.ListConnectionWithTotalCount[
         "ProjectVersion"
     ] = strawberry_django.connection(filters=ProjectVersionFilter)
+
     worker_set: Annotated["WorkerSet", lazy(".session")]
     worker_sets: list[Annotated["WorkerSet", lazy(".session")]]
     usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)
 
-    # TODO @Performance: specify only/select_related for can_write field
     @strawberry_django.field
-    def can_write(self, info: OperationInfo) -> bool:
-        user = get_user_from_info(info)
-        return can_write_project(user, self) is not None
+    def access_level(self, info: OperationInfo) -> ProjectAccessLevel:
+        access = has_project_access(info, self, models.ProjectAccessLevel.Read)
+        return access.level
 
     @strawberry_django.field
     def migration_mappings(
@@ -186,6 +194,26 @@ class Project(relay.Node):
             is_reverse=is_reverse,
             ref_mappings=final_ref_mappings,
         )
+
+
+@strawberry_django.type(models.ProjectMembership)
+class ProjectMembership(relay.Node):
+    project: Project
+    user: Annotated["User", lazy(".user")]
+    level: ProjectAccessLevel
+    created_at: auto
+    updated_at: auto
+
+
+@strawberry_django.type(models.ProjectInvite)
+class ProjectInvite(relay.Node):
+    project: Project
+    user: Optional[Annotated["User", lazy(".user")]]
+    email: auto
+    level: ProjectAccessLevel
+    created_at: auto
+    updated_at: auto
+    email_sent_at: auto
 
 
 RefMappingKind = strawberry.enum(models.RefMappingKind)
@@ -254,14 +282,39 @@ class ProjectUpdateVisibilityInput(strawberry_django.NodeInput):
 
 
 @strawberry.input
+class ProjectUpdateSharingInput(strawberry_django.NodeInput):
+    sharing_enabled: bool
+    sharing_token: UUID
+    sharing_level: ProjectAccessLevel
+
+
+@strawberry.input
 class ProjectUpdateNameInput(strawberry_django.NodeInput):
     name: str
+
+
+@strawberry.input
+class ProjectInviteInput(strawberry_django.NodeInput):
+    emails: list[str]
+    level: ProjectAccessLevel
+    message: Optional[str] = None
+
+
+@strawberry.input
+class ProjectUpdateMembershipInput(strawberry_django.NodeInput):
+    user_id: GlobalID
+    level: ProjectAccessLevel
+
+
+@strawberry.input
+class ProjectRemoveMembershipInput(strawberry_django.NodeInput):
+    user_id: GlobalID
 
 
 @strawberry.type
 class ProjectMutation:
     @safe_mutation
-    def create_project(self, info, input: "ProjectCreateInput") -> Project | OperationInfo:
+    def create_project(self, info: Info, input: "ProjectCreateInput") -> Project | OperationInfo:
         requesting_user = get_user_from_info(info)
         owner_model = models.User if input.owner_id.type_name == "User" else models.Organization
         owner = owner_model.objects.get(id=input.owner_id.node_id)
@@ -278,20 +331,62 @@ class ProjectMutation:
 
     @safe_mutation
     def update_project_visibility(
-        self, info, input: "ProjectUpdateVisibilityInput"
+        self, info: Info, input: "ProjectUpdateVisibilityInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_can_write_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Manage)
         project.visibility = input.visibility
         project.save()
         return project
 
     @safe_mutation
-    def update_project_name(self, info, input: "ProjectUpdateNameInput") -> Project | OperationInfo:
+    def update_project_sharing(
+        self, info: Info, input: "ProjectUpdateSharingInput"
+    ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_can_write_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Manage)
+        project.sharing_enabled = input.sharing_enabled
+        project.sharing_token = input.sharing_token
+        project.sharing_level = input.sharing_level
+        project.save()
+        return project
+
+    @safe_mutation
+    def update_project_name(
+        self, info: Info, input: "ProjectUpdateNameInput"
+    ) -> Project | OperationInfo:
+        project = models.Project.objects.get(id=input.id.node_id)
+        check_project_access(info, project, ProjectAccessLevel.Manage)
         project.name = input.name
         project.save()
+        return project
+
+    @safe_mutation(atomic=True)
+    def create_project_invites(self, info, input: ProjectInviteInput) -> Project | OperationInfo:
+        project = models.Project.objects.get(id=input.id.node_id)
+        user = get_user_from_info(info)
+        check_project_access(info, project, ProjectAccessLevel.Manage)
+        for email in input.emails:
+            invite = project.create_invite(
+                email=email, level=input.level, message=input.message, created_by=user
+            )
+            invite.full_clean()
+        return project
+
+    @safe_mutation
+    def cancel_project_invite(self, info: Info, id: GlobalID) -> Project | OperationInfo:
+        invite = models.ProjectInvite.objects.get(id=id.node_id)
+        check_project_access(info, invite.project, ProjectAccessLevel.Manage)
+        invite.delete()
+        return invite.project
+
+    @safe_mutation
+    def remove_project_membership(
+        self, info: Info, input: "ProjectRemoveMembershipInput"
+    ) -> Project | OperationInfo:
+        project = models.Project.objects.get(id=input.id.node_id)
+        check_project_access(info, project, ProjectAccessLevel.Manage)
+        project.memberships.filter(user_id=input.user_id.node_id).delete()
         return project
 
 
@@ -327,8 +422,8 @@ class ProjectVersionMutation:
     def update_project_version(
         self, info, input: "UpdateProjectVersion"
     ) -> ProjectVersion | OperationInfo:
-        project_v = models.ProjectVersion.objects.get(id=input.id.node_id)
-        check_can_write_project(info, project_v)
+        project_v = models.ProjectVersion.objects.select_related("project").get(id=input.id.node_id)
+        check_project_access(info, project_v.project, ProjectAccessLevel.Edit)
         project_v.name = input.name
         project_v.description = input.description
         project_v.tag = input.tag
@@ -343,7 +438,7 @@ class ProjectVersionMutation:
         project = head.project
         if head.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
-        check_can_write_project(info, head)
+        check_project_access(info, project, ProjectAccessLevel.Edit)
 
         # 'insert' new head between parents and head
         snapshot = models.ProjectVersion.objects.create(
@@ -390,44 +485,3 @@ class ProjectVersionMutation:
     def restore(self, info: Info, input: RestoreInput) -> CommitPayload | OperationInfo:
         # TODO @Broken: update restore to keep current ids properly (use module node identity?)
         raise NotImplementedError("restore is temporarily disabled")
-        to_restore = models.ProjectVersion.objects.select_related("project").get(
-            id=input.project_version_id.node_id
-        )
-        check_can_write_project(info, to_restore)
-        project = to_restore.project
-        if to_restore.id == project.head_id:
-            raise ValueError("cannot restore version that's already the head")
-
-        # auto-snapshot current head
-        old_head = to_restore.project.head
-        if not old_head.committed:
-            snapshot = models.ProjectVersion.objects.create(
-                project=project,
-                name="Autosave",
-                tag=None,
-                description="Autosave before restoring version",
-                committed_at=utcnow_with_tz(),
-            )
-            snapshot.parents.set(old_head.parents.all())
-            models.ProjectVersion.objects.copy(
-                old_head, snapshot, invert_mappings=True, copy_revisions=True
-            )
-
-        # then restore working version to the selected version (new head)
-        new_head = project.create_new_blank_head(parent=to_restore)
-        project.head = new_head
-        models.ProjectVersion.objects.copy(source=to_restore, target=new_head)
-        project.save()
-
-        # publish
-        origin = get_client_origin_from_info(info)
-        publish_soon(
-            NMessageType.PROJECT_CHANGED,
-            ProjectChangedPayload(project_id=project.id, origins=[origin]),
-        )
-
-        return CommitPayload(
-            project=project,
-            committed_version=old_head,
-            new_working_version=new_head,
-        )

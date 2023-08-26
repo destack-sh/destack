@@ -13,12 +13,12 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import language, models
-from bench.api.auth import check_can_read_project, check_can_write_project
+from bench.api.auth import check_project_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
-from bench.models import RefMappingKind
+from bench.models import ProjectAccessLevel, RefMappingKind
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -423,17 +423,16 @@ class StatementMutation:
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
 
-        # check that the user can write the target
+        # check user access
         source_file_ids = set(s.file_id for s in source_statements)
         target_file = models.File.objects.get(id=input.target_file_id.node_id)
-        check_can_write_project(info, target_file)
         source_project_v = source_statements[0].project_version
         source_project_v_ids = set(s.project_version_id for s in source_statements)
         if len(source_project_v_ids) > 1:
             raise ValidationError("statements must be from the same project version")
-        # check that the user can read the source (if different)
         if source_project_v != target_file.project_version:
-            check_can_read_project(info, source_project_v.project)
+            check_project_access(info, source_project_v.project, models.ProjectAccessLevel.Read)
+        check_project_access(info, target_file.project_version.project, ProjectAccessLevel.Edit)
 
         # actually paste and store paste refmappings
         target_ids = [UUID(i.node_id) for i in input.target_ids]

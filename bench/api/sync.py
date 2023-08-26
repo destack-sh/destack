@@ -7,13 +7,11 @@ from typing import Any, Optional, Sequence
 import posthog
 import strawberry_django
 import structlog
-from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
 
-from bench import models
-from bench.api.auth import check_can_write_project
+from bench.api.auth import check_module_node_access
 from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
 from bench.language import Statement
@@ -82,7 +80,7 @@ def tracked_db_mutation(
                 things = [thing]
 
             # validate (ignoring constraints; 'revision' field which may be an F expression)
-            project_v = check_can_write_thing(info, thing, check_auth=not skip_auth_check)
+            access = check_module_node_access(info, thing, check_auth=not skip_auth_check)
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )
@@ -99,10 +97,10 @@ def tracked_db_mutation(
             # dual write, publish and track mutation
             origin = get_client_origin_from_info(info)
             api_mutations, internal_mutations = publish_tracked_mutation(
-                project_v, origin, type, kwargs.get("input"), things, batch
+                access.project_version, origin, type, kwargs.get("input"), things, batch
             )
-            write_mutations_to_os(project_v, api_mutations, wait=False)
-            track_mutation_for_analytics(type, project_v, things, batch, info)
+            write_mutations_to_os(access.project_version, api_mutations, wait=False)
+            track_mutation_for_analytics(type, access.project_version, things, batch, info)
 
             return ret
 
@@ -172,27 +170,6 @@ def tracked_os_mutation(
         return strawberry_django.mutation(wrap_exceptions(wrapped_mutation))
 
     return make_resolver
-
-
-def check_can_write_thing(info: Info, thing: MutableThing, check_auth: bool = True):
-    if isinstance(thing, (models.File, models.Statement)):
-        project_v = models.ProjectVersion.objects.only("committed_at").get(
-            id=thing.project_version_id
-        )
-    elif isinstance(thing, (models.Field, models.Tagging, models.Trigger)):
-        # TODO @Performance: fetching project_version for statement mutation is inefficient
-        project_v = models.ProjectVersion.objects.only("committed_at").get(
-            id=thing.statement.project_version_id
-        )
-    else:
-        raise TypeError(f"thing is not a project thing: {thing}")
-    # check that containing project is not committed
-    if project_v.committed:
-        raise PermissionDenied("cannot mutate committed project version")
-    # check auth
-    if check_auth:
-        check_can_write_project(info, thing)
-    return project_v
 
 
 def _register_mutation(type, func):

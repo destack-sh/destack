@@ -1,11 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
 
-from bench.models.organization import (
-    Organization,
-    OrganizationMembership,
-    OrganizationMembershipLevel,
-)
+from bench.models.organization import Organization, OrganizationMembership, OrganizationRole
 from bench.models.user import User
 
 
@@ -24,8 +20,8 @@ class Command(BaseCommand):
         parser.add_argument(
             "--role",
             type=str,
-            choices=[level.name for level in OrganizationMembershipLevel],
-            default=OrganizationMembershipLevel.Guest,
+            choices=[level.name for level in OrganizationRole],
+            default=OrganizationRole.Guest,
             help="Role to be assigned when adding a user to the organization",
         )
 
@@ -34,8 +30,8 @@ class Command(BaseCommand):
         user_identifier = options["user_identifier"]
         organization_slug = options["organization_slug"]
         action = options["action"]
-        role = options.get("role", OrganizationMembershipLevel.Guest.name)
-        role = OrganizationMembershipLevel[role]
+        role = options.get("role", OrganizationRole.Guest.name)
+        role = OrganizationRole[role]
 
         organization = Organization.objects.get(owner_slug_id=organization_slug)
         # Determine if the user_identifier is a username or email
@@ -51,7 +47,7 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Updated {user} in {organization} with role {OrganizationMembershipLevel(role).label}"
+                        f"Updated {user} in {organization} with role {OrganizationRole(role).label}"
                     )
                 )
             else:
@@ -60,7 +56,7 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Added {user } to {organization} with role {OrganizationMembershipLevel(role).label}"
+                        f"Added {user } to {organization} with role {OrganizationRole(role).label}"
                     )
                 )
         elif action == "remove":

@@ -3,7 +3,7 @@ import { graphql } from "@/gql";
 import { useActions } from "@/state/actions";
 import { useBenchState, type PanelGroup } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
-import { DocumentIcon, MagnifyingGlassIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import { DocumentIcon, MagnifyingGlassIcon, PlayIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
 import { computed } from "vue";
 
@@ -37,7 +37,6 @@ const createActions = computed(() => [
     label: "View files",
     icon: DocumentIcon,
     action: () => bench.openActiveView("explorer"),
-    enabled: true,
   },
   {
     label: "Search files",
@@ -50,6 +49,11 @@ const createActions = computed(() => [
     icon: PlusIcon,
     action: () => actions.file.create.value.apply(),
     enabled: actions.file.create.value.enabled,
+  },
+  {
+    label: "View runs",
+    icon: PlayIcon,
+    action: () => bench.openViewRuns(),
   },
 ]);
 

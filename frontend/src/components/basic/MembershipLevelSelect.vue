@@ -1,34 +1,34 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { OrganizationMembershipLevel } from "@/gql/graphql";
+import { OrganizationRole } from "@/gql/graphql";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { ChevronDownIcon, EyeIcon, PencilIcon, WalletIcon, WrenchScrewdriverIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
-const props = defineProps<{ modelValue?: OrganizationMembershipLevel }>();
-const emit = defineEmits<{ (e: "update:modelValue", value: OrganizationMembershipLevel): void }>();
+const props = defineProps<{ modelValue?: OrganizationRole }>();
+const emit = defineEmits<{ (e: "update:modelValue", value: OrganizationRole): void }>();
 
 const levels = [
   {
-    value: OrganizationMembershipLevel.Guest,
+    value: OrganizationRole.Guest,
     label: "Guest",
     icon: EyeIcon,
     description: "View and comment",
   },
   {
-    value: OrganizationMembershipLevel.Member,
+    value: OrganizationRole.Member,
     label: "Member",
     icon: PencilIcon,
     description: "Create and edit Benches",
   },
   {
-    value: OrganizationMembershipLevel.Administrator,
+    value: OrganizationRole.Administrator,
     label: "Admin",
     icon: WrenchScrewdriverIcon,
     description: "Manage settings",
   },
   {
-    value: OrganizationMembershipLevel.Owner,
+    value: OrganizationRole.Owner,
     label: "Owner",
     icon: WalletIcon,
     description: "Do anything",

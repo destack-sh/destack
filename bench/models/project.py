@@ -84,9 +84,18 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
+class ProjectAccessLevel(models.IntegerChoices):
+    Zero = 0  # no access
+    Read = 1  # can view and comment
+    Use = 4  # can run
+    Edit = 8  # can edit, view secrets
+    Manage = 12  # can manage members
+    Admin = 16  # deletion-protection, destructive actions, manage admins
+
+
 class Project(UUIDModel, CrudModel):
     """
-    A project to instruct beautiful bots..
+    A project == a Bench.
 
     Projects are the root of versioning, similar to repositories in Git.
     All versions are available in 'versions' and may not be linear (also like in Git).
@@ -95,19 +104,24 @@ class Project(UUIDModel, CrudModel):
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH)
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     slug: models.SlugField = models.SlugField(max_length=128, validators=[validate_slug])
+
     visibility = models.CharField(
         max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
     )
-
-    # TODO @Feature: basic branching (per-head branch with head pointing to main head)
-    head = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
-    )
+    sharing_enabled = models.BooleanField(default=False)
+    sharing_token = models.UUIDField(default=uuid4)
+    sharing_level = models.IntegerField(default=ProjectAccessLevel.Read)
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects", null=True
     )
     user: models.ForeignKey = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="projects", null=True
+    )
+    members = models.ManyToManyField("User", through="ProjectMembership", related_name="projects+")
+    memberships: models.QuerySet["ProjectMembership"]  # noqa via ProjectMembership.project
+
+    head = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
     )
     remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
     worker_set = models.OneToOneField(  # only one worker set for now
@@ -159,6 +173,48 @@ class Project(UUIDModel, CrudModel):
 
         return new_version
 
+    @transaction.atomic(savepoint=False)
+    def create_invite(
+        self, email: str, level: "ProjectAccessLevel", message: str = None, created_by: User = None
+    ) -> "ProjectInvite":
+        from bench.models.notification import Notification, NotificationType
+        from bench.models.user import User
+
+        user = User.objects.filter(email=email).first()
+        if user is not None and self.members.filter(id=user.id).exists():
+            raise ValueError("user already a member of organization")
+
+        invite = ProjectInvite.objects.create(
+            project=self,
+            email=email,
+            level=level,
+            message=message,
+            created_by=created_by,
+            user=user,
+        )
+
+        # create notification if the user is signed up
+        if user is not None:
+            Notification.objects.create(
+                type=NotificationType.ORGANIZATION_INVITE,
+                user=user,
+                invite=invite,
+            )
+
+        return invite
+
+    @transaction.atomic(savepoint=False)
+    def accept_invite(self, invite: "ProjectInvite") -> None:
+        if invite.user is None:
+            raise ValueError("cannot accept invite without registered user")
+        invite.project.add_member(invite.user, invite.level)
+        invite.delete()
+
+    def add_member(self, user: User, level: "ProjectAccessLevel") -> None:
+        if self.members.filter(id=user.id).exists():
+            raise ValueError("user already a member of project")
+        ProjectMembership.objects.create(project=self, user=user, level=level)
+
     objects: ProjectManager = ProjectManager()
 
     class Meta:
@@ -175,6 +231,10 @@ class Project(UUIDModel, CrudModel):
                 fields=["user", "slug"],
                 condition=models.Q(user__isnull=False),
             ),
+            # unique sharing token
+            models.UniqueConstraint(
+                name="bench_project_sharing_token_ak", fields=["sharing_token"]
+            ),
             # must have at least one owner (organization or user)
             models.CheckConstraint(
                 name="bench_project_owner_ck",
@@ -183,73 +243,63 @@ class Project(UUIDModel, CrudModel):
         ]
 
 
-def create_global_project_s3_bucket():
-    """
-    Creates a public S3 bucket for all projects.
-    """
-    s3_client = get_s3_client()
-    response = s3_client.create_bucket(
-        Bucket=PROJECT_BUCKET_NAME,
-        CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
+class ProjectMembership(UUIDModel):
+    project: models.ForeignKey = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="memberships"
     )
-    if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-        raise RuntimeError(f"failed to create s3 bucket: {response}")
-    if not LOCAL:
-        # enable cors
-        response = s3_client.put_bucket_cors(
-            Bucket=PROJECT_BUCKET_NAME,
-            CORSConfiguration={
-                "CORSRules": [
-                    {
-                        "AllowedHeaders": ["*"],
-                        "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
-                        "AllowedOrigins": ["*"],
-                        "ExposeHeaders": ["ETag"],
-                        "MaxAgeSeconds": 3000,
-                    }
-                ]
-            },
-        )
-        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise RuntimeError(f"failed to set cors on s3 bucket: {response}")
-        # set encryption
-        response = s3_client.put_bucket_encryption(
-            Bucket=PROJECT_BUCKET_NAME,
-            ServerSideEncryptionConfiguration={
-                "Rules": [
-                    {
-                        "ApplyServerSideEncryptionByDefault": {
-                            "SSEAlgorithm": "AES256"  # Use AES256 encryption
-                        }
-                    }
-                ]
-            },
-        )
-        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
-            raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
-
-
-def create_per_project_os_index(project: Project):
-    """Creates OpenSearch indices for the project."""
-    from bench.opensearch.index import create_bench_index
-
-    create_bench_index(project.id)
-
-
-def create_default_worker_set(project: Project):
-    from bench.models import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
-
-    worker_set = WorkerSet.objects.create(
-        project_id=project.id,
-        region=WorkerRegion.EU_CENTRAL,
-        profile=WorkerProfile.TINY,
-        sleeping=True,
-        desired_replicas=1,
-        target_replicas=1,
-        status=WorkerSetStatus.SLEEPING,
+    user: models.ForeignKey = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="project_memberships"
     )
-    project.worker_set = worker_set
-    project.save()
+    level = models.IntegerField(choices=ProjectAccessLevel.choices)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.project} -> {self.user} ({self.level})"
+
+    def __repr__(self):
+        return f"<ProjectMembership {self}>"
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(name="bench_project_membership_ak", fields=["project", "user"])
+        ]
+
+
+class ProjectInvite(UUIDModel):
+    """
+    An invitation to join a project (for existing or not yet existing users).
+    """
+
+    project = models.ForeignKey("Project", on_delete=models.CASCADE, related_name="invites")
+    email = models.EmailField()
+    user = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="project_invites", null=True
+    )
+    level = models.IntegerField(choices=ProjectAccessLevel.choices)
+    message = models.TextField(blank=True, null=True)
+    email_sent_at = models.DateTimeField(blank=True, null=True)
+
+    created_by = models.ForeignKey("User", on_delete=models.CASCADE, related_name="+")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.project} -> {self.email} ({self.level})"
+
+    def __repr__(self):
+        return f"<ProjectInvite {self}>"
+
+    def accept(self):
+        self.project.accept_invite(self)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(name="bench_project_invite_ak", fields=["project", "email"])
+        ]
 
 
 class ProjectVersionManager(models.Manager["ProjectVersion"]):
@@ -782,3 +832,72 @@ class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
         ordering = ["name"]
         # path doesn't have to be unique
         constraints = []
+
+
+def create_global_project_s3_bucket():
+    """
+    Creates a public S3 bucket for all projects.
+    """
+    s3_client = get_s3_client()
+    response = s3_client.create_bucket(
+        Bucket=PROJECT_BUCKET_NAME,
+        CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
+    )
+    if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+        raise RuntimeError(f"failed to create s3 bucket: {response}")
+    if not LOCAL:
+        # enable cors
+        response = s3_client.put_bucket_cors(
+            Bucket=PROJECT_BUCKET_NAME,
+            CORSConfiguration={
+                "CORSRules": [
+                    {
+                        "AllowedHeaders": ["*"],
+                        "AllowedMethods": ["GET", "PUT", "POST", "DELETE"],
+                        "AllowedOrigins": ["*"],
+                        "ExposeHeaders": ["ETag"],
+                        "MaxAgeSeconds": 3000,
+                    }
+                ]
+            },
+        )
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise RuntimeError(f"failed to set cors on s3 bucket: {response}")
+        # set encryption
+        response = s3_client.put_bucket_encryption(
+            Bucket=PROJECT_BUCKET_NAME,
+            ServerSideEncryptionConfiguration={
+                "Rules": [
+                    {
+                        "ApplyServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "AES256"  # Use AES256 encryption
+                        }
+                    }
+                ]
+            },
+        )
+        if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+            raise RuntimeError(f"failed to set encryption on s3 bucket: {response}")
+
+
+def create_per_project_os_index(project: Project):
+    """Creates OpenSearch indices for the project."""
+    from bench.opensearch.index import create_bench_index
+
+    create_bench_index(project.id)
+
+
+def create_default_worker_set(project: Project):
+    from bench.models import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
+
+    worker_set = WorkerSet.objects.create(
+        project_id=project.id,
+        region=WorkerRegion.EU_CENTRAL,
+        profile=WorkerProfile.TINY,
+        sleeping=True,
+        desired_replicas=1,
+        target_replicas=1,
+        status=WorkerSetStatus.SLEEPING,
+    )
+    project.worker_set = worker_set
+    project.save()

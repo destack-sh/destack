@@ -506,6 +506,7 @@ type Mutation {
   completeSignup(input: UserCompleteSignupInput!): UserOperationInfo!
   updateUser(input: UserUpdateInput!): UserOperationInfo!
   acceptOrganizationInvite(id: GlobalID!): UserOperationInfo!
+  acceptProjectInvite(id: GlobalID!): UserOperationInfo!
   logout: OperationInfo
   secretRootLogin(username: String!): UserOperationInfo!
   upsertClient(input: ClientUpsertInput!): ClientOperationInfo!
@@ -522,7 +523,11 @@ type Mutation {
   markNotification(input: NotificationMarkInput!): NotificationOperationInfo!
   createProject(input: ProjectCreateInput!): ProjectOperationInfo!
   updateProjectVisibility(input: ProjectUpdateVisibilityInput!): ProjectOperationInfo!
+  updateProjectSharing(input: ProjectUpdateSharingInput!): ProjectOperationInfo!
   updateProjectName(input: ProjectUpdateNameInput!): ProjectOperationInfo!
+  createProjectInvites(input: ProjectInviteInput!): ProjectOperationInfo!
+  cancelProjectInvite(id: GlobalID!): ProjectOperationInfo!
+  removeProjectMembership(input: ProjectRemoveMembershipInput!): ProjectOperationInfo!
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
   commit(input: CommitInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
@@ -612,7 +617,9 @@ type Notification implements Node {
   readAt: DateTime
   expiresAt: DateTime
   archivedAt: DateTime
-  invite: OrganizationInvite!
+  organizationInvite: OrganizationInvite!
+  projectInvite: ProjectInvite!
+  run: Run!
 }
 
 """A connection to a list of items."""
@@ -660,6 +667,9 @@ enum NotificationStatus {
 
 enum NotificationType {
   ORGANIZATION_INVITE
+  PROJECT_INVITE
+  RUN_FAILED
+  RUN_SUSPENDED
 }
 
 input NotifyUploadedObjectInput {
@@ -727,7 +737,7 @@ type Organization implements Owner & Node {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): AccessTokenConnection!
-  canViewFull: Boolean!
+  canViewDetail: Boolean!
   canWrite: Boolean!
   description: String
   memberships(
@@ -790,7 +800,7 @@ type OrganizationInvite implements Node {
   organization: Organization!
   user: User
   email: String!
-  level: OrganizationMembershipLevel!
+  level: OrganizationRole!
   createdAt: DateTime!
   updatedAt: DateTime!
   emailSentAt: DateTime
@@ -820,7 +830,7 @@ type OrganizationInviteEdge {
 input OrganizationInviteInput {
   id: GlobalID!
   emails: [String!]!
-  level: OrganizationMembershipLevel!
+  level: OrganizationRole!
   message: String = null
 }
 
@@ -829,7 +839,7 @@ type OrganizationMembership implements Node {
   id: GlobalID!
   organization: Organization!
   user: User!
-  level: OrganizationMembershipLevel!
+  level: OrganizationRole!
   createdAt: DateTime!
   updatedAt: DateTime!
 }
@@ -855,14 +865,6 @@ type OrganizationMembershipEdge {
   node: OrganizationMembership!
 }
 
-enum OrganizationMembershipLevel {
-  Guest
-  Member
-  Author
-  Administrator
-  Owner
-}
-
 union OrganizationMembershipOperationInfo = OrganizationMembership | OperationInfo
 
 union OrganizationOperationInfo = Organization | OperationInfo
@@ -870,6 +872,13 @@ union OrganizationOperationInfo = Organization | OperationInfo
 input OrganizationRemoveMembershipInput {
   id: GlobalID!
   userId: GlobalID!
+}
+
+enum OrganizationRole {
+  Guest
+  Member
+  Manager
+  Owner
 }
 
 input OrganizationUpdateInput {
@@ -881,7 +890,7 @@ input OrganizationUpdateInput {
 input OrganizationUpdateMembershipInput {
   id: GlobalID!
   userId: GlobalID!
-  level: OrganizationMembershipLevel!
+  level: OrganizationRole!
 }
 
 interface Owner {
@@ -892,7 +901,7 @@ interface Owner {
   updatedAt: DateTime!
   projects: ProjectConnection!
   accessTokens: AccessTokenConnection!
-  canViewFull: Boolean!
+  canViewDetail: Boolean!
   canWrite: Boolean!
 }
 
@@ -919,14 +928,17 @@ type PageInfo {
 type Project implements Node {
   """The Globally Unique ID of this object"""
   id: GlobalID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
   name: String!
   slug: String!
   visibility: ProjectVisibility!
   path: String!
   description: String
   owner: UserOrganization!
-  createdAt: DateTime!
-  updatedAt: DateTime!
+  sharingEnabled: Boolean!
+  sharingToken: UUID
+  sharingLevel: ProjectAccessLevel!
   head: ProjectVersion!
   versions(
     filters: ProjectVersionFilter
@@ -946,8 +958,17 @@ type Project implements Node {
   workerSet: WorkerSet!
   workerSets: [WorkerSet!]!
   usage: ProjectUsage!
-  canWrite: Boolean!
+  accessLevel: ProjectAccessLevel!
   migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
+}
+
+enum ProjectAccessLevel {
+  Zero
+  Read
+  Use
+  Edit
+  Manage
+  Admin
 }
 
 type ProjectChange implements Change {
@@ -983,6 +1004,25 @@ type ProjectEdge {
   node: Project!
 }
 
+type ProjectInvite implements Node {
+  """The Globally Unique ID of this object"""
+  id: GlobalID!
+  project: Project!
+  user: User
+  email: String!
+  level: ProjectAccessLevel!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  emailSentAt: DateTime
+}
+
+input ProjectInviteInput {
+  id: GlobalID!
+  emails: [String!]!
+  level: ProjectAccessLevel!
+  message: String = null
+}
+
 type ProjectMigrationInfo {
   isReverse: Boolean!
   sourceVersion: ProjectVersion!
@@ -992,9 +1032,21 @@ type ProjectMigrationInfo {
 
 union ProjectOperationInfo = Project | OperationInfo
 
+input ProjectRemoveMembershipInput {
+  id: GlobalID!
+  userId: GlobalID!
+}
+
 input ProjectUpdateNameInput {
   id: GlobalID!
   name: String!
+}
+
+input ProjectUpdateSharingInput {
+  id: GlobalID!
+  sharingEnabled: Boolean!
+  sharingToken: UUID!
+  sharingLevel: ProjectAccessLevel!
 }
 
 input ProjectUpdateVisibilityInput {
@@ -1748,7 +1800,7 @@ input StatementUpdateTextInput {
 type Subscription {
   clientsChanged(projectId: GlobalID, projectVersionId: GlobalID): Client!
   projectChanged(projectId: GlobalID!): ProjectChange!
-  moduleChanged(projectVersionId: GlobalID!): ModuleChange!
+  moduleChanged(projectId: GlobalID!, projectVersionId: GlobalID!): ModuleChange!
   sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeRunsChangeWorkerChange!
   logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null): LogChange!
 }
@@ -1983,7 +2035,7 @@ type User implements Owner & Node {
     """Returns the items in the list that come after the specified cursor."""
     last: Int = null
   ): AccessTokenConnection!
-  canViewFull: Boolean!
+  canViewDetail: Boolean!
   canWrite: Boolean!
   username: String!
   email: String!

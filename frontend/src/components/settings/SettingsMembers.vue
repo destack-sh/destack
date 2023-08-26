@@ -5,7 +5,7 @@ import Switch from "@/components/basic/Switch.vue";
 import UserCombobox from "@/components/basic/UserCombobox.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql } from "@/gql";
-import { OrganizationMembershipLevel, type OrganizationInvite, type OrganizationMembership } from "@/gql/graphql";
+import { OrganizationRole, type OrganizationInvite, type OrganizationMembership } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -81,7 +81,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
 const addMemberRef = ref<HTMLButtonElement | null>(null);
 
 const invitingUser: Ref<{ id?: string; email: string } | null> = ref(null);
-const invitingLevel: Ref<OrganizationMembershipLevel> = ref(OrganizationMembershipLevel.Member);
+const invitingLevel: Ref<OrganizationRole> = ref(OrganizationRole.Member);
 
 const ops = useOperations();
 const notifications = useNotifications();

@@ -26,8 +26,8 @@ class Organization(UUIDModel):
     An organization is a group of users and projects.
     """
 
-    name: models.CharField = models.CharField(max_length=256)
-    owner_slug: models.ForeignKey = models.OneToOneField(
+    name = models.CharField(max_length=256)
+    owner_slug = models.OneToOneField(
         "OwnerSlug",
         unique=True,
         on_delete=models.CASCADE,
@@ -35,15 +35,13 @@ class Organization(UUIDModel):
         related_name="organization",
     )
     owner_slug_id: Optional[str]  # noqa
-    description: models.CharField = models.CharField(
-        max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True
-    )
-    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
-    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
+    description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     projects: models.QuerySet["Project"]  # noqa via Project.user
-    members: models.ManyToManyField = models.ManyToManyField(
-        "bench.User", through="OrganizationMembership", related_name="organizations"
+    members = models.ManyToManyField(
+        "User", through="OrganizationMembership", related_name="organizations"
     )
     memberships: models.QuerySet[
         "OrganizationMembership"
@@ -52,10 +50,11 @@ class Organization(UUIDModel):
 
     objects = OrganizationManager()
 
+    @transaction.atomic(savepoint=False)
     def create_invite(
         self,
         email: str,
-        level: "OrganizationMembershipLevel",
+        level: "OrganizationRole",
         message: str = None,
         created_by: "User" = None,
     ) -> "OrganizationInvite":
@@ -89,7 +88,7 @@ class Organization(UUIDModel):
     def accept_invite(self, invite: "OrganizationInvite"):
         if invite.user is None:
             raise ValueError("cannot accept invite without registered user")
-        invite.user.join_organization(invite.organization, invite.level)
+        invite.organization.add_user(invite.user, invite.level)
         invite.delete()
 
     @property
@@ -106,27 +105,24 @@ class Organization(UUIDModel):
         default_manager_name = "objects"
 
 
-class OrganizationMembershipLevel(models.IntegerChoices):
+class OrganizationRole(models.IntegerChoices):
     Guest = 1
     Member = 4
-    Author = 8
-    Administrator = 12
-    Owner = 16
+    Manager = 8
+    Owner = 12
 
 
 class OrganizationMembership(UUIDModel):
-    organization: models.ForeignKey = models.ForeignKey(
+    organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, related_name="memberships"
     )
-    user: models.ForeignKey = models.ForeignKey(
-        "bench.User", on_delete=models.CASCADE, related_name="organization_memberships"
+    user = models.ForeignKey(
+        "User", on_delete=models.CASCADE, related_name="organization_memberships"
     )
-    level: models.SmallIntegerField = models.SmallIntegerField(
-        choices=OrganizationMembershipLevel.choices
-    )
+    level = models.SmallIntegerField(choices=OrganizationRole.choices)
 
-    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
-    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.organization} -> {self.user} ({self.level})"
@@ -135,10 +131,10 @@ class OrganizationMembership(UUIDModel):
         return f"<OrganizationMembership {self}>"
 
     class Meta:
-        ordering = ["created_at"]
+        ordering = ["-created_at"]
         constraints = [
             models.UniqueConstraint(
-                name="bench_organization_membership_ak", fields=["organization_id", "user_id"]
+                name="bench_organization_membership_ak", fields=["organization", "user"]
             )
         ]
 
@@ -148,22 +144,18 @@ class OrganizationInvite(UUIDModel):
     An invitation to join an organization (for existing or not yet existing users).
     """
 
-    organization: models.ForeignKey = models.ForeignKey(
-        Organization, on_delete=models.CASCADE, related_name="invites"
-    )
-    email: models.EmailField = models.EmailField()
-    user: models.ForeignKey = models.ForeignKey(
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="invites")
+    email = models.EmailField()
+    user = models.ForeignKey(
         "User", on_delete=models.CASCADE, null=True, blank=True, related_name="invites"
     )
-    level: models.SmallIntegerField = models.SmallIntegerField(
-        choices=OrganizationMembershipLevel.choices
-    )
-    message: models.TextField = models.TextField(blank=True, null=True)
-    email_sent_at: models.DateTimeField = models.DateTimeField(blank=True, null=True)
+    level = models.SmallIntegerField(choices=OrganizationRole.choices)
+    message = models.TextField(blank=True, null=True)
+    email_sent_at = models.DateTimeField(blank=True, null=True)
 
-    created_by: models.ForeignKey = models.ForeignKey("User", null=True, on_delete=models.SET_NULL)
-    created_at: models.DateTimeField = models.DateTimeField(auto_now_add=True)
-    updated_at: models.DateTimeField = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey("User", null=True, on_delete=models.SET_NULL)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"{self.organization} -> {self.email} ({self.level})"

@@ -45,7 +45,7 @@ gql_http_consumer = CORSMiddleware(
     AuthMiddlewareStack(GraphQLHTTPConsumer.as_asgi(schema=schema)),
     allow_origins=CORS_ALLOWED_ORIGINS,
     # see https://docs.sentry.io/platforms/javascript/guides/react/performance/instrumentation/automatic-instrumentation
-    allow_headers=["sentry-trace", "baggage", "x-client-nonce"],
+    allow_headers=["sentry-trace", "baggage", "x-client-nonce", "x-sharing-token"],
     allow_methods=["*"],
     allow_credentials=True,
 )
