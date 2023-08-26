@@ -405,8 +405,8 @@ class SessionQuery:
         )
         return SessionState(worker_set=project.worker_set, runs=latest_run_instances)
 
-    session: Optional[Session] = strawberry_django.node(directives=[])
-    run: Optional[Run] = strawberry_django.node(directives=[])
+    session: Optional[Session] = strawberry_django.node(extensions=[])
+    run: Optional[Run] = strawberry_django.node(extensions=[])
 
     @strawberry_django.field
     async def environment(self, info: Info, project_id: GlobalID) -> Environment | OperationInfo:

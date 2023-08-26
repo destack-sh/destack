@@ -8,9 +8,15 @@ from strawberry.relay import GlobalID
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_organization, check_can_write_organization
+from bench.api.auth import (
+    CheckTarget,
+    HasOrganizationRole,
+    can_write_organization,
+    check_can_write_organization,
+)
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import get_user_from_info, safe_mutation
+from bench.models import OrganizationRole
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -36,16 +42,19 @@ class Organization(Owner, relay.Node):
     description: auto
     memberships: strawberry_django.relay.ListConnectionWithTotalCount[
         "OrganizationMembership"
-    ] = strawberry_django.connection()
+    ] = strawberry_django.connection(extensions=[HasOrganizationRole(target=CheckTarget.ROOT)])
     invites: strawberry_django.relay.ListConnectionWithTotalCount[
         "OrganizationInvite"
-    ] = strawberry_django.connection()
+    ] = strawberry_django.connection(extensions=[HasOrganizationRole(target=CheckTarget.ROOT)])
     projects: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["Project", lazy(".project")]
-    ] = strawberry_django.connection(directives=[])
+    ] = strawberry_django.connection(extensions=[HasOrganizationRole(target=CheckTarget.ROOT)])
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
-    ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
+    ] = strawberry_django.connection(
+        filters=AccessTokenFilter,
+        extensions=[HasOrganizationRole(level=OrganizationRole.Member, target=CheckTarget.ROOT)],
+    )
 
     @strawberry_django.field
     def can_view_detail(self, info: OperationInfo) -> bool:

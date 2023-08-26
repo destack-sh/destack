@@ -13,6 +13,7 @@ from strawberry.types import ExecutionContext, Info
 from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
+from bench.api.auth import HasProjectAccess
 from bench.api.dataset import DatasetMutation, RecordQuery
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node_by_id
@@ -127,25 +128,29 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     owner_by_slug: Optional[Union[User, Organization]] = strawberry_django.field(
         resolver=get_user_or_organization_by_slug
     )
-    project: Optional[Project] = strawberry_django.node(directives=[])
+    project: Optional[Project] = strawberry_django.node(extensions=[HasProjectAccess()])
     project_by_slug: Optional[Project] = strawberry_django.field(
-        resolver=get_project_by_slug, directives=[]
+        resolver=get_project_by_slug, extensions=[HasProjectAccess()]
     )
     project_version: Optional[ProjectVersion] = strawberry_django.field(
         resolver=read_module_node_by_id
     )
     project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_slug, directives=[]
+        resolver=get_project_version_by_slug, extensions=[HasProjectAccess()]
     )
     project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_tag, directives=[]
+        resolver=get_project_version_by_tag, extensions=[HasProjectAccess()]
     )
     file: Optional[File] = strawberry_django.field(resolver=read_module_node_by_id)
     statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         resolver=read_module_node_by_id
     )
-    remote_object: Optional[RemoteObject] = strawberry_django.node(directives=[])
-    secret: Optional[Secret] = strawberry_django.node(directives=[])
+    remote_object: Optional[RemoteObject] = strawberry_django.node(
+        extensions=[HasProjectAccess(map=lambda obj: obj.project)]
+    )
+    secret: Optional[Secret] = strawberry_django.node(
+        extensions=[HasProjectAccess(map=lambda obj: obj.project)]
+    )
     featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
         Project
     ] = strawberry_django.connection(resolver=get_featured_projects)
