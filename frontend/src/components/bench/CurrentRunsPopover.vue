@@ -56,7 +56,6 @@ function launch(statement: InterpStatement) {
 <template>
   <Popover v-slot="{ open }" class="relative">
     <PopoverButton
-      ref="deployButtonRef"
       class="relative flex flex-row items-center rounded-sm px-1 py-1 text-sm focus:outline-none"
       :class="{
         'hover:bg-orange-100': true,

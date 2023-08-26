@@ -176,8 +176,8 @@ watchEffect(() => {
         <HomeButton />
       </template>
       <template v-slot:right>
-        <OmniCreate />
-        <NotificationPopover class="ml-2" />
+        <NotificationPopover />
+        <OmniCreate class="ml-2" />
         <ProfileButton class="ml-2" />
       </template>
     </FatHeader>

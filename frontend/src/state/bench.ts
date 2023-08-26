@@ -45,7 +45,19 @@ import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
 
-export type ProjectHeader = Pick<Project, "id" | "name" | "slug" | "accessLevel" | "createdAt" | "updatedAt">;
+export type ProjectHeader = Pick<
+  Project,
+  | "id"
+  | "name"
+  | "slug"
+  | "accessLevel"
+  | "createdAt"
+  | "updatedAt"
+  | "sharingEnabled"
+  | "sharingToken"
+  | "sharingLevel"
+  | "owner"
+>;
 export type ProjectVersionHeader = Pick<
   ProjectVersion,
   "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"

@@ -2689,16 +2689,6 @@ export type MatchingUsersQuery = {
   };
 };
 
-export type ExistingProjectVersionTagQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  tag: Scalars["String"];
-}>;
-
-export type ExistingProjectVersionTagQuery = {
-  __typename?: "Query";
-  projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
-};
-
 export type NotificationsQueryVariables = Exact<{
   status?: InputMaybe<NotificationStatus>;
   notArchived?: InputMaybe<Scalars["Boolean"]>;
@@ -2740,6 +2730,16 @@ export type NotificationsQuery = {
       }>;
     };
   } | null;
+};
+
+export type ExistingProjectVersionTagQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+  tag: Scalars["String"];
+}>;
+
+export type ExistingProjectVersionTagQuery = {
+  __typename?: "Query";
+  projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
 };
 
 export type EmptyPanelsuggestedFilesQueryVariables = Exact<{
@@ -4245,6 +4245,28 @@ export type UpdateProjectVisibilityMutation = {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
     | { __typename?: "Project"; id: any; visibility: ProjectVisibility };
+};
+
+export type UpdateProjectSharingMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  sharingEnabled: Scalars["Boolean"];
+  sharingToken: Scalars["UUID"];
+  sharingLevel: ProjectAccessLevel;
+}>;
+
+export type UpdateProjectSharingMutation = {
+  __typename?: "Mutation";
+  updateProjectSharing:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
+    | {
+        __typename?: "Project";
+        id: any;
+        sharingEnabled: boolean;
+        sharingToken?: any | null;
+        sharingLevel: ProjectAccessLevel;
+      };
 };
 
 export type UpdateProjectNameMutationVariables = Exact<{
@@ -6951,56 +6973,6 @@ export const MatchingUsersDocument = {
     },
   ],
 } as unknown as DocumentNode<MatchingUsersQuery, MatchingUsersQueryVariables>;
-export const ExistingProjectVersionTagDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "existingProjectVersionTag" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "projectVersionByTag" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "projectId" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "tag" },
-                value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
 export const NotificationsDocument = {
   kind: "Document",
   definitions: [
@@ -7150,6 +7122,56 @@ export const NotificationsDocument = {
     },
   ],
 } as unknown as DocumentNode<NotificationsQuery, NotificationsQueryVariables>;
+export const ExistingProjectVersionTagDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "existingProjectVersionTag" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "projectVersionByTag" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "tag" },
+                value: { kind: "Variable", name: { kind: "Name", value: "tag" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "tag" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
 export const EmptyPanelsuggestedFilesDocument = {
   kind: "Document",
   definitions: [
@@ -11117,6 +11139,101 @@ export const UpdateProjectVisibilityDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateProjectVisibilityMutation, UpdateProjectVisibilityMutationVariables>;
+export const UpdateProjectSharingDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateProjectSharing" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sharingEnabled" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sharingToken" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sharingLevel" } },
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "ProjectAccessLevel" } },
+          },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateProjectSharing" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sharingEnabled" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sharingEnabled" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sharingToken" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sharingToken" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "sharingLevel" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "sharingLevel" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Project" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
+                      { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
+                      { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateProjectSharingMutation, UpdateProjectSharingMutationVariables>;
 export const UpdateProjectNameDocument = {
   kind: "Document",
   definitions: [

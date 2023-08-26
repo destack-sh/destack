@@ -70,6 +70,7 @@ import {
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
+import SharingPopover from "@/components/bench/SharingPopover.vue";
 
 const props = defineProps<{
   owner: string;
@@ -567,8 +568,9 @@ onBeforeUnmount(() => {
             <!-- <button class="p-1" disabled>
               <CommandLineIcon class="h-5 w-5 text-gray-400" />
             </button> -->
-            <OmniCreate @show="bench.showBenchHeader = true" />
+            <SharingPopover :project="project" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
+            <OmniCreate @show="bench.showBenchHeader = true" />
           </div>
         </FadeTransition>
         <ClientsPopover v-if="auth.loggedIn.value" class="ml-2" size="large" />

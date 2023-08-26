@@ -2,7 +2,7 @@
 import BookmarkDashedIcon from "@/components/basic/BookmarkDashedIcon.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import CommitPopover from "@/components/bench/CommitPopover.vue";
+import SnapshotPopover from "@/components/bench/SnapshotPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
@@ -241,7 +241,7 @@ defineExpose({
       <!-- Version controls -->
       <!-- Note that this commit popover duplicates the one from the main version list -->
       <!-- This is because it's easier to open the right popover in the right place that way -->
-      <CommitPopover
+      <SnapshotPopover
         v-else-if="head != null && isCurrent(head)"
         :version="(head as ProjectVersion)"
         :projectId="props.project.id"
@@ -265,7 +265,7 @@ defineExpose({
             <component :is="committing || loading ? BusySpinnerIcon : BookmarkIcon" class="h-4 w-4" />
           </FadeTransition>
         </PopoverButton>
-      </CommitPopover>
+      </SnapshotPopover>
     </div>
     <!-- View versions -->
     <div class="relative flex-1 pb-10" v-if="!loading">
@@ -305,7 +305,7 @@ defineExpose({
                 />
               </span>
               <!-- Version info -->
-              <CommitPopover
+              <SnapshotPopover
                 :version="(version as ProjectVersion)"
                 :projectId="props.project.id"
                 :prev-sem-ver-tag="versionIdx == 0 ? lastSemVerTag ?? undefined : undefined"
@@ -368,7 +368,7 @@ defineExpose({
                     {{ getTimeFromNowString(version.committedAt) }}
                   </time>
                 </div>
-              </CommitPopover>
+              </SnapshotPopover>
             </div>
           </div>
         </li>
