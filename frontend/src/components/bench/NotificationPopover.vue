@@ -138,56 +138,46 @@ const { getTimeFromNowString } = useTimeFromNow();
         <p class="text-gray-500" v-else-if="notifications.length == 0">All caught up.</p>
         <!-- Notifications -->
         <div v-else class="flex w-full flex-col items-center gap-y-4 transition">
-          <transition-group
-            move-class="transition-all"
-            enter-active-class="transition-opacity duration-100 ease-out"
-            enter-from-class="opacity-0"
-            enter-to-class="opacity-100"
-            leave-active-class="transition-opacity duration-75 ease-in"
-            leave-from-class="opacity-100"
-            leave-to-class="opacity-0"
+          <div
+            v-for="notification in renderedNotifications"
+            :key="notification.id"
+            class="flex w-full flex-row items-baseline justify-between overflow-hidden rounded-sm border-l-2 py-1.5 pl-1.5 pr-2 hover:cursor-pointer hover:bg-orange-100"
+            :class="{
+              'border-orange-600': notification.status === NotificationStatus.Active,
+              'border-gray-200': notification.status === NotificationStatus.Read,
+              'border-gray-400': notification.status === NotificationStatus.Archived,
+            }"
+            @click="toggleRead(notification)"
           >
-            <div
-              v-for="notification in renderedNotifications"
-              :key="notification.id"
-              class="flex w-full flex-row items-baseline justify-between overflow-hidden rounded-sm border-l-2 py-1.5 pl-1.5 pr-2 hover:cursor-pointer hover:bg-orange-100"
-              :class="{
-                'border-orange-600': notification.status === NotificationStatus.Active,
-                'border-gray-200': notification.status === NotificationStatus.Read,
-                'border-gray-400': notification.status === NotificationStatus.Archived,
-              }"
-              @click="toggleRead(notification)"
-            >
-              <!-- Main message -->
-              <div class="ml-1 flex flex-col">
-                <h3
-                  class="relative flex flex-row items-center gap-1 text-sm text-gray-900"
-                  :class="{ 'font-bold': notification.status == NotificationStatus.Active }"
-                >
-                  <component
-                    :is="notification.icon"
-                    v-if="notification.icon"
-                    class="absolute h-4 w-4"
-                    :class="notification.status == NotificationStatus.Active ? 'text-gray-900' : 'text-gray-500'"
-                  />
-                  <span class="ml-5">{{ notification.message }}</span>
-                </h3>
-                <p v-if="notification.description" class="text-xs text-gray-500">{{ notification.description }}</p>
-              </div>
-              <!-- Actions & Time -->
-              <div class="flex flex-row items-baseline">
-                <button
-                  v-if="notification.actionText"
-                  type="button"
-                  class="h-fit flex-shrink-0 rounded-sm px-3 text-sm font-medium text-gray-900 decoration-gray-500 decoration-dashed underline-offset-4 hover:underline hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
-                  @click="() => notification.action?.()"
-                >
-                  {{ notification.actionText }}
-                </button>
-                <span class="text-gray-500">{{ getTimeFromNowString(notification.createdAt) }}</span>
-              </div>
+            <!-- Main message -->
+            <div class="ml-1 flex flex-col">
+              <h3
+                class="relative flex flex-row items-center gap-1 text-sm text-gray-900"
+                :class="{ 'font-bold': notification.status == NotificationStatus.Active }"
+              >
+                <component
+                  :is="notification.icon"
+                  v-if="notification.icon"
+                  class="absolute h-4 w-4"
+                  :class="notification.status == NotificationStatus.Active ? 'text-gray-900' : 'text-gray-500'"
+                />
+                <span class="ml-5">{{ notification.message }}</span>
+              </h3>
+              <p v-if="notification.description" class="text-xs text-gray-500">{{ notification.description }}</p>
             </div>
-          </transition-group>
+            <!-- Actions & Time -->
+            <div class="flex flex-row items-baseline">
+              <button
+                v-if="notification.actionText"
+                type="button"
+                class="h-fit flex-shrink-0 rounded-sm px-3 text-sm font-medium text-gray-900 decoration-gray-500 decoration-dashed underline-offset-4 hover:underline hover:decoration-gray-900 hover:decoration-solid focus:outline-none"
+                @click="() => notification.action?.()"
+              >
+                {{ notification.actionText }}
+              </button>
+              <span class="text-gray-500">{{ getTimeFromNowString(notification.createdAt) }}</span>
+            </div>
+          </div>
         </div>
       </PopoverPanel>
     </FadeTransition>

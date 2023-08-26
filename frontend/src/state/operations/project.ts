@@ -1,5 +1,11 @@
 import { graphql } from "@/gql";
-import type { ProjectVisibility, UpdateProjectNameMutation, UpdateProjectVisibilityMutation } from "@/gql/graphql";
+import type {
+  ProjectAccessLevel,
+  ProjectVisibility,
+  UpdateProjectNameMutation,
+  UpdateProjectVisibilityMutation,
+  UpdateProjectSharingMutation,
+} from "@/gql/graphql";
 import { useOperationsStore } from "@/state/operations";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -65,6 +71,61 @@ export function useProjectOps() {
     });
   }
 
+  const { mutate: updateSharingMut } = useMutation(
+    graphql(/* GraphQL */ `
+      mutation updateProjectSharing(
+        $id: GlobalID!
+        $sharingEnabled: Boolean!
+        $sharingToken: UUID!
+        $sharingLevel: ProjectAccessLevel!
+      ) {
+        updateProjectSharing(
+          input: { id: $id, sharingEnabled: $sharingEnabled, sharingToken: $sharingToken, sharingLevel: $sharingLevel }
+        ) {
+          ... on Project {
+            id
+            sharingEnabled
+            sharingToken
+            sharingLevel
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: {
+        id: string;
+        sharingEnabled: boolean;
+        sharingToken: string;
+        sharingLevel: ProjectAccessLevel;
+      }) =>
+        ({
+          __typename: "Mutation",
+          updateSharing: {
+            __typename: "Project",
+            id: vars.id,
+            sharingEnabled: vars.sharingEnabled,
+            sharingToken: vars.sharingToken,
+            sharingLevel: vars.sharingLevel,
+          },
+        } as UpdateProjectSharingMutation),
+    }
+  );
+
+  async function updateSharing(
+    id: string,
+    sharingEnabled: boolean,
+    sharingToken: string,
+    sharingLevel: ProjectAccessLevel
+  ) {
+    return await ops.perform({
+      type: "project.updateSharing",
+      do: async () => {
+        return await updateSharingMut({ id, sharingEnabled, sharingToken, sharingLevel });
+      },
+    });
+  }
+
   const { mutate: updateNameMut } = useMutation(
     graphql(/* GraphQL */ `
       mutation updateProjectName($id: GlobalID!, $name: String!) {
@@ -90,5 +151,5 @@ export function useProjectOps() {
     }
   );
 
-  return { create, updateVisibility, updateName: updateNameMut };
+  return { create, updateVisibility, updateSharing: updateSharing, updateName: updateNameMut };
 }

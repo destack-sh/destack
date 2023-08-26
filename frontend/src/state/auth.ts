@@ -7,8 +7,19 @@ import { createSharedComposable } from "@vueuse/shared";
 import posthog from "posthog-js";
 import { computed, watchEffect } from "vue";
 import { useRouter } from "vue-router";
+import { parse as parseUuid, stringify as stringifyUuid } from "uuid";
 
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
+
+export function encodeSharingToken(uuid: string): string {
+  const bytes = parseUuid(uuid);
+  return btoa(bytes);
+}
+
+export function decodeSharingToken(base64: string): string {
+  const bytes = atob(base64);
+  return stringifyUuid(bytes);
+}
 
 function _useAuth() {
   const { result: meResult, loading: meLoading } = useQuery(
