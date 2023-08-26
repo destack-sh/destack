@@ -17,11 +17,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import (
-    check_can_read_project,
-    check_can_view_project_by_id,
-    check_can_write_project,
-)
+from bench.api.auth import check_project_access
 from bench.api.statement import Statement
 from bench.api.utils import (
     ListConnectionWithTotalCount,
@@ -38,7 +34,7 @@ from bench.api.utils import (
 from bench.language import Q, Query, Sort, SortOrder, wire
 from bench.language.const import RUNNABLE_STATEMENT_TYPES
 from bench.language.session import PENDING_RUN_STATUSES
-from bench.models import packer
+from bench.models import ProjectAccessLevel, packer
 from bench.msg.core import NMessage, request, subscribe, subscribe_many
 from bench.msg.messages import (
     LogsChangedPayload,
@@ -382,7 +378,7 @@ class SessionQuery:
     ) -> SessionState | OperationInfo:
         project = models.Project.objects.get(id=to_uuid(project_id))
         project_version_id = to_uuid(project_version_id)
-        check_can_read_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Read)
 
         runnable_statements_ids = models.Statement.objects.filter(
             deleted_at=None,
@@ -416,7 +412,7 @@ class SessionQuery:
     async def environment(self, info: Info, project_id: GlobalID) -> Environment | OperationInfo:
         project_id = UUID(project_id.node_id)
         project = await models.Project.objects.select_related("worker_set").aget(id=project_id)
-        await sync_to_async(check_can_read_project)(info, project)
+        await sync_to_async(check_project_access)(info, project, ProjectAccessLevel.Read)
         try:
             rep: NMessage[RepGetEnvironmentPayload] = await request(
                 NMessageType.GET_ENVIRONMENT,
@@ -462,7 +458,7 @@ class SessionQuery:
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
         runnable_ids = to_uuids(runnable_ids)
-        check_can_read_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Read)
 
         query = query.to_dsl() if query else None
         if session_id:
@@ -543,7 +539,7 @@ class SessionQuery:
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
         runnable_ids = to_uuids(runnable_ids)
-        check_can_read_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Read)
 
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
         query = query.to_dsl() if query else None
@@ -596,7 +592,7 @@ class SessionMutation:
     ) -> WakeRuntimePayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_can_read_project)(info, project_version)
+        await sync_to_async(check_project_access)(info, project_version, ProjectAccessLevel.Use)
         await request(
             NMessageType.WAKE_RUNTIME,
             ReqWakeRuntimePayload(module_id=project_version_id),
@@ -611,7 +607,7 @@ class SessionMutation:
     ) -> WakeWorkerSetPayload | OperationInfo:
         project_id = UUID(input.project_id.node_id)
         project = await models.Project.objects.aget(id=project_id)
-        await sync_to_async(check_can_read_project)(info, project)
+        await sync_to_async(check_project_access)(info, project, ProjectAccessLevel.Use)
         rep: NMessage[RepWakeWorkerSetPayload] = await request(
             NMessageType.WAKE_WORKER_SET,
             ReqWakeWorkerSetPayload(project_id=project_id),
@@ -630,7 +626,7 @@ class SessionMutation:
     ) -> RestartWorkerSetPayload | OperationInfo:
         project_id = UUID(input.project_id.node_id)
         project = await models.Project.objects.aget(id=project_id)
-        await sync_to_async(check_can_read_project)(info, project)
+        await sync_to_async(check_project_access)(info, project, ProjectAccessLevel.Use)
         rep: NMessage[RepRestartWorkerSetPayload] = await request(
             NMessageType.RESTART_WORKER_SET,
             ReqRestartWorkerSetPayload(project_id=project_id),
@@ -648,8 +644,7 @@ class SessionMutation:
         project_version_id = UUID(input.project_version_id.node_id)
         user = get_user_from_info(info)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        # TODO @Auth: should run be a guest-level permission for projects?
-        await sync_to_async(check_can_write_project)(info, project_version)
+        await sync_to_async(check_project_access)(info, project_version, ProjectAccessLevel.Use)
 
         run = ReqStartRunPayload(
             project_id=project_version.project_id,
@@ -697,7 +692,7 @@ class SessionMutation:
     async def kill_run(self, info: Info, input: KillRunInput) -> KillRunPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_can_write_project)(info, project_version)
+        await sync_to_async(check_project_access())(info, project_version, ProjectAccessLevel.Use)
         kill = ReqKillRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
@@ -750,9 +745,7 @@ class SessionSubscription:
         user = get_user_from_info(info)
         log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
         try:
-            await sync_to_async(check_can_view_project_by_id)(
-                user, project_id=project_id, project_version_id=project_version_id
-            )
+            await sync_to_async(check_project_access)(info, project_id, ProjectAccessLevel.Read)
         except PermissionDenied:
             log.debug("sessions.subscribe_denied", exc_info=True)
             return
@@ -825,9 +818,7 @@ class SessionSubscription:
         user = get_user_from_info(info)
         log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
         try:
-            await sync_to_async(check_can_view_project_by_id)(
-                user, project_id=project_id, project_version_id=project_version_id
-            )
+            await sync_to_async(check_project_access)(info, project_id, ProjectAccessLevel.Read)
         except PermissionDenied:
             log.debug("sessions.subscribe_denied", exc_info=True)
             return

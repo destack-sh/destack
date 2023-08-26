@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { OrganizationMembershipLevel } from "@/gql/graphql";
+import { OrganizationRole } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/vue";
 import { ChevronDownIcon } from "@heroicons/vue/24/outline";
@@ -17,11 +17,7 @@ const possibleOwners = computed(() => {
     const writableOrgs =
       auth.memberships.value
         ?.filter((m) =>
-          [
-            OrganizationMembershipLevel.Owner,
-            OrganizationMembershipLevel.Administrator,
-            OrganizationMembershipLevel.Member,
-          ].includes(m.level)
+          [OrganizationRole.Owner, OrganizationRole.Administrator, OrganizationRole.Member].includes(m.level)
         )
         .map((e) => e.organization) ?? [];
     return [auth.me.value, ...writableOrgs];

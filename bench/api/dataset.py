@@ -11,8 +11,8 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_can_read_project
-from bench.api.sync import BatchMutationInput, check_can_write_thing, tracked_os_mutation
+from bench.api.auth import check_module_node_access
+from bench.api.sync import BatchMutationInput, tracked_os_mutation
 from bench.api.type import MMT
 from bench.api.utils import (
     HasCrud,
@@ -24,6 +24,7 @@ from bench.api.utils import (
     to_global_id,
 )
 from bench.language import Q, Query, QueryOp
+from bench.models import ProjectAccessLevel
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -136,8 +137,8 @@ def _prep_write_dataset(
     statement = models.Statement.objects.select_related("dataset").get(
         id=input.statement_id.node_id
     )
-    project_v = check_can_write_thing(info, statement)
-    return utcnow_with_tz(), project_v, statement
+    check_module_node_access(info, statement, ProjectAccessLevel.Edit)
+    return utcnow_with_tz(), statement.project_version, statement
 
 
 @strawberry.type
@@ -285,7 +286,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
         statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
-        check_can_read_project(info, statement.project_version)
+        check_module_node_access(info, statement, ProjectAccessLevel.Read)
 
         query = query.to_dsl() if query else None
         query = Query.and_if_set(Q(QueryOp.EQUALS, "dataset_id", statement.dataset.key), query)

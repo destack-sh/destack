@@ -151,7 +151,7 @@ export function useMutationListener(
   });
 }
 
-export function useModuleSync(projectVersionId: Ref<string | null>) {
+export function useModuleSync(projectId: Ref<string | null>, projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
   const {
     onResult: onModuleChanged,
@@ -159,8 +159,8 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
     stop,
   } = useSubscription(
     graphql(/* GraphQL */ `
-      subscription moduleChanged($projectVersionId: GlobalID!) {
-        moduleChanged(projectVersionId: $projectVersionId) {
+      subscription moduleChanged($projectId: GlobalID!, $projectVersionId: GlobalID!) {
+        moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {
           id
           clientId
           mutations {
@@ -182,13 +182,14 @@ export function useModuleSync(projectVersionId: Ref<string | null>) {
       }
     `),
     {
+      projectId,
       projectVersionId,
     }
   );
   // TODO @Performance: module change objects should not be cached
   // enable/disable subscription when projectVersionId changes
   startStopIf(
-    computed(() => projectVersionId.value != null),
+    computed(() => projectId.value != null && projectVersionId.value != null),
     start,
     stop,
     { immediate: true }

@@ -58,8 +58,6 @@ class NMessageType(StrEnum):
     # for sync
     CLIENT_CHANGED = "client.changed"
     PROJECT_CHANGED = "project.changed"
-    COMMENT_CHANGED = "comment.changed"
-    SCREEN_CHANGED = "screen.changed"
     MODULE_CHANGED = "module.changed"
     MODULE_INTERNAL_CHANGED = "module.internal.changed"  # for internal sync
     SESSION_CHANGED = "session.changed"

@@ -536,6 +536,7 @@ export type ModuleNode = {
 export type Mutation = {
   __typename?: "Mutation";
   acceptOrganizationInvite: UserOperationInfo;
+  acceptProjectInvite: UserOperationInfo;
   batchMoveStatement: StatementBatchOperationInfo;
   batchPasteStatement: StatementBatchOperationInfo;
   batchRestoreRecord: RecordBatchOperationInfo;
@@ -543,6 +544,7 @@ export type Mutation = {
   batchSoftDeleteRecord: RecordBatchOperationInfo;
   batchSoftDeleteStatement: StatementBatchOperationInfo;
   cancelOrganizationInvite: OrganizationOperationInfo;
+  cancelProjectInvite: ProjectOperationInfo;
   closeClient?: Maybe<ClientOperationInfo>;
   commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
@@ -552,6 +554,7 @@ export type Mutation = {
   createOrganization: OrganizationOperationInfo;
   createOrganizationInvites: OrganizationOperationInfo;
   createProject: ProjectOperationInfo;
+  createProjectInvites: ProjectOperationInfo;
   createRecord: RecordOperationInfo;
   createSecret: SecretOperationInfo;
   createStatement: StatementOperationInfo;
@@ -576,6 +579,7 @@ export type Mutation = {
   notifyUploadedObject: RemoteObjectOperationInfo;
   pasteFile: FileOperationInfo;
   removeOrganizationMembership: OrganizationOperationInfo;
+  removeProjectMembership: ProjectOperationInfo;
   renameFile: FileOperationInfo;
   renameStatement: StatementOperationInfo;
   requestUploadObject: RemoteObjectOperationInfo;
@@ -605,6 +609,7 @@ export type Mutation = {
   updateOrganizationMembership: OrganizationMembershipOperationInfo;
   updatePresence: ClientOperationInfo;
   updateProjectName: ProjectOperationInfo;
+  updateProjectSharing: ProjectOperationInfo;
   updateProjectVersion: ProjectVersionOperationInfo;
   updateProjectVisibility: ProjectOperationInfo;
   updateRecord: RecordOperationInfo;
@@ -624,6 +629,10 @@ export type Mutation = {
 };
 
 export type MutationAcceptOrganizationInviteArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type MutationAcceptProjectInviteArgs = {
   id: Scalars["GlobalID"];
 };
 
@@ -652,6 +661,10 @@ export type MutationBatchSoftDeleteStatementArgs = {
 };
 
 export type MutationCancelOrganizationInviteArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type MutationCancelProjectInviteArgs = {
   id: Scalars["GlobalID"];
 };
 
@@ -685,6 +698,10 @@ export type MutationCreateOrganizationInvitesArgs = {
 
 export type MutationCreateProjectArgs = {
   input: ProjectCreateInput;
+};
+
+export type MutationCreateProjectInvitesArgs = {
+  input: ProjectInviteInput;
 };
 
 export type MutationCreateRecordArgs = {
@@ -777,6 +794,10 @@ export type MutationPasteFileArgs = {
 
 export type MutationRemoveOrganizationMembershipArgs = {
   input: OrganizationRemoveMembershipInput;
+};
+
+export type MutationRemoveProjectMembershipArgs = {
+  input: ProjectRemoveMembershipInput;
 };
 
 export type MutationRenameFileArgs = {
@@ -891,6 +912,10 @@ export type MutationUpdateProjectNameArgs = {
   input: ProjectUpdateNameInput;
 };
 
+export type MutationUpdateProjectSharingArgs = {
+  input: ProjectUpdateSharingInput;
+};
+
 export type MutationUpdateProjectVersionArgs = {
   input: UpdateProjectVersion;
 };
@@ -973,8 +998,10 @@ export type Notification = Node & {
   expiresAt?: Maybe<Scalars["DateTime"]>;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
-  invite: OrganizationInvite;
+  organizationInvite: OrganizationInvite;
+  projectInvite: ProjectInvite;
   readAt?: Maybe<Scalars["DateTime"]>;
+  run: Run;
   status: NotificationStatus;
   type: NotificationType;
   user: User;
@@ -1024,6 +1051,9 @@ export enum NotificationStatus {
 
 export enum NotificationType {
   OrganizationInvite = "ORGANIZATION_INVITE",
+  ProjectInvite = "PROJECT_INVITE",
+  RunFailed = "RUN_FAILED",
+  RunSuspended = "RUN_SUSPENDED",
 }
 
 export type NotifyUploadedObjectInput = {
@@ -1058,7 +1088,7 @@ export type Organization = Node &
   Owner & {
     __typename?: "Organization";
     accessTokens: AccessTokenConnection;
-    canViewFull: Scalars["Boolean"];
+    canViewDetail: Scalars["Boolean"];
     canWrite: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
@@ -1133,7 +1163,7 @@ export type OrganizationInvite = Node & {
   emailSentAt?: Maybe<Scalars["DateTime"]>;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
-  level: OrganizationMembershipLevel;
+  level: OrganizationRole;
   organization: Organization;
   updatedAt: Scalars["DateTime"];
   user?: Maybe<User>;
@@ -1162,7 +1192,7 @@ export type OrganizationInviteEdge = {
 export type OrganizationInviteInput = {
   emails: Array<Scalars["String"]>;
   id: Scalars["GlobalID"];
-  level: OrganizationMembershipLevel;
+  level: OrganizationRole;
   message?: InputMaybe<Scalars["String"]>;
 };
 
@@ -1171,7 +1201,7 @@ export type OrganizationMembership = Node & {
   createdAt: Scalars["DateTime"];
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
-  level: OrganizationMembershipLevel;
+  level: OrganizationRole;
   organization: Organization;
   updatedAt: Scalars["DateTime"];
   user: User;
@@ -1197,14 +1227,6 @@ export type OrganizationMembershipEdge = {
   node: OrganizationMembership;
 };
 
-export enum OrganizationMembershipLevel {
-  Administrator = "Administrator",
-  Author = "Author",
-  Guest = "Guest",
-  Member = "Member",
-  Owner = "Owner",
-}
-
 export type OrganizationMembershipOperationInfo = OperationInfo | OrganizationMembership;
 
 export type OrganizationOperationInfo = OperationInfo | Organization;
@@ -1214,6 +1236,13 @@ export type OrganizationRemoveMembershipInput = {
   userId: Scalars["GlobalID"];
 };
 
+export enum OrganizationRole {
+  Guest = "Guest",
+  Manager = "Manager",
+  Member = "Member",
+  Owner = "Owner",
+}
+
 export type OrganizationUpdateInput = {
   description: Scalars["String"];
   id: Scalars["GlobalID"];
@@ -1222,13 +1251,13 @@ export type OrganizationUpdateInput = {
 
 export type OrganizationUpdateMembershipInput = {
   id: Scalars["GlobalID"];
-  level: OrganizationMembershipLevel;
+  level: OrganizationRole;
   userId: Scalars["GlobalID"];
 };
 
 export type Owner = {
   accessTokens: AccessTokenConnection;
-  canViewFull: Scalars["Boolean"];
+  canViewDetail: Scalars["Boolean"];
   canWrite: Scalars["Boolean"];
   createdAt: Scalars["DateTime"];
   id: Scalars["GlobalID"];
@@ -1259,7 +1288,7 @@ export type PageInfo = {
 
 export type Project = Node & {
   __typename?: "Project";
-  canWrite: Scalars["Boolean"];
+  accessLevel: ProjectAccessLevel;
   createdAt: Scalars["DateTime"];
   description?: Maybe<Scalars["String"]>;
   head: ProjectVersion;
@@ -1269,6 +1298,9 @@ export type Project = Node & {
   name: Scalars["String"];
   owner: UserOrganization;
   path: Scalars["String"];
+  sharingEnabled: Scalars["Boolean"];
+  sharingLevel: ProjectAccessLevel;
+  sharingToken?: Maybe<Scalars["UUID"]>;
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
   usage: ProjectUsage;
@@ -1290,6 +1322,15 @@ export type ProjectVersionsArgs = {
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
+
+export enum ProjectAccessLevel {
+  Admin = "Admin",
+  Edit = "Edit",
+  Manage = "Manage",
+  Read = "Read",
+  Use = "Use",
+  Zero = "Zero",
+}
 
 export type ProjectChange = Change & {
   __typename?: "ProjectChange";
@@ -1324,6 +1365,26 @@ export type ProjectEdge = {
   node: Project;
 };
 
+export type ProjectInvite = Node & {
+  __typename?: "ProjectInvite";
+  createdAt: Scalars["DateTime"];
+  email: Scalars["String"];
+  emailSentAt?: Maybe<Scalars["DateTime"]>;
+  /** The Globally Unique ID of this object */
+  id: Scalars["GlobalID"];
+  level: ProjectAccessLevel;
+  project: Project;
+  updatedAt: Scalars["DateTime"];
+  user?: Maybe<User>;
+};
+
+export type ProjectInviteInput = {
+  emails: Array<Scalars["String"]>;
+  id: Scalars["GlobalID"];
+  level: ProjectAccessLevel;
+  message?: InputMaybe<Scalars["String"]>;
+};
+
 export type ProjectMigrationInfo = {
   __typename?: "ProjectMigrationInfo";
   isReverse: Scalars["Boolean"];
@@ -1334,9 +1395,21 @@ export type ProjectMigrationInfo = {
 
 export type ProjectOperationInfo = OperationInfo | Project;
 
+export type ProjectRemoveMembershipInput = {
+  id: Scalars["GlobalID"];
+  userId: Scalars["GlobalID"];
+};
+
 export type ProjectUpdateNameInput = {
   id: Scalars["GlobalID"];
   name: Scalars["String"];
+};
+
+export type ProjectUpdateSharingInput = {
+  id: Scalars["GlobalID"];
+  sharingEnabled: Scalars["Boolean"];
+  sharingLevel: ProjectAccessLevel;
+  sharingToken: Scalars["UUID"];
 };
 
 export type ProjectUpdateVisibilityInput = {
@@ -2204,6 +2277,7 @@ export type SubscriptionLogsChangedArgs = {
 };
 
 export type SubscriptionModuleChangedArgs = {
+  projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
 };
 
@@ -2421,7 +2495,7 @@ export type User = Node &
     __typename?: "User";
     accessTokens: AccessTokenConnection;
     bot: Scalars["Boolean"];
-    canViewFull: Scalars["Boolean"];
+    canViewDetail: Scalars["Boolean"];
     canWrite: Scalars["Boolean"];
     createdAt: Scalars["DateTime"];
     description?: Maybe<Scalars["String"]>;
@@ -2650,11 +2724,17 @@ export type NotificationsQuery = {
           archivedAt?: any | null;
           expiresAt?: any | null;
           status: NotificationStatus;
-          invite: {
+          organizationInvite: {
             __typename?: "OrganizationInvite";
             id: any;
-            level: OrganizationMembershipLevel;
+            level: OrganizationRole;
             organization: { __typename?: "Organization"; id: any; slug: string; name: string };
+          };
+          projectInvite: {
+            __typename?: "ProjectInvite";
+            id: any;
+            level: ProjectAccessLevel;
+            project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
       }>;
@@ -2837,7 +2917,7 @@ export type OrganizationMembersQuery = {
               __typename?: "OrganizationMembership";
               id: any;
               createdAt: any;
-              level: OrganizationMembershipLevel;
+              level: OrganizationRole;
               user: { __typename?: "User"; id: any; slug: string; email: string; name: string; username: string };
             };
           }>;
@@ -2851,7 +2931,7 @@ export type OrganizationMembersQuery = {
               __typename?: "OrganizationInvite";
               id: any;
               createdAt: any;
-              level: OrganizationMembershipLevel;
+              level: OrganizationRole;
               email: string;
               emailSentAt?: any | null;
               user?: {
@@ -3152,7 +3232,7 @@ export type ProfileHomeQuery = {
         name: string;
         description?: string | null;
         createdAt: any;
-        canViewFull: boolean;
+        canViewDetail: boolean;
         canWrite: boolean;
         projects: {
           __typename?: "ProjectConnection";
@@ -3181,7 +3261,7 @@ export type ProfileHomeQuery = {
         bot: boolean;
         description?: string | null;
         createdAt: any;
-        canViewFull: boolean;
+        canViewDetail: boolean;
         canWrite: boolean;
         projects: {
           __typename?: "ProjectConnection";
@@ -3218,7 +3298,7 @@ export type SettingsQuery = {
         name: string;
         createdAt: any;
         updatedAt: any;
-        canViewFull: boolean;
+        canViewDetail: boolean;
         canWrite: boolean;
         memberships: { __typename?: "OrganizationMembershipConnection"; totalCount?: number | null };
         accessTokens: { __typename?: "AccessTokenConnection"; totalCount?: number | null };
@@ -3232,7 +3312,7 @@ export type SettingsQuery = {
         bot: boolean;
         createdAt: any;
         updatedAt: any;
-        canViewFull: boolean;
+        canViewDetail: boolean;
         canWrite: boolean;
         accessTokens: { __typename?: "AccessTokenConnection"; totalCount?: number | null };
       }
@@ -3262,7 +3342,7 @@ export type MeQuery = {
           __typename?: "OrganizationMembership";
           id: any;
           createdAt: any;
-          level: OrganizationMembershipLevel;
+          level: OrganizationRole;
           organization: { __typename?: "Organization"; id: any; name: string; slug: string };
         };
       }>;
@@ -3497,12 +3577,15 @@ export type ProjectVersionHeaderFragment = {
 export type ProjectHeaderFragment = {
   __typename: "Project";
   id: any;
-  visibility: ProjectVisibility;
   createdAt: any;
   updatedAt: any;
   name: string;
   slug: string;
-  canWrite: boolean;
+  visibility: ProjectVisibility;
+  accessLevel: ProjectAccessLevel;
+  sharingEnabled: boolean;
+  sharingToken?: any | null;
+  sharingLevel: ProjectAccessLevel;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
@@ -3813,11 +3896,17 @@ export type NewNotificationsQuery = {
           archivedAt?: any | null;
           expiresAt?: any | null;
           status: NotificationStatus;
-          invite: {
+          organizationInvite: {
             __typename?: "OrganizationInvite";
             id: any;
-            level: OrganizationMembershipLevel;
+            level: OrganizationRole;
             organization: { __typename?: "Organization"; id: any; slug: string; name: string };
+          };
+          projectInvite: {
+            __typename?: "ProjectInvite";
+            id: any;
+            level: ProjectAccessLevel;
+            project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
       }>;
@@ -4089,7 +4178,7 @@ export type CreateOrganizationMutation = {
 export type CreateInvitesMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   emails: Array<Scalars["String"]> | Scalars["String"];
-  level: OrganizationMembershipLevel;
+  level: OrganizationRole;
   message?: InputMaybe<Scalars["String"]>;
 }>;
 
@@ -5177,7 +5266,7 @@ export type AcceptOrganizationInviteMutation = {
             node: {
               __typename?: "OrganizationMembership";
               id: any;
-              level: OrganizationMembershipLevel;
+              level: OrganizationRole;
               organization: { __typename?: "Organization"; id: any; name: string; slug: string };
             };
           }>;
@@ -5492,6 +5581,7 @@ export type LogsChangedSubscription = {
 };
 
 export type ModuleChangedSubscriptionVariables = Exact<{
+  projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
 }>;
 
@@ -5756,12 +5846,10 @@ export const ProjectHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
-          { kind: "Field", name: { kind: "Name", value: "visibility" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "slug" } },
-          { kind: "Field", name: { kind: "Name", value: "canWrite" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "head" },
@@ -5770,6 +5858,11 @@ export const ProjectHeaderFragmentDoc = {
               selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "visibility" } },
+          { kind: "Field", name: { kind: "Name", value: "accessLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingEnabled" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingToken" } },
+          { kind: "Field", name: { kind: "Name", value: "sharingLevel" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "owner" },
@@ -6996,7 +7089,7 @@ export const NotificationsDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "status" } },
                                   {
                                     kind: "Field",
-                                    name: { kind: "Name", value: "invite" },
+                                    name: { kind: "Name", value: "organizationInvite" },
                                     selectionSet: {
                                       kind: "SelectionSet",
                                       selections: [
@@ -7004,6 +7097,29 @@ export const NotificationsDocument = {
                                         {
                                           kind: "Field",
                                           name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                            ],
+                                          },
+                                        },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                      ],
+                                    },
+                                  },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "projectInvite" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "project" },
                                           selectionSet: {
                                             kind: "SelectionSet",
                                             selections: [
@@ -8665,7 +8781,7 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "bot" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewDetail" } },
                       { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
@@ -8727,7 +8843,7 @@ export const ProfileHomeDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewDetail" } },
                       { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
@@ -8829,7 +8945,7 @@ export const SettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "bot" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewDetail" } },
                       { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
@@ -8869,7 +8985,7 @@ export const SettingsDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                      { kind: "Field", name: { kind: "Name", value: "canViewFull" } },
+                      { kind: "Field", name: { kind: "Name", value: "canViewDetail" } },
                       { kind: "Field", name: { kind: "Name", value: "canWrite" } },
                       {
                         kind: "Field",
@@ -9449,7 +9565,7 @@ export const NewNotificationsDocument = {
                                   { kind: "Field", name: { kind: "Name", value: "status" } },
                                   {
                                     kind: "Field",
-                                    name: { kind: "Name", value: "invite" },
+                                    name: { kind: "Name", value: "organizationInvite" },
                                     selectionSet: {
                                       kind: "SelectionSet",
                                       selections: [
@@ -9457,6 +9573,29 @@ export const NewNotificationsDocument = {
                                         {
                                           kind: "Field",
                                           name: { kind: "Name", value: "organization" },
+                                          selectionSet: {
+                                            kind: "SelectionSet",
+                                            selections: [
+                                              { kind: "Field", name: { kind: "Name", value: "id" } },
+                                              { kind: "Field", name: { kind: "Name", value: "slug" } },
+                                              { kind: "Field", name: { kind: "Name", value: "name" } },
+                                            ],
+                                          },
+                                        },
+                                        { kind: "Field", name: { kind: "Name", value: "level" } },
+                                      ],
+                                    },
+                                  },
+                                  {
+                                    kind: "Field",
+                                    name: { kind: "Name", value: "projectInvite" },
+                                    selectionSet: {
+                                      kind: "SelectionSet",
+                                      selections: [
+                                        { kind: "Field", name: { kind: "Name", value: "id" } },
+                                        {
+                                          kind: "Field",
+                                          name: { kind: "Name", value: "project" },
                                           selectionSet: {
                                             kind: "SelectionSet",
                                             selections: [
@@ -10680,10 +10819,7 @@ export const CreateInvitesDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "level" } },
-          type: {
-            kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "OrganizationMembershipLevel" } },
-          },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "OrganizationRole" } } },
         },
         {
           kind: "VariableDefinition",
@@ -16762,6 +16898,11 @@ export const ModuleChangedDocument = {
       variableDefinitions: [
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -16773,6 +16914,11 @@ export const ModuleChangedDocument = {
             kind: "Field",
             name: { kind: "Name", value: "moduleChanged" },
             arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "projectId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
               {
                 kind: "Argument",
                 name: { kind: "Name", value: "projectVersionId" },

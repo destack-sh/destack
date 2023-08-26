@@ -10,9 +10,10 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_can_write_project
+from bench.api.auth import check_project_access
 from bench.api.utils import safe_mutation
 from bench.language.remote import REMOTE_OBJECT_MAX_SIZE
+from bench.models import ProjectAccessLevel
 from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
@@ -57,7 +58,7 @@ class ObjectMutation:
         self, info: Info, input: RequestUploadObjectInput
     ) -> RemoteObject | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
-        check_can_write_project(info, project)
+        check_project_access(info, project, ProjectAccessLevel.Read)
         if input.content_length >= REMOTE_OBJECT_MAX_SIZE:
             raise ValidationError(
                 f"object too large: {input.content_length} >= {REMOTE_OBJECT_MAX_SIZE}"
@@ -87,16 +88,16 @@ class ObjectMutation:
     def notify_uploaded_object(
         self, info: Info, input: NotifyUploadedObjectInput
     ) -> RemoteObject | OperationInfo:
-        remote_object = models.RemoteObject.objects.get(id=input.id.node_id)
-        check_can_write_project(info, remote_object.project)
+        object = models.RemoteObject.objects.get(id=input.id.node_id)
+        check_project_access(info, object.project_id, ProjectAccessLevel.Read)
         # check that object exists in s3
-        remote_object.mark_available_if_exists_in_s3()
-        remote_object.save()
-        return remote_object
+        object.mark_available_if_exists_in_s3()
+        object.save()
+        return object
 
     @safe_mutation
     def delete_object(self, info: Info, input: DeleteObjectInput) -> RemoteObject | OperationInfo:
         object = models.RemoteObject.objects.get(input.id)
-        check_can_write_project(info, object.project)
+        check_project_access(info, object.project_id, ProjectAccessLevel.Edit)
         object.delete()
         return object

@@ -585,4 +585,4 @@ class PermissionCheckingTracer(Tracer):
         self.session.check_can(ModuleOp.UPDATE, dataset)
 
     def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
-        self.session.check_can(ModuleOp.SEARCH, dataset)
+        self.session.check_can(ModuleOp.READ, dataset)

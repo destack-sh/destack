@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Union
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
+from pgcrypto import fields
 
 from bench.models.utils import UUIDModel
 from bench.settings import ACCESS_TOKEN_DIGEST_LENGTH, ACCESS_TOKEN_KEY_LENGTH, ACCESS_TOKEN_PREFIX
@@ -47,6 +48,7 @@ class AccessTokenManager(models.Manager["AccessToken"]):
             expires_at=expires_at,
             organization=owner if isinstance(owner, Organization) else None,
             user=owner if isinstance(owner, User) else None,
+            value=raw_token,
         )
         return access_token, raw_token
 
@@ -66,7 +68,7 @@ class AccessToken(UUIDModel):
     token_key = models.CharField(max_length=ACCESS_TOKEN_KEY_LENGTH)
     scopes = ArrayField(models.CharField(max_length=32, choices=AccessTokenScope.choices))
     name = models.CharField(max_length=MAX_NAME_LENGTH, null=True)
-    secret = models.ForeignKey("Secret", on_delete=models.CASCADE, null=True)
+    value = fields.TextPGPSymmetricKeyField()
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -92,7 +94,6 @@ class AccessToken(UUIDModel):
 
     @property
     def status(self) -> AccessTokenStatus:
-        # TODO @Cleanup: move computed AccessToken.status into column
         if self.revoked:
             return AccessTokenStatus.REVOKED
         elif self.expired:

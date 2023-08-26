@@ -40,7 +40,7 @@ const { result: settingsResult, loading } = useQuery(
           bot
           createdAt
           updatedAt
-          canViewFull
+          canViewDetail
           canWrite
           accessTokens(filters: { includeInactive: false }) {
             totalCount
@@ -52,7 +52,7 @@ const { result: settingsResult, loading } = useQuery(
           name
           createdAt
           updatedAt
-          canViewFull
+          canViewDetail
           canWrite
           memberships {
             totalCount
@@ -157,7 +157,7 @@ if (selectedIndex.value < 0) {
 // redirect to public profile page if can't view full
 const notifications = useNotifications();
 watchEffect(() => {
-  if (profile.value != null && !profile.value.canViewFull) {
+  if (profile.value != null && !profile.value.canViewDetail) {
     router.push(`/${props.owner}`);
     notifications.show({
       kind: "notice",

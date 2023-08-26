@@ -847,7 +847,6 @@ class StatementBase(abc.ABC):
 
 class ModuleOp(enum.StrEnum):
     READ = "read"
-    SEARCH = "search"
     CREATE = "create"
     UPDATE = "update"
     DELETE = "delete"
@@ -1009,7 +1008,7 @@ class Session:
 
     def can(self, op: ModuleOp, thing: File | Statement) -> bool:
         if self.mode == SessionMode.READ_ONLY:
-            return op in (ModuleOp.READ, ModuleOp.SEARCH)
+            return op in (ModuleOp.READ, ModuleOp.READ)
         elif self.mode == SessionMode.WRITE:
             return True
         else:

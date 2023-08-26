@@ -10,11 +10,12 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_can_read_project, check_can_write_project
+from bench.api.auth import check_project_access
 from bench.api.module import read_module_node
 from bench.api.sync import tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
 from bench.language.mutate import MMT
+from bench.models import ProjectAccessLevel
 
 if TYPE_CHECKING:
     from bench.api.interp import Issue
@@ -130,9 +131,9 @@ class FileMutation:
 
         # get and check source/target
         source_file = models.File.objects.get(id=input.source_id.node_id)
-        check_can_read_project(info, source_file)
+        check_project_access(info, source_file, ProjectAccessLevel.Read)
         target_version = models.ProjectVersion.objects.get(id=input.target_version_id.node_id)
-        check_can_write_project(info, target_version.project)
+        check_project_access(info, target_version.project, ProjectAccessLevel.Edit)
         parent_file = (
             models.File.objects.get(id=input.parent_id.node_id) if input.parent_id else None
         )

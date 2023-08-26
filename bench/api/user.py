@@ -83,14 +83,12 @@ class User(Owner, relay.Node):
     ] = strawberry_django.connection(filters=NotificationFilter, directives=[])
 
     @strawberry_django.field
-    def can_view_full(self, info: Info) -> bool:
-        user = get_user_from_info(info)
-        return can_write_user(user, self)
+    def can_view_detail(self, info: Info) -> bool:
+        return can_write_user(info, self)
 
     @strawberry_django.field
     def can_write(self, info: Info) -> bool:
-        user = get_user_from_info(info)
-        return can_write_user(user, self)
+        return can_write_user(info, self)
 
     @strawberry_django.field(only=["first_name"])
     def name(self) -> str:
@@ -182,6 +180,13 @@ class UserMutation:
     @safe_mutation
     def accept_organization_invite(self, info, id: GlobalID) -> User | OperationInfo:
         invite = models.OrganizationInvite.objects.get(id=id.node_id)
+        check_can_write_user(info, invite.user)
+        invite.accept()
+        return invite.user
+
+    @safe_mutation
+    def accept_project_invite(self, info, id: GlobalID) -> User | OperationInfo:
+        invite = models.ProjectInvite.objects.get(id=id.node_id)
         check_can_write_user(info, invite.user)
         invite.accept()
         return invite.user

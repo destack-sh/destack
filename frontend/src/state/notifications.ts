@@ -123,9 +123,18 @@ function _useNotifications() {
                 archivedAt
                 expiresAt
                 status
-                invite {
+                organizationInvite {
                   id
                   organization {
+                    id
+                    slug
+                    name
+                  }
+                  level
+                }
+                projectInvite {
+                  id
+                  project {
                     id
                     slug
                     name
@@ -253,19 +262,19 @@ function _useNotificationHandler() {
       return {
         type: "user.receivedOrganizationInvite",
         kind: "notice",
-        message: `${notification.invite.organization.slug} invited you`,
+        message: `${notification.organizationInvite.organization.slug} invited you`,
         description: `Join them to work on AI together.`,
         icon: UserPlusIcon,
         actionText: "Accept",
         action: async () => {
-          const ret = await ops.user.acceptOrganizationInvite(notification.invite.id);
+          const ret = await ops.user.acceptOrganizationInvite(notification.organizationInvite.id);
           if (ret?.data?.acceptOrganizationInvite?.__typename == "User") {
             // success
             notifications.show({
               type: "user.acceptedOrganizationInvite",
               kind: "success",
-              message: `Joined ${notification.invite.organization.slug}`,
-              description: `You are now a part of ${notification.invite.organization.name}!`,
+              message: `Joined ${notification.organizationInvite.organization.slug}`,
+              description: `You are now a part of ${notification.organizationInvite.organization.name}!`,
             });
           }
         },

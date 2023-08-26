@@ -40,5 +40,5 @@ class Owner:
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
     ]
-    can_view_full: bool
+    can_view_detail: bool
     can_write: bool

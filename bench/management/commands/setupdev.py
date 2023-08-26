@@ -2,7 +2,7 @@ import structlog
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from bench.models import Organization, OrganizationMembershipLevel
+from bench.models import Organization, OrganizationRole
 from bench.models.user import User
 
 TEST_USER_EMAIL = "yatima@symbolx.com"
@@ -27,7 +27,7 @@ class Command(BaseCommand):
                 is_staff=True,
                 bot=True,
             )
-            user.join_organization(organization, OrganizationMembershipLevel.Owner)
+            organization.add_member(organization, OrganizationRole.Owner)
             logger.info(f"Created bootstrap user: {user}")
         else:
             logger.info(f"Bootstrap user already exists: {user}")

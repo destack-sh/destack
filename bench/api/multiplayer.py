@@ -11,12 +11,12 @@ from strawberry.types import Info
 
 from bench import models
 from bench.api import sync
-from bench.api.auth import check_can_view_project_by_id
+from bench.api.auth import check_project_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
-from bench.api.utils import asafe_subscription, get_user_from_info, to_global_id, to_uuid
+from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import mutate, wire
-from bench.models import packer
+from bench.models import ProjectAccessLevel, packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
 
@@ -102,17 +102,18 @@ class MultiplayerSubscription:
     async def project_changed(
         self, info: Info, project_id: GlobalID
     ) -> AsyncGenerator[ProjectChange, None]:
-        user = get_user_from_info(info)
         project_id = UUID(project_id.node_id)
-        log = logger.bind(project_id=project_id, user=user)
-        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
-        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         try:
-            await sync_to_async(check_can_view_project_by_id)(user, project_id=project_id)
+            access = await sync_to_async(check_project_access)(
+                info, project_id, ProjectAccessLevel.Read
+            )
         except PermissionDenied:
-            log.warning("project_changed.subscribe_denied", exc_info=True)
+            logger.warning("project_changed.subscribe_denied", exc_info=True)
             return
 
+        log = logger.bind(project_id=project_id, user=access.user)
+        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         project_sub = await subscribe(
             f"{NMessageType.PROJECT_CHANGED}.{project_id}", payload_t=ProjectChangedPayload
         )
@@ -137,19 +138,21 @@ class MultiplayerSubscription:
 
     @asafe_subscription
     async def module_changed(
-        self, info: Info, project_version_id: GlobalID
+        self, info: Info, project_id: GlobalID, project_version_id: GlobalID
     ) -> AsyncGenerator[ModuleChange, None]:
-        user = get_user_from_info(info)
+        project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
-        log = logger.bind(project_version_id=project_version_id, user=user)
-        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
-        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         try:
-            await sync_to_async(check_can_view_project_by_id)(user, project_version_id)
+            access = await sync_to_async(check_project_access)(
+                info, project_id, ProjectAccessLevel.Read
+            )
         except PermissionDenied:
-            log.warning("module_changed.subscribe_denied", exc_info=True)
+            logger.warning("module_changed.subscribe_denied", exc_info=True)
             return
 
+        log = logger.bind(project_version_id=project_version_id, user=access.user)
+        client_id = to_uuid(info.context["request"].scope["session"].get("client_id"))
+        client_nonce = to_uuid(info.context["connection_params"].get("X-Client-Nonce"))
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         routing_key = f"{project_version.project_id}.{project_version_id}"
         module_sub = await subscribe(

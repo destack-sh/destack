@@ -16,6 +16,8 @@ from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.organization import OrganizationInvite
+    from bench.api.project import ProjectInvite
+    from bench.api.session import Run
     from bench.api.user import User
 
 logger = structlog.get_logger(__name__)
@@ -64,7 +66,9 @@ class Notification(relay.Node):
     expires_at: auto
     archived_at: auto
 
-    invite: Annotated["OrganizationInvite", lazy(".organization")]
+    organization_invite: Annotated["OrganizationInvite", lazy(".organization")]
+    project_invite: Annotated["ProjectInvite", lazy(".project")]
+    run: Annotated["Run", lazy(".session")]
 
 
 @strawberry.input
@@ -78,8 +82,8 @@ class NotificationMutation:
     def mark_notification(
         self, info: Info, input: NotificationMarkInput
     ) -> Notification | OperationInfo:
-        notification = models.Notification.objects.get(pk=input.id.node_id)
-        check_can_write_user(info, notification)
+        notification = models.Notification.objects.select_related("user").get(pk=input.id.node_id)
+        check_can_write_user(info, notification.user)
         notification.mark_as(input.status)
         return notification
 

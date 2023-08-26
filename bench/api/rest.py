@@ -1,17 +1,10 @@
 import threading
 from functools import wraps
-from typing import NamedTuple, Optional
-from uuid import UUID
 
 import structlog
 from django.core.exceptions import ObjectDoesNotExist, PermissionDenied, ValidationError
-from django.db.models import Q
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from rest_framework import serializers
-
-from bench.models import Project, ProjectVersion
-from bench.models.token import AccessTokenScope
-from bench.utils.dt import utcnow_with_tz
 
 logger = structlog.get_logger(__name__)
 
@@ -76,47 +69,6 @@ def async_api_view(methods: list[str] = None):
         return wraps(view_func)(wrapped_view)
 
     return make_view
-
-
-AccessInfo = NamedTuple(
-    "AccessInfo",
-    [
-        ("project_version_id", UUID),
-        ("access_token_id", UUID),
-        ("organization_id", Optional[UUID]),
-        ("user_id", Optional[UUID]),
-    ],
-)
-
-
-def get_access(
-    owner: str, project: str, tag: str, token_digest: str, scope=AccessTokenScope.RUN
-) -> AccessInfo:
-    # TODO @Feature: implement semver range tags? https://devhints.io/semver
-    # TODO @Performance: cache get_access & fetch in one SQL query (incl. access token check)
-    if tag in ("*", "^", "x"):
-        # use latest version
-        project_version = Project.objects.get_by_slug(owner, project).head
-    else:
-        project_version = ProjectVersion.objects.get_by_slug(owner, project, tag=tag)
-    access_token = (
-        project_version.project.owner.access_tokens.filter(
-            digest=token_digest,
-            scopes__contains=[scope],
-        )
-        .filter(Q(revoked_at__isnull=True))
-        .filter(Q(expires_at__gte=utcnow_with_tz()) | Q(expires_at__isnull=True))
-        .only("id", "user_id", "organization_id")
-        .first()
-    )
-    if access_token is None:
-        raise PermissionDenied("cannot access this deployment")
-    return AccessInfo(
-        project_version.id,
-        access_token.id,
-        access_token.organization_id,
-        access_token.user_id,
-    )
 
 
 @async_csrf_exempt

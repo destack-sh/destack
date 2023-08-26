@@ -28,7 +28,7 @@ const { result: profileResult, loading } = useQuery(
           bot
           description
           createdAt
-          canViewFull
+          canViewDetail
           canWrite
           projects {
             totalCount
@@ -55,7 +55,7 @@ const { result: profileResult, loading } = useQuery(
           name
           description
           createdAt
-          canViewFull
+          canViewDetail
           canWrite
           projects {
             totalCount
@@ -132,7 +132,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
                 {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
               </span>
             </span>
-            <router-link :to="`/settings/${profile.slug}`" v-if="profile.canViewFull">
+            <router-link :to="`/settings/${profile.slug}`" v-if="profile.canViewDetail">
               <Cog8ToothIcon class="h-6 w-6 text-gray-400 hover:text-gray-700" />
             </router-link>
           </h1>

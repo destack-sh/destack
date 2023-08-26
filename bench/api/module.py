@@ -10,10 +10,10 @@ from strawberry.utils.str_converters import to_camel_case
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_can_read_project
+from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
 from bench.language.core import MOT
-from bench.models import packer
+from bench.models import ProjectAccessLevel, packer
 from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
@@ -143,7 +143,7 @@ def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | O
     node = qs.filter(id=id.node_id).first()
     if not node:
         return None
-    check_can_read_project(info, node)
+    check_module_node_access(info, node, ProjectAccessLevel.Read)
 
     return read_module_node(info, node)
 

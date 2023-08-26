@@ -168,31 +168,31 @@ def to_global_id(type: str, id: UUID | None) -> GlobalID | None:
 
 
 def get_client_origin_from_info(info: Info) -> ClientOrigin:
-    request = info.context["request"]
-    if isinstance(request, GraphQLWSConsumer):
-        scope = request.scope
-    elif isinstance(request, ChannelsRequest):
-        scope = request.consumer.scope
-    else:
-        raise TypeError(f"unexpected request type: {request}")
+    scope = get_scope_from_info(info)
     client_id = scope["session"]["client_id"]
     # get nonce from list of headers
-    client_nonce = first(
-        (v.decode() for k, v in scope["headers"] if k.decode().lower() == "x-client-nonce"), None
-    )
+    client_nonce = get_header_from_scope(scope, "x-client-nonce")
     client_nonce = UUID(client_nonce) if client_nonce else None
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
 
 
 def get_user_from_info(info: Info) -> models.User:
+    return get_scope_from_info(info)["user"]._wrapped
+
+
+def get_scope_from_info(info: Info) -> dict:
     request = info.context["request"]
     if isinstance(request, GraphQLWSConsumer):
-        return request.scope["user"]._wrapped
+        return request.scope
     elif isinstance(request, ChannelsRequest):
-        return request.consumer.scope["user"]._wrapped
+        return request.consumer.scope
     else:
         raise TypeError(f"unexpected request type: {request}")
+
+
+def get_header_from_scope(scope: dict, name: str) -> str | None:
+    return first((v.decode() for k, v in scope["headers"] if k.decode().lower() == name), None)
 
 
 class ThingBatch(Iterable):

@@ -9,11 +9,7 @@ from django.db import models, transaction
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 
-from bench.models.organization import (
-    Organization,
-    OrganizationMembership,
-    OrganizationMembershipLevel,
-)
+from bench.models.organization import Organization, OrganizationMembership
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.msg.messages import ClientData
@@ -22,7 +18,7 @@ from bench.utils.utils import DEBUG, LOCAL
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import Project, ProjectVersion
+    from bench.models import Project, ProjectMembership, ProjectVersion
 
 logger = structlog.get_logger(__name__)
 
@@ -42,8 +38,11 @@ class UserManager(BaseUserManager["User"]):
 
         # recover invites that were sent to this email address
         from bench.models.organization import OrganizationInvite
+        from bench.models.project import ProjectInvite
 
         OrganizationInvite.objects.filter(email=email).update(user=user)
+        ProjectInvite.objects.filter(email=email).update(user=user)
+
         if not DEBUG and not LOCAL:
             user._create_in_loops()
 
@@ -80,9 +79,13 @@ class User(AbstractUser, UUIDModel):
     )
 
     projects: models.QuerySet["Project"]  # noqa via Project.user
-    invites: models.QuerySet["ProjectInvite"]  # noqa via OrganizationInvite.user
+    project_invites: models.QuerySet["ProjectInvite"]  # noqa via ProjectInvite.user
+    project_memberships: models.QuerySet["ProjectMembership"]  # noqa via ProjectMembership.user
     organizations: models.QuerySet["Organization"]  # noqa via Organization.members
-    memberships: models.QuerySet["OrganizationMembership"]  # noqa via OrganizationMembership.user
+    organization_invites: models.QuerySet["ProjectInvite"]  # noqa via OrganizationInvite.user
+    organization_memberships: models.QuerySet[
+        "OrganizationMembership"
+    ]  # noqa via OrganizationMembership.user
     notifications: models.QuerySet["Notification"]  # noqa via Notification.user
 
     objects: UserManager = UserManager()  # type: ignore
@@ -110,16 +113,6 @@ class User(AbstractUser, UUIDModel):
         self.save()
         if not DEBUG and not LOCAL:
             self._update_in_loops()
-
-    def join_organization(
-        self,
-        organization: Organization,
-        level: OrganizationMembershipLevel = OrganizationMembershipLevel.Member,
-    ) -> OrganizationMembership:
-        membership = OrganizationMembership.objects.create(
-            user=self, organization=organization, level=level
-        )
-        return membership
 
     def _to_loops_contact(self) -> dict:
         return {
