@@ -18,7 +18,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import can_write_user, check_can_write_user
+from bench.api.auth import CheckTarget, IsUser, can_write_user, check_can_write_user
 from bench.api.notification import Notification, NotificationFilter
 from bench.api.owner import AccessTokenFilter, Owner
 from bench.api.utils import asafe_subscription, get_user_from_info, safe_mutation, to_uuid
@@ -74,13 +74,17 @@ class User(Owner, relay.Node):
     ] = strawberry_django.connection()
     projects: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["Project", lazy(".project")]
-    ] = strawberry_django.connection(directives=[])
+    ] = strawberry_django.connection(extensions=[IsUser(target=CheckTarget.ROOT)])
     access_tokens: strawberry_django.relay.ListConnectionWithTotalCount[
         Annotated["AccessToken", lazy(".token")]
-    ] = strawberry_django.connection(filters=AccessTokenFilter, directives=[])
+    ] = strawberry_django.connection(
+        filters=AccessTokenFilter, extensions=[IsUser(target=CheckTarget.ROOT)]
+    )
     notifications: strawberry_django.relay.ListConnectionWithTotalCount[
         "Notification"
-    ] = strawberry_django.connection(filters=NotificationFilter, directives=[])
+    ] = strawberry_django.connection(
+        filters=NotificationFilter, extensions=[IsUser(target=CheckTarget.ROOT)]
+    )
 
     @strawberry_django.field
     def can_view_detail(self, info: Info) -> bool:

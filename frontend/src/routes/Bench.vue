@@ -576,8 +576,6 @@ onBeforeUnmount(() => {
       </template>
     </FatHeader>
     <!-- Main content (sidebar + editor), spans horizontally -->
-    <!-- It's important in the current architecture that conditional components are all v-show (not v-if)
-          both to make them 'instant' to swithch between and to provide their actions -->
     <div v-if="projectLoading" class="flex w-full flex-1 flex-col items-center justify-center">
       <BusySpinnerIcon class="h-8 w-8 animate-spin" />
     </div>

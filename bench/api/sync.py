@@ -45,7 +45,7 @@ def tracked_db_mutation(
     skip_save: bool = False,
     skip_auth_check: bool = False,
     register: bool = True,
-    directives: Optional[Sequence[object]] = None,
+    extensions: Optional[Sequence[object]] = None,
 ):
     """
     A module in-DB mutation of a specific type
@@ -57,7 +57,7 @@ def tracked_db_mutation(
     Assumes that your wrapped func is either marked atomic or does not save changes itself.
     """
 
-    directives = directives or []
+    extensions = extensions or []
 
     def make_resolver(func):
         needs_info = "info" in func.__annotations__
@@ -119,7 +119,7 @@ def tracked_db_mutation(
         else:
             rewrapped = wrapped_mutation
 
-        return strawberry_django.mutation((wrap_exceptions(rewrapped)), directives=directives)
+        return strawberry_django.mutation((wrap_exceptions(rewrapped)), extensions=extensions)
 
     return make_resolver
 

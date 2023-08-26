@@ -149,7 +149,7 @@ class Project(relay.Node):
     @strawberry_django.field
     def access_level(self, info: OperationInfo) -> ProjectAccessLevel:
         access = has_project_access(info, self, models.ProjectAccessLevel.Read)
-        return access.level
+        return access.level if access else models.ProjectAccessLevel.Zero
 
     @strawberry_django.field
     def migration_mappings(

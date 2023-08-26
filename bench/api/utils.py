@@ -59,7 +59,7 @@ class ModuleNode:
 
 def safe_mutation(
     func: Optional = None,
-    directives: Optional[Sequence[object]] = (),
+    extensions: Optional[Sequence[object]] = (),
     atomic: bool = False,
     **kwargs,
 ):
@@ -77,7 +77,7 @@ def safe_mutation(
             wrapped_func = wrapped_atomic
         else:
             wrapped_func = func
-        return strawberry_django.mutation(wrapped_func, directives=directives, **kwargs)
+        return strawberry_django.mutation(wrapped_func, extensions=extensions, **kwargs)
 
     if func is None:
         return wrapper
@@ -86,7 +86,7 @@ def safe_mutation(
 
 def asafe_mutation(
     func: Optional = None,
-    directives: Optional[Sequence[object]] = (),
+    extensions: Optional[Sequence[object]] = (),
     atomic: bool = False,
     **kwargs,
 ):
@@ -98,7 +98,7 @@ def asafe_mutation(
             raise NotImplementedError("atomic=True not supported for async mutations")
         else:
             wrapped_func = func
-        return strawberry.mutation(wrapped_func, directives=directives, **kwargs)
+        return strawberry.mutation(wrapped_func, extensions=extensions, **kwargs)
 
     if func is None:
         return wrapper
