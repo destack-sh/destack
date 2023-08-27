@@ -19,7 +19,7 @@ from strawberry_django import django_resolver
 from strawberry_django.fields.types import OperationInfo, OperationMessage
 
 from bench import models
-from bench.api.utils import get_header_from_scope, get_scope_from_info, get_user_from_info
+from bench.api.utils import get_param_from_info, get_user_from_info
 from bench.models import (
     Organization,
     OrganizationRole,
@@ -88,18 +88,19 @@ def has_project_access(
     if isinstance(project, UUID):
         project = models.Project.objects.get(id=project)
     elif isinstance(project, models.ProjectVersion):
-        project = project.project
         project_version = project
+        project = project.project
     else:
         project = project
 
-    user_access = get_user_access(info, project) or ProjectAccessInfo.zero(project)
-    sharing_token_access = get_sharing_token_access(info, project) or ProjectAccessInfo.zero(
-        project
+    possible_accesses = (
+        get_user_access(info, project),
+        get_sharing_token_access(info, project),
+        get_default_project_access(project),
+        ProjectAccessInfo.zero(project),
     )
-
     # return the more permissive access level >= level if any
-    access = max(user_access, sharing_token_access, key=lambda a: a.level)
+    access = max((a for a in possible_accesses if a is not None), key=lambda a: a.level)
     if access.level < level:
         return None
     access.project_version = project_version
@@ -135,16 +136,22 @@ def get_user_access(info: Info, project: models.Project) -> Optional[ProjectAcce
 
 
 def get_sharing_token_access(info: Info, project: models.Project) -> Optional[ProjectAccessInfo]:
-    scope = get_scope_from_info(info)
-    sharing_token = get_header_from_scope(scope, "x-sharing-token")
-    if not sharing_token:
-        if project.visibility != models.ProjectVisibility.PUBLIC:
-            return None
-        return ProjectAccessInfo(None, project, None, models.ProjectAccessLevel.Read)
-    sharing_token = UUID(sharing_token)
+    sharing_token = get_param_from_info(info, "x-sharing-token")
+    if sharing_token is None:
+        return None
+    try:
+        sharing_token = UUID(sharing_token)
+    except ValueError:
+        return None
     if project.sharing_token != sharing_token:
         return None
     return ProjectAccessInfo(None, project, None, project.sharing_level)
+
+
+def get_default_project_access(project: models.Project) -> Optional[ProjectAccessInfo]:
+    if project.visibility == models.ProjectVisibility.PUBLIC:
+        return ProjectAccessInfo(None, project, None, models.ProjectAccessLevel.Read)
+    return None
 
 
 def has_module_node_access(
@@ -154,19 +161,12 @@ def has_module_node_access(
     Get node-level access info for the given user.
     Right now this is the same as project-level access.
     """
-    project = get_containing_project(node)
-    return has_project_access(info, project, level)
-
-
-def get_containing_project(node: models.ModuleNode | models.ProjectVersion):
     root = node
     while root.parent:
         root = root.parent
-    if isinstance(root, models.ProjectVersion):
-        root = root.project
-    if not isinstance(root, models.Project):
+    if not isinstance(root, models.ProjectVersion):
         raise ValueError(f"expected project root for {node}, got {root}")
-    return root
+    return has_project_access(info, root, level)
 
 
 def is_owner_or_member(

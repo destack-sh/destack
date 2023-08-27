@@ -9,7 +9,6 @@ import strawberry_django
 import structlog
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, transaction
-from more_itertools import first
 from strawberry import lazy, relay
 from strawberry.channels.handlers.http_handler import ChannelsRequest
 from strawberry.channels.handlers.ws_handler import GraphQLWSConsumer
@@ -171,7 +170,7 @@ def get_client_origin_from_info(info: Info) -> ClientOrigin:
     scope = get_scope_from_info(info)
     client_id = scope["session"]["client_id"]
     # get nonce from list of headers
-    client_nonce = get_header_from_scope(scope, "x-client-nonce")
+    client_nonce = get_param_from_info(info, "x-client-nonce")
     client_nonce = UUID(client_nonce) if client_nonce else None
     origin = ClientOrigin("user", client_id, client_nonce)
     return origin
@@ -191,8 +190,20 @@ def get_scope_from_info(info: Info) -> dict:
         raise TypeError(f"unexpected request type: {request}")
 
 
-def get_header_from_scope(scope: dict, name: str) -> str | None:
-    return first((v.decode() for k, v in scope["headers"] if k.decode().lower() == name), None)
+def get_param_from_info(info: Info, name: str) -> str | None:
+    """Gets a header or connection param from the request."""
+    name = name.lower()
+    scope = get_scope_from_info(info)
+    if "headers" in scope:
+        for k, v in scope["headers"]:
+            if k.decode().lower() == name:
+                return v.decode()
+    if "connection_params" in info.context:
+        # rewrite as nice loop
+        for k, v in info.context["connection_params"]["headers"].items():
+            if k.lower() == name:
+                return v
+    return None
 
 
 class ThingBatch(Iterable):

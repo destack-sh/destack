@@ -12,13 +12,36 @@ import { parse as parseUuid, stringify as stringifyUuid } from "uuid";
 export const NON_SOCIAL_AUTH_ENABLED = process.env.ENVIRONMENT === "development";
 
 export function encodeSharingToken(uuid: string): string {
-  const bytes = parseUuid(uuid);
-  return btoa(bytes);
+  /* Encode hex uuid into base64 */
+  const hex = uuid.replace(/-/g, "");
+  const rawBytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < rawBytes.length; i++) {
+    rawBytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  const base64 = btoa(String.fromCharCode.apply(null, Array.from(rawBytes)));
+  return base64.replace("+", "-").replace("/", "_").replace(/=+$/, "");
 }
 
 export function decodeSharingToken(base64: string): string {
-  const bytes = atob(base64);
-  return stringifyUuid(bytes);
+  /* Decode base64 into hex uuid */
+  base64 = base64.replace("-", "+").replace("_", "/");
+  const raw = atob(base64);
+  let hex = "";
+  for (let i = 0; i < raw.length; i++) {
+    const byte = raw.charCodeAt(i);
+    hex += ("0" + byte.toString(16)).slice(-2);
+  }
+  return (
+    hex.substring(0, 8) +
+    "-" +
+    hex.substring(8, 12) +
+    "-" +
+    hex.substring(12, 16) +
+    "-" +
+    hex.substring(16, 20) +
+    "-" +
+    hex.substring(20, 32)
+  );
 }
 
 function _useAuth() {
