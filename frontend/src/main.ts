@@ -2,9 +2,10 @@
 
 import { RetryLink } from "@apollo/client/link/retry";
 import { GraphQLWsLink } from "@apollo/client/link/subscriptions";
-import { createApp, h, provide } from "vue";
+import { createApp, h, provide, watch } from "vue";
 
 import {
+  ACTIVE_SHARING_TOKEN,
   API_BASE_URL,
   COMMIT,
   HTTP_API_BASE_URL,
@@ -15,7 +16,7 @@ import {
 } from "@/utils/globals";
 import { TYPE_POLICIES } from "@/utils/policies";
 import { applyShortcuts } from "@/utils/shortcuts";
-import { ApolloClient, HttpLink, InMemoryCache, split } from "@apollo/client/core";
+import { ApolloClient, ApolloLink, HttpLink, InMemoryCache, split } from "@apollo/client/core";
 import { getMainDefinition } from "@apollo/client/utilities";
 import monacoLoader from "@monaco-editor/loader";
 import { BrowserTracing } from "@sentry/tracing";
@@ -55,19 +56,34 @@ function createApolloClient() {
         connected: () => (WS_CONNECTED.value = true),
         closed: () => (WS_CONNECTED.value = false),
       },
-      connectionParams: {
-        "X-Client-Nonce": CLIENT_NONCE,
-      },
+      connectionParams: () => ({
+        headers: {
+          "X-Client-Nonce": CLIENT_NONCE,
+          ...(ACTIVE_SHARING_TOKEN.value ? { "X-Sharing-Token": ACTIVE_SHARING_TOKEN.value } : {}),
+        },
+      }),
     })
   );
+  // set the active sharing token as X-Sharing-Token header (if set)
+  const httpAuthLink = new ApolloLink((operation, forward) => {
+    operation.setContext(({ headers = {} }) => ({
+      headers: {
+        ...headers,
+        ...(ACTIVE_SHARING_TOKEN.value ? { "X-Sharing-Token": ACTIVE_SHARING_TOKEN.value } : {}),
+      },
+    }));
+    return forward(operation);
+  });
+
   const splitLink = split(
     ({ query }) => {
       const definition = getMainDefinition(query);
       return definition.kind === "OperationDefinition" && definition.operation === "subscription";
     },
     wsLink,
-    httpLink
+    httpAuthLink.concat(httpLink)
   );
+
   // auto-retry requests when failed due to network errors
   const retryLink = new RetryLink({
     delay: { initial: 300, max: MAX_RETRY_TIME_MS, jitter: true },

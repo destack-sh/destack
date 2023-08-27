@@ -747,7 +747,7 @@ class SessionSubscription:
         try:
             await sync_to_async(check_project_access)(info, project_id, ProjectAccessLevel.Read)
         except PermissionDenied:
-            log.debug("sessions.subscribe_denied", exc_info=True)
+            log.warn("sessions.subscribe_denied", exc_info=True)
             return
 
         def _filter_run(run: wire.RunData) -> bool:
@@ -820,7 +820,7 @@ class SessionSubscription:
         try:
             await sync_to_async(check_project_access)(info, project_id, ProjectAccessLevel.Read)
         except PermissionDenied:
-            log.debug("sessions.subscribe_denied", exc_info=True)
+            log.warn("sessions.subscribe_denied", exc_info=True)
             return
 
         def _filter_log(log: wire.LogEntryData) -> bool:

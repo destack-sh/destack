@@ -11,12 +11,12 @@ from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
 
-from bench.api.auth import check_module_node_access
+from bench.api.auth import has_module_node_access
 from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
 from bench.language import Statement
 from bench.language.mutate import ModuleMutation, ModuleMutationKind
-from bench.models import ProjectVersion
+from bench.models import ProjectAccessLevel, ProjectVersion
 from bench.msg.core import publish_soon
 from bench.msg.messages import (
     ClientOrigin,
@@ -80,7 +80,9 @@ def tracked_db_mutation(
                 things = [thing]
 
             # validate (ignoring constraints; 'revision' field which may be an F expression)
-            access = check_module_node_access(info, thing, check_auth=not skip_auth_check)
+            access = has_module_node_access(info, thing, ProjectAccessLevel.Edit)
+            if not skip_auth_check and not access:
+                raise PermissionError("User cannot do this.")
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )

@@ -19,7 +19,7 @@ import ViewIssues from "@/components/views/ViewIssues.vue";
 import { graphql, useFragment } from "@/gql";
 import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
-import { useAuth } from "@/state/auth";
+import { decodeSharingToken, useAuth } from "@/state/auth";
 import {
   PANEL_INSTANCE_TYPES,
   prettifySlug,
@@ -33,7 +33,7 @@ import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useOperationsStore } from "@/state/operations";
 import { useModuleSync, useProjectSync } from "@/state/sync";
-import { WS_CONNECTED } from "@/utils/globals";
+import { ACTIVE_SHARING_TOKEN, WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
 import { ClockIcon as ClockIconSolid, CommandLineIcon } from "@heroicons/vue/24/outline";
 import {
@@ -77,6 +77,20 @@ const props = defineProps<{
   project: string;
   version?: string;
 }>();
+
+// set secret sharing token if present in url (must be done first)
+const router = useRouter();
+watch(
+  () => router.currentRoute.value.query,
+  () => {
+    if (router.currentRoute.value.query.s != null) {
+      ACTIVE_SHARING_TOKEN.value = decodeSharingToken(router.currentRoute.value.query.s as string);
+    } else {
+      ACTIVE_SHARING_TOKEN.value = null;
+    }
+  },
+  { immediate: true }
+);
 
 // views for the sidebar
 type View = {
@@ -174,7 +188,6 @@ const versionToViewId = computed(() => {
 const bench = useBenchState();
 const ready = computed(() => bench.projectVersionId != null && bench.projectVersionId == versionToViewId.value);
 const notifications = useNotifications();
-const router = useRouter();
 const viewContainerRef = ref<HTMLElement | null>(null);
 const viewContainerSize = useElementSize(viewContainerRef);
 const mainContainerRef = ref<HTMLElement | null>(null);

@@ -341,7 +341,7 @@ class ClientQuery:
         qs = models.Client.objects.all()
         user = get_user_from_info(info)
         if not user.is_authenticated:
-            raise PermissionDenied("can only query clients when logged in")
+            return qs.none()
 
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
