@@ -10,7 +10,6 @@ import {
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { ModuleMutationRegistry } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
-import { v4 as uuidv4 } from "uuid";
 
 export function useFileOps() {
   const ops = useOperationsStore();
@@ -29,7 +28,7 @@ export function useFileOps() {
         $name: String!
         $parentId: GlobalID
       ) {
-        createFile(input: { id: $id, projectVersionId: $projectVersionId, parentId: $parentId, name: $name }) {
+        createFile(input: { id: $id, ck: $ck, projectVersionId: $projectVersionId, parentId: $parentId, name: $name }) {
           ... on File {
             # :fileContentById
             # unfortunately can't use FileHeader here for.. error reasons?
@@ -306,13 +305,26 @@ export function useFileOps() {
 
   const { mutate: pasteFileMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation pasteFile($sourceId: GlobalID!, $targetId: GlobalID, $targetVersionId: GlobalID!, $parentId: GlobalID) {
+      mutation pasteFile(
+        $sourceId: GlobalID!
+        $targetId: GlobalID!
+        $targetCk: UUID!
+        $targetVersionId: GlobalID!
+        $parentId: GlobalID
+      ) {
         pasteFile(
-          input: { sourceId: $sourceId, targetId: $targetId, targetVersionId: $targetVersionId, parentId: $parentId }
+          input: {
+            sourceId: $sourceId
+            targetId: $targetId
+            targetCk: $targetCk
+            targetVersionId: $targetVersionId
+            parentId: $parentId
+          }
         ) {
           ... on File {
             # :fileContentById
             id
+            ck
             projectVersion {
               id
             }
@@ -364,6 +376,7 @@ export function useFileOps() {
         return await pasteFileMut({
           sourceId: sourceId,
           targetId: targetId,
+          targetCk: targetCk,
           targetVersionId: targetVersionId,
           parentId: parentId,
         });

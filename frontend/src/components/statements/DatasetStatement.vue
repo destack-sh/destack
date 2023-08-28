@@ -30,9 +30,8 @@ import {
   type StatementHeader,
 } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { useCurrentModule, type Field } from "@/state/module";
+import { useCurrentModule, type Field, newNodeIdentity } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newRecordId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
@@ -121,7 +120,7 @@ const enumFields = computed(() =>
   context.allFields.value.filter(
     (f) =>
       f.tag == TypeTag.Enum ||
-      (f.tag == TypeTag.TypeReference && module.statementOf(f.reference?.id)?.rootTypeTag == TypeTag.Enum)
+      (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.rootTypeTag == TypeTag.Enum)
   )
 );
 // TODO @UX: apply inline search to local records immediately/optmistically
@@ -150,7 +149,7 @@ function getInlineQuery() {
   // filter for enum fields members that match the query
   for (const enumField of enumFields.value) {
     const matchingMembers = module
-      .statementOf(enumField.reference?.id)
+      .statementOf(enumField.referenceCk)
       ?.fields.filter((m) => m.name?.toLowerCase().startsWith(properties.inlineQuery?.toLowerCase() ?? ""));
     if (matchingMembers == null || matchingMembers.length == 0) continue;
     subqueries.push({
@@ -490,7 +489,7 @@ function focusLastRecord() {
 
 const ops = useOperations();
 
-function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata"> & Partial<Field>) {
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
   grid.beginBatchChange();
   const field = context.createNewField(template);
   nextTick(() => {
@@ -564,13 +563,21 @@ function insertRecordAtEnd() {
 
 function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   const orderKey = getNewOrderKey(options?.belowRecordId);
-  const recordId = newRecordId();
-  ops.symbol.createRecord(null, recordId, context.statement.value.id, orderKey, options?.value ?? ({} as any));
+  const identity = newNodeIdentity(module.id.value, "Record");
+  ops.symbol.createRecord(
+    null,
+    identity.id,
+    identity.ck,
+    context.statement.value.id,
+    orderKey,
+    options?.value ?? ({} as any)
+  );
   // add record to search results optimistically (regardless of filter)
-  const recordRef = client.client.cache.identify({ __typename: "Record", id: recordId });
+  const recordRef = client.client.cache.identify({ __typename: "Record", id: identity.id });
   const optimisticRecord = {
     __typename: "Record",
-    id: recordId,
+    id: identity.id,
+    ck: identity.ck,
     revision: -1,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
@@ -614,7 +621,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     })
   );
   // focus new record (for some reason the good ol' nextTick alone doesn't work here)
-  grid.onColumnAvailable(recordId, columnsInOrder.value[0], (ref) => nextTick(ref.focus));
+  grid.onColumnAvailable(identity.id, columnsInOrder.value[0], (ref) => nextTick(ref.focus));
 }
 
 function writeRecordField(recordId: string, key: string, value: any) {

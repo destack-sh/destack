@@ -172,14 +172,6 @@ export type CommitPayload = {
 
 export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
 
-export type Dataset = Node & {
-  __typename?: "Dataset";
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  key: Scalars["String"];
-  versioned: Scalars["Boolean"];
-};
-
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
@@ -198,6 +190,7 @@ export type Field = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Field";
+    ck: Scalars["UUID"];
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
@@ -213,7 +206,7 @@ export type Field = HasCrud &
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     parent: Statement;
-    reference?: Maybe<Statement>;
+    referenceCk?: Maybe<Scalars["UUID"]>;
     revision: Scalars["Int"];
     statement: Statement;
     tag: TypeTag;
@@ -221,6 +214,7 @@ export type Field = HasCrud &
   };
 
 export type FieldCreateInput = {
+  ck: Scalars["UUID"];
   description?: InputMaybe<Scalars["String"]>;
   flags?: Scalars["Int"];
   hint?: InputMaybe<TypeHint>;
@@ -229,7 +223,7 @@ export type FieldCreateInput = {
   metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
 };
@@ -272,7 +266,7 @@ export type FieldUpdateInput = {
   id: Scalars["GlobalID"];
   metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   tag: TypeTag;
 };
 
@@ -280,7 +274,7 @@ export type FieldUpdateTypeInput = {
   flags?: Scalars["Int"];
   hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["GlobalID"]>;
   tag: TypeTag;
 };
 
@@ -288,6 +282,7 @@ export type File = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "File";
+    ck: Scalars["UUID"];
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
@@ -309,7 +304,8 @@ export type FileStatementsArgs = {
 };
 
 export type FileCreateInput = {
-  id?: InputMaybe<Scalars["GlobalID"]>;
+  ck: Scalars["UUID"];
+  id: Scalars["GlobalID"];
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   projectVersionId: Scalars["GlobalID"];
@@ -331,7 +327,8 @@ export type FileOperationInfo = File | OperationInfo;
 export type FilePasteInput = {
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   sourceId: Scalars["GlobalID"];
-  targetId?: InputMaybe<Scalars["GlobalID"]>;
+  targetCk: Scalars["UUID"];
+  targetId: Scalars["GlobalID"];
   targetVersionId: Scalars["GlobalID"];
 };
 
@@ -360,6 +357,7 @@ export type HasTriggeredBy = {
 export type Issue = ModuleNode &
   Node & {
     __typename?: "Issue";
+    ck: Scalars["UUID"];
     id: Scalars["GlobalID"];
     kind: IssueKind;
     message?: Maybe<Scalars["String"]>;
@@ -529,6 +527,7 @@ export enum ModuleMutationType {
 }
 
 export type ModuleNode = {
+  ck: Scalars["UUID"];
   id: Scalars["GlobalID"];
   parent?: Maybe<ModuleNode>;
 };
@@ -1294,7 +1293,6 @@ export type Project = Node & {
   head: ProjectVersion;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
-  migrationMappings: ProjectMigrationInfo;
   name: Scalars["String"];
   owner: UserOrganization;
   path: Scalars["String"];
@@ -1308,11 +1306,6 @@ export type Project = Node & {
   visibility: ProjectVisibility;
   workerSet: WorkerSet;
   workerSets: Array<WorkerSet>;
-};
-
-export type ProjectMigrationMappingsArgs = {
-  sourceVersionId: Scalars["GlobalID"];
-  targetVersionId: Scalars["GlobalID"];
 };
 
 export type ProjectVersionsArgs = {
@@ -1385,14 +1378,6 @@ export type ProjectInviteInput = {
   message?: InputMaybe<Scalars["String"]>;
 };
 
-export type ProjectMigrationInfo = {
-  __typename?: "ProjectMigrationInfo";
-  isReverse: Scalars["Boolean"];
-  refMappings: Array<RefMapping>;
-  sourceVersion: ProjectVersion;
-  targetVersion: ProjectVersion;
-};
-
 export type ProjectOperationInfo = OperationInfo | Project;
 
 export type ProjectRemoveMembershipInput = {
@@ -1428,8 +1413,8 @@ export type ProjectVersion = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "ProjectVersion";
-    childRefs: RefMappingConnection;
     children: Array<ProjectVersion>;
+    ck: Scalars["UUID"];
     committed: Scalars["Boolean"];
     committedAt?: Maybe<Scalars["DateTime"]>;
     createdAt: Scalars["DateTime"];
@@ -1443,31 +1428,14 @@ export type ProjectVersion = HasCrud &
     lastEditedBy?: Maybe<User>;
     name?: Maybe<Scalars["String"]>;
     parent?: Maybe<ModuleNode>;
-    parentRefs: RefMappingConnection;
     parents: Array<ProjectVersion>;
     project: Project;
     tag?: Maybe<Scalars["String"]>;
     updatedAt: Scalars["DateTime"];
   };
 
-export type ProjectVersionChildRefsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  filters?: InputMaybe<RefMappingFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
-};
-
 export type ProjectVersionFilesArgs = {
   filters?: InputMaybe<FileFilter>;
-};
-
-export type ProjectVersionParentRefsArgs = {
-  after?: InputMaybe<Scalars["String"]>;
-  before?: InputMaybe<Scalars["String"]>;
-  filters?: InputMaybe<RefMappingFilter>;
-  first?: InputMaybe<Scalars["Int"]>;
-  last?: InputMaybe<Scalars["Int"]>;
 };
 
 /** A connection to a list of items. */
@@ -1689,6 +1657,7 @@ export enum QueryOp {
 
 export type Record = HasCrud & {
   __typename?: "Record";
+  ck: Scalars["UUID"];
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
   datasetId: Scalars["String"];
@@ -1730,6 +1699,7 @@ export type RecordConnection = {
 };
 
 export type RecordCreateInput = {
+  ck: Scalars["UUID"];
   id: Scalars["GlobalID"];
   orderKey?: InputMaybe<Scalars["String"]>;
   statementId: Scalars["GlobalID"];
@@ -1768,50 +1738,6 @@ export type RecordUpdateInput = {
   statementId: Scalars["GlobalID"];
   value: Scalars["JSON"];
 };
-
-export type RefMapping = Node & {
-  __typename?: "RefMapping";
-  /** The Globally Unique ID of this object */
-  id: Scalars["GlobalID"];
-  kind: RefMappingKind;
-  sourceId: Scalars["GlobalID"];
-  sourceRevision: Scalars["Int"];
-  sourceVersion: ProjectVersion;
-  sourceVersionId: Scalars["GlobalID"];
-  targetId: Scalars["GlobalID"];
-  targetRevision: Scalars["Int"];
-  targetVersion: ProjectVersion;
-  targetVersionId: Scalars["GlobalID"];
-};
-
-/** A connection to a list of items. */
-export type RefMappingConnection = {
-  __typename?: "RefMappingConnection";
-  /** Contains the nodes in this connection */
-  edges: Array<RefMappingEdge>;
-  /** Pagination data for this connection */
-  pageInfo: PageInfo;
-};
-
-/** An edge in a connection. */
-export type RefMappingEdge = {
-  __typename?: "RefMappingEdge";
-  /** A cursor for use in pagination */
-  cursor: Scalars["String"];
-  /** The item at the end of the edge */
-  node: RefMapping;
-};
-
-export type RefMappingFilter = {
-  AND?: InputMaybe<RefMappingFilter>;
-  OR?: InputMaybe<RefMappingFilter>;
-  kind?: InputMaybe<RefMappingKind>;
-};
-
-export enum RefMappingKind {
-  Commit = "COMMIT",
-  Paste = "PASTE",
-}
 
 export type RemoteObject = Node & {
   __typename?: "RemoteObject";
@@ -2078,10 +2004,10 @@ export type Statement = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Statement";
+    ck: Scalars["UUID"];
     code?: Maybe<Scalars["String"]>;
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
-    dataset?: Maybe<Dataset>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
     descendants: Array<Statement>;
     description?: Maybe<Scalars["String"]>;
@@ -2098,7 +2024,7 @@ export type Statement = HasCrud &
     orderKey: Scalars["String"];
     parent: ModuleNode;
     projectVersion: ProjectVersion;
-    reference?: Maybe<Statement>;
+    referenceCk?: Maybe<Scalars["UUID"]>;
     resolvedFields?: Maybe<Array<ResolvedField>>;
     revision: Scalars["Int"];
     rootTypeFlags?: Maybe<Scalars["Int"]>;
@@ -2139,6 +2065,7 @@ export type StatementBatchOperationInfo = OperationInfo | StatementBatch;
 
 export type StatementBatchPasteInput = {
   sourceIds: Array<Scalars["GlobalID"]>;
+  targetCks: Array<Scalars["UUID"]>;
   targetFileId: Scalars["GlobalID"];
   targetIds: Array<Scalars["GlobalID"]>;
   targetOrderKeys: Array<Scalars["String"]>;
@@ -2154,16 +2081,17 @@ export type StatementBatchSoftDeleteInput = {
 };
 
 export type StatementCreateInput = {
+  ck: Scalars["UUID"];
   code?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   fileId: Scalars["GlobalID"];
-  id?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"];
   key?: InputMaybe<Scalars["String"]>;
   lang?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]>;
@@ -2236,7 +2164,7 @@ export type StatementUpdateInput = {
   lang?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey?: InputMaybe<Scalars["String"]>;
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   rootTypeFlags?: InputMaybe<Scalars["Int"]>;
   rootTypeTag?: InputMaybe<TypeTag>;
   text?: InputMaybe<Scalars["String"]>;
@@ -2246,7 +2174,7 @@ export type StatementUpdateInput = {
 
 export type StatementUpdateReferenceInput = {
   id: Scalars["GlobalID"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
 };
 
 export type StatementUpdateTextInput = {
@@ -2315,6 +2243,7 @@ export type Tagging = HasCrud &
   ModuleNode &
   Node & {
     __typename?: "Tagging";
+    ck: Scalars["UUID"];
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     deletedAt?: Maybe<Scalars["DateTime"]>;
@@ -2325,17 +2254,18 @@ export type Tagging = HasCrud &
     lastEditedBy?: Maybe<User>;
     metadata?: Maybe<Scalars["JSON"]>;
     parent: Statement;
-    reference: Statement;
+    referenceCk?: Maybe<Scalars["UUID"]>;
     revision: Scalars["Int"];
     statement: Statement;
     updatedAt: Scalars["DateTime"];
   };
 
 export type TaggingCreateInput = {
+  ck: Scalars["UUID"];
   id: Scalars["GlobalID"];
   key: Scalars["String"];
   metadata?: InputMaybe<Scalars["JSON"]>;
-  referenceId: Scalars["GlobalID"];
+  referenceCk: Scalars["GlobalID"];
   statementId: Scalars["GlobalID"];
 };
 
@@ -2365,6 +2295,7 @@ export type Trigger = HasCrud &
   Node & {
     __typename?: "Trigger";
     active: Scalars["Boolean"];
+    ck: Scalars["UUID"];
     createdAt: Scalars["DateTime"];
     createdBy?: Maybe<User>;
     cron?: Maybe<Scalars["String"]>;
@@ -2377,9 +2308,9 @@ export type Trigger = HasCrud &
     mapping?: Maybe<Scalars["JSON"]>;
     parent: Statement;
     revision: Scalars["Int"];
-    runnable?: Maybe<Statement>;
+    runnableCk?: Maybe<Scalars["UUID"]>;
     scheduleType: ScheduleType;
-    scope?: Maybe<Statement>;
+    scopeCk?: Maybe<Scalars["UUID"]>;
     timezone?: Maybe<Scalars["String"]>;
     type: TriggerType;
     updatedAt: Scalars["DateTime"];
@@ -2387,13 +2318,14 @@ export type Trigger = HasCrud &
 
 export type TriggerCreateInput = {
   active: Scalars["Boolean"];
+  ck: Scalars["UUID"];
   cron?: InputMaybe<Scalars["String"]>;
   id: Scalars["GlobalID"];
   interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCk?: InputMaybe<Scalars["UUID"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
   statementId: Scalars["GlobalID"];
   timezone?: InputMaybe<Scalars["String"]>;
   type: TriggerType;
@@ -2431,9 +2363,9 @@ export type TriggerUpdateInput = {
   id: Scalars["GlobalID"];
   interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCk?: InputMaybe<Scalars["UUID"]>;
   scheduleType?: InputMaybe<ScheduleType>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
   timezone?: InputMaybe<Scalars["String"]>;
   type: TriggerType;
 };
@@ -3350,44 +3282,6 @@ export type MeQuery = {
   } | null;
 };
 
-export type ProjectMigrationRefsQueryVariables = Exact<{
-  projectId: Scalars["GlobalID"];
-  sourceVersionId: Scalars["GlobalID"];
-  targetVersionId: Scalars["GlobalID"];
-}>;
-
-export type ProjectMigrationRefsQuery = {
-  __typename?: "Query";
-  project?: {
-    __typename?: "Project";
-    migrationMappings: {
-      __typename?: "ProjectMigrationInfo";
-      isReverse: boolean;
-      sourceVersion: {
-        __typename?: "ProjectVersion";
-        id: any;
-        createdAt: any;
-        tag?: string | null;
-        name?: string | null;
-      };
-      targetVersion: {
-        __typename?: "ProjectVersion";
-        id: any;
-        createdAt: any;
-        tag?: string | null;
-        name?: string | null;
-      };
-      refMappings: Array<{
-        __typename?: "RefMapping";
-        sourceId: any;
-        sourceVersionId: any;
-        targetId: any;
-        targetVersionId: any;
-      }>;
-    };
-  } | null;
-};
-
 export type ClientContentTypeFragment = {
   __typename?: "Client";
   id: any;
@@ -3560,6 +3454,7 @@ export type HasCrudContentFragment =
 export type ProjectVersionHeaderFragment = {
   __typename?: "ProjectVersion";
   id: any;
+  ck: any;
   name?: string | null;
   tag?: string | null;
   description?: string | null;
@@ -3597,6 +3492,7 @@ export type ProjectHeaderFragment = {
 export type FileHeaderFragment = {
   __typename: "File";
   id: any;
+  ck: any;
   revision: number;
   name: string;
   deletedAt?: any | null;
@@ -3619,6 +3515,7 @@ export type FileHeaderFragment = {
 export type StatementHeaderFragment = {
   __typename: "Statement";
   id: any;
+  ck: any;
   type: StatementType;
   revision: number;
   name?: string | null;
@@ -3640,6 +3537,7 @@ export type StatementHeaderFragment = {
 export type FieldContentFragment = {
   __typename: "Field";
   id: any;
+  ck: any;
   revision: number;
   name?: string | null;
   key: string;
@@ -3648,12 +3546,12 @@ export type FieldContentFragment = {
   flags: number;
   description?: string | null;
   orderKey: string;
+  referenceCk?: any | null;
   metadata?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
-  reference?: { __typename?: "Statement"; id: any } | null;
   parent: { __typename?: "Statement"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
@@ -3662,15 +3560,16 @@ export type FieldContentFragment = {
 export type TaggingContentFragment = {
   __typename?: "Tagging";
   id: any;
+  ck: any;
   revision: number;
   key: string;
+  referenceCk?: any | null;
   metadata?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   parent: { __typename?: "Statement"; id: any };
-  reference: { __typename?: "Statement"; id: any };
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "TaggingContentFragment" };
@@ -3678,6 +3577,7 @@ export type TaggingContentFragment = {
 export type TriggerContentFragment = {
   __typename?: "Trigger";
   id: any;
+  ck: any;
   revision: number;
   type: TriggerType;
   active: boolean;
@@ -3686,13 +3586,13 @@ export type TriggerContentFragment = {
   scheduleType: ScheduleType;
   interval?: number | null;
   cron?: string | null;
+  runnableCk?: any | null;
+  scopeCk?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   parent: { __typename?: "Statement"; id: any };
-  runnable?: { __typename?: "Statement"; id: any } | null;
-  scope?: { __typename?: "Statement"; id: any } | null;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "TriggerContentFragment" };
@@ -3700,6 +3600,7 @@ export type TriggerContentFragment = {
 export type StatementContentFragment = {
   __typename?: "Statement";
   id: any;
+  ck: any;
   type: StatementType;
   revision: number;
   name?: string | null;
@@ -3712,6 +3613,7 @@ export type StatementContentFragment = {
   value?: any | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
+  referenceCk?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3724,7 +3626,6 @@ export type StatementContentFragment = {
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
-  reference?: { __typename?: "Statement"; id: any } | null;
   tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
   fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   triggers: Array<
@@ -3745,6 +3646,7 @@ export type StatementContentFragment = {
 export type IssueContentFragment = {
   __typename?: "Issue";
   id: any;
+  ck: any;
   kind: IssueKind;
   type: IssueType;
   message?: string | null;
@@ -3768,6 +3670,7 @@ export type ResolvedFieldContentFragment = {
 export type InterpFileFragment = {
   __typename?: "File";
   id: any;
+  ck: any;
   revision: number;
   name: string;
   createdAt: any;
@@ -3788,6 +3691,7 @@ export type InterpFileFragment = {
 export type InterpStatementFragment = {
   __typename?: "Statement";
   id: any;
+  ck: any;
   type: StatementType;
   name?: string | null;
   description?: string | null;
@@ -3796,6 +3700,7 @@ export type InterpStatementFragment = {
   key?: string | null;
   rootTypeTag?: TypeTag | null;
   rootTypeFlags?: number | null;
+  referenceCk?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3809,37 +3714,8 @@ export type InterpStatementFragment = {
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
-  reference?: { __typename?: "Statement"; id: any } | null;
-  tags: Array<{
-    __typename?: "Tagging";
-    id: any;
-    revision: number;
-    key: string;
-    metadata?: any | null;
-    createdAt: any;
-    updatedAt: any;
-    deletedAt?: any | null;
-    parent: { __typename?: "Statement"; id: any };
-    reference: { __typename?: "Statement"; id: any };
-  }>;
-  fields: Array<{
-    __typename?: "Field";
-    id: any;
-    revision: number;
-    name?: string | null;
-    key: string;
-    tag: TypeTag;
-    hint?: TypeHint | null;
-    flags: number;
-    description?: string | null;
-    orderKey: string;
-    metadata?: any | null;
-    createdAt: any;
-    updatedAt: any;
-    deletedAt?: any | null;
-    reference?: { __typename?: "Statement"; id: any } | null;
-    parent: { __typename?: "Statement"; id: any };
-  }>;
+  tags: Array<{ __typename?: "Tagging" } & { " $fragmentRefs"?: { TaggingContentFragment: TaggingContentFragment } }>;
+  fields: Array<{ __typename?: "Field" } & { " $fragmentRefs"?: { FieldContentFragment: FieldContentFragment } }>;
   issues?: Array<
     { __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }
   > | null;
@@ -3991,7 +3867,8 @@ export type UpdatePresenceMutation = {
 };
 
 export type CreateFileMutationVariables = Exact<{
-  id?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   projectVersionId: Scalars["GlobalID"];
   name: Scalars["String"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
@@ -4003,6 +3880,7 @@ export type CreateFileMutation = {
     | {
         __typename?: "File";
         id: any;
+        ck: any;
         revision: number;
         name: string;
         deletedAt?: any | null;
@@ -4090,7 +3968,8 @@ export type RenameFileMutation = {
 
 export type PasteFileMutationVariables = Exact<{
   sourceId: Scalars["GlobalID"];
-  targetId?: InputMaybe<Scalars["GlobalID"]>;
+  targetId: Scalars["GlobalID"];
+  targetCk: Scalars["UUID"];
   targetVersionId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
@@ -4101,6 +3980,7 @@ export type PasteFileMutation = {
     | ({
         __typename?: "File";
         id: any;
+        ck: any;
         projectVersion: { __typename?: "ProjectVersion"; id: any };
         issues: Array<{ __typename?: "Issue" } & { " $fragmentRefs"?: { IssueContentFragment: IssueContentFragment } }>;
         statements: Array<
@@ -4421,7 +4301,8 @@ export type KillMutation = {
 };
 
 export type CreateStatementMutationVariables = Exact<{
-  id?: InputMaybe<Scalars["GlobalID"]>;
+  id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   fileId: Scalars["GlobalID"];
   parentId?: InputMaybe<Scalars["GlobalID"]>;
   orderKey: Scalars["String"];
@@ -4446,6 +4327,7 @@ export type CreateStatementMutation = {
     | {
         __typename?: "Statement";
         id: any;
+        ck: any;
         type: StatementType;
         revision: number;
         name?: string | null;
@@ -4458,6 +4340,7 @@ export type CreateStatementMutation = {
         value?: any | null;
         rootTypeTag?: TypeTag | null;
         rootTypeFlags?: number | null;
+        referenceCk?: any | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -4471,7 +4354,6 @@ export type CreateStatementMutation = {
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
           | { __typename?: "Trigger" };
-        reference?: { __typename?: "Statement"; id: any } | null;
         tags: Array<{ __typename?: "Tagging"; id: any }>;
         fields: Array<{ __typename?: "Field"; id: any }>;
         triggers: Array<{ __typename?: "Trigger"; id: any }>;
@@ -4707,6 +4589,7 @@ export type BatchRestoreStatementsMutation = {
 export type BatchPasteStatementMutationVariables = Exact<{
   sourceIds: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
   targetIds: Array<Scalars["GlobalID"]> | Scalars["GlobalID"];
+  targetCks: Array<Scalars["UUID"]> | Scalars["UUID"];
   targetFileId: Scalars["GlobalID"];
   targetParentIds: Array<InputMaybe<Scalars["GlobalID"]>> | InputMaybe<Scalars["GlobalID"]>;
   targetOrderKeys: Array<Scalars["String"]> | Scalars["String"];
@@ -4730,7 +4613,7 @@ export type BatchPasteStatementMutation = {
 
 export type UpdateStatementReferenceMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
 }>;
 
 export type UpdateStatementReferenceMutation = {
@@ -4739,7 +4622,7 @@ export type UpdateStatementReferenceMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Statement"; id: any; revision: number; reference?: { __typename?: "Statement"; id: any } | null };
+    | { __typename?: "Statement"; id: any; revision: number; referenceCk?: any | null };
 };
 
 export type UpdateSymbolDescriptionMutationVariables = Exact<{
@@ -4800,6 +4683,7 @@ export type UpdateSymbolValueMutation = {
 
 export type CreateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   orderKey?: InputMaybe<Scalars["String"]>;
   value: Scalars["JSON"];
@@ -4814,6 +4698,7 @@ export type CreateRecordMutation = {
     | {
         __typename?: "Record";
         id: any;
+        ck: any;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -4910,6 +4795,7 @@ export type BatchRestoreRecordMutation = {
 
 export type CreateFieldMutationVariables = Exact<{
   id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
   hint?: InputMaybe<TypeHint>;
@@ -4918,7 +4804,7 @@ export type CreateFieldMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
@@ -4928,6 +4814,7 @@ export type CreateFieldMutation = {
     | {
         __typename?: "Field";
         id: any;
+        ck: any;
         key: string;
         orderKey: string;
         revision: number;
@@ -4935,6 +4822,7 @@ export type CreateFieldMutation = {
         tag: TypeTag;
         hint?: TypeHint | null;
         description?: string | null;
+        referenceCk?: any | null;
         flags: number;
         metadata?: any | null;
         createdAt: any;
@@ -4943,7 +4831,6 @@ export type CreateFieldMutation = {
         lastEditedAt?: any | null;
         statement: { __typename?: "Statement"; id: any };
         parent: { __typename?: "Statement"; id: any };
-        reference?: { __typename?: "Statement"; id: any } | null;
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
       }
@@ -4998,7 +4885,7 @@ export type UpdateFieldMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
-  referenceId?: InputMaybe<Scalars["GlobalID"]>;
+  referenceCk?: InputMaybe<Scalars["UUID"]>;
   metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
@@ -5015,8 +4902,8 @@ export type UpdateFieldMutation = {
         name?: string | null;
         description?: string | null;
         flags: number;
+        referenceCk?: any | null;
         metadata?: any | null;
-        reference?: { __typename?: "Statement"; id: any } | null;
       }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -5039,9 +4926,10 @@ export type MoveFieldMutation = {
 
 export type CreateTaggingMutationVariables = Exact<{
   id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   key: Scalars["String"];
-  referenceId: Scalars["GlobalID"];
+  referenceCk: Scalars["GlobalID"];
   metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
@@ -5054,15 +4942,16 @@ export type CreateTaggingMutation = {
     | {
         __typename?: "Tagging";
         id: any;
+        ck: any;
         revision: number;
         key: string;
+        referenceCk?: any | null;
         metadata?: any | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
         lastEditedAt?: any | null;
         parent: { __typename?: "Statement"; id: any };
-        reference: { __typename?: "Statement"; id: any };
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
       };
@@ -5123,6 +5012,7 @@ export type UpdateTaggingMutation = {
 
 export type CreateTriggerMutationVariables = Exact<{
   id: Scalars["GlobalID"];
+  ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   type: TriggerType;
   active: Scalars["Boolean"];
@@ -5131,8 +5021,8 @@ export type CreateTriggerMutationVariables = Exact<{
   timezone?: InputMaybe<Scalars["String"]>;
   interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCk?: InputMaybe<Scalars["UUID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
 }>;
 
 export type CreateTriggerMutation = {
@@ -5144,6 +5034,7 @@ export type CreateTriggerMutation = {
     | {
         __typename?: "Trigger";
         id: any;
+        ck: any;
         revision: number;
         type: TriggerType;
         active: boolean;
@@ -5152,13 +5043,13 @@ export type CreateTriggerMutation = {
         timezone?: string | null;
         interval?: number | null;
         cron?: string | null;
+        runnableCk?: any | null;
+        scopeCk?: any | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
         lastEditedAt?: any | null;
         parent: { __typename?: "Statement"; id: any };
-        runnable?: { __typename?: "Statement"; id: any } | null;
-        scope?: { __typename?: "Statement"; id: any } | null;
         createdBy?: { __typename?: "User"; id: any } | null;
         lastEditedBy?: { __typename?: "User"; id: any } | null;
       };
@@ -5199,8 +5090,8 @@ export type UpdateTriggerMutationVariables = Exact<{
   timezone?: InputMaybe<Scalars["String"]>;
   interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCk?: InputMaybe<Scalars["UUID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
 }>;
 
 export type UpdateTriggerMutation = {
@@ -5221,8 +5112,8 @@ export type UpdateTriggerMutation = {
         timezone?: string | null;
         interval?: number | null;
         cron?: string | null;
-        runnable?: { __typename?: "Statement"; id: any } | null;
-        scope?: { __typename?: "Statement"; id: any } | null;
+        runnableCk?: any | null;
+        scopeCk?: any | null;
       };
 };
 
@@ -5817,6 +5708,7 @@ export const ProjectVersionHeaderFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
@@ -5936,6 +5828,7 @@ export const FileHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           {
@@ -5993,6 +5886,7 @@ export const StatementHeaderFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
@@ -6042,6 +5936,7 @@ export const TaggingContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
           {
@@ -6052,14 +5947,7 @@ export const TaggingContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "reference" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           { kind: "Field", name: { kind: "Name", value: "metadata" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -6098,6 +5986,7 @@ export const FieldContentFragmentDoc = {
         selections: [
           { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "key" } },
@@ -6106,14 +5995,7 @@ export const FieldContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "reference" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "parent" },
@@ -6159,6 +6041,7 @@ export const TriggerContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           {
             kind: "Field",
@@ -6175,22 +6058,8 @@ export const TriggerContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
           { kind: "Field", name: { kind: "Name", value: "interval" } },
           { kind: "Field", name: { kind: "Name", value: "cron" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "runnable" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "scope" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+          { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -6227,6 +6096,7 @@ export const IssueContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "kind" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "message" } },
@@ -6285,6 +6155,7 @@ export const StatementContentFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
@@ -6305,14 +6176,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "reference" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },
@@ -6437,6 +6301,7 @@ export const InterpFileFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           {
@@ -6475,6 +6340,7 @@ export const InterpStatementFragmentDoc = {
         kind: "SelectionSet",
         selections: [
           { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
           { kind: "Field", name: { kind: "Name", value: "description" } },
@@ -6499,14 +6365,7 @@ export const InterpStatementFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
           { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "reference" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },
@@ -6528,31 +6387,7 @@ export const InterpStatementFragmentDoc = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "revision" } },
-                { kind: "Field", name: { kind: "Name", value: "key" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "parent" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "reference" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                { kind: "Field", name: { kind: "Name", value: "metadata" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-              ],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "TaggingContent" } }],
             },
           },
           {
@@ -6576,37 +6411,7 @@ export const InterpStatementFragmentDoc = {
             ],
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "revision" } },
-                { kind: "Field", name: { kind: "Name", value: "name" } },
-                { kind: "Field", name: { kind: "Name", value: "key" } },
-                { kind: "Field", name: { kind: "Name", value: "tag" } },
-                { kind: "Field", name: { kind: "Name", value: "hint" } },
-                { kind: "Field", name: { kind: "Name", value: "flags" } },
-                { kind: "Field", name: { kind: "Name", value: "description" } },
-                { kind: "Field", name: { kind: "Name", value: "orderKey" } },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "reference" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "parent" },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                { kind: "Field", name: { kind: "Name", value: "metadata" } },
-                { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
-                { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-              ],
+              selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "FieldContent" } }],
             },
           },
           {
@@ -9127,115 +8932,6 @@ export const MeDocument = {
     },
   ],
 } as unknown as DocumentNode<MeQuery, MeQueryVariables>;
-export const ProjectMigrationRefsDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "query",
-      name: { kind: "Name", value: "projectMigrationRefs" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "sourceVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "project" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "id" },
-                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "Field",
-                  name: { kind: "Name", value: "migrationMappings" },
-                  arguments: [
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "sourceVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "sourceVersionId" } },
-                    },
-                    {
-                      kind: "Argument",
-                      name: { kind: "Name", value: "targetVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
-                    },
-                  ],
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      { kind: "Field", name: { kind: "Name", value: "isReverse" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "sourceVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "tag" } },
-                            { kind: "Field", name: { kind: "Name", value: "name" } },
-                          ],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "targetVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "id" } },
-                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "tag" } },
-                            { kind: "Field", name: { kind: "Name", value: "name" } },
-                          ],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "refMappings" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "Field", name: { kind: "Name", value: "sourceId" } },
-                            { kind: "Field", name: { kind: "Name", value: "sourceVersionId" } },
-                            { kind: "Field", name: { kind: "Name", value: "targetId" } },
-                            { kind: "Field", name: { kind: "Name", value: "targetVersionId" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-              ],
-            },
-          },
-        ],
-      },
-    },
-  ],
-} as unknown as DocumentNode<ProjectMigrationRefsQuery, ProjectMigrationRefsQueryVariables>;
 export const ConnectedClientsDocument = {
   kind: "Document",
   definitions: [
@@ -9506,6 +9202,8 @@ export const ModuleContentByIdDocument = {
     ...InterpFileFragmentDoc.definitions,
     ...IssueContentFragmentDoc.definitions,
     ...InterpStatementFragmentDoc.definitions,
+    ...TaggingContentFragmentDoc.definitions,
+    ...FieldContentFragmentDoc.definitions,
     ...ResolvedFieldContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ModuleContentByIdQuery, ModuleContentByIdQueryVariables>;
@@ -10001,7 +9699,12 @@ export const CreateFileDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
         },
         {
           kind: "VariableDefinition",
@@ -10039,6 +9742,11 @@ export const CreateFileDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "projectVersionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
                     },
@@ -10066,6 +9774,7 @@ export const CreateFileDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "projectVersion" },
@@ -10451,7 +10160,12 @@ export const PasteFileDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "targetId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "targetCk" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
         },
         {
           kind: "VariableDefinition",
@@ -10489,6 +10203,11 @@ export const PasteFileDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "targetCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "targetCk" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "targetVersionId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "targetVersionId" } },
                     },
@@ -10511,6 +10230,7 @@ export const PasteFileDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "projectVersion" },
@@ -11922,7 +11642,12 @@ export const CreateStatementDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
         },
         {
           kind: "VariableDefinition",
@@ -12010,6 +11735,11 @@ export const CreateStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "fileId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
                     },
@@ -12087,6 +11817,7 @@ export const CreateStatementDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       { kind: "Field", name: { kind: "Name", value: "type" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
@@ -12132,14 +11863,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeTag" } },
                       { kind: "Field", name: { kind: "Name", value: "rootTypeFlags" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "reference" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "tags" },
@@ -13280,6 +13004,17 @@ export const BatchPasteStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "targetCks" } },
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+            },
+          },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "targetFileId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -13325,6 +13060,11 @@ export const BatchPasteStatementDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "targetIds" },
                       value: { kind: "Variable", name: { kind: "Name", value: "targetIds" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "targetCks" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "targetCks" } },
                     },
                     {
                       kind: "ObjectField",
@@ -13407,8 +13147,8 @@ export const UpdateStatementReferenceDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
       ],
       selectionSet: {
@@ -13431,8 +13171,8 @@ export const UpdateStatementReferenceDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "referenceId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                      name: { kind: "Name", value: "referenceCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
                     },
                   ],
                 },
@@ -13449,14 +13189,7 @@ export const UpdateStatementReferenceDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "reference" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                     ],
                   },
                 },
@@ -13769,6 +13502,11 @@ export const CreateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -13803,6 +13541,11 @@ export const CreateRecordDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "statementId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
                     },
@@ -13830,6 +13573,7 @@ export const CreateRecordDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -14327,6 +14071,11 @@ export const CreateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -14367,8 +14116,8 @@ export const CreateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
           kind: "VariableDefinition",
@@ -14393,6 +14142,11 @@ export const CreateFieldDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "id" },
                       value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
                     },
                     {
                       kind: "ObjectField",
@@ -14436,8 +14190,8 @@ export const CreateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "referenceId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                      name: { kind: "Name", value: "referenceCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -14458,6 +14212,7 @@ export const CreateFieldDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       {
@@ -14481,14 +14236,7 @@ export const CreateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "hint" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "reference" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "metadata" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -14744,8 +14492,8 @@ export const UpdateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
           kind: "VariableDefinition",
@@ -14798,8 +14546,8 @@ export const UpdateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "referenceId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                      name: { kind: "Name", value: "referenceCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -14827,14 +14575,7 @@ export const UpdateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "description" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "reference" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "metadata" } },
                     ],
                   },
@@ -14934,6 +14675,11 @@ export const CreateTaggingDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -14944,7 +14690,7 @@ export const CreateTaggingDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
         {
@@ -14973,6 +14719,11 @@ export const CreateTaggingDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "statementId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
                     },
@@ -14983,8 +14734,8 @@ export const CreateTaggingDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "referenceId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "referenceId" } },
+                      name: { kind: "Name", value: "referenceCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15005,6 +14756,7 @@ export const CreateTaggingDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       {
@@ -15015,14 +14767,7 @@ export const CreateTaggingDocument = {
                           selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                         },
                       },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "reference" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "metadata" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -15324,6 +15069,11 @@ export const CreateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "ck" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
@@ -15364,13 +15114,13 @@ export const CreateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
       ],
       selectionSet: {
@@ -15390,6 +15140,11 @@ export const CreateTriggerDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "id" },
                       value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "ck" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "ck" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15433,13 +15188,13 @@ export const CreateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                      name: { kind: "Name", value: "runnableCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "scopeId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+                      name: { kind: "Name", value: "scopeCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
                     },
                   ],
                 },
@@ -15455,6 +15210,7 @@ export const CreateTriggerDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "parent" },
@@ -15471,22 +15227,8 @@ export const CreateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
                       { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "runnable" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "scope" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+                      { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -15690,13 +15432,13 @@ export const UpdateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
       ],
       selectionSet: {
@@ -15754,13 +15496,13 @@ export const UpdateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                      name: { kind: "Name", value: "runnableCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "scopeId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+                      name: { kind: "Name", value: "scopeCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
                     },
                   ],
                 },
@@ -15785,22 +15527,8 @@ export const UpdateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
                       { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "runnable" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "scope" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                        },
-                      },
+                      { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+                      { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
                     ],
                   },
                 },

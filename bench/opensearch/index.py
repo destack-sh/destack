@@ -164,7 +164,7 @@ def write_mutations_to_os(
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
     dataset_statements_by_id: dict[UUID, models.Statement] = {
         statement.id: statement
-        for statement in models.Statement.objects.select_related("dataset").filter(
+        for statement in models.Statement.objects.filter(
             id__in={m.statement_id for m in mutations if m.mot == MOT.RECORD}
         )
     }

@@ -70,3 +70,7 @@ class Block(Statement, HasTags):
 class Expectation(Statement):  # not clear how this will evolve yet
     type: StatementType = StatementType.EXPECTATION
     description: Optional[str] = None
+
+
+# hard-coded, do not change ever
+BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")

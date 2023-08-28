@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import contextvars
-import dataclasses
 import enum
 import re
 import typing
@@ -87,7 +86,6 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-@typing.dataclass_transform(field_specifiers=(dataclasses.Field, dataclasses.field, required_field))
 def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
     """
     Decorator alias for module node.
@@ -122,6 +120,21 @@ def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
     return decorate
 
 
+def new_node_identity(module_id: UUID) -> tuple[UUID, UUID]:
+    ck = uuid4()
+    id = get_node_id(ck, module_id)
+    return id, ck
+
+
+def new_detached_node_identity() -> tuple[UUID, UUID]:
+    ck = uuid4()
+    return ck, ck
+
+
+def get_node_id(ck, module_id):
+    return uuid.uuid5(module_id, str(ck))
+
+
 @node
 class ModuleNode(abc.ABC):
     """
@@ -133,6 +146,13 @@ class ModuleNode(abc.ABC):
     ck: UUID = field(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = None
     revision: int = 0
+
+    def _assign_id(self, module_id: UUID):
+        if module_id is None:
+            raise ValueError(f"cannot assign id to {self} without module_id")
+        assert self.id is None, f"cannot assign id to {self} twice"
+        assert self.ck is not None, f"cannot assign id to {self} without ck"
+        self.id = get_node_id(self.ck, module_id)
 
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id
@@ -178,7 +198,6 @@ CRUD_PROPERTIES = HasCrud._PROPERTIES  # type: ignore
 
 @node
 class HasSession(abc.ABC):
-    id: UUID = field(default_factory=uuid.uuid4)
     _session: Optional["Session"] = None
     _tracked: bool = False
 
@@ -461,12 +480,15 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if name in self._scopes_by_name:
             raise ValueError(f"{name} already exists in {self}: {self._scopes_by_name[name]}")
         file = File(name=name, parent=self, module=self)
+        file._assign_id(self.id)
         self.files.append(file)
         return file
 
     def add_file(self, file: "File") -> None:
         if file.parent is not None and file.parent != self:
             raise ValueError(f"{file} is already in {file.parent}")
+        if not file.id:
+            file._assign_id(self.id)
         file.module = self
         file.parent = self
         self.files.append(file)
@@ -552,10 +574,11 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         from bench.language import libs, wire
 
         # copy default dependencies
+        logger.debug("module.interp", module=maybe_module)
         dependencies = {name: dep.copy() for name, dep in libs.DEFAULT_MODULES.items()}
 
-        logger.debug("module.interp", module=maybe_module)
         if isinstance(maybe_module, wire.ModuleTreeData):
+            logger.debug("module.interp.unpack", module=maybe_module)
             module: Module = wire.unpack_module(maybe_module, session=session)
         else:
             module = maybe_module
@@ -613,6 +636,8 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for ok, statement in zip(oks, statements):
             if statement.parent is not None and statement.parent != self:
                 raise ValueError(f"statement {statement} belongs to {statement.parent}")
+            if statement.id is None and self.module is not None:
+                statement._assign_id(self.module.id)
             statement.order_key = ok
             statement.parent = self
             for descendant in statement.walk_descendants():
@@ -693,7 +718,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
     issues: list[Issue] | None = None
-    id: UUID = field(default_factory=uuid.uuid4)
 
     def __post_init__(self):
         super().__post_init__()

@@ -76,15 +76,15 @@ class Trigger(HasCrud, ModuleNode, Revisioned, relay.Node):
     timezone: auto
     interval: auto
     cron: auto
-    runnable: Optional["Statement"]
-    scope: Optional["Statement"]
+    runnable_ck: auto
+    scope_ck: auto
 
 
 @strawberry_django.type(models.Tagging)
 class Tagging(HasCrud, ModuleNode, Revisioned, relay.Node):
     parent: "Statement" = strawberry_django.field(field_name="statement")
     statement: "Statement"
-    reference: "Statement"
+    reference_ck: auto
     key: auto
     metadata: auto
 
@@ -100,7 +100,7 @@ class Field(HasCrud, ModuleNode, Revisioned, relay.Node):
     hint: Optional[TypeHint]
     flags: int
     description: auto
-    reference: Optional["Statement"]
+    reference_ck: auto
     metadata: auto
 
 
@@ -116,7 +116,7 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     order_key: auto
     text: auto
     # symbol contents
-    reference: Optional["Statement"]
+    reference_ck: auto
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)

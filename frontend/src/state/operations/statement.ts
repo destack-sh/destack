@@ -245,7 +245,6 @@ export function useStatementOps() {
           code: null,
           text: null,
           key: null,
-          referenceCk: null,
           value: null,
           description: null,
           rootTypeTag: null,
@@ -295,7 +294,6 @@ export function useStatementOps() {
           text: null,
           value: null,
           key: input.key ?? null,
-          referenceCk: input.referenceCk ?? null,
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
@@ -887,6 +885,7 @@ export function useStatementOps() {
       mutation batchPasteStatement(
         $sourceIds: [GlobalID!]!
         $targetIds: [GlobalID!]!
+        $targetCks: [UUID!]!
         $targetFileId: GlobalID!
         $targetParentIds: [GlobalID]!
         $targetOrderKeys: [String!]!
@@ -895,6 +894,7 @@ export function useStatementOps() {
           input: {
             sourceIds: $sourceIds
             targetIds: $targetIds
+            targetCks: $targetCks
             targetFileId: $targetFileId
             targetParentIds: $targetParentIds
             targetOrderKeys: $targetOrderKeys
@@ -937,6 +937,7 @@ export function useStatementOps() {
   async function batchPaste(
     sourceIds: string[],
     targetIds: string[],
+    targetCks: string[],
     targetFileId: string,
     targetParentIds: (string | null)[],
     targetOrderKeys: string[]
@@ -947,6 +948,7 @@ export function useStatementOps() {
         return await batchPasteMut({
           sourceIds: sourceIds,
           targetIds: targetIds,
+          targetCks: targetCks,
           targetFileId: targetFileId,
           targetParentIds: targetParentIds,
           targetOrderKeys: targetOrderKeys,

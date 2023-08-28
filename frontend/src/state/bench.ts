@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { graphql } from "@/gql";
 import {
   StatementType,
   type Record as BRecord,
@@ -40,10 +39,9 @@ import {
   Bars4Icon as Bars4IconSolid,
   WindowIcon as WindowIconSolid,
 } from "@heroicons/vue/24/solid";
-import { useApolloClient } from "@vue/apollo-composable";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
-import { computed, inject, onBeforeUnmount, provide, ref, watch, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, watch, type Ref } from "vue";
 
 export type ProjectHeader = Pick<
   Project,
@@ -569,39 +567,6 @@ export const useBenchState = defineStore("bench", {
       this.showBenchHeader = !zenMode;
       appearance.fullscreen = zenMode;
     },
-
-    // migration
-
-    _doMigrateTo(versionId: string, refMappings: Record<string, string>): void {
-      // migrate by serializing state and replacing refs
-      let stateJson = benchStateToJson(this);
-      // TODO @Performance: replace panel refs on migration in a single pass
-      for (const [sourceId, targetId] of Object.entries(refMappings)) {
-        // replace all matches of ref.source with ref.target
-        // (need to use regex to replace *all* matches)
-        const re = new RegExp(`"${sourceId}"`, "g");
-        stateJson = stateJson.replace(re, `"${targetId}"`);
-      }
-      this.$reset();
-      benchInitFromJson(this, stateJson);
-
-      // remove panels with refs we don't have anymore
-      // note that this also closes any module-external refs
-      // I tried to fix this by only removing refs we _used_ tohave (checking for original ref.target)
-      // but that doesn't work for refs that were just created in first source version.
-      const targetRefs = Object.values(refMappings);
-      for (const panel of this.panels) {
-        let panelRef = null;
-        if (panel.type == "edit-file") {
-          panelRef = (panel as EditFilePanel).fileId;
-        }
-        if (panelRef != null && !targetRefs.includes(panelRef)) {
-          console.debug(`close outdated panel ${panel.path} (${panel.id} pointed to ${panelRef})`);
-          this.closePanel(panel);
-        }
-      }
-      this.projectVersionId = versionId;
-    },
   },
 });
 
@@ -694,73 +659,6 @@ export function useBenchPersistence(minIntervalMs = 1000) {
   );
 
   return { save, load };
-}
-
-// migration
-
-export function useBenchMigrations() {
-  const bench = useBenchState();
-  const client = useApolloClient();
-  const migratingTo = ref<string | null>(null);
-
-  async function migrateTo(projectId: string, sourceVersionId: string, targetVersionId: string): Promise<boolean> {
-    migratingTo.value = targetVersionId;
-    console.log(`migrate bench ${projectId} from ${sourceVersionId} to ${targetVersionId}`);
-    // get all ref mappings
-    const ret = await client.client.query({
-      query: graphql(/* GraphQL */ `
-        query projectMigrationRefs($projectId: GlobalID!, $sourceVersionId: GlobalID!, $targetVersionId: GlobalID!) {
-          project(id: $projectId) {
-            migrationMappings(sourceVersionId: $sourceVersionId, targetVersionId: $targetVersionId) {
-              isReverse
-              sourceVersion {
-                id
-                createdAt
-                tag
-                name
-              }
-              targetVersion {
-                id
-                createdAt
-                tag
-                name
-              }
-              refMappings {
-                sourceId
-                sourceVersionId
-                targetId
-                targetVersionId
-              }
-            }
-          }
-        }
-      `),
-      variables: {
-        projectId,
-        sourceVersionId,
-        targetVersionId,
-      },
-    });
-    migratingTo.value = null;
-    if (ret.error != null || ret.data?.project?.migrationMappings == null) {
-      console.error("unable to migrate, error getting intermediate refs", ret.error);
-      return false;
-    }
-    // apply migrations
-    const migrationMappings = ret.data?.project.migrationMappings;
-    const refMappings: Record<string, string> = {};
-    for (const mapping of migrationMappings.refMappings) {
-      refMappings[mapping.sourceId] = mapping.targetId;
-    }
-    bench._doMigrateTo(targetVersionId, refMappings);
-    console.log(`migrated bench  ${migrationMappings?.sourceVersion.id} to ${migrationMappings?.targetVersion.id}`);
-    return true;
-  }
-
-  return {
-    migrating: computed(() => migratingTo.value != null),
-    migrateTo,
-  };
 }
 
 // context

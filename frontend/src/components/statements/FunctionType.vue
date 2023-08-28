@@ -76,14 +76,13 @@ function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnTy
 
 function insertBelow(
   kind: "input" | "output",
-  template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">
+  template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">
 ) {
   const lastField = nodes.value[nodes.value.length - 1];
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
   const newFieldNode = makeField({
     projectVersionId: module.id.value,
     ...template,
-    reference: template.reference as any,
     orderKey,
     flags: (kind == "output" ? TypeFlag.IsOutput : 0) | (template.flags ?? 0),
   });

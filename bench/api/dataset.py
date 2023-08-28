@@ -36,6 +36,7 @@ from bench.utils.dt import utcnow_with_tz
 @strawberry.type
 class Record(HasCrud, Revisioned):
     id: GlobalID
+    ck: UUID
     dataset_id: str
     order_key: Optional[str]
     value: JSON
@@ -78,6 +79,7 @@ class RecordInput:
 
 @strawberry.input
 class RecordCreateInput(RecordInput, strawberry_django.NodeInput):
+    ck: UUID
     value: JSON
     order_key: Optional[str] = None
 
@@ -139,6 +141,7 @@ class DatasetMutation:
         now, project_v, statement = _prep_write_dataset(info, input)
         record = mirror.Record(
             id=UUID(input.id.node_id),
+            ck=input.ck,
             project_version_id=project_v.id,
             statement_id=statement.id,
             statement_ck=statement.ck,

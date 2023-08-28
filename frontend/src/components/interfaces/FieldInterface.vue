@@ -42,7 +42,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "referenceCk">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -313,7 +313,7 @@ defineExpose({
             ]"
             >{{ value.name }}</span
           >
-          <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.reference != null" />
+          <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />
         </div>
         <span v-if="description && !hideDescription" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
           {{ description }}

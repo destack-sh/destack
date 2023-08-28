@@ -8,7 +8,14 @@ import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { EditFilePanel, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
+import {
+  EditFilePanel,
+  useBenchState,
+  type PanelContext,
+  type FileAction,
+  type StatementHeader,
+  type NavElement,
+} from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity } from "@/state/module";
@@ -181,7 +188,7 @@ async function insertOrFocusStatementStart() {
 }
 
 function focusStatementStart() {
-  panel.value.editElement(context.value?.positionedStatements[0].statement as StatementHeader);
+  panel.value.editElement(context.value?.positionedStatements[0].statement as NavElement);
 }
 
 async function insertOrFocusStatementEnd() {
@@ -190,7 +197,7 @@ async function insertOrFocusStatementEnd() {
   // focus last statement if it's a blank
   const lastStatement = context.value?.positionedStatements[context.value.positionedStatements.length - 1];
   if (lastStatement?.statement.type == StatementType.Blank) {
-    panel.value.editElement(lastStatement.statement as StatementHeader);
+    panel.value.editElement(lastStatement.statement as NavElement);
     return;
   } else {
     actions.apply("statement.insertEnd");
