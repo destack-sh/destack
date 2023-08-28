@@ -53,6 +53,7 @@ class HasCrud:
 @strawberry.interface
 class ModuleNode:
     id: GlobalID
+    ck: UUID
     parent: Optional["ModuleNode"]
 
 

@@ -12,12 +12,6 @@ import { ModuleMutationRegistry } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 import { v4 as uuidv4 } from "uuid";
 
-export function newFileId(): string {
-  /* Generates a new statement global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`File:${nodeId}`);
-}
-
 export function useFileOps() {
   const ops = useOperationsStore();
   const registry = new ModuleMutationRegistry();
@@ -28,12 +22,19 @@ export function useFileOps() {
   const { mutate: createFileMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateFile,
     graphql(/* GraphQL */ `
-      mutation createFile($id: GlobalID, $projectVersionId: GlobalID!, $name: String!, $parentId: GlobalID) {
+      mutation createFile(
+        $id: GlobalID!
+        $ck: UUID!
+        $projectVersionId: GlobalID!
+        $name: String!
+        $parentId: GlobalID
+      ) {
         createFile(input: { id: $id, projectVersionId: $projectVersionId, parentId: $parentId, name: $name }) {
           ... on File {
             # :fileContentById
             # unfortunately can't use FileHeader here for.. error reasons?
             id
+            ck
             projectVersion {
               id
             }
@@ -75,7 +76,13 @@ export function useFileOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; projectVersionId: string; parentId: string | null; name: string }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        ck: string;
+        projectVersionId: string;
+        parentId: string | null;
+        name: string;
+      }) =>
         ({
           __typename: "Mutation",
           createFile: {
@@ -89,6 +96,7 @@ export function useFileOps() {
                 ? { __typename: "ProjectVersion", id: vars.projectVersionId }
                 : { __typename: "File", id: vars.parentId },
             id: vars.id,
+            ck: vars.ck,
             name: vars.name,
             revision: -1,
             statements: [],
@@ -235,6 +243,7 @@ export function useFileOps() {
   async function create(
     tx: Transaction | null,
     id: string,
+    ck: string,
     projectVersionId: string,
     name: string,
     parentId: string | null
@@ -243,7 +252,7 @@ export function useFileOps() {
       tx,
       type: "file.create",
       do: async () => {
-        return await createFileMut({ id, projectVersionId, name, parentId });
+        return await createFileMut({ id, ck, projectVersionId, name, parentId });
       },
       undo: async () => {
         return await softDeleteFileMut({ id });
@@ -344,6 +353,7 @@ export function useFileOps() {
     tx: Transaction | null,
     sourceId: string,
     targetId: string,
+    targetCk: string,
     targetVersionId: string,
     parentId: string | null
   ) {

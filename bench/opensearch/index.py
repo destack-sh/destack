@@ -209,9 +209,8 @@ def write_mutations_to_os(
                 ops.append({"delete": {"_index": bench_index, "_id": str(m.data.id)}})
             elif m.type.kind == MMK.TRUNCATE:
                 _flush()  # unfortunately can't be batched with the other operations
-                key = statement.dataset.key
                 os_client.delete_by_query(
-                    index=bench_index, body={"query": {"term": {"dataset_id": key}}}
+                    index=bench_index, body={"query": {"term": {"statement_id": m.statement_id}}}
                 )
 
         # secondary mirror for search
@@ -401,8 +400,8 @@ def batch_update_records(
 def batch_duplicate_records(
     source_project_v: models.ProjectVersion,
     target_project_v: models.ProjectVersion,
-    new_dataset_ids: dict[str, str],
     new_statement_ids: dict[UUID, UUID],
+    new_statement_cks: dict[UUID, UUID],
     batch_size: int = 512,
 ):
     """
@@ -417,7 +416,7 @@ def batch_duplicate_records(
         "query": {
             "bool": {
                 "must": [
-                    {"terms": {"dataset_id": list(new_dataset_ids.keys())}},
+                    {"terms": {"statement_ck": list(new_statement_cks.keys())}},
                     {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
                 ]
             }
@@ -439,7 +438,6 @@ def batch_duplicate_records(
     log = logger.bind(
         source=source_project_v,
         target=target_project_v,
-        new_dataset_ids=new_dataset_ids,
         batch_size=batch_size,
         total_documents=num_total_documents,
     )
@@ -460,8 +458,8 @@ def batch_duplicate_records(
         os_operations = []
         for hit in hits:
             document = hit["_source"]
-            document["dataset_id"] = new_dataset_ids[document["dataset_id"]]
             document["statement_id"] = str(new_statement_ids[UUID(document["statement_id"])])
+            document["statement_ck"] = str(new_statement_cks[UUID(document["statement_ck"])])
             os_operations.append({"index": {"_index": index_name, "_id": str(uuid4())}})
             os_operations.append(document)
         num_duplicated += len(hits)

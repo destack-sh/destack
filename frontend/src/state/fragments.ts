@@ -40,6 +40,7 @@ export const HasCrudType = graphql(/* GraphQL */ `
 export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
   fragment ProjectVersionHeader on ProjectVersion {
     id
+    ck
     name
     tag
     description
@@ -66,6 +67,7 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
     __typename
     id
+    ck
     createdAt
     updatedAt
     name
@@ -98,6 +100,7 @@ export const FileHeaderType = graphql(/* GraphQL */ `
   fragment FileHeader on File {
     __typename
     id
+    ck
     revision
     name
     parent {
@@ -125,6 +128,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
   fragment StatementHeader on Statement {
     __typename
     id
+    ck
     type
     revision
     name
@@ -149,6 +153,7 @@ export const FieldType = graphql(/* GraphQL */ `
     # :FieldContent
     __typename
     id
+    ck
     revision
     name
     key
@@ -182,6 +187,7 @@ export const TaggingType = graphql(/* GraphQL */ `
   fragment TaggingContent on Tagging {
     # :TaggingContent
     id
+    ck
     revision
     key
     parent {
@@ -209,6 +215,7 @@ export const TriggerContentType = graphql(/* GraphQL */ `
   fragment TriggerContent on Trigger {
     # :TriggerContent
     id
+    ck
     revision
     parent {
       id
@@ -243,6 +250,7 @@ export const TriggerContentType = graphql(/* GraphQL */ `
 export const StatementContentType = graphql(/* GraphQL */ `
   fragment StatementContent on Statement {
     id
+    ck
     type
     revision
     name
@@ -297,6 +305,7 @@ export const IssueContentType = graphql(/* GraphQL */ `
   fragment IssueContent on Issue {
     # :IssueContent
     id
+    ck
     kind
     type
     message
@@ -321,6 +330,7 @@ export const InterpFileType = graphql(/* GraphQL */ `
   fragment InterpFile on File {
     # :InterpFile
     id
+    ck
     revision
     name
     parent {
@@ -340,6 +350,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
   fragment InterpStatement on Statement {
     # :InterpStatement
     id
+    ck
     type
     name
     description
@@ -358,44 +369,10 @@ export const InterpStatementType = graphql(/* GraphQL */ `
       id
     }
     tags(filters: { isVisible: true }) {
-      # :TaggingContent
-      id
-      revision
-      key
-      parent {
-        id
-      }
-      reference {
-        id
-      }
-      metadata
-      # crud
-      createdAt
-      updatedAt
-      deletedAt
+      ...TaggingContent
     }
     fields(filters: { isVisible: true }) {
-      # :FieldContent
-      id
-      revision
-      name
-      key
-      tag
-      hint
-      flags
-      description
-      orderKey
-      reference {
-        id
-      }
-      parent {
-        id
-      }
-      metadata
-      # crud
-      createdAt
-      updatedAt
-      deletedAt
+      ...FieldContent
     }
     issues {
       ...IssueContent

@@ -2,10 +2,17 @@ import type StatementComponent from "@/components/panels/Statement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { EditFilePanel, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
-import { orderStatements, TypeFlag, type OrderedStatement, type Field, type Statement } from "@/state/module";
+import {
+  orderStatements,
+  TypeFlag,
+  type OrderedStatement,
+  type Field,
+  type Statement,
+  newNodeIdentity,
+} from "@/state/module";
 import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newRecordId, newFieldId, newFieldKey, newStatementId } from "@/state/operations/statement";
+import { newFieldKey } from "@/state/operations/statement";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref } from "vue";
 
@@ -707,8 +714,8 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   async function insertBelow(focus?: boolean) {
     if (statement.value == null || nav == null) return;
     const below = nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
-    const newStatement = { __typename: "Statement", id: newStatementId() };
-    ops.statement.create(null, newStatement.id, below.fileId, below.parentId, below.orderKey);
+    const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
+    ops.statement.create(null, newStatement.id, newStatement.ck, below.fileId, below.parentId, below.orderKey);
     if (focus) {
       nav?.value?.panel.editElement(newStatement as StatementHeader);
     }
@@ -717,8 +724,8 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
   async function insertAbove(focus?: boolean) {
     if (statement.value == null || nav == null) return;
     const above = nav?.value?.getLocationRightAbove(statement.value as StatementHeader);
-    const newStatement = { __typename: "Statement", id: newStatementId() };
-    ops.statement.create(null, newStatement.id, above.fileId, above.parentId, above.orderKey);
+    const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
+    ops.statement.create(null, newStatement.id, newStatement.ck, above.fileId, above.parentId, above.orderKey);
     if (focus) {
       nav?.value?.panel.editElement(newStatement as StatementHeader);
     }
@@ -757,29 +764,42 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     if (!as && statement.value?.type != StatementType.Dataset) {
       throw new Error("can only insert records into datasets");
     }
-    const newRecordIds = files.map(() => newRecordId());
+    const newRecordIdentities = files.map(() => newNodeIdentity(bench.projectVersionId as string, "Record"));
     const tx = openTransaction({
       name: "insertFilesAsRecords",
       blockPartialUndo: true,
       undo: async () => {
-        await ops.symbol.batchSoftDeleteRecord(statement.value?.id, newRecordIds);
+        await ops.symbol.batchSoftDeleteRecord(
+          statement.value?.id,
+          newRecordIdentities.map((r) => r.id)
+        );
       },
       redo: async () => {
-        await ops.symbol.batchRestoreRecord(statement.value?.id, newRecordIds);
+        await ops.symbol.batchRestoreRecord(
+          statement.value?.id,
+          newRecordIdentities.map((r) => r.id)
+        );
       },
     });
     const uploads = [];
     for (let i = 0; i < files.length; i++) {
-      const newRecordId = newRecordIds[i];
+      const newRecordIdentity = newRecordIdentities[i];
       const file = files[i];
       const orderKey = orderKeys[i];
       const remoteObject = await ops.object.prepareUpload(bench.projectId as string, file);
       const data = { [key]: remoteObject };
-      ops.symbol.createRecord(tx, newRecordId, as ?? statement.value?.id, orderKey, data);
+      ops.symbol.createRecord(
+        tx,
+        newRecordIdentity.id,
+        newRecordIdentity.ck,
+        as ?? statement.value?.id,
+        orderKey,
+        data
+      );
       uploads.push(
         objects.upload(bench.projectId as string, file, (updatedObject) => {
           const newData = { ...data, [key]: updatedObject };
-          ops.symbol.updateRecord(tx, statement.value?.id, newRecordId, data, newData);
+          ops.symbol.updateRecord(tx, statement.value?.id, newRecordIdentity.id, data, newData);
         })
       );
     }
@@ -800,8 +820,9 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
           ? nav?.value?.getLocationRightAbove(statement.value)
           : nav?.value?.getLocationRightBelow(statement.value);
     }
+    const datasetIdentity = newNodeIdentity(bench.projectVersionId as string, "Statement");
     const dataset = {
-      id: newStatementId(),
+      ...datasetIdentity,
       type: StatementType.Dataset,
       parentId: location.parentId,
       orderKey: location.orderKey,
@@ -826,7 +847,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // create 'content' column with file type
     const contentKey = newFieldKey();
     ops.symbol.createField(tx, dataset.id, {
-      id: newFieldId(),
+      ...newNodeIdentity(bench.projectVersionId as string, "Field"),
       key: contentKey,
       name: "content",
       tag: TypeTag.File,

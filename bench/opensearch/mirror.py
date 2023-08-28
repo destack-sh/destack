@@ -352,14 +352,11 @@ class Tile(CrudThing, Revisioned, os.Document):
     name: Optional[str] = NAME_FIELD
 
 
-# Tile is not packed yet because it is not used yet
-
-
 @document(DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
-    statement_id: UUID = os.field(os.FT.KEYWORD)
-    dataset_id: str = os.field(os.FT.KEYWORD)
+    statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    statement_ck: UUID = os.field(os.FT.KEYWORD)
     order_key: str = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
@@ -392,7 +389,7 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             id=data.id,
             project_version_id=project_v.id,
             statement_id=data.parent_id,
-            dataset_id=parent.dataset.key,
+            statement_ck=parent.ck,
             order_key=data.order_key,
             value=data.value,
             revision=data.revision,
@@ -408,7 +405,6 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
 @document(DocumentType.COMMENT)
 class Comment(CrudThing, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
-    html: str = HTML_FIELD
 
 
 # sessions/logs
@@ -447,6 +443,7 @@ class Run(os.Document):
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: UUID = os.field(os.FT.KEYWORD)
+    runnable_ck: UUID = os.field(os.FT.KEYWORD)
     runnable_type: str = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     updated_at: datetime = os.field(os.FT.DATE)
@@ -477,6 +474,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             root_id=mirror.root_id,
             parent_id=mirror.parent_id,
             runnable_id=mirror.runnable_id,
+            runnable_ck=mirror.runnable_ck,
             runnable_type=runnable_type,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
@@ -506,6 +504,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             root_id=data.root_id,
             parent_id=data.parent_id,
             runnable_id=data.runnable_id,
+            runnable_ck=data.runnable_ck,
             runnable_type=data.runnable_type,
             created_at=data.created_at,
             updated_at=data.updated_at,
@@ -527,6 +526,7 @@ class LogEntry(os.Document):
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     run_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     runnable_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    runnable_ck: Optional[UUID] = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     stream: str = os.field(os.FT.KEYWORD)
     level: Optional[str] = os.field(os.FT.KEYWORD)
@@ -544,6 +544,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             session_id=mirror.session_id,
             run_id=mirror.run_id,
             runnable_id=mirror.runnable_id,
+            runnable_ck=mirror.runnable_ck,
             created_at=mirror.created_at,
             stream=mirror.stream,
             level=mirror.level,
@@ -561,6 +562,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             session_id=data.session_id,
             run_id=data.run_id,
             runnable_id=data.runnable_id,
+            runnable_ck=data.runnable_ck,
             created_at=data.created_at,
             stream=data.stream,
             level=data.level,

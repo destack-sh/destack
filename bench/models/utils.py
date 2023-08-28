@@ -34,12 +34,11 @@ class Revisioned(models.Model):
         abstract = True
 
 
-class ModuleNode:
-    """A node in the module graph"""
+class ModuleNode(models.Model):
+    """A node in the module tree. See language/core."""
 
-    @property
-    def id(self) -> uuid.UUID:
-        raise NotImplementedError
+    id = models.UUIDField(primary_key=True, editable=False)  # must be set manually
+    ck = models.UUIDField(default=uuid.uuid4, editable=False)
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
@@ -48,6 +47,24 @@ class ModuleNode:
     @property
     def parent(self) -> Optional["ModuleNode"]:
         raise NotImplementedError
+
+    @property
+    def versioned(self) -> bool:
+        return True
+
+    class Meta:
+        abstract = True
+
+
+class DetachedModuleNode(ModuleNode):
+    """A cross-Bench node that doesn't belong to a single module (version)."""
+
+    initial_project_version = models.ForeignKey(
+        "ProjectVersion", null=True, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        abstract = True
 
 
 class CrudModel(models.Model):

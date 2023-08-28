@@ -324,7 +324,7 @@ class RuntimeServer(Monitored):
     async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
         logger.debug("search.record", msg=msg)
         if msg.p.keys:
-            extra_query = Q(QueryOp.EQUALS, "dataset_id", msg.p.keys)
+            extra_query = Q(QueryOp.EQUALS, "statement_ck", msg.p.statement_cks)
         else:
             extra_query = None
         # TODO @Security: check if msg origin has read access to dataset

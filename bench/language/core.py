@@ -124,7 +124,13 @@ def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
 
 @node
 class ModuleNode(abc.ABC):
-    id: UUID = field(default_factory=uuid.uuid4)
+    """
+    A node in a Bench module tree.
+    A node has a per-version unique id (id) and a constant identifier key (ck).
+    """
+
+    id: UUID = field(default=None)  # nocheckin: assign node id when added to module?
+    ck: UUID = field(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = None
     revision: int = 0
 
@@ -259,6 +265,7 @@ class Scope:
     parent: Optional["Scope"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
     _statements_by_id: dict[UUID, "Statement"] = field(default_factory=dict)
+    _statements_by_ck: dict[UUID, "Statement"] = field(default_factory=dict)
     _names_by_py_ident: dict[str, str] = field(default_factory=dict)
 
     @cached_property
@@ -314,7 +321,9 @@ class Scope:
         it can be a name (lookup upwards) or a full relative/absolute path.
         """
         if isinstance(path, UUID):
-            return self._root_scope._statements_by_id.get(path)
+            return self._root_scope._statements_by_id.get(
+                path
+            ) or self._root_scope._statements_by_ck.get(path)
         elif isinstance(path, str):
             if "." not in path:
                 return self._find_statement(path, by=by)
@@ -345,8 +354,10 @@ class Scope:
                 self._names_by_py_ident[statement.py_ident] = statement.name
 
         self._statements_by_id.update(statement._statements_by_id)
+        self._statements_by_ck.update(statement._statements_by_ck)
         if isinstance(statement, Statement):
             self._statements_by_id[statement.id] = statement
+            self._statements_by_ck[statement.ck] = statement
 
     def _add_file(self, file: "File", by_name: bool) -> None:
         if file.name is not None and by_name:
@@ -356,11 +367,13 @@ class Scope:
                 self._scopes_by_name[file.name] = file
                 self._names_by_py_ident[file.py_ident] = file.name
         self._statements_by_id.update(file._statements_by_id)
+        self._statements_by_ck.update(file._statements_by_ck)
 
     def _clear(self):
         """Resets this scope and all child scopes."""
         self._scopes_by_name = {}
         self._statements_by_id = {}
+        self._statements_by_ck = {}
         self._names_by_py_ident = {}
         for scope in self._scopes_by_name.values():
             scope._clear()
@@ -420,7 +433,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         statement_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
         if isinstance(path, UUID):
-            return self._statements_by_id.get(path)  # type: ignore
+            return self._statements_by_id.get(path) or self._statements_by_ck.get(path)
         elif isinstance(path, str) and path.startswith("."):
             return super().lookup(path, statement_t=statement_t, by=by)
         else:
@@ -501,6 +514,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 self._add_statement(statement, by_name=True)
         for dependency in self.dependencies.values():
             self._statements_by_id.update(dependency._statements_by_id)
+            self._statements_by_ck.update(dependency._statements_by_ck)
         for file in self.files:
             file._index()
             self._add_file(file, by_name=True)
@@ -938,7 +952,7 @@ class Session:
         self.id = id or uuid4()
         self.ctx = ctx
         self.module = module
-        self.instances: dict[UUID, "HasSession"] = {}
+        self.instances_by_id: dict[UUID, "HasSession"] = {}
         self.default_models: list[Statement] = [
             module.lookup_or_error("openai.lib.chat.gpt4"),
             module.lookup_or_error("openai.lib.chat.gpt3"),
@@ -993,13 +1007,14 @@ class Session:
                     if isinstance(obj, Statement):
                         # it feels like this should be done in some tracer? also (re?)-index?
                         self.module._statements_by_id[obj.id] = obj
+                        self.module._statements_by_ck[obj.ck] = obj
         for obj in objs:
-            self.instances[obj.id] = obj
+            self.instances_by_id[obj.id] = obj
 
     def remove(self, *objs: "HasSession") -> None:
         for obj in objs:
-            if isinstance(obj, (Statement, Statement, File)) and obj.id in self.instances:
-                del self.instances[obj.id]
+            if isinstance(obj, (Statement, Statement, File)) and obj.id in self.instances_by_id:
+                del self.instances_by_id[obj.id]
                 # not doing anything yet?
 
     def check_can(self, op: ModuleOp, thing: File | Statement):

@@ -1,6 +1,4 @@
 import inspect
-import random
-import string
 import typing
 import uuid
 from dataclasses import field
@@ -33,11 +31,6 @@ if typing.TYPE_CHECKING:
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
-
-
-def new_dataset_key():
-    """Gets a random alphabetic key as a persistent key."""
-    return "".join(random.choices(string.ascii_letters, k=DATASET_BACKEND_KEY_LENGTH))
 
 
 @node(tracked=["order_key", "value"])
@@ -170,7 +163,6 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
     views: Optional[list[DatasetView]] = None
-    key: str = field(default_factory=new_dataset_key)
 
     def _clear(self) -> None:
         HasType._clear(self)
@@ -304,16 +296,16 @@ class RecordSearch(Search["RecordData", Record]):
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
             statement_ids = [dataset.id for dataset in self.datasets]
-            keys = [dataset.key for dataset in self.datasets]
+            statement_cks = [dataset.ck for dataset in self.datasets]
         else:
             statement_ids = None
-            keys = None
+            statement_cks = None
         rep: NMessage[RepSearchRecordPayload] = await request(
             NMessageType.SEARCH_RECORD,
             ReqSearchRecordPayload(
                 module_id=self.module.id,
                 statement_ids=statement_ids,
-                keys=keys,
+                statement_cks=statement_cks,
                 query=self._query,
                 sort=self._sort,
                 after=after,

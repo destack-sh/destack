@@ -26,8 +26,6 @@ import {
   type UpdateStatementReferenceMutation,
   TriggerType,
   type Trigger,
-  type TaggingCreateInput,
-  type TaggingUpdateInput,
   ScheduleType,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
@@ -44,8 +42,8 @@ export function useSymbolContentOps() {
   const { mutate: updateStatementReferenceMut } = registry.defineModuleMutation(
     ModuleMutationType.UpdateStatementReference,
     graphql(/* GraphQL */ `
-      mutation updateStatementReference($id: GlobalID!, $referenceId: GlobalID) {
-        updateStatementReference(input: { id: $id, referenceId: $referenceId }) {
+      mutation updateStatementReference($id: GlobalID!, $referenceCk: UUID) {
+        updateStatementReference(input: { id: $id, referenceCk: $referenceCk }) {
           ... on Statement {
             id
             revision
@@ -58,13 +56,13 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; referenceId: string | null }) =>
+      optimisticResponse: (vars: { id: string; referenceCk: string | null }) =>
         ({
           updateStatementReference: {
             __typename: "Statement",
             id: vars.id,
             revision: PENDING_REVISION,
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            referenceCk: vars.referenceCk,
           },
         } as UpdateStatementReferenceMutation),
     }
@@ -73,17 +71,17 @@ export function useSymbolContentOps() {
   async function updateStatementReference(
     tx: Transaction | null,
     id: string,
-    oldReferenceId: string | null,
-    newReferenceId: string | null
+    oldReferenceCk: string | null,
+    newReferenceCk: string | null
   ) {
     await ops.perform({
       tx,
       type: "statement.updateReference",
       do: async () => {
-        return await updateStatementReferenceMut({ id, referenceId: newReferenceId });
+        return await updateStatementReferenceMut({ id, referenceCk: newReferenceCk });
       },
       undo: async () => {
-        return await updateStatementReferenceMut({ id, referenceId: oldReferenceId });
+        return await updateStatementReferenceMut({ id, referenceCk: oldReferenceCk });
       },
     });
   }
@@ -260,10 +258,11 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
-      mutation createRecord($id: GlobalID!, $statementId: GlobalID!, $orderKey: String, $value: JSON!) {
-        createRecord(input: { id: $id, statementId: $statementId, orderKey: $orderKey, value: $value }) {
+      mutation createRecord($id: GlobalID!, $ck: UUID!, $statementId: GlobalID!, $orderKey: String, $value: JSON!) {
+        createRecord(input: { id: $id, ck: $ck, statementId: $statementId, orderKey: $orderKey, value: $value }) {
           ... on Record {
             id
+            ck
             createdAt
             updatedAt
             deletedAt
@@ -276,12 +275,19 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; statementId: string; orderKey: string | null; value: any }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        ck: string;
+        statementId: string;
+        orderKey: string | null;
+        value: any;
+      }) =>
         ({
           __typename: "Mutation",
           createRecord: {
             __typename: "Record",
             id: vars.id,
+            ck: vars.ck,
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
             deletedAt: null,
@@ -466,6 +472,7 @@ export function useSymbolContentOps() {
   async function createRecord(
     tx: Transaction | null,
     id: string,
+    ck: string,
     statementId: string,
     orderKey: string | null,
     value: Scalars["JSON"]
@@ -476,6 +483,7 @@ export function useSymbolContentOps() {
       do: async () => {
         return await createRecordMut({
           id: id,
+          ck: ck,
           statementId: statementId,
           orderKey: orderKey,
           value: value,
@@ -561,6 +569,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation createField(
         $id: GlobalID!
+        $ck: UUID!
         $statementId: GlobalID!
         $tag: TypeTag!
         $hint: TypeHint
@@ -569,12 +578,13 @@ export function useSymbolContentOps() {
         $name: String
         $description: String
         $flags: Int!
-        $referenceId: GlobalID
+        $referenceCk: GlobalID
         $metadata: JSON
       ) {
         createField(
           input: {
             id: $id
+            ck: $ck
             statementId: $statementId
             tag: $tag
             hint: $hint
@@ -583,13 +593,14 @@ export function useSymbolContentOps() {
             name: $name
             description: $description
             flags: $flags
-            referenceId: $referenceId
+            referenceCk: $referenceCk
             metadata: $metadata
           }
         ) {
           ... on Field {
             # should match :FieldContent fragment
             id
+            ck
             key
             orderKey
             statement {
@@ -627,6 +638,7 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: {
         id: string;
+        ck: string;
         tag: string;
         hint: string | null;
         key: string;
@@ -635,7 +647,7 @@ export function useSymbolContentOps() {
         name: string;
         description: string | null;
         flags: number;
-        referenceId: string | null;
+        referenceCk: string | null;
         metadata: any;
       }) =>
         ({
@@ -643,6 +655,7 @@ export function useSymbolContentOps() {
           createField: {
             __typename: "Field",
             id: vars.id,
+            ck: vars.ck,
             statement: {
               __typename: "Statement",
               id: vars.statementId,
@@ -658,7 +671,7 @@ export function useSymbolContentOps() {
             key: vars.key,
             description: vars.description ?? null,
             orderKey: vars.orderKey,
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            reference: vars.referenceCk,
             flags: vars.flags,
             metadata: vars.metadata ?? null,
             // crud
@@ -773,6 +786,7 @@ export function useSymbolContentOps() {
     input: Pick<
       Field,
       | "id"
+      | "ck"
       | "key"
       | "name"
       | "description"
@@ -791,7 +805,7 @@ export function useSymbolContentOps() {
       // set optional values to null if not provided
       hint: input.hint ?? null,
       description: input.description ?? null,
-      referenceId: input.reference?.id ?? null,
+      referenceCk: input.referenceCk ?? null,
       flags: input.flags ?? 0,
     } as FieldCreateInput & { referenceId: string | null; flags: number };
   }
@@ -802,6 +816,7 @@ export function useSymbolContentOps() {
     field: Pick<
       Field,
       | "id"
+      | "ck"
       | "name"
       | "tag"
       | "hint"
@@ -981,16 +996,25 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation createTagging(
         $id: GlobalID!
+        $ck: UUID!
         $statementId: GlobalID!
         $key: String!
         $referenceId: GlobalID!
         $metadata: JSON
       ) {
         createTagging(
-          input: { id: $id, statementId: $statementId, key: $key, referenceId: $referenceId, metadata: $metadata }
+          input: {
+            id: $id
+            ck: $ck
+            statementId: $statementId
+            key: $key
+            referenceId: $referenceId
+            metadata: $metadata
+          }
         ) {
           ... on Tagging {
             id
+            ck
             revision
             key
             parent {
@@ -1019,6 +1043,7 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: {
         id: string;
+        ck: string;
         statementId: string;
         key: string;
         referenceId: string | null;
@@ -1029,6 +1054,7 @@ export function useSymbolContentOps() {
           createTagging: {
             __typename: "Tagging",
             id: vars.id,
+            ck: vars.ck,
             revision: PENDING_REVISION,
             key: vars.key,
             parent: {
@@ -1147,7 +1173,7 @@ export function useSymbolContentOps() {
   async function createTagging(
     tx: Transaction | null,
     statementId: string,
-    tagging: Pick<Tagging, "id" | "key" | "reference" | "metadata">
+    tagging: Pick<Tagging, "id" | "ck" | "key" | "reference" | "metadata">
   ) {
     await ops.perform({
       tx,
@@ -1155,6 +1181,7 @@ export function useSymbolContentOps() {
       do: async () => {
         return await createTaggingMut({
           id: tagging.id,
+          ck: tagging.ck,
           statementId: statementId,
           key: tagging.key,
           referenceId: tagging.reference?.id ?? null,
@@ -1253,6 +1280,7 @@ export function useSymbolContentOps() {
     graphql(/* GraphQL */ `
       mutation createTrigger(
         $id: GlobalID!
+        $ck: UUID!
         $statementId: GlobalID!
         $type: TriggerType!
         $active: Boolean!
@@ -1267,6 +1295,7 @@ export function useSymbolContentOps() {
         createTrigger(
           input: {
             id: $id
+            ck: $ck
             statementId: $statementId
             type: $type
             active: $active
@@ -1281,6 +1310,7 @@ export function useSymbolContentOps() {
         ) {
           ... on Trigger {
             id
+            ck
             parent {
               id
             }
@@ -1317,6 +1347,7 @@ export function useSymbolContentOps() {
     {
       optimisticResponse: (vars: {
         id: string;
+        ck: string;
         statementId: string;
         type: TriggerType;
         active: boolean;
@@ -1333,6 +1364,7 @@ export function useSymbolContentOps() {
           createTrigger: {
             __typename: "Trigger",
             id: vars.id,
+            ck: vars.ck,
             parent: {
               __typename: "Statement",
               id: vars.statementId,
@@ -1443,6 +1475,7 @@ export function useSymbolContentOps() {
       do: async () => {
         return await createTriggerMut({
           id: trigger.id,
+          ck: trigger.id,
           statementId: statementId,
           type: trigger.type,
           active: trigger.active,

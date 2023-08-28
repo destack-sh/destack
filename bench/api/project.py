@@ -73,14 +73,6 @@ ProjectVisibility = strawberry.enum(models.ProjectVisibility)
 
 
 @strawberry.type
-class ProjectMigrationInfo:
-    is_reverse: bool
-    source_version: "ProjectVersion"
-    target_version: "ProjectVersion"
-    ref_mappings: list["RefMapping"]
-
-
-@strawberry.type
 class ProjectUsage:
     records_active: int
     objects_bytes_total: int
@@ -151,50 +143,6 @@ class Project(relay.Node):
         access = has_project_access(info, self, models.ProjectAccessLevel.Read)
         return access.level if access else models.ProjectAccessLevel.Zero
 
-    @strawberry_django.field
-    def migration_mappings(
-        self, source_version_id: GlobalID, target_version_id: GlobalID
-    ) -> ProjectMigrationInfo:
-        from bench.api.module import GQL_NODE_NAME_BY_MOT
-
-        source_version = models.ProjectVersion.objects.get(id=source_version_id.node_id)
-        target_version = models.ProjectVersion.objects.get(id=target_version_id.node_id)
-        if (
-            source_version.project_id != target_version.project_id
-            or source_version.project_id != self.id
-        ):
-            raise ValidationError("version ids belong to different projects")
-
-        final_ref_mappings, is_reverse = models.ProjectVersion.objects.get_migration_mappings(
-            UUID(source_version_id.node_id), UUID(target_version_id.node_id)
-        )
-
-        # map final ref mappings to global ids
-        final_ref_mappings = [
-            models.RefMapping(
-                kind=ref_mapping.kind,
-                type=ref_mapping.type,
-                source_version=source_version,
-                target_version=target_version,
-                source_id=GlobalID(
-                    GQL_NODE_NAME_BY_MOT[ref_mapping.type], str(ref_mapping.source_id)
-                ),
-                source_revision=ref_mapping.source_revision,
-                target_id=GlobalID(
-                    GQL_NODE_NAME_BY_MOT[ref_mapping.type], str(ref_mapping.target_id)
-                ),
-                target_revision=ref_mapping.target_revision,
-            )
-            for ref_mapping in final_ref_mappings
-        ]
-
-        return ProjectMigrationInfo(
-            source_version=source_version,
-            target_version=target_version,
-            is_reverse=is_reverse,
-            ref_mappings=final_ref_mappings,
-        )
-
 
 @strawberry_django.type(models.ProjectMembership)
 class ProjectMembership(relay.Node):
@@ -216,38 +164,6 @@ class ProjectInvite(relay.Node):
     email_sent_at: auto
 
 
-RefMappingKind = strawberry.enum(models.RefMappingKind)
-
-
-@strawberry_django.type(models.RefMapping)
-class RefMapping(relay.Node):
-    kind: RefMappingKind
-    source_version: "ProjectVersion"
-    target_version: "ProjectVersion"
-    source_id: GlobalID
-    source_revision: int
-    target_id: GlobalID
-    target_revision: int
-
-    @strawberry_django.field
-    def source_version_id(self) -> GlobalID:
-        return GlobalID("ProjectVersion", str(self.source_version_id))
-
-    @strawberry_django.field
-    def target_version_id(self) -> GlobalID:
-        return GlobalID("ProjectVersion", str(self.target_version_id))
-
-
-@strawberry_django.filter(models.RefMapping)
-class RefMappingFilter:
-    kind: Optional[RefMappingKind] = None
-
-    def filter(self, queryset):
-        if self.kind is not None:
-            queryset = queryset.filter(kind=self.kind)
-        return queryset
-
-
 @strawberry_django.type(models.ProjectVersion)
 class ProjectVersion(HasCrud, ModuleNode, relay.Node):
     project: Project
@@ -260,12 +176,6 @@ class ProjectVersion(HasCrud, ModuleNode, relay.Node):
     committed: auto
     committed_at: auto
     files: list[Annotated["File", lazy(".file")]] = strawberry_django.field(filters=FileFilter)
-    child_refs: relay.Connection[RefMapping] = strawberry_django.connection(
-        filters=RefMappingFilter
-    )
-    parent_refs: relay.Connection[RefMapping] = strawberry_django.connection(
-        filters=RefMappingFilter
-    )
 
 
 @strawberry.input
@@ -450,28 +360,6 @@ class ProjectVersionMutation:
         )
         snapshot.parents.set(head.parents.all())
         head.parents.set([snapshot])
-
-        old_refmaps = list(head.parent_refs.filter(kind=RefMappingKind.COMMIT))
-        new_refmaps = models.ProjectVersion.objects.copy(
-            head, snapshot, invert_mappings=True, copy_revisions=True
-        )
-
-        # update previous head's target ref mappings to point to snapshot's refs
-        new_refmaps_by_target_id = {refmap.target_id: refmap for refmap in new_refmaps}
-        deleted_refmaps_ids = []
-        for refmap in old_refmaps:
-            if refmap.target_id not in new_refmaps_by_target_id:
-                # we don't copy (soft) deleted objects, so the refmap cannot be updated
-                deleted_refmaps_ids.append(refmap.id)
-                continue
-            new_refmap = new_refmaps_by_target_id[refmap.target_id]
-            refmap.target_version_id = snapshot.id
-            refmap.target_id = new_refmap.source_id
-            refmap.target_revision = new_refmap.source_revision
-        models.RefMapping.objects.bulk_update(
-            old_refmaps, ["target_version_id", "target_id", "target_revision"]
-        )
-        models.RefMapping.objects.filter(id__in=deleted_refmaps_ids).delete()
 
         # publish
         origin = get_client_origin_from_info(info)

@@ -10,9 +10,10 @@ import {
   type Tagging,
   type Trigger,
   type ResolvedField,
+  newNodeIdentity,
 } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
-import { newFieldId, newFieldKey } from "@/state/operations/statement";
+import { newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { getFieldNameFromTypeName } from "@/utils/functools";
@@ -335,9 +336,15 @@ export function useStatementContext() {
       template.reference?.name != null ? getFieldNameFromTypeName(template.reference?.name) : undefined;
     const name: string =
       TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
+    const identity = newNodeIdentity(module.id.value, "Field");
+    if ((template.id != null) != (template.ck != null)) {
+      throw new Error("must provide both id and ck or neither");
+    }
     const field = makeField({
+      projectVersionId: module.id.value,
       ...template,
-      id: template.id ?? newFieldId(),
+      id: template.id ?? identity.id,
+      ck: template.id ?? identity.ck,
       name: name.toLowerCase(),
       tag: template.tag,
       hint: template.hint ?? null,
@@ -355,6 +362,7 @@ export function useStatementContext() {
       null
     );
     const field = makeField({
+      projectVersionId: module.id.value,
       name: "",
       tag: TypeTag.TypeReference,
       orderKey: nextOrderKey,
@@ -376,7 +384,7 @@ export function useStatementContext() {
       field.name?.search(/\d+$/) != -1 ? field.name?.replace(/\d+$/, (n) => String(Number(n) + 1)) : field.name + " 2";
     const newFieldNode = {
       ...field,
-      id: newFieldId(),
+      ...newNodeIdentity(module.id.value, "Field"),
       name: newName,
       key: newFieldKey(),
       orderKey,
@@ -542,7 +550,9 @@ export function isTypeTagCompatible(tag: TypeTag, type: StatementType): boolean 
 }
 
 export function makeField(data: {
+  projectVersionId: string;
   id?: string | null;
+  ck?: string | null;
   name?: string | null;
   tag: TypeTag;
   hint?: TypeHint | null;
@@ -552,8 +562,13 @@ export function makeField(data: {
   reference?: { id: string; name?: string } | null;
   flags?: number;
 }): Field {
+  if ((data.id != null) != (data.ck != null)) {
+    throw new Error("must provide both id and ck or neither");
+  }
+  const identity = newNodeIdentity(data.projectVersionId, "Field");
   const fieldData = {
-    id: data.id ?? newFieldId(),
+    id: data.id ?? identity.id,
+    ck: data.ck ?? identity.ck,
     name: data.name ?? null,
     tag: data.tag,
     hint: data.hint ?? null,
@@ -567,8 +582,7 @@ export function makeField(data: {
   return fieldData;
 }
 
-export const NAME_FIELD = makeField({ tag: TypeTag.String, hint: TypeHint.Name });
-export const ANY_FIELD = makeField({ tag: TypeTag.Any });
+export const ANY_FIELD = makeField({ projectVersionId: "0", tag: TypeTag.Any });
 
 export function getEnumColor(type: { key: string }) {
   /* Generate a strong color for the type */

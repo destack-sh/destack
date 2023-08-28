@@ -18,11 +18,10 @@ from bench.api.interp import Issue, ResolvedField
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
-from bench.models import ProjectAccessLevel, RefMappingKind
+from bench.models import ProjectAccessLevel
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.api.dataset import Dataset
     from bench.api.project import File, ProjectVersion
 
 log = structlog.get_logger(__name__)
@@ -118,7 +117,6 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     text: auto
     # symbol contents
     reference: Optional["Statement"]
-    dataset: Optional[Annotated["Dataset", lazy(".dataset")]]
     root_type_tag: Optional[TypeTag]
     root_type_flags: Optional[int]
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
@@ -137,7 +135,8 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
 class StatementCreateInput:
     """Creates a full statement"""
 
-    id: Optional[GlobalID] = None
+    id: GlobalID
+    ck: UUID
     file_id: GlobalID
     order_key: str
     type: StatementType
@@ -148,7 +147,7 @@ class StatementCreateInput:
     description: Optional[str] = None
     lang: Optional[str] = None
     key: Optional[str] = None
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[UUID] = None
     text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
@@ -167,7 +166,7 @@ class StatementUpdateInput(strawberry_django.NodeInput):
     description: Optional[str] = None
     lang: Optional[str] = None
     key: Optional[str] = None
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[UUID] = None
     text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
@@ -251,6 +250,7 @@ class StatementBatchMoveInput(BatchMutationInput):
 class StatementBatchPasteInput:
     source_ids: list[GlobalID]
     target_ids: list[GlobalID]
+    target_cks: list[UUID]
     target_file_id: GlobalID
     target_parent_ids: list[Optional[GlobalID]]
     target_order_keys: list[str]
@@ -277,6 +277,7 @@ class StatementMutation:
         )
         statement = models.Statement(
             id=(UUID(input.id.node_id) if input.id else None),
+            ck=input.ck,
             project_version=file.project_version,
             file=file,
             type=input.type,
@@ -287,13 +288,12 @@ class StatementMutation:
             root_type_flags=input.root_type_flags,
             description=input.description,
             key=input.key,
-            reference_id=input.reference_id.node_id if input.reference_id else None,
+            reference_ck=input.reference_ck,
             lang=input.lang,
             code=input.code,
             text=input.text,
             value=input.value,
         )
-        statement.create_symbol_if_needed()
         return statement
 
     @tracked_db_mutation(MMT.UPDATE_STATEMENT, atomic=True)
@@ -308,7 +308,6 @@ class StatementMutation:
         statement.root_type_tag = input.root_type_tag
         statement.root_type_flags = input.root_type_flags
         statement.lang = input.lang
-        statement.create_symbol_if_needed()
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)
@@ -434,7 +433,7 @@ class StatementMutation:
             check_project_access(info, source_project_v.project, models.ProjectAccessLevel.Read)
         check_project_access(info, target_file.project_version.project, ProjectAccessLevel.Edit)
 
-        # actually paste and store paste refmappings
+        # do the copy paste
         target_ids = [UUID(i.node_id) for i in input.target_ids]
         target_parent_ids = {
             **{
@@ -450,9 +449,10 @@ class StatementMutation:
             source=source_project_v,
             target=target_file.project_version,
             target_ids={s: t for s, t in zip(source_ids, target_ids)},
+            target_cks={s: t for s, t in zip(source_ids, input.target_cks)},
             target_parent_ids=target_parent_ids,
             target_order_keys=target_order_keys,
-            kind=RefMappingKind.PASTE,
+            keep_cks=False,
         )
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)
@@ -480,7 +480,7 @@ class SymbolUpdateDescriptionInput(strawberry_django.NodeInput):
 
 @strawberry.input
 class StatementUpdateReferenceInput(strawberry_django.NodeInput):
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[UUID] = None
 
 
 @strawberry.input
@@ -501,9 +501,10 @@ class SymbolUpdateValueInput(strawberry_django.NodeInput):
 @strawberry.input
 class TaggingCreateInput:
     id: GlobalID
+    ck: UUID
     statement_id: GlobalID
     key: str
-    reference_id: GlobalID
+    reference_ck: GlobalID
     metadata: Optional[JSON] = None
 
 
@@ -530,6 +531,7 @@ class TaggingRestoreInput(strawberry_django.NodeInput):
 @strawberry.input
 class TriggerCreateInput:
     id: GlobalID
+    ck: UUID
     statement_id: GlobalID
     type: TriggerType
     active: bool
@@ -538,8 +540,8 @@ class TriggerCreateInput:
     timezone: Optional[str] = None
     interval: Optional[int] = None
     cron: Optional[str] = None
-    runnable_id: Optional[GlobalID] = None
-    scope_id: Optional[GlobalID] = None
+    runnable_ck: Optional[UUID] = None
+    scope_ck: Optional[UUID] = None
 
 
 @strawberry.input
@@ -551,8 +553,8 @@ class TriggerUpdateInput(strawberry_django.NodeInput):
     timezone: Optional[str] = None
     interval: Optional[int] = None
     cron: Optional[str] = None
-    runnable_id: Optional[GlobalID] = None
-    scope_id: Optional[GlobalID] = None
+    runnable_ck: Optional[UUID] = None
+    scope_ck: Optional[UUID] = None
 
 
 @strawberry.input
@@ -573,6 +575,7 @@ class TriggerRestoreInput(strawberry_django.NodeInput):
 @strawberry.input
 class FieldCreateInput:
     id: GlobalID
+    ck: UUID
     key: str
     order_key: str
     statement_id: GlobalID
@@ -581,7 +584,7 @@ class FieldCreateInput:
     hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[UUID] = None
     metadata: Optional[JSON] = None
 
 
@@ -592,7 +595,7 @@ class FieldUpdateInput(strawberry_django.NodeInput):
     hint: Optional[TypeHint] = None
     description: Optional[str] = None
     flags: int = 0
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[UUID] = None
     metadata: Optional[JSON] = None
 
 
@@ -611,7 +614,7 @@ class FieldUpdateTypeInput(strawberry_django.NodeInput):
     tag: TypeTag
     hint: Optional[TypeHint] = None
     flags: int = 0
-    reference_id: Optional[GlobalID] = None
+    reference_ck: Optional[GlobalID] = None
 
 
 @strawberry.input
@@ -642,7 +645,7 @@ class SymbolMutation:
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.reference_id = input.reference_id.node_id if input.reference_id else None
+        statement.reference_ck = input.reference_ck
         return statement
 
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
@@ -669,6 +672,7 @@ class SymbolMutation:
     def create_field(self, input: FieldCreateInput) -> Field | OperationInfo:
         field = models.Field(
             id=UUID(input.id.node_id),
+            ck=input.ck,
             statement_id=UUID(input.statement_id.node_id),
             key=input.key,
             order_key=input.order_key,
@@ -677,7 +681,7 @@ class SymbolMutation:
             tag=input.tag,
             hint=input.hint,
             flags=input.flags,
-            reference_id=UUID(input.reference_id.node_id) if input.reference_id else None,
+            reference_ck=input.reference_ck,
             metadata=input.metadata,
         )
         return field
@@ -690,7 +694,7 @@ class SymbolMutation:
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
-        field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        field.reference_ck = input.reference_ck
         field.metadata = input.metadata
         return field
 
@@ -712,7 +716,7 @@ class SymbolMutation:
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
-        field.reference_id = UUID(input.reference_id.node_id) if input.reference_id else None
+        field.reference_ck = input.reference_ck
         return field
 
     @tracked_db_mutation(MMT.MOVE_FIELD)
@@ -744,9 +748,10 @@ class SymbolMutation:
     def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging(
             id=UUID(input.id.node_id),
+            ck=input.ck,
             statement_id=UUID(input.statement_id.node_id),
             key=input.key,
-            reference_id=UUID(input.reference_id.node_id),
+            reference_ck=input.reference_ck,
             metadata=input.metadata,
         )
         return tagging
@@ -779,6 +784,7 @@ class SymbolMutation:
     def create_trigger(self, input: TriggerCreateInput) -> Trigger | OperationInfo:
         trigger = models.Trigger(
             id=UUID(input.id.node_id),
+            ck=input.ck,
             statement_id=UUID(input.statement_id.node_id),
             type=input.type,
             active=input.active,
@@ -787,8 +793,8 @@ class SymbolMutation:
             timezone=input.timezone,
             interval=input.interval,
             cron=input.cron,
-            runnable_id=UUID(input.runnable_id.node_id) if input.runnable_id else None,
-            scope_id=UUID(input.scope_id.node_id) if input.scope_id else None,
+            runnable_ck=input.runnable_ck,
+            scope_ck=input.scope_ck,
         )
         return trigger
 
@@ -802,8 +808,8 @@ class SymbolMutation:
         trigger.timezone = input.timezone
         trigger.interval = input.interval
         trigger.cron = input.cron
-        trigger.runnable_id = UUID(input.runnable_id.node_id) if input.runnable_id else None
-        trigger.scope_id = UUID(input.scope_id.node_id) if input.scope_id else None
+        trigger.runnable_ck = input.runnable_ck
+        trigger.scope_ck = input.scope_ck
         return trigger
 
     @tracked_db_mutation(MMT.DELETE_TRIGGER)

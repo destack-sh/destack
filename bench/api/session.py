@@ -7,7 +7,7 @@ import strawberry
 import strawberry_django
 import structlog
 from asgiref.sync import sync_to_async
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
 from django.db.models import OuterRef, Subquery
 from nats.errors import NoRespondersError
 from strawberry import auto, lazy, relay
@@ -246,32 +246,6 @@ class LogEntry:
             run_id=to_global_id("Run", log_entry.run_id),
             metadata=log_entry.metadata,
         )
-
-
-async def _expand_filter(
-    project_version_id: UUID,
-    include_ancestor_versions: bool,
-    runnable_ids: list[UUID] | None,
-    ancestor_depth: int = 8,
-):
-    if include_ancestor_versions:
-        if project_version_id is None:
-            raise ValidationError(
-                "project_version_id must be specified if include_ancestor_versions"
-            )
-            # TODO @Performance: implement symbol version id expansion in SQL
-        project_versions = await sync_to_async(models.ProjectVersion.objects.get_ancestors)(
-            version_id=project_version_id, depth=ancestor_depth
-        )
-        project_version_ids = [pv.id for pv in project_versions]
-        # expand symbols using RefMapping.source_id/target_id up to ancestor_depth
-        expanded_ids = await sync_to_async(models.RefMapping.objects.expand_target_ids)(
-            runnable_ids or [], ancestor_depth
-        )
-    else:
-        project_version_ids = [project_version_id]
-        expanded_ids = runnable_ids or []
-    return expanded_ids, project_version_ids
 
 
 RUNS_LIMIT = 50

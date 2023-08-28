@@ -13,12 +13,13 @@ import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
-import type { Field } from "@/state/module";
+import { useCurrentModule, type Field } from "@/state/module";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
 const context = useStatementContext();
+const module = useCurrentModule();
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const description: Ref<string> = ref(context.statement.value.description ?? "");
@@ -52,6 +53,7 @@ function createOption() {
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
   const name = "Option " + (fieldsLength.value + 1);
   const newField = makeField({
+    projectVersionId: module.id.value,
     name,
     tag: TypeTag.Literal,
     orderKey,

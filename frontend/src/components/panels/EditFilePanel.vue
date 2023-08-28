@@ -11,7 +11,7 @@ import { useAppearance } from "@/state/appearance";
 import { EditFilePanel, useBenchState, type PanelContext, type FileAction, type StatementHeader } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule, type Statement, mergeNodePaths } from "@/state/module";
+import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -19,7 +19,6 @@ import { useQuery } from "@vue/apollo-composable";
 import { useMouse, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { newFileId } from "@/state/operations/file";
 import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 
@@ -229,11 +228,18 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
     action: async () => {
       if (fileHeader.value == null) return;
       duplicating.value = true;
-      const targetId = newFileId();
+      const targetIdentity = newNodeIdentity(bench.projectVersionId as string, "File");
       try {
-        const ret = await ops.file.paste(null, fileHeader.value?.id, targetId, module.id.value, null);
+        const ret = await ops.file.paste(
+          null,
+          fileHeader.value?.id,
+          targetIdentity.id,
+          targetIdentity.ck,
+          module.id.value,
+          null
+        );
         if (ret?.data?.pasteFile.__typename == "File") {
-          bench.focusFile({ __typename: "File", id: targetId, name: fileHeader.value?.name ?? "" });
+          bench.focusFile({ __typename: "File", id: targetIdentity.id, name: fileHeader.value?.name ?? "" });
         }
       } finally {
         duplicating.value = false;

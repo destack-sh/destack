@@ -303,6 +303,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def pack(self, module: models.ProjectVersion) -> wire.ModuleData:
         return wire.ModuleData(
             id=module.id,
+            ck=module.project_id,
             name=module.project.path,
             committed=module.committed,
             parent_id=None,
@@ -329,6 +330,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
     def pack(self, file: models.File) -> wire.FileData:
         return wire.FileData(
             id=file.id,
+            ck=file.ck,
             parent_id=file.project_version_id if file.parent_id is None else file.parent_id,
             name=file.name,
             revision=file.revision,
@@ -346,6 +348,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
         )
         return models.File(
             id=data.id,
+            ck=data.ck,
             project_version_id=project_version_id,
             parent_file_id=parent.id if isinstance(parent, models.File) else None,
             name=data.name,
@@ -361,7 +364,8 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.StatementData:
         return wire.StatementData(
             id=statement.id,
-            parent_id=statement.parent_id if statement.parent_id else statement.file_id,
+            ck=statement.ck,
+            parent_id=statement.parent_id,
             order_key=statement.order_key,
             type=StatementType(statement.type),
             name=statement.name,
@@ -377,6 +381,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     ) -> models.Statement:
         return models.Statement(
             id=data.id,
+            ck=data.ck,
             project_version_id=parent.project_version_id,
             parent_statement_id=parent.id if isinstance(parent, models.Statement) else None,
             file_id=parent.id if isinstance(parent, models.File) else parent.file_id,
@@ -435,14 +440,14 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
         return wire.ReferenceData(
             **statement_data.__dict__,
             description=statement.description,
-            reference_id=statement.reference_id,
+            reference_ck=statement.reference_ck,
         )
 
     def unpack(
         self, data: wire.FieldData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
-        statement.reference_id = data.reference_id
+        statement.reference_ck = data.reference_ck
         statement.description = data.description
         return statement
 
@@ -699,49 +704,44 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return wire.DatasetData(
             **statement_data.__dict__,
             description=statement.description,
-            versioned=statement.dataset.versioned,
-            key=statement.dataset.key,
+            versioned=False,
         )
 
     def unpack(
         self, data: wire.DatasetData, parent: models.File | models.Statement
-    ) -> list[models.Statement | models.Dataset]:
+    ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description
-        statement.dataset = models.Dataset(
-            id=uuid5(statement.id, "dataset"),
-            versioned=data.versioned,
-            statement=statement,
-            key=data.key,
-        )
-        return [statement, statement.dataset]
+        return statement
 
 
 @node_packer(MOT.FIELD, wire.FieldData, models.Field)
 class FieldPacker(NodePacker[wire.FieldData, models.Field]):
-    def pack(self, node: models.Field) -> wire.FieldData:
+    def pack(self, field: models.Field) -> wire.FieldData:
         return wire.FieldData(
-            id=node.id,
-            parent_id=node.statement_id,
-            name=node.name,
-            tag=TypeTag(node.tag),
-            hint=TypeHint(node.hint) if node.hint else None,
-            key=node.key,
-            order_key=node.order_key,
-            description=node.description,
-            flags=node.flags,
-            reference_id=node.reference_id,
-            metadata=node.metadata,
-            revision=node.revision,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            last_edited_at=node.last_edited_at,
-            last_changed_at=node.last_changed_at,
+            id=field.id,
+            ck=field.ck,
+            parent_id=field.statement_id,
+            name=field.name,
+            tag=TypeTag(field.tag),
+            hint=TypeHint(field.hint) if field.hint else None,
+            key=field.key,
+            order_key=field.order_key,
+            description=field.description,
+            flags=field.flags,
+            reference_ck=field.reference_ck,
+            metadata=field.metadata,
+            revision=field.revision,
+            created_at=field.created_at,
+            updated_at=field.updated_at,
+            last_edited_at=field.last_edited_at,
+            last_changed_at=field.last_changed_at,
         )
 
     def unpack(self, data: wire.FieldData, parent: models.Statement) -> models.Field:
         return models.Field(
             id=data.id,
+            ck=data.ck,
             statement_id=data.parent_id,
             key=data.key,
             order_key=data.order_key,
@@ -750,36 +750,38 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             hint=data.hint.value if data.hint else None,
             description=data.description,
             flags=data.flags,
-            reference_id=data.reference_id,
+            reference_ck=data.reference_ck,
             metadata=data.metadata,
         )
 
 
 @node_packer(MOT.TRIGGER, wire.TriggerData, models.Trigger)
 class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
-    def pack(self, node: models.Trigger) -> wire.TriggerData:
+    def pack(self, trigger: models.Trigger) -> wire.TriggerData:
         return wire.TriggerData(
-            id=node.id,
-            parent_id=node.statement_id,
-            type=node.type,
-            active=node.active,
-            mapping=node.mapping,
-            schedule_type=node.schedule_type,
-            timezone=node.timezone,
-            interval=node.interval,
-            cron=node.cron,
-            runnable_id=node.runnable_id,
-            scope_id=node.scope_id,
-            revision=node.revision,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            last_edited_at=node.last_edited_at,
-            last_changed_at=node.last_changed_at,
+            id=trigger.id,
+            ck=trigger.ck,
+            parent_id=trigger.statement_id,
+            type=trigger.type,
+            active=trigger.active,
+            mapping=trigger.mapping,
+            schedule_type=trigger.schedule_type,
+            timezone=trigger.timezone,
+            interval=trigger.interval,
+            cron=trigger.cron,
+            runnable_ck=trigger.runnable_ck,
+            scope_ck=trigger.scope_ck,
+            revision=trigger.revision,
+            created_at=trigger.created_at,
+            updated_at=trigger.updated_at,
+            last_edited_at=trigger.last_edited_at,
+            last_changed_at=trigger.last_changed_at,
         )
 
     def unpack(self, data: wire.TriggerData, parent: models.Statement) -> models.Trigger:
         return models.Trigger(
             id=data.id,
+            ck=data.ck,
             statement_id=data.parent_id,
             type=data.type,
             active=data.active,
@@ -788,33 +790,35 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             timezone=data.timezone,
             interval=data.interval,
             cron=data.cron,
-            runnable_id=data.runnable_id,
-            scope_id=data.scope_id,
+            runnable_ck=data.runnable_ck,
+            scope_ck=data.scope_ck,
         )
 
 
 @node_packer(MOT.TAGGING, wire.TaggingData, models.Tagging)
 class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
-    def pack(self, node: models.Tagging) -> wire.TaggingData:
+    def pack(self, tagging: models.Tagging) -> wire.TaggingData:
         return wire.TaggingData(
-            id=node.id,
-            parent_id=node.statement_id,
-            key=node.key,
-            reference_id=node.reference_id,
-            metadata=node.metadata,
-            revision=node.revision,
-            created_at=node.created_at,
-            updated_at=node.updated_at,
-            last_edited_at=node.last_edited_at,
-            last_changed_at=node.last_changed_at,
+            id=tagging.id,
+            ck=tagging.ck,
+            parent_id=tagging.statement_id,
+            key=tagging.key,
+            reference_ck=tagging.reference_ck,
+            metadata=tagging.metadata,
+            revision=tagging.revision,
+            created_at=tagging.created_at,
+            updated_at=tagging.updated_at,
+            last_edited_at=tagging.last_edited_at,
+            last_changed_at=tagging.last_changed_at,
         )
 
     def unpack(self, data: wire.TaggingData, parent: models.Statement) -> models.Tagging:
         return models.Tagging(
             id=data.id,
+            ck=data.ck,
             statement_id=data.parent_id,
             key=data.key,
-            reference_id=data.reference_id,
+            reference_ck=data.reference_ck,
             metadata=data.metadata,
         )
 
@@ -827,6 +831,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
             id=issue.id,
+            ck=issue.ck,
             parent_id=issue.parent_statement_id or issue.parent_file_id or issue.project_version_id,
             kind=IssueKind(issue.kind),
             type=IssueType(issue.type),
@@ -852,6 +857,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
             raise ValueError(f"unexpected parent type: {parent}")
         return models.Issue(
             id=data.id,
+            ck=data.ck,
             project_version_id=project_version_id,
             parent_file_id=parent_file_id,
             parent_statement_id=parent_statement_id,
@@ -866,6 +872,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
         return wire.ResolvedFieldData(
             id=resolved_field.id,
+            ck=resolved_field.ck,
             parent_id=resolved_field.statement_id,
             field_id=resolved_field.field_id,
         )
@@ -875,6 +882,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
     ) -> models.ResolvedField:
         return models.ResolvedField(
             id=data.id,
+            ck=data.ck,
             project_version_id=parent.project_version_id,
             statement_id=parent.id,
             field_id=data.field_id,

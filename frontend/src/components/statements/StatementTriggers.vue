@@ -5,8 +5,8 @@ import { useElementRefs } from "@/composables/useGrid";
 import { useNow } from "@/composables/useNow";
 import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
+import { newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newTriggerId } from "@/state/operations/statement";
 import { useStatementContext } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -15,6 +15,7 @@ import { DateTime } from "luxon";
 import { computed, ref, type Ref } from "vue";
 
 const context = useStatementContext();
+const module = useCurrentModule();
 const ops = useOperations();
 
 const editing = ref<string | null>(null);
@@ -26,8 +27,10 @@ const triggerInterfaceRef = ref<InstanceType<typeof TriggerInterface> | null>(nu
 const currentTrigger = computed(() => context.triggers.value.find((t) => t.id == editing.value));
 
 function addNew() {
+  const identity = newNodeIdentity(module.id.value, "Trigger");
   const newTrigger = {
-    id: newTriggerId(),
+    id: identity.id,
+    ck: identity.ck,
     type: TriggerType.Time,
     active: false,
     timezone: "UTC",
@@ -51,13 +54,12 @@ function updateTrigger(trigger: Trigger) {
 }
 
 function duplicateTrigger(trigger: Trigger) {
-  const newTrigger = { ...trigger, id: newTriggerId() };
+  const newTrigger = { ...trigger, ...newNodeIdentity(module.id.value, "Trigger") };
   ops.symbol.createTrigger(null, context.statement.value.id, newTrigger);
   editing.value = newTrigger.id;
 }
 
 function deleteTrigger(trigger: Trigger) {
-  console.log("delete trigger", trigger);
   ops.symbol.softDeleteTrigger(null, context.statement.value.id, trigger);
   close();
 }

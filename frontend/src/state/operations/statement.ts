@@ -18,43 +18,12 @@ import {
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
-import { v4 as uuidv4 } from "uuid";
-
-export function newStatementId(): string {
-  /* Generates a new statement global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`Statement:${nodeId}`);
-}
-
-export function newFieldId(): string {
-  /* Generates a new type node data global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`Field:${nodeId}`);
-}
 
 const ALPHA_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 export function newFieldKey(): string {
   /* Generates an 8-character alphabetic random key :FieldKeys */
   return Array.from({ length: 8 }, () => ALPHA_CHARS.charAt(Math.floor(Math.random() * ALPHA_CHARS.length))).join("");
-}
-
-export function newRecordId(): string {
-  /* Generates a new dataset record global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`Record:${nodeId}`);
-}
-
-export function newTaggingId(): string {
-  /* Generates a new tagging global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`Tagging:${nodeId}`);
-}
-
-export function newTriggerId(): string {
-  /* Generates a new trigger global id (as in relay) with a new uuid4 */
-  const nodeId = uuidv4();
-  return btoa(`Trigger:${nodeId}`);
 }
 
 export function useStatementOps() {
@@ -67,7 +36,8 @@ export function useStatementOps() {
     ModuleMutationType.CreateStatement,
     graphql(/* GraphQL */ `
       mutation createStatement(
-        $id: GlobalID
+        $id: GlobalID!
+        $ck: UUID!
         $fileId: GlobalID!
         $parentId: GlobalID
         $orderKey: String!
@@ -85,6 +55,7 @@ export function useStatementOps() {
         createStatement(
           input: {
             id: $id
+            ck: $ck
             fileId: $fileId
             parentId: $parentId
             orderKey: $orderKey
@@ -103,6 +74,7 @@ export function useStatementOps() {
           ... on Statement {
             # should match StatementContent fragment
             id
+            ck
             type
             revision
             name
@@ -127,9 +99,7 @@ export function useStatementOps() {
             value
             rootTypeTag
             rootTypeFlags
-            reference {
-              id
-            }
+            referenceCk
             tags(filters: { isVisible: true }) {
               id
             }
@@ -170,6 +140,7 @@ export function useStatementOps() {
     {
       optimisticResponse: function (vars: {
         id: string;
+        ck: string;
         fileId: string;
         parentId: string | null;
         orderKey: string;
@@ -181,7 +152,6 @@ export function useStatementOps() {
         text: string | null;
         description: string | null;
         value: any | null;
-        referenceId: string | null;
         rootTypeTag: TypeTag | null;
         rootTypeFlags: number | null;
       }) {
@@ -190,6 +160,7 @@ export function useStatementOps() {
           createStatement: {
             __typename: "Statement",
             id: vars.id,
+            ck: vars.ck,
             file: {
               __typename: "File",
               id: vars.fileId,
@@ -207,7 +178,7 @@ export function useStatementOps() {
             value: vars.value,
             code: vars.code,
             text: vars.text,
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            referenceCk: null,
             rootTypeTag: vars.rootTypeTag,
             rootTypeFlags: vars.rootTypeFlags,
             tags: [],
@@ -253,6 +224,7 @@ export function useStatementOps() {
   async function createBlank(
     tx: Transaction | null,
     id: string,
+    ck: string,
     fileId: string,
     parentId: string | undefined | null,
     orderKey: string
@@ -263,6 +235,7 @@ export function useStatementOps() {
       do: async () => {
         return await createStatementMut({
           id,
+          ck,
           fileId,
           parentId: parentId ?? null,
           orderKey,
@@ -272,7 +245,7 @@ export function useStatementOps() {
           code: null,
           text: null,
           key: null,
-          referenceId: null,
+          referenceCk: null,
           value: null,
           description: null,
           rootTypeTag: null,
@@ -292,13 +265,14 @@ export function useStatementOps() {
     tx: Transaction | null,
     input: {
       id: string;
+      ck: string;
       type: StatementType;
       fileId: string;
       parentId: string | undefined | null;
       orderKey: string;
       name?: string;
       key?: string;
-      referenceId?: string;
+      referenceCk?: string;
       description?: string;
       rootTypeTag?: TypeTag;
       rootTypeFlags?: number;
@@ -310,6 +284,7 @@ export function useStatementOps() {
       do: async () => {
         return await createStatementMut({
           id: input.id,
+          ck: input.ck,
           fileId: input.fileId,
           parentId: input.parentId ?? null,
           orderKey: input.orderKey,
@@ -320,7 +295,7 @@ export function useStatementOps() {
           text: null,
           value: null,
           key: input.key ?? null,
-          referenceId: input.referenceId ?? null,
+          referenceCk: input.referenceCk ?? null,
           description: input.description ?? null,
           rootTypeTag: input.rootTypeTag ?? null,
           rootTypeFlags: input.rootTypeFlags ?? null,
