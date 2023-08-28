@@ -1,3 +1,7 @@
+"""
+Built-in library implementations.
+"""
+
 import asyncio
 import enum
 import json
@@ -10,15 +14,15 @@ import openai
 
 from bench.language import Dataset, Value
 from bench.language.basic import Expectation
+from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
 from bench.language.core import LookupBy, Module, Statement, parse_absolute_statement_reference
 from bench.language.model import Model
 from bench.language.reflect import (
+    _derive_constant_key,
     _model_compilers,
     _model_impls,
-    _symbolx_reflect,
-    _versioned_id,
     x_enum,
     x_model,
     x_struct,
@@ -37,10 +41,12 @@ from bench.language.task import (
 from bench.language.type import Key, TypeBase, Vector, check_type, map_value, strip_value_flat
 from bench.utils.utils import UnreachableError, omit_empty
 
-symbolx_lib = Module(name="symbolx.lib")
+#
+# symbolx.lib
+#
+
 _symbolx_builtins = symbolx_lib.create_file("builtins")
 _symbolx_utils = symbolx_lib.create_file("utils")
-symbolx_lib.add_file(_symbolx_reflect)
 
 
 @x_tag("tool", "A tool in a flow", file=_symbolx_builtins)
@@ -53,28 +59,13 @@ class Consider:
     pass
 
 
-@x_tag("retry", "Auto-retry runs", file=_symbolx_builtins)
-class Retry:  # like tenacity but maybe with autoheal?
-    pass
-
-
 @x_tag("cache", "Cache runs", file=_symbolx_builtins)
 class Cache:  # like cachetools
     pass
 
 
-@x_tag("confirm", "Prompt for confirmation before running", file=_symbolx_builtins)
-class Confirm:
-    pass
-
-
 @x_tag("autoheal", "Auto-heal this runnable on error", file=_symbolx_builtins)
 class Autoheal:
-    pass
-
-
-@x_tag("test", "A test case", file=_symbolx_builtins)
-class Test:
     pass
 
 
@@ -100,8 +91,6 @@ def transcribe(audio: RemoteObject) -> TranscriptionOutput:
 
 @x_tag("export", "Make code outputs available for import", file=_symbolx_builtins)
 class Export:
-    # this should be further up but order_keys are assigned in order of definition
-    # and there is no conflict resolution for that yet
     pass
 
 
@@ -212,13 +201,16 @@ def _type_to_json_schema(
         raise IncapableError(f"unsupported type {type}")
 
 
+#
+# openai.lib
+#
+
 # Note that apart from the symbolx standard lib, all other libs should later
 # be defined and update in Bench itself. That may also happen via code or some other
 # automatic mechanism, it just shouldn't be here.
 # The model implementations should be just like Code implementations,
 # so we don't need to hot-swap in 'impl' when calling. :LibImplementation
 
-openai_lib = Module(name="openai.lib")
 openai_lib.add_dependency(symbolx_lib)
 _openai_chat = openai_lib.create_file("chat")
 _openai_text = openai_lib.create_file("text")
@@ -620,7 +612,10 @@ class OpenAIAudioTranscriptionModel(Model):
         raise NotImplementedError
 
 
-anthropic_lib = Module(name="anthropic.lib")
+#
+# anthropic.lib
+#
+
 _anthropic_text = anthropic_lib.create_file("text")
 
 
@@ -706,7 +701,10 @@ for name, module in DEFAULT_MODULES.items():
     # assign stable versioned ids
     module.index()  # need to index for walk
     for node in module.walk():
-        node.id = _versioned_id(node.path)
+        if node.id is not None:
+            continue
+        node.ck = _derive_constant_key(node.path)
+        node._assign_id(module.id)
     module.clear()  # ids changed
 
     module.index()

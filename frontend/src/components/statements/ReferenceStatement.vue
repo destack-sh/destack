@@ -36,7 +36,7 @@ const popoverPin = pinAbsoluteElement(
 
 const selectingReference = ref(false);
 const query = ref("");
-const resolvedReference = computed(() => module.statementOf(context.statement.value.reference?.id));
+const resolvedReference = computed(() => module.statementOf(context.statement.value.referenceCk));
 const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
 const referenceIcon = computed(() =>
   resolvedReference.value == null
@@ -74,7 +74,7 @@ function setReference(statement: Pick<Statement, "id">) {
   ops.symbol.updateStatementReference(
     null,
     context.statement.value.id,
-    context.statement.value.reference?.id,
+    context.statement.value.referenceCk,
     statement.id
   );
 }
@@ -122,7 +122,7 @@ defineExpose({
         class="mb-1 whitespace-nowrap px-0.5 font-semibold text-orange-600 decoration-gray-900 underline-offset-4 focus:bg-orange-100 focus:outline-none focus:ring-0"
         :class="altKeyState ? 'hover:underline' : 'hover:bg-orange-100'"
       >
-        {{ resolvedReference?.name ?? (context.statement.value.reference == null ? "..." : "???") }}
+        {{ resolvedReference?.name ?? (context.statement.value.referenceCk == null ? "..." : "???") }}
       </button>
       <StatementTags ref="tagsRef" class="ml-0.5" />
       <StatementTriggers ref="triggersRef" class="ml-0.5" />

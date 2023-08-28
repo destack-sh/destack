@@ -327,13 +327,15 @@ export function useStatementContext() {
     });
   }
 
-  function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata"> & Partial<Field>) {
+  function createNewField(
+    template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>
+  ) {
     const nextOrderKey = generateKeyBetween(
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
     );
-    const nameFromReference =
-      template.reference?.name != null ? getFieldNameFromTypeName(template.reference?.name) : undefined;
+    const reference = module.statementOf(template.referenceCk ?? "");
+    const nameFromReference = reference?.name != null ? getFieldNameFromTypeName(reference?.name) : undefined;
     const name: string =
       TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
     const identity = newNodeIdentity(module.id.value, "Field");
@@ -350,13 +352,13 @@ export function useStatementContext() {
       hint: template.hint ?? null,
       orderKey: nextOrderKey,
       flags: template.flags ?? 0,
-      reference: template.reference as any,
+      referenceCk: template.referenceCk ?? null,
     });
     createField(field);
     return field;
   }
 
-  function createUnionField(referenceId?: string) {
+  function createUnionField(referenceCk?: string) {
     const nextOrderKey = generateKeyBetween(
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null
@@ -367,7 +369,7 @@ export function useStatementContext() {
       tag: TypeTag.TypeReference,
       orderKey: nextOrderKey,
       flags: TypeFlag.IsUnionWith,
-      reference: referenceId == null ? null : ({ id: referenceId } as any),
+      referenceCk: referenceCk ?? null,
     });
     createField(field);
     return field;
@@ -388,7 +390,7 @@ export function useStatementContext() {
       name: newName,
       key: newFieldKey(),
       orderKey,
-      reference: field.reference ? { id: field.reference.id } : undefined,
+      referenceCk: field.referenceCk ?? null,
     };
     createField(newFieldNode as Field);
     return newFieldNode;
@@ -405,7 +407,7 @@ export function useStatementContext() {
       hint: newField.hint ?? null,
       name: newField.name ?? oldField.name,
       description: newField.description ?? oldField.description,
-      reference: newField.reference,
+      referenceCk: newField.referenceCk ?? null,
       flags: newField.flags,
     } as Field;
     ops.symbol.updateField(null, makeFieldUpdate(oldField as Field), makeFieldUpdate(newField as Field));
@@ -491,11 +493,12 @@ function makeFieldInput(id: string, field: Field): FieldCreateInput {
   return {
     statementId: id,
     id: field.id,
+    ck: field.ck,
     tag: field.tag,
     hint: field.hint ?? null,
     key: newFieldKey(),
     orderKey: field.orderKey,
-    referenceId: field.reference?.id ?? null,
+    referenceCk: field.referenceCk ?? null,
     description: field.description ?? null,
     name: field.name ?? null,
     flags: field.flags,
@@ -507,7 +510,7 @@ function makeFieldUpdate(field: Field): FieldUpdateInput {
     id: field.id,
     tag: field.tag,
     hint: field.hint ?? null,
-    referenceId: field.reference?.id ?? null,
+    referenceCk: field.referenceCk ?? null,
     description: field.description ?? null,
     name: field.name ?? null,
     flags: field.flags,
@@ -559,7 +562,7 @@ export function makeField(data: {
   key?: string;
   orderKey?: string;
   value?: any;
-  reference?: { id: string; name?: string } | null;
+  referenceCk?: string | null;
   flags?: number;
 }): Field {
   if ((data.id != null) != (data.ck != null)) {
@@ -574,7 +577,7 @@ export function makeField(data: {
     hint: data.hint ?? null,
     key: data.key ?? newFieldKey(),
     orderKey: data.orderKey ?? INTEGER_ZERO,
-    reference: data.reference as Statement,
+    referenceCk: data.referenceCk ?? null,
     flags: data.flags ?? 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

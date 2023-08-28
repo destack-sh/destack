@@ -47,13 +47,13 @@ function close() {
   addingTag.value = false;
 }
 
-function createTagging(tag: Pick<Statement, "id" | "key" | "name">) {
+function createTagging(tag: Pick<Statement, "ck" | "key" | "name">) {
   const identity = newNodeIdentity(module.id.value, "Tagging");
   ops.symbol.createTagging(null, context.statement.value.id, {
     id: identity.id,
     ck: identity.ck,
     key: tag.key as string,
-    reference: { id: tag.id } as any,
+    referenceCk: tag.ck,
     metadata: null,
   });
 }

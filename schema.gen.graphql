@@ -183,7 +183,7 @@ type Field implements HasCrud & ModuleNode & Node {
   hint: TypeHint
   flags: Int!
   description: String
-  reference: Statement
+  referenceCk: UUID
   metadata: JSON
 }
 
@@ -1233,6 +1233,7 @@ type Record implements HasCrud {
   lastEditedAt: DateTime
   lastEditedBy: User
   revision: Int!
+  ck: UUID!
   datasetId: String!
   orderKey: String
   value: JSON!
@@ -1267,6 +1268,7 @@ type RecordConnection {
 input RecordCreateInput {
   statementId: GlobalID!
   id: GlobalID!
+  ck: UUID!
   value: JSON!
   orderKey: String = null
 }
@@ -1573,7 +1575,7 @@ type Statement implements HasCrud & ModuleNode & Node {
   key: String
   orderKey: String!
   text: String
-  reference: Statement
+  referenceCk: UUID
   rootTypeTag: TypeTag
   rootTypeFlags: Int
   tags(filters: TaggingFilter): [Tagging!]!
@@ -1760,7 +1762,7 @@ type Tagging implements HasCrud & ModuleNode & Node {
   parent: Statement!
   revision: Int!
   statement: Statement!
-  reference: Statement!
+  referenceCk: UUID
   key: String!
   metadata: JSON
 }
@@ -1814,8 +1816,8 @@ type Trigger implements HasCrud & ModuleNode & Node {
   timezone: String
   interval: Int
   cron: String
-  runnable: Statement
-  scope: Statement
+  runnableCk: UUID
+  scopeCk: UUID
 }
 
 input TriggerCreateInput {

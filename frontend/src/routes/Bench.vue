@@ -20,14 +20,7 @@ import { graphql, useFragment } from "@/gql";
 import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { decodeSharingToken, useAuth } from "@/state/auth";
-import {
-  PANEL_INSTANCE_TYPES,
-  prettifySlug,
-  useBenchMigrations,
-  useBenchPersistence,
-  useBenchState,
-  type ViewId,
-} from "@/state/bench";
+import { PANEL_INSTANCE_TYPES, prettifySlug, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
@@ -361,13 +354,11 @@ watch(
 );
 
 const { load } = useBenchPersistence();
-const { migrateTo: migrate, migrating } = useBenchMigrations();
 
 // manage read/write access
 watchEffect(() => {
   bench.readonly =
     !versionLoaded.value ||
-    migrating.value ||
     versionToViewId.value != projectHead.value?.id ||
     (project.value?.accessLevel != null &&
       ![ProjectAccessLevel.Admin, ProjectAccessLevel.Manage, ProjectAccessLevel.Edit].includes(
@@ -376,49 +367,20 @@ watchEffect(() => {
     version.value?.committed == true;
 });
 
-// prepare bench state whenever version to view changes
+// prepare bench state whenever project changes
 watch(
-  () => [migrating.value, project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
-  async () => {
+  () => [project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
+  () => {
     if (
-      !migrating.value &&
       project.value != null &&
       versionToViewId.value != null &&
       (bench.projectId != project.value.id || bench.projectVersionId != versionToViewId.value)
     ) {
-      // try to load bench state
-      console.log(`load bench ${project.value.id} at ${versionToViewId.value}`);
+      console.log(`load bench ${project.value.slug} (${project.value.id} at ${versionToViewId.value})`);
       const loaded = load(project.value.id);
-      if (loaded && bench.projectId == project.value?.id) {
-        // migrate if there is a new version of the same project
-        // (loads overwrites bench state for the entire project,
-        //  so editor.projectVersionId will point to its last known version)
-        if (bench.projectVersionId != versionToViewId.value && bench.projectVersionId != null) {
-          const migrated = await migrate(
-            bench.projectId as string,
-            bench.projectVersionId as string,
-            versionToViewId.value
-          );
-          if (!migrated) {
-            notifications.dismissIf({ type: "bench.migrate.failed" });
-            notifications.show({
-              kind: "warning",
-              type: "bench.migrate.failed",
-              message: "Bench migration failed",
-              description: "Bench could not be migrated.",
-            });
-          } else {
-            notifications.dismissIf({ type: "bench.migrate.success" });
-            notifications.show({
-              kind: "success",
-              type: "bench.migrate.success",
-              message: "Bench migrated",
-              description: "Bench migrated successfully.",
-            });
-          }
-        }
-      } else {
-        console.log(`reset bench ${project.value.id}`); // already happened
+      if (!loaded) {
+        bench.$reset();
+        console.log(`no local bench state available, reset bench ${project.value.slug}`);
       }
       bench.projectId = project.value.id;
       bench.projectVersionId = versionToViewId.value;
@@ -576,11 +538,6 @@ onBeforeUnmount(() => {
         <FadeTransition>
           <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
             <CurrentRunsPopover />
-            <!-- <CurrentLogsPopover /> -->
-            <!-- Terminal (soon) -->
-            <!-- <button class="p-1" disabled>
-              <CommandLineIcon class="h-5 w-5 text-gray-400" />
-            </button> -->
             <SharingPopover :project="project" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
             <OmniCreate @show="bench.showBenchHeader = true" />

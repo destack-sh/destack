@@ -11,7 +11,7 @@ import dataclasses
 import typing
 from collections import defaultdict
 from typing import Collection, Optional, TypeVar
-from uuid import UUID, uuid5
+from uuid import UUID
 
 from django.db import transaction
 from django.db.models import Model, QuerySet
@@ -225,6 +225,7 @@ def pack_node(
     visited = collect_node(*models, filter=filter, excluded=excluded)
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
+
     return _Packed(roots, nodes, visited.visited, visited.visited_by_parent)
 
 
@@ -704,7 +705,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return wire.DatasetData(
             **statement_data.__dict__,
             description=statement.description,
-            versioned=False,
+            versioned=False,  # :VersionedDatasets
         )
 
     def unpack(

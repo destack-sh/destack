@@ -567,7 +567,12 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       // project source ids and locations to target at insert point (with new ids)
       const sourceIds = sourceStatements.map((s) => s.id);
       const targetIds: Record<string, string> = {};
-      sourceStatements.forEach((s) => (targetIds[s.id] = newStatementId()));
+      const targetCks: Record<string, string> = {};
+      sourceStatements.forEach((s) => {
+        const identity = newNodeIdentity(bench.projectVersionId as string, "Statement");
+        targetIds[s.id] = identity.id;
+        targetCks[s.id] = identity.ck;
+      });
       const targetParentIds = sourceStatements.map((s) =>
         s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
       );
@@ -603,6 +608,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       await ops.statement.batchPaste(
         sourceIds,
         sourceIds.map((id) => targetIds[id]),
+        sourceIds.map((id) => targetCks[id]),
         file.value?.file.id,
         targetParentIds,
         targetOrderKeys

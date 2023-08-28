@@ -15,7 +15,7 @@ export function useFileActions() {
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name = "") => {
       const identity = newNodeIdentity(bench.projectVersionId as string, "File");
-      const create = ops.file.create(null, identity.id, bench.projectVersionId as string, name, null);
+      const create = ops.file.create(null, identity.id, identity.ck, bench.projectVersionId as string, name, null);
       const optimisticFile = { __typename: "File", id: identity.id, name } as FileHeader;
       const optimisticEditor = bench.focusFile(optimisticFile as NodeBase);
       try {

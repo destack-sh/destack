@@ -69,7 +69,7 @@ function createUnionField() {
   nextTick(() => declarationRef.value?.focusLastBase());
 }
 
-function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata"> & Partial<Field>) {
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
   const field = context.createNewField(template);
   nextTick(() => {
     grid.getRef(field.id, "type").open("all");

@@ -47,9 +47,7 @@ export function useSymbolContentOps() {
           ... on Statement {
             id
             revision
-            reference {
-              id
-            }
+            referenceCk
           }
           ...OperationInfoContent
         }
@@ -578,7 +576,7 @@ export function useSymbolContentOps() {
         $name: String
         $description: String
         $flags: Int!
-        $referenceCk: GlobalID
+        $referenceCk: UUID
         $metadata: JSON
       ) {
         createField(
@@ -614,9 +612,7 @@ export function useSymbolContentOps() {
             tag
             hint
             description
-            reference {
-              id
-            }
+            referenceCk
             flags
             metadata
             # crud
@@ -671,7 +667,7 @@ export function useSymbolContentOps() {
             key: vars.key,
             description: vars.description ?? null,
             orderKey: vars.orderKey,
-            reference: vars.referenceCk,
+            referenceCk: vars.referenceCk,
             flags: vars.flags,
             metadata: vars.metadata ?? null,
             // crud
@@ -795,7 +791,7 @@ export function useSymbolContentOps() {
       | "orderKey"
       | "flags"
       | "metadata"
-      | "reference"
+      | "referenceCk"
       | "statement"
     >
   ) {
@@ -807,7 +803,7 @@ export function useSymbolContentOps() {
       description: input.description ?? null,
       referenceCk: input.referenceCk ?? null,
       flags: input.flags ?? 0,
-    } as FieldCreateInput & { referenceId: string | null; flags: number };
+    } as FieldCreateInput & { referenceCk: string | null; flags: number };
   }
 
   async function createField(
@@ -825,7 +821,7 @@ export function useSymbolContentOps() {
       | "orderKey"
       | "flags"
       | "metadata"
-      | "reference"
+      | "referenceCk"
       | "statement"
     >
   ) {
@@ -877,7 +873,7 @@ export function useSymbolContentOps() {
         $name: String
         $description: String
         $flags: Int!
-        $referenceId: GlobalID
+        $referenceCk: UUID
         $metadata: JSON
       ) {
         updateField(
@@ -888,7 +884,7 @@ export function useSymbolContentOps() {
             name: $name
             description: $description
             flags: $flags
-            referenceId: $referenceId
+            referenceCk: $referenceCk
             metadata: $metadata
           }
         ) {
@@ -901,9 +897,7 @@ export function useSymbolContentOps() {
             name
             description
             flags
-            reference {
-              id
-            }
+            referenceCk
             metadata
           }
           ...OperationInfoContent
@@ -918,7 +912,7 @@ export function useSymbolContentOps() {
         name: string | null;
         description: string;
         flags: number;
-        referenceId?: string;
+        referenceCk?: string;
         metadata?: any;
       }) => {
         return {
@@ -932,7 +926,7 @@ export function useSymbolContentOps() {
             name: vars.name,
             description: vars.description,
             flags: vars.flags,
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            referenceCk: vars.referenceCk ?? null,
             metadata: vars.metadata ?? null,
           },
         } as UpdateFieldMutation;
@@ -999,7 +993,7 @@ export function useSymbolContentOps() {
         $ck: UUID!
         $statementId: GlobalID!
         $key: String!
-        $referenceId: GlobalID!
+        $referenceCk: GlobalID!
         $metadata: JSON
       ) {
         createTagging(
@@ -1008,7 +1002,7 @@ export function useSymbolContentOps() {
             ck: $ck
             statementId: $statementId
             key: $key
-            referenceId: $referenceId
+            referenceCk: $referenceCk
             metadata: $metadata
           }
         ) {
@@ -1020,9 +1014,7 @@ export function useSymbolContentOps() {
             parent {
               id
             }
-            reference {
-              id
-            }
+            referenceCk
             metadata
             # crud
             createdAt
@@ -1046,7 +1038,7 @@ export function useSymbolContentOps() {
         ck: string;
         statementId: string;
         key: string;
-        referenceId: string | null;
+        referenceCk: string | null;
         metadata: any;
       }) =>
         ({
@@ -1061,7 +1053,7 @@ export function useSymbolContentOps() {
               __typename: "Statement",
               id: vars.statementId,
             },
-            reference: vars.referenceId == null ? null : { __typename: "Statement", id: vars.referenceId },
+            referenceCk: vars.referenceCk,
             metadata: vars.metadata ?? null,
             // crud
             createdAt: new Date().toISOString(),
@@ -1173,7 +1165,7 @@ export function useSymbolContentOps() {
   async function createTagging(
     tx: Transaction | null,
     statementId: string,
-    tagging: Pick<Tagging, "id" | "ck" | "key" | "reference" | "metadata">
+    tagging: Pick<Tagging, "id" | "ck" | "key" | "referenceCk" | "metadata">
   ) {
     await ops.perform({
       tx,
@@ -1184,7 +1176,7 @@ export function useSymbolContentOps() {
           ck: tagging.ck,
           statementId: statementId,
           key: tagging.key,
-          referenceId: tagging.reference?.id ?? null,
+          referenceCk: tagging.referenceCk ?? null,
           metadata: tagging.metadata ?? null,
         });
       },
@@ -1236,7 +1228,7 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; key: string; referenceId: string | null; metadata: any }) =>
+      optimisticResponse: (vars: { id: string; key: string; referenceCk: string | null; metadata: any }) =>
         ({
           updateTagging: {
             __typename: "Tagging",
@@ -1249,11 +1241,11 @@ export function useSymbolContentOps() {
     }
   );
 
-  function _toTaggingInput(input: Pick<Tagging, "id" | "key" | "reference" | "metadata">) {
+  function _toTaggingInput(input: Pick<Tagging, "id" | "key" | "referenceCk" | "metadata">) {
     return {
       ...input,
       // set optional values to null if not provided
-      referenceId: input.reference?.id ?? null,
+      referenceCk: input.referenceCk,
     };
   }
 
@@ -1289,8 +1281,8 @@ export function useSymbolContentOps() {
         $timezone: String
         $interval: Int
         $cron: String
-        $runnableId: GlobalID
-        $scopeId: GlobalID
+        $runnableCk: UUID
+        $scopeCk: UUID
       ) {
         createTrigger(
           input: {
@@ -1304,8 +1296,8 @@ export function useSymbolContentOps() {
             timezone: $timezone
             interval: $interval
             cron: $cron
-            runnableId: $runnableId
-            scopeId: $scopeId
+            runnableCk: $runnableCk
+            scopeCk: $scopeCk
           }
         ) {
           ... on Trigger {
@@ -1322,12 +1314,8 @@ export function useSymbolContentOps() {
             timezone
             interval
             cron
-            runnable {
-              id
-            }
-            scope {
-              id
-            }
+            runnableCk
+            scopeCk
             # crud
             createdAt
             updatedAt
@@ -1356,8 +1344,8 @@ export function useSymbolContentOps() {
         timezone: string | null;
         interval: number | null;
         cron: string | null;
-        runnableId: string | null;
-        scopeId: string | null;
+        runnableCk: string | null;
+        scopeCk: string | null;
       }) =>
         ({
           __typename: "Mutation",
@@ -1377,8 +1365,8 @@ export function useSymbolContentOps() {
             timezone: vars.timezone ?? null,
             interval: vars.interval ?? null,
             cron: vars.cron ?? null,
-            runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
-            scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
+            runnableCk: vars.runnableCk,
+            scopeCk: vars.scopeCk,
             // crud
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -1466,7 +1454,16 @@ export function useSymbolContentOps() {
     statementId: string,
     trigger: Pick<
       Trigger,
-      "id" | "type" | "active" | "mapping" | "scheduleType" | "interval" | "timezone" | "cron" | "runnable" | "scope"
+      | "id"
+      | "type"
+      | "active"
+      | "mapping"
+      | "scheduleType"
+      | "interval"
+      | "timezone"
+      | "cron"
+      | "runnableCk"
+      | "scopeCk"
     >
   ) {
     await ops.perform({
@@ -1484,8 +1481,8 @@ export function useSymbolContentOps() {
           timezone: trigger.timezone ?? null,
           interval: trigger.interval ?? null,
           cron: trigger.cron ?? null,
-          runnableId: trigger.runnable?.id ?? null,
-          scopeId: trigger.scope?.id ?? null,
+          runnableCk: trigger.runnableCk ?? null,
+          scopeCk: trigger.scopeCk ?? null,
         });
       },
       undo: async () => {
@@ -1535,8 +1532,8 @@ export function useSymbolContentOps() {
         $timezone: String
         $interval: Int
         $cron: String
-        $runnableId: GlobalID
-        $scopeId: GlobalID
+        $runnableCk: UUID
+        $scopeCk: UUID
       ) {
         updateTrigger(
           input: {
@@ -1548,8 +1545,8 @@ export function useSymbolContentOps() {
             timezone: $timezone
             interval: $interval
             cron: $cron
-            runnableId: $runnableId
-            scopeId: $scopeId
+            runnableCk: $runnableCk
+            scopeCk: $scopeCk
           }
         ) {
           ... on Trigger {
@@ -1563,12 +1560,8 @@ export function useSymbolContentOps() {
             timezone
             interval
             cron
-            runnable {
-              id
-            }
-            scope {
-              id
-            }
+            runnableCk
+            scopeCk
           }
           ...OperationInfoContent
         }
@@ -1584,8 +1577,8 @@ export function useSymbolContentOps() {
         timezone: string | null;
         interval: number | null;
         cron: string | null;
-        runnableId: string | null;
-        scopeId: string | null;
+        runnableCk: string | null;
+        scopeCk: string | null;
       }) =>
         ({
           updateTrigger: {
@@ -1600,8 +1593,8 @@ export function useSymbolContentOps() {
             timezone: vars.timezone ?? null,
             interval: vars.interval ?? null,
             cron: vars.cron ?? null,
-            runnable: vars.runnableId == null ? null : { __typename: "Statement", id: vars.runnableId },
-            scope: vars.scopeId == null ? null : { __typename: "Statement", id: vars.scopeId },
+            runnableCk: vars.runnableCk ?? null,
+            scopeCk: vars.scopeCk ?? null,
           },
         } as any),
     }
@@ -1610,13 +1603,22 @@ export function useSymbolContentOps() {
   function _toTriggerInput(
     input: Pick<
       Trigger,
-      "id" | "type" | "active" | "scheduleType" | "mapping" | "timezone" | "interval" | "cron" | "runnable" | "scope"
+      | "id"
+      | "type"
+      | "active"
+      | "scheduleType"
+      | "mapping"
+      | "timezone"
+      | "interval"
+      | "cron"
+      | "runnableCk"
+      | "scopeCk"
     >
   ) {
     return {
       ...input,
-      runnableId: input.runnable?.id ?? null,
-      scopeId: input.scope?.id ?? null,
+      runnableCk: input.runnableCk ?? null,
+      scopeCk: input.scopeCk ?? null,
     };
   }
 
@@ -1624,11 +1626,29 @@ export function useSymbolContentOps() {
     tx: Transaction | null,
     oldTrigger: Pick<
       Trigger,
-      "id" | "type" | "active" | "mapping" | "scheduleType" | "timezone" | "interval" | "cron" | "runnable" | "scope"
+      | "id"
+      | "type"
+      | "active"
+      | "mapping"
+      | "scheduleType"
+      | "timezone"
+      | "interval"
+      | "cron"
+      | "runnableCk"
+      | "scopeCk"
     >,
     newTrigger: Pick<
       Trigger,
-      "id" | "type" | "active" | "mapping" | "scheduleType" | "timezone" | "interval" | "cron" | "runnable" | "scope"
+      | "id"
+      | "type"
+      | "active"
+      | "mapping"
+      | "scheduleType"
+      | "timezone"
+      | "interval"
+      | "cron"
+      | "runnableCk"
+      | "scopeCk"
     >
   ) {
     await ops.perform({

@@ -45,6 +45,7 @@ export type Issue = IssueGql;
 // interpreter state
 export type InterpFile = InterpFileFragment;
 export type InterpStatement = Omit<InterpStatementFragment, "fields" | "tags" | "triggers" | "issues"> & {
+  // proper typing for sub-fields
   fields: Field[];
   tags: Tagging[];
   triggers: Trigger[];
@@ -89,15 +90,17 @@ export enum TypeFlag { // :TypeFlags
   IsArrayable = 1 << 6,
 }
 
+type GRecord<K extends keyof any, V> = globalThis.Record<K, V>;
 export type ModuleIndex = {
   id: string;
   name: string;
   path: string;
-  statementsById: globalThis.Record<string, InterpStatement>;
-  statementsByFileId: globalThis.Record<string, InterpStatement[]>;
-  statementsByParentId: globalThis.Record<string, InterpStatement[]>;
-  filesById: globalThis.Record<string, InterpFile>;
-  fieldsById: globalThis.Record<string, Field>;
+  statementsById: GRecord<string, InterpStatement>;
+  statementsByFileId: GRecord<string, InterpStatement[]>;
+  statementsByParentId: GRecord<string, InterpStatement[]>;
+  filesById: GRecord<string, InterpFile>;
+  fieldsById: GRecord<string, Field>;
+  idByCk: GRecord<string, string>;
 };
 
 function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
@@ -130,25 +133,31 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.projectVersion == null) return null;
     // compile the primary index
-    const statementsById: globalThis.Record<string, InterpStatement> = {};
-    const statementsByFileId: globalThis.Record<string, InterpStatement[]> = {};
-    const statementsByParentId: globalThis.Record<string, InterpStatement[]> = {};
-    const filesById: globalThis.Record<string, InterpFile> = {};
-    const fieldsById: globalThis.Record<string, Field> = {};
+    const statementsById: GRecord<string, InterpStatement> = {};
+    const statementsByFileId: GRecord<string, InterpStatement[]> = {};
+    const statementsByParentId: GRecord<string, InterpStatement[]> = {};
+    const filesById: GRecord<string, InterpFile> = {};
+    const fieldsById: GRecord<string, Field> = {};
+    const idByCk: GRecord<string, string> = {}; // not comprehensive (does not include all module object types)
 
     // TODO @Cleanup: type module objects more correctly (file/statements/issues)
     for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       filesById[file.id] = file;
+      idByCk[file.ck] = file.id;
+
       for (const statement of (file as unknown as { statements: InterpStatement[] }).statements) {
         if (statement.deletedAt != null) continue;
         statementsById[statement.id] = statement;
+        idByCk[statement.ck] = statement.id;
+
         if (statementsByParentId[statement.parent?.id] == null) {
           statementsByParentId[statement.parent?.id] = [];
         }
         statementsByParentId[statement.parent?.id].push(statement);
         for (const field of statement.fields) {
           fieldsById[field.id] = field;
+          idByCk[field.ck] = field.id;
         }
       }
       statementsByFileId[file.id] = (file as unknown as { statements: InterpStatement[] }).statements.filter(
@@ -178,7 +187,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
         statement.issues?.forEach((i) => issues.push(i));
       }
     }
-    return issues.map((i) => useFragment(IssueContentType, i));
+    return issues.map((i) => useFragment(IssueContentType, i) as Issue);
   });
 
   return {
@@ -358,7 +367,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     includeDependencies: true,
   });
   const tagsByKey = computed(() => {
-    const tagsByKey: globalThis.Record<string, InterpStatement> = {};
+    const tagsByKey: GRecord<string, InterpStatement> = {};
     for (const tag of tags.value) {
       tagsByKey[tag.key as string] = tag;
     }
@@ -383,11 +392,11 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return descendants;
   }
 
-  function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "reference" | "metadata">) {
+  function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "referenceCk" | "metadata">) {
     // TODO @Performance: cache getTypedKey (esp. when without references & metadata)
     let tag = field.tag;
     if (field.tag == TypeTag.TypeReference) {
-      const reference = statementOf(field.reference?.id);
+      const reference = statementOf(field.referenceCk);
       if (reference == null) return null;
       tag = reference.rootTypeTag as TypeTag;
     }
@@ -402,7 +411,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   function effectiveTypeOf(field: Field): Field {
     if (field.tag == TypeTag.TypeReference) {
-      const reference = statementOf(field.reference?.id);
+      const reference = statementOf(field.referenceCk);
       if (reference == null) return field;
       return { ...field, tag: reference.rootTypeTag as TypeTag };
     } else {
@@ -487,7 +496,7 @@ export type OrderedStatement<T extends OrderableStatement> = {
 export function orderStatements<T extends OrderableStatement>(statements: T[]): OrderedStatement<T>[] {
   if (statements.length == 0) return [];
   const ordered: OrderedStatement<T>[] = [];
-  const statementsByParentId: globalThis.Record<string, T[]> = {};
+  const statementsByParentId: GRecord<string, T[]> = {};
   // group by parent
   statements.forEach((statement) => {
     if (statementsByParentId[statement.parent?.id] != null) {

@@ -349,8 +349,6 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
             packer = _node_packers_by_node[type(node)]
             packer.walk(node, ctx)
             packed_node = packer.pack(node)
-            if packed_node.id != root.id and packed_node.parent_id is None:
-                raise ValueError(f"packed node {packed_node} has no parent")
             packed[node.id] = packed_node
 
         to_pack = [node for node in ctx.visited.values() if node.id not in packed]
@@ -401,18 +399,10 @@ def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT], session: Optional
     return packer.unpack(node, parent, session)
 
 
-def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
-    """Patch a flat node with out-of-tree-ancestry references"""
-    packer = _node_packers_by_data[type(node)]
-    packer.patch(node, references)
-    return node
-
-
 @dataclass
 class NodeData:
     id: UUID
     ck: UUID
-    # nocheckin: parent_id actually doesn't work for e.g. comments or records (unversioned)
     parent_id: Optional[UUID]
 
     @property
@@ -1093,7 +1083,6 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             **statement_data.__dict__,
             description=symbol.description,
             versioned=symbol.versioned,
-            key=symbol.key,
         )
 
     def unpack(
@@ -1106,7 +1095,6 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
             versioned=symbol.versioned,
             fields=[],
             tags=[],
-            key=symbol.key,
         )
 
     def unwalk(self, symbol: lang.Dataset, tree: ModuleTree):

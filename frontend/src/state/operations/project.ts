@@ -101,7 +101,7 @@ export function useProjectOps() {
       }) =>
         ({
           __typename: "Mutation",
-          updateSharing: {
+          updateProjectSharing: {
             __typename: "Project",
             id: vars.id,
             sharingEnabled: vars.sharingEnabled,

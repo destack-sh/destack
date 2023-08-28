@@ -19,7 +19,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference" | "metadata">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "referenceCk" | "metadata">): void;
   (e: "escape"): void;
 }>();
 
@@ -101,7 +101,7 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
       makeField({
         projectVersionId: module.id.value,
         tag: TypeTag.TypeReference,
-        reference: symbol as { id: string; name: string },
+        referenceCk: symbol.ck,
         flags: getDefaultFlags(TypeTag.TypeReference),
       })
     );
@@ -228,8 +228,8 @@ function toggleFlag(flag: TypeFlag) {
 function renderField(node: Field): string {
   const builtin = renderBuiltinType(node.tag, node.hint ?? null);
   if (builtin != null) return builtin;
-  if (node.tag == TypeTag.TypeReference || node.reference != null) {
-    return module.statementOf(node.reference?.id)?.name ?? "???";
+  if (node.tag == TypeTag.TypeReference || node.referenceCk != null) {
+    return module.statementOf(node.referenceCk)?.name ?? "???";
   }
   throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
 }
@@ -237,7 +237,7 @@ function renderField(node: Field): string {
 // use 'combobox id' as a stable id
 
 function toComboId(type: Field) {
-  return `${type.tag}.${type.hint ?? ""}.${type.reference?.id ?? ""}`;
+  return `${type.tag}.${type.hint ?? ""}.${type.referenceCk ?? ""}`;
 }
 
 function findByComboId(id: string) {
@@ -320,7 +320,7 @@ defineExpose({
             <TypePreview :type="ref" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ ref.reference == null ? "(builtin)" : module.pathOf(ref.reference.file) }}
+              {{ ref.referenceCk == null ? "(builtin)" : module.pathOf(ref.referenceCk) }}
             </span>
           </div>
         </li>

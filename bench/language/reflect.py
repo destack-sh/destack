@@ -3,8 +3,10 @@ import typing
 from dataclasses import dataclass
 from uuid import UUID, uuid5
 
+from bench.language.basic import BENCH_UUID_NAMESPACE
+from bench.language.builtin import symbolx_lib
 from bench.language.const import TypeTag
-from bench.language.core import File
+from bench.language.core import File, get_node_id
 from bench.language.type import (
     HasType,
     instantiate_value,
@@ -13,14 +15,10 @@ from bench.language.type import (
     type_from_instance_type,
 )
 
-# changing this affects all downstream ids and requires a new version
-# also see :LibImplementation
-_UUID_VERSION_KEY = UUID("00000000-0000-0000-0000-000000000000")
 
-
-def _versioned_id(path: str) -> UUID:
-    # we assign stable ids to all reflected types based on their path
-    return uuid5(_UUID_VERSION_KEY, path)
+def _derive_constant_key(path: str) -> UUID:
+    # do not change this, it's a *constant* key
+    return uuid5(BENCH_UUID_NAMESPACE, f"reflect:{path}")
 
 
 def _assign_field_keys(statement: HasType):
@@ -41,7 +39,8 @@ def x_enum(name: str, description: str, *, file: File):
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
         file.append_statement(bench_type)
-        bench_type.id = _versioned_id(bench_type.path)
+        bench_type.ck = _derive_constant_key(bench_type.path)
+        bench_type.id = get_node_id(file.module.id, bench_type.ck)
         bench_type.key = new_field_key(bench_type.path)
         _assign_field_keys(bench_type)
         return cls
@@ -63,7 +62,8 @@ def x_struct(
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
         file.append_statement(bench_type)
-        bench_type.id = _versioned_id(bench_type.path)
+        bench_type.ck = _derive_constant_key(bench_type.path)
+        bench_type.id = get_node_id(file.module.id, bench_type.ck)
         bench_type.key = new_field_key(bench_type.path)
         _assign_field_keys(bench_type)
 
@@ -90,7 +90,8 @@ def x_task(
 
         task = Task(name=name, description=description)
         file.append_statement(task)
-        task.id = _versioned_id(task.path)
+        task.ck = _derive_constant_key(task.path)
+        task.id = get_node_id(file.module.id, task.ck)
         task_type = type_from_instance_type(fn, name=None)
         task.fields = task_type._copy_fields(to=task)
         _assign_field_keys(task)
@@ -110,7 +111,8 @@ def x_tag(
         cls = dataclass(cls)
         tag = Tag(name=name, description=description)
         file.append_statement(tag)
-        tag.id = _versioned_id(tag.path)
+        tag.ck = _derive_constant_key(tag.path)
+        tag.id = get_node_id(file.module.id, tag.ck)
         tag_type = type_from_instance_type(cls, name=None)
         tag.fields = tag_type._copy_fields(to=tag)
         _assign_field_keys(tag)
@@ -131,7 +133,8 @@ def x_model(
         from bench.language.model import Model
 
         model = Model(name=name, external_name=external_name, description=description)
-        model.id = _versioned_id(model.path)
+        model.ck = _derive_constant_key(model.path)
+        model.id = get_node_id(file.module.id, model.ck)
         file.append_statement(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
         model.fields = model_type._copy_fields(to=model)
@@ -144,7 +147,8 @@ def x_model(
     return decorator
 
 
-_symbolx_reflect = File(name="reflect")
+_symbolx_reflect = File(name="reflect", module=symbolx_lib)
+symbolx_lib.add_file(_symbolx_reflect)
 
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)
 reflect_struct = functools.partial(x_struct, file=_symbolx_reflect)

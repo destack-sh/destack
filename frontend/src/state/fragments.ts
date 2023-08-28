@@ -67,7 +67,6 @@ export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
     __typename
     id
-    ck
     createdAt
     updatedAt
     name
@@ -162,9 +161,7 @@ export const FieldType = graphql(/* GraphQL */ `
     flags
     description
     orderKey
-    reference {
-      id
-    }
+    referenceCk
     parent {
       id
     }
@@ -193,9 +190,7 @@ export const TaggingType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    reference {
-      id
-    }
+    referenceCk
     metadata
     # crud
     createdAt
@@ -227,12 +222,8 @@ export const TriggerContentType = graphql(/* GraphQL */ `
     scheduleType
     interval
     cron
-    runnable {
-      id
-    }
-    scope {
-      id
-    }
+    runnableCk
+    scopeCk
     # crud
     createdAt
     updatedAt
@@ -267,9 +258,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     value
     rootTypeTag
     rootTypeFlags
-    reference {
-      id
-    }
+    referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }
@@ -365,9 +354,7 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     key
     rootTypeTag
     rootTypeFlags
-    reference {
-      id
-    }
+    referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }

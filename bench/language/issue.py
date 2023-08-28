@@ -75,6 +75,7 @@ class BenchError(ValueError):
 @dataclass
 class Issue:
     id: Optional[UUID]
+    ck: UUID
     kind: IssueKind
     type: IssueType
     message: str
@@ -108,6 +109,7 @@ class Issue:
             self.id = uuid.uuid5(subject.id, type.value + self.message)
         else:
             self.id = kwargs.pop("id")
+        self.ck = self.id
 
     def __str__(self):
         return f"{self.subject} {self.kind}: {self.type} {self.message}"
