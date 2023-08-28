@@ -258,10 +258,6 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Re-assigns the node's children"""
         pass
 
-    def patch(self, node: NodeT, references: dict[UUID, UUID]) -> None:
-        """Patches the node's non-parent references (in-tree, in-place)"""
-        pass
-
 
 class PackContext(abc.ABC):
     """Tree visitor for packing"""
@@ -352,7 +348,11 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
         for node in to_pack:
             packer = _node_packers_by_node[type(node)]
             packer.walk(node, ctx)
-            packed[node.id] = packer.pack(node)
+            packed_node = packer.pack(node)
+            if packed_node.id != root.id and packed_node.parent_id is None:
+                raise ValueError(f"packed node {packed_node} has no parent")
+            packed[node.id] = packed_node
+
         to_pack = [node for node in ctx.visited.values() if node.id not in packed]
 
     return packed[root.id], list(packed.values())
@@ -411,6 +411,8 @@ def patch_node_flat(node: NodeDataT, references: dict[UUID, UUID]) -> NodeDataT:
 @dataclass
 class NodeData:
     id: UUID
+    ck: UUID
+    # nocheckin: parent_id actually doesn't work for e.g. comments or records (unversioned)
     parent_id: Optional[UUID]
 
     @property
@@ -491,6 +493,7 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
     def pack(self, module: lang.Module) -> ModuleData:
         return ModuleData(
             id=module.id,
+            ck=module.ck,
             name=module.name,
             committed=module.committed,
             parent_id=None,
@@ -506,6 +509,7 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
     ) -> lang.Module:
         return lang.Module(
             id=module.id,
+            ck=module.ck,
             name=module.name,
             committed=module.committed,
             revision=module.revision,
@@ -544,6 +548,7 @@ class FilePacker(NodePacker[FileData, lang.File]):
     def pack(self, file: lang.File) -> "FileData":
         return FileData(
             id=file.id,
+            ck=file.ck,
             parent_id=file.module.id,
             name=file.name,
             revision=file.revision,
@@ -556,6 +561,7 @@ class FilePacker(NodePacker[FileData, lang.File]):
     def unpack(self, file: FileData, parent: lang.Module, session: Optional[Session]) -> lang.File:
         return lang.File(
             id=file.id,
+            ck=file.ck,
             module=parent,
             name=file.name,
             revision=file.revision,
@@ -596,6 +602,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     def pack(self, statement: lang.Statement) -> "StatementData":
         return StatementData(
             id=statement.id,
+            ck=statement.ck,
             parent_id=statement.parent_id,
             order_key=statement.order_key,
             type=statement.type,
@@ -616,6 +623,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         cls = lang.Blank if statement.type == StatementType.BLANK else lang.Statement
         return cls(
             id=statement.id,
+            ck=statement.ck,
             parent=parent,
             file=parent if isinstance(parent, lang.File) else parent.file,
             children=[],
@@ -676,7 +684,7 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
 @dataclass
 class ReferenceData(StatementData):
     description: Optional[str]
-    reference_id: Optional[UUID]
+    reference_ck: Optional[UUID]
 
 
 @node_packer(MOT.STATEMENT, ReferenceData, lang.Reference)
@@ -692,7 +700,7 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
         return ReferenceData(
             **statement_data.__dict__,
             description=symbol.description,
-            reference_id=symbol.reference_id,
+            reference_ck=symbol.reference_ck,
         )
 
     def unpack(
@@ -703,7 +711,7 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
     ) -> lang.Reference:
         statement = super().unpack(symbol, parent, session)
         return lang.Reference(
-            **statement.__dict__, description=symbol.description, reference=symbol.reference_id
+            **statement.__dict__, description=symbol.description, reference=symbol.reference_ck
         )
 
     def unwalk(self, statement: lang.Reference, tree: ModuleTree):
@@ -1068,7 +1076,6 @@ class ValuePacker(StatementPacker, NodePacker[ValueData, lang.Value]):
 class DatasetData(StatementData):
     description: Optional[str]
     versioned: bool
-    key: str
 
 
 @node_packer(MOT.STATEMENT, DatasetData, lang.Dataset)
@@ -1137,7 +1144,7 @@ class FieldData(NodeData, HasOrder, HasCrud):
     hint: Optional[TypeHint]
     description: Optional[str]
     flags: TypeFlag
-    reference_id: Optional[UUID] = None
+    reference_ck: Optional[UUID] = None
     metadata: Optional[typing.Any] = None
 
     def __str__(self):
@@ -1156,6 +1163,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
         reference = field.reference.id if isinstance(field.reference, lang.Statement) else None
         return FieldData(
             id=field.id,
+            ck=field.ck,
             parent_id=field.parent_id,
             order_key=field.order_key,
             name=field.name,
@@ -1164,7 +1172,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             hint=field.hint,
             flags=field.flags,
             description=field.description,
-            reference_id=reference,
+            reference_ck=reference,
             metadata=field.metadata,
             revision=field.revision,
             created_at=field.created_at,
@@ -1179,13 +1187,14 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
         return lang.Field(
             parent=parent,
             id=field.id,
+            ck=field.ck,
             name=field.name,
             key=field.key,
             tag=field.tag,
             hint=field.hint,
             flags=field.flags,
             description=field.description,
-            reference=field.reference_id,
+            reference=field.reference_ck,
             metadata=field.metadata,
             revision=field.revision,
             created_at=field.created_at,
@@ -1194,9 +1203,6 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             last_changed_at=field.last_changed_at,
             _session=session,
         )
-
-    def patch(self, field: FieldData, references: dict[UUID, UUID]) -> None:
-        field.reference_id = references.get(field.reference_id, field.reference_id)
 
 
 @dataclass
@@ -1208,8 +1214,8 @@ class TriggerData(NodeData, HasCrud):
     timezone: Optional[str]
     interval: Optional[int]
     cron: Optional[str]
-    runnable_id: Optional[UUID]
-    scope_id: Optional[UUID]
+    runnable_ck: Optional[UUID]
+    scope_ck: Optional[UUID]
 
 
 @node_packer(MOT.TRIGGER, TriggerData, lang.Trigger)
@@ -1219,6 +1225,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
     def pack(self, trigger: lang.Trigger) -> "TriggerData":
         return TriggerData(
             id=trigger.id,
+            ck=trigger.ck,
             parent_id=trigger.parent_id,
             type=trigger.type,
             active=trigger.active,
@@ -1227,8 +1234,8 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable_id=trigger.runnable.id if trigger.runnable else None,
-            scope_id=trigger.scope.id if trigger.scope else None,
+            runnable_ck=trigger.runnable.id if trigger.runnable else None,
+            scope_ck=trigger.scope.id if trigger.scope else None,
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
@@ -1242,6 +1249,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
         return lang.Trigger(
             parent=parent,
             id=trigger.id,
+            ck=trigger.ck,
             type=trigger.type,
             active=trigger.active,
             mapping=trigger.mapping,
@@ -1249,8 +1257,8 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable=trigger.runnable_id,
-            scope=trigger.scope_id,
+            runnable=trigger.runnable_ck,
+            scope=trigger.scope_ck,
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
@@ -1259,14 +1267,10 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             _session=session,
         )
 
-    def patch(self, node: TriggerData, references: dict[UUID, UUID]) -> None:
-        node.runnable_id = references.get(node.runnable_id, node.runnable_id)
-        node.scope_id = references.get(node.scope_id, node.scope_id)
-
 
 @dataclass
 class TaggingData(NodeData, HasCrud):
-    reference_id: Optional[UUID]
+    reference_ck: Optional[UUID]
     key: str
     metadata: Optional[typing.Any] = None
 
@@ -1285,8 +1289,9 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
         reference = tagging.reference.id if isinstance(tagging.reference, lang.Statement) else None
         return TaggingData(
             id=tagging.id,
+            ck=tagging.ck,
             parent_id=tagging.parent_id,
-            reference_id=reference,
+            reference_ck=reference,
             key=tagging.key,
             metadata=tagging.metadata,
             revision=tagging.revision,
@@ -1301,9 +1306,10 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
     ) -> lang.Tagging:
         return lang.Tagging(
             parent=parent,
+            ck=tagging.ck,
             id=tagging.id,
             key=tagging.key,
-            reference=tagging.reference_id,
+            reference=tagging.reference_ck,
             metadata=tagging.metadata,
             revision=tagging.revision,
             created_at=tagging.created_at,
@@ -1312,9 +1318,6 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             last_changed_at=tagging.last_changed_at,
             _session=session,
         )
-
-    def patch(self, tagging: TaggingData, references: dict[UUID, UUID]) -> None:
-        tagging.reference_id = references.get(tagging.reference_id, tagging.reference_id)
 
 
 @dataclass
@@ -1326,7 +1329,6 @@ class DatasetViewData(NodeData, HasOrder, HasCrud):
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     length: Optional[int] = None
-    reference_id: Optional[UUID] = None
 
 
 @node_packer(MOT.DATASET_VIEW, DatasetViewData, lang.DatasetView)
@@ -1336,11 +1338,11 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
     def pack(self, view: lang.DatasetView) -> "DatasetViewData":
         return DatasetViewData(
             id=view.id,
+            ck=view.ck,
             order_key=view.order_key,
             name=view.name,
             query=view.query,
             sort=view.sort,
-            reference_id=view.reference.id if view.reference else None,
             revision=view.revision,
             created_at=view.created_at,
             updated_at=view.updated_at,
@@ -1353,11 +1355,12 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
     ) -> lang.DatasetView:
         return lang.DatasetView(
             id=view.id,
+            ck=view.ck,
             name=view.name,
             source=parent,
             query=view.query,
             sort=view.sort,
-            reference=view.reference_id,
+            reference=view.reference_ck,
             revision=view.revision,
             created_at=view.created_at,
             updated_at=view.updated_at,
@@ -1365,9 +1368,6 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
             last_changed_at=view.last_changed_at,
             _session=session,
         )
-
-    def patch(self, view: DatasetViewData, references: dict[UUID, UUID]) -> None:
-        view.reference_id = references.get(view.reference_id, view.reference_id)
 
 
 @dataclass
@@ -1390,6 +1390,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
     def pack(self, record: lang.Record) -> "RecordData":
         return RecordData(
             id=record.id,
+            ck=record.ck,
             parent_id=record.parent_id,
             order_key=record.order_key,
             value=record._raw_value(),
@@ -1405,6 +1406,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
     ) -> lang.Record:
         return lang.Record(
             id=record.id,
+            ck=record.ck,
             parent=parent,
             value=record.value,
             order_key=record.order_key,
@@ -1429,6 +1431,7 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
     def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
         return ResolvedFieldData(
             id=resolved_field.id,
+            ck=resolved_field.ck,
             parent_id=resolved_field.parent_id,
             field_id=resolved_field.field.id,
         )
@@ -1448,6 +1451,7 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
     def pack(self, issue: lang.Issue) -> "IssueData":
         return IssueData(
             id=issue.id,
+            ck=issue.ck,
             parent_id=issue.subject_id,
             kind=issue.kind,
             type=issue.type,
@@ -1733,6 +1737,7 @@ class LogEntryData:
     message: Optional[str]
     session_id: Optional[UUID]
     runnable_id: Optional[UUID]
+    runnable_ck: Optional[UUID]
     run_id: Optional[UUID]
     metadata: Optional[dict[str, Any]]
 

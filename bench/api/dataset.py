@@ -33,12 +33,6 @@ from bench.opensearch.query import encode_cursor, prepare_search
 from bench.utils.dt import utcnow_with_tz
 
 
-@strawberry_django.type(models.Dataset)
-class Dataset(relay.Node):
-    key: str
-    versioned: bool
-
-
 @strawberry.type
 class Record(HasCrud, Revisioned):
     id: GlobalID
@@ -50,7 +44,6 @@ class Record(HasCrud, Revisioned):
     def from_os(record: mirror.Record) -> "Record":
         return Record(
             id=to_global_id("Record", record.id),
-            dataset_id=record.dataset_id,
             order_key=record.order_key,
             value=record.value,
             revision=record.revision,
@@ -134,9 +127,7 @@ class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
 def _prep_write_dataset(
     info: Info, input: RecordInput
 ) -> tuple[datetime, models.ProjectVersion, models.Statement]:
-    statement = models.Statement.objects.select_related("dataset").get(
-        id=input.statement_id.node_id
-    )
+    statement = models.Statement.objects.get(id=input.statement_id.node_id)
     check_module_node_access(info, statement, ProjectAccessLevel.Edit)
     return utcnow_with_tz(), statement.project_version, statement
 
@@ -150,7 +141,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.key,
+            statement_ck=statement.ck,
             created_at=now,
             created_by_id=None,  # not handled yet
             updated_at=now,
@@ -171,7 +162,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.key,
+            statement_ck=statement.ck,
             value=input.value,
             updated_at=now,
             last_edited_at=now,
@@ -186,7 +177,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.key,
+            statement_ck=statement.ck,
             order_key=input.order_key,
             updated_at=now,
             last_edited_at=now,
@@ -201,7 +192,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.key,
+            statement_ck=statement.ck,
             deleted_at=now,
             updated_at=now,
         )
@@ -215,7 +206,7 @@ class DatasetMutation:
             id=UUID(input.id.node_id),
             project_version_id=project_v.id,
             statement_id=statement.id,
-            dataset_id=statement.dataset.key,
+            statement_ck=statement.ck,
             deleted_at="-",  # invalid value to set to null
             updated_at=now,
         )
@@ -239,7 +230,7 @@ class DatasetMutation:
                 id=UUID(i.node_id),
                 project_version_id=project_v.id,
                 statement_id=statement.id,
-                dataset_id=statement.dataset.key,
+                statement_ck=statement.ck,
                 deleted_at=now,
                 updated_at=now,
             )
@@ -259,7 +250,7 @@ class DatasetMutation:
                 id=UUID(i.node_id),
                 project_version_id=project_v.id,
                 statement_id=statement.id,
-                dataset_id=statement.dataset.key,
+                statement_ck=statement.ck,
                 deleted_at="-",  # invalid value to set to null
                 updated_at=now,
             )
@@ -285,11 +276,11 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         limit: Optional[int] = None,
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
-        statement = models.Statement.objects.select_related("dataset").get(id=statement_id.node_id)
+        statement = models.Statement.objects.get(id=statement_id.node_id)
         check_module_node_access(info, statement, ProjectAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(Q(QueryOp.EQUALS, "dataset_id", statement.dataset.key), query)
+        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_ck", statement.ck), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by dataset

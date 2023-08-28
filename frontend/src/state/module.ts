@@ -25,7 +25,7 @@ import { toValueRef } from "@/utils/functools";
 import { WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { v4 as uuidv4 } from "uuid";
+import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
 export type NodeBase = { __typename: string; id: string; name?: string | null };
@@ -50,6 +50,33 @@ export type InterpStatement = Omit<InterpStatementFragment, "fields" | "tags" | 
   triggers: Trigger[];
   issues: Issue[];
 };
+
+export type ModuleObjectTypename =
+  | "ProjectVersion"
+  | "File"
+  | "Statement"
+  | "Field"
+  | "ResolvedField"
+  | "Record"
+  | "Issue"
+  | "Tagging"
+  | "Trigger";
+
+export function newNodeIdentity(moduleId: string, type: ModuleObjectTypename): { id: string; ck: string } {
+  const ck = uuidv4();
+  const id = getNodeIdFromCk(moduleId, ck, type);
+  return { id, ck };
+}
+
+export function getNodeIdFromCk(moduleId: string, ck: string, type: ModuleObjectTypename): string {
+  const id = uuidv5(moduleId, ck);
+  return btoa(`${type}:${id}`);
+}
+
+export function newDetachedNodeIdentity(type: ModuleObjectTypename): { id: string; ck: string } {
+  const ck = uuidv4();
+  return { id: btoa(`${type}:${ck}`), ck };
+}
 
 export enum TypeFlag { // :TypeFlags
   Zero = 0,

@@ -5,7 +5,7 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { makeField, useStatementContext } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
-import { TypeFlag } from "@/state/module";
+import { TypeFlag, useCurrentModule } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, type Ref } from "vue";
@@ -13,6 +13,7 @@ import { usePanelContext } from "@/state/bench";
 import { GraphQLID } from "graphql";
 
 const context = useStatementContext();
+const module = useCurrentModule();
 
 const emit = defineEmits<{
   (e: "navigateUp"): void;
@@ -80,6 +81,7 @@ function insertBelow(
   const lastField = nodes.value[nodes.value.length - 1];
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
   const newFieldNode = makeField({
+    projectVersionId: module.id.value,
     ...template,
     reference: template.reference as any,
     orderKey,

@@ -12,7 +12,6 @@ from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
-from bench.language.dataset import new_dataset_key
 from bench.language.tag import new_tag_key
 from bench.language.type import new_field_key
 from bench.models.utils import (
@@ -20,7 +19,6 @@ from bench.models.utils import (
     CrudModel,
     ModuleNode,
     Revisioned,
-    UUIDModel,
     create_models_bfs,
     get_choices,
 )
@@ -28,7 +26,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
-    from bench.models import Dataset, File, ProjectVersion, RefMappingKind
+    from bench.models import File, ProjectVersion
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +37,7 @@ class FieldManager(models.Manager["Field"]):
         return super().get_queryset().select_related("statement")
 
 
-class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
+class Field(CrudModel, ModuleNode, Revisioned):
     """
     A (usually) named type of something.
     Do not write to this model directly as any change affects the opensearch indices.
@@ -56,9 +54,7 @@ class Field(UUIDModel, CrudModel, ModuleNode, Revisioned):
     flags = models.IntegerField(default=0)
     metadata = models.JSONField(null=True, blank=True)
     description = models.TextField(null=True, blank=True)
-    reference = models.ForeignKey(
-        "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
-    )
+    reference_ck = models.UUIDField(null=True, blank=True)
 
     def __str__(self):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
@@ -104,7 +100,7 @@ class TriggerManager(models.Manager["Trigger"]):
         return super().get_queryset().select_related("statement")
 
 
-class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
+class Trigger(CrudModel, ModuleNode, Revisioned):
     """
     A trigger to a runnable.
     """
@@ -119,12 +115,8 @@ class Trigger(UUIDModel, CrudModel, ModuleNode, Revisioned):
     timezone = models.CharField(max_length=64, null=True, blank=True)
     interval = models.IntegerField(null=True, blank=True)
     cron = models.CharField(max_length=64, null=True, blank=True)
-    runnable = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True
-    )
-    scope = models.ForeignKey(
-        "Statement", on_delete=models.CASCADE, related_name="+", null=True, blank=True
-    )
+    runnable_ck = models.UUIDField(null=True, blank=True)
+    scope_ck = models.UUIDField(null=True, blank=True)
     # internal
     processed_up_to = models.DateTimeField(null=True, blank=True)
 
@@ -145,14 +137,14 @@ class TaggingManager(models.Manager["Tagging"]):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
+class Tagging(CrudModel, ModuleNode, Revisioned):
     """
     An association between a tag and a statement.
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
     key = models.CharField(max_length=48, default=new_tag_key)
-    reference = models.ForeignKey("Statement", on_delete=models.SET_NULL, null=True, blank=True)
+    reference_ck = models.UUIDField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 
     @property
@@ -166,6 +158,32 @@ class Tagging(UUIDModel, CrudModel, ModuleNode, Revisioned):
         self.deleted_at = None
 
 
+class TileManager(models.Manager["Tile"]):
+    def get_queryset(self):
+        # soft-deleted statements are not returned by default
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
+
+class Tile(CrudModel, ModuleNode):
+    """
+    An element on a screen statement (not used yet)
+    """
+
+    project_version = models.ForeignKey(
+        "ProjectVersion", on_delete=models.CASCADE, related_name="tiles"
+    )
+    statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tiles")
+    name = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
+    parent_tile = models.ForeignKey(
+        "Tile", on_delete=models.CASCADE, related_name="children", null=True, blank=True
+    )
+    order_key = models.CharField(max_length=64)  # in parent
+    x = models.IntegerField(null=True, blank=True)
+    y = models.IntegerField(null=True, blank=True)
+
+    children: models.QuerySet[Tile]  # noqa via Tile.parent
+
+
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
@@ -175,33 +193,30 @@ class StatementManager(models.Manager["Statement"]):
         self,
         source: ProjectVersion,
         target: ProjectVersion,
-        datasets: list["Dataset"],
+        datasets: list[Statement],
         target_ids: dict[UUID, UUID],
+        target_cks: dict[UUID, UUID],
     ) -> None:
         """Duplicates the given datasets in-place to the target version"""
-        from bench.models import Dataset
         from bench.opensearch.index import batch_duplicate_records
 
-        new_dataset_ids = {d.key: new_dataset_key() for d in datasets}
-        batch_duplicate_records(source, target, new_dataset_ids, target_ids)
-        for dataset in datasets:
-            dataset.key = new_dataset_ids[dataset.key]
-        Dataset.objects.bulk_update(datasets, ["key"])
+        batch_duplicate_records(source, target, target_ids, target_cks)
 
     def copy(
         self,
         statements: models.QuerySet[Statement],
         source: ProjectVersion,
         target: ProjectVersion,
-        kind: RefMappingKind,
+        keep_cks: bool,
         target_ids: dict[UUID, UUID] | None = None,
+        target_cks: dict[UUID, UUID] | None = None,
         target_parent_ids: dict[UUID, UUID] | None = None,
         target_order_keys: dict[UUID, str] | None = None,
         copy_revisions: bool = True,
     ) -> None:
         """Copies the given source statements into the target version in given new files"""
 
-        from bench.models import Dataset, File, ProjectVersion, RefMapping, packer
+        from bench.models import File, ProjectVersion, packer
 
         # pack relevant nodes
         target_ids = {**(target_ids or {}), source.id: target.id}
@@ -209,9 +224,10 @@ class StatementManager(models.Manager["Statement"]):
             source=source,
             target=target,
             nodes=list(statements),
+            keep_cks=keep_cks,
             target_ids=target_ids,
+            target_cks=target_cks,
             copy_revisions=copy_revisions,
-            kind=kind,
         )
         for node in packed.nodes.values():  # patch parent and order keys
             if node.id in target_parent_ids:
@@ -235,11 +251,11 @@ class StatementManager(models.Manager["Statement"]):
         create_models_bfs(unpacked.walk_bfs_batched())
         # duplicate versioned datasets
         versioned_datasets = [
-            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+            n
+            for n in unpacked.nodes.values()
+            if isinstance(n, Statement) and n.type == StatementType.DATASET
         ]
         self.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
-        # save mappings
-        RefMapping.objects.bulk_create(mappings)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
@@ -263,7 +279,7 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
+class Statement(CrudModel, ModuleNode, Revisioned):
     """
     A nested statement in a file for working with Bench symbols and other stuff.
     """
@@ -283,11 +299,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     children: models.QuerySet[Statement]  # noqa via Statement.parent
     order_key = models.CharField(max_length=64)  # in file/parent
 
-    # symbol data
-    # TODO @Cleanup @Architecture: normalize statement data where reasonable
-    reference = models.ForeignKey(
-        "Statement", on_delete=models.SET_NULL, null=True, blank=True, related_name="references+"
-    )
+    # statement data
     description = models.TextField(null=True, blank=True)
     key = models.CharField(max_length=48, null=True, blank=True)
     root_type_tag = models.CharField(
@@ -299,7 +311,7 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
     external_name = models.CharField(max_length=128, null=True, blank=True)
-    dataset = models.OneToOneField("Dataset", on_delete=models.SET_NULL, null=True, blank=True)
+    reference_ck = models.UUIDField(null=True, blank=True)
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement
     triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement
@@ -309,16 +321,6 @@ class Statement(UUIDModel, CrudModel, ModuleNode, Revisioned):
 
     def __str__(self):
         return f"{self.path} {self.type} {self.name}"
-
-    def create_symbol_if_needed(self):
-        # TODO @Cleanup @Architecture: create symbol if needed shouldn't be needed
-        # (currently only used in API, ideally relations should be passed in explicitly?)
-        if self.type == StatementType.DATASET and self.dataset is None:
-            from bench.models import Dataset
-
-            self.dataset = Dataset.objects.create(
-                id=Dataset.get_id(self), statement=self, key=new_dataset_key()
-            )
 
     @property
     def descendants(self) -> models.QuerySet[Statement]:

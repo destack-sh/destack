@@ -147,13 +147,6 @@ type CommitPayload {
 
 union CommitPayloadOperationInfo = CommitPayload | OperationInfo
 
-type Dataset implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  key: String!
-  versioned: Boolean!
-}
-
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -179,6 +172,7 @@ type Field implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: Statement!
   revision: Int!
   statement: Statement!
@@ -195,6 +189,7 @@ type Field implements HasCrud & ModuleNode & Node {
 
 input FieldCreateInput {
   id: GlobalID!
+  ck: UUID!
   key: String!
   orderKey: String!
   statementId: GlobalID!
@@ -203,7 +198,7 @@ input FieldCreateInput {
   hint: TypeHint = null
   description: String = null
   flags: Int! = 0
-  referenceId: GlobalID = null
+  referenceCk: UUID = null
   metadata: JSON = null
 }
 
@@ -245,7 +240,7 @@ input FieldUpdateInput {
   hint: TypeHint = null
   description: String = null
   flags: Int! = 0
-  referenceId: GlobalID = null
+  referenceCk: UUID = null
   metadata: JSON = null
 }
 
@@ -254,7 +249,7 @@ input FieldUpdateTypeInput {
   tag: TypeTag!
   hint: TypeHint = null
   flags: Int! = 0
-  referenceId: GlobalID = null
+  referenceCk: GlobalID = null
 }
 
 type File implements HasCrud & ModuleNode & Node {
@@ -266,6 +261,7 @@ type File implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: ModuleNode!
   revision: Int!
   projectVersion: ProjectVersion!
@@ -275,7 +271,8 @@ type File implements HasCrud & ModuleNode & Node {
 }
 
 input FileCreateInput {
-  id: GlobalID = null
+  id: GlobalID!
+  ck: UUID!
   projectVersionId: GlobalID!
   name: String!
   parentId: GlobalID = null
@@ -297,7 +294,8 @@ union FileOperationInfo = File | OperationInfo
 input FilePasteInput {
   sourceId: GlobalID!
   targetVersionId: GlobalID!
-  targetId: GlobalID = null
+  targetId: GlobalID!
+  targetCk: UUID!
   parentId: GlobalID = null
 }
 
@@ -330,6 +328,7 @@ interface HasTriggeredBy {
 
 type Issue implements Node & ModuleNode {
   id: GlobalID!
+  ck: UUID!
   parent: ModuleNode
   kind: IssueKind!
   type: IssueType!
@@ -499,6 +498,7 @@ enum ModuleMutationType {
 
 interface ModuleNode {
   id: GlobalID!
+  ck: UUID!
   parent: ModuleNode
 }
 
@@ -959,7 +959,6 @@ type Project implements Node {
   workerSets: [WorkerSet!]!
   usage: ProjectUsage!
   accessLevel: ProjectAccessLevel!
-  migrationMappings(sourceVersionId: GlobalID!, targetVersionId: GlobalID!): ProjectMigrationInfo!
 }
 
 enum ProjectAccessLevel {
@@ -1023,13 +1022,6 @@ input ProjectInviteInput {
   message: String = null
 }
 
-type ProjectMigrationInfo {
-  isReverse: Boolean!
-  sourceVersion: ProjectVersion!
-  targetVersion: ProjectVersion!
-  refMappings: [RefMapping!]!
-}
-
 union ProjectOperationInfo = Project | OperationInfo
 
 input ProjectRemoveMembershipInput {
@@ -1069,6 +1061,7 @@ type ProjectVersion implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: ModuleNode
   project: Project!
   name: String
@@ -1079,36 +1072,6 @@ type ProjectVersion implements HasCrud & ModuleNode & Node {
   committed: Boolean!
   committedAt: DateTime
   files(filters: FileFilter): [File!]!
-  childRefs(
-    filters: RefMappingFilter
-
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): RefMappingConnection!
-  parentRefs(
-    filters: RefMappingFilter
-
-    """Returns the items in the list that come before the specified cursor."""
-    before: String = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    after: String = null
-
-    """Returns the first n items from the list."""
-    first: Int = null
-
-    """Returns the items in the list that come after the specified cursor."""
-    last: Int = null
-  ): RefMappingConnection!
 }
 
 """A connection to a list of items."""
@@ -1339,49 +1302,6 @@ input RecordUpdateInput {
   statementId: GlobalID!
   id: GlobalID!
   value: JSON!
-}
-
-type RefMapping implements Node {
-  """The Globally Unique ID of this object"""
-  id: GlobalID!
-  kind: RefMappingKind!
-  sourceVersion: ProjectVersion!
-  targetVersion: ProjectVersion!
-  sourceId: GlobalID!
-  sourceRevision: Int!
-  targetId: GlobalID!
-  targetRevision: Int!
-  sourceVersionId: GlobalID!
-  targetVersionId: GlobalID!
-}
-
-"""A connection to a list of items."""
-type RefMappingConnection {
-  """Pagination data for this connection"""
-  pageInfo: PageInfo!
-
-  """Contains the nodes in this connection"""
-  edges: [RefMappingEdge!]!
-}
-
-"""An edge in a connection."""
-type RefMappingEdge {
-  """A cursor for use in pagination"""
-  cursor: String!
-
-  """The item at the end of the edge"""
-  node: RefMapping!
-}
-
-input RefMappingFilter {
-  kind: RefMappingKind = null
-  AND: RefMappingFilter
-  OR: RefMappingFilter
-}
-
-enum RefMappingKind {
-  COMMIT
-  PASTE
 }
 
 type RemoteObject implements Node {
@@ -1642,6 +1562,7 @@ type Statement implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: ModuleNode!
   revision: Int!
   projectVersion: ProjectVersion!
@@ -1653,7 +1574,6 @@ type Statement implements HasCrud & ModuleNode & Node {
   orderKey: String!
   text: String
   reference: Statement
-  dataset: Dataset
   rootTypeTag: TypeTag
   rootTypeFlags: Int
   tags(filters: TaggingFilter): [Tagging!]!
@@ -1683,6 +1603,7 @@ union StatementBatchOperationInfo = StatementBatch | OperationInfo
 input StatementBatchPasteInput {
   sourceIds: [GlobalID!]!
   targetIds: [GlobalID!]!
+  targetCks: [UUID!]!
   targetFileId: GlobalID!
   targetParentIds: [GlobalID]!
   targetOrderKeys: [String!]!
@@ -1697,7 +1618,8 @@ input StatementBatchSoftDeleteInput {
 }
 
 input StatementCreateInput {
-  id: GlobalID = null
+  id: GlobalID!
+  ck: UUID!
   fileId: GlobalID!
   orderKey: String!
   type: StatementType!
@@ -1708,7 +1630,7 @@ input StatementCreateInput {
   description: String = null
   lang: String = null
   key: String = null
-  referenceId: GlobalID = null
+  referenceCk: UUID = null
   text: String = null
   code: String = null
   value: JSON = null
@@ -1781,7 +1703,7 @@ input StatementUpdateInput {
   description: String = null
   lang: String = null
   key: String = null
-  referenceId: GlobalID = null
+  referenceCk: UUID = null
   text: String = null
   code: String = null
   value: JSON = null
@@ -1789,7 +1711,7 @@ input StatementUpdateInput {
 
 input StatementUpdateReferenceInput {
   id: GlobalID!
-  referenceId: GlobalID = null
+  referenceCk: UUID = null
 }
 
 input StatementUpdateTextInput {
@@ -1834,6 +1756,7 @@ type Tagging implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: Statement!
   revision: Int!
   statement: Statement!
@@ -1844,9 +1767,10 @@ type Tagging implements HasCrud & ModuleNode & Node {
 
 input TaggingCreateInput {
   id: GlobalID!
+  ck: UUID!
   statementId: GlobalID!
   key: String!
-  referenceId: GlobalID!
+  referenceCk: GlobalID!
   metadata: JSON = null
 }
 
@@ -1880,6 +1804,7 @@ type Trigger implements HasCrud & ModuleNode & Node {
   createdBy: User
   lastEditedAt: DateTime
   lastEditedBy: User
+  ck: UUID!
   parent: Statement!
   revision: Int!
   type: TriggerType!
@@ -1895,6 +1820,7 @@ type Trigger implements HasCrud & ModuleNode & Node {
 
 input TriggerCreateInput {
   id: GlobalID!
+  ck: UUID!
   statementId: GlobalID!
   type: TriggerType!
   active: Boolean!
@@ -1903,8 +1829,8 @@ input TriggerCreateInput {
   timezone: String = null
   interval: Int = null
   cron: String = null
-  runnableId: GlobalID = null
-  scopeId: GlobalID = null
+  runnableCk: UUID = null
+  scopeCk: UUID = null
 }
 
 input TriggerDeleteInput {
@@ -1942,8 +1868,8 @@ input TriggerUpdateInput {
   timezone: String = null
   interval: Int = null
   cron: String = null
-  runnableId: GlobalID = null
-  scopeId: GlobalID = null
+  runnableCk: UUID = null
+  scopeCk: UUID = null
 }
 
 enum TypeHint {

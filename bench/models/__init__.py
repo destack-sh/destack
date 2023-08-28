@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from .dataset import Dataset, Record, RecordRelation
+from .dataset import Record, RecordRelation
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -14,8 +14,6 @@ from .project import (
     ProjectMembership,
     ProjectVersion,
     ProjectVisibility,
-    RefMapping,
-    RefMappingKind,
 )
 from .secret import Secret
 from .session import Run, RunStatus, Session
@@ -32,7 +30,6 @@ __all__ = [
     "Client",
     "ClientType",
     "CrudModel",
-    "Dataset",
     "Field",
     "File",
     "Issue",
@@ -55,8 +52,6 @@ __all__ = [
     "Q",
     "Record",
     "RecordRelation",
-    "RefMapping",
-    "RefMappingKind",
     "RemoteObject",
     "RemoteObjectStatus",
     "ResolvedField",

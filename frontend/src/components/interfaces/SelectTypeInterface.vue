@@ -51,9 +51,13 @@ const BUILTIN_TYPES_ALIASES: Partial<Record<TypeHint | TypeTag, string[]>> = {
 };
 const BUILTINS_TYPES_FIELDS = BUILTIN_TYPES.map((tag) => {
   if (Object.values(TypeTag).includes(tag as TypeTag)) {
-    return makeField({ tag: tag as TypeTag });
+    return makeField({ projectVersionId: module.id.value, tag: tag as TypeTag });
   } else if (tag in SUPPORTED_TYPEHINTS) {
-    return makeField({ tag: SUPPORTED_TYPEHINTS[tag as TypeHint] as TypeTag, hint: tag as TypeHint });
+    return makeField({
+      projectVersionId: module.id.value,
+      tag: SUPPORTED_TYPEHINTS[tag as TypeHint] as TypeTag,
+      hint: tag as TypeHint,
+    });
   } else {
     throw new Error(`unknown primitive ${tag} ${typeof tag} ${Object.keys(TypeTag)}`);
   }
@@ -95,6 +99,7 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
 
     types.push(
       makeField({
+        projectVersionId: module.id.value,
         tag: TypeTag.TypeReference,
         reference: symbol as { id: string; name: string },
         flags: getDefaultFlags(TypeTag.TypeReference),

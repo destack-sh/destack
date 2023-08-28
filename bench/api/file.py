@@ -46,7 +46,8 @@ class File(HasCrud, ModuleNode, Revisioned, relay.Node):
 
 @strawberry.input
 class FileCreateInput:
-    id: Optional[GlobalID] = None
+    id: GlobalID
+    ck: UUID
     project_version_id: GlobalID
     name: str
     parent_id: Optional[GlobalID] = None
@@ -71,7 +72,8 @@ class FileMoveInput(strawberry_django.NodeInput):
 class FilePasteInput:
     source_id: GlobalID
     target_version_id: GlobalID
-    target_id: Optional[GlobalID] = None
+    target_id: GlobalID
+    target_ck: UUID
     parent_id: Optional[GlobalID] = None
 
 
@@ -82,6 +84,7 @@ class FileMutation:
         id = input.id.node_id if input.id else None
         return models.File(
             id=id,
+            ck=input.ck,
             project_version_id=input.project_version_id.node_id,
             name=input.name,
             parent_file_id=input.parent_id.node_id if input.parent_id else None,
@@ -127,8 +130,6 @@ class FileMutation:
 
     @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_save=True, skip_auth_check=True)
     def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
-        from bench.models import RefMappingKind
-
         # get and check source/target
         source_file = models.File.objects.get(id=input.source_id.node_id)
         check_project_access(info, source_file, ProjectAccessLevel.Read)
@@ -143,13 +144,15 @@ class FileMutation:
             raise ValidationError("target file already exists")
 
         # copy file
-        target_id = UUID(input.target_id.node_id) if input.target_id else None
+        target_id = UUID(input.target_id.node_id)
+        target_ck = input.target_ck
         target_file = models.File.objects.copy(
             file=source_file,
             source=source_file.project_version,
             target=target_version,
             target_id=target_id,
-            kind=RefMappingKind.PASTE,
+            target_ck=target_ck,
+            keep_cks=False,
         )
         root_fragment = info.selected_fields[0].selections[0]  # mutation, returned object is first
         return read_module_node(info, target_file, root_fragment=root_fragment)  # type: ignore

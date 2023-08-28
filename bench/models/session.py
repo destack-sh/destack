@@ -85,6 +85,7 @@ class Run(UUIDTModel, HasTriggeredBy):
 
     runnable = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
     runnable_type = models.CharField(max_length=64, null=True, blank=True)
+    runnable_ck = models.UUIDField(null=True, blank=True)
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)

@@ -49,7 +49,7 @@ class Reference(Statement, HasTags, IsFlowNode):
                 self.reference = resolved
 
     @property
-    def reference_id(self) -> Optional[UUID]:
+    def reference_ck(self) -> Optional[UUID]:
         if isinstance(self.reference, Statement):
             return self.reference.id
         elif isinstance(self.reference, UUID):

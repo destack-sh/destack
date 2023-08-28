@@ -1,8 +1,7 @@
 import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type FileHeader } from "@/state/bench";
-import type { NodeBase } from "@/state/module";
+import { newNodeIdentity, type NodeBase } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newFileId } from "@/state/operations/file";
 import { computed } from "vue";
 
 export function useFileActions() {
@@ -15,9 +14,9 @@ export function useFileActions() {
     enabled: computed(() => bench.projectVersionId != null && !bench.readonly),
     shortcuts: ["ctrl+n", "meta+n"],
     apply: async (name = "") => {
-      const fileId = newFileId();
-      const create = ops.file.create(null, fileId, bench.projectVersionId as string, name, null);
-      const optimisticFile = { __typename: "File", id: fileId, name } as FileHeader;
+      const identity = newNodeIdentity(bench.projectVersionId as string, "File");
+      const create = ops.file.create(null, identity.id, bench.projectVersionId as string, name, null);
+      const optimisticFile = { __typename: "File", id: identity.id, name } as FileHeader;
       const optimisticEditor = bench.focusFile(optimisticFile as NodeBase);
       try {
         await create;

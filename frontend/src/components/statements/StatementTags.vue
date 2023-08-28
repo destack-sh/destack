@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
-import { useCurrentModule } from "@/state/module";
+import { newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { TagIcon as TagIconOutline } from "@heroicons/vue/24/outline";
@@ -11,7 +11,6 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useOperations } from "@/state/operations";
 import type { Tagging } from "@/gql/graphql";
 import type { Statement } from "@/gql/graphql";
-import { newTaggingId } from "@/state/operations/statement";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const context = useStatementContext();
@@ -49,8 +48,10 @@ function close() {
 }
 
 function createTagging(tag: Pick<Statement, "id" | "key" | "name">) {
+  const identity = newNodeIdentity(module.id.value, "Tagging");
   ops.symbol.createTagging(null, context.statement.value.id, {
-    id: newTaggingId(),
+    id: identity.id,
+    ck: identity.ck,
     key: tag.key as string,
     reference: { id: tag.id } as any,
     metadata: null,

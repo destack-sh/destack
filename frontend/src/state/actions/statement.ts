@@ -1,8 +1,8 @@
 import { provideGlobalAction } from "@/state/actions";
 import { useBenchState, type StatementHeader } from "@/state/bench";
 import { activeFileState, navigationContexts, type NavigationContext } from "@/state/file";
+import { newNodeIdentity } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newStatementId } from "@/state/operations/statement";
 import { generateKeyBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { createSharedComposable } from "@vueuse/shared";
 import { computed, nextTick, type Ref } from "vue";
@@ -328,8 +328,8 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
 
   // optimistic insert that doesn't wait for the server response
   function _insertOptimisticBlank(parentId: string | null, orderKey: string): { __typename: string; id: string } {
-    const newStatement = { __typename: "Statement", id: newStatementId() };
-    ops.statement.create(null, newStatement.id, file.value?.file.id, parentId, orderKey);
+    const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
+    ops.statement.create(null, newStatement.id, newStatement.ck, file.value?.file.id, parentId, orderKey);
     return newStatement;
   }
 
@@ -368,9 +368,11 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       const top = selectedRoots?.[0];
       if (top != null) {
         const previousSibling = file.value?.getPreviousSibling(top);
+        const identity = newNodeIdentity(bench.projectVersionId as string, "Statement");
         ops.statement.create(
           null,
-          newStatementId(),
+          identity.id,
+          identity.ck,
           file.value?.file.id,
           top.parent?.id ?? null,
           generateKeyBetween(previousSibling?.orderKey ?? null, cur.value?.orderKey as string)

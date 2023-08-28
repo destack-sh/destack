@@ -13,7 +13,7 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
-from bench.language import wire
+from bench.language import StatementType, wire
 from bench.language.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
@@ -374,119 +374,44 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         versions.reverse()
         return versions
 
-    def get_migration_mappings(
-        self, source_version_id: UUID, target_version_id: UUID
-    ) -> tuple[list[RefMapping], bool]:
-        """
-        Gets the final ref mappings between the source and target version.
-        Follows ProjectVersion.parents (not timestamps).
-        """
-
-        # As an illustrating example, consider versions A, B, C, D, E (A -> E).
-        # Each version contains the ref mappings to its parent(s) (e.g. B: A->B).
-        #
-        # Forward migrating B -> D:
-        #  - intermediate versions C, D
-        #
-        # Backward migrating D -> B:
-        #  - intermediate versions C, D
-        #  - reverse
-
-        source_version = self.get(id=source_version_id)
-        target_version = self.get(id=target_version_id)
-
-        intermediate_versions = ProjectVersion.objects.get_between(
-            source_version_id, target_version_id
-        )
-        is_reverse = intermediate_versions[0].id != source_version_id
-        # skip first version (source version)
-        intermediate_versions = intermediate_versions[1:]
-
-        ref_mappings = list(RefMapping.objects.filter(target_version__in=intermediate_versions))
-
-        # init with first mappings
-        refs: dict[UUID, UUID] = {}
-        refs_types: dict[UUID, str] = {}
-        for ref in ref_mappings:
-            refs[ref.source_id] = ref.target_id
-            refs_types[ref.source_id] = ref.type
-
-        # iterate through intermediate versions, updating target_id to each new target_id
-        for version in intermediate_versions[1:]:
-            reverse_refs = {v: k for k, v in refs.items()}
-            for ref in ref_mappings:
-                if ref.target_version_id == version.id:
-                    # this source id is a current target id
-                    source_id = reverse_refs.get(ref.source_id)
-                    if source_id is not None:
-                        # update target id
-                        refs[source_id] = ref.target_id
-
-        if is_reverse:
-            refs = {v: k for k, v in refs.items()}
-
-        final_ref_mappings = [
-            RefMapping(
-                id=None,
-                kind=RefMappingKind.COMMIT,
-                type=refs_types.get(source_id, refs_types.get(target_id)),
-                source_version=source_version,
-                target_version=target_version,
-                source_id=source_id,
-                source_revision=0,  # not tracked
-                target_id=target_id,
-                target_revision=0,  # not tracked
-            )
-            for source_id, target_id in refs.items()
-        ]
-
-        return final_ref_mappings, is_reverse
-
     def pack_copy(
         self,
         source: ProjectVersion,
         target: ProjectVersion,
         nodes: list[models.Model],
+        keep_cks: bool,
         target_ids: dict[UUID, UUID] = None,
+        target_cks: dict[UUID, UUID] = None,
         copy_revisions: bool = True,
-        kind: RefMappingKind = None,
         filter: PackFilter = None,
-    ) -> tuple[_Packed, list["RefMapping"], dict[UUID, UUID]]:
-        """Packs a copy of the module tree at the given nodes."""
+    ) -> tuple[_Packed, dict[UUID, UUID], dict[UUID, UUID]]:
+        """Packs a copy of the module tree starting at the given nodes."""
         from bench.models import packer
 
         target_ids = {**(target_ids or {}), source.id: target.id}
-        kind = kind or RefMappingKind.COMMIT
+        target_cks = {**(target_cks or {}), source.ck: target.ck}
         packed = packer.pack_node(
             *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=packer.INTERP_MODEL_TYPES
         )
 
         # map all ids to new ids
-        ref_mappings: dict[UUID, RefMapping] = {}
         for node in packed.nodes.values():
             source_id = node.id
+            if node.id in target_ids != node.ck in target_cks:
+                raise ValueError(f"node id and ck must be both or neither set: {node}")
             if node.id not in target_ids:
-                target_ids[node.id] = uuid4()
+                target_cks[node.ck] = uuid4() if not keep_cks else node.ck
+                target_ids[node.id] = uuid.uuid5(target.id, str(target_cks[node.ck]))
             node.id = target_ids[node.id]
+            node.ck = target_cks[node.ck]
             if not isinstance(node, wire.HasCrud):
                 continue
             source_revision = node.revision
             if not copy_revisions:
                 node.revision = 0
-            ref_mappings[node.id] = RefMapping(
-                source_version=source,
-                target_version=target,
-                source_id=source_id,
-                source_revision=source_revision,
-                target_id=node.id,
-                target_revision=node.revision,
-                type=MOT_BY_DATA_CLASS[type(node)],
-                kind=kind,
-            )
         for node in packed.nodes.values():  # patch parent ids
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
-            wire.patch_node_flat(node, target_ids)
-        return packed, list(ref_mappings.values()), target_ids
+        return packed, target_ids, target_cks
 
     def copy(
         self,
@@ -494,25 +419,24 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target: ProjectVersion,
         files: Optional[models.QuerySet[File]] = None,
         target_ids: dict[UUID, UUID] = None,
-        invert_mappings: bool = False,
+        keep_cks: bool = True,
         copy_revisions: bool = True,
-        kind: RefMappingKind = None,
-    ) -> list[RefMapping]:
+    ) -> None:
         """Copies the given files from a source version to a target version (by default everything)"""
 
-        from bench.models import Dataset, packer
+        from bench.models import Statement, packer
 
-        # pack  relevant nodes
+        # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
         if files is not None:
             filter.filter(File, lambda qs: qs.filter(id__in=files))
-        packed, mappings, target_ids = self.pack_copy(
+        packed, target_ids, target_cks = self.pack_copy(
             source=source,
             target=target,
             nodes=[source],
             target_ids=target_ids,
+            keep_cks=keep_cks,
             copy_revisions=copy_revisions,
-            kind=kind or RefMappingKind.COMMIT,
             filter=filter,
         )
 
@@ -521,23 +445,14 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
         # duplicate versioned datasets
         versioned_datasets = [
-            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+            n
+            for n in unpacked.nodes.values()
+            if isinstance(n, Statement) and n.type == StatementType.DATASET
         ]
         Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
-        # save ref mappings
-        if invert_mappings:
-            for mapping in mappings:
-                mapping.source_id, mapping.target_id = mapping.target_id, mapping.source_id
-                mapping.source_version, mapping.target_version = (
-                    mapping.target_version,
-                    mapping.source_version,
-                )
-        RefMapping.objects.bulk_create(mappings)
-
-        return mappings
 
 
-class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
+class ProjectVersion(CrudModel, ModuleNode):
     """
     A project version records the state of a project at a specific point in time.
     """
@@ -552,8 +467,6 @@ class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
     parents = models.ManyToManyField(
         "ProjectVersion", related_name="children", symmetrical=False, blank=True
     )
-    parent_refs: models.QuerySet["RefMapping"]  # noqa via RefMapping.source_version
-    child_refs: models.QuerySet["RefMapping"]  # noqa via RefMapping.target_version
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
 
@@ -650,59 +563,6 @@ class ProjectVersion(UUIDModel, CrudModel, ModuleNode):
         ]
 
 
-class RefMappingKind(models.TextChoices):
-    COMMIT = "commit", "Commit"
-    PASTE = "paste", "Paste"
-
-
-class RefMappingManager(models.Manager["RefMapping"]):
-    def expand_target_ids(self, target_ids: list[UUID], depth: Optional[int] = None) -> list[UUID]:
-        # TODO @Performance: implement symbol version id expansion in SQL
-        expanded_ids = list(target_ids)
-        last_symbol_ids = expanded_ids
-        remaining_depth = depth
-        while last_symbol_ids and (depth is None or remaining_depth > 0):
-            if remaining_depth is not None:
-                remaining_depth -= 1
-            last_symbol_ids = self.filter(target_id__in=last_symbol_ids).values_list(
-                "source_id", flat=True
-            )
-            expanded_ids.extend(last_symbol_ids)
-        return expanded_ids
-
-
-class RefMapping(UUIDModel):
-    """
-    The mapping of a project content object's identity between locations/versions.
-    There is no benefit to foreign constraints on the object ids here (?), so they're just UUIDs.
-    Used to track lineage for versioning, forking, copy/paste, etc.
-
-    This is similar to GeneratedMapping on the surface, but here we track object identities
-    rather than statement-generated arbitrary mappings (different uses, constraints, etc.).
-    """
-
-    kind = models.CharField(max_length=32, choices=RefMappingKind.choices)
-    source_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="child_refs"
-    )
-    target_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="parent_refs"
-    )
-    type = models.CharField(max_length=32)
-    source_id = models.UUIDField()
-    source_revision = models.IntegerField()
-    target_id = models.UUIDField()
-    target_revision = models.IntegerField()
-
-    objects = RefMappingManager()
-
-    def __str__(self):
-        return f"{self.source_version} {self.source_id} -> {self.target_version} {self.target_id}"
-
-    def __repr__(self):
-        return f"<RefMapping {self}>"
-
-
 class FileManager(models.Manager):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
@@ -713,13 +573,14 @@ class FileManager(models.Manager):
         file: "File",
         source: ProjectVersion,
         target: ProjectVersion,
-        kind: "RefMappingKind",
-        target_id: Optional[UUID] = None,
+        target_id: UUID,
+        target_ck: UUID,
+        keep_cks: bool,
         target_parent: Optional["File"] = None,
         copy_revisions: bool = False,
     ) -> "File":
         """Copies a file from one module to another (may be the same)."""
-        from bench.models import Dataset, Statement, packer
+        from bench.models import Statement, packer
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
@@ -727,9 +588,10 @@ class FileManager(models.Manager):
             source=source,
             target=target,
             nodes=[file],
+            keep_cks=keep_cks,
             copy_revisions=copy_revisions,
             target_ids={file.id: target_id},
-            kind=kind,
+            target_cks={file.ck: target_ck},
         )
         assert len(packed.roots) == 1, "expected exactly one root in packed nodes"
         packed.roots[0].parent_id = target_parent.id if target_parent else target.id
@@ -739,11 +601,11 @@ class FileManager(models.Manager):
         create_models_bfs(unpacked.walk_bfs_batched())
         # duplicate versioned datasets
         versioned_datasets = [
-            n for n in unpacked.nodes.values() if isinstance(n, Dataset) and n.versioned
+            n
+            for n in unpacked.nodes.values()
+            if isinstance(n, Statement) and n.type == StatementType.DATASET
         ]
         Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
-        # save mappings
-        RefMapping.objects.bulk_create(mappings)
 
         target_file = unpacked.nodes[target_id]
         return target_file
@@ -768,7 +630,7 @@ class FileManager(models.Manager):
         return File._base_manager.filter(id__in=RawSQL(query, (file_ids,)), deleted_at=deleted_at)
 
 
-class File(UUIDModel, CrudModel, ModuleNode, Revisioned):
+class File(CrudModel, ModuleNode, Revisioned):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.

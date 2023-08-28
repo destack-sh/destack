@@ -49,9 +49,9 @@ class Tagging(HasCrud, HasSession, ModuleNode):
         return f"<Tagging {self}>"
 
     @property
-    def reference_id(self) -> typing.Optional[UUID]:
+    def reference_ck(self) -> typing.Optional[UUID]:
         if isinstance(self.reference, Tag):
-            return self.reference.id
+            return self.reference.ck
         else:
             return self.reference
 
@@ -100,9 +100,9 @@ class HasTags(StatementBase):
 
     def _interp(self, scope: Scope) -> None:
         for tagging in self.tags:
-            if tagging.reference_id is None:
+            if tagging.reference_ck is None:
                 continue
-            tagging.reference = scope._root_scope._statements_by_id.get(tagging.reference_id)
+            tagging.reference = scope._root_scope._statements_by_id.get(tagging.reference_ck)
             if tagging.reference is None:
                 # is that an error? not sure
                 continue

@@ -60,12 +60,15 @@ export type ProjectHeader = Pick<
 >;
 export type ProjectVersionHeader = Pick<
   ProjectVersion,
-  "id" | "name" | "description" | "createdAt" | "committed" | "committedAt"
+  "id" | "ck" | "name" | "description" | "createdAt" | "committed" | "committedAt"
 >;
-export type FileHeader = Pick<File, "__typename" | "id" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "parent">;
+export type FileHeader = Pick<
+  File,
+  "__typename" | "id" | "ck" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "parent"
+>;
 export type StatementHeader = Pick<
   Statement,
-  "__typename" | "id" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "parent"
+  "__typename" | "id" | "ck" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "parent"
 >;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";
