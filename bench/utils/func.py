@@ -173,3 +173,24 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str) -> str:
         similar_candidates_strs = [f"{k} {repr(v)}" for k, v in similar_candidates.items()]
         return f"did you mean: {', '.join(similar_candidates_strs)}  of {len(candidates)}?"
     return f"nothing similar in {len(candidates)} candidates"
+
+
+def cyrb53a(s: str, seed: int = 0) -> int:
+    """
+    53-bit cyrb53a hash.
+    Reference: https://github.com/bryc/code/blob/master/jshash/experimental/cyrb53.js
+    """
+    h1 = 0xDEADBEEF ^ seed
+    h2 = 0x41C6CE57 ^ seed
+
+    for ch in s:
+        ch_code = ord(ch)
+        h1 = (h1 ^ ch_code) * 0x85EBCA77 & ((1 << 53) - 1)  # Limit to 53 bits
+        h2 = (h2 ^ ch_code) * 0xC2B2AE3D & ((1 << 53) - 1)  # Limit to 53 bits
+
+    h1 ^= ((h1 ^ (h2 >> 15)) * 0x735A2D97) & ((1 << 53) - 1)
+    h2 ^= ((h2 ^ (h1 >> 15)) * 0xCAF649A9) & ((1 << 53) - 1)
+    h1 ^= h2 >> 16
+    h2 ^= h1 >> 16
+
+    return ((h2 & ((1 << 32) - 1)) << 21) + (h1 >> 11)

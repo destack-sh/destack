@@ -3,8 +3,6 @@ import dataclasses
 import enum
 import inspect
 import itertools
-import random
-import string
 import typing
 import uuid
 from dataclasses import dataclass, field
@@ -40,7 +38,7 @@ from bench.language.issue import IssueType
 from bench.language.query import FieldQueryOps
 from bench.language.remote import RemoteObject, Secret
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
-from bench.utils.func import dict_minus, did_you_mean_str
+from bench.utils.func import cyrb53a, dict_minus, did_you_mean_str
 from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
 
 logger = structlog.get_logger(__name__)
@@ -269,12 +267,20 @@ class TypeBase(abc.ABC):
                 yield from child.walk_type(path, include_references=include_references)
 
 
-def new_field_key(seed: str = None) -> str:
-    """Gets a random alphabetic key as a persistent key for a type node."""
-    # (upper and lower case letters only)
-    if seed:
-        random.seed(seed)
-    return "".join(random.choices(string.ascii_letters, k=FIELD_KEY_LENGTH))
+def new_field_key(ck: UUID) -> str:
+    """
+    Gets a 'random' alphabetic key as a persistent key for a field.
+    (FIELD_KEY_LENGTH alphabetic characters) :FieldKeys
+    """
+    hash_value = cyrb53a(str(ck))
+    key = ""
+    while len(key) < FIELD_KEY_LENGTH:
+        hash_value, remainder = divmod(hash_value, 52)
+        if remainder < 26:
+            key += chr(ord("a") + remainder)
+        else:
+            key += chr(ord("A") + remainder - 26)
+    return key
 
 
 @node(tracked=["name", "description", "tag", "hint", "flags", "metadata"])
@@ -292,7 +298,7 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
     def __post_init__(self):
-        self.key = self.key or new_field_key(seed=str(self.ck))
+        self.key = self.key or new_field_key(self.ck)
 
     def __str__(self):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
@@ -560,7 +566,6 @@ class Type(HasType, HasTags, Statement):
     description: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
-    key: str = field(default_factory=new_field_key)
     # not directly configurable for types
     hint = None
     reference = None

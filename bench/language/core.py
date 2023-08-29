@@ -122,7 +122,7 @@ def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
 
 def new_node_identity(module_id: UUID) -> tuple[UUID, UUID]:
     ck = uuid4()
-    id = get_node_id(ck, module_id)
+    id = get_node_id(module_id, ck)
     return id, ck
 
 
@@ -131,16 +131,29 @@ def new_detached_node_identity() -> tuple[UUID, UUID]:
     return ck, ck
 
 
-def get_node_id(ck, module_id):
+def get_node_id(module_id: UUID, ck: UUID):
+    """Derive the version-specific node id from its constant key"""
     return uuid.uuid5(module_id, str(ck))
 
 
 class ModuleVisitor:
     def __init__(self):
-        self.visited: dict[UUID, ModuleNode] = {}
+        self._visited_by_ck: dict[UUID, ModuleNode] = {}
+
+    def __str__(self):
+        return f"{len(self._visited_by_ck)} nodes"
+
+    def __repr__(self):
+        return f"<ModuleVisitor {str(self)}>"
+
+    @property
+    def visited(self):
+        return self._visited_by_ck.values()
 
     def visit(self, node: "ModuleNode"):
-        self.visited[node.id] = node
+        if node.ck in self._visited_by_ck and self._visited_by_ck[node.ck] != node:
+            raise ValueError(f"cannot visit {node} twice: {self._visited_by_ck[node.ck]}")
+        self._visited_by_ck[node.ck] = node
 
     def visit_all(self, nodes: typing.Iterable["ModuleNode"]):
         for node in nodes:
@@ -164,7 +177,7 @@ class ModuleNode(abc.ABC):
             raise ValueError(f"cannot assign id to {self} without module_id")
         assert self.id is None, f"cannot assign id to {self} twice"
         assert self.ck is not None, f"cannot assign id to {self} without ck"
-        self.id = get_node_id(self.ck, module_id)
+        self.id = get_node_id(module_id, self.ck)
 
     def _assign_id_if_none(self):
         if self.id is None and self.module is not None:
@@ -200,8 +213,17 @@ class ModuleNode(abc.ABC):
 
     def _walk(self) -> typing.Iterator["ModuleNode"]:
         visitor = ModuleVisitor()
-        self._visit(visitor)
-        yield from visitor.visited.values()
+        visitor.visit(self)
+
+        seen = set()
+        to_visit = [self]
+        while to_visit:
+            for node in to_visit:
+                seen.add(node.ck)
+                node._visit(visitor)
+            to_visit = [n for n in visitor.visited if n.ck not in seen]
+
+        yield from visitor._visited_by_ck.values()
 
     def copy(self):
         from bench.language import wire
@@ -683,8 +705,6 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for ok, statement in zip(oks, statements):
             if statement.parent is not None and statement.parent != self:
                 raise ValueError(f"statement {statement} belongs to {statement.parent}")
-            if statement.id is None and self.module is not None:
-                statement._assign_id(self.module.id)
             statement.order_key = ok
             statement.parent = self
             for descendant in statement.walk_descendants():

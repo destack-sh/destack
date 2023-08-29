@@ -17,13 +17,31 @@ import {
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
+import { cyrb53a } from "@/utils/functools";
 import { useMutation } from "@vue/apollo-composable";
 
-const ALPHA_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+export function newFieldKey(ck: string): string {
+  /**
+   * Gets a 'random' alphabetic key as a persistent key for a field.
+   * (FIELD_KEY_LENGTH alphabetic characters)
+   */
 
-export function newFieldKey(): string {
-  /* Generates an 8-character alphabetic random key :FieldKeys */
-  return Array.from({ length: 8 }, () => ALPHA_CHARS.charAt(Math.floor(Math.random() * ALPHA_CHARS.length))).join("");
+  let hashValue = cyrb53a(ck);
+  let key = "";
+
+  while (key.length < 8) {
+    let remainder: number;
+    [hashValue, remainder] = [Math.floor(hashValue / 52), hashValue % 52];
+
+    // Map remainder to [a-zA-Z]
+    if (remainder < 26) {
+      key += String.fromCharCode(97 + remainder); // 'a'.charCodeAt(0) === 97
+    } else {
+      key += String.fromCharCode(65 + remainder - 26); // 'A'.charCodeAt(0) === 65
+    }
+  }
+
+  return key;
 }
 
 export function useStatementOps() {

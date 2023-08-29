@@ -309,7 +309,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
                     outputs_mappings[field.typed_key] = map_to_os_field(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
-        for f in field._walk():
+        for f in field.walk():
             if f.type == os.FieldType.KNN_VECTOR:
                 f.index = False
 

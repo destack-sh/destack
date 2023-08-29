@@ -850,12 +850,13 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     // create new dataset
     // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
     ops.statement.createDefinition(tx, dataset);
-    // create 'content' column with file type
-    const contentKey = newFieldKey();
+    // create 'file' column with file type
+    const fieldIdentity = newNodeIdentity(bench.projectVersionId as string, "Field");
+    const fieldKey = newFieldKey(fieldIdentity.ck);
     ops.symbol.createField(tx, dataset.id, {
-      ...newNodeIdentity(bench.projectVersionId as string, "Field"),
-      key: contentKey,
-      name: "content",
+      ...fieldIdentity,
+      key: fieldKey,
+      name: "file",
       tag: TypeTag.File,
       orderKey: INTEGER_ZERO,
     } as Field);
@@ -863,7 +864,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
 
     // insert files into dataset
     const orderKeys = generateNKeysBetween(null, null, files.length);
-    await insertFilesAsRecords(contentKey, orderKeys, files, dataset.id);
+    await insertFilesAsRecords(fieldKey, orderKeys, files, dataset.id);
   }
 
   return {

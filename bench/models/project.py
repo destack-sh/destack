@@ -122,11 +122,11 @@ class Project(UUIDModel, CrudModel):
     memberships: models.QuerySet["ProjectMembership"]  # noqa via ProjectMembership.project
 
     head = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, null=True, related_name="project+"
+        "ProjectVersion", on_delete=models.SET_NULL, null=True, related_name="project+"
     )
     remote_objects: models.QuerySet["RemoteObject"]  # noqa via RemoteObject
     worker_set = models.OneToOneField(  # only one worker set for now
-        "WorkerSet", on_delete=models.CASCADE, related_name="project+", null=True
+        "WorkerSet", on_delete=models.SET_NULL, related_name="project+", null=True
     )
     worker_sets: models.QuerySet["WorkerSet"]  # noqa via WorkerSet
 
@@ -463,9 +463,7 @@ class ProjectVersion(CrudModel, ModuleNode):
     description = models.CharField(max_length=MAX_DESCRIPTION_LENGTH, null=True)
     committed_at = models.DateTimeField(null=True)
 
-    parents = models.ManyToManyField(
-        "ProjectVersion", related_name="children", symmetrical=False, blank=True
-    )
+    parents = models.ManyToManyField("ProjectVersion", related_name="children", symmetrical=False)
     files: models.QuerySet["File"]  # noqa via File
     statements: models.QuerySet["Statement"]  # noqa via Statement
 
