@@ -1,7 +1,15 @@
+import itertools
 from typing import Optional
 from uuid import UUID
 
-from bench.language.core import Scope, Statement, StatementReference, StatementType, node
+from bench.language.core import (
+    ModuleVisitor,
+    Scope,
+    Statement,
+    StatementReference,
+    StatementType,
+    node,
+)
 from bench.language.flow import IsFlowNode
 from bench.language.issue import IssueType
 from bench.language.tag import HasTags
@@ -15,6 +23,9 @@ class Blank(Statement):
 
     type: StatementType = StatementType.BLANK
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
+
 
 @node(tracked=["text"])
 class Text(Statement):
@@ -22,6 +33,9 @@ class Text(Statement):
 
     type: StatementType = StatementType.TEXT
     text: str | None = None
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
 
 @node(tracked=["reference"])
@@ -48,6 +62,10 @@ class Reference(Statement, HasTags, IsFlowNode):
             else:
                 self.reference = resolved
 
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.tags, self.triggers):
+            visitor.visit(n)
+
     @property
     def reference_ck(self) -> Optional[UUID]:
         if isinstance(self.reference, Statement):
@@ -65,11 +83,18 @@ class Block(Statement, HasTags):
     type: StatementType = StatementType.BLOCK
     description: str | None = None
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for n in itertools.chain(self.tags):
+            visitor.visit(n)
+
 
 @node(tracked=["description"])
 class Expectation(Statement):  # not clear how this will evolve yet
     type: StatementType = StatementType.EXPECTATION
     description: Optional[str] = None
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
 
 # hard-coded, do not change ever

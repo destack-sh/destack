@@ -14,7 +14,6 @@ from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
 from bench.language import StatementType, wire
-from bench.language.wire import MOT_BY_DATA_CLASS
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
@@ -43,6 +42,7 @@ class ProjectManager(models.Manager["Project"]):
         owner: User | Organization,
         name: str,
         slug: str,
+        id: UUID = None,
         visibility: ProjectVisibility = ProjectVisibility.PRIVATE,
         create_onboarding_files: bool = False,
         create_worker_set: bool = True,
@@ -56,6 +56,7 @@ class ProjectManager(models.Manager["Project"]):
             user = owner
             organization = None
         project = super().create(
+            id=id or uuid4(),
             organization=organization,
             user=user,
             name=name,
@@ -396,7 +397,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
 
         # map all ids to new ids
         for node in packed.nodes.values():
-            source_id = node.id
             if node.id in target_ids != node.ck in target_cks:
                 raise ValueError(f"node id and ck must be both or neither set: {node}")
             if node.id not in target_ids:
@@ -406,7 +406,6 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             node.ck = target_cks[node.ck]
             if not isinstance(node, wire.HasCrud):
                 continue
-            source_revision = node.revision
             if not copy_revisions:
                 node.revision = 0
         for node in packed.nodes.values():  # patch parent ids
@@ -481,22 +480,10 @@ class ProjectVersion(CrudModel, ModuleNode):
     def parent(self) -> Optional["ModuleNode"]:
         return None
 
-    @transaction.atomic
-    def commit(
-        self,
-        name: Optional[str] = None,
-        tag: Optional[str] = None,
-        description: Optional[str] = None,
-    ):
+    def commit(self):
         if self.committed:
             raise ValueError(f"already committed: {self}")
         self.committed_at = utcnow_with_tz()
-        if name is not None:
-            self.name = name
-        if tag is not None:
-            self.tag = tag  # :ProjectVersionTags
-        if description is not None:
-            self.description = description
         self.save()
 
     @model_property(only=["committed_at"])
@@ -746,7 +733,7 @@ def create_per_project_os_index(project: Project):
     """Creates OpenSearch indices for the project."""
     from bench.opensearch.index import create_bench_index
 
-    create_bench_index(project.id)
+    create_bench_index(project.id, upsert=True)
 
 
 def create_default_worker_set(project: Project):

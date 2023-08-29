@@ -1,11 +1,12 @@
 import abc
 import enum
+import itertools
 from typing import Collection, Optional, Self
 
 from bench.language.basic import Expectation
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
-from bench.language.core import Scope, Statement, node
+from bench.language.core import ModuleVisitor, Scope, Statement, node
 from bench.language.dataset import Dataset, Value
 from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.issue import IssueType
@@ -98,6 +99,10 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
                     subject=statement,
                     reason="does not affect outer task",
                 )
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags, self.triggers):
+            visitor.visit(n)
 
     async def __call__(
         self,

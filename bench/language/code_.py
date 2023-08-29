@@ -17,7 +17,15 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.const import StatementType, TypeTag
-from bench.language.core import IssueType, LookupBy, Scope, Statement, StatementPath, node
+from bench.language.core import (
+    IssueType,
+    LookupBy,
+    ModuleVisitor,
+    Scope,
+    Statement,
+    StatementPath,
+    node,
+)
 from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
@@ -99,6 +107,10 @@ class Code(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
             return self.__call_async__(*args, **kwargs)
         else:
             return self.__call_sync__(*args, **kwargs)
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags, self.triggers):
+            visitor.visit(n)
 
     @cached_property
     def cached(self) -> bool:

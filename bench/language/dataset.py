@@ -1,4 +1,5 @@
 import inspect
+import itertools
 import typing
 import uuid
 from dataclasses import field
@@ -14,6 +15,7 @@ from bench.language.core import (
     HasSession,
     Module,
     ModuleNode,
+    ModuleVisitor,
     Scope,
     Session,
     Statement,
@@ -173,6 +175,10 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
 
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags):
+            visitor.visit(n)
+
     def view_by_name(self, name: str) -> DatasetView:
         view = first((view for view in self.views if view.name == name), None)
         if view is None:
@@ -194,7 +200,8 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
             else:
                 raise TypeError(f"cannot append {type(record)} to {self}")
         value = unproxy_value(value)  # remove source proxy if any
-        record = Record(id=uuid.uuid4(), parent=self, value=value)
+        record = Record(parent=self, value=value)
+        self._notify_added(record)
         self.session.tracer.dataset_append(self, record)
 
     def extend(self, records: typing.Iterable[Record | dict]):
@@ -203,7 +210,8 @@ class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
             unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
-        records = [Record(id=uuid.uuid4(), parent=self, value=value) for value in values]
+        records = [Record(parent=self, value=value) for value in values]
+        self._notify_added(*records)
         self.session.tracer.dataset_extend(self, records)
 
     def map(
@@ -445,6 +453,10 @@ class Value(HasType, HasTags, Statement):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags):
+            visitor.visit(n)
 
     def _onread(self, key: str) -> None:
         pass

@@ -566,7 +566,7 @@ class SessionMutation:
     ) -> WakeRuntimePayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_project_access)(info, project_version, ProjectAccessLevel.Use)
+        await sync_to_async(check_project_access)(info, project_version, ProjectAccessLevel.Read)
         await request(
             NMessageType.WAKE_RUNTIME,
             ReqWakeRuntimePayload(module_id=project_version_id),

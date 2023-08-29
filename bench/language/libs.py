@@ -49,7 +49,7 @@ _symbolx_builtins = symbolx_lib.create_file("builtins")
 _symbolx_utils = symbolx_lib.create_file("utils")
 
 
-@x_tag("tool", "A tool in a flow", file=_symbolx_builtins)
+@x_tag("tool", "A tool for a bot", file=_symbolx_builtins)
 class Tool:
     pass
 
@@ -138,7 +138,7 @@ class JsonSchemaElement:
         )
 
 
-PARAM_TYPE_BY_TAG = {
+_PARAM_TYPE_BY_TAG = {
     TypeTag.STRING: JsonSchemaElementType.string,
     TypeTag.NUMBER: JsonSchemaElementType.number,
     TypeTag.BOOLEAN: JsonSchemaElementType.boolean,
@@ -194,7 +194,7 @@ def _type_to_json_schema(
     elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
         return JsonSchemaElement(
             name=type.py_ident,
-            type=PARAM_TYPE_BY_TAG[type.effective_tag],
+            type=_PARAM_TYPE_BY_TAG[type.effective_tag],
             description=type.description,
         )
     else:
@@ -700,7 +700,7 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
     # assign stable versioned ids
     module.index()  # need to index for walk
-    for node in module.walk():
+    for node in module._walk():
         if node.id is not None:
             continue
         node.ck = _derive_constant_key(node.path)

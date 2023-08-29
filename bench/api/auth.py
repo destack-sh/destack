@@ -92,6 +92,8 @@ def has_project_access(
         project = project.project
     else:
         project = project
+    if project is None:
+        raise ValueError("project cannot be None")
 
     possible_accesses = (
         get_user_access(info, project),
@@ -136,6 +138,8 @@ def get_user_access(info: Info, project: models.Project) -> Optional[ProjectAcce
 
 
 def get_sharing_token_access(info: Info, project: models.Project) -> Optional[ProjectAccessInfo]:
+    if not project.sharing_enabled:
+        return None
     sharing_token = get_param_from_info(info, "x-sharing-token")
     if sharing_token is None:
         return None
@@ -299,6 +303,8 @@ class SimplePermissionExtension(FieldExtension, abc.ABC, Generic[_RetvalT]):
     ) -> Any:
         retval = await next_(source, info, **kwargs)
         value = info.root_value if self.target == CheckTarget.ROOT else retval
+        if value is None:
+            return retval  # nothing to check
         try:
             if await self.check_async(info, value) is False:
                 raise PermissionDenied(self.message)
@@ -410,10 +416,10 @@ def HasOrganizationRole(
 def IsUser(
     target: CheckTarget = CheckTarget.RETVAL, map: Optional[Callable[[_OtherT], models.User]] = None
 ):
-    def _check_is_user(info, user):
+    def _check_is_user(info: Info, user: models.User):
         requesting_user = get_user_from_info(info)
         if map is not None:
             user = map(user)
-        return requesting_user.is_staff or info.context.user.id == user.id
+        return requesting_user.is_staff or requesting_user.id == user.id
 
     return SimplePermissionExtension(target=target, check=_check_is_user)

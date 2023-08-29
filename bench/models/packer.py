@@ -21,8 +21,8 @@ from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
 from bench.language.core import ModuleObjectType
 from bench.language.issue import IssueKind, IssueType
-from bench.language.mutate import MMK, ModuleMutation, MutationBundle, diff_modules
-from bench.language.wire import ModuleTree, ModuleTreeData
+from bench.language.mutate import MMK, ModuleMutation, MutationBundle
+from bench.language.wire import ModuleTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
@@ -1180,25 +1180,6 @@ def write_mutations(
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
     write_mutations_to_os(project_v, mut.mutations, wait_for_os)
-
-
-@transaction.atomic(savepoint=False)
-def upsert_module(
-    project_v: models.ProjectVersion,
-    new_module: ModuleTreeData,
-    apply_deletes: bool = False,
-) -> list[ModuleMutation]:
-    """
-    Upserts a module tree into the database.
-    """
-
-    old_module = pack_module(project_v)
-    diff_mutations = diff_modules(old_module, new_module)
-    if not apply_deletes:
-        diff_mutations = [m for m in diff_mutations if m.type.kind != MMK.DELETE]
-
-    write_mutations(project_v, ModuleTree(old_module.nodes), diff_mutations, wait_for_os=True)
-    return diff_mutations
 
 
 @transaction.atomic(savepoint=False)
