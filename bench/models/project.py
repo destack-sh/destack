@@ -13,9 +13,9 @@ from django.db.models import Q
 from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
-from bench.language import StatementType, wire
+from bench.language import wire
 from bench.models.object import get_s3_client
-from bench.models.statement import Statement
+from bench.models.statement import Statement, duplicate_versioned_datasets
 from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
 from bench.settings import LOCAL, PROJECT_BUCKET_NAME
 from bench.utils.dt import utcnow_with_tz
@@ -423,7 +423,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
     ) -> None:
         """Copies the given files from a source version to a target version (by default everything)"""
 
-        from bench.models import Statement, packer
+        from bench.models import packer
 
         # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
@@ -442,13 +442,14 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-        # duplicate versioned datasets
-        versioned_datasets = [
-            n
-            for n in unpacked.nodes.values()
-            if isinstance(n, Statement) and n.type == StatementType.DATASET
-        ]
-        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
+        duplicate_versioned_datasets(
+            source_statements=packed.nodes.values(),
+            source=source,
+            target=target,
+            target_ids=target_ids,
+            target_cks=target_cks,
+            keep_cks=keep_cks,
+        )
 
 
 class ProjectVersion(CrudModel, ModuleNode):
@@ -565,11 +566,11 @@ class FileManager(models.Manager):
         copy_revisions: bool = False,
     ) -> "File":
         """Copies a file from one module to another (may be the same)."""
-        from bench.models import Statement, packer
+        from bench.models import packer
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
-        packed, mappings, target_ids = ProjectVersion.objects.pack_copy(
+        packed, target_ids, target_cks = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=[file],
@@ -584,13 +585,14 @@ class FileManager(models.Manager):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched())
-        # duplicate versioned datasets
-        versioned_datasets = [
-            n
-            for n in unpacked.nodes.values()
-            if isinstance(n, Statement) and n.type == StatementType.DATASET
-        ]
-        Statement.objects.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
+        duplicate_versioned_datasets(
+            source_statements=packed.nodes.values(),
+            source=source,
+            target=target,
+            target_ids=target_ids,
+            target_cks=target_cks,
+            keep_cks=keep_cks,
+        )
 
         target_file = unpacked.nodes[target_id]
         return target_file

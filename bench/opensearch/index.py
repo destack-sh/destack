@@ -7,6 +7,7 @@ import bench.opensearch.core as os
 from bench import language as lang
 from bench import models
 from bench.language import wire
+from bench.language.core import get_node_id
 from bench.language.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.language.mutate import MMK, MMT, MOT, ModuleMutation
 from bench.language.utils import Runnable
@@ -398,29 +399,30 @@ def batch_update_records(
 
 
 def batch_duplicate_records(
+    *,
     source_project_v: models.ProjectVersion,
     target_project_v: models.ProjectVersion,
     new_statement_ids: dict[UUID, UUID],
     new_statement_cks: dict[UUID, UUID],
+    keep_cks: bool,
     batch_size: int = 512,
 ):
     """
-    Duplicates all documents in the given datasets with new target dataset ids.
+    Duplicates all documents in the given datasets with new target statement ids/cks.
+    Copies the AND of matches for statement_ids and statement_cks (if both are given).
     Assigns new records ids on the way.
-    TODO @Performance @Robustness: move batch duplicate to a background job
     """
     index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
 
+    must = [
+        {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
+    ]
+    if new_statement_ids:
+        must.append({"terms": {"statement_id": [str(id) for id in new_statement_ids.keys()]}})
+    if new_statement_cks:
+        must.append({"terms": {"statement_ck": [str(ck) for ck in new_statement_cks.keys()]}})
     query = {
-        # dataset_id must be in new_dataset_ids.keys(), deleted_at must not exist
-        "query": {
-            "bool": {
-                "must": [
-                    {"terms": {"statement_ck": list(new_statement_cks.keys())}},
-                    {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
-                ]
-            }
-        },
+        "query": {"bool": {"must": must}},
     }
     num_total_documents = os_client.count(index=index_name, body=query)["count"]
     if num_total_documents > MAX_VERSIONED_RECORDS_TOTAL:
@@ -458,9 +460,16 @@ def batch_duplicate_records(
         os_operations = []
         for hit in hits:
             document = hit["_source"]
-            document["statement_id"] = str(new_statement_ids[UUID(document["statement_id"])])
-            document["statement_ck"] = str(new_statement_cks[UUID(document["statement_ck"])])
-            os_operations.append({"index": {"_index": index_name, "_id": str(uuid4())}})
+            statement_id = UUID(document["statement_id"])
+            statement_ck = UUID(document["statement_ck"])
+            if statement_id in new_statement_ids:
+                document["statement_id"] = str(new_statement_ids[statement_id])
+            if statement_ck in new_statement_cks:
+                document["statement_ck"] = str(new_statement_cks[statement_ck])
+            if not keep_cks:
+                document["ck"] = str(uuid4())
+            new_id = get_node_id(target_project_v.id, UUID(document["ck"]))
+            os_operations.append({"index": {"_index": index_name, "_id": new_id}})
             os_operations.append(document)
         num_duplicated += len(hits)
 

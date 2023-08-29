@@ -6,10 +6,10 @@ import SnapshotPopover from "@/components/bench/SnapshotPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import type { ProjectVersion } from "@/gql/graphql";
+import { ProjectAccessLevel, type ProjectVersion } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type ProjectHeader } from "@/state/bench";
+import { useBenchState, type ProjectHeader, projectAccessGt } from "@/state/bench";
 import { ProjectVersionHeaderType } from "@/state/fragments";
 import { useNotifications } from "@/state/notifications";
 import { useOperations } from "@/state/operations";
@@ -95,6 +95,10 @@ function isHead(version: { id: string }): boolean {
 const router = useRouter();
 const notifications = useNotifications();
 const ops = useOperations();
+const canEdit = computed(() => projectAccessGt(props.project.accessLevel, ProjectAccessLevel.Edit));
+const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
+const snapshotting = ref(false);
+
 const lastSemVerTag = computed(() => {
   // note that this may fail when we paginate versions (and there are many untagged versions)
   if (versions.value == null) return null;
@@ -104,19 +108,17 @@ const lastSemVerTag = computed(() => {
   }
   return tag;
 });
-const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
-const committing = ref(false);
 
-const commit = provideGlobalAction({
-  id: "version.commit",
+const snapshot = provideGlobalAction({
+  id: "version.snapshot",
   label: "Snapshot...",
   shortcuts: ["ctrl+k", "meta+k"],
   enabled: computed(
     () =>
-      props.project.canWrite &&
+      canEdit.value &&
       bench.projectVersionId != null &&
-      !ops.state.hasInflightLike({ types: ["version.commit"] }) &&
-      !committing.value
+      !ops.state.hasInflightLike({ types: ["version.snapshot"] }) &&
+      !snapshotting.value
   ),
   apply: () => {
     // just open snapshot history view (view must be visible for popover to render)
@@ -125,59 +127,39 @@ const commit = provideGlobalAction({
   },
 });
 
-async function doCommit(c: {
+async function doSnapshot(c: {
   projectVersionId: string;
   name?: string;
   tag?: string;
   description?: string;
   autoDeploy?: boolean;
 }) {
-  committing.value = true;
-  const ret = await ops.version.commit(c);
-  if (ret?.data?.commit.__typename == "CommitPayload") {
+  snapshotting.value = true;
+  const ret = await ops.version.snapshot(c);
+  if (ret?.data?.snapshot.__typename == "SnapshotPayload") {
     notifications.show({
-      type: "commit.success",
+      type: "snapshot.success",
       kind: "success",
       message: `Snapshot created`,
       description: `${c.name ?? "Snapshot"} is safe in the archives.`,
     });
   }
-  committing.value = false;
+  snapshotting.value = false;
 }
 
-// instant commit (aka manual autosave)
+// instant snapshot (aka manual autosave)
 provideGlobalAction({
-  id: "version.commitInstant",
+  id: "version.snapshotInstant",
   label: "Snapshot (auto)",
   shortcuts: ["ctrl+shift+k", "meta+shift+k"],
   enabled: computed(
     () =>
-      props.project.canWrite &&
+      projectAccessGt(props.project.accessLevel, ProjectAccessLevel.Edit) &&
       bench.projectVersionId != null &&
-      !ops.state.hasInflightLike({ types: ["version.commit"] })
+      !ops.state.hasInflightLike({ types: ["version.snapshot"] })
   ),
   apply: async () => {
-    await doCommit({ projectVersionId: bench.projectVersionId as string });
-  },
-});
-
-const restore = provideGlobalAction({
-  id: "version.restore",
-  label: "Restore",
-  shortcuts: [],
-  enabled: computed(() => props.project.canWrite && !isAtHead.value),
-  apply: async () => {
-    ops.state.reset();
-    const ret = await ops.version.restore(bench.projectVersionId as string);
-    if (ret?.data?.restore.__typename == "CommitPayload") {
-      notifications.show({
-        type: "restore.success",
-        kind: "success",
-        message: `Snapshot restored`,
-        description: `The previous working state was autosaved.`,
-      });
-    }
-    router.replace({ hash: router.currentRoute.value.hash }); // clear version query param
+    await doSnapshot({ projectVersionId: bench.projectVersionId as string });
   },
 });
 
@@ -239,7 +221,7 @@ defineExpose({
         <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
       </div>
       <!-- Version controls -->
-      <!-- Note that this commit popover duplicates the one from the main version list -->
+      <!-- Note that this snapshot popover duplicates the one from the main version list -->
       <!-- This is because it's easier to open the right popover in the right place that way -->
       <SnapshotPopover
         v-else-if="head != null && isCurrent(head)"
@@ -247,22 +229,22 @@ defineExpose({
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
         :is-head="true"
-        @commit="(c) => doCommit(c)"
+        @snapshot="(c) => doSnapshot(c)"
         v-slot="{ open }"
       >
         <PopoverButton
           ref="snapshotButtonRef"
-          :disabled="!commit.enabled || committing || loading"
+          :disabled="!snapshot.enabled || snapshotting || loading"
           class="inline-flex flex-row rounded-sm p-0.5 outline-none"
           :class="{
-            'text-gray-300': !commit.enabled && !committing && !loading,
-            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': commit.enabled || committing || loading,
+            'text-gray-300': !snapshot.enabled && !snapshotting && !loading,
+            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': snapshot.enabled || snapshotting || loading,
             'bg-orange-100': open,
-            'animate-spin': committing,
+            'animate-spin': snapshotting,
           }"
         >
           <FadeTransition mode="out-in">
-            <component :is="committing || loading ? BusySpinnerIcon : BookmarkIcon" class="h-4 w-4" />
+            <component :is="snapshotting || loading ? BusySpinnerIcon : BookmarkIcon" class="h-4 w-4" />
           </FadeTransition>
         </PopoverButton>
       </SnapshotPopover>
@@ -312,7 +294,7 @@ defineExpose({
                 :is-head="isHead(version)"
                 as="div"
                 class="flex min-w-0 flex-1 items-baseline justify-between space-x-4"
-                @commit="(c) => doCommit(c)"
+                @snapshot="(c) => doSnapshot(c)"
                 v-slot="{ open }"
               >
                 <!-- Name, tag, description -->
@@ -331,7 +313,7 @@ defineExpose({
                     </router-link>
                     <!-- Edit button -->
                     <PopoverButton
-                      v-if="project.canWrite && versionIdx > 0"
+                      v-if="canEdit && versionIdx > 0"
                       class="p-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 group-hover:visible"
                       :class="open ? 'visible bg-orange-100 text-gray-700' : 'invisible'"
                     >
@@ -343,10 +325,10 @@ defineExpose({
                     class="flex w-fit flex-row gap-0.5 rounded-sm p-0.5 text-xs outline-none"
                     :class="[
                       version.tag == null ? 'text-gray-300 ' : 'text-gray-700',
-                      project.canWrite ? 'hover:bg-orange-100 hover:text-gray-700' : '',
+                      canEdit ? 'hover:bg-orange-100 hover:text-gray-700' : '',
                       open ? 'bg-orange-100' : '',
                     ]"
-                    :disabled="!project.canWrite || versionIdx == 0"
+                    :disabled="!canEdit || versionIdx == 0"
                   >
                     <TagIcon class="h-4 w-4" />
                     <span :class="version.tag == null ? 'invisible group-hover:visible' : ''">

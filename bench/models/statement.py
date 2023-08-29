@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Collection, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -190,23 +190,35 @@ class Tile(CrudModel, ModuleNode):
     children: models.QuerySet[Tile]  # noqa via Tile.parent
 
 
+def duplicate_versioned_datasets(
+    *,
+    source_statements: Collection[Statement],
+    source: ProjectVersion,
+    target: ProjectVersion,
+    target_ids: dict[UUID, UUID],
+    target_cks: dict[UUID, UUID],
+    keep_cks: bool,
+) -> None:
+    """
+    Duplicates the *versioned* datasets amongst the old statements.
+    If we're keeping cks, we only replace the ids. Otherwise, both ids and cks are replaced.
+    """
+    from bench.opensearch.index import batch_duplicate_records
+
+    versioned_datasets = [
+        n for n in source_statements if isinstance(n, Statement) and n.type == StatementType.DATASET
+    ]
+    target_ids = {n.id: target_ids[n.id] for n in versioned_datasets}
+    target_cks = {n.id: target_cks[n.id] for n in versioned_datasets}
+    if keep_cks:
+        target_cks = None
+    batch_duplicate_records(source, target, target_ids, target_cks)
+
+
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
         return super().get_queryset().filter(deleted_at__isnull=True)
-
-    def duplicate_datasets_inplace(
-        self,
-        source: ProjectVersion,
-        target: ProjectVersion,
-        datasets: list[Statement],  # nocheckin: unused datasets??
-        target_ids: dict[UUID, UUID],
-        target_cks: dict[UUID, UUID],
-    ) -> None:
-        """Duplicates the given datasets in-place to the target version"""
-        from bench.opensearch.index import batch_duplicate_records
-
-        batch_duplicate_records(source, target, target_ids, target_cks)
 
     def copy(
         self,
@@ -226,7 +238,7 @@ class StatementManager(models.Manager["Statement"]):
 
         # pack relevant nodes
         target_ids = {**(target_ids or {}), source.id: target.id}
-        packed, mappings, target_ids = ProjectVersion.objects.pack_copy(
+        packed, target_ids, target_cks = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=list(statements),
@@ -255,13 +267,14 @@ class StatementManager(models.Manager["Statement"]):
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
         create_models_bfs(unpacked.walk_bfs_batched())
-        # duplicate versioned datasets
-        versioned_datasets = [
-            n
-            for n in unpacked.nodes.values()
-            if isinstance(n, Statement) and n.type == StatementType.DATASET
-        ]
-        self.duplicate_datasets_inplace(source, target, versioned_datasets, target_ids)
+        duplicate_versioned_datasets(
+            source_statements=packed.nodes.values(),
+            source=source,
+            target=target,
+            target_ids=target_ids,
+            target_cks=target_cks,
+            keep_cks=keep_cks,
+        )
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None

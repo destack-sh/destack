@@ -133,13 +133,6 @@ input ClientUpsertInput {
   path: String
 }
 
-type CommitPayload {
-  project: Project!
-  committedVersion: ProjectVersion!
-}
-
-union CommitPayloadOperationInfo = CommitPayload | OperationInfo
-
 """Date with time (isoformat)"""
 scalar DateTime
 
@@ -522,8 +515,8 @@ type Mutation {
   cancelProjectInvite(id: GlobalID!): ProjectOperationInfo!
   removeProjectMembership(input: ProjectRemoveMembershipInput!): ProjectOperationInfo!
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
-  snapshot(input: SnapshotInput!): CommitPayloadOperationInfo!
-  restore(input: RestoreInput!): CommitPayloadOperationInfo!
+  snapshot(input: SnapshotInput!): SnapshotPayloadOperationInfo!
+  restore(input: RestoreInput!): SnapshotPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   updateStatement(input: StatementUpdateInput!): StatementOperationInfo!
   morphStatement(input: StatementMorphInput!): StatementOperationInfo!
@@ -1531,6 +1524,13 @@ input SnapshotInput {
   tag: String = null
   description: String = null
 }
+
+type SnapshotPayload {
+  project: Project!
+  snapshot: ProjectVersion!
+}
+
+union SnapshotPayloadOperationInfo = SnapshotPayload | OperationInfo
 
 enum SortMode {
   MAX

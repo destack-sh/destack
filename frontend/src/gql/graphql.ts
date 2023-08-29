@@ -157,21 +157,6 @@ export type ClientUpsertInput = {
   type: ClientType;
 };
 
-export type CommitInput = {
-  description?: InputMaybe<Scalars["String"]>;
-  name?: InputMaybe<Scalars["String"]>;
-  projectVersionId: Scalars["GlobalID"];
-  tag?: InputMaybe<Scalars["String"]>;
-};
-
-export type CommitPayload = {
-  __typename?: "CommitPayload";
-  committedVersion: ProjectVersion;
-  project: Project;
-};
-
-export type CommitPayloadOperationInfo = CommitPayload | OperationInfo;
-
 export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
@@ -545,7 +530,6 @@ export type Mutation = {
   cancelOrganizationInvite: OrganizationOperationInfo;
   cancelProjectInvite: ProjectOperationInfo;
   closeClient?: Maybe<ClientOperationInfo>;
-  commit: CommitPayloadOperationInfo;
   completeSignup: UserOperationInfo;
   createAccessToken: AccessTokenCreatePayloadOperationInfo;
   createField: FieldOperationInfo;
@@ -583,7 +567,7 @@ export type Mutation = {
   renameStatement: StatementOperationInfo;
   requestUploadObject: RemoteObjectOperationInfo;
   restartWorkerSet: RestartWorkerSetPayloadOperationInfo;
-  restore: CommitPayloadOperationInfo;
+  restore: SnapshotPayloadOperationInfo;
   restoreField: FieldOperationInfo;
   restoreFile: FileOperationInfo;
   restoreRecord: RecordOperationInfo;
@@ -593,6 +577,7 @@ export type Mutation = {
   revokeAccessToken: AccessTokenOperationInfo;
   run: RunStateOperationInfo;
   secretRootLogin: UserOperationInfo;
+  snapshot: SnapshotPayloadOperationInfo;
   softDeleteField: FieldOperationInfo;
   softDeleteFile: FileOperationInfo;
   softDeleteRecord: RecordOperationInfo;
@@ -665,10 +650,6 @@ export type MutationCancelOrganizationInviteArgs = {
 
 export type MutationCancelProjectInviteArgs = {
   id: Scalars["GlobalID"];
-};
-
-export type MutationCommitArgs = {
-  input: CommitInput;
 };
 
 export type MutationCompleteSignupArgs = {
@@ -853,6 +834,10 @@ export type MutationRunArgs = {
 
 export type MutationSecretRootLoginArgs = {
   username: Scalars["String"];
+};
+
+export type MutationSnapshotArgs = {
+  input: SnapshotInput;
 };
 
 export type MutationSoftDeleteFieldArgs = {
@@ -1660,7 +1645,6 @@ export type Record = HasCrud & {
   ck: Scalars["UUID"];
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
-  datasetId: Scalars["String"];
   deletedAt?: Maybe<Scalars["DateTime"]>;
   id: Scalars["GlobalID"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
@@ -1977,6 +1961,21 @@ export type SessionState = {
 };
 
 export type SessionStateOperationInfo = OperationInfo | SessionState;
+
+export type SnapshotInput = {
+  description?: InputMaybe<Scalars["String"]>;
+  name?: InputMaybe<Scalars["String"]>;
+  projectVersionId: Scalars["GlobalID"];
+  tag?: InputMaybe<Scalars["String"]>;
+};
+
+export type SnapshotPayload = {
+  __typename?: "SnapshotPayload";
+  project: Project;
+  snapshot: ProjectVersion;
+};
+
+export type SnapshotPayloadOperationInfo = OperationInfo | SnapshotPayload;
 
 export enum SortMode {
   Average = "AVERAGE",
@@ -5205,55 +5204,31 @@ export type UpdateVersionMutation = {
       });
 };
 
-export type CommitMutationVariables = Exact<{
+export type SnapshotMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<Scalars["String"]>;
   description?: InputMaybe<Scalars["String"]>;
 }>;
 
-export type CommitMutation = {
+export type SnapshotMutation = {
   __typename?: "Mutation";
-  commit:
+  snapshot:
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
     | {
-        __typename?: "CommitPayload";
+        __typename?: "SnapshotPayload";
         project: {
           __typename?: "Project";
           head: { __typename?: "ProjectVersion" } & {
             " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
           };
         } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
-        committedVersion: { __typename?: "ProjectVersion" } & {
+        snapshot: { __typename?: "ProjectVersion" } & {
           " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
         };
-      }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
-};
-
-export type RestoreMutationVariables = Exact<{
-  projectVersionId: Scalars["GlobalID"];
-}>;
-
-export type RestoreMutation = {
-  __typename?: "Mutation";
-  restore:
-    | {
-        __typename?: "CommitPayload";
-        project: {
-          __typename?: "Project";
-          head: { __typename?: "ProjectVersion" } & {
-            " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-          };
-        } & { " $fragmentRefs"?: { ProjectHeaderFragment: ProjectHeaderFragment } };
-        committedVersion: { __typename?: "ProjectVersion" } & {
-          " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
-        };
-      }
-    | ({ __typename?: "OperationInfo" } & {
-        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
-      });
+      };
 };
 
 export type RevealSecretQueryVariables = Exact<{
@@ -15813,13 +15788,13 @@ export const UpdateVersionDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<UpdateVersionMutation, UpdateVersionMutationVariables>;
-export const CommitDocument = {
+export const SnapshotDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "mutation",
-      name: { kind: "Name", value: "commit" },
+      name: { kind: "Name", value: "snapshot" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -15847,7 +15822,7 @@ export const CommitDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "commit" },
+            name: { kind: "Name", value: "snapshot" },
             arguments: [
               {
                 kind: "Argument",
@@ -15884,7 +15859,7 @@ export const CommitDocument = {
               selections: [
                 {
                   kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CommitPayload" } },
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "SnapshotPayload" } },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
@@ -15910,7 +15885,7 @@ export const CommitDocument = {
                       },
                       {
                         kind: "Field",
-                        name: { kind: "Name", value: "committedVersion" },
+                        name: { kind: "Name", value: "snapshot" },
                         selectionSet: {
                           kind: "SelectionSet",
                           selections: [
@@ -15932,97 +15907,7 @@ export const CommitDocument = {
     ...ProjectVersionHeaderFragmentDoc.definitions,
     ...OperationInfoContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<CommitMutation, CommitMutationVariables>;
-export const RestoreDocument = {
-  kind: "Document",
-  definitions: [
-    {
-      kind: "OperationDefinition",
-      operation: "mutation",
-      name: { kind: "Name", value: "restore" },
-      variableDefinitions: [
-        {
-          kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
-        },
-      ],
-      selectionSet: {
-        kind: "SelectionSet",
-        selections: [
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "restore" },
-            arguments: [
-              {
-                kind: "Argument",
-                name: { kind: "Name", value: "input" },
-                value: {
-                  kind: "ObjectValue",
-                  fields: [
-                    {
-                      kind: "ObjectField",
-                      name: { kind: "Name", value: "projectVersionId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "projectVersionId" } },
-                    },
-                  ],
-                },
-              },
-            ],
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "CommitPayload" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "project" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectHeader" } },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "head" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [
-                                  { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
-                                ],
-                              },
-                            },
-                          ],
-                        },
-                      },
-                      {
-                        kind: "Field",
-                        name: { kind: "Name", value: "committedVersion" },
-                        selectionSet: {
-                          kind: "SelectionSet",
-                          selections: [
-                            { kind: "FragmentSpread", name: { kind: "Name", value: "ProjectVersionHeader" } },
-                          ],
-                        },
-                      },
-                    ],
-                  },
-                },
-                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
-              ],
-            },
-          },
-        ],
-      },
-    },
-    ...ProjectHeaderFragmentDoc.definitions,
-    ...ProjectVersionHeaderFragmentDoc.definitions,
-    ...OperationInfoContentFragmentDoc.definitions,
-  ],
-} as unknown as DocumentNode<RestoreMutation, RestoreMutationVariables>;
+} as unknown as DocumentNode<SnapshotMutation, SnapshotMutationVariables>;
 export const RevealSecretDocument = {
   kind: "Document",
   definitions: [

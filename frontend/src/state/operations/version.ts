@@ -27,18 +27,18 @@ export function useProjectVersionOps() {
     });
   }
 
-  const { mutate: commitMut } = useMutation(
+  const { mutate: snapshotMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation commit($projectVersionId: GlobalID!, $name: String, $tag: String, $description: String) {
-        commit(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {
-          ... on CommitPayload {
+      mutation snapshot($projectVersionId: GlobalID!, $name: String, $tag: String, $description: String) {
+        snapshot(input: { projectVersionId: $projectVersionId, name: $name, tag: $tag, description: $description }) {
+          ... on SnapshotPayload {
             project {
               ...ProjectHeader
               head {
                 ...ProjectVersionHeader
               }
             }
-            committedVersion {
+            snapshot {
               ...ProjectVersionHeader
             }
           }
@@ -49,46 +49,19 @@ export function useProjectVersionOps() {
     { refetchQueries: ["projectVersions", "projectBySlug"] }
   );
 
-  async function commit(c: { projectVersionId: string; name?: string; tag?: string; description?: string }) {
+  async function snapshot(c: { projectVersionId: string; name?: string; tag?: string; description?: string }) {
     return await operations.perform({
-      type: "version.commit",
+      type: "version.snapshot",
       stateless: true,
       do: async () => {
-        return await commitMut(c);
+        return await snapshotMut(c);
       },
     });
   }
-
-  const { mutate: restoreMut } = useMutation(
-    graphql(/* GraphQL */ `
-      mutation restore($projectVersionId: GlobalID!) {
-        restore(input: { projectVersionId: $projectVersionId }) {
-          ... on CommitPayload {
-            project {
-              ...ProjectHeader
-              head {
-                ...ProjectVersionHeader
-              }
-            }
-            committedVersion {
-              ...ProjectVersionHeader
-            }
-          }
-          ...OperationInfoContent
-        }
-      }
-    `)
-  );
 
   async function restore(projectVersionId: string) {
-    return await operations.perform({
-      type: "version.restore",
-      stateless: true,
-      do: async () => {
-        return await restoreMut({ projectVersionId });
-      },
-    });
+    throw new Error("not implemented");
   }
 
-  return { update, commit, restore };
+  return { update, snapshot, restore };
 }
