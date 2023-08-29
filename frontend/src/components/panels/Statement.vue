@@ -83,7 +83,7 @@ function toggleContentFold(descendants?: boolean) {
   if (props.standalone) return;
   if (descendants) {
     (panel.panel.value as EditFilePanel).setStatementContentsFolded(
-      module.getDescendantsOf(statement.value),
+      module.getDescendantsOf(statement.value.id),
       !isContentFolded.value
     );
   } else {
@@ -299,7 +299,7 @@ const context = {
   depth: toRef(props, "depth"),
   xOffset: contentOffsetX,
   statement,
-  reference: computed(() => module.statementOf(statement.value.reference?.id) ?? null),
+  reference: computed(() => module.statementOf(statement.value.referenceCk) ?? null),
   file,
   bounding: containerBounding,
   destroyed,
@@ -591,7 +591,7 @@ defineExpose({
         <button
           class="flex rounded-sm p-0.5 font-bold text-red-600 underline-offset-4 transition duration-75 hover:bg-orange-100"
           :class="[hasIssues ? 'opacity-100' : 'opacity-0']"
-          @click="actions.apply('bench.view.openIssues')"
+          @click="bench.openActiveView('issues')"
         >
           <XCircleIcon v-if="hasErrors" class="h-5 w-5 text-red-600" />
           <ExclamationTriangleIcon v-else class="h-5 w-5 text-yellow-600" />

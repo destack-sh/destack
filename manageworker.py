@@ -7,18 +7,19 @@ from uuid import UUID
 import dotenv
 import structlog
 
-from bench.msg.core import init_nats, process_soon_queue
-from bench.utils.analytics import init_sentry
-from bench.utils.cache import test_redis_connection
-from bench.utils.logging import configure_logging
-from bench.utils.monitoring import restart_on_file_changes
-from bench.utils.utils import DEBUG, LOCAL
-from bench.worker import WorkerNode
-from bench.worker.host import WorkerHost
+os.environ["VERSION"] = Path("version").read_text().strip()  # must come first
+
+from bench.msg.core import init_nats, process_soon_queue  # noqa: E402
+from bench.utils.analytics import init_sentry  # noqa: E402
+from bench.utils.cache import test_redis_connection  # noqa: E402
+from bench.utils.logging import configure_logging  # noqa: E402
+from bench.utils.monitoring import restart_on_file_changes  # noqa: E402
+from bench.utils.utils import DEBUG, LOCAL  # noqa: E402
+from bench.worker import WorkerNode  # noqa: E402
+from bench.worker.host import WorkerHost  # noqa: E402
 
 logger = structlog.get_logger(__name__)
 
-os.environ["VERSION"] = Path("version").read_text().strip()
 dotenv.load_dotenv(verbose=True)
 configure_logging(apply_logging=True, apply_structlog=True)
 

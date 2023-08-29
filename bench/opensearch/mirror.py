@@ -271,6 +271,7 @@ class ProjectVersionPacker(CrudThingPacker, Packer[models.ProjectVersion, Projec
 
 @document(DocumentType.FILE)
 class File(CrudThing, Revisioned, os.Document):
+    ck: UUID = os.field(os.FT.KEYWORD)
     project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     name: str = NAME_FIELD
@@ -282,6 +283,7 @@ class FilePacker(CrudThingPacker, Packer[models.File, File, wire.FileData]):
         crud = super().mirror(project_v, node)
         return File(
             **crud.__dict__,
+            ck=node.ck,
             project_version_id=project_v.id,
             project_id=project_v.project_id,
             name=node.name,
@@ -290,6 +292,7 @@ class FilePacker(CrudThingPacker, Packer[models.File, File, wire.FileData]):
 
 @document(DocumentType.STATEMENT)
 class Statement(CrudThing, Revisioned, os.Document):
+    ck: UUID = os.field(os.FT.KEYWORD)
     project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     file_id: UUID = os.field(os.FT.KEYWORD)
@@ -307,6 +310,7 @@ class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.
         crud = super().mirror(project_v, node)
         return Statement(
             **crud.__dict__,
+            ck=node.ck,
             project_version_id=node.project_version_id,
             project_id=project_v.project_id,
             file_id=node.file_id,
@@ -320,6 +324,7 @@ class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.
 
 @document(DocumentType.FIELD)
 class Field(CrudThing, Revisioned, os.Document):
+    ck: UUID = os.field(os.FT.KEYWORD)
     project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
@@ -334,6 +339,7 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
         crud = super().mirror(project_v, node)
         return Field(
             **crud.__dict__,
+            ck=node.ck,
             project_version_id=node.statement.project_version_id,
             project_id=project_v.project_id,
             statement_id=node.statement_id,
@@ -345,6 +351,7 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
 
 @document(DocumentType.TILE)
 class Tile(CrudThing, Revisioned, os.Document):
+    ck: UUID = os.field(os.FT.KEYWORD)
     project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
@@ -354,6 +361,7 @@ class Tile(CrudThing, Revisioned, os.Document):
 
 @document(DocumentType.RECORD)
 class Record(CrudThing, os.Document):
+    ck: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     statement_ck: UUID = os.field(os.FT.KEYWORD)
@@ -372,6 +380,7 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
     def pack(self, node: Record) -> wire.RecordData:
         return wire.RecordData(
             id=node.id,
+            ck=node.ck,
             parent_id=node.statement_id,
             order_key=node.order_key,
             value=node.value,
@@ -387,6 +396,7 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
     ) -> Record:
         return Record(
             id=data.id,
+            ck=data.ck,
             project_version_id=project_v.id,
             statement_id=data.parent_id,
             statement_ck=parent.ck,

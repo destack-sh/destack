@@ -37,7 +37,6 @@ from bench.utils.dt import utcnow_with_tz
 class Record(HasCrud, Revisioned):
     id: GlobalID
     ck: UUID
-    dataset_id: str
     order_key: Optional[str]
     value: JSON
 
@@ -45,6 +44,7 @@ class Record(HasCrud, Revisioned):
     def from_os(record: mirror.Record) -> "Record":
         return Record(
             id=to_global_id("Record", record.id),
+            ck=record.ck,
             order_key=record.order_key,
             value=record.value,
             revision=record.revision,

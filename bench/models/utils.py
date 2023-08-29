@@ -42,11 +42,11 @@ class ModuleNode(models.Model):
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
-        raise NotImplementedError
+        raise NotImplementedError(f"{self} does not implement parent_id")
 
     @property
     def parent(self) -> Optional["ModuleNode"]:
-        raise NotImplementedError
+        raise NotImplementedError(f"{self} does not implement parent")
 
     @property
     def versioned(self) -> bool:

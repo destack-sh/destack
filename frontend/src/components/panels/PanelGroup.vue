@@ -80,15 +80,15 @@ async function createFileInPanelGroup() {
       (happens if there are multiple active editor groups)  -->
       <TabList
         ref="tabListRef"
-        class="scroll-hidden flex w-full max-w-full flex-shrink-0 overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
+        class="scroll-hidden flex w-full max-w-full flex-shrink-0 divide-x divide-orange-900 divide-opacity-[12%] overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
         v-show="bench.showPanelTabs"
       >
         <!-- Editor tab -->
         <Tab as="template" v-for="(p, i) in group.panels" :key="p.id" v-slot="{ selected }">
           <button
-            class="group flex max-w-[20rem] flex-shrink-0 select-none flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap border-r py-1 pl-2 pr-1 outline-none"
+            class="group relative flex max-w-[20rem] flex-shrink-0 select-none flex-row items-center gap-0.5 truncate text-ellipsis whitespace-nowrap py-[5px] pl-2 pr-1 outline-none"
             :class="{
-              'border-orange-900 border-opacity-[12%] bg-white text-gray-500 hover:text-orange-600': !selected,
+              'bg-white text-gray-500 hover:text-orange-600': !selected,
               'bg-orange-100 text-orange-600': selected,
             }"
             @click.middle.prevent="bench.closePanel(p)"
@@ -110,18 +110,17 @@ async function createFileInPanelGroup() {
             >
               x
             </button>
+            <!-- 'border' on bottom if tab is focused and active -->
+            <div v-if="bench.focusedPanelId == p.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600" />
           </button>
         </Tab>
         <!-- Little button tab to create new file -->
         <button
           v-if="actions.file.create.value.enabled"
-          class="group mx-0.5 px-2 py-1 outline-none ring-0"
+          class="group px-2 py-1 outline-none ring-0 hover:bg-orange-100"
           @click="createFileInPanelGroup"
         >
-          <PlusIcon
-            class="h-4 w-4 text-gray-400 group-hover:bg-orange-100 group-hover:text-gray-700"
-            aria-hidden="true"
-          />
+          <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
         </button>
       </TabList>
       <!-- Tab context menu -->

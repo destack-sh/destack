@@ -328,12 +328,12 @@ defineExpose({
       <div
         v-if="editing"
         ref="editablePopoverRef"
-        class="z-50 flex w-64 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
         :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
         @keydown.escape.exact.prevent.stop="close()"
       >
         <!-- Name & type -->
-        <div class="flex max-w-full flex-row items-center justify-between gap-2">
+        <div class="relative flex max-w-full flex-row items-center justify-between gap-2">
           <!-- Name -->
           <EditableSpan
             ref="nameRef"
@@ -345,6 +345,10 @@ defineExpose({
             @navigate-down="descriptionRef?.focus()"
             @enter="close(false), emit('enter')"
           />
+          <!-- Name placeholder -->
+          <span v-if="!value.name" class="absolute left-[5px] top-[5px] text-gray-400" @click="nameRef?.focus"
+            >{{ tupleName }} name</span
+          >
           <!-- Type popover -->
           <FadeTransition>
             <div v-if="!isEnum" class="relative">
@@ -366,7 +370,7 @@ defineExpose({
               <div
                 v-if="editingType"
                 ref="typeEditablePopoverRef"
-                class="z-10 flex w-72 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+                class="z-10 flex w-80 flex-col gap-2 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
                 :class="typePopoverPin.pinned.value ? '' : 'absolute -left-1 -top-10'"
               >
                 <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="editingType = false" />
@@ -411,7 +415,9 @@ defineExpose({
             @enter="close(false), emit('enter')"
           />
           <!-- Description placeholder -->
-          <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus">Add description</span>
+          <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus"
+            >Add {{ tupleName }} description</span
+          >
         </span>
         <!-- Actions -->
         <div class="mt-0.5 flex flex-col" v-if="actions.length > 0">

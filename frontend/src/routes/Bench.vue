@@ -611,9 +611,10 @@ onBeforeUnmount(() => {
           </component>
         </div>
         <!-- View content -->
+        <!-- note: border-r is 3% less opacity because it looks darker (optical illusion) -->
         <div
           ref="viewContainerRef"
-          class="relative h-full max-h-full max-w-full flex-1 border-r border-orange-900 border-opacity-[12%]"
+          class="relative h-full max-h-full max-w-full flex-1 border-r border-orange-900 border-opacity-[9%]"
           v-show="bench.showViewContent"
         >
           <component

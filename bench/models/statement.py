@@ -122,6 +122,10 @@ class Trigger(CrudModel, ModuleNode, Revisioned):
     def parent_id(self) -> Optional[uuid.UUID]:
         return self.statement_id
 
+    @property
+    def parent(self) -> Statement:
+        return self.statement
+
     def soft_delete(self):
         self.deleted_at = utcnow_with_tz()
 
@@ -148,6 +152,10 @@ class Tagging(CrudModel, ModuleNode, Revisioned):
     @property
     def parent_id(self):
         return self.statement_id
+
+    @property
+    def parent(self):
+        return self.statement
 
     def soft_delete(self):
         self.deleted_at = utcnow_with_tz()

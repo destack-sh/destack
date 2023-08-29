@@ -8,7 +8,7 @@ import { ref } from "vue";
 defineProps<{ title: string }>();
 
 const emit = defineEmits<{
-  (e: "select", type: Pick<Field, "tag" | "hint" | "flags" | "reference" | "metadata">): void;
+  (e: "select", type: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">): void;
 }>();
 
 const open = ref(false);
@@ -40,7 +40,7 @@ defineExpose({
       v-if="open"
       @keydown.escape="hide()"
       ref="popoverRef"
-      class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="z-50 flex w-80 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="popoverPin.pinned.value ? '' : 'absolute top-8'"
     >
       <h5 class="px-1 text-left text-xs font-semibold text-gray-500">{{ title }}</h5>

@@ -46,13 +46,13 @@ function focusIssue(issue: IssueContentFragment) {
         <span class="flex max-w-full flex-row items-baseline gap-x-1.5 gap-y-0.5 px-3">
           <!-- Name -->
           <span class="flex-shrink-0 truncate">
-            {{ (issue.parent == null ? null : module.nodeOf(issue.parent))?.name ?? "???" }}
+            {{ (issue.parent == null ? null : module.nodeOf(issue.parent.id))?.name ?? "???" }}
           </span>
           <!-- Location -->
           <span class="truncate text-xs text-gray-500" v-if="issue.parent != null">
             {{
               module
-                .nodePathOf(issue.parent)
+                .nodePathOf(issue.parent.id)
                 ?.slice(0, -1)
                 ?.map((e) => e.name)
                 .join(".")

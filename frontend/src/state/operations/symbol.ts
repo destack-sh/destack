@@ -1455,6 +1455,7 @@ export function useSymbolContentOps() {
     trigger: Pick<
       Trigger,
       | "id"
+      | "ck"
       | "type"
       | "active"
       | "mapping"
@@ -1472,7 +1473,7 @@ export function useSymbolContentOps() {
       do: async () => {
         return await createTriggerMut({
           id: trigger.id,
-          ck: trigger.id,
+          ck: trigger.ck,
           statementId: statementId,
           type: trigger.type,
           active: trigger.active,

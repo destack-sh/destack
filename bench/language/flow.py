@@ -30,6 +30,7 @@ class Trigger(ModuleNode, HasCrud, HasSession):
     """A trigger for a runnable, possibly inside a flow."""
 
     type: TriggerType = required_field()
+    parent: Statement | None = None
     active: bool = True
     mapping: Optional[Mapping] = None
     schedule_type: Optional[ScheduleType] = None

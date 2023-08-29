@@ -1531,6 +1531,7 @@ class RunData:
     project_id: UUID
     module_id: UUID
     runnable_id: UUID
+    runnable_ck: UUID
     runnable_type: StatementType
     session_id: Optional[UUID]
     trigger_type: TriggerType
@@ -1576,6 +1577,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             worker_node_id=object.session.ctx.worker_node_id,
             worker_process_id=object.session.ctx.worker_process_id,
             runnable_id=object.runnable.id,
+            runnable_ck=object.runnable.ck,
             runnable_type=object.runnable.type,
             session_id=object.session.id,
             trigger_id=trigger_id,
@@ -1596,7 +1598,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
 
     def unpack(self, data: RunData, module: Module) -> lang.Run:
         # we leave relational references that aren't in the module as None?
-        runnable = module._statements_by_id.get(data.runnable_id) or MissingStatement(
+        runnable = module._statements_by_ck.get(data.runnable_ck) or MissingStatement(
             data.runnable_id, data.runnable_type
         )
         if data.error:
