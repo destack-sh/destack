@@ -77,7 +77,7 @@ type Command = {
   action: () => void;
 };
 
-function singleStatementCommand(
+function simpleStatementCommand(
   group: Group,
   type: StatementType,
   options?: { rootTypeTag?: TypeTag; icon?: any; label?: string; description?: string; aliases?: string[] }
@@ -109,22 +109,22 @@ const commands = computed(() => {
       description: "Just type for a markdown comment",
       action: morphToText,
     },
-    singleStatementCommand(GROUPS.BASIC, StatementType.Type, {
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
       rootTypeTag: TypeTag.Struct,
       aliases: ["type", "struct"],
     }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum, aliases: ["type", "enum"] }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Code),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
-    singleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum, aliases: ["type", "enum"] }),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
 
     // advanced statements
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow),
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Block),
-    singleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
+    // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Block),
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
   ];
 
   return commands;

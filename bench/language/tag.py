@@ -123,7 +123,6 @@ class Tag(HasType, HasTags, Statement):
 
     name: str = None
     description: str = None
-    key: str = field(default_factory=new_tag_key)
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT
 

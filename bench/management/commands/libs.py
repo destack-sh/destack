@@ -1,3 +1,5 @@
+import os
+
 import structlog
 from django.core.management import BaseCommand
 from django.core.management.base import CommandParser
@@ -5,7 +7,6 @@ from django.db import transaction
 
 from bench import models
 from bench.language import wire
-from bench.language.builtin import BUILTIN_LIB_VERSION_TAG
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import diff_modules
 from bench.models import packer
@@ -34,7 +35,7 @@ class Command(BaseCommand):
 
         if action == "upsert":
             for module in modules:
-                _upsert_module(module, BUILTIN_LIB_VERSION_TAG)
+                _upsert_module(module, os.environ["VERSION"])
         else:
             raise ValueError(f"unknown action: {action}")
 
@@ -71,6 +72,7 @@ def _upsert_module(module_name: str, version: str):
             id=module.id, project=project, name=version, tag=version
         )
         project.head = project_v
+        project.save()
     except models.Project.DoesNotExist:
         owner = models.OwnerSlug.objects.get(slug=owner).owner
         project = models.Project.objects.create_project(

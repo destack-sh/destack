@@ -17,7 +17,13 @@ from bench.language.basic import Expectation
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
-from bench.language.core import LookupBy, Module, Statement, parse_absolute_statement_reference
+from bench.language.core import (
+    LookupBy,
+    Module,
+    Statement,
+    get_node_id,
+    parse_absolute_statement_reference,
+)
 from bench.language.model import Model
 from bench.language.reflect import (
     _derive_constant_key,
@@ -38,7 +44,16 @@ from bench.language.task import (
     TaskErrorType,
     TaskRunner,
 )
-from bench.language.type import Key, TypeBase, Vector, check_type, map_value, strip_value_flat
+from bench.language.type import (
+    Field,
+    Key,
+    TypeBase,
+    Vector,
+    check_type,
+    map_value,
+    new_field_key,
+    strip_value_flat,
+)
 from bench.utils.utils import UnreachableError, omit_empty
 
 #
@@ -695,18 +710,20 @@ DEFAULT_MODULES: dict[str, Module] = {
     "anthropic.lib": anthropic_lib,
 }
 
-# interp/index them
+# assign reproducible ids, and interp/index them
 for name, module in DEFAULT_MODULES.items():
     assert module.name == name
-    # assign stable versioned ids
+
+    # assign stable cks / versioned ids
     module.index()  # need to index for walk
     for node in module._walk():
-        if node.id is not None:
-            continue
         node.ck = _derive_constant_key(node.path)
-        node._assign_id(module.id)
+        node.id = get_node_id(node.ck, module.id)
+        if isinstance(node, Field):
+            node.key = new_field_key(node.ck)
     module.clear()  # ids changed
 
+    # index
     module.index()
     module.interp()
     if module.issues:

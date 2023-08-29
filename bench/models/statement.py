@@ -12,8 +12,6 @@ from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
-from bench.language.tag import new_tag_key
-from bench.language.type import new_field_key
 from bench.models.utils import (
     NAME_VALIDATOR,
     CrudModel,
@@ -47,7 +45,7 @@ class Field(CrudModel, ModuleNode, Revisioned):
     name = models.CharField(
         max_length=MAX_NAME_LENGTH, null=True, blank=True, validators=[NAME_VALIDATOR]
     )
-    key = models.CharField(max_length=48, default=new_field_key)
+    key = models.CharField(max_length=48)
     order_key = models.CharField(max_length=MAX_NAME_LENGTH)
     tag = models.CharField(max_length=20, choices=get_choices(TypeTag))
     hint = models.CharField(max_length=20, choices=get_choices(TypeHint), null=True, blank=True)
@@ -143,7 +141,7 @@ class Tagging(CrudModel, ModuleNode, Revisioned):
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
-    key = models.CharField(max_length=48, default=new_tag_key)
+    key = models.CharField(max_length=48)
     reference_ck = models.UUIDField(null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True)
 

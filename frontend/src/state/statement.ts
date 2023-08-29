@@ -384,11 +384,12 @@ export function useStatementContext() {
     // "name" => "name 2", "name 2" => "name 3", etc.
     const newName =
       field.name?.search(/\d+$/) != -1 ? field.name?.replace(/\d+$/, (n) => String(Number(n) + 1)) : field.name + " 2";
+    const identity = newNodeIdentity(module.id.value, "Field");
     const newFieldNode = {
       ...field,
-      ...newNodeIdentity(module.id.value, "Field"),
+      ...identity,
       name: newName,
-      key: newFieldKey(),
+      key: newFieldKey(identity.ck),
       orderKey,
       referenceCk: field.referenceCk ?? null,
     };
@@ -496,7 +497,7 @@ function makeFieldInput(id: string, field: Field): FieldCreateInput {
     ck: field.ck,
     tag: field.tag,
     hint: field.hint ?? null,
-    key: newFieldKey(),
+    key: newFieldKey(field.ck),
     orderKey: field.orderKey,
     referenceCk: field.referenceCk ?? null,
     description: field.description ?? null,
@@ -575,7 +576,7 @@ export function makeField(data: {
     name: data.name ?? null,
     tag: data.tag,
     hint: data.hint ?? null,
-    key: data.key ?? newFieldKey(),
+    key: data.key ?? newFieldKey(data.ck ?? identity.ck),
     orderKey: data.orderKey ?? INTEGER_ZERO,
     referenceCk: data.referenceCk ?? null,
     flags: data.flags ?? 0,

@@ -9,14 +9,10 @@ from bench.language.core import Module
 # (libs requires more imports than just the basics)
 #
 
-_BUILTIN_LIB_VERSION = 2
-_BUILTIN_LIB_VERSION_KEY = uuid5(BENCH_UUID_NAMESPACE, f"bench_builtin_v:{_BUILTIN_LIB_VERSION}")
-BUILTIN_LIB_VERSION_TAG = os.environ["VERSION"]
-
 
 def _make_lib_module(name: str) -> Module:
     ck = uuid5(BENCH_UUID_NAMESPACE, f"builtin:{name}")
-    id = uuid5(ck, str(_BUILTIN_LIB_VERSION_KEY))
+    id = uuid5(ck, os.environ["VERSION"])
     return Module(name=name, ck=ck, id=id)
 
 
