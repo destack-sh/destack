@@ -215,14 +215,12 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
 
   // TODO @Performance: cache default libs (and any other static module dependencies)
+  // load default libraries, derive their ids deterministically from their names and current version :BuiltinLibs
   const defaultLibs: GRecord<string, Ref<ModuleIndex | null>> = {};
   for (const name of DEFAULT_LIBRARIES) {
-    // nocheckin: these are broken
-    // :BuiltinLibs
     const ck = uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
     const id = uuidv5(VERSION, ck);
     const gid = btoa(`ProjectVersion:${id}`);
-    console.log(name, VERSION, ck, id, gid); // nocheckin
     defaultLibs[gid] = _useModuleFlat(ref(gid)).idx;
   }
 

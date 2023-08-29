@@ -321,9 +321,9 @@ class RestoreInput:
 
 
 @strawberry.type
-class CommitPayload:
+class SnapshotPayload:
     project: Project
-    committed_version: ProjectVersion
+    snapshot: ProjectVersion
 
 
 @strawberry.type
@@ -341,7 +341,7 @@ class ProjectVersionMutation:
         return project_v
 
     @safe_mutation(atomic=True)
-    def snapshot(self, info, input: SnapshotInput) -> CommitPayload | OperationInfo:
+    def snapshot(self, info, input: SnapshotInput) -> SnapshotPayload | OperationInfo:
         head = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
@@ -367,9 +367,9 @@ class ProjectVersionMutation:
             NMessageType.PROJECT_CHANGED,
             ProjectChangedPayload(project_id=project.id, origins=[origin]),
         )
-        return CommitPayload(project=project, committed_version=snapshot)
+        return SnapshotPayload(project=project, snapshot=snapshot)
 
     @safe_mutation(atomic=True)
-    def restore(self, info: Info, input: RestoreInput) -> CommitPayload | OperationInfo:
+    def restore(self, info: Info, input: RestoreInput) -> SnapshotPayload | OperationInfo:
         # TODO @Broken: update restore to keep current ids properly (use module node identity?)
         raise NotImplementedError("restore is temporarily disabled")

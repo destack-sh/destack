@@ -316,7 +316,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
       message: "Saving is automatic",
       description: "Changes are automatically synchronized.",
       actionText: "Snapshot",
-      action: () => actions.apply("version.commit"),
+      action: () => actions.apply("version.snapshot"),
     },
     { lastActiveMs: 60000 }
   );

@@ -9,6 +9,7 @@ import {
   type Scalars,
   type Statement,
   type SearchSort,
+  ProjectAccessLevel,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -42,6 +43,19 @@ import {
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref } from "vue";
+
+export const PROJECT_ACCESS_LEVELS = [
+  ProjectAccessLevel.Zero,
+  ProjectAccessLevel.Read,
+  ProjectAccessLevel.Use,
+  ProjectAccessLevel.Edit,
+  ProjectAccessLevel.Manage,
+  ProjectAccessLevel.Admin,
+];
+
+export function projectAccessGt(a: ProjectAccessLevel, b: ProjectAccessLevel): boolean {
+  return PROJECT_ACCESS_LEVELS.indexOf(a) > PROJECT_ACCESS_LEVELS.indexOf(b);
+}
 
 export type ProjectHeader = Pick<
   Project,

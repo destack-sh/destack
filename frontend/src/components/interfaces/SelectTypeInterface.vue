@@ -117,7 +117,7 @@ const filteredTypes = computed(() => {
       if (t.alias != null) {
         return `${renderField(t)} ${t.alias.join(" ")}}`;
       }
-      return renderField(t);
+      return renderField(t) ?? "";
     }),
     query.value
   );
@@ -225,11 +225,11 @@ function toggleFlag(flag: TypeFlag) {
   emit("update:modelValue", value.value);
 }
 
-function renderField(node: Field): string {
+function renderField(node: Field): string | undefined | null {
   const builtin = renderBuiltinType(node.tag, node.hint ?? null);
   if (builtin != null) return builtin;
   if (node.tag == TypeTag.TypeReference || node.referenceCk != null) {
-    return module.statementOf(node.referenceCk)?.name ?? "???";
+    return module.statementOf(node.referenceCk)?.name;
   }
   throw new Error(`unexpected type node: ${JSON.stringify(node)}`);
 }
@@ -296,7 +296,7 @@ defineExpose({
         'text-md placeholder:text-md': !appearance.textSmall,
       }"
       @change="query = $event.target.value"
-      :display-value="(el: any) => props.modelValue == null ? '' : renderField(findByComboId(el) ?? value)"
+      :display-value="(el: any) => props.modelValue == null ? '' : renderField(findByComboId(el) ?? value) ?? ''"
       placeholder="Search types"
       spellcheck="false"
       @keydown.enter.prevent.stop="emit('escape')"

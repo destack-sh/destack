@@ -717,6 +717,8 @@ for name, module in DEFAULT_MODULES.items():
     # assign stable cks / versioned ids
     module.index()  # need to index for walk
     for node in module._walk():
+        if isinstance(node, Module):
+            continue  # already assigned in builtin
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(node.ck, module.id)
         if isinstance(node, Field):
