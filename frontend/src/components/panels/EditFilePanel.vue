@@ -246,7 +246,12 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
           null
         );
         if (ret?.data?.pasteFile.__typename == "File") {
-          bench.focusFile({ __typename: "File", id: targetIdentity.id, name: fileHeader.value?.name ?? "" });
+          bench.focusFile({
+            __typename: "File",
+            id: targetIdentity.id,
+            ck: targetIdentity.ck,
+            name: fileHeader.value?.name ?? "",
+          });
         }
       } finally {
         duplicating.value = false;
@@ -274,9 +279,9 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   },
 ]);
 
-const filePath = computed(() => module.nodePathOf({ id: panel.value.fileId }));
+const filePath = computed(() => module.nodePathOf(panel.value.fileId));
 const focusPath = computed(() =>
-  panel.value.activeStatementId == null ? null : module.nodePathOf({ id: panel.value.activeStatementId })
+  panel.value.activeStatementId == null ? null : module.nodePathOf(panel.value.activeStatementId)
 );
 const completePath = computed(() => {
   if (filePath.value == null) return null;

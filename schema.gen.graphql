@@ -1227,7 +1227,6 @@ type Record implements HasCrud {
   lastEditedBy: User
   revision: Int!
   ck: UUID!
-  datasetId: String!
   orderKey: String
   value: JSON!
 }

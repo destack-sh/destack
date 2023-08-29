@@ -75,19 +75,19 @@ class StaticFieldMapper(FieldMapper):
 
 class StructFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
-        subfields = {}
+        subfields = {TYPENAME_SENTINEL: os.Field(os.FT.KEYWORD)}
+        if isinstance(type.reference, lang.Statement) and type.reference.issues:
+            # bail out early if there are issues from a reference
+            # (these don't get reported up to every reference but we still can't map it)
+            return os.Field(os.FT.OBJECT, dynamic="strict", properties=subfields)
+
         for f in type.resolved_fields:
             if f.effective_tag != TypeTag.STRUCT or depth < MAXIMUM_NESTING_DEPTH:
                 subfields[f.typed_key] = get_mapper(f).to_os_type(f, depth + 1)
             else:
                 # treat as json (but not as flattened yet.. :BadJsonMapping)
                 subfields[f.typed_key] = os.Field(os.FT.OBJECT, dynamic=True, enabled=False)
-        subfields[TYPENAME_SENTINEL] = os.Field(os.FT.KEYWORD)
-        return os.Field(
-            os.FT.OBJECT,
-            dynamic="strict",
-            properties=subfields,
-        )
+        return os.Field(os.FT.OBJECT, dynamic="strict", properties=subfields)
 
 
 class VectorFieldMapper(FieldMapper):

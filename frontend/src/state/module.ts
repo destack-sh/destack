@@ -16,19 +16,19 @@ import {
   type Tagging as TaggingGql,
   type Trigger as TriggerGql,
 } from "@/gql/graphql";
+import { v4 as uuidv4, v5 as uuidv5, validate } from "uuid";
 import { useAuth } from "@/state/auth";
 import { EditFilePanel, useBenchState } from "@/state/bench";
 import { InterpFileType, IssueContentType } from "@/state/fragments";
 import { useOperations } from "@/state/operations";
 import { DEFAULT_EMBEDDING_DIMENSION, getStorageFormat } from "@/state/type";
-import { toValueRef } from "@/utils/functools";
-import { WS_CONNECTED } from "@/utils/globals";
+import { getUUIDFromGlobalID, toValueRef } from "@/utils/functools";
+import { VERSION, WS_CONNECTED } from "@/utils/globals";
 import { useQuery } from "@vue/apollo-composable";
 import { createSharedComposable } from "@vueuse/core";
-import { v4 as uuidv4, v5 as uuidv5 } from "uuid";
 import { computed, isRef, ref, watch, type Ref } from "vue";
 
-export type NodeBase = { __typename: string; id: string; name?: string | null };
+export type NodeBase = { __typename: string; id: string; ck: string; name?: string | null };
 // TODO @Cleanup @Robustness: type module objects more correctly
 // full objects
 export type HasCrud = Omit<HasCrudGql, "__typename" | "id">;
@@ -64,13 +64,17 @@ export type ModuleObjectTypename =
   | "Trigger";
 
 export function newNodeIdentity(moduleId: string, type: ModuleObjectTypename): { id: string; ck: string } {
+  if (!validate(moduleId)) {
+    // looks like a global id
+    moduleId = getUUIDFromGlobalID(moduleId);
+  }
   const ck = uuidv4();
   const id = getNodeIdFromCk(moduleId, ck, type);
   return { id, ck };
 }
 
 export function getNodeIdFromCk(moduleId: string, ck: string, type: ModuleObjectTypename): string {
-  const id = uuidv5(moduleId, ck);
+  const id = uuidv5(ck, moduleId);
   return btoa(`${type}:${id}`);
 }
 
@@ -173,6 +177,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
       statementsByParentId: statementsByParentId,
       filesById: filesById,
       fieldsById: fieldsById,
+      idByCk,
     } as ModuleIndex;
   });
 
@@ -198,6 +203,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   };
 }
 
+const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUuidNamespace
+const DEFAULT_LIBRARIES = ["symbolx.lib", "openai.lib"];
+
 function _useModule(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);
 
@@ -206,23 +214,29 @@ function _useModule(projectVersionId: Ref<string | null>) {
   const errors = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Error));
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
 
-  // TODO @Performance: cache default libs (and other default module dependencies)
-  // TODO @Broken: don't hardcode default libs ids
-  // (this is not _that_ terrible since the project version id is static for now, see :LibImplementation)
-  const statementxLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjRmZjUxMWYtNzg4MS01NzUwLTgxMjEtODY1YTk1MGE5MDAz"), {
-    cache: true,
-  });
-  const openaiLib = _useModuleFlat(ref("UHJvamVjdFZlcnNpb246ZjE5ZTIyOWItMTI2YS01NWEzLWFlNWEtZmU5NjU2NGRlYjA4"), {
-    cache: true,
-  });
+  // TODO @Performance: cache default libs (and any other static module dependencies)
+  const defaultLibs: GRecord<string, Ref<ModuleIndex | null>> = {};
+  for (const name of DEFAULT_LIBRARIES) {
+    // nocheckin: these are broken
+    // :BuiltinLibs
+    const ck = uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
+    const id = uuidv5(VERSION, ck);
+    const gid = btoa(`ProjectVersion:${id}`);
+    console.log(name, VERSION, ck, id, gid); // nocheckin
+    defaultLibs[gid] = _useModuleFlat(ref(gid)).idx;
+  }
+
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
-    [statementxLib.idx.value, openaiLib.idx.value].filter((v) => v != null).map((v) => v as ModuleIndex)
+    Object.values(defaultLibs)
+      .map((v) => v.value)
+      .filter((v) => v != null)
+      .map((v) => v as ModuleIndex)
   );
 
   // run metadata fields are hardcoded for now
   const runMetadataFields = computed(() => {
     return (
-      Object.values(statementxLib.idx.value?.statementsById ?? {})
+      Object.values(defaultLibs["symbolx.lib"]?.value?.statementsById ?? {})
         .find((s) => s.name == "RunMetadata")
         ?.fields.map((f) => f as Field) ?? []
     );
@@ -235,84 +249,87 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   // utils
 
-  function fileOf(statement: { id: string }) {
-    return idx.value?.filesById[idx.value?.statementsById[statement.id]?.file?.id];
+  function fileOf(idOrCk: string) {
+    const id = idx.value?.idByCk[idOrCk] ?? idOrCk;
+    return idx.value?.filesById[idx.value?.statementsById[id]?.file?.id];
   }
 
-  function pathOf(fileOrStatement: { id: string }): string | undefined {
-    return nodePathOf(fileOrStatement)
-      ?.map((e) => e.name)
-      .join(".");
+  function pathOf(idOrCk: string, options?: { loffset?: number; roffset?: number }): string | undefined {
+    let path = nodePathOf(idOrCk);
+    if (path == null) return undefined;
+    const loffset = options?.loffset ?? 0;
+    const roffset = options?.roffset ?? 0;
+    path = path.slice(loffset, path.length - roffset);
+    return path?.map((e) => e.name).join(".");
   }
 
-  function nodePathOf(fileOrStatement: { id: string } | undefined): NodeBase[] | undefined {
+  function nodePathOf(idOrCk?: string): NodeBase[] | undefined {
     // get all ancestors of file or statement
-    if (fileOrStatement == null) return undefined;
-    const statement = idx.value?.statementsById[fileOrStatement.id];
+    if (idOrCk == null) return undefined;
+    const id = idx.value?.idByCk[idOrCk] ?? idOrCk;
+    const statement = idx.value?.statementsById[id];
     if (statement != null) {
-      const parentPath = nodePathOf(statement.parent);
+      const parentPath = nodePathOf(statement.parent?.id);
       if (parentPath == null) return undefined;
       return [...parentPath, statement as NodeBase];
     }
-    const file = idx.value?.filesById[fileOrStatement.id];
+    const file = idx.value?.filesById[id];
     if (file != null) {
-      const parentPath = nodePathOf(file.parent);
+      const parentPath = nodePathOf(file.parent?.id);
       return [...(parentPath ?? []), file as NodeBase];
     }
     return undefined;
   }
 
-  function nodeOf(fileOrStatement: { id: string }): NodeBase | undefined {
-    const statement = idx.value?.statementsById[fileOrStatement.id];
+  function nodeOf(idOrCk: string): NodeBase | undefined {
+    const id = idx.value?.idByCk[idOrCk] ?? idOrCk;
+    const statement = idx.value?.statementsById[id];
     if (statement != null) return statement as NodeBase;
-    const file = idx.value?.filesById[fileOrStatement.id];
+    const file = idx.value?.filesById[id];
     if (file != null) return file as NodeBase;
     return undefined;
   }
 
-  function contextOf(statement: { id: string }) {
-    for (const i of [idx.value, ...dependenciesIndex.value]) {
-      if (i && statement.id in i.statementsById) {
-        const statementRef = i.statementsById[statement.id];
+  function contextOf(idOrCk: string) {
+    for (const someIdx of [idx.value, ...dependenciesIndex.value]) {
+      if (someIdx && (idOrCk in someIdx.statementsById || idOrCk in someIdx.filesById)) {
+        const id = someIdx.idByCk[idOrCk] ?? idOrCk;
+        const statementRef = someIdx.statementsById[id];
         return {
-          id: i.id,
-          name: i.name,
-          path: i.path,
-          file: i.filesById[statementRef.file?.id],
-          statement,
+          id: someIdx.id,
+          name: someIdx.name,
+          path: someIdx.path,
+          file: someIdx.filesById[statementRef.file?.id],
+          statement: statementRef,
         };
       }
     }
     return undefined;
   }
 
-  function statementOf(id: string) {
-    if (id == undefined) {
-      return undefined;
-    }
-    for (const i of [idx.value, ...dependenciesIndex.value]) {
-      if (i && id in i.statementsById) {
-        return i.statementsById[id];
+  function statementOf(idOrCk: string) {
+    if (idOrCk == undefined) return;
+    for (const someIdx of [idx.value, ...dependenciesIndex.value]) {
+      if (someIdx && (idOrCk in someIdx.statementsById || idOrCk in someIdx.idByCk)) {
+        return someIdx.statementsById[someIdx.idByCk[idOrCk] ?? idOrCk];
       }
     }
     return undefined;
   }
 
-  function fieldOf(id: string) {
-    if (id == undefined) {
-      return undefined;
-    }
-    for (const i of [idx.value, ...dependenciesIndex.value]) {
-      if (i && id in i.fieldsById) {
-        return i.fieldsById[id];
+  function fieldOf(idOrCk: string) {
+    if (idOrCk == undefined) return;
+    for (const someIdx of [idx.value, ...dependenciesIndex.value]) {
+      if (someIdx && (idOrCk in someIdx.fieldsById || idOrCk in someIdx.idByCk)) {
+        return someIdx.fieldsById[someIdx.idByCk[idOrCk] ?? idOrCk];
       }
     }
     return undefined;
   }
 
   function relativePath(from_: InterpStatement, to_: InterpStatement) {
-    const from = contextOf(from_);
-    const to = contextOf(to_);
+    const from = contextOf(from_?.id);
+    const to = contextOf(to_?.id);
     if (!from || !to) {
       return undefined;
     } else if (from.path == to.path) {
@@ -331,7 +348,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
   }
 
   function issuesIn(node: { id: string }, filter?: { kind: IssueKind }): Issue[] {
-    const descendants = descendantsOf(node);
+    const descendants = descendantsOf(node.id);
     return issues.value?.filter(
       (e) => descendants.find((d) => d.id == e.parent?.id) != null && (filter == null || e.kind == filter.kind)
     );
@@ -374,12 +391,13 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return tagsByKey;
   });
 
-  function descendantsOf(node: { id: string }): Array<InterpStatement | InterpFile> {
-    const statement = idx.value?.statementsById[node.id];
+  function descendantsOf(idOrCk: string): Array<InterpStatement | InterpFile> {
+    const id = idx.value?.idByCk[idOrCk] ?? idOrCk;
+    const statement = idx.value?.statementsById[id];
     if (statement == null) {
-      const file = idx.value?.filesById[node.id];
+      const file = idx.value?.filesById[id];
       if (file == null) return [];
-      return idx.value?.statementsByFileId[file.id].flatMap((s) => descendantsOf(s)) ?? [];
+      return idx.value?.statementsByFileId[file.id].flatMap((s) => descendantsOf(s.id)) ?? [];
     }
     const descendants: InterpStatement[] = [];
     const walkDfs = (statement: InterpStatement) => {
@@ -450,7 +468,6 @@ function _useModule(projectVersionId: Ref<string | null>) {
     errors,
     warnings,
     idx,
-    statementxLib,
     dependenciesIndex,
     // utils
     runMetadataFields,
@@ -537,7 +554,7 @@ export function useNavigation() {
   const module = useCurrentModule();
 
   function focusStatement(statement: { id: string }) {
-    const context = module.contextOf(statement);
+    const context = module.contextOf(statement.id);
     if (!context?.file) return;
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
@@ -546,7 +563,7 @@ export function useNavigation() {
   }
 
   function focusFile(file: { id: string }) {
-    const file_ = module.fileOf({ id: file.id });
+    const file_ = module.fileOf(file.id);
     if (file_ == null) return;
     bench.focusFile(file_ as NodeBase);
   }

@@ -63,7 +63,7 @@ const BUILTINS_TYPES_FIELDS = BUILTIN_TYPES.map((tag) => {
   }
 });
 
-const availableSymbols = module.statementsLike({
+const availableStatements = module.statementsLike({
   types: [StatementType.Type, StatementType.Flow, StatementType.Task],
   // TODO @UX @Feature: also support code & dataset type references
   //  (right now this is too noisy and confusing, too much code & 'does database mean relation?', also see :DbRecord)
@@ -81,15 +81,15 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
     );
   }
   // references
-  for (const symbol of availableSymbols.value) {
-    if (symbol.name == null) continue;
+  for (const statement of availableStatements.value) {
+    if (statement.name == null) continue;
 
     // filter references
     if (props.refTypes != null) {
       let refType: TypeTag | null = null;
-      if (symbol.type == StatementType.Type) {
-        refType = symbol.rootTypeTag ?? null;
-      } else if (symbol.type == StatementType.Dataset) {
+      if (statement.type == StatementType.Type) {
+        refType = statement.rootTypeTag ?? null;
+      } else if (statement.type == StatementType.Dataset) {
         refType = TypeTag.Struct;
       } else {
         refType = TypeTag.Function;
@@ -101,7 +101,7 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
       makeField({
         projectVersionId: module.id.value,
         tag: TypeTag.TypeReference,
-        referenceCk: symbol.ck,
+        referenceCk: statement.ck,
         flags: getDefaultFlags(TypeTag.TypeReference),
       })
     );
@@ -320,7 +320,7 @@ defineExpose({
             <TypePreview :type="ref" show-type-name hide-flags />
             <!-- Source -->
             <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-              {{ ref.referenceCk == null ? "(builtin)" : module.pathOf(ref.referenceCk) }}
+              {{ ref.referenceCk == null ? "(builtin)" : module.pathOf(ref.referenceCk, { roffset: 1 }) }}
             </span>
           </div>
         </li>

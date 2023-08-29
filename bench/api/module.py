@@ -171,12 +171,16 @@ def read_module_node(
     # collect them
     tree = packer.collect_node(node, excluded=excluded)
     logger.debug(
-        "module.read_node.resolve", id=id, node=node, nodes=len(tree.visited), excluded=excluded
+        "module.read_node.resolve",
+        id=node.id,
+        node=node,
+        nodes=len(tree.visited),
+        excluded=excluded,
     )
     # 'resolve' them into a proxy models.ModuleNode (with all relevant fields set/cached)
     resolved_node = _resolve_node(node, root_selections, children=tree.visited_by_parent)
     logger.debug(
-        "module.read_node.done", id=id, node=node, nodes=len(tree.visited), excluded=excluded
+        "module.read_node.done", id=node.id, node=node, nodes=len(tree.visited), excluded=excluded
     )
 
     return resolved_node

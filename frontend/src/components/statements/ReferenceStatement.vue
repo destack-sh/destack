@@ -206,7 +206,7 @@ defineExpose({
                   </span>
                   <!-- Source -->
                   <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-                    {{ module.pathOf(reference.file) }}
+                    {{ module.pathOf(reference.file.id) }}
                   </span>
                 </div>
               </li>

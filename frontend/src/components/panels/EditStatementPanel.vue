@@ -41,7 +41,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
 );
 
 const statement = computed(() => statementResult.value?.statement as StatementType);
-const file = computed(() => module.fileOf(statement.value) as FileHeader | null);
+const file = computed(() => module.fileOf(statement.value.id) as FileHeader | null);
 const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 const statementComponentLoaded = ref(false);
 watchEffect(() => {
@@ -53,15 +53,15 @@ watchEffect(() => {
 
 // sync name/path into editor
 watch(
-  () => [statement.value?.name, statement.value == null || module.fileOf(statement.value)],
+  () => [statement.value?.name, statement.value == null || module.fileOf(statement.value.id)],
   () => {
-    if (statement.value != null && module.idx.value != null && module.fileOf(statement.value) != null) {
+    if (statement.value != null && module.idx.value != null && module.fileOf(statement.value.id) != null) {
       panel.value.updatePath(statement.value, module.idx.value);
     }
   }
 );
 
-const statementPath = computed(() => module.nodePathOf(statement.value));
+const statementPath = computed(() => module.nodePathOf(statement.value.id));
 </script>
 <template>
   <div class="overflow-x-hidden bg-white">

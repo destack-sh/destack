@@ -586,7 +586,7 @@ export function makeField(data: {
   return fieldData;
 }
 
-export const ANY_FIELD = makeField({ projectVersionId: "0", tag: TypeTag.Any });
+export const ANY_FIELD = makeField({ projectVersionId: "00000000-0000-0000-0000-000000000000", tag: TypeTag.Any });
 
 export function getEnumColor(type: { key: string }) {
   /* Generate a strong color for the type */

@@ -1,5 +1,6 @@
-import { TypeHint, TypeTag, type Field } from "@/gql/graphql";
+import { TypeHint, TypeTag, type Field, StatementType } from "@/gql/graphql";
 import { TypeFlag } from "@/state/module";
+import { getStatementIconOutline } from "@/state/statement";
 import { reverseRecord } from "@/utils/functools";
 
 export const TYPETAG_KEYWORD: Partial<Record<TypeTag, string>> = {
@@ -182,3 +183,69 @@ export function canSort(
   const subfield = getMainSubfield(field);
   return subfield != null;
 }
+import {
+  AdjustmentsHorizontalIcon,
+  ArrowsRightLeftIcon,
+  AtSymbolIcon,
+  Bars3BottomLeftIcon,
+  CalendarDaysIcon,
+  CheckIcon,
+  ClockIcon,
+  CodeBracketIcon,
+  DocumentIcon,
+  FingerPrintIcon,
+  HandThumbUpIcon,
+  HashtagIcon,
+  IdentificationIcon,
+  KeyIcon,
+  LinkIcon,
+  LockClosedIcon,
+  MinusSmallIcon,
+  PhoneIcon,
+  PhotoIcon,
+  SparklesIcon,
+  SpeakerWaveIcon,
+  StarIcon,
+  VideoCameraIcon,
+} from "@heroicons/vue/24/outline";
+
+export const ICONS_BY_TAG_OUTLINE: Partial<Record<TypeTag, any>> = {
+  [TypeTag.String]: Bars3BottomLeftIcon,
+  [TypeTag.Number]: HashtagIcon,
+  [TypeTag.Boolean]: CheckIcon,
+  [TypeTag.Vector]: SparklesIcon,
+  [TypeTag.Null]: MinusSmallIcon,
+  [TypeTag.File]: DocumentIcon,
+  [TypeTag.Struct]: getStatementIconOutline(StatementType.Type, TypeTag.Struct),
+  [TypeTag.Enum]: getStatementIconOutline(StatementType.Type, TypeTag.Enum),
+};
+export const ICONS_BY_HINT_OUTLINE: Partial<Record<TypeHint, any>> = {
+  // string
+  [TypeHint.Name]: IdentificationIcon,
+  [TypeHint.Uuid]: FingerPrintIcon,
+  [TypeHint.Date]: CalendarDaysIcon,
+  [TypeHint.Datetime]: CalendarDaysIcon,
+  [TypeHint.Time]: ClockIcon,
+  [TypeHint.Duration]: ClockIcon,
+  [TypeHint.Url]: LinkIcon,
+  [TypeHint.Email]: AtSymbolIcon,
+  [TypeHint.Markdown]: CodeBracketIcon,
+  [TypeHint.Html]: CodeBracketIcon,
+  [TypeHint.Code]: CodeBracketIcon,
+  [TypeHint.Key]: KeyIcon,
+  [TypeHint.Secret]: LockClosedIcon,
+  // number
+  [TypeHint.Integer]: HashtagIcon, // should have a different icon from float
+  [TypeHint.Float]: HashtagIcon,
+  [TypeHint.Slider]: AdjustmentsHorizontalIcon,
+  [TypeHint.Phone]: PhoneIcon,
+  [TypeHint.Rating]: StarIcon,
+  // boolean
+  [TypeHint.Toggle]: ArrowsRightLeftIcon,
+  [TypeHint.Checkbox]: CheckIcon,
+  [TypeHint.Thumbs]: HandThumbUpIcon,
+  // file
+  [TypeHint.Audio]: SpeakerWaveIcon,
+  [TypeHint.Video]: VideoCameraIcon,
+  [TypeHint.Image]: PhotoIcon,
+};

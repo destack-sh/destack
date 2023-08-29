@@ -53,14 +53,13 @@ class Reference(Statement, HasTags, IsFlowNode):
     def _interp(self, scope: Scope) -> None:
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
-        if self.reference is None:
-            pass
-        elif not isinstance(self.reference, Statement):
+        resolved = None
+        if resolved is not None and not isinstance(self.reference, Statement):
             resolved = scope.lookup(self.reference)
-            if resolved is None:
-                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-            else:
-                self.reference = resolved
+        if resolved is None:
+            self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
+        else:
+            self.reference = resolved
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.tags, self.triggers):
@@ -97,5 +96,5 @@ class Expectation(Statement):  # not clear how this will evolve yet
         pass
 
 
-# hard-coded, do not change ever
+# hard-coded, do not change ever :BenchUuidNamespace
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
