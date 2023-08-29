@@ -1,3 +1,4 @@
+import itertools
 import random
 import string
 import typing
@@ -9,6 +10,7 @@ from bench.language.core import (
     HasCrud,
     HasSession,
     ModuleNode,
+    ModuleVisitor,
     Scope,
     Statement,
     StatementBase,
@@ -47,6 +49,9 @@ class Tagging(HasCrud, HasSession, ModuleNode):
 
     def __repr__(self):
         return f"<Tagging {self}>"
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
     @property
     def reference_ck(self) -> typing.Optional[UUID]:
@@ -131,3 +136,7 @@ class Tag(HasType, HasTags, Statement):
         Statement._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags):
+            visitor.visit(n)

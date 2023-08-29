@@ -133,13 +133,6 @@ input ClientUpsertInput {
   path: String
 }
 
-input CommitInput {
-  projectVersionId: GlobalID!
-  name: String = null
-  tag: String = null
-  description: String = null
-}
-
 type CommitPayload {
   project: Project!
   committedVersion: ProjectVersion!
@@ -529,7 +522,7 @@ type Mutation {
   cancelProjectInvite(id: GlobalID!): ProjectOperationInfo!
   removeProjectMembership(input: ProjectRemoveMembershipInput!): ProjectOperationInfo!
   updateProjectVersion(input: UpdateProjectVersion!): ProjectVersionOperationInfo!
-  commit(input: CommitInput!): CommitPayloadOperationInfo!
+  snapshot(input: SnapshotInput!): CommitPayloadOperationInfo!
   restore(input: RestoreInput!): CommitPayloadOperationInfo!
   createStatement(input: StatementCreateInput!): StatementOperationInfo!
   updateStatement(input: StatementUpdateInput!): StatementOperationInfo!
@@ -1532,6 +1525,13 @@ type SessionState {
 }
 
 union SessionStateOperationInfo = SessionState | OperationInfo
+
+input SnapshotInput {
+  projectVersionId: GlobalID!
+  name: String = null
+  tag: String = null
+  description: String = null
+}
 
 enum SortMode {
   MAX

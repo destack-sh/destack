@@ -5,8 +5,11 @@ from django.db import transaction
 
 from bench import models
 from bench.language import wire
+from bench.language.builtin import BUILTIN_LIB_VERSION_TAG
 from bench.language.libs import DEFAULT_MODULES
-from bench.models.packer import upsert_module
+from bench.language.mutate import diff_modules
+from bench.models import packer
+from bench.models.packer import DEFAULT_PACK_FILTER
 
 logger = structlog.get_logger(__name__)
 
@@ -22,7 +25,7 @@ class Command(BaseCommand):
 
     @transaction.atomic
     def handle(self, module: str, action: str, *args, **options):
-        create_libs_if_not_exists()
+        create_orgs_if_not_exist()
 
         if module == "all":
             modules = DEFAULT_MODULES.keys()
@@ -31,12 +34,12 @@ class Command(BaseCommand):
 
         if action == "upsert":
             for module in modules:
-                _upsert_module(module)
+                _upsert_module(module, BUILTIN_LIB_VERSION_TAG)
         else:
             raise ValueError(f"unknown action: {action}")
 
 
-def create_libs_if_not_exists():  # probably should put this elsewhere
+def create_orgs_if_not_exist():  # probably should put this elsewhere
     for org_name, org_slug in [
         ("SymbolX", "symbolx"),
         ("OpenAI", "openai"),
@@ -48,30 +51,47 @@ def create_libs_if_not_exists():  # probably should put this elsewhere
 
 
 @transaction.atomic
-def _upsert_module(module_name: str, sanity_check: bool = True):
-    logger.info("lib.upsert", module=module_name)
+def _upsert_module(module_name: str, version: str):
+    """ """
+    log = logger.bind(module=module_name, version=version)
+    log.info("lib.upsert")
     module = DEFAULT_MODULES[module_name]
     owner, name = module_name.split(".")
     try:
         project = models.Project.objects.get_by_slug(owner, name)
+
+        # delete existing project version if it exists
+        existing_project_v = project.versions.filter(tag=version).first()
+        if existing_project_v is not None:
+            log.info("lib.upsert.delete", project_v=existing_project_v)
+            existing_project_v.delete()
+
+        # create new project version
+        project_v = models.ProjectVersion.objects.create(
+            id=module.id, project=project, name=version, tag=version
+        )
+        project.head = project_v
     except models.Project.DoesNotExist:
         owner = models.OwnerSlug.objects.get(slug=owner).owner
         project = models.Project.objects.create_project(
+            id=module.ck,
             owner=owner,
             slug=name,
             name=name,
             visibility=models.ProjectVisibility.PUBLIC,
             head_version_id=module.id,
         )
+        project_v = project.head
+        project_v.tag = version
+        project_v.name = version
+        project_v.save()
 
+    blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
+    blank_module_tree = wire.ModuleTree(blank_module.nodes)
     new_module = wire.pack_module(module)
-    applied_mutations = upsert_module(project.head, new_module, apply_deletes=False)
-    for mut in applied_mutations:
-        logger.info("apply", mutation=mut)
-    logger.info("lib.upsert.done", module=module_name, mutations=len(applied_mutations))
+    mutations = diff_modules(blank_module, new_module)
+    packer.write_mutations(project_v, blank_module_tree, mutations, wait_for_os=False)
 
-    if sanity_check:
-        # do it again and asset that no mutations are applied
-        new_module = wire.pack_module(module)
-        applied_mutations = upsert_module(project.head, new_module, apply_deletes=False)
-        assert len(applied_mutations) == 0, f"sanity check failed: {applied_mutations}"
+    project_v.commit()
+
+    log.info("lib.upsert.done", nodes=len(new_module.nodes))

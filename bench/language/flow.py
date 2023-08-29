@@ -1,3 +1,4 @@
+import itertools
 import typing
 from collections import deque
 from dataclasses import field
@@ -13,6 +14,7 @@ from bench.language.core import (
     HasCrud,
     HasSession,
     ModuleNode,
+    ModuleVisitor,
     Scope,
     Statement,
     StatementBase,
@@ -51,6 +53,9 @@ class Trigger(ModuleNode, HasCrud, HasSession):
 
     def __repr__(self):
         return f"<Trigger {self}>"
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
 
 @node
@@ -118,6 +123,10 @@ class Flow(HasType, HasFlow, HasTags, Statement):
         HasFlow._interp(self, scope)
         HasTags._interp(self, scope)
         Statement._interp(self, scope)
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags, self.triggers):
+            visitor.visit(n)
 
     def to_sync(self) -> "Flow":
         if not self._is_async:

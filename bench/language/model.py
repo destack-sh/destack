@@ -1,5 +1,6 @@
 import asyncio
 import functools
+import itertools
 import os
 import typing
 from dataclasses import dataclass
@@ -13,7 +14,7 @@ import structlog
 
 from bench.language.cache import CacheAsync
 from bench.language.const import StatementType
-from bench.language.core import Scope, Statement, node
+from bench.language.core import ModuleVisitor, Scope, Statement, node
 from bench.language.flow import IsFlowNode
 from bench.language.tag import HasTags
 from bench.language.type import HasType, TypeTag, check_type, instantiate_value, strip_value
@@ -57,16 +58,22 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
+
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:
             self._api_key = os.environ.get(f"{provider.upper()}_API_KEY")
         self._remote = self._api_key is None
+
         self._has_vector_io = False
         for t in self.walk_type():
             if t.tag == TypeTag.VECTOR:
                 self._has_vector_io = True
                 break
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for n in itertools.chain(self.fields, self.tags, self.triggers):
+            visitor.visit(n)
 
     @property
     def should_cache(self) -> bool:

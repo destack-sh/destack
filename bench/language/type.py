@@ -2,6 +2,7 @@ import abc
 import dataclasses
 import enum
 import inspect
+import itertools
 import random
 import string
 import typing
@@ -9,7 +10,7 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date, datetime, time
 from typing import Any, Callable, Collection, Optional, Self, Union
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 from more_itertools import first
@@ -27,6 +28,7 @@ from bench.language.core import (
     HasCrud,
     HasSession,
     ModuleNode,
+    ModuleVisitor,
     Scope,
     Statement,
     StatementBase,
@@ -282,12 +284,15 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
-    key: str = field(default_factory=new_field_key)
+    key: str = field(default=None)
     description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
+
+    def __post_init__(self):
+        self.key = self.key or new_field_key(seed=str(self.ck))
 
     def __str__(self):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
@@ -300,6 +305,9 @@ class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
 
     def __eq__(self, other):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
     @property
     def path(self) -> str:
@@ -418,6 +426,7 @@ class HasType(TypeBase, StatementBase):
             )
             self.session.tracer.field_append(self, field_)
             self.fields.append(field_)
+            self._notify_added(field_)
         self._reinterp()
         return self
 
@@ -432,6 +441,7 @@ class HasType(TypeBase, StatementBase):
             field_.parent = self
             field_.order_key = ok
             self.fields.append(field_)
+            self._notify_added(field_)
         self._reinterp()
         return self
 
@@ -441,19 +451,19 @@ class HasType(TypeBase, StatementBase):
             inputs[input_t.name] = input
         return inputs
 
-    def _copy_fields(self, to: Optional["HasType"] = None, reset_ids: bool = True) -> list[Field]:
-        """Copies the fields of this type to a new parent"""
+    def _take_fields_from(self, other: "HasType", reset_id: bool) -> list[Field]:
+        """Copies the fields of this type to another type"""
         new_fields = []
-        for field_ in self.fields:
-            new_field = field_.copy()
-            if reset_ids:
-                new_field.id = uuid4()
-            new_field.reference = field_.reference  # keep exact reference
-            new_field.parent = to
-            new_fields.append(new_field)
-        if to is not None:
-            to.fields.extend(new_fields)
-            to._assign_oks()
+        for field_ in other.fields:
+            field_.parent = self
+            if reset_id:
+                field_.id = None
+                field_.ck = uuid.uuid4()
+            self.fields.append(field_)
+            self._notify_added(field_)
+            new_fields.append(field_)
+        self._assign_oks()
+        other.fields = []
         return new_fields
 
     def _assign_oks(self):
@@ -561,6 +571,10 @@ class Type(HasType, HasTags, Statement):
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for n in itertools.chain(self.fields, self.tags):
+            visitor.visit(n)
 
     def __call__(self, *args, **kwargs):
         combined_kwargs = {**kwargs}
@@ -1082,12 +1096,8 @@ class FunctionTypeMapper(TypeMapper):
         output = type_from_instance_type(signature.return_annotation, None, type_map)
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
-        for field_ in output.fields:
-            field_copy = field_.copy()
-            field_copy.reference = field_.reference
-            field_copy.parent = type
-            field_copy.flags |= TypeFlag.IsOutput
-            type.fields.append(field_copy)
+        for output_field in type._take_fields_from(output, reset_id=False):
+            output_field.flags |= TypeFlag.IsOutput
 
         type._assign_oks()
         return type

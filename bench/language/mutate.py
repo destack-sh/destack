@@ -604,6 +604,10 @@ class MutationBundle:
 
 
 def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list[ModuleMutation]:
+    """
+    Get the mutations needed to transform old_module into new_module.
+    Find nodes by their id (not ck).
+    """
     mutator = ModuleMutator(old_module)
     old_tree = ModuleTree(old_module.nodes)
     new_tree = ModuleTree(new_module.nodes)
@@ -629,3 +633,15 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
         *(m for m in mutator.mutations if m.type.kind == MMK.UPDATE),
     ]
     return mutations
+
+
+def create_module(module: ModuleTreeData) -> list[ModuleMutation]:
+    """
+    Get the mutations needed to create a new module.
+    """
+    mutator = ModuleMutator(module)
+    for node in ModuleTree(module.nodes).walk_bfs():
+        if node.mot == ModuleObjectType.MODULE:
+            continue  # ignore module itself
+        mutator.create(node)
+    return mutator.mutations

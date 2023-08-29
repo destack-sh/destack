@@ -199,8 +199,7 @@ def get_param_from_info(info: Info, name: str) -> str | None:
         for k, v in scope["headers"]:
             if k.decode().lower() == name:
                 return v.decode()
-    if "connection_params" in info.context:
-        # rewrite as nice loop
+    if "connection_params" in info.context and "headers" in info.context["connection_params"]:
         for k, v in info.context["connection_params"]["headers"].items():
             if k.lower() == name:
                 return v

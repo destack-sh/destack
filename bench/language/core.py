@@ -135,6 +135,18 @@ def get_node_id(ck, module_id):
     return uuid.uuid5(module_id, str(ck))
 
 
+class ModuleVisitor:
+    def __init__(self):
+        self.visited: dict[UUID, ModuleNode] = {}
+
+    def visit(self, node: "ModuleNode"):
+        self.visited[node.id] = node
+
+    def visit_all(self, nodes: typing.Iterable["ModuleNode"]):
+        for node in nodes:
+            self.visit(node)
+
+
 @node
 class ModuleNode(abc.ABC):
     """
@@ -142,7 +154,7 @@ class ModuleNode(abc.ABC):
     A node has a per-version unique id (id) and a constant identifier key (ck).
     """
 
-    id: UUID = field(default=None)  # nocheckin: assign node id when added to module?
+    id: UUID = field(default=None)
     ck: UUID = field(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = None
     revision: int = 0
@@ -154,6 +166,10 @@ class ModuleNode(abc.ABC):
         assert self.ck is not None, f"cannot assign id to {self} without ck"
         self.id = get_node_id(self.ck, module_id)
 
+    def _assign_id_if_none(self):
+        if self.id is None and self.module is not None:
+            self._assign_id(self.module.id)
+
     def __eq__(self, other):
         return isinstance(other, self.__class__) and self.id == other.id
 
@@ -164,10 +180,28 @@ class ModuleNode(abc.ABC):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
 
-    def walk(self) -> typing.Iterator["ModuleNode"]:
-        from bench.language.wire import walk_node
+    @property
+    def module(self) -> Optional["Module"]:
+        if self.parent is not None:
+            return self.parent.module
+        elif isinstance(self, Module):
+            return self
+        return None
 
-        return walk_node(self)
+    def _notify_added(self, *nodes: "ModuleNode") -> None:
+        """When this node adds another node."""
+        if self.module is not None:
+            for n in nodes:
+                self.module._on_added(n)
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        """Visit any child nodes."""
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement _visit")
+
+    def _walk(self) -> typing.Iterator["ModuleNode"]:
+        visitor = ModuleVisitor()
+        self._visit(visitor)
+        yield from visitor.visited.values()
 
     def copy(self):
         from bench.language import wire
@@ -181,7 +215,7 @@ class ModuleNode(abc.ABC):
 
     @property
     def path(self) -> str:
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} does not implement path")
 
 
 @node
@@ -435,6 +469,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def py_ident(self) -> str:
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for file in self.files:
+            visitor.visit(file)
+
     def add_builtin(self, file: "File") -> None:
         self.builtins.append(file)
 
@@ -492,12 +530,17 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         file.module = self
         file.parent = self
         self.files.append(file)
+        self._on_added(file)
 
     def get_file(self, name: str) -> "File":
         scope = self._scopes_by_name.get(name)
         if not isinstance(scope, File):
             raise ValueError(f"expected file, got {type(scope)}")
         return scope
+
+    def _on_added(self, node: ModuleNode) -> None:
+        for n in node._walk():
+            n._assign_id_if_none()
 
     def _expect_status(self, status: ModuleStatus):
         if self.status != status:
@@ -509,7 +552,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.clear()
         self.index()
         self.interp()
-        for n in self.walk():
+        for n in self._walk():
             if n.id != self.id and isinstance(n, HasSession):
                 n.activate_in(session)
         for dependency in self.dependencies.values():
@@ -518,7 +561,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def deactivate(self) -> None:
         self._session = None
-        for n in self.walk():
+        for n in self._walk():
             if n.id != self.id and isinstance(n, HasSession):
                 n.deactivate()
 
@@ -629,6 +672,10 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         else:
             return to_pyidentifier(self.name, IdentifierType.PATH)
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for statement in self.statements:
+            visitor.visit(statement)
+
     def append_statement(self, *statements: "Statement"):
         """Appends the statements to this file."""
         last_ok = self.statements[-1].order_key if self.statements else None
@@ -643,6 +690,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             for descendant in statement.walk_descendants():
                 descendant.file = self
                 self.statements.append(descendant)
+                self.module._on_added(descendant)
 
     append = append_statement  # alias for File
 
@@ -733,9 +781,9 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         return f"<{self.__class__.__name__} {self}>"
 
     @property
-    def module(self) -> Module:
+    def module(self) -> Optional[Module]:
         if self.file is None:
-            raise ValueError("statement is detached")
+            return None
         return self.file.module
 
     @property

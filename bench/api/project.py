@@ -308,7 +308,7 @@ class UpdateProjectVersion(strawberry_django.NodeInput):
 
 
 @strawberry.input
-class CommitInput:
+class SnapshotInput:
     project_version_id: GlobalID
     name: Optional[str] = None
     tag: Optional[str] = None  # :ProjectVersionTags
@@ -341,7 +341,7 @@ class ProjectVersionMutation:
         return project_v
 
     @safe_mutation(atomic=True)
-    def commit(self, info, input: CommitInput) -> CommitPayload | OperationInfo:
+    def snapshot(self, info, input: SnapshotInput) -> CommitPayload | OperationInfo:
         head = models.ProjectVersion.objects.select_related("project").get(
             id=input.project_version_id.node_id
         )
