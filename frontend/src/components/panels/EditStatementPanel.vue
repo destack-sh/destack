@@ -41,7 +41,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
 );
 
 const statement = computed(() => statementResult.value?.statement as StatementType);
-const file = computed(() => module.fileOf(statement.value.id) as FileHeader | null);
+const file = computed(() => module.fileOf(statement.value.id) as FileHeader | undefined);
 const statementComponentRef = ref<InstanceType<typeof Statement> | null>(null);
 const statementComponentLoaded = ref(false);
 watchEffect(() => {

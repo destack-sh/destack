@@ -147,7 +147,7 @@ class OrganizationInvite(UUIDModel):
     organization = models.ForeignKey(Organization, on_delete=models.CASCADE, related_name="invites")
     email = models.EmailField()
     user = models.ForeignKey(
-        "User", on_delete=models.CASCADE, null=True, blank=True, related_name="invites"
+        "User", on_delete=models.CASCADE, null=True, blank=True, related_name="organization_invites"
     )
     level = models.SmallIntegerField(choices=OrganizationRole.choices)
     message = models.TextField(blank=True, null=True)

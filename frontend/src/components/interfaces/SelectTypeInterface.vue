@@ -9,6 +9,8 @@ import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headl
 import { ExclamationCircleIcon, ListBulletIcon, QuestionMarkCircleIcon } from "@heroicons/vue/24/outline";
 import { computed, onMounted, ref, watch, type Ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
+import { useBenchState } from "@/state/bench";
+import { ufSort } from "@/utils/search";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -27,6 +29,7 @@ const value: Ref<Field> = ref(props.modelValue ?? ANY_FIELD);
 const query: Ref<string> = ref("");
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
 
+const bench = useBenchState();
 const module = useCurrentModule();
 
 function getDefaultFlags(t: TypeHint | TypeTag): number {
@@ -112,15 +115,28 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredTypes = computed(() => {
   if (query.value.trim() == "") return availableTypes.value;
-  const [idxs] = uf.search(
-    availableTypes.value.map((t) => {
-      if (t.alias != null) {
-        return `${renderField(t)} ${t.alias.join(" ")}}`;
-      }
-      return renderField(t) ?? "";
-    }),
-    query.value
-  );
+  const haystack = availableTypes.value.map((t) => {
+    if (t.alias != null) {
+      return `${renderField(t)} ${t.alias.join(" ")}}`;
+    }
+    return renderField(t) ?? "";
+  });
+  let idxs = uf.filter(haystack, query.value);
+  if (idxs != null && idxs.length > 0) {
+    const info = uf.info(idxs, haystack, query.value);
+    const sort = ufSort(info, haystack, query.value);
+    const order = info.idx
+      .map((v, i) => i)
+      .sort((ia, ib) => {
+        const aType = availableTypes.value[info.idx[ia]];
+        const bType = availableTypes.value[info.idx[ib]];
+        const aFocused = bench.focusedFileId == module.fileOf(aType?.referenceCk)?.id;
+        const bFocused = bench.focusedFileId == module.fileOf(bType?.referenceCk)?.id;
+        if (aFocused != bFocused) return aFocused ? -1 : 1;
+        return sort(ia, ib);
+      });
+    idxs = order.map((i) => info.idx[i]);
+  }
   return idxs?.map((idx) => availableTypes.value[idx]) ?? [];
 });
 
