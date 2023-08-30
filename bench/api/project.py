@@ -1,3 +1,4 @@
+import uuid
 from typing import TYPE_CHECKING, Annotated, Optional, Union
 from uuid import UUID
 
@@ -352,6 +353,7 @@ class ProjectVersionMutation:
 
         # 'insert' new head between parents and head
         snapshot = models.ProjectVersion.objects.create(
+            id=uuid.uuid4(),
             project=project,
             name=input.name,
             tag=input.tag,

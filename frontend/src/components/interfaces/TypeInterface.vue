@@ -17,7 +17,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "reference">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "referenceCk">): void;
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
   (e: "navigateLeft"): void;
@@ -103,7 +103,7 @@ defineExpose({
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
-      <TypePreview :type="value" :hide-icon="hideIcon || value.reference != null" hide-flags />
+      <TypePreview :type="value" :hide-icon="hideIcon || value.referenceCk != null" hide-flags />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close" />
@@ -111,7 +111,7 @@ defineExpose({
     <div
       v-if="editing"
       ref="editablePopoverRef"
-      class="absolute -left-2 z-50 flex flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="absolute -left-2 z-50 flex w-72 flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="[hideFlags ? '-top-2' : '-top-10', popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2']"
       @keydown.escape.exact.prevent.stop="close"
     >

@@ -16,7 +16,7 @@ import { computed, ref, watch, type Ref } from "vue";
 const props = defineProps<{ version: ProjectVersion; projectId: string; isHead?: boolean; prevSemVerTag?: SemVer }>();
 const emit = defineEmits<{
   (
-    e: "commit",
+    e: "snapshot",
     c: {
       projectVersionId: string;
       name?: string;
@@ -185,7 +185,7 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
             class="w-fit self-end border border-orange-600 px-3 py-1 text-sm hover:bg-orange-600 hover:text-white focus:bg-orange-600 focus:text-white focus:outline-none"
             :class="{ 'pointer-events-none opacity-50': !canCommit }"
             @click="
-              emit('commit', {
+              emit('snapshot', {
                 projectVersionId: version.id,
                 name,
                 tag,

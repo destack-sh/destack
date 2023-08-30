@@ -287,6 +287,8 @@ class SimplePermissionExtension(FieldExtension, abc.ABC, Generic[_RetvalT]):
     ) -> Any:
         retval = next_(source, info, **kwargs)
         value = info.root_value if self.target == CheckTarget.ROOT else retval
+        if value is None:
+            return retval  # nothing to check
         try:
             if self.check(info, value) is False:
                 raise PermissionDenied(self.message)
