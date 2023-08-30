@@ -1,10 +1,9 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { ProjectAccessLevel } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
 import { encodeSharingToken } from "@/state/auth";
-import { useBenchState, type ProjectHeader } from "@/state/bench";
-import { useOperations } from "@/state/operations";
+import { type ProjectHeader } from "@/state/bench";
+import { useNotifications } from "@/state/notifications";
 import {
   Listbox,
   ListboxButton,
@@ -21,9 +20,7 @@ const props = defineProps<{
   project: ProjectHeader;
 }>();
 
-const appearance = useAppearance();
-const bench = useBenchState();
-const ops = useOperations();
+const notifications = useNotifications();
 
 const projectSharingUrl = computed(() => {
   return `${document.location.origin}/${props.project.owner.slug}/${props.project.slug}?s=${encodeSharingToken(
@@ -37,6 +34,11 @@ const cleanProjectSharingUrl = computed(() => {
 
 function copy(text: string) {
   navigator.clipboard.writeText(text);
+  notifications.show({
+    kind: "success",
+    type: "sharing.copied",
+    message: "Sharing link copied to clipboard",
+  });
 }
 </script>
 

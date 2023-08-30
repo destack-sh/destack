@@ -19,7 +19,7 @@ const emit = defineEmits<{
 
 const module = useCurrentModule();
 const isArray = computed(() => Boolean(props.type.flags & TypeFlag.IsArray));
-const runtimeType = computed(() => module.statementOf(props.type.reference?.id));
+const runtimeType = computed(() => module.statementOf(props.type.referenceCk));
 
 const members = computed(() => {
   return (

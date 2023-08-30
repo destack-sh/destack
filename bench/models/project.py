@@ -63,7 +63,7 @@ class ProjectManager(models.Manager["Project"]):
             slug=slug,
             visibility=visibility,
         )
-        project.head = ProjectVersion.objects.create(id=head_version_id, project=project)
+        project.head = ProjectVersion.objects.create(id=head_version_id or uuid4(), project=project)
         if create_onboarding_files:
             # TODO @Broken: re-implement create onboarding files
             pass

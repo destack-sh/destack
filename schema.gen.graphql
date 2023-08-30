@@ -1771,7 +1771,7 @@ input TaggingCreateInput {
   ck: UUID!
   statementId: GlobalID!
   key: String!
-  referenceCk: GlobalID!
+  referenceCk: UUID!
   metadata: JSON = null
 }
 

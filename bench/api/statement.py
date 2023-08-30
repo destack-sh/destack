@@ -504,7 +504,7 @@ class TaggingCreateInput:
     ck: UUID
     statement_id: GlobalID
     key: str
-    reference_ck: GlobalID
+    reference_ck: UUID
     metadata: Optional[JSON] = None
 
 

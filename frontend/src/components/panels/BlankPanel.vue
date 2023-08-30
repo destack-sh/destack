@@ -14,7 +14,7 @@ const actions = useActions();
 
 const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
-    query emptyPanelsuggestedFiles($projectVersionId: GlobalID!) {
+    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {
       projectVersion(id: $projectVersionId) {
         files(filters: { isVisible: true }) {
           id

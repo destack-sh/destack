@@ -22,7 +22,7 @@ import {
   type PanelGroup,
   type FileHeader,
 } from "@/state/bench";
-import { useMagicActions, useNavigationContext } from "@/state/file";
+import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
 import { useCurrentModule, type Statement } from "@/state/module";
 import {
   STATEMENT_CONTEXT,
@@ -62,7 +62,6 @@ const appearance = useAppearance();
 const nav = useNavigationContext(!props.standalone);
 const panel = usePanelContext();
 const module = useCurrentModule();
-const actions = useActions();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
 const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementId == statement.value?.id);
@@ -487,6 +486,7 @@ defineExpose({
               v-slot="{ open }"
               @mousedown="containerRef?.setAttribute('draggable', 'true')"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
+              @open="(nav as unknown as NavigationContext)?.panel?.addToSelection(statement)"
               @click.stop
             >
               <div

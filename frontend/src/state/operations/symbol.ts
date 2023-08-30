@@ -993,7 +993,7 @@ export function useSymbolContentOps() {
         $ck: UUID!
         $statementId: GlobalID!
         $key: String!
-        $referenceCk: GlobalID!
+        $referenceCk: UUID!
         $metadata: JSON
       ) {
         createTagging(

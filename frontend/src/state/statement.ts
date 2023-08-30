@@ -346,7 +346,7 @@ export function useStatementContext() {
       projectVersionId: module.id.value,
       ...template,
       id: template.id ?? identity.id,
-      ck: template.id ?? identity.ck,
+      ck: template.ck ?? identity.ck,
       name: name.toLowerCase(),
       tag: template.tag,
       hint: template.hint ?? null,
@@ -590,16 +590,12 @@ export const ANY_FIELD = makeField({ projectVersionId: "00000000-0000-0000-0000-
 
 export function getEnumColor(type: { key: string }) {
   /* Generate a strong color for the type */
-  // Convert the key to a numerical seed
   const seed = type.key.split("").reduce((acc, char) => {
     return acc * 31 + char.charCodeAt(0);
   }, 0);
-
-  // Generate a random pastel color based on the seed
   const hue = seed % 360;
   const saturation = 70 + (seed % 25); // Range: 70-95
   const lightness = 70;
-
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 }
 
