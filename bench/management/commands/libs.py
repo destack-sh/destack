@@ -1,4 +1,7 @@
 import os
+import subprocess
+from pathlib import Path
+from uuid import UUID
 
 import structlog
 from django.core.management import BaseCommand
@@ -7,6 +10,7 @@ from django.db import transaction
 
 from bench import models
 from bench.language import wire
+from bench.language.builtin import symbolx_lib
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import diff_modules
 from bench.models import packer
@@ -36,6 +40,9 @@ class Command(BaseCommand):
         if action == "upsert":
             for module in modules:
                 _upsert_module(module, os.environ["VERSION"])
+        elif action == "dump":
+            for module in modules:
+                _dump_module(module)
         else:
             raise ValueError(f"unknown action: {action}")
 
@@ -52,8 +59,10 @@ def create_orgs_if_not_exist():  # probably should put this elsewhere
 
 
 @transaction.atomic
-def _upsert_module(module_name: str, version: str):
-    """ """
+def _upsert_module(module_name: str, version: str, sanity_check: bool = True):
+    """
+    Replace the module
+    """
     log = logger.bind(module=module_name, version=version)
     log.info("lib.upsert")
     module = DEFAULT_MODULES[module_name]
@@ -93,7 +102,73 @@ def _upsert_module(module_name: str, version: str):
     new_module = wire.pack_module(module)
     mutations = diff_modules(blank_module, new_module)
     packer.write_mutations(project_v, blank_module_tree, mutations, wait_for_os=False)
-
     project_v.commit()
 
+    if sanity_check:
+        # check: no issues after reload
+        new_module_loaded_data = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
+        new_module_loaded = wire.unpack_module(new_module_loaded_data, session=None)
+        if name != "symbolx.lib":
+            new_module_loaded.add_dependency(symbolx_lib)
+        new_module_loaded.index()
+        new_module_loaded.interp()
+        if new_module_loaded.issues:
+            raise ValueError(f"module {new_module_loaded} has issues: {new_module_loaded.issues}")
+
+        # check: no diff when generated in another process
+        _sanity_check_diff(module_name, new_module, log)
+
     log.info("lib.upsert.done", nodes=len(new_module.nodes))
+
+
+def _sanity_check_diff(
+    module_name: str, new_module: wire.ModuleTreeData, log: structlog.BoundLogger
+) -> None:
+    # start a new process, dump module, check if equal
+    log.info("lib.upsert.sanity_check")
+    process = subprocess.Popen(
+        "python manage.py libs dump".split() + [module_name],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+    )
+    stdout, stderr = process.communicate()
+    assert process.returncode == 0, f"dump failed: {stderr}"
+
+    # load other module
+    other_module_path = _get_module_dump_path(module_name)
+    other_module_bytes = Path(other_module_path).read_bytes()
+    other_module_data = wire.deserialize_module(other_module_bytes)
+    diff = diff_modules(new_module, other_module_data)
+
+    if diff:
+        # get exact diff for debugging
+        module_tree = wire.ModuleTree(new_module.nodes)
+        other_module_tree = wire.ModuleTree(other_module_data.nodes)
+
+        def _get_path(n_id: UUID) -> str:
+            if n_id in module_tree.nodes:
+                path = module_tree.path_of(module_tree.nodes[n_id])
+            else:
+                path = other_module_tree.path_of(other_module_tree.nodes[n_id])
+            return ".".join(n.name for n in path)
+
+        diff_str = "\n".join(f"{m.data.id} {_get_path(m.data.id)}: {m.type} {m.data}" for m in diff)
+        raise ValueError(f"module {module_name} is not equal to dumped module:\n{diff_str}")
+    else:
+        log.info("lib.upsert.sanity_check.ok", bytes=len(other_module_bytes))
+
+
+_LIB_DUMP_DIR = "/tmp/bench_libs"
+
+
+def _get_module_dump_path(module_name: str):
+    return os.path.join(_LIB_DUMP_DIR, f"{module_name}.bench")
+
+
+def _dump_module(module_name: str):
+    module = DEFAULT_MODULES[module_name]
+    module_data = wire.pack_module(module)
+    module_bytes = wire.serialize_module(module_data)
+    module_path = _get_module_dump_path(module_name)
+    os.makedirs(os.path.dirname(module_path), exist_ok=True)
+    Path(module_path).write_bytes(module_bytes)

@@ -1104,7 +1104,7 @@ class FunctionTypeMapper(TypeMapper):
         output = type_from_instance_type(signature.return_annotation, None, type_map)
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
-        for output_field in type._take_fields_from(output, reset_id=False):
+        for output_field in type._take_fields_from(output, reset_id=True):
             output_field.flags |= TypeFlag.IsOutput
 
         type._assign_oks()

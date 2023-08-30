@@ -223,7 +223,9 @@ defineExpose({
       />
       <!-- Not found -->
       <div v-else-if="IS_DEBUG" class="h-full w-full bg-red-100 text-center font-mono text-xs text-red-600">
-        {{ type.tag }} ({{ type.hint }})
+        {{ type.tag }}
+        <template v-if="type.hint">({{ type.hint }})</template>
+        <template v-if="type.referenceCk">({{ type.referenceCk }})</template>
         <template v-if="type.flags & TypeFlag.IsSecret">(secret)</template>
         <template v-if="type.flags & TypeFlag.IsArray">(array)</template>
       </div>

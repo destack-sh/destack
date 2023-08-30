@@ -47,6 +47,7 @@ from bench.language.task import (
 from bench.language.type import (
     Field,
     Key,
+    Type,
     TypeBase,
     Vector,
     check_type,
@@ -54,7 +55,7 @@ from bench.language.type import (
     new_field_key,
     strip_value_flat,
 )
-from bench.utils.utils import UnreachableError, omit_empty
+from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
 #
 # symbolx.lib
@@ -75,7 +76,7 @@ class Consider:
 
 
 @x_tag("cache", "Cache runs", file=_symbolx_builtins)
-class Cache:  # like cachetools
+class Cache:
     pass
 
 
@@ -731,6 +732,26 @@ for name, module in DEFAULT_MODULES.items():
     module.interp()
     if module.issues:
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
+
+    # some extra checks for debugging
+    if DEBUG or LOCAL:
+        # also check for issues after reload to prevent any sneaky reference bugs
+        from bench.language import wire
+
+        module_data = wire.pack_module(module)
+        module_reloaded = wire.unpack_module(module_data, session=None)
+        if module_reloaded.name != "symbolx.lib":
+            module_reloaded.add_dependency(symbolx_lib)
+        module_reloaded.index()
+        module_reloaded.interp()
+
+        # check that all HasType things have fields
+        for statement in module_reloaded._statements_by_id.values():
+            if isinstance(statement, (Type, Code, Task, Model)) and not statement.fields:
+                raise RuntimeError(f"statement {statement} has no fields")
+
+        if module_reloaded.issues:
+            raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")
 
 
 def lookup(path: str, by: LookupBy = LookupBy.Name) -> Optional[Statement]:

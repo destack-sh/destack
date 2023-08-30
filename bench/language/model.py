@@ -129,7 +129,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                     NMessageType.RUN_PROXY_INFERENCE,
                     req,
                     RepRunInferencePayload,
-                    timeout=timeout + 2,
+                    timeout=timeout + 3,
                 )
                 if rep.p.outputs is None:
                     raise RuntimeError(f"remote {self} failed")

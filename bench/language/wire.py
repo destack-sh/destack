@@ -9,6 +9,8 @@ from datetime import datetime
 from typing import Any, ClassVar, Optional
 from uuid import UUID
 
+import msgpack
+
 from bench import language as lang
 from bench.language.const import (
     RemoteObjectStatus,
@@ -80,6 +82,14 @@ class ModuleTree:
 
     def __getitem__(self, item):
         return self.nodes[item]
+
+    def path_of(self, node: NodeT | NodeDataT) -> list[NodeT | NodeDataT]:
+        """Returns the path from the root to the node"""
+        path = []
+        while node:
+            path.insert(0, node)
+            node = self.nodes.get(node.parent_id)
+        return path
 
     def add(self, node: NodeT | NodeDataT):
         """Add a node to the tree (error if node already exists)"""
@@ -1064,7 +1074,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
     PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
 
     def pack(self, field: lang.Field) -> "FieldData":
-        reference = field.reference.id if isinstance(field.reference, lang.Statement) else None
+        reference = field.reference.ck if isinstance(field.reference, lang.Statement) else None
         return FieldData(
             id=field.id,
             ck=field.ck,
@@ -1190,7 +1200,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
     def pack(self, tagging: lang.Tagging) -> "TaggingData":
-        reference = tagging.reference.id if isinstance(tagging.reference, lang.Statement) else None
+        reference = tagging.reference.ck if isinstance(tagging.reference, lang.Statement) else None
         return TaggingData(
             id=tagging.id,
             ck=tagging.ck,
@@ -1210,8 +1220,8 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
     ) -> lang.Tagging:
         return lang.Tagging(
             parent=parent,
-            ck=tagging.ck,
             id=tagging.id,
+            ck=tagging.ck,
             key=tagging.key,
             reference=tagging.reference_ck,
             metadata=tagging.metadata,
@@ -1709,3 +1719,15 @@ class EnvironmentData:
     version: str
     platform: str
     packages: dict[str, str]
+
+
+def serialize_module(module_data: ModuleTreeData) -> bytes:
+    module_data_dict = to_dict(module_data, omit_empty=True)
+    module_data = msgpack.packb(module_data_dict, use_bin_type=True)
+    return module_data
+
+
+def deserialize_module(module_data: bytes) -> ModuleTreeData:
+    module_data_dict = msgpack.unpackb(module_data, raw=False)
+    module_data = from_dict(ModuleTreeData, module_data_dict)
+    return module_data
