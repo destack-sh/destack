@@ -171,6 +171,18 @@ class _Packed(typing.NamedTuple):
         return list(self.nodes.values())
 
 
+class _PackedCopy(typing.NamedTuple):
+    roots: list[NodeDataT]
+    nodes: dict[UUID, NodeDataT]
+    target_ids: dict[UUID, UUID]
+    target_cks: dict[UUID, UUID]
+    target_ids_reversed: dict[UUID, UUID]
+    target_cks_reversed: dict[UUID, UUID]
+
+    def nodes_list(self):
+        return list(self.nodes.values())
+
+
 def collect_node(
     *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
 ) -> _VisitedTree:
@@ -705,7 +717,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return wire.DatasetData(
             **statement_data.__dict__,
             description=statement.description,
-            versioned=False,  # :VersionedDatasets
+            versioned=True,  # :VersionedDatasets
         )
 
     def unpack(

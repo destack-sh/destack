@@ -419,6 +419,7 @@ class StatementMutation:
     ) -> StatementBatch | OperationInfo:
         source_ids = [UUID(i.node_id) for i in input.source_ids]
         source_statements = models.Statement._base_manager.filter(id__in=source_ids)
+        source_cks = [s.ck for s in source_statements]
         if source_statements.count() != len(input.source_ids):
             raise ValidationError("statements not found")
 
@@ -449,7 +450,7 @@ class StatementMutation:
             source=source_project_v,
             target=target_file.project_version,
             target_ids={s: t for s, t in zip(source_ids, target_ids)},
-            target_cks={s: t for s, t in zip(source_ids, input.target_cks)},
+            target_cks={s: t for s, t in zip(source_cks, input.target_cks)},
             target_parent_ids=target_parent_ids,
             target_order_keys=target_order_keys,
             keep_cks=False,

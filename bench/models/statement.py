@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import TYPE_CHECKING, Collection, Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 import structlog
@@ -25,6 +25,7 @@ from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
+    from bench.models.packer import _PackedCopy
 
 logger = structlog.get_logger(__name__)
 
@@ -192,11 +193,9 @@ class Tile(CrudModel, ModuleNode):
 
 def duplicate_versioned_datasets(
     *,
-    source_statements: Collection[Statement],
     source: ProjectVersion,
     target: ProjectVersion,
-    target_ids: dict[UUID, UUID],
-    target_cks: dict[UUID, UUID],
+    copy: _PackedCopy,
     keep_cks: bool,
 ) -> None:
     """
@@ -205,14 +204,23 @@ def duplicate_versioned_datasets(
     """
     from bench.opensearch.index import batch_duplicate_records
 
-    versioned_datasets = [
-        n for n in source_statements if isinstance(n, Statement) and n.type == StatementType.DATASET
-    ]
-    target_ids = {n.id: target_ids[n.id] for n in versioned_datasets}
-    target_cks = {n.id: target_cks[n.id] for n in versioned_datasets}
-    if keep_cks:
-        target_cks = None
-    batch_duplicate_records(source, target, target_ids, target_cks)
+    duplicate_target_ids = {}
+    duplicate_target_cks = {}
+    for statement in copy.nodes.values():
+        if not isinstance(statement, wire.DatasetData) or not statement.versioned:
+            continue
+        source_id = copy.target_ids_reversed[statement.id]
+        duplicate_target_ids[source_id] = statement.id
+        source_ck = copy.target_cks_reversed[statement.ck]
+        duplicate_target_cks[source_ck] = statement.ck
+
+    batch_duplicate_records(
+        source_project_v=source,
+        target_project_v=target,
+        new_statement_ids=duplicate_target_ids,
+        new_statement_cks=duplicate_target_cks,
+        keep_cks=keep_cks,
+    )
 
 
 class StatementManager(models.Manager["Statement"]):
@@ -237,8 +245,7 @@ class StatementManager(models.Manager["Statement"]):
         from bench.models import File, ProjectVersion, packer
 
         # pack relevant nodes
-        target_ids = {**(target_ids or {}), source.id: target.id}
-        packed, target_ids, target_cks = ProjectVersion.objects.pack_copy(
+        copy = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=list(statements),
@@ -247,11 +254,11 @@ class StatementManager(models.Manager["Statement"]):
             target_cks=target_cks,
             copy_revisions=copy_revisions,
         )
-        for node in packed.nodes.values():  # patch parent and order keys
+        for node in copy.nodes.values():  # patch parent and order keys
             if node.id in target_parent_ids:
                 node.parent_id = target_parent_ids[node.id]
             elif node.parent_id in target_ids:
-                node.parent_id = target_ids[node.parent_id]
+                node.parent_id = copy.target_ids[node.parent_id]
             if isinstance(node, wire.HasOrder):
                 node.order_key = target_order_keys.get(node.id, node.order_key)
 
@@ -263,18 +270,11 @@ class StatementManager(models.Manager["Statement"]):
         ]
         # unpack and save
         unpacked = packer.unpack_nodes_tree(
-            packed.nodes_list(),
+            copy.nodes_list(),
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
         create_models_bfs(unpacked.walk_bfs_batched())
-        duplicate_versioned_datasets(
-            source_statements=packed.nodes.values(),
-            source=source,
-            target=target,
-            target_ids=target_ids,
-            target_cks=target_cks,
-            keep_cks=keep_cks,
-        )
+        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None
