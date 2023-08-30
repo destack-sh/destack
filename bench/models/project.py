@@ -23,7 +23,7 @@ from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models.organization import Organization
-    from bench.models.packer import PackFilter, _Packed
+    from bench.models.packer import PackFilter, _PackedCopy
     from bench.models.user import User
 
 logger = structlog.get_logger(__name__)
@@ -385,23 +385,30 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target_cks: dict[UUID, UUID] = None,
         copy_revisions: bool = True,
         filter: PackFilter = None,
-    ) -> tuple[_Packed, dict[UUID, UUID], dict[UUID, UUID]]:
+    ) -> _PackedCopy:
         """Packs a copy of the module tree starting at the given nodes."""
         from bench.models import packer
 
         target_ids = {**(target_ids or {}), source.id: target.id}
+        target_ids_reversed = {target.id: source.id}
         target_cks = {**(target_cks or {}), source.ck: target.ck}
+        target_cks_reversed = {target.ck: source.ck}
         packed = packer.pack_node(
             *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=packer.INTERP_MODEL_TYPES
         )
 
         # map all ids to new ids
         for node in packed.nodes.values():
-            if node.id in target_ids != node.ck in target_cks:
-                raise ValueError(f"node id and ck must be both or neither set: {node}")
+            if (node.id in target_ids) != (node.ck in target_cks):
+                raise ValueError(
+                    f"node id and ck must be both or neither set: {node}"
+                    f" (id:{node.id}:{node.id in target_ids}, ck:{node.ck}:{node.ck in target_cks})"
+                )
             if node.id not in target_ids:
                 target_cks[node.ck] = uuid4() if not keep_cks else node.ck
                 target_ids[node.id] = uuid.uuid5(target.id, str(target_cks[node.ck]))
+            target_ids_reversed[target_ids[node.id]] = node.id
+            target_cks_reversed[target_cks[node.ck]] = node.ck
             node.id = target_ids[node.id]
             node.ck = target_cks[node.ck]
             if not isinstance(node, wire.HasCrud):
@@ -410,7 +417,14 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 node.revision = 0
         for node in packed.nodes.values():  # patch parent ids
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
-        return packed, target_ids, target_cks
+        return packer._PackedCopy(
+            roots=packed.roots,
+            nodes=packed.nodes,
+            target_ids=target_ids,
+            target_ids_reversed=target_ids_reversed,
+            target_cks=target_cks,
+            target_cks_reversed=target_cks_reversed,
+        )
 
     def copy(
         self,
@@ -429,7 +443,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         filter = packer.DEFAULT_PACK_FILTER.extend()
         if files is not None:
             filter.filter(File, lambda qs: qs.filter(id__in=files))
-        packed, target_ids, target_cks = self.pack_copy(
+        copy = self.pack_copy(
             source=source,
             target=target,
             nodes=[source],
@@ -440,16 +454,9 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         )
 
         # unpack and save
-        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
+        unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-        duplicate_versioned_datasets(
-            source_statements=packed.nodes.values(),
-            source=source,
-            target=target,
-            target_ids=target_ids,
-            target_cks=target_cks,
-            keep_cks=keep_cks,
-        )
+        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
 
 
 class ProjectVersion(CrudModel, ModuleNode):
@@ -570,7 +577,7 @@ class FileManager(models.Manager):
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
-        packed, target_ids, target_cks = ProjectVersion.objects.pack_copy(
+        copy = ProjectVersion.objects.pack_copy(
             source=source,
             target=target,
             nodes=[file],
@@ -579,20 +586,13 @@ class FileManager(models.Manager):
             target_ids={file.id: target_id},
             target_cks={file.ck: target_ck},
         )
-        assert len(packed.roots) == 1, "expected exactly one root in packed nodes"
-        packed.roots[0].parent_id = target_parent.id if target_parent else target.id
+        assert len(copy.roots) == 1, "expected exactly one root in packed nodes"
+        copy.roots[0].parent_id = target_parent.id if target_parent else target.id
 
         # unpack and save
-        unpacked = packer.unpack_nodes_tree(packed.nodes_list(), pre_unpacked={target.id: target})
+        unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched())
-        duplicate_versioned_datasets(
-            source_statements=packed.nodes.values(),
-            source=source,
-            target=target,
-            target_ids=target_ids,
-            target_cks=target_cks,
-            keep_cks=keep_cks,
-        )
+        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
 
         target_file = unpacked.nodes[target_id]
         return target_file

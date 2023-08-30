@@ -421,10 +421,17 @@ def batch_duplicate_records(
         must.append({"terms": {"statement_id": [str(id) for id in new_statement_ids.keys()]}})
     if new_statement_cks:
         must.append({"terms": {"statement_ck": [str(ck) for ck in new_statement_cks.keys()]}})
-    query = {
-        "query": {"bool": {"must": must}},
-    }
+    if not new_statement_cks and not new_statement_ids:
+        raise ValueError("must specify at least one of new_statement_ids or new_statement_cks")
+    query = {"query": {"bool": {"must": must}}}
+
+    # count doesn't support PIT unfortunately
     num_total_documents = os_client.count(index=index_name, body=query)["count"]
+
+    # create a PIT to read from
+    pit = os_client.create_point_in_time(index=index_name, keep_alive="2m")
+    query["pit"] = {"id": pit["pit_id"], "keep_alive": "2m"}
+
     if num_total_documents > MAX_VERSIONED_RECORDS_TOTAL:
         raise ValueError(
             f"{source_project_v} has {num_total_documents} documents (limit={MAX_VERSIONED_RECORDS_TOTAL})"
@@ -445,18 +452,14 @@ def batch_duplicate_records(
     )
     log.info("os.batch_duplicate_records.start")
 
-    # create a PIT to read from
-    pit = os_client.create_point_in_time(index=index_name, keep_alive="2m")
-    query["pit"] = {"id": pit["pit_id"], "keep_alive": "2m"}
-
-    num_duplicated = 0
+    duplicated: list[UUID] = []
     while True:
         response = os_client.search(body=query, sort=["_doc"], size=batch_size)
         hits = response["hits"]["hits"]
         if not hits:
             break
 
-        log.debug("os.batch_duplicate_records.batch", cumulative=num_duplicated, current=len(hits))
+        log.debug("os.batch_duplicate_records.batch", cumulative=len(duplicated), current=len(hits))
         os_operations = []
         for hit in hits:
             document = hit["_source"]
@@ -471,13 +474,10 @@ def batch_duplicate_records(
             new_id = get_node_id(target_project_v.id, UUID(document["ck"]))
             os_operations.append({"index": {"_index": index_name, "_id": new_id}})
             os_operations.append(document)
-        num_duplicated += len(hits)
+            duplicated.append(new_id)
 
+        query["search_after"] = hits[-1]["sort"]
         os_client.bulk(os_operations)
-
-        last_hit = hits[-1]
-        last_sort_values = last_hit["sort"]
-        query["search_after"] = last_sort_values
 
     # TODO @Cleanup: delete PIT after use (delete_point_in_time doesn't work?)
     log.info("os.batch_duplicate_records.done")
