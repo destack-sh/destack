@@ -43,7 +43,7 @@ const { run, loading } = useRun(
   computed(() => panel.value.runId),
   { live: true }
 );
-const statement = computed(() => (run.value?.runnable != null ? module.statementOf(run.value.runnable.id) : null));
+const statement = computed(() => (run.value?.runnableCk != null ? module.statementOf(run.value.runnableCk) : null));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
 );

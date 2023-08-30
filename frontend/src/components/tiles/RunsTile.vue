@@ -53,18 +53,18 @@ const { runs, loading, totalCount, pageInfo } = useRuns(
   { live: props.live, limit: props.limit, count: true }
 );
 
-const statements: Ref<Record<string, InterpStatement | null>> = computed(() => {
-  const statementsById: Record<string, InterpStatement | null> = {};
+const statementsByCk: Ref<Record<string, InterpStatement | null>> = computed(() => {
+  const statementsByCk: Record<string, InterpStatement | null> = {};
 
   for (const run of runs.value ?? []) {
-    if (statementsById[run.runnable?.id] != null) continue;
-    const statement = module.statementOf(run.runnable?.id);
+    if (statementsByCk[run.runnableCk] != null) continue;
+    const statement = module.statementOf(run.runnableCk);
     if (statement != null) {
-      statementsById[run.runnable?.id] = statement;
+      statementsByCk[run.runnableCk] = statement;
     }
   }
 
-  return statementsById;
+  return statementsByCk;
 });
 
 // navigation
@@ -97,15 +97,15 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         <!-- Statement -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
           <button
-            v-if="statements[run.runnable?.id] != null"
+            v-if="statementsByCk[run.runnableCk] != null"
             class="flex flex-row items-center underline-offset-2 hover:underline"
             @click="nav.focusStatement(run.runnable as NodeBase)"
           >
             <component
-              :is="getStatementIconSolid((statements[run.runnable?.id] as InterpStatement).type)"
+              :is="getStatementIconSolid((statementsByCk[run.runnableCk] as InterpStatement).type)"
               class="mr-1 h-4 w-4 text-gray-400"
             />
-            <span>{{ (statements[run.runnable?.id] as InterpStatement).name }}</span>
+            <span>{{ (statementsByCk[run.runnableCk] as InterpStatement).name }}</span>
           </button>
           <span v-else class="text-gray-400">(deleted)</span>
         </td>

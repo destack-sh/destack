@@ -68,7 +68,7 @@ class Reference(Statement, HasTags, IsFlowNode):
     @property
     def reference_ck(self) -> Optional[UUID]:
         if isinstance(self.reference, Statement):
-            return self.reference.id
+            return self.reference.ck
         elif isinstance(self.reference, UUID):
             return self.reference
         else:

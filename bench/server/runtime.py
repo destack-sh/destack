@@ -468,7 +468,7 @@ class RuntimeServer(Monitored):
             model = module.lookup(localized_path)
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
-            cache = CacheAsync(module=None, subkey=model.id.hex, project_id=msg.p.project_id)
+            cache = CacheAsync(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
             inputs = instantiate_value(msg.p.inputs, model, is_output=False)
             output = await asyncio.wait_for(
                 asyncio.shield(

@@ -214,13 +214,14 @@ def duplicate_versioned_datasets(
         source_ck = copy.target_cks_reversed[statement.ck]
         duplicate_target_cks[source_ck] = statement.ck
 
-    batch_duplicate_records(
-        source_project_v=source,
-        target_project_v=target,
-        new_statement_ids=duplicate_target_ids,
-        new_statement_cks=duplicate_target_cks,
-        keep_cks=keep_cks,
-    )
+    if duplicate_target_ids or duplicate_target_cks:
+        batch_duplicate_records(
+            source_project_v=source,
+            target_project_v=target,
+            new_statement_ids=duplicate_target_ids,
+            new_statement_cks=duplicate_target_cks,
+            keep_cks=keep_cks,
+        )
 
 
 class StatementManager(models.Manager["Statement"]):

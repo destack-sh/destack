@@ -215,11 +215,11 @@ class ModuleNode(abc.ABC):
         visitor = ModuleVisitor()
         visitor.visit(self)
 
-        seen = set()
+        seen: dict[UUID, ModuleNode] = {}
         to_visit = [self]
         while to_visit:
             for node in to_visit:
-                seen.add(node.ck)
+                seen[node.ck] = node
                 node._visit(visitor)
             to_visit = [n for n in visitor.visited if n.ck not in seen]
 
