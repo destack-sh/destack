@@ -32,6 +32,7 @@ export type FileState = {
 export type FileContext = FileState & {
   statements: StatementHeader[]; // ordered
   statementsById: Record<string, Statement>;
+  statementsByCk: Record<string, Statement>;
   statementsComponents: Record<string, InstanceType<typeof StatementComponent>>;
   statementsByParentId: Record<string, Statement[]>;
   statementPositions: Record<string, number>;
@@ -73,6 +74,13 @@ export function provideFileState(file: Ref<FileState | null>) {
     });
     return statementsById;
   });
+  const statementsByCk = computed(() => {
+    const statementsByCk: globalThis.Record<string, Statement> = {};
+    statementsUnordered.value.forEach((statement) => {
+      statementsByCk[statement.ck] = statement;
+    });
+    return statementsByCk;
+  });
 
   // statementsByParentId must be ordered like orderedStatements
   const statementsByParentId: Ref<Record<string, Statement[]>> = computed(() => {
@@ -106,6 +114,7 @@ export function provideFileState(file: Ref<FileState | null>) {
       statements: statements.value,
       statementsComponents: file.value.statementsComponents ?? {},
       statementsById: statementsById.value,
+      statementsByCk: statementsByCk.value,
       statementsByParentId: statementsByParentId.value,
       statementPositions: statementPositions.value,
       positionedStatements: positionedStatements.value,
@@ -142,6 +151,7 @@ export const NAVIGATION_CONTEXT = "__navigationContext__" as const;
 export const CLIPBOARD_CONTENT_TYPE = "text/plain";
 export type CopiedStatement = {
   id: string;
+  ck: string;
   parentId: string | null;
   parentInCopy?: boolean;
   orderKey: string;
@@ -216,6 +226,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   const statements = computed(() => file.value?.statements ?? []);
   const depths = computed(() => file.value?.depths ?? []);
   const statementsById: Ref<Record<string, StatementHeader>> = computed(() => file.value?.statementsById ?? {});
+  const statementsByCk: Ref<Record<string, StatementHeader>> = computed(() => file.value?.statementsByCk ?? {});
   const statementsByParentId: Ref<Record<string, StatementHeader[]>> = computed(
     () => file.value?.statementsByParentId ?? {}
   );
@@ -566,12 +577,13 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
       // project source ids and locations to target at insert point (with new ids)
       const sourceIds = sourceStatements.map((s) => s.id);
+      const sourceCks = sourceStatements.map((s) => s.ck);
       const targetIds: Record<string, string> = {};
       const targetCks: Record<string, string> = {};
       sourceStatements.forEach((s) => {
         const identity = newNodeIdentity(bench.projectVersionId as string, "Statement");
         targetIds[s.id] = identity.id;
-        targetCks[s.id] = identity.ck;
+        targetCks[s.ck] = identity.ck;
       });
       const targetParentIds = sourceStatements.map((s) =>
         s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
@@ -608,7 +620,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       await ops.statement.batchPaste(
         sourceIds,
         sourceIds.map((id) => targetIds[id]),
-        sourceIds.map((id) => targetCks[id]),
+        sourceCks.map((ck) => targetCks[ck]),
         file.value?.file.id,
         targetParentIds,
         targetOrderKeys
@@ -616,12 +628,18 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       console.log("pasted " + sourceStatements.length + " statements");
       // select the pasted stuff
       if (bench.focusedStatementId != null && sourceIds.includes(bench.focusedStatementId)) {
-        file.value?.panel.focusElement({ id: targetIds[bench.focusedStatementId], __typename: "Statement" });
+        file.value?.panel.focusElement({
+          id: targetIds[bench.focusedStatementId],
+          ck: targetCks[bench.focusedStatementCk as string],
+          __typename: "Statement",
+        });
       } else {
         file.value?.panel.blurElement();
       }
       file.value?.panel.clearSelection();
-      Object.values(targetIds).forEach((targetId) => file.value?.panel.addToSelection({ id: targetId }));
+      Object.values(targetIds).map((id, i) =>
+        file.value?.panel.addToSelection({ id, ck: targetCks[i], __typename: "Statement" })
+      );
     } catch (err) {
       console.error("failed to parse clipboard data", err);
       return;
@@ -632,9 +650,10 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     if (file.value == null) return null;
 
     // current
+    const activeStatement = statementsByCk.value[file.value.panel.activeStatementCk as string];
     const current = {
-      statement: statementsById.value[file.value.panel.activeStatementId as string],
-      component: file.value.statementsComponents[file.value.panel.activeStatementId as string],
+      statement: activeStatement,
+      component: file.value.statementsComponents[activeStatement?.id],
       orderKey: statement.value?.orderKey ?? INTEGER_ZERO,
       previousSibling: statement.value == null ? null : getPreviousSibling(statement.value),
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],

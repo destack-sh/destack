@@ -374,6 +374,7 @@ type LogEntry {
   message: String
   sessionId: GlobalID
   runnableId: GlobalID
+  runnableCk: UUID
   runId: GlobalID
   metadata: JSON
 }
@@ -1107,8 +1108,8 @@ type Query {
   ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
-  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
-  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
+  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
+  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
   clients(
     projectId: GlobalID = null
     projectVersionId: GlobalID = null
@@ -1354,6 +1355,7 @@ type Run implements HasTriggeredBy & Node {
   children: [Run!]!
   descendants: [Run!]!
   runnable: Statement
+  runnableCk: UUID
   createdAt: DateTime!
   updatedAt: DateTime!
   startedAt: DateTime
@@ -1725,7 +1727,7 @@ type Subscription {
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectId: GlobalID!, projectVersionId: GlobalID!): ModuleChange!
   sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeRunsChangeWorkerChange!
-  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null): LogChange!
+  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null): LogChange!
 }
 
 input SymbolUpdateCodeInput {

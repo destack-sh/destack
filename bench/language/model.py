@@ -135,9 +135,11 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                     raise RuntimeError(f"remote {self} failed")
                 outputs = instantiate_value(rep.p.outputs, self, is_output=True)
                 self.session.tracer.run_exit(self, outputs)
+                log.debug("inference.remote.exit", output=describe_type(outputs))
                 return DotDict(outputs)
             except (ValueError, RuntimeError, TypeError) as e:
                 self.session.tracer.run_exception(self, e)
+                log.warning("inference.remote.error", e=e, exc_info=e)
                 raise
         else:
             # otherwise run inference through endpoint :LibImplementation
@@ -156,9 +158,11 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                     timeout,
                 )
                 self.session.tracer.run_exit(self, outputs)
+                log.debug("inference.exit", output=describe_type(outputs))
                 return outputs
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
+                log.warning("inference.error", e=e, exc_info=e)
                 raise
 
     async def _inference(

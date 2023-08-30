@@ -181,6 +181,7 @@ class Run(HasTriggeredBy, relay.Node):
     children: list["Run"]
     descendants: list["Run"]
     runnable: Optional["Statement"]
+    runnable_ck: auto
     created_at: auto
     updated_at: auto
     started_at: auto
@@ -212,6 +213,7 @@ class LogEntry:
     message: Optional[str]
     session_id: Optional[GlobalID]
     runnable_id: Optional[GlobalID]
+    runnable_ck: Optional[UUID]
     run_id: Optional[GlobalID]
     metadata: Optional[JSON]
 
@@ -227,6 +229,7 @@ class LogEntry:
             message=log_entry.message,
             session_id=to_global_id("Session", log_entry.session_id),
             runnable_id=to_global_id("Statement", log_entry.runnable_id),
+            runnable_ck=log_entry.runnable_ck,
             run_id=to_global_id("Run", log_entry.run_id),
             metadata=log_entry.metadata,
         )
@@ -243,6 +246,7 @@ class LogEntry:
             message=log_entry.message,
             session_id=to_global_id("Session", log_entry.session_id),
             runnable_id=to_global_id("Statement", log_entry.runnable_id),
+            runnable_ck=log_entry.runnable_ck,
             run_id=to_global_id("Run", log_entry.run_id),
             metadata=log_entry.metadata,
         )
@@ -420,6 +424,7 @@ class SessionQuery:
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
         runnable_ids: Optional[list[GlobalID]] = None,
+        runnable_cks: Optional[list[UUID]] = None,
         root_only: Optional[bool] = None,
         query: Optional[SearchQuery] = None,
         sort: Optional[list[SearchSort]] = None,
@@ -441,6 +446,8 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
         if runnable_ids:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
+        if runnable_cks:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_ck", runnable_cks))
         if root_only:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
@@ -502,6 +509,7 @@ class SessionQuery:
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
         runnable_ids: Optional[list[GlobalID]] = None,
+        runnable_cks: Optional[list[UUID]] = None,
         query: Optional[SearchQuery] = None,
         sort: Optional[list[SearchSort]] = None,
         after: Optional[str] = None,
@@ -523,6 +531,8 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", str(run_id)))
         if runnable_ids:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", str(runnable_ids)))
+        if runnable_cks:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_ck", runnable_cks))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.LOG_ENTRY,
@@ -783,6 +793,7 @@ class SessionSubscription:
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
         runnable_ids: Optional[list[GlobalID]] = None,
+        runnable_cks: Optional[list[UUID]] = None,
     ) -> AsyncGenerator[LogChange, None]:
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
@@ -805,6 +816,8 @@ class SessionSubscription:
             if run_id and log.run_id != run_id:
                 return False
             if runnable_ids and log.runnable_id not in runnable_ids:
+                return False
+            if runnable_cks and log.runnable_ck not in runnable_cks:
                 return False
             return True
 

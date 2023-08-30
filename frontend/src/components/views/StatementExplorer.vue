@@ -17,7 +17,7 @@ const bench = useBenchState();
 const nav = useNavigation();
 
 const orderedStatements = computed(() => {
-  if (bench.focusedFileId == null) {
+  if (bench.focusedFileCk == null) {
     return undefined;
   }
   const statements = Object.values(module.idx.value?.statementsById ?? {}).filter(
@@ -82,8 +82,8 @@ defineExpose({
       tabindex="-1"
       class="flex flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'text-orange-600': ordered.id == bench?.focusedStatementId,
-        'text-gray-700 hover:bg-orange-100': ordered.id != bench?.focusedStatementId,
+        'text-orange-600': ordered.ck == bench?.focusedStatementCk,
+        'text-gray-700 hover:bg-orange-100': ordered.ck != bench?.focusedStatementCk,
       }"
       :style="{
         marginLeft: ordered.depth * 8 + 'px',

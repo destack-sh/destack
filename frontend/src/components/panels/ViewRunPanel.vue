@@ -15,7 +15,7 @@ import TraceTile from "@/components/tiles/TraceTile.vue";
 import { getStatementIconSolid } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID } from "@/state/trigger";
 import { IS_DEBUG } from "@/utils/globals";
-import { TriggerType } from "@/gql/graphql";
+import { StatementType, TriggerType } from "@/gql/graphql";
 import { DateTime } from "luxon";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import type { Run } from "@/gql/graphql";
@@ -244,7 +244,7 @@ defineExpose({
           <TraceTile :root-id="panel.runId" layout="bars" live />
         </ContainerTile>
         <!-- Logs -->
-        <ContainerTile label="Logs" :style="{ ...baseTilePositionX }">
+        <ContainerTile v-if="statement?.type != StatementType.Model" label="Logs" :style="{ ...baseTilePositionX }">
           <LogsTile
             class="max-h-[500px] overflow-auto px-1 py-1"
             ref="logsTileRef"

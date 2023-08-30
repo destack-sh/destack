@@ -4,7 +4,7 @@ import { useBenchState, usePanelContext } from "@/state/bench";
 import { computed } from "vue";
 
 const props = defineProps<{
-  thing?: { id: string; deletedAt?: string | null; projectVersion: { id: string } | null } | null;
+  thing?: { id: string; deletedAt?: string | null; projectVersion?: { id: string } | null } | null;
   name: string;
   isLoading: boolean;
 }>();
@@ -19,13 +19,16 @@ const panel = usePanelContext();
 const isDeleted = computed(() => props.thing?.deletedAt != null);
 const isOtherVersion = computed(
   () =>
-    bench.projectVersionId != null && props.thing != null && props.thing?.projectVersion?.id != bench.projectVersionId
+    props.thing?.projectVersion != null &&
+    bench.projectVersionId != null &&
+    props.thing != null &&
+    props.thing?.projectVersion?.id != bench.projectVersionId
 );
 const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.slice(1));
 </script>
 <template>
   <!-- Deleted thing status and restore -->
-  <div v-if="isDeleted && thing != null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-1">
+  <div v-if="isDeleted && thing != null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-0.5">
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
@@ -44,7 +47,7 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
   <!-- Other version thing -->
   <div
     v-else-if="!isLoading && !isDeleted && isOtherVersion"
-    class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-1"
+    class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5"
   >
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
@@ -60,12 +63,12 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
     </div>
   </div>
   <!-- Thing failed to load -->
-  <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-red-600 py-1">
+  <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5">
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} failed to load.</div>
+      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} does not exist.</div>
     </div>
   </div>
 </template>

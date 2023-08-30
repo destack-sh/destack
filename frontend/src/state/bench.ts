@@ -20,7 +20,7 @@ import {
   type PanelAppearance,
   type Theme,
 } from "@/state/appearance";
-import type { ModuleIndex, NodeBase } from "@/state/module";
+import { getNodeIdFromCkMaybe, type ModuleIndex, type NodeBase } from "@/state/module";
 import type { LogsQuery, RunsQuery } from "@/state/session";
 import { getUUIDFromGlobalID, randomHexString } from "@/utils/functools";
 import {
@@ -87,7 +87,7 @@ export type ViewId = "explorer" | "search" | "history" | "issues" | "environment
 
 export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 
-const BENCH_STATE_VERSION = 7;
+const BENCH_STATE_VERSION = 8;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -124,7 +124,7 @@ export abstract class Panel {
     return copy;
   }
 
-  onDeserialized(bench: ReturnType<typeof useBenchState>) {
+  onInstantiated(bench: ReturnType<typeof useBenchState>) {
     this._bench = bench;
   }
 
@@ -266,6 +266,7 @@ export const useBenchState = defineStore("bench", {
       focusedPanelId: null as string | null,
       // appearance/settings (should be merged into appearance? but is bench specific...)
       debug: false,
+      keepEmptyPanelGroups: false,
       showPanelTabs: true,
       showPanelExplorer: false,
       showBenchHeader: true,
@@ -291,14 +292,20 @@ export const useBenchState = defineStore("bench", {
     focusedPanel(): Panel | undefined {
       return this.panels.find((e) => e.id == this.focusedPanelId);
     },
+    focusedFileCk(): string | null {
+      return this.focusedPanel?.type == "edit-file" ? (this.focusedPanel as EditFilePanel).fileCk : null;
+    },
     focusedFileId(): string | null {
-      return this.focusedPanel?.type == "edit-file" ? (this.focusedPanel as EditFilePanel).fileId : null;
+      return getNodeIdFromCkMaybe(this.projectVersionId, this.focusedFileCk, "File");
     },
     focusedFile(): EditFilePanel | undefined {
       return this.focusedPanel?.type == "edit-file" ? (this.focusedPanel as EditFilePanel) : undefined;
     },
+    focusedStatementCk(): string | null {
+      return this.focusedFile?.activeStatementCk ?? null;
+    },
     focusedStatementId(): string | null {
-      return this.focusedFile?.activeStatementId ?? null;
+      return getNodeIdFromCkMaybe(this.projectVersionId, this.focusedStatementCk, "Statement");
     },
     focusedGroup(): PanelGroup | undefined {
       if (this.focusedPanel?.groupId == null) return undefined;
@@ -386,6 +393,14 @@ export const useBenchState = defineStore("bench", {
       return false;
     },
 
+    _coalesceClosedGroups(): void {
+      // right now just move right group panels to left group if left group is empty
+      if (this.keepEmptyPanelGroups) return;
+      if (this.left.panels.length == 0 && this.right.panels.length > 0) {
+        this.right.panels.forEach((e) => this.movePanel(e, this.left));
+      }
+    },
+
     openPanel(panel: Panel, group?: PanelGroup): Panel {
       // if group wasn't passed, just return the panel if it's already open
       if (group == null && panel.groupId != null) {
@@ -425,6 +440,7 @@ export const useBenchState = defineStore("bench", {
           }
         }
       }
+      this._coalesceClosedGroups();
     },
 
     closePanelGroup(group: PanelGroup): void {
@@ -454,14 +470,15 @@ export const useBenchState = defineStore("bench", {
       if (wasFocused) {
         this.focusPanel(panel);
       }
+      this._coalesceClosedGroups();
     },
 
-    _openMaybe(filter: (panel: Panel) => boolean, create: () => Panel, options?: PanelOpenOptions): Panel {
+    _openMaybeCreate(filter: (panel: Panel) => boolean, create: () => Panel, options?: PanelOpenOptions): Panel {
       let panel = this.panels.find(filter);
       if (!panel || options?.create) {
         panel = create();
         console.log(`create new panel ${panel.path}`);
-        panel.onDeserialized(this);
+        panel.onInstantiated(this);
       }
       let group = options?.group;
       if (options?.opposite) {
@@ -475,31 +492,31 @@ export const useBenchState = defineStore("bench", {
     },
 
     openEditFile(file: NodeBase, options?: PanelOpenOptions): Panel {
-      return this._openMaybe(
-        (p) => p.type == "edit-file" && (p as EditFilePanel).fileId == file.id,
+      return this._openMaybeCreate(
+        (p) => p.type == "edit-file" && (p as EditFilePanel).fileCk == file.ck,
         () => new EditFilePanel(file),
         options
       );
     },
 
-    openEditStatement(statement: { id: string; name?: string | null }, options?: PanelOpenOptions): Panel {
-      return this._openMaybe(
-        (p) => p.type == "edit-statement" && (p as EditStatementPanel).statementId == statement.id,
+    openEditStatement(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
+      return this._openMaybeCreate(
+        (p) => p.type == "edit-statement" && (p as EditStatementPanel).statementCk == statement.ck,
         () => new EditStatementPanel(statement),
         options
       );
     },
 
-    openLaunchRun(statement: { id: string; name?: string | null }, options?: PanelOpenOptions): Panel {
-      return this._openMaybe(
-        (p) => p.type == "launch-run" && (p as LaunchRunPanel).statementId == statement.id,
+    openLaunchRun(statement: { ck: string; name?: string | null }, options?: PanelOpenOptions): Panel {
+      return this._openMaybeCreate(
+        (p) => p.type == "launch-run" && (p as LaunchRunPanel).statementCk == statement.ck,
         () => new LaunchRunPanel(statement),
         options
       );
     },
 
     openViewRuns(query?: RunsQuery, options?: PanelOpenOptions): Panel {
-      return this._openMaybe(
+      return this._openMaybeCreate(
         (p) => p.type == "view-runs",
         () => new ViewRunsPanel(query),
         options
@@ -507,7 +524,7 @@ export const useBenchState = defineStore("bench", {
     },
 
     openViewRun(run: { id: string }, options?: PanelOpenOptions): Panel {
-      return this._openMaybe(
+      return this._openMaybeCreate(
         (p) => p.type == "view-run" && (p as ViewRunPanel).runId == run.id,
         () => new ViewRunPanel(run),
         options
@@ -843,17 +860,17 @@ export type PanelAction = Action<Panel>;
 // specific panels
 
 export type NavElementType = "Statement" | "Field" | "Record";
-export type NavElement = { id: Scalars["GlobalID"]; __typename?: NavElementType };
+export type NavElement = { id: string; ck: string; __typename?: NavElementType };
 
 export abstract class NavigablePanel extends Panel {
-  activeStatementId?: string;
+  activeStatementCk?: string;
   selectedElementType?: NavElementType;
   selectedElementIds: string[] = [];
   elementProperties: Record<string, any> = {};
   editing = false;
 
-  onDeserialized(bench: ReturnType<typeof useBenchState>) {
-    super.onDeserialized(bench);
+  onInstantiated(bench: ReturnType<typeof useBenchState>) {
+    super.onInstantiated(bench);
     this.elementProperties = this.elementProperties || {};
   }
 
@@ -861,28 +878,28 @@ export abstract class NavigablePanel extends Panel {
     if (element.__typename != "Statement") {
       throw new Error(`focusElement only supports Statement elements, got ${element.__typename}`);
     }
-    if (this.activeStatementId == element.id) return;
-    console.debug(`focus element ${element.id}`);
-    this.activeStatementId = element.id;
+    if (this.activeStatementCk == element.ck) return;
+    console.debug(`focus element ${element.ck}`);
+    this.activeStatementCk = element.ck;
     this.editing = this.editing && retainEditing;
   }
 
   blurElement(element?: NavElement) {
-    if (element == null || element.id == this.activeStatementId) {
-      this.activeStatementId = undefined;
+    if (element == null || element.id == this.activeStatementCk) {
+      this.activeStatementCk = undefined;
       this.editing = false;
-      console.debug(`blur element ${element?.id}`);
+      console.debug(`blur element ${element?.id} ${element?.ck}`);
     }
   }
 
   editElement(element: NavElement) {
     this.focusElement(element);
     this.editing = true;
-    console.debug(`edit element ${element.id}`);
+    console.debug(`edit element ${element.id} ${element.ck}`);
   }
 
   stopEditingElement(element?: NavElement) {
-    if (element == null || element.id == this.activeStatementId) {
+    if (element == null || element.ck == this.activeStatementCk) {
       this.editing = false;
     }
   }
@@ -939,38 +956,37 @@ export abstract class NavigablePanel extends Panel {
 
 export class EditFilePanel extends NavigablePanel {
   type = "edit-file" as const;
-  fileId: string;
-  foldedStatementContentIds?: string[] = [];
-  foldedStatementTreeIds?: string[] = [];
+  fileCk: string;
+  foldedStatementContentCks?: string[] = [];
 
   constructor(file: NodeBase) {
-    super("edit-file", file.id + "-" + randomHexString(), file.name ?? "(Unnamed)", file.name ?? "(Unnamed)", null);
-    this.fileId = file.id;
+    super("edit-file", file.ck + "-" + randomHexString(), file.name ?? "(Unnamed)", file.name ?? "(Unnamed)", null);
+    this.fileCk = file.ck;
   }
 
   resetId(): void {
-    this.id = this.fileId + "-" + randomHexString();
+    this.id = this.fileCk + "-" + randomHexString();
   }
 
-  isStatementContentFolded(statement: { id: string }): boolean {
-    return this.foldedStatementContentIds?.includes(statement.id) ?? false;
+  isStatementContentFolded(statement: { ck: string }): boolean {
+    return this.foldedStatementContentCks?.includes(statement.ck) ?? false;
   }
 
-  toggleStatementContentFolded(statement: { id: string }): void {
+  toggleStatementContentFolded(statement: { ck: string }): void {
     if (this.isStatementContentFolded(statement)) {
-      this.foldedStatementContentIds = this.foldedStatementContentIds?.filter((id) => id != statement.id);
+      this.foldedStatementContentCks = this.foldedStatementContentCks?.filter((id) => id != statement.ck);
     } else {
-      this.foldedStatementContentIds = this.foldedStatementContentIds ?? [];
-      this.foldedStatementContentIds.push(statement.id);
+      this.foldedStatementContentCks = this.foldedStatementContentCks ?? [];
+      this.foldedStatementContentCks.push(statement.ck);
     }
   }
 
-  setStatementContentsFolded(statements: { id: string }[], folded: boolean): void {
+  setStatementContentsFolded(statements: { ck: string }[], folded: boolean): void {
     if (folded) {
-      this.foldedStatementContentIds = [...(this.foldedStatementContentIds ?? []), ...statements.map((s) => s.id)];
+      this.foldedStatementContentCks = [...(this.foldedStatementContentCks ?? []), ...statements.map((s) => s.ck)];
     } else {
-      this.foldedStatementContentIds = this.foldedStatementContentIds?.filter(
-        (id) => !statements.find((s) => s.id == id)
+      this.foldedStatementContentCks = this.foldedStatementContentCks?.filter(
+        (ck) => !statements.find((s) => s.ck == ck)
       );
     }
   }
@@ -991,11 +1007,11 @@ export class EditFilePanel extends NavigablePanel {
 
 export class EditStatementPanel extends NavigablePanel {
   type = "edit-statement" as const;
-  statementId: string;
+  statementCk: string;
 
-  constructor(statement: { id: string; name?: string | null }) {
-    super("edit-statement", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
-    this.statementId = statement.id;
+  constructor(statement: { ck: string; name?: string | null }) {
+    super("edit-statement", statement.ck + "-" + randomHexString(), statement.name ?? "", statement.name ?? "", null);
+    this.statementCk = statement.ck;
     this.appearance.wide = true; // default to wide
   }
 
@@ -1005,7 +1021,7 @@ export class EditStatementPanel extends NavigablePanel {
   }
 
   resetId(): void {
-    this.id = this.statementId + "-" + randomHexString();
+    this.id = this.statementCk + "-" + randomHexString();
   }
 
   updatePath(statementHeader: { id: string; name?: string | null }, module: ModuleIndex) {
@@ -1030,7 +1046,7 @@ export class EditStatementPanel extends NavigablePanel {
 
 export class LaunchRunPanel extends Panel {
   type = "launch-run" as const;
-  statementId: string;
+  statementCk: string;
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
@@ -1039,9 +1055,9 @@ export class LaunchRunPanel extends Panel {
   lastRunId?: string;
   lastSessionId?: string;
 
-  constructor(statement: { id: string; name?: string | null; __typename?: string }) {
-    super("launch-run", statement.id + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
-    this.statementId = statement.id;
+  constructor(statement: { ck: string; name?: string | null; __typename?: string }) {
+    super("launch-run", statement.ck + "-" + randomHexString(), statement.name ?? "", statement.name ?? "");
+    this.statementCk = statement.ck;
     if (statement.__typename == "Task") {
       this.statementType = StatementType.Task;
     } else if (statement.__typename == "Code") {
@@ -1050,7 +1066,7 @@ export class LaunchRunPanel extends Panel {
   }
 
   resetId(): void {
-    this.id = this.statementId + "-" + randomHexString();
+    this.id = this.statementCk + "-" + randomHexString();
   }
 
   updatePath(statementHeader: { id: string; name?: string | null }, module: ModuleIndex) {
@@ -1192,7 +1208,7 @@ function instantiate(panelData: any, bench: ReturnType<typeof useBenchState>): P
     throw new Error(`failed to set prototype of panel ${panelData.id}`);
   }
   const panel = panelData as Panel;
-  panel.onDeserialized(bench);
+  panel.onInstantiated(bench);
   return panel;
 }
 

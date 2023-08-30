@@ -10,6 +10,7 @@ const props = defineProps<{
   projectId: string;
   projectVersionId: string;
   runnableIds?: string[];
+  runnableCks?: string[];
   runId?: string;
   sessionId?: string;
   query?: SearchQuery;
@@ -19,6 +20,7 @@ const props = defineProps<{
   skipInitialLoad?: boolean;
   focus?: {
     runnableIds?: string[];
+    runnableCks?: string[];
     runId?: string;
     sessionId?: string;
   };
@@ -32,6 +34,7 @@ const { logs, loading, addLogs } = useLogs(
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     runnableIds: toRef(props, "runnableIds"),
+    runnableCks: toRef(props, "runnableCks"),
     sessionId: toRef(props, "sessionId"),
     runId: toRef(props, "runId"),
     query: toRef(props, "query"),
@@ -51,6 +54,7 @@ function isHighlighted(log: LogEntry): boolean {
   return (
     hasFocus.value &&
     (props.focus?.runnableIds == null || props.focus.runnableIds.includes(log.runnableId)) &&
+    (props.focus?.runnableCks == null || props.focus.runnableCks.includes(log.runnableCk)) &&
     (props.focus?.runId == null || props.focus.runId == log.runId) &&
     (props.focus?.sessionId == null || props.focus.sessionId == log.sessionId)
   );

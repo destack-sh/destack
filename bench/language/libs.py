@@ -387,8 +387,7 @@ class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and helpful bot that interprets instructions intelligently."
-        " You may concisely spell out intermediate steps for complex tasks,"
-        " but you must call a provided functions with exact arguments.",
+        " Spell out concise intermediate steps for complex tasks, finally call a provided functions properly.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
@@ -483,6 +482,7 @@ class OpenAIChatCompiler(TaskCompiler):
             self.task,
             map_k=lambda f: (f.py_ident, f.py_ident),
             map_v=self.render_value_flat,
+            is_output=False,
         )
         considerations = await asyncio.gather(
             *(self._compile_consideration(consideration) for consideration in self.considerations)
@@ -502,7 +502,8 @@ class OpenAIChatCompiler(TaskCompiler):
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now, perform the task '{self.task.name}' using the inputs as needed, considering the instructions carefully. Finally, call a relevant function as instructed.",
+                content=f"Now, perform the task '{self.task.name}' using the inputs as needed, considering the instructions carefully."
+                f" Finally, call a relevant function as instructed.",
             ),
         ]
         functions: list[OpenAIFunction] = [

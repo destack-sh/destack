@@ -64,18 +64,27 @@ export type ModuleObjectTypename =
   | "Trigger";
 
 export function newNodeIdentity(moduleId: string, type: ModuleObjectTypename): { id: string; ck: string } {
-  if (!validate(moduleId)) {
-    // looks like a global id
-    moduleId = getUUIDFromGlobalID(moduleId);
-  }
   const ck = uuidv4();
   const id = getNodeIdFromCk(moduleId, ck, type);
   return { id, ck };
 }
 
 export function getNodeIdFromCk(moduleId: string, ck: string, type: ModuleObjectTypename): string {
+  if (!validate(moduleId)) {
+    // looks like a global id
+    moduleId = getUUIDFromGlobalID(moduleId);
+  }
   const id = uuidv5(ck, moduleId);
   return btoa(`${type}:${id}`);
+}
+
+export function getNodeIdFromCkMaybe(
+  moduleId: string | null | undefined,
+  ck: string | null | undefined,
+  type: ModuleObjectTypename
+): string | null {
+  if (moduleId == null || ck == null) return null;
+  return getNodeIdFromCk(moduleId, ck, type);
 }
 
 export function newDetachedNodeIdentity(type: ModuleObjectTypename): { id: string; ck: string } {
@@ -500,9 +509,10 @@ export function useCurrentModule(projectVersionId?: Ref<string | null>) {
   return useModule(activeVersionId);
 }
 
-type OrderableStatement = Pick<InterpStatement, "id" | "orderKey" | "parent">;
+type OrderableStatement = Pick<InterpStatement, "id" | "ck" | "orderKey" | "parent">;
 export type OrderedStatement<T extends OrderableStatement> = {
   id: string;
+  ck: string;
   depth: number;
   ancestors: string[];
   statement: T;
@@ -528,6 +538,7 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
       for (const child of children) {
         ordered.push({
           id: child.id,
+          ck: child.ck,
           depth: depth,
           ancestors: ancestors,
           statement: child,
@@ -553,7 +564,10 @@ export function useNavigation() {
 
   function focusStatement(statement: { id: string }) {
     const context = module.contextOf(statement.id);
-    if (!context?.file) return;
+    if (!context?.file) {
+      console.warn(`no context found for statement ${statement.id}`, statement);
+      return;
+    }
     // can't focus external modules yet
     if (context.id != bench.projectVersionId) return;
     const panel = bench.focusFile(context.file as any) as EditFilePanel;

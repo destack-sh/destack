@@ -74,12 +74,12 @@ class NMessageType(StrEnum):
     WRITE_MODULE_REP = "module.write.rep"
     WRITE_SESSION = "session.write"
     WRITE_SESSION_REP = "session.write.rep"
-    SEARCH_RECORD = "module.search.record"
-    SEARCH_RECORD_REP = "module.search.record.rep"
-    SEARCH_RUN = "module.search.run"
-    SEARCH_RUN_REP = "module.search.run.rep"
-    SEARCH_LOG = "module.search.log"
-    SEARCH_LOG_REP = "module.search.log.rep"
+    SEARCH_RECORDS = "module.search.records"
+    SEARCH_RECORDS_REP = "module.search.records.rep"
+    SEARCH_RUNS = "module.search.rusn"
+    SEARCH_RUNS_REP = "module.search.runs.rep"
+    SEARCH_LOGS = "module.search.logs"
+    SEARCH_LOGS_REP = "module.search.logs.rep"
     READ_OBJECT = "object.read"
     READ_OBJECT_REP = "object.read.rep"
     WRITE_OBJECT = "object.write"
@@ -129,9 +129,9 @@ REPLY_BY_REQUEST_TYPE = {
     NMessageType.READ_OBJECT: NMessageType.READ_OBJECT_REP,
     NMessageType.WRITE_OBJECT: NMessageType.WRITE_OBJECT_REP,
     NMessageType.MARK_UPLOADED_OBJECT: NMessageType.MARK_UPLOADED_OBJECT_REP,
-    NMessageType.SEARCH_RECORD: NMessageType.SEARCH_RECORD_REP,
-    NMessageType.SEARCH_RUN: NMessageType.SEARCH_RUN_REP,
-    NMessageType.SEARCH_LOG: NMessageType.SEARCH_LOG_REP,
+    NMessageType.SEARCH_RECORDS: NMessageType.SEARCH_RECORDS_REP,
+    NMessageType.SEARCH_RUNS: NMessageType.SEARCH_RUNS_REP,
+    NMessageType.SEARCH_LOGS: NMessageType.SEARCH_LOGS_REP,
     NMessageType.READ_SECRET: NMessageType.READ_SECRET_REP,
     NMessageType.RUN_PROXY_INFERENCE: NMessageType.RUN_PROXY_INFERENCE_REP,
     NMessageType.START_RUN: NMessageType.START_RUN_REP,
@@ -374,36 +374,38 @@ class RepSearch(abc.ABC):
     error: Optional[str] = None
 
 
-@payload(NMessageType.SEARCH_RECORD)
+@payload(NMessageType.SEARCH_RECORDS)
 class ReqSearchRecordPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     statement_ids: Optional[list[UUID]] = None
     statement_cks: Optional[list[UUID]] = None
 
 
-@payload(NMessageType.SEARCH_RECORD_REP)
+@payload(NMessageType.SEARCH_RECORDS_REP)
 class RepSearchRecordPayload(RepSearch, Payload):
     elements: Optional[list[RecordData]] = None
 
 
-@payload(NMessageType.SEARCH_RUN)
-class ReqSearchRunPayload(ReqSearch, Payload):
+@payload(NMessageType.SEARCH_RUNS)
+class ReqSearchRunsPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
+    runnables_cks: Optional[list[UUID]] = None
 
 
-@payload(NMessageType.SEARCH_RUN_REP)
+@payload(NMessageType.SEARCH_RUNS_REP)
 class RepSearchRunPayload(RepSearch, Payload):
     elements: Optional[list[RunData]] = None
 
 
-@payload(NMessageType.SEARCH_LOG)
+@payload(NMessageType.SEARCH_LOGS)
 class ReqSearchLogPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
     runnables_ids: Optional[list[UUID]] = None
+    runnables_cks: Optional[list[UUID]] = None
 
 
-@payload(NMessageType.SEARCH_LOG_REP)
+@payload(NMessageType.SEARCH_LOGS_REP)
 class RepSearchLogPayload(RepSearch, Payload):
     elements: Optional[list[LogEntryData]] = None
 

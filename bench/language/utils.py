@@ -14,6 +14,7 @@ class Runnable(abc.ABC):
     """A runnable statement"""
 
     id: UUID
+    ck: UUID
     module: "Module"
     _is_async: bool
 
@@ -34,9 +35,9 @@ class Runnable(abc.ABC):
         from bench.language.cache import CacheAsync, CacheSync
 
         if self._is_async:
-            return CacheAsync(self.module, subkey=self.id.hex)
+            return CacheAsync(self.module, subkey=self.ck.hex)
         else:
-            return CacheSync(self.module, subkey=self.id.hex)
+            return CacheSync(self.module, subkey=self.ck.hex)
 
     def __call__(self, *args, **kwargs):
         raise NotImplementedError

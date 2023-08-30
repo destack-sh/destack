@@ -20,7 +20,14 @@ import { graphql, useFragment } from "@/gql";
 import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { decodeSharingToken, useAuth } from "@/state/auth";
-import { PANEL_INSTANCE_TYPES, prettifySlug, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
+import {
+  PANEL_INSTANCE_TYPES,
+  prettifySlug,
+  projectAccessGt,
+  useBenchPersistence,
+  useBenchState,
+  type ViewId,
+} from "@/state/bench";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
@@ -28,7 +35,7 @@ import { useOperationsStore } from "@/state/operations";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { ACTIVE_SHARING_TOKEN, WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
-import { ClockIcon as ClockIconSolid, CommandLineIcon } from "@heroicons/vue/24/outline";
+import { ArrowUturnLeftIcon, ClockIcon as ClockIconSolid, CommandLineIcon } from "@heroicons/vue/24/outline";
 import {
   ClockIcon,
   Cog8ToothIcon,
@@ -283,7 +290,7 @@ watch(
         .map((panelType) => panelType.parsePath(hash, module.idx.value as ModuleIndex))
         .find((e) => e != null);
       if (matchingEditor != null) {
-        matchingEditor.onDeserialized(bench);
+        matchingEditor.onInstantiated(bench);
         console.log(`open ${matchingEditor.path} (${matchingEditor.type}) from url`);
       } else {
         console.log(`no matching editor for ${hash}`);
@@ -314,7 +321,7 @@ Mousetrap.bind(["ctrl+s", "meta+s"], () => {
       type: "editor.suppressSave",
       kind: "notice",
       message: "Saving is automatic",
-      description: "Changes are automatically synchronized.",
+      description: "Everything is synchronized.",
       actionText: "Snapshot",
       action: () => actions.apply("version.snapshot"),
     },
@@ -440,17 +447,18 @@ onBeforeUnmount(() => {
           <FadeTransition>
             <div
               v-if="versionToViewId != projectHead?.id && versionLoaded"
-              class="ml-1 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[15%] bg-orange-600 px-3 py-1 text-sm text-white"
+              class="ml-1.5 flex flex-row rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
             >
               <span class="relative">
-                <ClockIconSolid class="absolute top-0 h-5 w-5 text-white" />
+                <ClockIconSolid class="absolute top-0 h-5 w-5 text-gray-700" />
                 <span class="ml-6 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
               </span>
               <router-link
                 :to="{ hash: router.currentRoute.value.hash }"
-                class="font-bold underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
+                class="ml-2.5 flex flex-row items-center font-normal text-gray-700 hover:text-gray-700"
               >
-                Back
+                <ArrowUturnLeftIcon class="mr-0.5 h-5 w-5 text-gray-700" />
+                <span>Back</span>
               </router-link>
               <!-- <button
                 class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
@@ -463,11 +471,11 @@ onBeforeUnmount(() => {
           <!-- Read-only project notice -->
           <div
             v-if="project != null && bench.readonly"
-            class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-1 text-sm"
+            class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIconSolid class="top-0.0 absolute h-5 w-5 text-gray-500" />
-              <span class="ml-6 select-none">Viewer</span>
+              <span class="ml-6 select-none">Read only</span>
             </span>
           </div>
         </div>
@@ -633,7 +641,7 @@ onBeforeUnmount(() => {
       <!-- Main editor area -->
       <main
         ref="mainContainerRef"
-        v-show="versionLoaded"
+        v-if="versionLoaded"
         class="flex h-full w-full flex-1 divide-x divide-orange-900 divide-opacity-[12%] bg-gray-50"
       >
         <!-- Left editor group -->

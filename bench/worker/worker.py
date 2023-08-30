@@ -212,6 +212,7 @@ class WorkerNode(Monitored):
                 worker_process_id=None,
                 runnable_id=runnable.id,
                 runnable_type=runnable.type,
+                runnable_ck=runnable.ck,
                 session_id=None,
                 trigger_type=msg.p.trigger_type,
                 trigger_id=msg.p.trigger_id,
@@ -490,7 +491,7 @@ class ModuleWorkerProcess(ModuleWriter):
             )
 
             # run in active session
-            self.module.activate_in(job.session)
+            self.module._activate_in(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()
@@ -508,7 +509,7 @@ class ModuleWorkerProcess(ModuleWriter):
             await asyncio.wait_for(job.task, timeout=timeout)
         finally:
             job.terminated.set()
-            self.module.deactivate()
+            self.module._deactivate()
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 

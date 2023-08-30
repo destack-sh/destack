@@ -283,7 +283,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         check_module_node_access(info, statement, ProjectAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_ck", statement.ck), query)
+        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_id", statement.id), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by dataset

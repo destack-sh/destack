@@ -63,7 +63,9 @@ class ProjectManager(models.Manager["Project"]):
             slug=slug,
             visibility=visibility,
         )
-        project.head = ProjectVersion.objects.create(id=head_version_id or uuid4(), project=project)
+        project.head = ProjectVersion.objects.create(
+            id=head_version_id or uuid4(), ck=project.id, project=project
+        )
         if create_onboarding_files:
             # TODO @Broken: re-implement create onboarding files
             pass
@@ -401,7 +403,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         for node in packed.nodes.values():
             if (node.id in target_ids) != (node.ck in target_cks):
                 raise ValueError(
-                    f"node id and ck must be both or neither set: {node}"
+                    f"node id and ck must be set together: {node}"
                     f" (id:{node.id}:{node.id in target_ids}, ck:{node.ck}:{node.ck in target_cks})"
                 )
             if node.id not in target_ids:

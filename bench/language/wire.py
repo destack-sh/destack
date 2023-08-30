@@ -1661,6 +1661,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             message=object.message,
             session_id=object.session.id,
             runnable_id=object.runnable.id if object.runnable else None,
+            runnable_ck=object.runnable.ck if object.runnable else None,
             run_id=object.run.id if object.run else None,
             metadata=object.metadata,
         )

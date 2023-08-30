@@ -17,6 +17,7 @@ const props = defineProps<{
   projectVersionId?: string;
   rootOnly?: boolean;
   runnableIds?: string[];
+  runnableCks?: string[];
   query?: SearchQuery;
   sort?: [SearchSort];
   live?: boolean;
@@ -41,6 +42,7 @@ const { runs, loading, totalCount, pageInfo } = useRuns(
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
     runnableIds: toRef(props, "runnableIds"),
+    runnableCks: toRef(props, "runnableCks"),
     sessionId: ref(null),
     runId: ref(null),
     rootOnly: toRef(props, "rootOnly"),
