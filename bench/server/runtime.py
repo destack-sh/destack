@@ -68,7 +68,7 @@ from bench.msg.messages import (
     ReqSearch,
     ReqSearchLogPayload,
     ReqSearchRecordPayload,
-    ReqSearchRunPayload,
+    ReqSearchRunsPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
     ReqWriteModulePayload,
@@ -175,9 +175,9 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.request_runtime),
-            await handle_reply(NMessageType.SEARCH_RECORD, self.search_record),
-            await handle_reply(NMessageType.SEARCH_RUN, self.search_run),
-            await handle_reply(NMessageType.SEARCH_LOG, self.search_log),
+            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_record),
+            await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
+            await handle_reply(NMessageType.SEARCH_LOGS, self.search_log),
             await handle_reply(NMessageType.READ_OBJECT, self.read_object),
             await handle_reply(NMessageType.WRITE_OBJECT, self.write_object),
             await handle_reply(NMessageType.MARK_UPLOADED_OBJECT, self.mark_uploaded_object),
@@ -324,7 +324,7 @@ class RuntimeServer(Monitored):
     async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
         logger.debug("search.record", msg=msg)
         if msg.p.keys:
-            extra_query = Q(QueryOp.EQUALS, "statement_ck", msg.p.statement_cks)
+            extra_query = Q(QueryOp.EQUALS, "statement_id", msg.p.statement_ids)
         else:
             extra_query = None
         # TODO @Security: check if msg origin has read access to dataset
@@ -341,17 +341,18 @@ class RuntimeServer(Monitored):
         await msg.reply(rep)
 
     @message_handler
-    async def search_run(self, msg: NMessage[ReqSearchRunPayload]) -> None:
+    async def search_runs(self, msg: NMessage[ReqSearchRunsPayload]) -> None:
         logger.debug("search.dataset", msg=msg)
         # TODO @Security: check if msg origin has read access to dataset
+        extra_queries = []
         if msg.p.runnables_ids:
-            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids)
-        else:
-            extra_query = None
+            extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
+        if msg.p.runnables_cks:
+            extra_queries.append(Q(QueryOp.EQUALS, "runnable_ck", msg.p.runnables_cks))
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=extra_query,
+            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RUN,
             limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,
@@ -756,6 +757,7 @@ class RuntimeWorker:
                 worker_process_id=None,
                 runnable_id=runnable.id,
                 runnable_type=runnable.type,
+                runnable_ck=runnable.ck,
                 session_id=None,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,

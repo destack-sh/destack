@@ -18,6 +18,7 @@ const { result: suggestedFiles } = useQuery(
       projectVersion(id: $projectVersionId) {
         files(filters: { isVisible: true }) {
           id
+          ck
           name
           deletedAt
         }
@@ -37,6 +38,7 @@ const createActions = computed(() => [
     label: "View files",
     icon: DocumentIcon,
     action: () => bench.openActiveView("explorer"),
+    enabled: true,
   },
   {
     label: "Search files",
@@ -53,6 +55,7 @@ const createActions = computed(() => [
   {
     label: "View runs",
     icon: PlayIcon,
+    enabled: true,
     action: () => bench.openViewRuns(),
   },
 ]);

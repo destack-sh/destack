@@ -151,7 +151,7 @@ class ModuleVisitor:
         return self._visited_by_ck.values()
 
     def visit(self, node: "ModuleNode"):
-        if node.ck in self._visited_by_ck and self._visited_by_ck[node.ck] != node:
+        if node.ck in self._visited_by_ck and self._visited_by_ck[node.ck].id != node.id:
             raise ValueError(f"cannot visit {node} twice: {self._visited_by_ck[node.ck]}")
         self._visited_by_ck[node.ck] = node
 
@@ -269,15 +269,15 @@ class HasSession(abc.ABC):
         if self._session is not None:
             self._session.remove(self)
 
-    def activate_in(self, session: "Session") -> None:
+    def _activate_in(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
         if self._session is not None:
-            self.deactivate()
+            self._deactivate()
         self._session = session
         session.add(self, new=False)
         self._tracked = True
 
-    def deactivate(self) -> None:
+    def _deactivate(self) -> None:
         """'Deinstantiate' this object."""
         self._tracked = False  # need to set this first as some statements may redirect set/get
         if self._session is not None:
@@ -568,7 +568,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if self.status != status:
             raise ValueError(f"need {self} to be {status.name}")
 
-    def activate_in(self, session: "Session"):
+    def _activate_in(self, session: "Session"):
         if self._session is not None:
             self._session.remove(self)
         self.clear()
@@ -576,16 +576,16 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self.interp()
         for n in self._walk():
             if n.id != self.id and isinstance(n, HasSession):
-                n.activate_in(session)
+                n._activate_in(session)
         for dependency in self.dependencies.values():
-            dependency.activate_in(session)
+            dependency._activate_in(session)
         self._session = session
 
-    def deactivate(self) -> None:
+    def _deactivate(self) -> None:
         self._session = None
         for n in self._walk():
             if n.id != self.id and isinstance(n, HasSession):
-                n.deactivate()
+                n._deactivate()
 
     def clear(self):
         super()._clear()

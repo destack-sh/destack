@@ -32,7 +32,7 @@ const suggestedRunnables = computed(() => {
   let candidates = runnables.value
     .filter((n) => (n.name ?? "").trim().length > 0)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  if (bench.focusedFileId != null) {
+  if (bench.focusedFileCk != null) {
     // shift focused file's statements to top
     candidates = candidates
       .filter((r) => r.file.id == bench.focusedFileId)

@@ -18,7 +18,7 @@ import {
 } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity } from "@/state/module";
+import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity, getNodeIdFromCk } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -41,12 +41,15 @@ const ops = useOperations();
 
 // file state
 
+console.log("file panel", bench.projectVersionId, panel.value.fileCk);
+
 const { result: file, loading: fileLoading } = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
         # :fileContentById
         id
+        ck
         ...FileHeader
         statements(filters: { isVisible: true }) {
           ...StatementContent
@@ -58,7 +61,7 @@ const { result: file, loading: fileLoading } = useQuery(
     }
   `),
   () => ({
-    fileId: props.panel.panel.value.fileId,
+    fileId: getNodeIdFromCk(bench.projectVersionId as string, panel.value.fileCk, "File"),
   })
 );
 const fileHeader = computed(() => useFragment(FileHeaderType, file.value?.file) ?? undefined);
@@ -121,12 +124,12 @@ watchEffect(() => {
     }
     statementsLoaded.value = true;
     panel.value.stopEditingElement(); // reset editing element on load
-    if (panel.value.focused && panel.value.activeStatementId != null) {
+    if (panel.value.focused && panel.value.activeStatementCk != null) {
       // focus active statement
-      statementsComponents.value[panel.value.activeStatementId]?.focus();
+      statementsComponents.value[panel.value.activeStatementCk]?.focus();
       // scroll into view
       nextTick(() => {
-        statementsComponents.value[panel.value.activeStatementId as string]?.$el?.parentNode?.scrollIntoView({
+        statementsComponents.value[panel.value.activeStatementCk as string]?.$el?.parentNode?.scrollIntoView({
           behavior: "instant",
           block: "center",
           inline: "center",
@@ -140,7 +143,7 @@ watchEffect(() => {
 
 function focusTitle() {
   titleRef.value?.focus();
-  panel.value.activeStatementId = undefined;
+  panel.value.activeStatementCk = undefined;
 }
 
 function registerStatementRef(id: string, component: InstanceType<typeof StatementComponent> | undefined) {
@@ -279,9 +282,9 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
   },
 ]);
 
-const filePath = computed(() => module.nodePathOf(panel.value.fileId));
+const filePath = computed(() => module.nodePathOf(panel.value.fileCk));
 const focusPath = computed(() =>
-  panel.value.activeStatementId == null ? null : module.nodePathOf(panel.value.activeStatementId)
+  panel.value.activeStatementCk == null ? null : module.nodePathOf(panel.value.activeStatementCk)
 );
 const completePath = computed(() => {
   if (filePath.value == null) return null;
@@ -427,9 +430,9 @@ function getStatementBounding(statementId: string): { top: number; right: number
       :actions="fileActions"
       :editing="panel.editing"
       :path="completePath ?? []"
-      :self="completePath?.findIndex((n) => n.id == panel.fileId) ?? -1"
-      :subpath="context?.statementsById[panel.activeStatementId ?? '']?.name"
-      @focus="panel.activeStatementId = $event.id"
+      :self="completePath?.findIndex((n) => n.id == panel.fileCk) ?? -1"
+      :subpath="context?.statementsById[panel.activeStatementCk ?? '']?.name"
+      @focus="panel.activeStatementCk = $event.id"
     />
     <!-- Loading / status -->
     <div

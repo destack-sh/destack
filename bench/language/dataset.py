@@ -57,7 +57,7 @@ class Record(ModuleNode, HasSession, HasCrud):
     def keys(self):
         return self.value.keys
 
-    def activate_in(self, session: "Session") -> None:
+    def _activate_in(self, session: "Session") -> None:
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False
@@ -67,7 +67,7 @@ class Record(ModuleNode, HasSession, HasCrud):
         )
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
-        super().activate_in(session)
+        super()._activate_in(session)
 
     def _raw_value(self) -> dict:
         """The raw/stripped value with field keys."""
@@ -309,7 +309,7 @@ class RecordSearch(Search["RecordData", Record]):
             statement_ids = None
             statement_cks = None
         rep: NMessage[RepSearchRecordPayload] = await request(
-            NMessageType.SEARCH_RECORD,
+            NMessageType.SEARCH_RECORDS,
             ReqSearchRecordPayload(
                 module_id=self.module.id,
                 statement_ids=statement_ids,
@@ -336,7 +336,7 @@ class RecordSearch(Search["RecordData", Record]):
             )
         record = wire.unpack_node_flat(record_data, parent, self.module.session)
         record._instantiated = False
-        record.activate_in(self.module.session)
+        record._activate_in(self.module.session)
         return record
 
     def filter(self, query: Query) -> "RecordSearch":
@@ -448,7 +448,7 @@ class Value(HasType, HasTags, Statement):
         Statement._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
-        self.deactivate()
+        self._deactivate()
 
     def _interp(self, scope: Scope) -> None:
         HasType._interp(self, scope)
@@ -464,7 +464,7 @@ class Value(HasType, HasTags, Statement):
     def _onwrite(self, key: str) -> None:
         self.session.tracer.value_update(self, key)
 
-    def activate_in(self, session: "Session") -> None:
+    def _activate_in(self, session: "Session") -> None:
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False
@@ -472,10 +472,10 @@ class Value(HasType, HasTags, Statement):
         self.value = instantiate_value(self.value, self, ignore_array=True, ignore_outer_map=True)
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
         self._instantiated = True
-        super().activate_in(session)
+        super()._activate_in(session)
 
-    def deactivate(self) -> None:
-        super().deactivate()
+    def _deactivate(self) -> None:
+        super()._deactivate()
         if self._instantiated:
             self.value = self._raw_value()
             self._instantiated = False

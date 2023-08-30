@@ -461,15 +461,18 @@ class HasType(TypeBase, StatementBase):
         """Copies the fields of this type to another type"""
         new_fields = []
         for field_ in other.fields:
-            field_.parent = self
+            if not field_.id:
+                field_._assign_id(self.module.id)
+            field_copy = field_.copy()
+            field_copy.parent = self
+            field_copy.reference = field_.reference
             if reset_id:
-                field_.id = None
-                field_.ck = uuid.uuid4()
-            self.fields.append(field_)
-            self._notify_added(field_)
-            new_fields.append(field_)
+                field_copy.id = None
+                field_copy.ck = uuid.uuid4()
+            self.fields.append(field_copy)
+            self._notify_added(field_copy)
+            new_fields.append(field_copy)
         self._assign_oks()
-        other.fields = []
         return new_fields
 
     def _assign_oks(self):

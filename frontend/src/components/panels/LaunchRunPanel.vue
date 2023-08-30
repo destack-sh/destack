@@ -16,6 +16,7 @@ import TraceTile from "@/components/tiles/TraceTile.vue";
 import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
+import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 
 const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -33,7 +34,7 @@ const now = useTimeFromNow();
 
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
-const statement = computed(() => module.statementOf(props.panel.panel.value.statementId));
+const statement = computed(() => module.statementOf(props.panel.panel.value.statementCk));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
 );
@@ -74,18 +75,18 @@ watchEffect(() => {
 // sync name/path into editor
 const path = computed(() => {
   if (statement.value == null) return null;
-  return module.pathOf(statement.value);
+  return module.pathOf(panel.value.statementCk);
 });
 watch(path, () => {
   if (statement.value == null || module.idx.value == null) return;
   panel.value.updatePath(statement.value, module.idx.value);
 });
 
-const statementPath = computed(() => module.nodePathOf({ id: panel.value.statementId }));
+const statementPath = computed(() => module.nodePathOf(panel.value.statementCk));
 
 // running
 
-const runs = sessions.runsOf({ id: panel.value.statementId });
+const runs = sessions.runsOf({ id: panel.value.statementCk });
 const currentRun = computed(() => runs.value[0]);
 const isCurrentRunActive = computed(
   () =>
@@ -101,7 +102,7 @@ async function run() {
   panel.value.lastOutput = undefined;
   panel.value.lastError = undefined;
   const { run, result: runTask } = await sessions.run(
-    { id: panel.value.statementId },
+    { id: statement.value.id },
     {
       inputs: panel.value.inputs,
       keyed: true,
@@ -161,8 +162,10 @@ defineExpose({
       :path="statementPath ?? []"
       :self="(statementPath?.length ?? 0) - 1"
     />
+    <PanelStatusNotice :thing="statement" name="statement" :is-loading="module.loading.value" />
     <!-- Tiles -->
     <div
+      v-if="statement != null"
       class="relative flex h-full w-full flex-col gap-6"
       :class="appearance.baseClass"
       :style="{
@@ -267,7 +270,7 @@ defineExpose({
             ref="runsTileRef"
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
-            :runnable-ids="[panel.statementId]"
+            :runnable-cks="[panel.statementCk]"
             live
             :limit="RUNS_HISTORY_LIMIT"
             class="max-w-full overflow-x-auto"

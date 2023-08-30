@@ -351,9 +351,10 @@ class ProjectVersionMutation:
             raise ValueError("cannot commit version that's not the head")
         check_project_access(info, project, ProjectAccessLevel.Edit)
 
-        # 'insert' new head between parents and head
+        # insert new head between parents and head
         snapshot = models.ProjectVersion.objects.create(
             id=uuid.uuid4(),
+            ck=project.id,
             project=project,
             name=input.name,
             tag=input.tag,
@@ -362,6 +363,11 @@ class ProjectVersionMutation:
         )
         snapshot.parents.set(head.parents.all())
         head.parents.set([snapshot])
+
+        # actually copy into new version
+        models.ProjectVersion.objects.copy(
+            source=head, target=snapshot, keep_cks=True, copy_revisions=True
+        )
 
         # publish
         origin = get_client_origin_from_info(info)

@@ -5,7 +5,7 @@ import PanelHeader from "@/components/panels/PanelHeader.vue";
 import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type EditStatementPanel, type FileHeader } from "@/state/bench";
-import { useCurrentModule, type Statement as StatementType } from "@/state/module";
+import { useCurrentModule, type Statement as StatementType, getNodeIdFromCk } from "@/state/module";
 import { useQuery } from "@vue/apollo-composable";
 import { computed, ref, watch, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
@@ -36,7 +36,7 @@ const { result: statementResult, loading: statementLoading } = useQuery(
     }
   `),
   () => ({
-    statementId: props.panel.panel.value.statementId,
+    statementId: getNodeIdFromCk(bench.projectVersionId as string, panel.value.statementCk, "Statement"),
   })
 );
 
@@ -53,15 +53,15 @@ watchEffect(() => {
 
 // sync name/path into editor
 watch(
-  () => [statement.value?.name, statement.value == null || module.fileOf(statement.value.id)],
+  () => [statement.value?.name, statement.value == null || module.fileOf(panel.value.statementCk)],
   () => {
-    if (statement.value != null && module.idx.value != null && module.fileOf(statement.value.id) != null) {
+    if (statement.value != null && module.idx.value != null && module.fileOf(panel.value.statementCk) != null) {
       panel.value.updatePath(statement.value, module.idx.value);
     }
   }
 );
 
-const statementPath = computed(() => module.nodePathOf(statement.value.id));
+const statementPath = computed(() => module.nodePathOf(statement.value?.id));
 </script>
 <template>
   <div class="overflow-x-hidden bg-white">

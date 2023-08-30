@@ -64,7 +64,7 @@ const panel = usePanelContext();
 const module = useCurrentModule();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementId == statement.value?.id);
+const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementCk == statement.value?.ck);
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.panel.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.panel.editing));
 const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
@@ -95,7 +95,7 @@ const INDENT_OFFSET_X = 28;
 // ancestor is considered highlighted if it's focused or selected (need to expand highlight to their depth)
 const ancestorHighlightDepth = computed(() =>
   ancestors.value.findIndex(
-    (s) => nav?.value?.panel.activeStatementId == s.id || nav?.value?.panel.selectedElementIds.includes(s.id)
+    (s) => nav?.value?.panel.activeStatementCk == s.ck || nav?.value?.panel.selectedElementIds.includes(s.id)
   )
 );
 const isAncestorHighlight = computed(() => !nav?.value?.panel.editing && ancestorHighlightDepth.value > -1);
@@ -261,7 +261,7 @@ function onClickContainer(e: MouseEvent) {
   // create selection to here if shift was pressed
   if (e.shiftKey && nav != null) {
     const index = nav?.value?.statementPositions[statement.value.id];
-    const lastIndex = nav?.value?.statementPositions[nav?.value?.panel.activeStatementId ?? ""];
+    const lastIndex = nav?.value?.statementPositions[nav?.value?.panel.activeStatementCk ?? ""];
     console.log("select all statements between", index, lastIndex);
     focusInEditor();
     if (lastIndex != null) {

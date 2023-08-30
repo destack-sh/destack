@@ -16,7 +16,7 @@ export function useFileActions() {
     apply: async (name = "") => {
       const identity = newNodeIdentity(bench.projectVersionId as string, "File");
       const create = ops.file.create(null, identity.id, identity.ck, bench.projectVersionId as string, name, null);
-      const optimisticFile = { __typename: "File", id: identity.id, name } as FileHeader;
+      const optimisticFile = { __typename: "File", id: identity.id, ck: identity.ck, name } as FileHeader;
       const optimisticEditor = bench.focusFile(optimisticFile as NodeBase);
       try {
         await create;

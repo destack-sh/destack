@@ -90,6 +90,7 @@ export const RunHeaderType = graphql(/* GraphQL */ `
       id
       name
     }
+    runnableCk
   }
 `);
 
@@ -134,6 +135,7 @@ export const RunContentType = graphql(/* GraphQL */ `
     runnable {
       id
     }
+    runnableCk
     # trigger
     triggerType
     trigger {
@@ -159,6 +161,7 @@ export const LogEntryContentType = graphql(/* GraphQL */ `
     projectVersionId
     sessionId
     runnableId
+    runnableCk
     runId
     stream
     level
@@ -563,6 +566,7 @@ export function useRuns(
     projectId: Ref<string | null>;
     projectVersionId: Ref<string | null | undefined>;
     runnableIds: Ref<string[] | null | undefined>;
+    runnableCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
@@ -585,6 +589,7 @@ export function useRuns(
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
     runnableIds: filter.runnableIds.value,
+    runnableCks: filter.runnableCks.value,
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     rootOnly: filter.rootOnly.value,
@@ -599,6 +604,7 @@ export function useRuns(
       $projectId: GlobalID!
       $projectVersionId: GlobalID!
       $runnableIds: [GlobalID!]
+      $runnableCks: [UUID!]
       $sessionId: GlobalID
       $runId: GlobalID
       $rootOnly: Boolean!
@@ -612,6 +618,7 @@ export function useRuns(
         projectId: $projectId
         projectVersionId: $projectVersionId
         runnableIds: $runnableIds
+        runnableCks: $runnableCks
         sessionId: $sessionId
         runId: $runId
         rootOnly: $rootOnly
@@ -649,6 +656,7 @@ export function useRuns(
       if (
         (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
         (filter.runnableIds.value != null && !filter.runnableIds.value.includes(run.runnable?.id ?? "")) ||
+        (filter.runnableCks.value != null && !filter.runnableCks.value.includes(run.runnableCk ?? "")) ||
         (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value)
       ) {
         return;
@@ -785,6 +793,7 @@ export function useLogs(
     projectId: Ref<string>;
     projectVersionId: Ref<string | null | undefined>;
     runnableIds: Ref<string[] | null | undefined>;
+    runnableCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
     query: Ref<SearchQuery | null | undefined>;
@@ -802,6 +811,7 @@ export function useLogs(
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
     runnableIds: filter.runnableIds.value,
+    runnableCks: filter.runnableCks.value,
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     query: filter.query.value,
@@ -815,6 +825,7 @@ export function useLogs(
       $projectId: GlobalID!
       $projectVersionId: GlobalID
       $runnableIds: [GlobalID!]
+      $runnableCks: [UUID!]
       $sessionId: GlobalID
       $runId: GlobalID
       $query: SearchQuery
@@ -827,6 +838,7 @@ export function useLogs(
         projectId: $projectId
         projectVersionId: $projectVersionId
         runnableIds: $runnableIds
+        runnableCks: $runnableCks
         sessionId: $sessionId
         runId: $runId
         query: $query
@@ -893,6 +905,7 @@ export function useLogs(
           $projectId: GlobalID!
           $projectVersionId: GlobalID!
           $runnableIds: [GlobalID!]
+          $runnableCks: [UUID!]
           $sessionId: GlobalID
           $runId: GlobalID
         ) {
@@ -900,6 +913,7 @@ export function useLogs(
             projectId: $projectId
             projectVersionId: $projectVersionId
             runnableIds: $runnableIds
+            runnableCks: $runnableCks
             sessionId: $sessionId
             runId: $runId
           ) {

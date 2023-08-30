@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
 import { IssueKind } from "@/gql/graphql";
-import { useBenchState, type FileHeader, type ViewId, type FileAction } from "@/state/bench";
+import { useBenchState, type FileHeader, type ViewId, type FileAction, type Action } from "@/state/bench";
 import { useCurrentModule, type NodeBase, type InterpFile } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { ArrowsPointingOutIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -26,7 +26,6 @@ const filesSorted = computed(() => {
     return a.name.localeCompare(b.name);
   });
 });
-const focusedFileId = computed(() => filesSorted.value.find((f) => f.id == bench.focusedFileId)?.id);
 const filesGrid = useNavigationGrid<"name", HTMLElement>(
   computed(() => ["name"]),
   filesSorted,
@@ -37,7 +36,7 @@ const filesGrid = useNavigationGrid<"name", HTMLElement>(
 );
 const contextMenuFile: Ref<InterpFile | null> = ref(null);
 const contextMenuPosition: Ref<{ x: number; y: number } | null> = ref(null);
-const contextMenuActions: Ref<FileAction[]> = computed(
+const contextMenuActions: Ref<Action<InterpFile>[]> = computed(
   () =>
     (contextMenuFile.value == null
       ? []
@@ -45,23 +44,23 @@ const contextMenuActions: Ref<FileAction[]> = computed(
           {
             label: "Open",
             icon: ArrowsPointingOutIcon,
-            action: () => focusFileAndGoThere(contextMenuFile.value as FileHeader),
+            action: () => focusFileAndGoThere(contextMenuFile.value as InterpFile),
           },
           {
             label: "Delete",
             icon: TrashIcon,
             action: () => ops.file.softDelete(null, contextMenuFile.value?.id),
           },
-        ]) as FileAction[]
+        ]) as Action<InterpFile>[]
 );
 
-function focusFile(file: FileHeader) {
+function focusFile(file: InterpFile) {
   const focusedViewId = bench.focusedViewId;
   bench.focusFile(file as NodeBase);
   bench.focusView(focusedViewId as ViewId); // keep focused view
 }
 
-function focusFileAndGoThere(file: FileHeader) {
+function focusFileAndGoThere(file: InterpFile) {
   bench.focusFile(file as NodeBase);
 }
 
@@ -76,8 +75,8 @@ const { focused: listRefFocused } = useFocusWithin(listRef);
 
 function focus(target?: "first" | "last") {
   // focus currently focused file if nothing was directly selected (and thus focused)
-  if (!target && focusedFileId.value && !listRefFocused.value) {
-    nextTick(() => filesGrid.focus(focusedFileId.value, "name"));
+  if (!target && bench.focusedFileId != null && !listRefFocused.value) {
+    nextTick(() => filesGrid.focus(bench.focusedFileId as string, "name"));
   } else if (!listRefFocused.value && (filesSorted.value.length ?? 0) > 0) {
     nextTick(() => filesGrid.focus(target == "first" ? 0 : -1, "name"));
   }
@@ -103,8 +102,8 @@ defineExpose({
       tabindex="-1"
       class="relative max-w-full border border-transparent px-3 py-0.5 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'text-orange-600': file.id == bench?.focusedFileId,
-        'text-gray-700 hover:text-orange-600': file.id != bench?.focusedFileId,
+        'text-orange-600': file.ck == bench?.focusedFileCk,
+        'text-gray-700 hover:text-orange-600': file.id != bench?.focusedFileCk,
       }"
       @keydown.up.exact.prevent="filesGrid.navigateUp(file.id, 'name')"
       @keydown.down.exact.prevent="filesGrid.navigateDown(file.id, 'name')"

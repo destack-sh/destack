@@ -110,7 +110,7 @@ def x_model(
         model = Model(name=name, external_name=external_name, description=description)
         file.append_statement(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
-        model._take_fields_from(model_type, reset_id=False)
+        model._take_fields_from(model_type, reset_id=True)
 
         _model_impls[model.path] = cls._endpoint
         _model_compilers[model.path] = cls._compiler

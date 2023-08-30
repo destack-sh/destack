@@ -400,6 +400,7 @@ export type LogEntry = {
   metadata?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   runId?: Maybe<Scalars["GlobalID"]>;
+  runnableCk?: Maybe<Scalars["UUID"]>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
   sessionId?: Maybe<Scalars["GlobalID"]>;
   stream: Scalars["String"];
@@ -1568,6 +1569,7 @@ export type QuerySearchLogsArgs = {
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   query?: InputMaybe<SearchQuery>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
@@ -1591,6 +1593,7 @@ export type QuerySearchRunsArgs = {
   query?: InputMaybe<SearchQuery>;
   rootOnly?: InputMaybe<Scalars["Boolean"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
@@ -1792,6 +1795,7 @@ export type Run = HasTriggeredBy &
     projectVersion: ProjectVersion;
     root?: Maybe<Run>;
     runnable?: Maybe<Statement>;
+    runnableCk?: Maybe<Scalars["UUID"]>;
     session?: Maybe<Session>;
     startedAt?: Maybe<Scalars["DateTime"]>;
     status: RunStatus;
@@ -2199,6 +2203,7 @@ export type SubscriptionLogsChangedArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
 };
@@ -2681,7 +2686,7 @@ export type BlankPanelSuggestedFilesQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
-    files: Array<{ __typename?: "File"; id: any; name: string; deletedAt?: any | null }>;
+    files: Array<{ __typename?: "File"; id: any; ck: any; name: string; deletedAt?: any | null }>;
   } | null;
 };
 
@@ -2695,6 +2700,7 @@ export type FileContentByIdQuery = {
     | ({
         __typename?: "File";
         id: any;
+        ck: any;
         statements: Array<
           { __typename?: "Statement" } & { " $fragmentRefs"?: { StatementContentFragment: StatementContentFragment } }
         >;
@@ -5264,6 +5270,7 @@ export type RunHeaderFragment = {
   terminatedAt?: any | null;
   duration?: number | null;
   status: RunStatus;
+  runnableCk?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
@@ -5283,6 +5290,7 @@ export type RunContentFragment = {
   inputs?: any | null;
   outputs?: any | null;
   metadata?: any | null;
+  runnableCk?: any | null;
   triggerType?: TriggerType | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
@@ -5315,6 +5323,7 @@ export type LogEntryContentFragment = {
   projectVersionId: any;
   sessionId?: any | null;
   runnableId?: any | null;
+  runnableCk?: any | null;
   runId?: any | null;
   stream: string;
   level?: string | null;
@@ -5373,6 +5382,7 @@ export type SearchRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   rootOnly: Scalars["Boolean"];
@@ -5421,6 +5431,7 @@ export type SearchLogsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   query?: InputMaybe<SearchQuery>;
@@ -5454,6 +5465,7 @@ export type LogsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
   runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
@@ -6511,6 +6523,7 @@ export const RunHeaderFragmentDoc = {
               ],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
         ],
       },
     },
@@ -6606,6 +6619,7 @@ export const RunContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
+          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
             kind: "Field",
@@ -6661,6 +6675,7 @@ export const LogEntryContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
           { kind: "Field", name: { kind: "Name", value: "sessionId" } },
           { kind: "Field", name: { kind: "Name", value: "runnableId" } },
+          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
           { kind: "Field", name: { kind: "Name", value: "runId" } },
           { kind: "Field", name: { kind: "Name", value: "stream" } },
           { kind: "Field", name: { kind: "Name", value: "level" } },
@@ -7005,6 +7020,7 @@ export const BlankPanelSuggestedFilesDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "ck" } },
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                     ],
@@ -7049,6 +7065,7 @@ export const FileContentByIdDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "ck" } },
                 { kind: "FragmentSpread", name: { kind: "Name", value: "FileHeader" } },
                 {
                   kind: "Field",
@@ -16164,6 +16181,14 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -16227,6 +16252,11 @@ export const SearchRunsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "runnableIds" },
                 value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
               },
               {
                 kind: "Argument",
@@ -16389,6 +16419,14 @@ export const SearchLogsDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -16447,6 +16485,11 @@ export const SearchLogsDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "runnableIds" },
                 value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
               },
               {
                 kind: "Argument",
@@ -16556,6 +16599,14 @@ export const LogsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "sessionId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -16586,6 +16637,11 @@ export const LogsChangedDocument = {
                 kind: "Argument",
                 name: { kind: "Name", value: "runnableIds" },
                 value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "runnableCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
               },
               {
                 kind: "Argument",

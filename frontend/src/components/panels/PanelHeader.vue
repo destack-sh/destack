@@ -103,8 +103,8 @@ const auth = useAuth();
       <ClientsPopover
         v-if="auth.loggedIn.value && ['statement', 'file'].includes(panel.panel.value.type)"
         size="small"
-        :file-id="(panel.panel.value as EditFilePanel).fileId"
-        :statement-id="(panel.panel.value as EditStatementPanel).statementId"
+        :file-id="(panel.panel.value as EditFilePanel).fileCk"
+        :statement-id="(panel.panel.value as EditStatementPanel).statementCk"
       />
       <!-- Inline actions -->
       <button

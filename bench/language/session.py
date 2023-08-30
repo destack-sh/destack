@@ -352,15 +352,15 @@ class RunSearch(Search["RunData", Run]):
     ):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunPayload
+        from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunsPayload
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
+        runnables_cks = [runnable.ck for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchRunPayload] = await request(
-            NMessageType.SEARCH_RUN,
-            ReqSearchRunPayload(
+            NMessageType.SEARCH_RUNS,
+            ReqSearchRunsPayload(
                 module_id=self.module.id,
-                runnables_ids=runnables_ids,
+                runnables_cks=runnables_cks,
                 query=self._query,
                 sort=self._sort,
                 after=after,
@@ -424,7 +424,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchLogPayload] = await request(
-            NMessageType.SEARCH_LOG,
+            NMessageType.SEARCH_LOGS,
             ReqSearchLogPayload(
                 module_id=self.module.id,
                 runnables_ids=runnables_ids,
