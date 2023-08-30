@@ -562,14 +562,13 @@ function insertRecordAtEnd() {
 }
 
 function insertRecord(options?: { belowRecordId?: string; value?: any }) {
-  const orderKey = getNewOrderKey(options?.belowRecordId);
   const identity = newNodeIdentity(module.id.value, "Record");
   ops.symbol.createRecord(
     null,
     identity.id,
     identity.ck,
     context.statement.value.id,
-    orderKey,
+    null,
     options?.value ?? ({} as any)
   );
   // add record to search results optimistically (regardless of filter)
@@ -582,7 +581,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     deletedAt: null,
-    orderKey,
+    orderKey: null,
     value: options?.value ?? ({} as any),
   };
   client.client.cache.updateQuery(

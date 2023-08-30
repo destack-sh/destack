@@ -2264,7 +2264,7 @@ export type TaggingCreateInput = {
   id: Scalars["GlobalID"];
   key: Scalars["String"];
   metadata?: InputMaybe<Scalars["JSON"]>;
-  referenceCk: Scalars["GlobalID"];
+  referenceCk: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
 };
 
@@ -2673,11 +2673,11 @@ export type ExistingProjectVersionTagQuery = {
   projectVersionByTag?: { __typename?: "ProjectVersion"; id: any; tag?: string | null } | null;
 };
 
-export type EmptyPanelsuggestedFilesQueryVariables = Exact<{
+export type BlankPanelSuggestedFilesQueryVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
 }>;
 
-export type EmptyPanelsuggestedFilesQuery = {
+export type BlankPanelSuggestedFilesQuery = {
   __typename?: "Query";
   projectVersion?: {
     __typename?: "ProjectVersion";
@@ -4928,7 +4928,7 @@ export type CreateTaggingMutationVariables = Exact<{
   ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   key: Scalars["String"];
-  referenceCk: Scalars["GlobalID"];
+  referenceCk: Scalars["UUID"];
   metadata?: InputMaybe<Scalars["JSON"]>;
 }>;
 
@@ -6952,13 +6952,13 @@ export const ExistingProjectVersionTagDocument = {
     },
   ],
 } as unknown as DocumentNode<ExistingProjectVersionTagQuery, ExistingProjectVersionTagQueryVariables>;
-export const EmptyPanelsuggestedFilesDocument = {
+export const BlankPanelSuggestedFilesDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "emptyPanelsuggestedFiles" },
+      name: { kind: "Name", value: "blankPanelSuggestedFiles" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -7017,7 +7017,7 @@ export const EmptyPanelsuggestedFilesDocument = {
       },
     },
   ],
-} as unknown as DocumentNode<EmptyPanelsuggestedFilesQuery, EmptyPanelsuggestedFilesQueryVariables>;
+} as unknown as DocumentNode<BlankPanelSuggestedFilesQuery, BlankPanelSuggestedFilesQueryVariables>;
 export const FileContentByIdDocument = {
   kind: "Document",
   definitions: [
@@ -14666,7 +14666,7 @@ export const CreateTaggingDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "referenceCk" } },
-          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
         },
         {
           kind: "VariableDefinition",

@@ -27,6 +27,8 @@ const emit = defineEmits<{
   (e: "mousedown", v: MouseEvent): void;
   (e: "mouseup", v: MouseEvent): void;
   (e: "click", v: MouseEvent): void;
+  (e: "open"): void;
+  (e: "close"): void;
 }>();
 
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
@@ -51,9 +53,15 @@ const filteredActions = computed(() => {
 const closed = ref(false);
 
 // focus input when popover opens
-watch(popoverOpenRef, () => nextTick(() => inputRef.value?.$el.focus()));
+watch(popoverOpenRef, () => {
+  emit("open");
+  nextTick(() => inputRef.value?.$el.focus());
+});
 // clear input and closed when popover opens/closes
-watch(popoverOpenRef, () => nextTick(() => ((query.value = ""), (closed.value = false))));
+watch(popoverOpenRef, () => {
+  emit("close");
+  nextTick(() => ((query.value = ""), (closed.value = false)));
+});
 
 function doActionIfOpen(action: Action<any>) {
   if (!closed.value) {
@@ -85,7 +93,7 @@ defineExpose({
       @click="
         emit('click', $event), popoverButtonRef?.$el.click(), (closed = false), $nextTick(() => inputRef?.$el.focus())
       "
-      @mousedown="emit('mousedown', $event)"
+      @mousedown.stop.prevent="emit('mousedown', $event)"
       @mouseup="emit('mouseup', $event)"
     >
       <slot :close="close" :open="open"><EllipsisVerticalIcon class="h-4 w-4" /></slot>

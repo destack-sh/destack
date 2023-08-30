@@ -12,7 +12,7 @@ from typing import Any, Optional
 import anthropic
 import openai
 
-from bench.language import Dataset, Value
+from bench.language import Dataset, Tag, Value
 from bench.language.basic import Expectation
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
@@ -721,7 +721,7 @@ for name, module in DEFAULT_MODULES.items():
             continue  # already assigned in builtin
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(node.ck, module.id)
-        if isinstance(node, Field):
+        if isinstance(node, (Field, Tag)):
             node.key = new_field_key(node.ck)
     module.clear()  # ids changed
 

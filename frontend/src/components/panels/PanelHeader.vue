@@ -67,7 +67,7 @@ const auth = useAuth();
           </span>
           <!-- Regular node -->
           <button
-            v-else
+            v-else-if="(node.name ?? '').length > 0 || i != path.length"
             class="group/node relative select-none rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
             @click="
               i >= self || node.id == null
@@ -75,7 +75,7 @@ const auth = useAuth();
                 : bench.focusNode(node as NodeBase, panel?.panel.value.group)
             "
           >
-            {{ node.name ?? "(Unnamed)" }}
+            <span>{{ node.name ?? "(Unnamed)" }}</span>
             <!-- Tooltip -->
             <span
               class="pointer-events-none absolute left-0 top-6 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-150 group-hover/node:opacity-100"

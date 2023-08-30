@@ -1,6 +1,4 @@
 import itertools
-import random
-import string
 import typing
 from dataclasses import field
 from uuid import UUID
@@ -21,15 +19,6 @@ from bench.language.core import (
 from bench.utils.utils import required_field
 
 TAG_KEY_LENGTH = 8
-
-
-def new_tag_key(seed: str = None) -> str:
-    """Gets a random alphabetic key as a persistent key for a type node."""
-    # (upper and lower case letters only)
-    # :TagKeys
-    if seed is not None:
-        random.seed(seed)
-    return "".join(random.choices(string.ascii_letters, k=TAG_KEY_LENGTH))
 
 
 @node(tracked=[])
@@ -114,7 +103,7 @@ class HasTags(StatementBase):
 
 
 # avoid circular import because Tag is HasType but Type is HasTags
-from bench.language.type import HasType  # noqa
+from bench.language.type import HasType, new_field_key  # noqa
 
 
 @node(tracked=["name"])
@@ -123,8 +112,13 @@ class Tag(HasType, HasTags, Statement):
 
     name: str = None
     description: str = None
+    key: str = None
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT
+
+    def __post_init__(self):
+        if self.key is None:
+            self.key = new_field_key(self.ck)
 
     def _clear(self):
         Statement._clear(self)

@@ -151,7 +151,7 @@ defineExpose({
                   </span>
                   <!-- Source -->
                   <span class="text-xs" :class="['truncate', active ? 'text-gray-700' : 'text-gray-500']">
-                    {{ module.pathOf(tag.file) ?? "(builtin)" }}
+                    {{ module.pathOf(tag.file.id) ?? "(builtin)" }}
                   </span>
                 </div>
                 <!-- Tag description -->
