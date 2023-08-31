@@ -71,7 +71,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     try:
         project = models.Project.objects.get_by_slug(owner, name)
 
-        # delete existing project version if it exists
+        # delete existing project version (with same tag) if it exists
         existing_project_v = project.versions.filter(tag=version).first()
         if existing_project_v is not None:
             log.info("lib.upsert.delete", project_v=existing_project_v)
@@ -83,7 +83,13 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         )
         project.head = project_v
         project.save()
+
+        # link to parent
+        parent = project.versions.filter(tag__lt=version).order_by("-tag").first()
+        parents = [parent] if parent is not None else []
+        project_v.parents.set(parents)
     except models.Project.DoesNotExist:
+        # create new project
         owner = models.OwnerSlug.objects.get(slug=owner).owner
         project = models.Project.objects.create_project(
             id=module.ck,

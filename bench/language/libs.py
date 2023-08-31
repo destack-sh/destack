@@ -722,7 +722,7 @@ for name, module in DEFAULT_MODULES.items():
         if isinstance(node, Module):
             continue  # already assigned in builtin
         node.ck = _derive_constant_key(node.path)
-        node.id = get_node_id(node.ck, module.id)
+        node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, Tag)):
             node.key = new_field_key(node.ck)
     module.clear()  # ids changed
