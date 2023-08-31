@@ -1,7 +1,7 @@
 import type StatementComponent from "@/components/panels/Statement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
-import { EditFilePanel, useBenchState, type FileHeader, type StatementHeader } from "@/state/bench";
+import { EditFilePanel, useBenchState, type FileHeader, type StatementHeader, type Action } from "@/state/bench";
 import {
   orderStatements,
   TypeFlag,
@@ -14,6 +14,7 @@ import { useObjects } from "@/state/object";
 import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
 import { newFieldKey } from "@/state/operations/statement";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
+import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref } from "vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
@@ -163,6 +164,7 @@ export type StatementLocation = {
   orderKey: string;
 };
 
+// TODO @Cleanup @Architecture: decouple navigation from file context?
 export type NavigationContext = FileContext & {
   current: CurrentNavigationContext;
 
@@ -177,8 +179,8 @@ export type NavigationContext = FileContext & {
   getNextSibling(statement: StatementHeader): StatementHeader | null;
   getLocalRoots(statements: StatementHeader[]): StatementHeader[];
   getDescendants(statement: StatementHeader): StatementHeader[];
-  getAboveCurGroup(statement: StatementHeader): StatementHeader | null;
-  getBelowCurGroup(statement: StatementHeader): StatementHeader | null;
+  getAboveGroup(statement: StatementHeader): StatementHeader | null;
+  getBelowGroup(statement: StatementHeader): StatementHeader | null;
   getAbove(statement: StatementHeader): StatementHeader | null;
   getBelow(statement: StatementHeader): StatementHeader | null;
   isDescendantOf(statement: StatementHeader, ancestor: StatementHeader): boolean;
@@ -195,6 +197,7 @@ export type NavigationContext = FileContext & {
   moveTo(statement: StatementHeader, location: StatementLocation): void;
   moveBatchUp(statements: StatementHeader[]): void;
   moveBatchDown(statements: StatementHeader[]): void;
+  moveBatchTo(statements: StatementHeader[], pos: "above" | "below", target: StatementHeader): void;
 
   // copy/paste
   copy(statements: StatementHeader[]): void;
@@ -203,6 +206,7 @@ export type NavigationContext = FileContext & {
   // selection
   getSelectedRoots(): StatementHeader[];
   getSelectionBottom(): StatementHeader | null;
+  selectionActions: Action<void>[];
 };
 
 export type CurrentNavigationContext = {
@@ -215,8 +219,8 @@ export type CurrentNavigationContext = {
   location: { fileId: string; parentId: string | null; orderKey: string };
   above: StatementHeader | null;
   below: StatementHeader | null;
-  aboveCurGroup: StatementHeader | null;
-  belowCurGroup: StatementHeader | null;
+  aboveGroup: StatementHeader | null;
+  belowGroup: StatementHeader | null;
 };
 
 export function provideNavigationContext(file: Ref<FileContext | null>) {
@@ -327,7 +331,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     return result.sort((a, b) => statementPositions.value[a.id] - statementPositions.value[b.id]);
   }
 
-  function getAboveCurGroup(statement: StatementHeader): StatementHeader | null {
+  function getAboveGroup(statement: StatementHeader): StatementHeader | null {
     // previous statement before this with depth <= this depth
     for (let i = statementPositions.value[statement.id] - 1; i >= 0; i--) {
       if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
@@ -337,7 +341,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     return null;
   }
 
-  function getBelowCurGroup(statement: StatementHeader): StatementHeader | null {
+  function getBelowGroup(statement: StatementHeader): StatementHeader | null {
     // next statement after this with depth <= this depth
     for (let i = statementPositions.value[statement.id] + 1; i < statements.value.length; i++) {
       if (depths.value[i] <= depths.value[statementPositions.value[statement.id]]) {
@@ -451,15 +455,15 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   async function moveDown(statement: StatementHeader) {
-    const belowCurGroup = getBelowCurGroup(statement);
-    if (belowCurGroup == null) return;
+    const belowGroup = getBelowGroup(statement);
+    if (belowGroup == null) return;
     // insert between the next group below and its next sibling (if any)
-    const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
-    const belowNextSibling = belowSiblings.find((s) => s.orderKey > (belowCurGroup as StatementHeader).orderKey);
-    const orderKey = generateKeyBetween(belowCurGroup.orderKey ?? null, belowNextSibling?.orderKey ?? null);
+    const belowSiblings = statementsByParentId.value[belowGroup.parent?.id ?? ""];
+    const belowNextSibling = belowSiblings.find((s) => s.orderKey > (belowGroup as StatementHeader).orderKey);
+    const orderKey = generateKeyBetween(belowGroup.orderKey ?? null, belowNextSibling?.orderKey ?? null);
     const targetLocation = {
       fileId: file.value?.file.id,
-      parentId: belowCurGroup?.parent?.id,
+      parentId: belowGroup?.parent?.id,
       orderKey,
     };
     await ops.statement.move(null, statement.id, getLocation(statement), targetLocation);
@@ -491,7 +495,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     // move selected roots in line with the bottommost selected statement
     // (insert between the next group below and its next sibling (if any))
     const roots = getLocalRoots(statements);
-    const belowCurGroup = getBelowCurGroup(roots[roots.length - 1]);
+    const belowCurGroup = getBelowGroup(roots[roots.length - 1]);
     if (belowCurGroup == null) return;
     const belowSiblings = statementsByParentId.value[belowCurGroup.parent?.id ?? ""];
     const belowNextSibling = belowSiblings.find((s) => s.orderKey > belowCurGroup.orderKey);
@@ -503,6 +507,40 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       parentId: belowCurGroup.parent?.id,
       orderKey: k,
     }));
+    await ops.statement.batchMove(null, ids, oldLocations, targetLocations);
+  }
+
+  async function moveBatchTo(statements: StatementHeader[], pos: "above" | "below", target: StatementHeader) {
+    // move selected roots in line with the topmost selected statement to location
+    // (location is for topmost selected root)
+    const roots = getLocalRoots(statements);
+    const ids = roots.map((r) => r.id);
+    const oldLocations = roots.map((s) => getLocation(s));
+    let targetLocations;
+    if (pos == "above") {
+      // exactly like moveBatchUp except we insert between target and target prev sibling (if any, else null)
+      const targetSiblings = statementsByParentId.value[target.parent?.id ?? ""];
+      const targetPrevSibling = targetSiblings
+        .slice()
+        .reverse()
+        .find((s) => s.orderKey < target.orderKey);
+      const orderKeys = generateNKeysBetween(targetPrevSibling?.orderKey ?? null, target.orderKey, roots.length);
+      targetLocations = orderKeys.map((k) => ({
+        fileId: file.value?.file.id,
+        parentId: target.parent?.id,
+        orderKey: k,
+      }));
+    } else {
+      // exactly like moveBatchDown except we insert between target and target next sibling (if any, else null)
+      const targetSiblings = statementsByParentId.value[target.parent?.id ?? ""];
+      const targetNextSibling = targetSiblings.find((s) => s.orderKey > target.orderKey);
+      const orderKeys = generateNKeysBetween(target.orderKey, targetNextSibling?.orderKey ?? null, roots.length);
+      targetLocations = orderKeys.map((k) => ({
+        fileId: file.value?.file.id,
+        parentId: target.parent?.id,
+        orderKey: k,
+      }));
+    }
     await ops.statement.batchMove(null, ids, oldLocations, targetLocations);
   }
 
@@ -646,6 +684,25 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     }
   }
 
+  const selectionActions: Action<void>[] = [
+    {
+      label: "Duplicate",
+      icon: DocumentDuplicateIcon,
+      action: () => {
+        copy(getSelectedRoots());
+        paste();
+      },
+    },
+    {
+      label: "Delete",
+      icon: TrashIcon,
+      action: () => {
+        if (file.value?.panel.selectedElementIds == null) return;
+        ops.statement.batchSoftDelete(file.value?.panel.selectedElementIds);
+      },
+    },
+  ];
+
   const context = computed(() => {
     if (file.value == null) return null;
 
@@ -661,8 +718,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       location: statement.value == null ? undefined : getLocation(statement.value),
       above: statement.value == null ? undefined : getAbove(statement.value),
       below: statement.value == null ? undefined : getBelow(statement.value),
-      aboveCurGroup: statement.value == null ? undefined : getAboveCurGroup(statement.value),
-      belowCurGroup: statement.value == null ? undefined : getBelowCurGroup(statement.value),
+      aboveGroup: statement.value == null ? undefined : getAboveGroup(statement.value),
+      belowGroup: statement.value == null ? undefined : getBelowGroup(statement.value),
     } as CurrentNavigationContext;
 
     return {
@@ -678,8 +735,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       getNextSibling,
       getLocalRoots,
       getDescendants,
-      getAboveCurGroup,
-      getBelowCurGroup,
+      getAboveGroup,
+      getBelowGroup,
       getAbove,
       getBelow,
       isDescendantOf,
@@ -696,6 +753,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       moveTo,
       moveBatchUp,
       moveBatchDown,
+      moveBatchTo,
 
       // copy/paste
       copy,
@@ -707,6 +765,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       // selection
       getSelectionBottom,
       getSelectedRoots,
+      selectionActions,
     } as NavigationContext;
   });
   provide(NAVIGATION_CONTEXT, context);

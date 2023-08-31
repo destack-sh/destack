@@ -68,6 +68,7 @@ const isActive = computed(() => props.standalone || nav?.value?.panel.activeStat
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.panel.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.panel.editing));
 const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
+const isInSelection = computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1);
 const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
@@ -274,6 +275,9 @@ function onClickContainer(e: MouseEvent) {
       }
     }
     return;
+  } else if (nav?.value?.panel.hasSelection) {
+    // clear selection if clicking outside
+    nav?.value?.panel.clearSelection();
   }
 }
 
@@ -319,11 +323,11 @@ const {
   computed(() => !innerDrag.value && !props.readonly)
 );
 
-// TODO @Broken @UX: drag & drop doesn't work while holding shift, which means we can't move selections
-//  (also would need to include other elements (incl. descendants) in drag image)
 function onDragStart(e: DragEvent) {
   if (innerWrapperRef.value == null) return;
   setDragData(e, { type: "Statement", id: statement.value.id });
+  // TODO @Broken @UX: drag image looks horrible sometimes
+  // (when statements have large hidden content like Code (Monaco infinite lines view) or Dataset (horizontal overscroll area))
   e.dataTransfer?.setDragImage(innerWrapperRef.value, 0, 0);
 }
 
@@ -333,20 +337,38 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
     console.log("drop insert files into new statement", thing);
     await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
   } else if (thing?.type == "Statement") {
-    const targetStatement = nav?.value?.statementsById[thing.id];
-    if (
-      thing.id == statement.value.id ||
-      targetStatement == null ||
-      nav?.value?.isDescendantOf(targetStatement, statement.value as StatementHeader) ||
-      nav?.value?.isDescendantOf(statement.value as StatementHeader, targetStatement)
-    ) {
-      return;
+    if (nav?.value.panel.hasSelection && nav?.value.panel.selectedElementIds.length > 1) {
+      // batch move
+      const statementsToMove = nav.value.panel.selectedElementIds.map((id) => nav?.value?.statementsById[id]);
+      if (
+        statementsToMove.some(
+          (s) =>
+            statement.value.id == s?.id ||
+            nav?.value?.isDescendantOf(s, statement.value) ||
+            nav?.value?.isDescendantOf(statement.value, s)
+        )
+      ) {
+        return; // can't move within own tree
+      }
+      console.debug("drop move statements batch", statement.value, nav?.value?.panel.selectedElementIds);
+      await nav?.value.moveBatchTo(statementsToMove, dragInTopHalf.value ? "above" : "below", statement.value);
+    } else {
+      // single move
+      const statementToMove = nav?.value?.statementsById[thing.id];
+      if (
+        thing.id == statement.value.id ||
+        statementToMove == null ||
+        nav?.value?.isDescendantOf(statementToMove, statement.value) ||
+        nav?.value?.isDescendantOf(statement.value, statementToMove)
+      ) {
+        return; // can't move within own tree
+      }
+      const dropLocation = dragInTopHalf.value
+        ? nav?.value?.getLocationRightAbove(statement.value)
+        : nav?.value?.getLocationRightBelow(statement.value);
+      console.debug("drop move statement", thing, statement.value.id);
+      await nav?.value?.moveTo(statementToMove, dropLocation);
     }
-    const dropLocation = dragInTopHalf.value
-      ? nav?.value?.getLocationRightAbove(statement.value as StatementHeader)
-      : nav?.value?.getLocationRightBelow(statement.value as StatementHeader);
-    console.log("drop move statement", thing, dropLocation);
-    await nav?.value?.moveTo(targetStatement as StatementHeader, dropLocation);
   } else {
     throw new Error("unexpected drop");
   }
@@ -481,16 +503,22 @@ defineExpose({
             <ActionPopover
               ref="actionPopoverRef"
               anchor="right"
-              :thing="statement"
-              :actions="allActions"
+              :thing="isInSelection ? null : statement"
+              :actions="isInSelection ? (nav as unknown as NavigationContext).selectionActions : allActions"
               :groups="actionGroups"
               v-slot="{ open }"
-              @mousedown="containerRef?.setAttribute('draggable', 'true')"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
-              @open="(nav as unknown as NavigationContext)?.panel?.addToSelection(statement)"
               @click.stop
             >
+              <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,
+            there was *some* reason not to do this (maybe old styling/padding), but it seems to work fine now. -->
               <div
+                @mousedown.stop="
+                  {
+                    (nav as unknown as NavigationContext)?.panel?.addToSelection(statement);
+                    containerRef?.setAttribute('draggable', 'true');
+                  }
+                "
                 class="group cursor-grab p-0.5 transition duration-150"
                 :class="{
                   'opacity-0 group-hover/statement:opacity-100': !isActive && !open,

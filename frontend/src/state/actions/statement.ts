@@ -185,7 +185,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     label: "Move statement down",
     shortcuts: ["alt+down", "meta+down"],
     enabled: computed(
-      () => cur.value?.statement != null && file.value?.current.belowCurGroup != null && !panel.value?.hasSelection
+      () => cur.value?.statement != null && file.value?.current.belowGroup != null && !panel.value?.hasSelection
     ),
     apply: async () => {
       await file.value?.moveDown(cur.value?.statement as StatementHeader);
@@ -224,18 +224,18 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
         panel.value?.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
         panel.value?.addToSelection(cur.value?.statement as StatementHeader);
-        panel.value?.addToSelection(cur.value?.aboveCurGroup as StatementHeader);
+        panel.value?.addToSelection(cur.value?.aboveGroup as StatementHeader);
       }
       // then move focus up to previous sibling or parent
-      // (if above != null, then aboveCurGroup must also be non null)
-      panel.value?.focusElement(cur.value?.aboveCurGroup as StatementHeader, false);
+      // (if above != null, then aboveGroup must also be non null)
+      panel.value?.focusElement(cur.value?.aboveGroup as StatementHeader, false);
     },
   });
   const expandSelectionDown = provideGlobalAction({
     id: "statement.expandSelectionDown",
     label: "Expand selection down",
     shortcuts: ["shift+down"],
-    enabled: computed(() => cur.value?.statement != null && cur.value?.belowCurGroup != null),
+    enabled: computed(() => cur.value?.statement != null && cur.value?.belowGroup != null),
     apply: () => {
       // remove self from selection if previous selected (last is current) is below
       // (that means we're expanding up)
@@ -244,10 +244,10 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
         panel.value?.removeFromSelection(cur.value?.statement as StatementHeader);
       } else {
         panel.value?.addToSelection(cur.value?.statement as StatementHeader);
-        panel.value?.addToSelection(cur.value?.belowCurGroup as StatementHeader);
+        panel.value?.addToSelection(cur.value?.belowGroup as StatementHeader);
       }
       // then move focus down
-      panel.value?.focusElement(cur.value?.belowCurGroup as StatementHeader, false);
+      panel.value?.focusElement(cur.value?.belowGroup as StatementHeader, false);
     },
   });
   const cancelSelection = provideGlobalAction({

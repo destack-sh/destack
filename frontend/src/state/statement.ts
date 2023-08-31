@@ -83,6 +83,7 @@ export function useStatementContext() {
 
   const actions = useActions();
 
+  // TODO @Cleanup @Architecture: these actions assume statement is focused/current statement
   function navigateUp() {
     actions.apply("statement.moveFocusUp");
   }
