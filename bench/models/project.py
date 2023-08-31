@@ -16,7 +16,7 @@ from strawberry_django.descriptors import model_property
 from bench.language import wire
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement, duplicate_versioned_datasets
-from bench.models.utils import CrudModel, ModuleNode, Revisioned, UUIDModel, create_models_bfs
+from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
 from bench.settings import LOCAL, PROJECT_BUCKET_NAME
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
@@ -461,7 +461,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
 
 
-class ProjectVersion(CrudModel, ModuleNode):
+class ProjectVersion(CrudNode):
     """
     A project version records the state of a project at a specific point in time.
     """
@@ -619,7 +619,7 @@ class FileManager(models.Manager):
         return File._base_manager.filter(id__in=RawSQL(query, (file_ids,)), deleted_at=deleted_at)
 
 
-class File(CrudModel, ModuleNode, Revisioned):
+class File(CrudNode):
     """
     A file containing statements, potentially containing other files if it's a directory.
     A file - and the statements it contains - may be soft-deleted.
@@ -629,7 +629,6 @@ class File(CrudModel, ModuleNode, Revisioned):
     project_version = models.ForeignKey(
         "ProjectVersion", on_delete=models.CASCADE, related_name="files"
     )
-    revision = models.IntegerField(default=0)
     name: models.CharField = models.CharField(max_length=MAX_NAME_LENGTH, blank=True)
     parent_file = models.ForeignKey(
         "File", on_delete=models.CASCADE, null=True, blank=True, related_name="files"

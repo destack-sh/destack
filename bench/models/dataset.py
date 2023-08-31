@@ -8,8 +8,8 @@ from django.db import models
 from bench.language.const import DatasetViewLayout
 from bench.models.utils import (
     CrudModel,
+    CrudNode,
     DetachedModuleNode,
-    ModuleNode,
     Revisioned,
     UUIDModel,
     get_choices,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from bench.models.statement import Statement
 
 
-class DatasetView(CrudModel, ModuleNode):
+class DatasetView(CrudNode):
     """A view of a dataset."""
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="views")
@@ -37,7 +37,7 @@ class DatasetView(CrudModel, ModuleNode):
         return self.statement
 
 
-class DatasetViewField(CrudModel, ModuleNode):
+class DatasetViewField(CrudNode):
     view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, related_name="fields")
     field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="views+")
     order_key = models.CharField(max_length=64, null=True, blank=True)
