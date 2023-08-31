@@ -18,7 +18,7 @@ class ResolvedField(UUIDModel, ModuleNode):
     statement = models.ForeignKey(
         "Statement", on_delete=models.CASCADE, related_name="resolved_fields"
     )
-    field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="+")
+    field_ck = models.UUIDField()
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:

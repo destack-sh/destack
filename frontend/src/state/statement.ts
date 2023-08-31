@@ -285,7 +285,7 @@ export function useStatementContext() {
     () =>
       statement.value.resolvedFields
         ?.map((n) => n as ResolvedField)
-        .map((n) => (n?.field == null ? null : module.fieldOf(n.field.id)))
+        .map((n) => (n?.fieldCk == null ? null : module.fieldOf(n.fieldCk)))
         .filter((n) => n != null && n.deletedAt == null)
         .map((n) => n as Field)
         .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []

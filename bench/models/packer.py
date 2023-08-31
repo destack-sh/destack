@@ -888,7 +888,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
             id=resolved_field.id,
             ck=resolved_field.ck,
             parent_id=resolved_field.statement_id,
-            field_id=resolved_field.field_id,
+            field_ck=resolved_field.field_ck,
         )
 
     def unpack(
@@ -899,7 +899,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
             ck=data.ck,
             project_version_id=parent.project_version_id,
             statement_id=parent.id,
-            field_id=data.field_id,
+            field_ck=data.field_ck,
         )
 
 
