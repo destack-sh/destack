@@ -10,9 +10,9 @@ if TYPE_CHECKING:
 
 
 class IssueKind(enum.StrEnum):
-    ERROR = "error"
-    WARNING = "warning"
-    SUGGESTION = "suggestion"
+    Error = "Error"
+    Warning = "Warning"
+    Suggestion = "Suggestion"
 
 
 class IssueType(enum.StrEnum):
@@ -52,17 +52,17 @@ _ISSUE_MESSAGES = {
 
 _ISSUE_KIND_BY_TYPE = {
     # errors
-    IssueType.INTERNAL.value: IssueKind.ERROR,
-    IssueType.UNKNOWN_IMPORT_SOURCE.value: IssueKind.ERROR,
-    IssueType.MISSING_REFERENCE.value: IssueKind.ERROR,
-    IssueType.CIRCULAR_ANCESTRY.value: IssueKind.ERROR,
-    IssueType.CIRCULAR_UNION.value: IssueKind.ERROR,
-    IssueType.MISMATCHED_UNION.value: IssueKind.ERROR,
+    IssueType.INTERNAL.value: IssueKind.Error,
+    IssueType.UNKNOWN_IMPORT_SOURCE.value: IssueKind.Error,
+    IssueType.MISSING_REFERENCE.value: IssueKind.Error,
+    IssueType.CIRCULAR_ANCESTRY.value: IssueKind.Error,
+    IssueType.CIRCULAR_UNION.value: IssueKind.Error,
+    IssueType.MISMATCHED_UNION.value: IssueKind.Error,
     # warnings
-    IssueType.AMBIGUOUS_DEFINITION: IssueKind.WARNING,
-    IssueType.CODE_NOT_EXPORTABLE: IssueKind.WARNING,
-    IssueType.CODE_REFERENCE_NOT_EXPORTED: IssueKind.WARNING,
-    IssueType.UNCLEAR_INTENT: IssueKind.WARNING,
+    IssueType.AMBIGUOUS_DEFINITION: IssueKind.Warning,
+    IssueType.CODE_NOT_EXPORTABLE: IssueKind.Warning,
+    IssueType.CODE_REFERENCE_NOT_EXPORTED: IssueKind.Warning,
+    IssueType.UNCLEAR_INTENT: IssueKind.Warning,
 }
 
 

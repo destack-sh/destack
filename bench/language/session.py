@@ -275,13 +275,13 @@ class RunCodeFrame:
         return cleaned_stack
 
 
-@reflect_enum("RunErrorType", "Error type of a run")
+@reflect_enum("RunErrorKind", "Error type of a run")
 class RunErrorKind(enum.StrEnum):
-    INTERNAL = "INTERNAL"
-    PARSE = "PARSE"
-    VALIDATION = "VALIDATION"
-    RUNTIME = "RUNTIME"
-    UNTRUSTED = "UNTRUSTED"
+    Internal = "Internal"
+    Parse = "Parse"
+    Validation = "Validation"
+    Runtime = "Runtime"
+    Untrusted = "Untrusted"
 
 
 # RunError/LogEntry and many others should be reflect types as well, but missing Statement and such
@@ -303,7 +303,7 @@ class RunError(Exception):  # can this really be a subclass of Exception?
         stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
         stack = RunCodeFrame.clean(stack, runnable, runnable.session)
         return RunError(
-            kind=RunErrorKind.RUNTIME,
+            kind=RunErrorKind.Runtime,
             type=type(e).__name__,
             message=str(e),
             runnable=runnable,

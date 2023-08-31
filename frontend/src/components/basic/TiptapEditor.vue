@@ -2,6 +2,9 @@
 import { useEditor, BubbleMenu, EditorContent, Extension } from "@tiptap/vue-3";
 import Text from "@tiptap/extension-text";
 import Document from "@tiptap/extension-document";
+import Bold from "@tiptap/extension-bold";
+import Strike from "@tiptap/extension-strike";
+import Italic from "@tiptap/extension-italic";
 import Paragraph from "@tiptap/extension-paragraph";
 import Heading from "@tiptap/extension-heading";
 import { ref, watch, watchEffect, type Ref } from "vue";
@@ -116,6 +119,9 @@ const editor = useEditor({
   content: props.modelValue,
   extensions: [
     Text,
+    Bold,
+    Italic,
+    Strike,
     Document,
     Paragraph,
     Heading.configure({ levels: [1, 2, 3] }),

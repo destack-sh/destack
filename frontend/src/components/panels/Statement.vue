@@ -57,7 +57,7 @@ const ancestors = toRef(props, "ancestors");
 
 const bench = useBenchState();
 const appearance = useAppearance();
-const nav = useNavigationContext(!props.standalone);
+const nav: Ref<NavigationContext | null> = useNavigationContext(!props.standalone) ?? ref(null);
 const panel = usePanelContext();
 const module = useCurrentModule();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
@@ -270,7 +270,7 @@ function onClickContainer(e: MouseEvent) {
     const lastIndex = nav?.value?.statementPositions[nav?.value?.panel.activeStatementCk ?? ""];
     console.log("select all statements between", index, lastIndex);
     focusInEditor();
-    if (lastIndex != null) {
+    if (index != null && lastIndex != null) {
       // select all statements between
       for (let i = Math.min(index, lastIndex); i <= Math.max(index, lastIndex); i++) {
         const statement = nav?.value?.statements[i];
@@ -337,14 +337,16 @@ function onDragStart(e: DragEvent) {
 }
 
 async function onDrop(thing: any[] | { type: string; id: string } | null) {
-  if (thing == null || nav == null) return;
+  if (thing == null || nav == null || nav.value == null) return;
   if (Array.isArray(thing)) {
     console.log("drop insert files into new statement", thing);
     await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
   } else if (thing?.type == "Statement") {
-    if (nav?.value.panel.hasSelection && nav?.value.panel.selectedElementIds.length > 1) {
+    if (nav?.value?.panel.hasSelection && nav?.value.panel.selectedElementIds.length > 1) {
       // batch move
-      const statementsToMove = nav.value.panel.selectedElementIds.map((id) => nav?.value?.statementsById[id]);
+      const statementsToMove = nav.value.panel.selectedElementIds.map(
+        (id) => nav?.value?.statementsById[id] as StatementHeader
+      );
       if (
         statementsToMove.some(
           (s) =>
@@ -369,8 +371,8 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
         return; // can't move within own tree
       }
       const dropLocation = dragInTopHalf.value
-        ? nav?.value?.getLocationRightAbove(statement.value)
-        : nav?.value?.getLocationRightBelow(statement.value);
+        ? nav.value.getLocationRightAbove(statement.value)
+        : nav.value.getLocationRightBelow(statement.value);
       console.debug("drop move statement", thing, statement.value.id);
       await nav?.value?.moveTo(statementToMove, dropLocation);
     }
@@ -513,18 +515,19 @@ defineExpose({
               ref="actionPopoverRef"
               anchor="right"
               :thing="isInSelection ? null : statement"
-              :actions="isInSelection ? (nav as unknown as NavigationContext).selectionActions : allActions"
+              :actions="isInSelection ? nav?.selectionActions ?? [] : allActions"
               :groups="actionGroups"
               v-slot="{ open }"
-              @mouseup="containerRef?.setAttribute('draggable', 'false')"
               @click.stop
+              @close="nav?.panel?.focusElement(statement)"
+              @mouseup="containerRef?.setAttribute('draggable', 'false')"
             >
               <!-- For some reason I had to put the mousedown back into the inner element for dragging to work -- previously,
             there was *some* reason not to do this (maybe old styling/padding), but it seems to work fine now. -->
               <div
                 @mousedown.stop="
                   {
-                    (nav as unknown as NavigationContext)?.panel?.addToSelection(statement);
+                    nav?.panel?.addToSelection(statement);
                     containerRef?.setAttribute('draggable', 'true');
                   }
                 "
@@ -661,7 +664,7 @@ defineExpose({
       <template v-if="isActive">a</template>
       <template v-if="isFocused">f</template>
       <template v-if="isEditing">e</template>
-      <span class="ml-1">{{ isSelected ? "1" : "0" }}/{{ (nav as any)?.panel?.selectedElementIds.length }}</span>
+      <span class="ml-1">{{ isSelected ? "1" : "0" }}/{{ nav?.panel?.selectedElementIds.length }}</span>
       <template v-if="dragOver">d</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inStatementFocused">**</template>

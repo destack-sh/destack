@@ -309,7 +309,7 @@ class HasIssues(abc.ABC):
     def errors(self) -> list[Issue]:
         if self.issues is None:
             return []
-        return [i for i in self.issues if i.kind == IssueKind.ERROR]
+        return [i for i in self.issues if i.kind == IssueKind.Error]
 
     @property
     def self_errors(self):
