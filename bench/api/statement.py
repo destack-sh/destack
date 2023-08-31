@@ -454,6 +454,7 @@ class StatementMutation:
             target_parent_ids=target_parent_ids,
             target_order_keys=target_order_keys,
             keep_cks=False,
+            include_interp=False,
         )
 
         target_statements = models.Statement.objects.filter(id__in=target_ids)

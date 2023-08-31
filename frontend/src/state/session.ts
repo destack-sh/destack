@@ -994,10 +994,10 @@ export function getRunStatusColor(status: RunStatus, options?: { gray?: string }
 }
 
 export const WORKER_STATUS_COLOR = {
-  [WorkerSetStatus.Pending]: "text-yellow-700",
+  [WorkerSetStatus.Pending]: "text-yellow-600",
   [WorkerSetStatus.Healthy]: "text-green-700",
-  [WorkerSetStatus.Unavailable]: "text-red-700",
-  [WorkerSetStatus.Unhealthy]: "text-yellow-700",
+  [WorkerSetStatus.Unavailable]: "text-red-600",
+  [WorkerSetStatus.Unhealthy]: "text-yellow-600",
   [WorkerSetStatus.Updating]: "text-gray-500",
   [WorkerSetStatus.Sleeping]: "text-gray-500",
   [WorkerSetStatus.Unknown]: "text-gray-500",

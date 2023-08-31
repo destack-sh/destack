@@ -116,9 +116,10 @@ async function createFileInPanelGroup() {
         </Tab>
         <!-- Little button tab to create new file -->
         <button
-          v-if="actions.file.create.value.enabled"
-          class="group px-2 py-1 outline-none ring-0 hover:bg-orange-100"
           @click="createFileInPanelGroup"
+          class="group px-2 py-1 outline-none ring-0"
+          :class="[actions.file.create.value.enabled ? 'hover:bg-orange-100' : 'opacity-30']"
+          :disabled="!actions.file.create.value.enabled"
         >
           <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
         </button>

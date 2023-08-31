@@ -49,7 +49,7 @@ function focusIssue(issue: IssueContentFragment) {
             {{ (issue.parent == null ? null : module.nodeOf(issue.parent.id))?.name ?? "???" }}
           </span>
           <!-- Location -->
-          <span class="truncate text-xs text-gray-500" v-if="issue.parent != null">
+          <span class="truncate text-sm text-gray-500" v-if="issue.parent != null">
             {{
               module
                 .nodePathOf(issue.parent.id)
@@ -64,12 +64,12 @@ function focusIssue(issue: IssueContentFragment) {
           class="flex flex-row gap-1 px-3"
           :class="{
             'text-red-600': issue.kind == IssueKind.Error,
-            'text-yellow-700': issue.kind == IssueKind.Warning,
+            'text-yellow-600': issue.kind == IssueKind.Warning,
           }"
         >
           <component
             :is="issue.kind == IssueKind.Error ? XCircleIcon : ExclamationTriangleIcon"
-            class="mt-0.5 h-4 w-4"
+            class="mt-0.5 h-4 w-4 flex-shrink-0"
           />
           <span class="">{{ issue.message }}</span>
         </span>

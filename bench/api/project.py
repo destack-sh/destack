@@ -366,7 +366,7 @@ class ProjectVersionMutation:
 
         # actually copy into new version
         models.ProjectVersion.objects.copy(
-            source=head, target=snapshot, keep_cks=True, copy_revisions=True
+            source=head, target=snapshot, keep_cks=True, copy_revisions=True, include_interp=True
         )
 
         # publish

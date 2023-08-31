@@ -125,7 +125,7 @@ defineExpose({
       <!-- Extra info -->
       <span class="absolute right-2.5 top-0.5 flex flex-row-reverse gap-0.5">
         <!-- Issues -->
-        <span v-if="module.issuesIn(file, { kind: IssueKind.Warning }).length > 0" class="text-yellow-700">
+        <span v-if="module.issuesIn(file, { kind: IssueKind.Warning }).length > 0" class="text-yellow-600">
           {{ module.issuesIn(file, { kind: IssueKind.Warning }).length }}
         </span>
         <span v-if="module.issuesIn(file, { kind: IssueKind.Error }).length > 0" class="text-red-600">

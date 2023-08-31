@@ -82,7 +82,6 @@ const versions = computed(() => {
   }
   return ordered;
 });
-const isAtHead = computed(() => bench.projectVersionId == head.value?.id);
 
 function isCurrent(version: { id: string }): boolean {
   return bench.projectVersionId == version.id;

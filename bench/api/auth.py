@@ -92,8 +92,8 @@ def has_project_access(
         project = project.project
     else:
         project = project
-    if project is None:
-        raise ValueError("project cannot be None")
+    if not isinstance(project, models.Project):
+        raise ValueError(f"{type(project).__name__} {project} is not a Project")
 
     possible_accesses = (
         get_user_access(info, project),

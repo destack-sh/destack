@@ -10,7 +10,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_project_access
+from bench.api.auth import check_module_node_access, check_project_access
 from bench.api.module import read_module_node
 from bench.api.sync import tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
@@ -132,7 +132,7 @@ class FileMutation:
     def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
         # get and check source/target
         source_file = models.File.objects.get(id=input.source_id.node_id)
-        check_project_access(info, source_file, ProjectAccessLevel.Read)
+        check_module_node_access(info, source_file, ProjectAccessLevel.Read)
         target_version = models.ProjectVersion.objects.get(id=input.target_version_id.node_id)
         check_project_access(info, target_version.project, ProjectAccessLevel.Edit)
         parent_file = (
@@ -153,6 +153,9 @@ class FileMutation:
             target_id=target_id,
             target_ck=target_ck,
             keep_cks=False,
+            include_interp=False,
         )
         root_fragment = info.selected_fields[0].selections[0]  # mutation, returned object is first
-        return read_module_node(info, target_file, root_fragment=root_fragment)  # type: ignore
+        resolved_file = read_module_node(info, target_file, root_fragment=root_fragment)
+        resolved_file.project_version = target_version  # ensure real project version is set (auth)
+        return resolved_file  # type: ignore

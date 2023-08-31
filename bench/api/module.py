@@ -195,6 +195,8 @@ def _resolve_node(
     model_name = n._meta.object_name
 
     proxy_n = n.__class__(id=n.id)  # always keep id
+
+    # map selections to module node columns or relations
     for f in selections:
         py_name = _MODEL_FIELD_NAME_BY_CAMEL.get(f.name, f.name)
         # pass through non-relational fields

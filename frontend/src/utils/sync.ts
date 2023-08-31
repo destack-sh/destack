@@ -15,9 +15,7 @@ export function syncProperty<T>(property: {
 }) {
   const pendingSave = ref(false);
   function _saveProperty() {
-    if (property.enabled?.value === false) {
-      return;
-    }
+    if (property.enabled?.value === false) return;
     property.write();
     pendingSave.value = false;
   }
@@ -28,13 +26,12 @@ export function syncProperty<T>(property: {
     pendingSave.value = true;
     _savePropertyDebounced();
   }
-  // save property while editing (write to cache/server)
-  watch(
-    () => [property.value],
-    () => !property.editing.value || saveProperty(),
-    { deep: true }
-  );
-  // sync property when not editing (read from cache/server)
+
+  // write property while editing
+  watch(property.value, () => !property.editing.value || property.enabled?.value === false || saveProperty(), {
+    deep: true,
+  });
+  // sync property when not editing
   watchEffect(() => {
     if (!property.editing.value && !pendingSave.value) {
       property.read();

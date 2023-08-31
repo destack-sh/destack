@@ -81,7 +81,7 @@ def tracked_db_mutation(
 
             # validate (ignoring constraints; 'revision' field which may be an F expression)
             access = has_module_node_access(info, thing, ProjectAccessLevel.Edit)
-            if not skip_auth_check and not access:
+            if access.project_version.committed or not skip_auth_check and not access:
                 raise PermissionError("User cannot do this.")
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
