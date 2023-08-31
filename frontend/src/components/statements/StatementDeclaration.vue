@@ -81,7 +81,6 @@ defineExpose({
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
-      @escape="context.escape"
       @enter="context.insertBelow"
     />
     <!-- Anonymous placeholder if unnamed as a button -->

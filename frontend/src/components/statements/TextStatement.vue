@@ -63,7 +63,6 @@ defineExpose({
     @update:model-value="content = $event"
     @navigateUp="context.navigateUp"
     @navigateDown="context.navigateDown"
-    @escape="context.escape"
     @enter-start="context.insertAbove"
     @enter="context.insertBelow"
     @toggle-actions="emit('toggleActions')"
