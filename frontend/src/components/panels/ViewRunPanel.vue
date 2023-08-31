@@ -76,7 +76,7 @@ defineExpose({
     <PanelHeader
       class="border-b border-orange-900 border-opacity-[12%]"
       :editing="false"
-      :thing="statement"
+      :thing="run"
       :actions="terminalActions"
       :path="[
         { __typename: 'Panel', name: 'Runs' },

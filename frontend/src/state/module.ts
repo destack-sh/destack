@@ -120,7 +120,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   const { result: module, loading } = useQuery(
     graphql(/* GraphQL */ `
       query moduleContentById($projectVersionId: GlobalID!) {
-        projectVersion(id: $projectVersionId) {
+        module(id: $projectVersionId) {
           id
           committed
           project {

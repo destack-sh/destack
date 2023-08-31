@@ -49,6 +49,9 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
     parents {
       id
     }
+    children {
+      id
+    }
     id
     createdAt
     updatedAt

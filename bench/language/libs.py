@@ -388,7 +388,7 @@ class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and helpful bot that interprets instructions intelligently."
-        " Spell out concise intermediate steps for complex tasks, finally call a provided functions properly.",
+        " Spell out concise intermediate steps for complex tasks, finally call a provided function.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",

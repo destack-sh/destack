@@ -20,14 +20,7 @@ import { graphql, useFragment } from "@/gql";
 import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { decodeSharingToken, useAuth } from "@/state/auth";
-import {
-  PANEL_INSTANCE_TYPES,
-  prettifySlug,
-  projectAccessGt,
-  useBenchPersistence,
-  useBenchState,
-  type ViewId,
-} from "@/state/bench";
+import { PANEL_INSTANCE_TYPES, prettifySlug, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
@@ -35,9 +28,8 @@ import { useOperationsStore } from "@/state/operations";
 import { useModuleSync, useProjectSync } from "@/state/sync";
 import { ACTIVE_SHARING_TOKEN, WS_CONNECTED } from "@/utils/globals";
 import { PopoverButton } from "@headlessui/vue";
-import { ArrowUturnLeftIcon, ClockIcon as ClockIconSolid, CommandLineIcon } from "@heroicons/vue/24/outline";
 import {
-  ClockIcon,
+  ClockIcon as ClockIconOutline,
   Cog8ToothIcon,
   CubeIcon,
   DocumentDuplicateIcon,
@@ -66,6 +58,9 @@ import {
   SignalSlashIcon,
   XCircleIcon,
   ExclamationTriangleIcon as ExclamationTriangleIconSolid,
+  ArrowLeftIcon,
+  ArrowRightIcon,
+  HomeIcon as HomeIconSolid,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
@@ -102,7 +97,7 @@ type View = {
 };
 const allViews: Ref<View[]> = computed(() => [
   { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, view: ViewExplorer, enabled: true },
-  { id: "history", label: "History", icon: ClockIcon, view: ViewHistory, enabled: true },
+  { id: "history", label: "History", icon: ClockIconOutline, view: ViewHistory, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIconOutline, view: ViewIssues, enabled: true },
   { id: "environment", label: "Environment", icon: CubeIcon, view: ViewEnvironment, enabled: true },
 ]);
@@ -213,13 +208,19 @@ const { error: versionError, result: versionResult } = useQuery(
     query projectVersionHeader($id: GlobalID!) {
       projectVersion(id: $id) {
         id
-        id
+        ck
         name
         tag
         description
         createdAt
         committed
         committedAt
+        parents {
+          id
+        }
+        children {
+          id
+        }
       }
     }
   `),
@@ -378,11 +379,7 @@ watchEffect(() => {
 watch(
   () => [project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
   () => {
-    if (
-      project.value != null &&
-      versionToViewId.value != null &&
-      (bench.projectId != project.value.id || bench.projectVersionId != versionToViewId.value)
-    ) {
+    if (project.value != null && bench.projectId != project.value.id) {
       console.log(`load bench ${project.value.slug} (${project.value.id} at ${versionToViewId.value})`);
       const loaded = load(project.value.id);
       if (!loaded) {
@@ -390,6 +387,8 @@ watch(
         console.log(`no local bench state available, reset bench ${project.value.slug}`);
       }
       bench.projectId = project.value.id;
+    }
+    if (versionToViewId.value != null && bench.projectVersionId != versionToViewId.value) {
       bench.projectVersionId = versionToViewId.value;
     }
   },
@@ -446,26 +445,32 @@ onBeforeUnmount(() => {
           <!-- Version info (if not at head) -->
           <FadeTransition>
             <div
-              v-if="versionToViewId != projectHead?.id && versionLoaded"
+              v-if="versionToViewId != projectHead?.id && version != null"
               class="ml-1.5 flex flex-row rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
             >
               <span class="relative">
-                <ClockIconSolid class="absolute top-0 h-5 w-5 text-gray-700" />
+                <ClockIconOutline class="absolute top-0 h-5 w-5 text-gray-900" />
                 <span class="ml-6 font-bold">{{ version?.tag ?? version?.name ?? "Autosave" }}</span>
               </span>
-              <router-link
-                :to="{ hash: router.currentRoute.value.hash }"
-                class="ml-2.5 flex flex-row items-center font-normal text-gray-700 hover:text-gray-700"
-              >
-                <ArrowUturnLeftIcon class="mr-0.5 h-5 w-5 text-gray-700" />
-                <span>Back</span>
+              <router-link :to="{ hash: router.currentRoute.value.hash }" class="ml-2.5 flex items-center">
+                <HomeIconSolid class="mr-0.5 h-4 w-4 text-orange-600 hover:text-orange-700" />
               </router-link>
-              <!-- <button
-                class="underline decoration-white decoration-dashed underline-offset-4 hover:decoration-solid"
-                @click="actions.apply('version.restore')"
+              <router-link
+                :to="{ hash: router.currentRoute.value.hash, query: { version: version.parents[0]?.id } }"
+                class="ml-1 flex items-center"
+                :class="version.parents.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
+                :disabled="version.parents.length == 0"
               >
-                Restore
-              </button> -->
+                <ArrowLeftIcon class="mr-0.5 h-4 w-4" />
+              </router-link>
+              <router-link
+                :to="{ hash: router.currentRoute.value.hash, query: { version: version.children[0]?.id } }"
+                class="ml-0 flex items-center"
+                :class="version.children.length == 0 ? 'text-gray-400' : ' text-orange-600 hover:text-orange-700'"
+                :disabled="version.children.length == 0"
+              >
+                <ArrowRightIcon class="mr-0.5 h-4 w-4" />
+              </router-link>
             </div>
           </FadeTransition>
           <!-- Read-only project notice -->
@@ -544,7 +549,7 @@ onBeforeUnmount(() => {
       <template v-slot:right>
         <!-- Bench-global controls -->
         <FadeTransition>
-          <div v-if="versionLoaded" class="flex h-full flex-row items-center space-x-2">
+          <div v-if="versionLoaded && project != null" class="flex h-full flex-row items-center space-x-2">
             <CurrentRunsPopover />
             <SharingPopover :project="project" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
@@ -641,25 +646,22 @@ onBeforeUnmount(() => {
       <!-- Main editor area -->
       <main
         ref="mainContainerRef"
-        v-if="versionLoaded"
+        v-show="projectLoaded"
         class="flex h-full w-full flex-1 divide-x divide-orange-900 divide-opacity-[12%] bg-gray-50"
       >
         <!-- Left editor group -->
-        <div class="relative flex-1">
+        <div class="relative flex-1 flex-shrink-0">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
             <PanelGroup :group="bench.left" class="h-full w-full" />
           </div>
         </div>
         <!-- Right editor group -->
-        <div class="relative flex-1" v-if="bench.right.panels.length > 0">
+        <div class="relative flex-1 flex-shrink-0" v-if="bench.right.panels.length > 0">
           <div class="absolute left-0 top-0 h-full w-full overflow-hidden">
             <PanelGroup :group="bench.right" class="h-full w-full" />
           </div>
         </div>
       </main>
-      <div v-if="!versionLoaded" class="flex w-full flex-1 flex-col items-center justify-center">
-        <BusySpinnerIcon class="h-8 w-8 animate-spin" />
-      </div>
     </div>
     <GenericNotFound v-if="!projectLoading && !projectLoaded" class="pb-12" />
     <NotificationArea />
