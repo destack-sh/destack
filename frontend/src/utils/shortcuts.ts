@@ -1,6 +1,6 @@
 import { useActionsStore } from "@/state/actions";
 import Mousetrap from "mousetrap";
-import { watchEffect } from "vue";
+import { watch } from "vue";
 
 /**
  * Apply shortcuts for all available actions.
@@ -15,25 +15,53 @@ export function applyShortcuts() {
   }
   applyShortcutsCalled = true;
 
-  const actions = useActionsStore();
+  const actionsIndex = useActionsStore();
 
+  const lastBoundShortcuts = [] as string[];
   const boundShortcuts = [] as string[];
-  watchEffect(() => {
-    // remove previous shortcuts
-    boundShortcuts.forEach((shortcut) => Mousetrap.unbind(shortcut));
-    boundShortcuts.length = 0;
+  watch(
+    () => actionsIndex.all,
+    () => {
+      if (
+        lastBoundShortcuts.length === actionsIndex.all.length &&
+        lastBoundShortcuts.every((s, i) => s === actionsIndex.all[i].id)
+      ) {
+        // no change (unfortunately can't just use actionsIndex.all without deep watch)
+        return;
+      }
 
-    // add new shortcuts
-    actions.available.forEach((action) => {
-      Mousetrap.bind(action.shortcuts, () => {
-        action.apply();
-        return false;
+      // remove previous shortcuts
+      boundShortcuts.forEach((shortcut) => Mousetrap.unbind(shortcut));
+      boundShortcuts.length = 0;
+
+      // group actions by shortcut to test/evaluate and fire together
+      const actionsByShortcut: Record<string, string[]> = {};
+      actionsIndex.all.forEach((action) => {
+        action.shortcuts.forEach((shortcut) => {
+          if (actionsByShortcut[shortcut] == null) {
+            actionsByShortcut[shortcut] = [];
+          }
+          actionsByShortcut[shortcut].push(action.id);
+        });
       });
-      boundShortcuts.push(...action.shortcuts);
-    });
-  });
 
-  // supprres undo/redo actions if mousetrap-no-do class is present
+      // bind shortcuts
+      Object.entries(actionsByShortcut).forEach(([shortcut, actions]) => {
+        Mousetrap.bind(shortcut, () => {
+          const enabledActions = actionsIndex.all.filter((a) => a.enabled && actions.includes(a.id));
+          enabledActions.forEach((action) => action.apply());
+          return false;
+        });
+        boundShortcuts.push(shortcut);
+      });
+
+      lastBoundShortcuts.length = 0;
+      lastBoundShortcuts.push(...actionsIndex.all.map((a) => a.id));
+    },
+    { immediate: true, deep: true }
+  );
+
+  // suppress undo/redo actions if mousetrap-no-do class is present
   // this is a custom implementation of Mousetrap.stopCallback, see https://craig.is/killing/mice
   const suppressedUndoRedoShortcuts = ["ctrl+z", "ctrl+shift+z"];
   const suppressedTabShortcuts = ["tab", "shift+tab"];

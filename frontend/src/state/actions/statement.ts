@@ -122,6 +122,15 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
       panel.value?.stopEditingElement(cur.value?.statement as StatementHeader);
     },
   });
+  const cancelFocus = provideGlobalAction({
+    id: "statement.cancelFocus",
+    label: "Cancel focus",
+    shortcuts: ["escape"],
+    enabled: computed(() => !panel.value?.editing && panel.value?.activeStatementCk != null),
+    apply: () => {
+      panel.value?.blurElement();
+    },
+  });
 
   // indent statement
   const indent = provideGlobalAction({

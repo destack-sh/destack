@@ -11,7 +11,6 @@ import TextStatement from "@/components/statements/TextStatement.vue";
 import TypeStatement from "@/components/statements/TypeStatement.vue";
 import ValueStatement from "@/components/statements/ValueStatement.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
-import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import {
   useBenchState,
@@ -19,7 +18,6 @@ import {
   type StatementAction,
   type StatementHeader,
   EditFilePanel,
-  type PanelGroup,
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
@@ -64,6 +62,7 @@ const panel = usePanelContext();
 const module = useCurrentModule();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
+const location = computed(() => nav?.value?.getLocation(statement.value));
 const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementCk == statement.value?.ck);
 const isFocused = computed(() => isActive.value && (props.standalone || nav?.value?.panel.focused));
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.panel.editing));
@@ -167,6 +166,11 @@ const statementRef = ref<InstanceType<typeof BlankStatement>>();
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
+
+// update container bounding whenever location changes (since ResizeObserver doesn't seem to be triggered in that case)
+watch(location, () => {
+  containerBounding.update();
+});
 
 // scroll into view when becoming active
 whenever(isActive, () => {
@@ -645,16 +649,18 @@ defineExpose({
     </div>
     <!-- Debug info -->
     <div v-if="bench.debug" class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
+      <span class="mr-0.5"
+        >x:{{ Math.round(containerBounding.x.value) }} y:{{ Math.round(containerBounding.y.value) }}</span
+      >
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">a</template>
       <template v-if="isFocused">f</template>
       <template v-if="isEditing">e</template>
-      <template v-if="isSelected">s</template>
+      <span class="ml-1">{{ isSelected ? "1" : "0" }}/{{ (nav as any)?.panel?.selectedElementIds.length }}</span>
+      <template v-if="dragOver">d</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inStatementFocused">**</template>
-      <span class="mx-1 lowercase">
-        {{ statement.type }}
-      </span>
+      <span class="mx-1 lowercase">{{ statement.type }}</span>
       <span v-if="statement.name != null">'{{ statement.name }}'</span>
       r:{{ statement.revision }} o:{{ statement.orderKey }} d:{{ depth }}
     </div>

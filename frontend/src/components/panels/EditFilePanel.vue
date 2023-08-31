@@ -331,17 +331,20 @@ function startDragSelectMaybe(e: MouseEvent) {
   if (e.target != mainContentRef.value && e.target != statementAddAreaEndRef.value?.$el) {
     // find next element with 'group/statement' class up (if exists)
     let el = e.target as HTMLElement;
+    const path = [el];
     while (el != null && !el.classList.contains("group/statement")) {
       el = el.parentElement as HTMLElement;
+      path.push(el);
     }
     if (el == null) return;
     // only start drag select if not within statement content (i.e. inside left/right margins)
     const outsideContent =
       e.clientX < el.getBoundingClientRect().left + appearance.contentMarginX ||
       e.clientX > el.getBoundingClientRect().right - appearance.contentMarginX;
-    if (!outsideContent) return;
+    if (!outsideContent || path.some((el) => el.classList.contains("absolute"))) return;
   }
   panel.value.clearSelection();
+  panel.value.stopEditingElement();
   dragSelectStart.value = { x: e.clientX + scroll.value.x, y: e.clientY + scroll.value.y };
   e.stopPropagation();
 }
