@@ -20,7 +20,7 @@ from .session import Run, RunStatus, Session
 from .statement import Field, Statement, Tagging, Trigger, TriggerType
 from .token import AccessToken, AccessTokenScope, AccessTokenStatus
 from .user import Client, ClientType, User, UserStatus
-from .utils import CrudModel, ModuleNode
+from .utils import CrudModel, CrudNode, DetachedModuleNode, ModuleNode
 from .worker import WorkerProfile, WorkerRegion, WorkerSet, WorkerSetStatus
 
 __all__ = [
@@ -30,6 +30,8 @@ __all__ = [
     "Client",
     "ClientType",
     "CrudModel",
+    "CrudNode",
+    "DetachedModuleNode",
     "Field",
     "File",
     "Issue",
@@ -44,9 +46,9 @@ __all__ = [
     "OrganizationRole",
     "OwnerSlug",
     "Project",
+    "ProjectAccessLevel",
     "ProjectInvite",
     "ProjectMembership",
-    "ProjectAccessLevel",
     "ProjectVersion",
     "ProjectVisibility",
     "Q",

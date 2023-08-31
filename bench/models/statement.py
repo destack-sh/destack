@@ -12,14 +12,7 @@ from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
-from bench.models.utils import (
-    NAME_VALIDATOR,
-    CrudModel,
-    ModuleNode,
-    Revisioned,
-    create_models_bfs,
-    get_choices,
-)
+from bench.models.utils import NAME_VALIDATOR, CrudNode, create_models_bfs, get_choices
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_NAME_LENGTH
 
@@ -36,7 +29,7 @@ class FieldManager(models.Manager["Field"]):
         return super().get_queryset().select_related("statement")
 
 
-class Field(CrudModel, ModuleNode, Revisioned):
+class Field(CrudNode):
     """
     A (usually) named type of something.
     Do not write to this model directly as any change affects the opensearch indices.
@@ -99,7 +92,7 @@ class TriggerManager(models.Manager["Trigger"]):
         return super().get_queryset().select_related("statement")
 
 
-class Trigger(CrudModel, ModuleNode, Revisioned):
+class Trigger(CrudNode):
     """
     A trigger to a runnable.
     """
@@ -140,7 +133,7 @@ class TaggingManager(models.Manager["Tagging"]):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class Tagging(CrudModel, ModuleNode, Revisioned):
+class Tagging(CrudNode):
     """
     An association between a tag and a statement.
     """
@@ -171,7 +164,7 @@ class TileManager(models.Manager["Tile"]):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class Tile(CrudModel, ModuleNode):
+class Tile(CrudNode):
     """
     An element on a screen statement (not used yet)
     """
@@ -299,7 +292,7 @@ class StatementManager(models.Manager["Statement"]):
         )
 
 
-class Statement(CrudModel, ModuleNode, Revisioned):
+class Statement(CrudNode):
     """
     A nested statement in a file for working with Bench symbols and other stuff.
     """

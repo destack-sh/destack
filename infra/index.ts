@@ -567,6 +567,7 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
               image: `ghcr.io/symbolx/bench-api:${imageVersion}`,
               env: [
                 ...PUBLIC_BACKEND_VARS,
+                ...OPENSEARCH_ENV_VARS,
                 ...DB_ENV_VARS,
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },

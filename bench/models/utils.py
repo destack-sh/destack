@@ -74,11 +74,20 @@ class CrudModel(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
     created_by = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+        "User", on_delete=models.SET_NULL, related_name="+", null=True, blank=True
     )
     last_edited_at = models.DateTimeField(auto_now=True)
     last_edited_by = models.ForeignKey(
-        "User", on_delete=models.CASCADE, related_name="+", null=True, blank=True
+        "User", on_delete=models.SET_NULL, related_name="+", null=True, blank=True
+    )
+
+    class Meta:
+        abstract = True
+
+
+class CrudNode(CrudModel, ModuleNode, Revisioned):
+    last_edited_in = models.ForeignKey(
+        "Run", on_delete=models.SET_NULL, null=True, blank=True, related_name="+"
     )
     last_changed_at = models.DateTimeField(auto_now=True)
 
