@@ -524,7 +524,7 @@ onBeforeUnmount(() => {
         <div v-if="workerSet != null" class="ml-1 flex">
           <FadeTransition appear :duration="500">
             <span
-              class="group relative cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+              class="group relative flex cursor-pointer items-center p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
               :class="[
                 workerSet.status == WorkerSetStatus.Pending || workerSet.status == WorkerSetStatus.Updating
                   ? 'animate-pulse '
@@ -532,7 +532,7 @@ onBeforeUnmount(() => {
                 WORKER_STATUS_COLOR[workerSet.status],
               ]"
               @click="toggleActiveView('environment', true)"
-              v-show="!workerSetHealthy"
+              v-if="!workerSetHealthy"
             >
               <CubeIcon class="h-5 w-5" />
               <!-- Tooltip -->

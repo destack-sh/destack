@@ -53,6 +53,7 @@ class Issue(UUIDModel, ModuleNode):
     def __repr__(self):
         return f"<Issue {self}>"
 
+    @property
     def parent(self) -> Union["Statement", "File"]:
         if self.parent_statement_id is not None:
             return self.parent_statement
