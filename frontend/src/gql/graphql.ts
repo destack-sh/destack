@@ -1467,6 +1467,7 @@ export type Query = {
   featuredProjects: ProjectConnection;
   file?: Maybe<File>;
   me?: Maybe<User>;
+  module?: Maybe<ProjectVersion>;
   organization?: Maybe<Organization>;
   ownerBySlug?: Maybe<UserOrganization>;
   project?: Maybe<Project>;
@@ -1518,6 +1519,10 @@ export type QueryFeaturedProjectsArgs = {
 };
 
 export type QueryFileArgs = {
+  id: Scalars["GlobalID"];
+};
+
+export type QueryModuleArgs = {
   id: Scalars["GlobalID"];
 };
 
@@ -3059,12 +3064,15 @@ export type ProjectVersionHeaderQuery = {
   projectVersion?: {
     __typename?: "ProjectVersion";
     id: any;
+    ck: any;
     name?: string | null;
     tag?: string | null;
     description?: string | null;
     createdAt: any;
     committed: boolean;
     committedAt?: any | null;
+    parents: Array<{ __typename?: "ProjectVersion"; id: any }>;
+    children: Array<{ __typename?: "ProjectVersion"; id: any }>;
   } | null;
 };
 
@@ -3470,6 +3478,7 @@ export type ProjectVersionHeaderFragment = {
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   parents: Array<{ __typename?: "ProjectVersion"; id: any }>;
+  children: Array<{ __typename?: "ProjectVersion"; id: any }>;
   createdBy?: { __typename?: "User"; id: any } | null;
   lastEditedBy?: { __typename?: "User"; id: any } | null;
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
@@ -3737,7 +3746,7 @@ export type ModuleContentByIdQueryVariables = Exact<{
 
 export type ModuleContentByIdQuery = {
   __typename?: "Query";
-  projectVersion?: {
+  module?: {
     __typename?: "ProjectVersion";
     id: any;
     committed: boolean;
@@ -5704,6 +5713,14 @@ export const ProjectVersionHeaderFragmentDoc = {
           {
             kind: "Field",
             name: { kind: "Name", value: "parents" },
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+            },
+          },
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "children" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
@@ -8316,13 +8333,29 @@ export const ProjectVersionHeaderDocument = {
               kind: "SelectionSet",
               selections: [
                 { kind: "Field", name: { kind: "Name", value: "id" } },
-                { kind: "Field", name: { kind: "Name", value: "id" } },
+                { kind: "Field", name: { kind: "Name", value: "ck" } },
                 { kind: "Field", name: { kind: "Name", value: "name" } },
                 { kind: "Field", name: { kind: "Name", value: "tag" } },
                 { kind: "Field", name: { kind: "Name", value: "description" } },
                 { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                 { kind: "Field", name: { kind: "Name", value: "committed" } },
                 { kind: "Field", name: { kind: "Name", value: "committedAt" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "parents" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "children" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                  },
+                },
               ],
             },
           },
@@ -9111,7 +9144,7 @@ export const ModuleContentByIdDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
+            name: { kind: "Name", value: "module" },
             arguments: [
               {
                 kind: "Argument",

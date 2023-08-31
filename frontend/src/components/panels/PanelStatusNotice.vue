@@ -53,7 +53,7 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-semibold text-white">This {{ name }} is from another Bench version.</div>
+      <div class="text-sm font-semibold text-white">This {{ name }} is from another version.</div>
       <router-link
         class="text-sm text-white underline decoration-dashed underline-offset-4 hover:decoration-solid"
         :to="{ query: { version: thing?.projectVersion?.id } }"
@@ -68,7 +68,7 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} does not exist.</div>
+      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} does not exist in this version.</div>
     </div>
   </div>
 </template>

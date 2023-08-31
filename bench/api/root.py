@@ -132,9 +132,8 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     project_by_slug: Optional[Project] = strawberry_django.field(
         resolver=get_project_by_slug, extensions=[HasProjectAccess()]
     )
-    project_version: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=read_module_node_by_id
-    )
+    module: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node_by_id)
+    project_version: Optional[ProjectVersion] = strawberry_django.node()
     project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
         resolver=get_project_version_by_slug, extensions=[HasProjectAccess()]
     )

@@ -1163,7 +1163,11 @@ type Query {
     id: GlobalID!
   ): Project
   projectBySlug(owner: String!, project: String!): Project
-  projectVersion(id: GlobalID!): ProjectVersion
+  module(id: GlobalID!): ProjectVersion
+  projectVersion(
+    """The ID of the object."""
+    id: GlobalID!
+  ): ProjectVersion
   projectVersionBySlug(owner: String!, project: String!, tag: String!): ProjectVersion
   projectVersionByTag(projectId: GlobalID!, tag: String!): ProjectVersion
   file(id: GlobalID!): File
