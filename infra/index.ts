@@ -571,7 +571,8 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
                 ...BASE_PRIVATE_BACKEND_ENV_VARS,
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
-              command: ["python", "manage.py", "migrate"],
+              command: ["/bin/sh", "-c"],
+              args: ["python manage.py migrate && python manage.py libs upsert all"],
             },
           ],
           containers: [

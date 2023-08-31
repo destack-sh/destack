@@ -15,6 +15,7 @@ from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import diff_modules
 from bench.models import packer
 from bench.models.packer import DEFAULT_PACK_FILTER
+from bench.utils.utils import DEBUG, LOCAL, TEST
 
 logger = structlog.get_logger(__name__)
 
@@ -39,7 +40,7 @@ class Command(BaseCommand):
 
         if action == "upsert":
             for module in modules:
-                _upsert_module(module, os.environ["VERSION"])
+                _upsert_module(module, os.environ["VERSION"], sanity_check=DEBUG or TEST or LOCAL)
         elif action == "dump":
             for module in modules:
                 _dump_module(module)
@@ -59,7 +60,7 @@ def create_orgs_if_not_exist():  # probably should put this elsewhere
 
 
 @transaction.atomic
-def _upsert_module(module_name: str, version: str, sanity_check: bool = True):
+def _upsert_module(module_name: str, version: str, sanity_check: bool):
     """
     Replace the module
     """
