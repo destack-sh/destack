@@ -2689,7 +2689,7 @@ export type BlankPanelSuggestedFilesQueryVariables = Exact<{
 
 export type BlankPanelSuggestedFilesQuery = {
   __typename?: "Query";
-  projectVersion?: {
+  module?: {
     __typename?: "ProjectVersion";
     files: Array<{ __typename?: "File"; id: any; ck: any; name: string; deletedAt?: any | null }>;
   } | null;
@@ -7003,7 +7003,7 @@ export const BlankPanelSuggestedFilesDocument = {
         selections: [
           {
             kind: "Field",
-            name: { kind: "Name", value: "projectVersion" },
+            name: { kind: "Name", value: "module" },
             arguments: [
               {
                 kind: "Argument",

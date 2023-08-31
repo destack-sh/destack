@@ -144,7 +144,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   );
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
-    if (module.value?.projectVersion == null) return null;
+    if (module.value?.module == null) return null;
     // compile the primary index
     const statementsById: GRecord<string, InterpStatement> = {};
     const statementsByFileId: GRecord<string, InterpStatement[]> = {};
@@ -154,7 +154,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
     const idByCk: GRecord<string, string> = {}; // not comprehensive (does not include all module object types)
 
     // TODO @Cleanup: type module objects more correctly (file/statements/issues)
-    for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
+    for (const file of module.value.module.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       filesById[file.id] = file;
       idByCk[file.ck] = file.id;
@@ -178,9 +178,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
       );
     }
     return {
-      id: module.value.projectVersion.id,
-      name: module.value.projectVersion.project.name,
-      path: module.value.projectVersion.project.path,
+      id: module.value.module.id,
+      name: module.value.module.project.name,
+      path: module.value.module.project.path,
       statementsById: statementsById,
       statementsByFileId: statementsByFileId,
       statementsByParentId: statementsByParentId,
@@ -191,9 +191,9 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
   });
 
   const issues = computed(() => {
-    if (module.value?.projectVersion == null) return [];
+    if (module.value?.module == null) return [];
     const issues: any[] = [];
-    for (const file of module.value.projectVersion.files.map((f) => useFragment(InterpFileType, f))) {
+    for (const file of module.value.module.files.map((f) => useFragment(InterpFileType, f))) {
       if (file.deletedAt != null) continue;
       file.issues.forEach((i) => issues.push(i));
       for (const statement of (file as unknown as { statements: InterpStatement[] }).statements) {
@@ -457,7 +457,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       !wokeRuntime.value &&
       projectVersionId.value != null &&
       module.value != null &&
-      !module.value?.projectVersion?.committed &&
+      !module.value?.module?.committed &&
       auth.loggedIn.value
     ) {
       wokeRuntime.value = true;
@@ -468,9 +468,9 @@ function _useModule(projectVersionId: Ref<string | null>) {
   return {
     loading: computed(() => loading.value || projectVersionId.value == null),
     module,
-    id: computed(() => module.value?.projectVersion?.id),
-    name: computed(() => module.value?.projectVersion?.project.name),
-    path: computed(() => module.value?.projectVersion?.project.path),
+    id: computed(() => module.value?.module?.id),
+    name: computed(() => module.value?.module?.project.name),
+    path: computed(() => module.value?.module?.project.path),
     issues,
     errors,
     warnings,

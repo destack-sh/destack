@@ -19,7 +19,7 @@ const documents = {
     types.NotificationsDocument,
   "\n    query existingProjectVersionTag($projectId: GlobalID!, $tag: String!) {\n      projectVersionByTag(projectId: $projectId, tag: $tag) {\n        id\n        tag\n      }\n    }\n  ":
     types.ExistingProjectVersionTagDocument,
-  "\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  ":
+  "\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      module(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  ":
     types.BlankPanelSuggestedFilesDocument,
   "\n    query fileContentById($fileId: GlobalID!) {\n      file(id: $fileId) {\n        # :fileContentById\n        id\n        ck\n        ...FileHeader\n        statements(filters: { isVisible: true }) {\n          ...StatementContent\n        }\n        issues {\n          ...IssueContent\n        }\n      }\n    }\n  ":
     types.FileContentByIdDocument,
@@ -315,8 +315,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  "
-): typeof documents["\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      projectVersion(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  "];
+  source: "\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      module(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  "
+): typeof documents["\n    query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {\n      module(id: $projectVersionId) {\n        files(filters: { isVisible: true }) {\n          id\n          ck\n          name\n          deletedAt\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

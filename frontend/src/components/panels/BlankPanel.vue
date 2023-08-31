@@ -15,7 +15,7 @@ const actions = useActions();
 const { result: suggestedFiles } = useQuery(
   graphql(/* GraphQL */ `
     query blankPanelSuggestedFiles($projectVersionId: GlobalID!) {
-      projectVersion(id: $projectVersionId) {
+      module(id: $projectVersionId) {
         files(filters: { isVisible: true }) {
           id
           ck
@@ -29,9 +29,9 @@ const { result: suggestedFiles } = useQuery(
   { enabled: computed(() => !!bench.projectVersionId) as any }
 );
 const files = computed(() =>
-  suggestedFiles.value?.projectVersion?.files.filter((file) => file.deletedAt == null && file.name.trim() !== "")
+  suggestedFiles.value?.module?.files.filter((file) => file.deletedAt == null && file.name.trim() !== "")
 );
-const totalCount = computed(() => suggestedFiles.value?.projectVersion?.files.length);
+const totalCount = computed(() => suggestedFiles.value?.module?.files.length);
 
 const createActions = computed(() => [
   {

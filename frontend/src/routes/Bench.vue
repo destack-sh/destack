@@ -66,6 +66,7 @@ import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
 import SharingPopover from "@/components/bench/SharingPopover.vue";
+import type { Project } from "@/gql/graphql";
 
 const props = defineProps<{
   owner: string;
@@ -551,7 +552,7 @@ onBeforeUnmount(() => {
         <FadeTransition>
           <div v-if="versionLoaded && project != null" class="flex h-full flex-row items-center space-x-2">
             <CurrentRunsPopover />
-            <SharingPopover :project="project" />
+            <SharingPopover :project="(project as any as Project)" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
             <OmniCreate @show="bench.showBenchHeader = true" />
           </div>
