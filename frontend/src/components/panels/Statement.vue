@@ -68,6 +68,7 @@ const isFocused = computed(() => isActive.value && (props.standalone || nav?.val
 const isEditing = computed(() => isFocused.value && (props.standalone || nav?.value?.panel.editing));
 const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
 const isInSelection = computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1);
+const isAnySelection = computed(() => nav?.value?.panel.hasSelection);
 const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
@@ -489,7 +490,11 @@ defineExpose({
       :class="{
         'focus:bg-orange-100': true,
         'bg-orange-100':
-          (isFocused && !isEditing) || isSelected || isAncestorHighlight || dragOver || actionPopoverRef?.open,
+          (isFocused && !isEditing && !isAnySelection) ||
+          isSelected ||
+          isAncestorHighlight ||
+          dragOver ||
+          actionPopoverRef?.open,
         ...appearance.baseClass,
       }"
       :style="{
