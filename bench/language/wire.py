@@ -274,6 +274,9 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Re-assigns the node's children"""
         pass
 
+    def patch(self, node: NodeDataT, target_cks: dict[UUID, UUID]) -> None:
+        pass
+
 
 class PackContext(ModuleVisitor):
     """Tree visitor for packing"""
@@ -391,6 +394,13 @@ def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT], session: Optional
     """Unpack a flat module node into a language node"""
     packer = _node_packers_by_data[type(node)]
     return packer.unpack(node, parent, session)
+
+
+def patch_node_flat(node: NodeDataT, target_cks: dict[UUID, UUID]) -> NodeDataT:
+    """Patch a flat module node"""
+    packer = _node_packers_by_data[type(node)]
+    packer.patch(node, target_cks)
+    return node
 
 
 @dataclass
@@ -1118,6 +1128,9 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             _session=session,
         )
 
+    def patch(self, node: FieldData, target_cks: dict[UUID, UUID]) -> None:
+        node.reference_ck = target_cks.get(node.reference_ck, node.reference_ck)
+
 
 @dataclass
 class TriggerData(NodeData, HasCrud):
@@ -1181,6 +1194,10 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             _session=session,
         )
 
+    def patch(self, node: TriggerData, target_cks: dict[UUID, UUID]) -> None:
+        node.runnable_ck = target_cks.get(node.runnable_ck, node.runnable_ck)
+        node.scope_ck = target_cks.get(node.scope_ck, node.scope_ck)
+
 
 @dataclass
 class TaggingData(NodeData, HasCrud):
@@ -1232,6 +1249,9 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             last_changed_at=tagging.last_changed_at,
             _session=session,
         )
+
+    def patch(self, node: TaggingData, target_cks: dict[UUID, UUID]) -> None:
+        node.reference_ck = target_cks.get(node.reference_ck, node.reference_ck)
 
 
 @dataclass

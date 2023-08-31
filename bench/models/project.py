@@ -417,8 +417,12 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
                 continue
             if not copy_revisions:
                 node.revision = 0
-        for node in packed.nodes.values():  # patch parent ids
+
+        # patch parent ids & reference cks
+        for node in packed.nodes.values():
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
+            wire.patch_node_flat(node, target_cks)
+
         return packer._PackedCopy(
             roots=packed.roots,
             nodes=packed.nodes,
