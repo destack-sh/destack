@@ -338,6 +338,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             models.Statement.objects.filter(file__in=nodes),
+            models.Issue.objects.filter(parent_file__in=nodes),
         ]
 
     def pack(self, file: models.File) -> wire.FileData:

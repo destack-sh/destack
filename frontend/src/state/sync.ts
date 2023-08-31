@@ -349,7 +349,7 @@ function useSyncedOps() {
       });
     } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.fileId != null) {
       client.cache.modify({
-        id: `File:${mutation.statementId}`,
+        id: `File:${mutation.fileId}`,
         fields: {
           issues(existingIssues = []) {
             return [...existingIssues, mutation.data];
