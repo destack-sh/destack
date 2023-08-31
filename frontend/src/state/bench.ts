@@ -475,13 +475,17 @@ export const useBenchState = defineStore("bench", {
 
     _openMaybeCreate(filter: (panel: Panel) => boolean, create: () => Panel, options?: PanelOpenOptions): Panel {
       let panel = this.panels.find(filter);
+      const created = panel == null;
       if (!panel || options?.create) {
         panel = create();
         console.log(`create new panel ${panel.path}`);
         panel.onInstantiated(this);
       }
       let group = options?.group;
-      if (options?.opposite) {
+      if (!created) {
+        // keep current group if panel already exists
+        group = panel.group;
+      } else if (options?.opposite) {
         group = this.nextGroup(group ?? this.focusedGroup ?? this.left);
       }
       this.openPanel(panel, group);

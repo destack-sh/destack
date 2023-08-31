@@ -395,7 +395,7 @@ export function _useSessions(
   // running
 
   function run(
-    runnable: { id: string },
+    runnable: { id: string; ck: string },
     options?: { sessionId?: string; runId?: string; inputs?: any; block?: number; keyed?: boolean }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -410,6 +410,7 @@ export function _useSessions(
       duration: null,
       inputs: options?.inputs ?? {},
       runnable,
+      runnableCk: runnable.ck,
       outputs: null,
       metadata: null,
       error: null,
@@ -800,7 +801,7 @@ export function useLogs(
     sort: Ref<SearchSort[] | null | undefined>;
     after: Ref<string | null | undefined>;
   },
-  options?: { live?: boolean; limit?: number; count?: boolean; skipInitialLoad?: Ref<boolean> }
+  options?: { live?: boolean; limit?: number; count?: boolean }
 ) {
   /**
    * Gets all logs that match the given filter
@@ -863,39 +864,7 @@ export function useLogs(
       }
     }
   `);
-  // separate useQuery to read cache since useQuery doesn't react properly if not enabled
-  const { result: logs } = useQuery(LOGS_QUERY, combinedVariables, {
-    fetchPolicy: "cache-only",
-  });
-  // only load if not skipping initial load
-  const { loading: initialLoading } = useQuery(LOGS_QUERY, combinedVariables, {
-    enabled: computed(() => !options?.skipInitialLoad?.value) as any,
-  });
-
-  // if not enabled, write empty result to cache
-  watch(
-    () => [combinedVariables.value, options?.skipInitialLoad?.value],
-    () => {
-      if (!options?.skipInitialLoad?.value) return;
-      client.client.cache.writeQuery({
-        query: LOGS_QUERY,
-        variables: combinedVariables.value as SearchLogsQueryVariables,
-        data: {
-          searchLogs: {
-            totalCount: 0,
-            pageInfo: {
-              hasNextPage: false,
-              hasPreviousPage: false,
-              startCursor: null,
-              endCursor: null,
-            },
-            edges: [],
-          },
-        },
-      });
-    },
-    { immediate: true, deep: true }
-  );
+  const { loading: initialLoading, result: logs } = useQuery(LOGS_QUERY, combinedVariables, {});
 
   if (options?.live) {
     // use useSubscription because subscribeToMore doesn't work properly if the query is not enabled
