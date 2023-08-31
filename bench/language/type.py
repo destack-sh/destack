@@ -32,6 +32,7 @@ from bench.language.core import (
     StatementBase,
     StatementPath,
     StatementReference,
+    get_node_id,
     node,
 )
 from bench.language.issue import IssueType
@@ -548,13 +549,19 @@ def _resolve_unions(type: "HasType", path: list[TypeBase]) -> None:
                 # TODO @Robustness: check union type compatibility properly/deeply
                 type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
                 continue
+
+            # point directly to the field (for transitive unions)
             if isinstance(child, ResolvedField):
-                child = child.field  # point directly to the field
+                child = child.field
+
+            # derive ck/id
+            ck = uuid.uuid5(type.ck, child.ck.hex)
             resolved = ResolvedField(
-                id=uuid.uuid5(child.id, type.id.hex),
+                ck=ck,
+                id=get_node_id(type.module.id, ck),
                 parent=type,
                 field=child,
-                **dict_minus(child.__dict__, ("id", "field", "parent", "py_type")),
+                **dict_minus(child.__dict__, ("id", "ck", "field", "parent", "py_type")),
             )
             resolved_fields.append(resolved)
     type.resolved_fields = resolved_fields

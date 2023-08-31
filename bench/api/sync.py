@@ -7,6 +7,7 @@ from typing import Any, Optional, Sequence
 import posthog
 import strawberry_django
 import structlog
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import F
 from strawberry.types import Info
@@ -82,7 +83,7 @@ def tracked_db_mutation(
             # validate (ignoring constraints; 'revision' field which may be an F expression)
             access = has_module_node_access(info, thing, ProjectAccessLevel.Edit)
             if access.project_version.committed or not skip_auth_check and not access:
-                raise PermissionError("User cannot do this.")
+                raise PermissionDenied("User cannot do this.")
             thing.full_clean(
                 validate_unique=False, validate_constraints=False, exclude=["revision"]
             )

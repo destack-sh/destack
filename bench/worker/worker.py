@@ -526,7 +526,7 @@ class ModuleWorkerProcess(ModuleWriter):
             await runnable(**inputs)
         except Exception as e:
             raise RunError(
-                kind=RunErrorKind.RUNTIME, type=type(e).__name__, message=str(e), runnable=runnable
+                kind=RunErrorKind.Runtime, type=type(e).__name__, message=str(e), runnable=runnable
             ) from e
         finally:
             # remove root run from our own dirty runs (for queue/schedule) to avoid race condition

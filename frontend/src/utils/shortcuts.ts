@@ -50,7 +50,7 @@ export function applyShortcuts() {
         Mousetrap.bind(shortcut, () => {
           const enabledActions = actionsIndex.all.filter((a) => a.enabled && actions.includes(a.id));
           enabledActions.forEach((action) => action.apply());
-          return false;
+          return enabledActions.length == 0;
         });
         boundShortcuts.push(shortcut);
       });
