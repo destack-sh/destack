@@ -1355,7 +1355,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
 
 @dataclass
 class ResolvedFieldData(NodeData):
-    field_id: UUID
+    field_ck: UUID
 
 
 @node_packer(MOT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
@@ -1367,8 +1367,11 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
             id=resolved_field.id,
             ck=resolved_field.ck,
             parent_id=resolved_field.parent_id,
-            field_id=resolved_field.field.id,
+            field_ck=resolved_field.field_ck,
         )
+
+    def patch(self, node: ResolvedFieldData, target_cks: dict[UUID, UUID]) -> None:
+        node.field_ck = target_cks.get(node.field_ck, node.field_ck)
 
 
 @dataclass

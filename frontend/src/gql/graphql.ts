@@ -1762,7 +1762,7 @@ export type RequestUploadObjectInput = {
 
 export type ResolvedField = {
   __typename?: "ResolvedField";
-  field: Field;
+  fieldCk: Scalars["UUID"];
   statement?: Maybe<Statement>;
 };
 
@@ -3677,8 +3677,8 @@ export type IssueContentFragment = {
 
 export type ResolvedFieldContentFragment = {
   __typename?: "ResolvedField";
+  fieldCk: any;
   statement?: { __typename?: "Statement"; id: any } | null;
-  field: { __typename?: "Field"; id: any };
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
 
 export type InterpFileFragment = {
@@ -4373,8 +4373,8 @@ export type CreateStatementMutation = {
         triggers: Array<{ __typename?: "Trigger"; id: any }>;
         resolvedFields?: Array<{
           __typename?: "ResolvedField";
+          fieldCk: any;
           statement?: { __typename?: "Statement"; id: any } | null;
-          field: { __typename?: "Field"; id: any };
         }> | null;
         issues?: Array<{ __typename?: "Issue"; id: any }> | null;
         createdBy?: { __typename?: "User"; id: any } | null;
@@ -6135,14 +6135,7 @@ export const ResolvedFieldContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          {
-            kind: "Field",
-            name: { kind: "Name", value: "field" },
-            selectionSet: {
-              kind: "SelectionSet",
-              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-            },
-          },
+          { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
         ],
       },
     },
@@ -11975,14 +11968,7 @@ export const CreateStatementDocument = {
                                 selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
                               },
                             },
-                            {
-                              kind: "Field",
-                              name: { kind: "Name", value: "field" },
-                              selectionSet: {
-                                kind: "SelectionSet",
-                                selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                              },
-                            },
+                            { kind: "Field", name: { kind: "Name", value: "fieldCk" } },
                           ],
                         },
                       },

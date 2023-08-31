@@ -1326,7 +1326,7 @@ input RequestUploadObjectInput {
 
 type ResolvedField {
   statement: Statement
-  field: Field!
+  fieldCk: UUID!
 }
 
 input RestartWorkerSetInput {

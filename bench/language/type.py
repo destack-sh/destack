@@ -354,6 +354,10 @@ class ResolvedField(Field):
     parent: Statement = required_field()
     field: Field = required_field()
 
+    @property
+    def field_ck(self) -> UUID:
+        return self.field.ck
+
 
 @node
 class Mapping:

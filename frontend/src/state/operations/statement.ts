@@ -132,9 +132,7 @@ export function useStatementOps() {
               statement {
                 id
               }
-              field {
-                id
-              }
+              fieldCk
             }
             issues {
               id
