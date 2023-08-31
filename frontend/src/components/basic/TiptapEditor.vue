@@ -1,6 +1,9 @@
 <script lang="ts" setup>
 import { useEditor, BubbleMenu, EditorContent, Extension } from "@tiptap/vue-3";
-import StarterKit from "@tiptap/starter-kit";
+import Text from "@tiptap/extension-text";
+import Document from "@tiptap/extension-document";
+import Paragraph from "@tiptap/extension-paragraph";
+import Heading from "@tiptap/extension-heading";
 import { ref, watch, watchEffect, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
 import { BubbleMenu as BubbleMenuExt } from "@tiptap/extension-bubble-menu";
@@ -35,11 +38,8 @@ const shortcutsExtension = Extension.create({
           emit("enterStart");
           return true;
         }
-        // if at end of a heading
-        if (
-          editor.state.selection.$from.parent.type.name === "heading" &&
-          editor.state.selection.$from.parentOffset === editor.state.selection.$from.parent.content.size
-        ) {
+        // if at end of a line
+        if (editor.state.selection.$from.parentOffset === editor.state.selection.$from.parent.content.size) {
           emit("enter");
           return true;
         }
@@ -115,7 +115,10 @@ function getEditorClass(): string {
 const editor = useEditor({
   content: props.modelValue,
   extensions: [
-    StarterKit,
+    Text,
+    Document,
+    Paragraph,
+    Heading.configure({ levels: [1, 2, 3] }),
     shortcutsExtension,
     BubbleMenuExt.configure({
       element: document.querySelector(".menu") as HTMLElement,

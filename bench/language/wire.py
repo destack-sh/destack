@@ -1392,11 +1392,6 @@ class IssuePacker(NodePacker[IssueData, lang.Issue]):
             message=issue.message,
         )
 
-    def unpack(
-        self, issue: IssueData, parent: lang.Statement, session: Optional[Session]
-    ) -> lang.Issue:
-        raise NotImplementedError
-
 
 # other objects
 

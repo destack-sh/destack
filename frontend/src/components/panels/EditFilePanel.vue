@@ -79,14 +79,20 @@ syncProperty({
   value: name,
   editing: computed(() => titleRef.value?.editing),
   read: () => (name.value = fileHeader.value?.name ?? ""),
-  write: () => ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? ""),
+  write: () => {
+    ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? "");
+  },
+  enabled: computed(() => fileHeader.value != null && !isDeleted.value),
 });
 
 // sync name/path into editor
-watch([name, fileHeader], () => {
-  if (fileHeader.value == null || module.idx.value == null) return;
-  panel.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
-});
+watch(
+  () => [name.value, fileHeader.value?.name, module.idx.value],
+  () => {
+    if (fileHeader.value == null || module.idx.value == null) return;
+    panel.value.updatePath({ ...fileHeader.value, name: name.value }, module.idx.value);
+  }
+);
 
 const statements = computed(() => {
   return (

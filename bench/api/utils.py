@@ -21,7 +21,7 @@ from strawberry_django.mutations.fields import _handle_exception
 from bench import models
 from bench.language import Q, query
 from bench.msg.messages import ClientOrigin
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import DEBUG, LOCAL, sentry_capture_if_enabled
 
 if typing.TYPE_CHECKING:
     from bench.api.user import User
@@ -142,6 +142,8 @@ def wrap_exceptions(func):
             # extend strawberry_django's Django error mapping
             if isinstance(e, IntegrityError):
                 e = ValidationError(e.args[0])
+            if DEBUG or LOCAL:
+                logger.debug("mutation.error", exc_info=e, func=func)
             return _handle_exception(e)
 
     return wrapped

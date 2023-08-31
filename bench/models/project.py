@@ -383,6 +383,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target: ProjectVersion,
         nodes: list[models.Model],
         keep_cks: bool,
+        excluded: set[type[ModuleNode]],
         target_ids: dict[UUID, UUID] = None,
         target_cks: dict[UUID, UUID] = None,
         copy_revisions: bool = True,
@@ -396,7 +397,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target_cks = {**(target_cks or {}), source.ck: target.ck}
         target_cks_reversed = {target.ck: source.ck}
         packed = packer.pack_node(
-            *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=packer.INTERP_MODEL_TYPES
+            *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=excluded
         )
 
         # map all ids to new ids
@@ -436,9 +437,10 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         self,
         source: ProjectVersion,
         target: ProjectVersion,
-        files: Optional[models.QuerySet[File]] = None,
+        files: Optional[models.QuerySet[File] | list[File]] = None,
         target_ids: dict[UUID, UUID] = None,
         keep_cks: bool = True,
+        include_interp: bool = True,
         copy_revisions: bool = True,
     ) -> None:
         """Copies the given files from a source version to a target version (by default everything)"""
@@ -448,13 +450,17 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
         if files is not None:
-            filter.filter(File, lambda qs: qs.filter(id__in=files))
+            if isinstance(files, list):
+                filter.filter(File, lambda qs: qs.filter(id__in=[f.id for f in files]))
+            else:
+                filter.filter(File, lambda qs: qs.filter(id__in=files.values_list("id", flat=True)))
         copy = self.pack_copy(
             source=source,
             target=target,
             nodes=[source],
             target_ids=target_ids,
             keep_cks=keep_cks,
+            excluded=packer.INTERP_MODEL_TYPES if not include_interp else set(),
             copy_revisions=copy_revisions,
             filter=filter,
         )
@@ -575,6 +581,7 @@ class FileManager(models.Manager):
         target_id: UUID,
         target_ck: UUID,
         keep_cks: bool,
+        include_interp: bool = True,
         target_parent: Optional["File"] = None,
         copy_revisions: bool = False,
     ) -> "File":
@@ -588,6 +595,7 @@ class FileManager(models.Manager):
             target=target,
             nodes=[file],
             keep_cks=keep_cks,
+            excluded=packer.INTERP_MODEL_TYPES if not include_interp else set(),
             copy_revisions=copy_revisions,
             target_ids={file.id: target_id},
             target_cks={file.ck: target_ck},

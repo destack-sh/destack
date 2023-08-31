@@ -513,7 +513,7 @@ onBeforeUnmount(() => {
           <FadeTransition appear :duration="500">
             <span
               class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
-              :class="[!connectionHealthy ? 'animate-pulse text-yellow-700' : 'text-green-700']"
+              :class="[!connectionHealthy ? 'animate-pulse text-yellow-600' : 'text-green-700']"
               v-show="!connectionHealthy"
             >
               <component :is="connectionHealthy ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
