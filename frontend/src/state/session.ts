@@ -422,7 +422,7 @@ export function _useSessions(
     } as Run;
     currentRuns.value[runId] = run;
     localRunsIds.add(runId);
-    console.debug("run.start", run.id, run.runnable?.name, run.runnable?.id, Object.keys(run.inputs));
+    console.debug("run.start", run.id, run.runnable?.name, run.runnableCk, Object.keys(run.inputs));
 
     function doRunWithLogs() {
       return sessionOps
@@ -500,10 +500,10 @@ export function _useSessions(
   );
   const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
 
-  function runsOf(statement: { id: string }) {
+  function runsOf(statement: { id: string; ck: string }) {
     return computed(() =>
       Object.values(currentRuns.value)
-        .filter((run) => run.runnable?.id === statement.id)
+        .filter((run) => run.runnableCk === statement.ck)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     );
   }
@@ -690,7 +690,7 @@ export function useRun(rootId: Ref<string | null>, options?: { live?: boolean })
    */
   // rootId = toValueRef(rootId);
   const RUN_QUERY = graphql(/* GraphQL */ `
-    query getRun($id: GlobalID!) {
+    query runById($id: GlobalID!) {
       run(id: $id) {
         ...RunContent
         descendants {

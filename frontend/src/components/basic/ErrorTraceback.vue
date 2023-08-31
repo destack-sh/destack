@@ -7,7 +7,7 @@ const props = defineProps<{
   run: Run;
 }>();
 const module = useCurrentModule();
-const runnableName = computed(() => module.statementOf(props.run.runnable?.id)?.name);
+const runnableName = computed(() => module.statementOf(props.run.runnableCk)?.name);
 </script>
 <template>
   <div class="relative w-full font-mono" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
