@@ -453,6 +453,7 @@ defineExpose({
     class="group/statement relative w-full max-w-full"
     :style="panel.panel.value.contentMarginXAsPaddingX"
     @click="onClickContainer"
+    @contextmenu.prevent="showActionsPopover"
   >
     <!-- Statement main -->
     <div

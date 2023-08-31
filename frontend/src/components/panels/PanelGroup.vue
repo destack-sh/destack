@@ -106,7 +106,7 @@ async function createFileInPanelGroup() {
             <button
               class="h-fit max-h-fit rounded-sm px-1 text-xs transition duration-150 hover:bg-gray-200 hover:text-gray-700 group-hover:text-gray-400"
               :class="i == selectedTab ? 'text-gray-400' : 'opacity-0 group-hover:opacity-100'"
-              @click.prevent="bench.closePanel(p)"
+              @click.stop.prevent="bench.closePanel(p)"
             >
               x
             </button>

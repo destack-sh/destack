@@ -88,7 +88,7 @@ defineExpose({
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session?.id"
         :focus="{
-          runnableIds: run.runnable != null ? [run.runnable.id] : undefined,
+          runnableCks: run.runnableCk != null ? [run.runnableCk] : undefined,
         }"
         lowlight
         live
