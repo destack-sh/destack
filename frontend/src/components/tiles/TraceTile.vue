@@ -65,7 +65,7 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
   const orderedNodes: OrderedNode[] = [];
 
   function _walk(run: Run, ancestors: OrderedNode[]): OrderedNode {
-    const runnable = module.statementOf(run.runnable?.id);
+    const runnable = module.statementOf(run.runnableCk);
     const terminated = TERMINAL_RUN_STATUSES.includes(run.status);
     const duration = terminated
       ? run.duration ?? 0

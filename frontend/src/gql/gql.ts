@@ -265,8 +265,8 @@ const documents = {
     types.SessionsChangedDocument,
   "\n    query searchRuns(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $runnableCks: [UUID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $query: SearchQuery\n      $sort: [SearchSort!]\n      $after: String\n      $limit: Int\n      $count: Boolean\n    ) {\n      searchRuns(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        runnableCks: $runnableCks\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        query: $query\n        sort: $sort\n        after: $after\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.SearchRunsDocument,
-  "\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  ":
-    types.GetRunDocument,
+  "\n    query runById($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  ":
+    types.RunByIdDocument,
   "\n    query searchLogs(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID\n      $runnableIds: [GlobalID!]\n      $runnableCks: [UUID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $query: SearchQuery\n      $sort: [SearchSort!]\n      $after: String\n      $limit: Int\n      $count: Boolean\n    ) {\n      searchLogs(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        runnableCks: $runnableCks\n        sessionId: $sessionId\n        runId: $runId\n        query: $query\n        sort: $sort\n        after: $after\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...LogEntryContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.SearchLogsDocument,
   "\n        subscription logsChanged(\n          $projectId: GlobalID!\n          $projectVersionId: GlobalID!\n          $runnableIds: [GlobalID!]\n          $runnableCks: [UUID!]\n          $sessionId: GlobalID\n          $runId: GlobalID\n        ) {\n          logsChanged(\n            projectId: $projectId\n            projectVersionId: $projectVersionId\n            runnableIds: $runnableIds\n            runnableCks: $runnableCks\n            sessionId: $sessionId\n            runId: $runId\n          ) {\n            logs {\n              ...LogEntryContent\n            }\n          }\n        }\n      ":
@@ -1053,8 +1053,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "
-): typeof documents["\n    query getRun($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "];
+  source: "\n    query runById($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "
+): typeof documents["\n    query runById($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

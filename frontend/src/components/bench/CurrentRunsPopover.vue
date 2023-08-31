@@ -65,7 +65,7 @@ function launch(statement: InterpStatement) {
       <BusySpinnerIcon v-if="activeRuns.length > 0" class="h-5 w-5 animate-spin text-gray-700" />
       <PlayIcon v-else class="h-5 w-5 text-orange-600" />
       <span class="ml-1 text-gray-900" v-if="activeRuns.length > 0">
-        {{ module.statementOf(activeRunsAsc[0].runnable?.id)?.name }}
+        {{ module.statementOf(activeRunsAsc[0].runnableCk)?.name }}
       </span>
       <span v-if="activeRuns.length > 1" class="ml-1.5 text-gray-400">+{{ activeRuns.length - 1 }}</span>
     </PopoverButton>
@@ -98,9 +98,9 @@ function launch(statement: InterpStatement) {
               <!-- Statement -->
               <span
                 class="ml-1 cursor-pointer text-gray-900 decoration-gray-700 underline-offset-2 hover:underline"
-                @click="nav.focusStatement(run.runnable?.id)"
+                @click="nav.focusStatement(run.runnableCk)"
               >
-                {{ module.statementOf(run.runnable?.id)?.name ?? "unnamed" }}
+                {{ module.statementOf(run.runnableCk)?.name ?? "unnamed" }}
               </span>
               <!-- Run id -->
               <span

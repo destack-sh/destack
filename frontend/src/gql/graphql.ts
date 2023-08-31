@@ -5413,11 +5413,11 @@ export type SearchRunsQuery = {
   };
 };
 
-export type GetRunQueryVariables = Exact<{
+export type RunByIdQueryVariables = Exact<{
   id: Scalars["GlobalID"];
 }>;
 
-export type GetRunQuery = {
+export type RunByIdQuery = {
   __typename?: "Query";
   run?:
     | ({
@@ -16343,13 +16343,13 @@ export const SearchRunsDocument = {
     ...RunContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SearchRunsQuery, SearchRunsQueryVariables>;
-export const GetRunDocument = {
+export const RunByIdDocument = {
   kind: "Document",
   definitions: [
     {
       kind: "OperationDefinition",
       operation: "query",
-      name: { kind: "Name", value: "getRun" },
+      name: { kind: "Name", value: "runById" },
       variableDefinitions: [
         {
           kind: "VariableDefinition",
@@ -16390,7 +16390,7 @@ export const GetRunDocument = {
     },
     ...RunContentFragmentDoc.definitions,
   ],
-} as unknown as DocumentNode<GetRunQuery, GetRunQueryVariables>;
+} as unknown as DocumentNode<RunByIdQuery, RunByIdQueryVariables>;
 export const SearchLogsDocument = {
   kind: "Document",
   definitions: [
