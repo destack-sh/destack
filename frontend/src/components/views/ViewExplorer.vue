@@ -133,10 +133,10 @@ watch(
             <button
               v-for="action in explorer.actions.filter((action) => action.enabled)"
               :key="action.label"
-              class="inline-flex flex-row rounded-sm p-0.5 hover:bg-orange-100 hover:text-gray-700"
+              class="inline-flex flex-row rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click.prevent="action.action"
             >
-              <component :is="action.icon" class="h-4 w-4 text-gray-400" />
+              <component :is="action.icon" class="h-4 w-4" />
               <span class="sr-only pl-0.5 text-xs text-gray-700">{{ action.label }}</span>
             </button>
           </span>

@@ -466,8 +466,8 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.BlockData, models.Statement, StatementType.BLOCK)
-class BlockPacker(StatementPacker, NodePacker[wire.BlockData, models.Statement]):
+@node_packer(MOT.STATEMENT, wire.GroupData, models.Statement, StatementType.GROUP)
+class GroupPacker(StatementPacker, NodePacker[wire.GroupData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: PackContext) -> list[QuerySet[Model]]:
         return [
             *super().walk(nodes, tree),
@@ -476,15 +476,15 @@ class BlockPacker(StatementPacker, NodePacker[wire.BlockData, models.Statement])
             models.Tagging.objects.filter(statement__in=nodes),
         ]
 
-    def pack(self, statement: models.Statement) -> wire.BlockData:
+    def pack(self, statement: models.Statement) -> wire.GroupData:
         statement_data = super().pack(statement)
-        return wire.BlockData(
+        return wire.GroupData(
             **statement_data.__dict__,
             description=statement.description,
         )
 
     def unpack(
-        self, data: wire.BlockData, parent: models.File | models.Statement
+        self, data: wire.GroupData, parent: models.File | models.Statement
     ) -> models.Statement:
         statement = super().unpack(data, parent)
         statement.description = data.description

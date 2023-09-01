@@ -1697,7 +1697,7 @@ enum StatementType {
   VALUE
   DATASET
   REFERENCE
-  BLOCK
+  GROUP
 }
 
 input StatementUpdateInput {

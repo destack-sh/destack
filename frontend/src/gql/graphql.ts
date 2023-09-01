@@ -2150,11 +2150,11 @@ export type StatementSoftDeleteInput = {
 
 export enum StatementType {
   Blank = "BLANK",
-  Block = "BLOCK",
   Code = "CODE",
   Dataset = "DATASET",
   Expectation = "EXPECTATION",
   Flow = "FLOW",
+  Group = "GROUP",
   Model = "MODEL",
   Reference = "REFERENCE",
   Tag = "TAG",

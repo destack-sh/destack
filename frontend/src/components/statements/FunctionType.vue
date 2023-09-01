@@ -80,12 +80,9 @@ function insertBelow(
 ) {
   const lastField = nodes.value[nodes.value.length - 1];
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
-  const newFieldNode = makeField({
-    projectVersionId: module.id.value,
-    ...template,
-    orderKey,
-    flags: (kind == "output" ? TypeFlag.IsOutput : 0) | (template.flags ?? 0),
-  });
+  // function fields are required by default
+  const flags = (kind == "output" ? TypeFlag.IsOutput : 0) | ((template.flags ?? 0) & ~TypeFlag.IsOptional);
+  const newFieldNode = makeField({ projectVersionId: module.id.value, ...template, orderKey, flags });
   context.createNewField(newFieldNode);
   nextTick(() => {
     const grid = kind == "input" ? inputGrid : outputGrid;

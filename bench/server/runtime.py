@@ -323,15 +323,16 @@ class RuntimeServer(Monitored):
     @message_handler
     async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
         logger.debug("search.record", msg=msg)
-        if msg.p.keys:
-            extra_query = Q(QueryOp.EQUALS, "statement_id", msg.p.statement_ids)
-        else:
-            extra_query = None
+        extra_queries = []
+        if msg.p.statement_ids:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statement_ids))
+        if msg.p.statement_cks:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statement_cks))
         # TODO @Security: check if msg origin has read access to dataset
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=extra_query,
+            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RECORD,
             limit=MAX_SEARCH_RECORD_LIMIT,
             req=msg.p,
@@ -364,15 +365,16 @@ class RuntimeServer(Monitored):
     @message_handler
     async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
         logger.debug("search.log", msg=msg)
+        extra_queries = []
         if msg.p.runnables_ids:
-            extra_query = Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids)
-        else:
-            extra_query = None
+            extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
+        if msg.p.runnables_cks:
+            extra_queries.append(Q(QueryOp.EQUALS, "runnable_ck", msg.p.runnables_cks))
         # TODO @Security: check if msg origin has read access to dataset
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=extra_query,
+            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
             type=mirror.DocumentType.LOG_ENTRY,
             limit=MAX_SEARCH_LOG_LIMIT,
             req=msg.p,

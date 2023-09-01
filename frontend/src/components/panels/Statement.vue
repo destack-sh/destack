@@ -73,7 +73,7 @@ const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
     statement.value.type != StatementType.Reference &&
-    statement.value.type != StatementType.Block
+    statement.value.type != StatementType.Group
 );
 const isContentFolded = computed(
   () => !props.standalone && (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value)
@@ -143,7 +143,7 @@ const statementInterface: Ref<StatementInterface> = computed(() => {
     return {
       component: ValueStatement,
     };
-  } else if (statement.value.type == StatementType.Block) {
+  } else if (statement.value.type == StatementType.Group) {
     return {
       component: BlockStatement,
     };

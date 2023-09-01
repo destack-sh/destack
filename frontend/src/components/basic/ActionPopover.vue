@@ -165,6 +165,9 @@ defineExpose({
                 <span class="text-gray-700">{{ action.label }}</span>
               </button>
             </ComboboxOption>
+            <div v-if="filteredActions.length == 0" class="pt-1 text-center">
+              <span class="text-gray-400">No results</span>
+            </div>
           </ComboboxOptions>
         </Combobox>
       </PopoverPanel>

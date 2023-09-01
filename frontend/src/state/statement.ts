@@ -1,7 +1,7 @@
 import { StatementType, TypeHint, TypeTag, type FieldCreateInput, type FieldUpdateInput } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { FileHeader, StatementAction } from "@/state/bench";
-import { useFileContext, useNavigationContext } from "@/state/file";
+import { fileContexts, useFileContext, useNavigationContext } from "@/state/file";
 import {
   TypeFlag,
   getStatementSubtype,
@@ -129,6 +129,10 @@ export function useStatementContext() {
 
   function insertAbove() {
     actions.apply("statement.insertAboveCurrent");
+  }
+
+  function paste() {
+    nav?.value.paste(undefined, statement.value);
   }
 
   function setCustomActions(actions: Ref<StatementAction[] | undefined>) {
@@ -478,6 +482,7 @@ export function useStatementContext() {
     deleteLeft,
     insertAbove,
     insertBelow,
+    paste,
     // tagging
     tags: computed(() => statement.value.tags.map((t) => t as Tagging).filter((t) => t.deletedAt == null) ?? []),
     // triggers
@@ -627,7 +632,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: CpuChipIconOutline,
   [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
-  [StatementType.Block]: ListBulletIcon,
+  [StatementType.Group]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
@@ -640,7 +645,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: CpuChipIconSolid,
   [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
-  [StatementType.Block]: ListBulletIcon,
+  [StatementType.Group]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 
@@ -675,7 +680,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Dataset]: "Dataset",
   [StatementType.Model]: "Model",
   [StatementType.Expectation]: "Expectaction",
-  [StatementType.Block]: "Block",
+  [StatementType.Group]: "Group",
   [StatementType.Flow]: "Flow",
   [StatementType.Reference]: "Reference",
 };
@@ -692,18 +697,18 @@ export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | n
 
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Text]: "A plain markdown comment",
-  [StatementType.Type]: "A object, choice or union type",
+  [StatementType.Type]: "An object, choice or union type",
   [StatementType.Dataset]: "Context, examples, feedback - any records",
   [StatementType.Code]: "Connect, test & customize with Python",
   [StatementType.Task]: "Instruct AI to do something",
   [StatementType.Expectation]: "Tune desired AI behaviour",
   [StatementType.Value]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
-  [StatementType.Block]: "Nest related statements",
+  [StatementType.Group]: "Relate neighbouring statements",
   [StatementType.Flow]: "Connect code and tasks with triggers",
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
-  [StatementType.Tag]: "Group and transform statements",
+  [StatementType.Tag]: "Organize and transform statements",
 };
 
 export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {

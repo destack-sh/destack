@@ -4,8 +4,9 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig, loadEnv } from "vite";
 import monacoEditorPlugin from "vite-plugin-monaco-editor";
 import { watch } from "fs";
+import type { Plugin } from "vite";
 
-function reloadOnVersionChange() {
+function reloadOnVersionChange(): Plugin {
   return {
     name: "reload-on-version-change",
     apply: "serve", // only use this plugin in serve mode

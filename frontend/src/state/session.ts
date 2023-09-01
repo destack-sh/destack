@@ -501,7 +501,7 @@ export function _useSessions(
   );
   const activeRoots = computed(() => activeRuns.value.filter((run) => run.parent == null));
 
-  function runsOf(statement: { id: string; ck: string }) {
+  function runsOf(statement: { ck: string }) {
     return computed(() =>
       Object.values(currentRuns.value)
         .filter((run) => run.runnableCk === statement.ck)

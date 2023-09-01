@@ -76,10 +76,11 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
       <ContainerTile
         :label="runsTileRef?.totalCount == null ? `Runs` : `${humanizeNumber(runsTileRef.totalCount)} runs`"
         :style="{ ...baseTilePositionX }"
+        sublabel-position="opposite"
       >
         <!-- Pagination  -->
         <template v-slot:sublabel>
-          <span class="inline-flex flex-row items-center gap-1 font-normal text-gray-500">
+          <span class="flex flex-row items-center gap-1 font-normal text-gray-500">
             <!-- Navigate backward -->
             <button
               class="p-0.5"
@@ -93,7 +94,7 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
             </button>
             <span
               >page {{ previousCursors.length + 1 }} of
-              {{ Math.round((runsTileRef?.totalCount ?? 0 + panel.limit - 1) / panel.limit) }}</span
+              {{ Math.ceil((runsTileRef?.totalCount ?? 0) / panel.limit) }}</span
             >
             <!-- Navigate forward -->
             <button

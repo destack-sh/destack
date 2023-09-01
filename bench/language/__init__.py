@@ -1,4 +1,4 @@
-from .basic import Blank, Block, Expectation, Reference, Text
+from .basic import Blank, Expectation, Group, Reference, Text
 from .code_ import Code
 from .const import DatasetViewLayout, ScheduleType, StatementType, TriggerType, TypeHint, TypeTag
 from .core import File, Module, Scope, Session, Statement
@@ -17,7 +17,7 @@ from .utils import Runnable
 __all__ = [
     "Aggregation",
     "Blank",
-    "Block",
+    "Group",
     "Code",
     "Dataset",
     "DatasetView",
