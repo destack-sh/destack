@@ -3,7 +3,7 @@ import enum
 import itertools
 from typing import Collection, Optional, Self
 
-from bench.language.basic import Expectation
+from bench.language.basic import Blank, Expectation, Text
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import ModuleVisitor, Scope, Statement, node
@@ -55,7 +55,7 @@ class LimitExceededError(TaskError):
         super().__init__(TaskErrorType.EXCEEDED_LIMIT, message, path)
 
 
-@reflect_struct("TaskMetadata", "Default metadata about a task", return_type=True)
+@reflect_struct("TaskMetadata", "Default metadata of a task", return_type=True)
 class TaskMetadata:
     retries: Optional[int]
 
@@ -87,7 +87,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
         # check that all children can be interpreted
         for child in self.resolved_children:
             statement = child.statement
-            if isinstance(statement, (IsFlowNode, Expectation)):
+            if isinstance(statement, (IsFlowNode, Expectation, Text, Blank)):
                 continue
             elif isinstance(statement, Runnable) and child.has_tag(tool_tag):
                 continue

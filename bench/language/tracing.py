@@ -390,15 +390,13 @@ class RunTracer(Tracer):
     def pop_stacktrace(self) -> Run:
         frame = self.stacktrace.pop()
         # update cached info in parent(s)
-        if frame.cached_generated_at is not None:
+        if frame.cached_at is not None:
             self._update_cached_info()
         return frame
 
     def _update_cached_info(self):
         for frame in self.stacktrace:
-            frame.cached_generated_at = min(
-                f.cached_generated_at for f in frame.walk_descendants() if f.cached_generated_at
-            )
+            frame.cached_at = min(f.cached_at for f in frame.walk_descendants() if f.cached_at)
             frame.cached_duration = sum(
                 f.cached_duration for f in frame.walk_descendants() if f.cached_duration
             )
@@ -482,7 +480,7 @@ class RunTracer(Tracer):
     ):
         frame = self._create_frame(runnable=statement, trace=True)
         frame.terminated_at = utcnow_with_tz()
-        frame.cached_generated_at = generated_at
+        frame.cached_at = generated_at
         frame.cached_duration = duration
         frame.inputs = _strip_and_truncate_py_value(inputs, statement, is_output=False)
         frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)

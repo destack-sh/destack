@@ -19,7 +19,11 @@ const panel = computed(() => props.panel.panel.value);
 
 // statement state
 
-const { result: statementResult, loading: statementLoading } = useQuery(
+const {
+  result: statementResult,
+  loading: statementLoading,
+  error: statementError,
+} = useQuery(
   graphql(/* GraphQL */ `
     query statementContentById($statementId: GlobalID!) {
       statement(id: $statementId) {
@@ -74,7 +78,12 @@ const statementPath = computed(() => module.nodePathOf(statement.value?.id));
       :self="(statementPath?.length ?? 0) - 1"
       hide-wide-toggle
     />
-    <PanelStatusNotice :thing="statementResult?.statement" :is-loading="statementLoading" name="statement" />
+    <PanelStatusNotice
+      :thing="statementResult?.statement"
+      :loading="statementLoading"
+      :error="statementError"
+      name="statement"
+    />
     <!-- Loading -->
     <div
       v-if="statementLoading || !statementComponentLoaded"

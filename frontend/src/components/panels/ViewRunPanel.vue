@@ -102,7 +102,7 @@ defineExpose({
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
-    <PanelStatusNotice :thing="run" name="run" :is-loading="loading" />
+    <PanelStatusNotice :thing="run" name="run" :loading="loading" />
 
     <!-- Tiles -->
     <div
@@ -209,7 +209,7 @@ defineExpose({
           </div>
         </div>
         <!-- Input -->
-        <ContainerTile label="Input" :style="{ ...baseTilePositionX }">
+        <ContainerTile v-if="statement != null" label="Input" :style="{ ...baseTilePositionX }">
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>
           <StructInterface
             :model-value="run.inputs ?? {}"
@@ -220,7 +220,11 @@ defineExpose({
           />
         </ContainerTile>
         <!-- Output -->
-        <ContainerTile v-if="run.errorNice == null" label="Output" :style="{ ...baseTilePositionX }">
+        <ContainerTile
+          v-if="run.errorNice == null && statement != null"
+          label="Output"
+          :style="{ ...baseTilePositionX }"
+        >
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
           <StructInterface
             :model-value="run.outputs ?? {}"

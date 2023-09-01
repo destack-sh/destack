@@ -1143,6 +1143,10 @@ def type_from_instance_type(
 
 
 def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
+    name_nice = name.replace("_", " ")
+    if to_pyidentifier(name_nice, IdentifierType.FIELD) != name:
+        raise ValueError(f"inconsistent field name: {name} != {name_nice}")
+
     stripped, flags = _strip_py_type(py_type)
     if isinstance(stripped, str):
         # lookup by name in type_map
@@ -1162,9 +1166,11 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
         type = type_from_instance_type(py_type, name, type_map)
     # key is set to None so we error if they're not set later
     if type.tag in (TypeTag.STRUCT, TypeTag.ENUM, TypeTag.TYPE_REFERENCE):
-        return Field(name=name, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags)
+        return Field(
+            name=name_nice, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags
+        )
     else:
-        return Field(name=name, key=None, tag=type.tag, hint=type.hint, flags=flags)
+        return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
 def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:

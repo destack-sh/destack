@@ -162,7 +162,7 @@ defineExpose({
       :path="statementPath ?? []"
       :self="(statementPath?.length ?? 0) - 1"
     />
-    <PanelStatusNotice :thing="statement" name="statement" :is-loading="module.loading.value" />
+    <PanelStatusNotice :thing="statement" name="statement" :loading="module.loading.value" />
     <!-- Tiles -->
     <div
       v-if="statement != null"

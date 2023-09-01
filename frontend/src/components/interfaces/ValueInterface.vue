@@ -162,6 +162,7 @@ function close() {
 }
 
 function enter() {
+  editableRef.value?.flush?.();
   editing.value = false;
   sync?.flushNow();
   emit("navigateDown");

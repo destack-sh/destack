@@ -328,7 +328,6 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: [],
     enabled: computed(() => cur.value?.statement != null && cur.value?.above != null),
     apply: async () => {
-      const current = cur.value?.statement?.id;
       if (cur.value?.above) {
         await ops.statement.softDelete(null, cur.value?.above.id);
       }
@@ -402,8 +401,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
         bottom?.parent?.id ?? null,
         generateKeyBetween(bottom?.orderKey ?? null, nextSibling?.orderKey ?? null)
       );
-      // wait for next tick to ensure there is something to focus
-      // this feels a bit hacky, but focus management will likely be overhauled anyway
+      // wait for next tick to ensure there is something to focus (feels a bit hacky)
       nextTick(() => panel.value?.editElement(newStatement as StatementHeader));
     },
   });

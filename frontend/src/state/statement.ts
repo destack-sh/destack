@@ -1,6 +1,7 @@
 import { StatementType, TypeHint, TypeTag, type FieldCreateInput, type FieldUpdateInput } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import type { FileHeader, StatementAction } from "@/state/bench";
+import { useFileContext, useNavigationContext } from "@/state/file";
 import {
   TypeFlag,
   getStatementSubtype,
@@ -11,6 +12,7 @@ import {
   type Trigger,
   type ResolvedField,
   newNodeIdentity,
+  useNavigation,
 } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 import { newFieldKey } from "@/state/operations/statement";
@@ -76,37 +78,49 @@ export function useStatementContext() {
 
   const module = useCurrentModule();
   const statement = context.statement;
-  const file = context.file;
   const symbolSubtype: Ref<string | null> = computed(() => getStatementSubtype(statement.value));
+  const nav = useNavigationContext();
+  const ops = useOperations();
 
   // basic actions
 
   const actions = useActions();
 
-  // TODO @Cleanup @Architecture: these actions assume statement is focused/current statement
   function navigateUp() {
     actions.apply("statement.moveFocusUp");
   }
 
   function navigateDown() {
-    // TODO @UX: navigate down should auto-create a new statement if there is none below
+    // TODO @UX: navigate down should auto-create? a new statement if there is none below
     actions.apply("statement.moveFocusDown");
   }
 
   function escape() {
-    actions.apply("statement.stopEditingCurrent");
+    nav?.value.panel.stopEditingElement(statement.value);
   }
 
   function deleteSelf() {
-    actions.apply("statement.deleteCurrent");
+    const above = nav?.value?.getAbove(statement.value);
+    if (above) {
+      nav?.value.panel.focusElement(above);
+    }
+    ops.statement.softDelete(null, statement.value.id);
   }
 
   function deleteSelfLeft() {
-    actions.apply("statement.deleteCurrentLeft");
+    const above = nav?.value?.getAbove(statement.value);
+    if (above) {
+      nav?.value?.panel.focusElement(above, true);
+      nav?.value?.statementsComponents[above.id]?.focus("last");
+    }
+    ops.statement.softDelete(null, statement.value.id);
   }
 
   function deleteLeft() {
-    actions.apply("statement.deleteLeft");
+    const above = nav?.value?.getAbove(statement.value);
+    if (above) {
+      ops.statement.softDelete(null, above.id);
+    }
   }
 
   function insertBelow() {
@@ -129,8 +143,6 @@ export function useStatementContext() {
   }
 
   // self mutations
-
-  const ops = useOperations();
 
   async function morphToBlank() {
     await ops.statement.morph(null, statement.value.id, { type: statement.value.type }, { type: StatementType.Blank });
@@ -436,7 +448,7 @@ export function useStatementContext() {
     // state
     module,
     statement,
-    file,
+    file: context.file,
     depth: context.depth,
     readonly: context.readonly,
     focused: context.focused,

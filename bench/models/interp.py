@@ -26,9 +26,9 @@ class ResolvedField(UUIDModel, ModuleNode):
 
 
 class IssueKind(models.TextChoices):
-    ERROR = "error"
-    WARNING = "warning"
-    SUGGESTION = "suggestion"
+    Error = "Error"
+    Warning = "Warning"
+    Suggestion = "Suggestion"
 
 
 class Issue(UUIDModel, ModuleNode):

@@ -8,7 +8,7 @@ import { errorListeners, type Operation } from "@/state/operations";
 import { useClient } from "@/state/client";
 import { IS_LOCALHOST } from "@/utils/globals";
 import { useSystemVersioning } from "@/utils/system";
-import ArrowUpCircleIcon from "@heroicons/vue/24/outline/ArrowUpCircleIcon";
+import ArrowUpCircleIcon from "@heroicons/vue/24/solid/ArrowUpCircleIcon";
 import { useFullscreen } from "@vueuse/core";
 import { onBeforeUnmount, ref, watch, watchEffect } from "vue";
 import { RouterView, useRouter } from "vue-router";
