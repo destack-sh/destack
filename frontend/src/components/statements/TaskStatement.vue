@@ -3,7 +3,7 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import FunctionType from "@/components/statements/FunctionType.vue";
 import InlineActions from "@/components/statements/StatementActions.vue";
-import { useBenchState, usePanelContext, type PanelGroup, type StatementAction } from "@/state/bench";
+import { useBenchState, usePanelContext, type StatementAction } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import {
@@ -161,7 +161,7 @@ defineExpose({
     <EditableSpan
       ref="descriptionRef"
       :class="showDescription ? '' : 'h-0'"
-      regex="name"
+      regex="description"
       v-model="description"
       :readonly="context.readonly.value"
       @navigate-left="declarationRef?.focus()"

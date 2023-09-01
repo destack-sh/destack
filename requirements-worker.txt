@@ -129,6 +129,8 @@ google-auth-httplib2==0.1.0
     #   google-api-python-client
 google-auth-oauthlib==1.0.0
     # via -r requirements-worker.in
+google-search-results==2.4.2
+    # via -r requirements-worker.in
 googleapis-common-protos==1.60.0
     # via google-api-core
 googlemaps==4.6.0
@@ -397,6 +399,7 @@ requests==2.31.0
     #   anthropic
     #   dropbox
     #   google-api-core
+    #   google-search-results
     #   googlemaps
     #   huggingface-hub
     #   langchain

@@ -30,10 +30,10 @@ function getStatementName(statement: {
   id: string;
   type: StatementType;
   name?: string | null;
-  reference?: { id: string };
+  referenceCk?: string | null;
 }): string | null | undefined {
   if (statement.type == StatementType.Reference) {
-    return module.statementOf(statement.reference?.id ?? "")?.name ?? (statement.reference == null ? "..." : "???");
+    return module.statementOf(statement.referenceCk ?? "")?.name ?? (statement.referenceCk == null ? "..." : "???");
   } else {
     return statement.name;
   }

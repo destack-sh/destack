@@ -55,6 +55,7 @@ MOT = ModuleObjectType
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
 )
+INTERP_MOTS = {ModuleObjectType.ISSUE, ModuleObjectType.RESOLVED_FIELD}
 
 StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
 StatementReference = typing.Union["Statement", StatementPath, UUID]

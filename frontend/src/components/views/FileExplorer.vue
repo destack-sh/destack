@@ -1,10 +1,10 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
 import { IssueKind } from "@/gql/graphql";
-import { useBenchState, type FileHeader, type ViewId, type FileAction, type Action } from "@/state/bench";
+import { useBenchState, type ViewId, type Action } from "@/state/bench";
 import { useCurrentModule, type NodeBase, type InterpFile } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { ArrowsPointingOutIcon, DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { ArrowsPointingOutIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useFocusWithin } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 

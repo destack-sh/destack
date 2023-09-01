@@ -19,7 +19,7 @@ from django.db.models import Model, QuerySet
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
-from bench.language.core import ModuleObjectType
+from bench.language.core import INTERP_MOTS, ModuleObjectType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle
 from bench.language.wire import ModuleTree
@@ -95,7 +95,6 @@ DEFAULT_PACK_FILTERS = [
     (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
-INTERP_MODEL_TYPES = {models.Issue, models.ResolvedField}
 
 # registered packers
 # some node models correspond to multiple actual module node / node data types
@@ -184,7 +183,7 @@ class _PackedCopy(typing.NamedTuple):
 
 
 def collect_node(
-    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
+    *roots: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
 ) -> _VisitedTree:
     """Collect a node and its descendants"""
     visited: dict[UUID, NodeT] = {}
@@ -192,7 +191,7 @@ def collect_node(
     visited_by_parent: dict[UUID, list[NodeT]] = defaultdict(list)
     ctx = PackContext()
 
-    to_pack: list[ModelT] = [*models]
+    to_pack: list[ModelT] = [*roots]
     while to_pack:
         # assemble different packers and nodes by type
         packers: dict[NodePacker, list[ModelT]] = defaultdict(list)
@@ -226,7 +225,7 @@ def collect_node(
         for qs in querysets.values():
             to_pack.extend(qs)
 
-    roots = [visited[node.id] for node in models]
+    roots = [visited[node.id] for node in roots]
     return _VisitedTree(roots, visited, visited_by_parent)
 
 
@@ -858,7 +857,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         if isinstance(parent, models.Statement):
             project_version_id = parent.project_version_id
             parent_statement_id = parent.id
-            parent_file_id = parent.file_id
+            parent_file_id = None
         elif isinstance(parent, models.File):
             project_version_id = parent.project_version_id
             parent_statement_id = None
@@ -1233,3 +1232,6 @@ def write_session(
     )
 
     write_session_to_os(project_v, session, runs, logs)
+
+
+INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MOT[mot] for mot in INTERP_MOTS)

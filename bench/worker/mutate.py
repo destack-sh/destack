@@ -11,6 +11,7 @@ from strawberry.utils.str_converters import to_camel_case
 from bench import models
 from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
 from bench.models import packer
+from bench.models.packer import INTERP_MODEL_TYPES
 from bench.opensearch import mirror
 
 MutableThing = Union[
@@ -101,7 +102,7 @@ def map_mutation_from_api(
         raise TypeError(f"thing is not a project thing: {thing}")
 
     if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT):
-        packed = packer.pack_node(thing)
+        packed = packer.pack_node(thing, excluded=None)
         file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
         internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(
             *packed.nodes_list()
@@ -109,7 +110,13 @@ def map_mutation_from_api(
         api_mutations = list(
             chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
         )
-        return internal.mutations, api_mutations
+        # strip interp data from internal mutations (but keep in API, user clients need it)
+        stripped_internal_mutations = [
+            m
+            for m in internal.mutations
+            if not isinstance(packed.nodes[m.data.id], INTERP_MODEL_TYPES)
+        ]
+        return stripped_internal_mutations, api_mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
         internal_type = MMT(type.kind + "_" + api_mutation.mot)

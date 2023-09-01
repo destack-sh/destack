@@ -54,7 +54,7 @@ class Reference(Statement, HasTags, IsFlowNode):
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
         resolved = None
-        if resolved is not None and not isinstance(self.reference, Statement):
+        if not isinstance(self.reference, Statement):
             resolved = scope.lookup(self.reference)
         if resolved is None:
             self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")

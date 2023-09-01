@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { VALID_NAME_REGEXP } from "@/utils/validation";
+import { VALID_DESCRIPTION_REGEXP, VALID_NAME_REGEXP } from "@/utils/validation";
 import { useFocus } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -7,13 +7,15 @@ const props = defineProps<{
   modelValue: string;
   readonly: boolean;
   suppressAllShortcuts?: boolean;
-  regex?: string | RegExp | "name";
+  regex?: string | RegExp | "name" | "description";
 }>();
 
 const regexp = computed(() => {
   if (props.regex == null) return null;
   if (props.regex == "name") {
     return VALID_NAME_REGEXP;
+  } else if (props.regex == "description") {
+    return VALID_DESCRIPTION_REGEXP;
   }
   if (typeof props.regex == "string") {
     return new RegExp(props.regex);
@@ -110,10 +112,14 @@ const { focused } = useFocus(spanRef);
 function onInput(e: InputEvent) {
   const value = (e.target as HTMLElement).innerText;
   if (regexp.value != null && !regexp.value.test(value)) {
+    const currentPos = window.getSelection()?.anchorOffset ?? 0;
     // invalid input, revert
     (e.target as HTMLElement).innerText = props.modelValue;
-    // move cursor to end
-    selectEnd();
+    // restore cursor position to where it was before
+    const selection = window.getSelection();
+    if (selection) {
+      selection.collapse((e.target as HTMLElement).childNodes[0], currentPos - 1);
+    }
   } else {
     emit("update:modelValue", value);
   }

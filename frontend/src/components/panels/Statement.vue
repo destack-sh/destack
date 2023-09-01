@@ -623,7 +623,7 @@ defineExpose({
       <!-- Issues in right gutter -->
       <div
         v-if="!standalone && hasIssues"
-        class="group/issues absolute left-full top-[5px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
+        class="group/issues absolute left-full top-1 flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,
           'text-sm': bench.textSmall,
@@ -660,16 +660,17 @@ defineExpose({
       <span class="mr-0.5"
         >x:{{ Math.round(containerBounding.x.value) }} y:{{ Math.round(containerBounding.y.value) }}</span
       >
+      <span>{{ statement?.ck.slice(0, 5) }}/{{ statement?.id.slice(-6, -1) }}</span>
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">a</template>
       <template v-if="isFocused">f</template>
       <template v-if="isEditing">e</template>
-      <span class="ml-1">{{ isSelected ? "1" : "0" }}/{{ nav?.panel?.selectedElementIds.length }}</span>
+      <span class="ml-1" v-if="nav?.panel?.hasSelection"
+        >{{ isSelected ? "1" : "0" }}/{{ nav?.panel?.selectedElementIds.length }}</span
+      >
       <template v-if="dragOver">d</template>
       <template v-if="inContainerFocused">*</template>
       <template v-if="inStatementFocused">**</template>
-      <span class="mx-1 lowercase">{{ statement.type }}</span>
-      <span v-if="statement.name != null">'{{ statement.name }}'</span>
       r:{{ statement.revision }} o:{{ statement.orderKey }} d:{{ depth }}
     </div>
   </div>

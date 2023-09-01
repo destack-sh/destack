@@ -1,6 +1,7 @@
 import abc
 import enum
 import itertools
+import random
 from typing import Collection, Optional, Self
 
 from bench.language.basic import Blank, Expectation, Text
@@ -114,6 +115,8 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
         batch: list[dict] = None,
         **kwargs,
     ):
+        from bench.language.builtin import symbolx_lib
+
         # map/batch inputs
         inputs = self._inputs_from_args(args, kwargs)
         is_batched = batch is not None
@@ -153,8 +156,19 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
                 if not model:
                     raise RuntimeError(f"{self} has no default models and none were specified")
                 # TODO @Robustness: rotate models (on failure?)
+                randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
+                if self.has_tag(randomize_tag):
+                    nonce = str(random.randint(0, 2**16))
+                else:
+                    nonce = None
+
                 runner = TaskRunner(
-                    self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
+                    self,
+                    max_steps=20,
+                    max_function_calls=10,
+                    max_errors=5,
+                    max_model_errors=5,
+                    nonce=nonce,
                 )
                 ret = await runner(model[0], inputs, is_batched)
             self.session.tracer.run_exit(self, ret)
@@ -207,6 +221,7 @@ class TaskRunner(abc.ABC):
         max_function_calls: int,
         max_errors: int,
         max_model_errors: int,
+        nonce: str = None,
     ):
         self.task = task
         self.max_steps = max_steps
@@ -217,6 +232,7 @@ class TaskRunner(abc.ABC):
         self.num_function_calls = 0
         self.num_errors = 0
         self.num_model_errors = 0
+        self.nonce = nonce
 
     async def __call__(self, model: Model, inputs: dict, is_batched: bool):
         """Runs a single contiguous 'block' of a task on a single model."""
@@ -247,10 +263,7 @@ class TaskRunner(abc.ABC):
 
         # run
         # should probably track task runner state in run metadata?
-        runner = TaskRunner(
-            self, max_steps=20, max_function_calls=10, max_errors=5, max_model_errors=5
-        )
-        ret = await compiler.run(model, runner)
+        ret = await compiler.run(model, self)
         if isinstance(ret, TaskError):
             raise ret
         elif not isinstance(ret, DotDict):
