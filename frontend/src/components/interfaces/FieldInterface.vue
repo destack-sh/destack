@@ -329,7 +329,7 @@ defineExpose({
         v-if="editing"
         ref="editablePopoverRef"
         class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2'"
+        :class="[popoverPin.pinned.value ? '' : 'absolute -top-2', isEnum ? '-left-0' : '-left-2']"
         @keydown.escape.exact.prevent.stop="close()"
       >
         <!-- Name & type -->

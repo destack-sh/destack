@@ -49,7 +49,7 @@ async function writeSecretValue() {
     });
     emit("update:modelValue", newRecord);
   } finally {
-    pending.value = false;
+    nextTick(() => (pending.value = false));
   }
 }
 
@@ -109,6 +109,7 @@ const appearance = useAppearance();
 defineExpose({
   focus,
   blur,
+  flush: writeSecretValue,
   pending,
 });
 </script>
