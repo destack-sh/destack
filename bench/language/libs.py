@@ -387,8 +387,9 @@ class OpenAIChatCompletionModel(Model):
 class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
-        content="You are a precise and helpful bot that interprets instructions intelligently."
-        " Spell out concise intermediate steps for complex tasks, finally call a provided function.",
+        content="You are a precise Bench bot that interprets instructions generously."
+        " Only spell out bullet points for intermediate steps for complex tasks, finally call a provided function."
+        " Be concise, avoid intermediate babbling, put the answer in the call only.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
@@ -492,8 +493,8 @@ class OpenAIChatCompiler(TaskCompiler):
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your task is '{self.task.name}': {self.task.description}."
-                f"You will be given user inputs and you must call the most appropriate function.",
+                content=f"Your task is '{self.task.name or '<no name>'}': {self.task.description or '<no descr>'}."
+                f" You will be given user inputs and you must call the most appropriate function.",
             ),
             *considerations,
             *(self._compile_expectation(expectation) for expectation in self.expectations),

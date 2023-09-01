@@ -1,12 +1,14 @@
 <script lang="ts" setup>
 import { useTimeFromNow } from "@/composables/useNow";
 import { useBenchState, usePanelContext } from "@/state/bench";
+import { IS_DEBUG } from "@/utils/globals";
 import { computed } from "vue";
 
 const props = defineProps<{
   thing?: { id: string; deletedAt?: string | null; projectVersion?: { id: string } | null } | null;
   name: string;
-  isLoading: boolean;
+  error?: any | null;
+  loading: boolean;
 }>();
 const emit = defineEmits<{
   (e: "restore"): void;
@@ -46,7 +48,7 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
   </div>
   <!-- Other version thing -->
   <div
-    v-else-if="!isLoading && !isDeleted && isOtherVersion"
+    v-else-if="!loading && !isDeleted && isOtherVersion"
     class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5"
   >
     <div
@@ -63,12 +65,21 @@ const nameCamelCase = computed(() => props.name[0].toUpperCase() + props.name.sl
     </div>
   </div>
   <!-- Thing failed to load -->
-  <div v-else-if="!isLoading && thing == null" class="sticky top-0 z-10 -mr-12 w-full bg-yellow-600 py-0.5">
+  <div
+    v-else-if="!loading && thing == null"
+    class="sticky top-0 z-10 -mr-12 w-full py-0.5"
+    :class="error ? 'bg-red-600' : 'bg-yellow-600'"
+  >
     <div
       class="mx-auto flex flex-row items-center justify-center gap-2"
       :style="panel.panel.value.contentWidthAsMaxWidth"
     >
-      <div class="text-sm font-semibold text-white">{{ nameCamelCase }} does not exist in this version.</div>
+      <div v-if="!error || !IS_DEBUG" class="text-sm font-semibold text-white">
+        {{ nameCamelCase }} does not exist in this version.
+      </div>
+      <div v-else class="text-sm font-semibold text-white">
+        {{ nameCamelCase }} failed to load: <span class="font-mono font-normal">{{ error }}</span>
+      </div>
     </div>
   </div>
 </template>

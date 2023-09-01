@@ -116,8 +116,12 @@ export type ModuleIndex = {
   idByCk: GRecord<string, string>;
 };
 
-function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean }) {
-  const { result: module, loading } = useQuery(
+function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?: boolean; required?: string }) {
+  const {
+    result: module,
+    loading,
+    onResult,
+  } = useQuery(
     graphql(/* GraphQL */ `
       query moduleContentById($projectVersionId: GlobalID!) {
         module(id: $projectVersionId) {
@@ -142,6 +146,13 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
       fetchPolicy: !(options?.cache ?? false) ? "cache-and-network" : "network-only",
     })
   );
+
+  // check result if module is required
+  onResult((result) => {
+    if (options?.required && result.data.module == null) {
+      throw new Error(`required module ${options?.required} (id=${projectVersionId.value}) does not exist`);
+    }
+  });
 
   const idx: Ref<ModuleIndex | null> = computed(() => {
     if (module.value?.module == null) return null;
@@ -230,7 +241,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     const ck = uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
     const id = uuidv5(VERSION, ck);
     const gid = btoa(`ProjectVersion:${id}`);
-    defaultLibs[gid] = _useModuleFlat(ref(gid)).idx;
+    defaultLibs[gid] = _useModuleFlat(ref(gid), { cache: true, required: `${name}@${VERSION}` }).idx;
   }
 
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>

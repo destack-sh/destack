@@ -1041,6 +1041,7 @@ defineExpose({
             height: rowHeights[y] + rowPadding * 2 + 'px',
           }"
         >
+          <!-- TODO @Cleanup: not sure why the Boolean(properties.wrapColumns) is needed, but wrapColumns is an object otherwise?  -->
           <ValueInterface
             :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
             :model-value="record.value?.[module.getTypedKey(field) as string]"
@@ -1048,11 +1049,7 @@ defineExpose({
             :type="module.effectiveTypeOf(field)"
             :readonly="context.readonly.value"
             :active="context.editing.value || context.focused.value"
-            :wrap="
-              Boolean(
-                properties.wrapColumns
-              ) /* TODO @Cleanup: not sure why the Boolean is needed, but wrapColumns is an object otherwise? */
-            "
+            :wrap="Boolean(properties.wrapColumns)"
             debounced
             :supports-drop="!context.readonly.value"
             @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"

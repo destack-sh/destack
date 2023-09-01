@@ -84,7 +84,7 @@ class LazyRun:
 class RunMetadata:
     test: Optional[bool]
     queue_position: Optional[int]
-    cached_generated_at: Optional[datetime]
+    cached_at: Optional[datetime]
     cached_duration: Optional[float]
     progress: Optional[float]
 
@@ -182,13 +182,13 @@ class Run:
         self.set_metadata(RunMetadata.queue_position, value)
 
     @property
-    def cached_generated_at(self) -> Optional[datetime]:
-        cached_generated_at = self.get_metadata(RunMetadata.cached_generated_at)
-        return datetime.fromisoformat(cached_generated_at) if cached_generated_at else None
+    def cached_at(self) -> Optional[datetime]:
+        cached_at = self.get_metadata(RunMetadata.cached_at)
+        return datetime.fromisoformat(cached_at) if cached_at else None
 
-    @cached_generated_at.setter
-    def cached_generated_at(self, value: Optional[datetime]):
-        self.set_metadata(RunMetadata.cached_generated_at, value.isoformat() if value else None)
+    @cached_at.setter
+    def cached_at(self, value: Optional[datetime]):
+        self.set_metadata(RunMetadata.cached_at, value.isoformat() if value else None)
 
 
 _IGNORED_PACKAGE_PREFIXES = [

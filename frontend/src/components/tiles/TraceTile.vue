@@ -83,9 +83,6 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
       children: [] as OrderedNode[],
     } as OrderedNode;
 
-    if (node.runnable == null) {
-      return node; // ignore because non-symbolx.lib dependencies are not loaded yet
-    }
     orderedNodes.push(node);
 
     // walk children

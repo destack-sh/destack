@@ -43,7 +43,11 @@ const ops = useOperations();
 
 console.log("file panel", bench.projectVersionId, panel.value.fileCk);
 
-const { result: file, loading: fileLoading } = useQuery(
+const {
+  result: file,
+  loading: fileLoading,
+  error: fileError,
+} = useQuery(
   graphql(/* GraphQL */ `
     query fileContentById($fileId: GlobalID!) {
       file(id: $fileId) {
@@ -454,7 +458,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
     >
       <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-gray-700" />
     </div>
-    <PanelStatusNotice :thing="fileHeader" name="file" :is-loading="fileLoading" @restore="restore" />
+    <PanelStatusNotice :thing="fileHeader" name="file" :loading="fileLoading" :error="fileError" @restore="restore" />
     <!-- File main content -->
     <!-- (bottom padding is in last StatementAddArea) -->
     <div

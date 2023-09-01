@@ -16,8 +16,8 @@ function getMetadataValue(name: string) {
   if (fieldKey == null) return null;
   return props.run.metadata?.[fieldKey];
 }
-const cachedDuration = computed(() => getMetadataValue("cached_duration"));
-const cachedGeneratedAt = computed(() => getMetadataValue("cached_generated_at"));
+const cachedDuration = computed(() => getMetadataValue("cached duration"));
+const cachedGeneratedAt = computed(() => getMetadataValue("cached at"));
 
 const isMostlyCached = computed(
   () => props.run.duration != null && cachedDuration.value != null && cachedDuration.value > props.run.duration * 0.8

@@ -351,9 +351,9 @@ export type Issue = ModuleNode &
   };
 
 export enum IssueKind {
-  Error = "ERROR",
-  Suggestion = "SUGGESTION",
-  Warning = "WARNING",
+  Error = "Error",
+  Suggestion = "Suggestion",
+  Warning = "Warning",
 }
 
 export type IssueResolvedField = Issue | ResolvedField;

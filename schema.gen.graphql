@@ -322,9 +322,9 @@ type Issue implements Node & ModuleNode {
 }
 
 enum IssueKind {
-  ERROR
-  WARNING
-  SUGGESTION
+  Error
+  Warning
+  Suggestion
 }
 
 union IssueResolvedField = Issue | ResolvedField
