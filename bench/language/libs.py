@@ -80,11 +80,6 @@ class Cache:
     pass
 
 
-@x_tag("autoheal", "Auto-heal this runnable on error", file=_symbolx_builtins)
-class Autoheal:
-    pass
-
-
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
@@ -388,8 +383,7 @@ class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise Bench bot that interprets instructions generously."
-        " Only spell out bullet points for intermediate steps for complex tasks, finally call a provided function."
-        " Be concise, avoid intermediate babbling, put the answer in the call only.",
+        " Be concise, don't say anything, just call a provided function properly.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",

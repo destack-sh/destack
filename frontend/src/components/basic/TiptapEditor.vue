@@ -10,6 +10,8 @@ import Heading from "@tiptap/extension-heading";
 import { ref, watch, watchEffect, type Ref } from "vue";
 import { useAppearance } from "@/state/appearance";
 import { BubbleMenu as BubbleMenuExt } from "@tiptap/extension-bubble-menu";
+import { canPaste } from "@/state/file";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 
 const props = defineProps<{
   modelValue: string;
@@ -27,12 +29,13 @@ const emit = defineEmits<{
   (e: "deleteStart"): void;
   (e: "enter"): void;
   (e: "execute"): void;
+  (e: "paste"): void;
 }>();
 
 const focused: Ref<boolean> = ref(false);
 
 // custom shortcuts
-const shortcutsExtension = Extension.create({
+const customExtension = Extension.create({
   addKeyboardShortcuts() {
     return {
       Enter: ({ editor }) => {
@@ -77,8 +80,26 @@ const shortcutsExtension = Extension.create({
       },
     };
   },
+
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        key: new PluginKey("paste"),
+        props: {
+          handlePaste: (view, event) => {
+            const strDataItem = event.clipboardData?.getData("text/plain");
+            if (strDataItem != null && canPaste(strDataItem)) {
+              emit("paste");
+              return true;
+            }
+            return false;
+          },
+        },
+      }),
+    ];
+  },
 });
-function onKeyDown(event: KeyboardEvent) {
+async function onKeyDown(event: KeyboardEvent) {
   // should probably move all these into the shortcuts extension?
   if (event.key === "Backspace" && editor.value?.getHTML() === "<p></p>") {
     emit("deleteIfEmpty");
@@ -125,10 +146,10 @@ const editor = useEditor({
     Document,
     Paragraph,
     Heading.configure({ levels: [1, 2, 3] }),
-    shortcutsExtension,
     BubbleMenuExt.configure({
       element: document.querySelector(".menu") as HTMLElement,
     }),
+    customExtension,
   ],
   parseOptions: {
     preserveWhitespace: "full",

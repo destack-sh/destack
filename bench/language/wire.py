@@ -696,25 +696,25 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
 
 
 @dataclass
-class BlockData(StatementData):
+class GroupData(StatementData):
     description: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, BlockData, lang.Block)
-class BlockPacker(StatementPacker, NodePacker[BlockData, lang.Block]):
+@node_packer(MOT.STATEMENT, GroupData, lang.Group)
+class GroupPacker(StatementPacker, NodePacker[GroupData, lang.Group]):
     PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
 
-    def pack(self, symbol: lang.Block) -> "BlockData":
+    def pack(self, symbol: lang.Group) -> "GroupData":
         statement_data = super().pack(symbol)
-        return BlockData(**statement_data.__dict__, description=symbol.description)
+        return GroupData(**statement_data.__dict__, description=symbol.description)
 
     def unpack(
-        self, symbol: BlockData, parent: lang.Statement | lang.File, session: Optional[Session]
-    ) -> lang.Block:
+        self, symbol: GroupData, parent: lang.Statement | lang.File, session: Optional[Session]
+    ) -> lang.Group:
         statement = super().unpack(symbol, parent, session)
-        return lang.Block(**statement.__dict__, description=symbol.description)
+        return lang.Group(**statement.__dict__, description=symbol.description)
 
-    def recover(self, statement: lang.Block, tree: ModuleTree):
+    def recover(self, statement: lang.Group, tree: ModuleTree):
         statement.tags = tree.get_descendants(statement.id, lang.Tag)
 
 
@@ -1051,7 +1051,7 @@ STATEMENT_DATA_CLASS_BY_TYPE: dict[StatementType, NodeData] = {
     StatementType.MODEL: ModelData,
     StatementType.DATASET: DatasetData,
     StatementType.VALUE: ValueData,
-    StatementType.BLOCK: BlockData,
+    StatementType.GROUP: GroupData,
     StatementType.REFERENCE: ReferenceData,
 }
 STATEMENT_TYPE_BY_DATA_CLASS = {v: k for k, v in STATEMENT_DATA_CLASS_BY_TYPE.items()}

@@ -22,7 +22,7 @@ class StatementType(enum.StrEnum):
     VALUE = "value"
     DATASET = "dataset"
     REFERENCE = "reference"
-    BLOCK = "block"
+    GROUP = "group"
 
 
 RUNNABLE_STATEMENT_TYPES = {

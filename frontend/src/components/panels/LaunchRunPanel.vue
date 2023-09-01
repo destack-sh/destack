@@ -86,7 +86,7 @@ const statementPath = computed(() => module.nodePathOf(panel.value.statementCk))
 
 // running
 
-const runs = sessions.runsOf({ id: panel.value.statementCk });
+const runs = sessions.runsOf({ ck: panel.value.statementCk });
 const currentRun = computed(() => runs.value[0]);
 const isCurrentRunActive = computed(
   () =>
@@ -102,7 +102,7 @@ async function run() {
   panel.value.lastOutput = undefined;
   panel.value.lastError = undefined;
   const { run, result: runTask } = await sessions.run(
-    { id: statement.value.id },
+    { id: statement.value.id, ck: statement.value.ck },
     {
       inputs: panel.value.inputs,
       keyed: true,
@@ -219,7 +219,7 @@ defineExpose({
         <ContainerTile
           v-if="panel.lastRunId"
           label="Trace"
-          :sub-label="
+          :sublabel="
             panel.lastRunTerminatedAt != null
               ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
@@ -232,7 +232,7 @@ defineExpose({
         <ContainerTile
           v-if="panel.lastOutput != null"
           label="Output"
-          :sub-label="
+          :sublabel="
             panel.lastRunTerminatedAt != null
               ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
@@ -251,7 +251,7 @@ defineExpose({
         <ContainerTile
           v-if="statement != null"
           label="Runs"
-          :sub-label="
+          :sublabel="
             runsTileRef?.totalCount != null
               ? `last ${Math.min(RUNS_HISTORY_LIMIT, runsTileRef?.totalCount)} of ${runsTileRef?.totalCount}`
               : undefined

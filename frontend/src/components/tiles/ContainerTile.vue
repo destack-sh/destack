@@ -1,16 +1,21 @@
 <script lang="ts" setup>
 const props = defineProps<{
   label?: string | null;
-  subLabel?: string | null;
+  sublabel?: string | null;
+  sublabelPosition?: "adjacent" | "opposite";
 }>();
 </script>
 <template>
   <div class="flex flex-col gap-y-0.5">
     <!-- Label above -->
-    <div v-if="label" class="w-full flex-row justify-between px-2 text-sm font-semibold">
+    <div
+      v-if="label"
+      class="flex w-full flex-row px-2 text-sm font-semibold"
+      :class="[sublabelPosition == 'opposite' ? 'justify-between' : '']"
+    >
       {{ label }}
       <span class="inline-flex flex-row gap-2 font-normal text-gray-400">
-        <span v-if="subLabel" class="ml-1">{{ subLabel }}</span>
+        <span v-if="sublabel" class="ml-1">{{ sublabel }}</span>
         <slot name="sublabel" class="ml-1" />
       </span>
     </div>

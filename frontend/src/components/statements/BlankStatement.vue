@@ -123,7 +123,7 @@ const commands = computed(() => {
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
     // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Block),
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Group),
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
   ];
 
@@ -198,6 +198,7 @@ defineExpose({
       @enter="context.insertBelow"
       @escape="emit('escape')"
       @delete-left="context.deleteSelfLeft"
+      @paste.prevent="context.paste"
     />
     <!-- Empty dots / prompt -->
     <div

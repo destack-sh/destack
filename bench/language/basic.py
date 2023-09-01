@@ -76,10 +76,10 @@ class Reference(Statement, HasTags, IsFlowNode):
 
 
 @node(tracked=[])
-class Block(Statement, HasTags):
+class Group(Statement, HasTags):
     """A named block of statements."""
 
-    type: StatementType = StatementType.BLOCK
+    type: StatementType = StatementType.GROUP
     description: str | None = None
 
     def _visit(self, visitor: ModuleVisitor) -> None:

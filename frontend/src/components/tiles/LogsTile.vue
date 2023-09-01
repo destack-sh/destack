@@ -104,10 +104,11 @@ defineExpose({
     <!-- Actual logs -->
     <!-- (pretty crude for now, missing pagination, detail views, highlights, ...) -->
     <div ref="logsRef" class="flex w-full flex-col" v-if="!loading">
+      <!-- Log entry -->
       <span
         v-for="log in logsSorted"
         :key="log.id"
-        class="w-full select-text font-mono"
+        class="max-h-28 w-full select-text overflow-y-hidden font-mono"
         :class="[
           wrap ? 'whitespace-normal' : 'whitespace-nowrap',
           highlight && isHighlighted(log) ? 'bg-yellow-100' : '',

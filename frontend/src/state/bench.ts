@@ -1109,7 +1109,7 @@ export class ViewRunsPanel extends Panel {
 
   constructor(query?: RunsQuery, sort?: SearchSort) {
     super("view-runs", "runs-" + randomHexString(), "Runs", "runs");
-    this.limit = 50;
+    this.limit = 30;
     this.query = query;
     this.sort = sort;
   }

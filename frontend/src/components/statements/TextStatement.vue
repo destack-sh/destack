@@ -68,6 +68,7 @@ defineExpose({
     @toggle-actions="emit('toggleActions')"
     @delete-start="context.deleteLeft"
     @delete-if-empty="context.deleteSelf"
+    @paste="context.paste"
     :focused="context.focused.value"
     :readonly="context.readonly.value"
     class=""

@@ -579,7 +579,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     }
     const copiedStatementsIds = new Set<string>();
     copiedStatements.forEach((s) => copiedStatementsIds.add(s.id));
-    // write to clipboard as text/_bench-v0
+    // :ClipboardSchema
     const sourceStatements = copiedStatements.map(
       (s) =>
         ({
@@ -607,7 +607,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       if (sourceStatements == null) {
         const cliboardItems = await navigator.clipboard.read();
         const clipboardDataStr = await (await cliboardItems[0].getType(CLIPBOARD_CONTENT_TYPE)).text();
-        sourceStatements = JSON.parse(clipboardDataStr) as CopiedStatement[];
+        sourceStatements = JSON.parse(clipboardDataStr) as CopiedStatement[]; //  :ClipboardSchema
       }
 
       // insert at bottom of current selection or file (like in insertBelow, below bottom and its next sibling)
@@ -778,6 +778,24 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     delete navigationContexts.value[file.value?.file.id];
   });
   return context;
+}
+
+export function canPaste(data: string) {
+  try {
+    const sourceStatements = JSON.parse(data) as CopiedStatement[];
+    // check if all statements have the proper format  :ClipboardSchema
+    const valid = sourceStatements.every(
+      (s) =>
+        s.id != null &&
+        s.parentId != null &&
+        s.orderKey != null &&
+        (s.parentInCopy == null || typeof s.parentInCopy == "boolean")
+    );
+    return valid;
+  } catch (err) {
+    console.error("failed to parse clipboard data", err);
+    return false;
+  }
 }
 
 export function useNavigationContext(required = true): Ref<NavigationContext> | null {
