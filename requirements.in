@@ -38,7 +38,7 @@ kubernetes-asyncio==24.2.3
 more-itertools==9.0.0
 msgpack==1.0.5
 nats-py==2.2.0
-numpy<2,>=1.20.0
+numpy<2,>=1.20.0#
 openai==0.27.2
 opensearch-py[async]==2.2.0
 Pillow==9.4.0

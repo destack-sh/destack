@@ -405,7 +405,7 @@ defineExpose({
         >
           <EditableSpan
             ref="descriptionRef"
-            regex="name"
+            regex="description"
             v-model="description"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden whitespace-normal"

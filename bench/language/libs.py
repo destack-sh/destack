@@ -80,6 +80,11 @@ class Cache:
     pass
 
 
+@x_tag("randomize", "Seed every run randomly", file=_symbolx_builtins)
+class Randomize:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
@@ -483,6 +488,7 @@ class OpenAIChatCompiler(TaskCompiler):
         considerations = await asyncio.gather(
             *(self._compile_consideration(consideration) for consideration in self.considerations)
         )
+        nonce_str = f"nonce:{runner.nonce} " if runner.nonce else ""
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
@@ -494,7 +500,7 @@ class OpenAIChatCompiler(TaskCompiler):
             *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"Inputs for '{self.task.name}': \n\n: {inputs}",
+                content=f"{nonce_str}Inputs for '{self.task.name}': \n\n: {inputs}",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,

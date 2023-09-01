@@ -5,7 +5,7 @@ import ContainerTile from "@/components/tiles/ContainerTile.vue";
 import RunsTile from "@/components/tiles/RunsTile.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import { useTimeFromNow } from "@/composables/useNow";
-import { RunStatus, StatementType } from "@/gql/graphql";
+import { RunStatus, StatementType, type Run } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, type StatementAction, type LaunchRunPanel } from "@/state/bench";
 import { newRunId, newSessionId, TypeFlag, useCurrentModule } from "@/state/module";
@@ -94,9 +94,30 @@ const isCurrentRunActive = computed(
     ACTIVE_RUN_STATUSES.includes(currentRun.value?.status) &&
     currentRun.value?.status != RunStatus.Aborting
 );
+const subscribedToCurrentRun = ref(false);
+
+// subscribe if we triggered a run that's active but
+watch(isCurrentRunActive, (active) => {
+  if (active && !subscribedToCurrentRun.value) {
+    subscribeUntilTermination(currentRun.value as Run);
+  }
+});
+
+function subscribeUntilTermination(run: Run) {
+  // subscribe to run changes until termination
+  sessions.subscribeToRun(run, (run) => {
+    if (TERMINAL_RUN_STATUSES.includes(run.status)) {
+      panel.value.lastRunTerminatedAt = run.terminatedAt;
+      panel.value.lastOutput = run.outputs;
+      panel.value.lastError = run.error;
+    }
+  });
+  subscribedToCurrentRun.value = true;
+}
 
 async function run() {
   if (statement.value == null) return;
+  subscribedToCurrentRun.value = false;
   panel.value.lastRunId = newRunId();
   panel.value.lastSessionId = newSessionId();
   panel.value.lastOutput = undefined;
@@ -117,14 +138,7 @@ async function run() {
     panel.value.lastOutput = result?.run.outputs;
     panel.value.lastError = result?.run.error;
   } else {
-    // subscribe to run changes
-    sessions.subscribeToRun(run, (run) => {
-      if (TERMINAL_RUN_STATUSES.includes(run.status)) {
-        panel.value.lastRunTerminatedAt = run.terminatedAt;
-        panel.value.lastOutput = run.outputs;
-        panel.value.lastError = run.error;
-      }
-    });
+    subscribeUntilTermination(run);
   }
 }
 

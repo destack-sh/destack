@@ -70,12 +70,12 @@ const filteredReferences = computed(() => {
   return idxs?.map((idx) => candidates[idx]) ?? [];
 });
 
-function setReference(statement: Pick<Statement, "id">) {
+function setReference(statement: Pick<Statement, "id" | "ck">) {
   ops.symbol.updateStatementReference(
     null,
     context.statement.value.id,
     context.statement.value.referenceCk,
-    statement.id
+    statement.ck
   );
 }
 

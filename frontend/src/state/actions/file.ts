@@ -17,11 +17,11 @@ export function useFileActions() {
       const identity = newNodeIdentity(bench.projectVersionId as string, "File");
       const create = ops.file.create(null, identity.id, identity.ck, bench.projectVersionId as string, name, null);
       const optimisticFile = { __typename: "File", id: identity.id, ck: identity.ck, name } as FileHeader;
-      const optimisticEditor = bench.focusFile(optimisticFile as NodeBase);
+      const filePanel = bench.focusFile(optimisticFile as NodeBase);
       try {
         await create;
       } catch (e) {
-        bench.closePanel(optimisticEditor);
+        bench.closePanel(filePanel);
       }
     },
   });
