@@ -26,16 +26,15 @@ import {
   RectangleGroupIcon as RectangleGroupIconOutline,
   CpuChipIcon as CpuChipIconOutline,
   SparklesIcon as SparklesIconOutline,
-  TableCellsIcon as TableCellsIconOutline,
   TagIcon as TagIconOutline,
   PaperAirplaneIcon as PaperAirplaneIconOutline,
   Bars3BottomLeftIcon,
   ViewColumnsIcon as ViewColumnsIconOutline,
+  VariableIcon as VariableIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
   SparklesIcon as SparklesIconSolid,
-  TableCellsIcon as TableCellsIconSolid,
   CircleStackIcon as CircleStackIconSolid,
   CodeBracketSquareIcon as CodeBracketSquareIconSolid,
   CpuChipIcon as CpuChipIconSolid,
@@ -44,6 +43,7 @@ import {
   PaperAirplaneIcon as PaperAirplaneIconSolid,
   ListBulletIcon,
   ViewColumnsIcon as ViewColumnsIconSolid,
+  VariableIcon as VariableIcon,
 } from "@heroicons/vue/24/solid";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 import { computed, inject, watch, type Ref } from "vue";
@@ -589,22 +589,27 @@ export function makeField(data: {
 
 export const ANY_FIELD = makeField({ projectVersionId: "00000000-0000-0000-0000-000000000000", tag: TypeTag.Any });
 
-export function getEnumColor(type: { key: string }) {
-  /* Generate a strong color for the type */
-  const seed = type.key.split("").reduce((acc, char) => {
-    return acc * 31 + char.charCodeAt(0);
-  }, 0);
-  const hue = seed % 360;
-  const saturation = 70 + (seed % 25); // Range: 70-95
-  const lightness = 70;
-  return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+export const ENUM_COLORS = [
+  "#f56565", // red-500
+  "#ecc94b", // yellow-500
+  "#48bb78", // green-500
+  "#4299e1", // blue-500
+  "#667eea", // indigo-500
+  "#9f7aea", // purple-500
+  "#ed64a6", // pink-500
+  "#6b7280", // gray-500
+];
+
+export function getEnumColor(field: { ck: string }) {
+  const idx = field.ck.split("").reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  return ENUM_COLORS[idx % ENUM_COLORS.length];
 }
 
 export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
-  [StatementType.Value]: TableCellsIconOutline,
+  [StatementType.Value]: VariableIcon,
   [StatementType.Dataset]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
   [StatementType.Flow]: PaperAirplaneIconOutline,
@@ -617,7 +622,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
-  [StatementType.Value]: TableCellsIconSolid,
+  [StatementType.Value]: VariableIcon,
   [StatementType.Dataset]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
   [StatementType.Flow]: PaperAirplaneIconSolid,
@@ -654,7 +659,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Type]: "Type",
   [StatementType.Task]: "Task",
   [StatementType.Code]: "Code",
-  [StatementType.Value]: "Constant",
+  [StatementType.Value]: "Variable",
   [StatementType.Dataset]: "Dataset",
   [StatementType.Model]: "Model",
   [StatementType.Expectation]: "Expectaction",
@@ -680,7 +685,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Code]: "Connect, test & customize with Python",
   [StatementType.Task]: "Instruct AI to do something",
   [StatementType.Expectation]: "Tune desired AI behaviour",
-  [StatementType.Value]: "Static values for configuration or secrets",
+  [StatementType.Value]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
   [StatementType.Block]: "Nest related statements",
   [StatementType.Flow]: "Connect code and tasks with triggers",

@@ -549,14 +549,6 @@ function dropField(droppedId: string, position: "above" | "below" | "right" | "l
   nextTick(() => grid.focus("", dropped.key ?? ""));
 }
 
-function getNewOrderKey(belowRecordId?: string): string | null {
-  const recordIdx = recordsInView.value.findIndex((r) => r.id === belowRecordId);
-  const recordBelow = recordsInView.value[recordIdx + 1] ?? overfetchedRecord.value;
-  const beforeOk = recordsInView.value[recordIdx]?.orderKey ?? null;
-  const afterOk = recordBelow?.orderKey ?? null;
-  return generateKeyBetween(beforeOk, afterOk);
-}
-
 function insertRecordAtEnd() {
   insertRecord({ belowRecordId: lastRecordInView.value?.id });
 }

@@ -318,7 +318,7 @@ const statementAddAreaPositionX = computed(() => {
 });
 
 // drag select area
-// TODO @UX: drag should also work for fields/records/etc. (detect if entirely in statement)
+// TODO @UX: drag should also work for sub-statement elements like fields/records/etc.
 // and of course this should also be refactored out into a composable
 const mainContentRef = ref<HTMLElement | null>(null);
 const statementAddAreaEndRef = ref<InstanceType<typeof StatementAddArea> | null>(null);

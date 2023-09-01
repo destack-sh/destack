@@ -19,10 +19,10 @@ const ops = useOperations();
 
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const gridRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
+const structRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const position = useMouseInElement(computed(() => gridRef.value?.$el));
+const position = useMouseInElement(computed(() => structRef.value?.$el));
 
 function createUnionField() {
   context.createUnionField();
@@ -31,13 +31,13 @@ function createUnionField() {
 
 function createNewField(template: Field) {
   const field = context.createNewField(template);
-  nextTick(() => gridRef.value?.focus(field.id));
+  nextTick(() => structRef.value?.openField(field.id));
 }
 
 function duplicateField(field: Pick<Field, "id">) {
   const newField = context.duplicateField(field.id);
   if (newField == null) return;
-  nextTick(() => gridRef.value?.focus(newField.id));
+  nextTick(() => structRef.value?.focus(newField.id));
 }
 
 function writeValue(value: any) {
@@ -86,14 +86,14 @@ function focus(position: "first" | "last" = "first") {
     if (addFieldRef.value != null) {
       addFieldRef.value.focus();
     } else {
-      gridRef.value?.focus("last");
+      structRef.value?.focus("last");
     }
   }
 }
 
 function focusLastField() {
   if (context.allFields.value.length > 0) {
-    gridRef.value?.focus("last");
+    structRef.value?.focus("last");
   } else {
     focus("first");
   }
@@ -111,7 +111,7 @@ defineExpose({
   focus,
   blur: () => {
     declarationRef.value?.blur();
-    gridRef.value?.blur?.();
+    structRef.value?.blur?.();
   },
   // prevent outer drag and drop while inside grid
   innerDrag: computed(() => !position.isOutside.value),
@@ -124,7 +124,7 @@ defineExpose({
         <TypedStatementDeclaration
           ref="declarationRef"
           @navigate-up="context.navigateUp"
-          @navigate-down="context.fields.value.length > 0 ? gridRef?.focus('first') : addFieldRef?.focus()"
+          @navigate-down="context.fields.value.length > 0 ? structRef?.focus('first') : addFieldRef?.focus()"
         />
         <StatementTags ref="tagsRef" class="ml-1.5" />
       </div>
@@ -146,7 +146,7 @@ defineExpose({
     <!-- Value -->
     <StructInterface
       v-if="!folded"
-      ref="gridRef"
+      ref="structRef"
       class="-mx-1 w-full table-fixed"
       :fields="context.allFields.value"
       :model-value="context.statement.value.value ?? {}"

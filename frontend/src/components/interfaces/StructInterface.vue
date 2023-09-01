@@ -66,7 +66,7 @@ function deleteField(key: string) {
   emit("update:modelValue", copy);
 }
 
-const grid = useNavigationGrid<"type" | "value", InstanceType<typeof ValueInterface>>(
+const grid = useNavigationGrid<"type" | "value", InstanceType<typeof ValueInterface | typeof FieldInterface>>(
   ref(["type", "value"]),
   toRef(props, "fields"),
   {
@@ -83,7 +83,7 @@ onStartTyping((e) => {
     const field = props.fields.find((f) => f.key == cell.column);
     if (field == null) return;
     deleteField(module.getTypedKey(field) as string);
-    nextTick(() => cell.ref.edit?.());
+    nextTick(() => (cell.ref as InstanceType<typeof ValueInterface>).edit?.());
   }
 });
 
@@ -106,6 +106,9 @@ defineExpose({
     } else {
       grid.focus(position, "type");
     }
+  },
+  openField(fieldId: string) {
+    (grid.getRef(fieldId, "type") as InstanceType<typeof FieldInterface>)?.open("all");
   },
   blur: () => {
     grid.refs.value.forEach((r) => r.blur?.());

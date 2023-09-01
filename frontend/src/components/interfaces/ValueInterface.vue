@@ -153,9 +153,12 @@ function blur() {
 }
 
 function close() {
-  editing.value = false;
+  editableRef.value?.flush?.();
   sync?.flushNow();
-  nextTick(() => previewButtonRef.value?.focus()); // refocus preview
+  nextTick(() => {
+    editing.value = false;
+    previewButtonRef.value?.focus();
+  }); // refocus preview
 }
 
 function enter() {
