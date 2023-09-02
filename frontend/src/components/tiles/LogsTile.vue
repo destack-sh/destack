@@ -108,7 +108,7 @@ defineExpose({
       <span
         v-for="log in logsSorted"
         :key="log.id"
-        class="max-h-28 w-full select-text overflow-y-hidden font-mono"
+        class="scroll-hidden max-h-28 w-full select-text overflow-y-scroll font-mono"
         :class="[
           wrap ? 'whitespace-normal' : 'whitespace-nowrap',
           highlight && isHighlighted(log) ? 'bg-yellow-100' : '',

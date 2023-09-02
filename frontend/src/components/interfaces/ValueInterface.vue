@@ -196,7 +196,7 @@ defineExpose({
     <!-- Preview -->
     <div
       ref="previewButtonRef"
-      class="mousetrap-no-tab scroll-hidden relative inline-block w-full text-left outline-none"
+      class="mousetrap-no-tab scroll-hidden relative inline-block w-full text-left text-gray-900 outline-none"
       :class="[readonly ? '' : 'cursor-pointer']"
       tabindex="-1"
       :disabled="readonly"
@@ -240,7 +240,7 @@ defineExpose({
     <div
       v-if="(editing || editableRef?.pending) && valueInterface"
       ref="editablePopoverRef"
-      class="z-50 rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="z-50 rounded-sm bg-white p-2 text-gray-900 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="editablePin.pinned.value ? '' : 'absolute -left-1 -top-1 min-h-full min-w-full'"
     >
       <component

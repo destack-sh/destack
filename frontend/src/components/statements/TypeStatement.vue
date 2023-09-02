@@ -242,7 +242,7 @@ defineExpose({
   <EditableSpan
     ref="descriptionRef"
     v-if="!folded"
-    :class="addingDescription ? '' : 'h-0'"
+    :class="[addingDescription ? '' : 'h-0', 'text-gray-900']"
     regex="name"
     v-model="description"
     :readonly="context.readonly.value"

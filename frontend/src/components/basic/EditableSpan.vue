@@ -67,9 +67,13 @@ const spanRef = ref<HTMLElement | null>(null);
 // On focus we auto-select the end of the span always. Later (soon?),
 // we'll want to set either focus start, end or all.
 
-function focus() {
+function focus(pos: "first" | "last" = "first") {
   spanRef.value?.focus();
-  selectEnd();
+  if (pos == "first") {
+    selectStart();
+  } else if (pos == "last") {
+    selectEnd();
+  }
 }
 
 function blur() {
@@ -107,6 +111,22 @@ function selectEnd() {
     }
   }
 }
+
+function selectStart() {
+  const selection = window.getSelection();
+  if (selection && spanRef.value != null) {
+    // select start of text
+    if (spanRef.value.childNodes.length > 0) {
+      selection.selectAllChildren(spanRef.value.childNodes[0]);
+      selection.setBaseAndExtent(spanRef.value.childNodes[0], 0, spanRef.value.childNodes[0], 0);
+    } else {
+      // span has no text content yet
+      selection.selectAllChildren(spanRef.value);
+      selection.collapseToStart();
+    }
+  }
+}
+
 const { focused } = useFocus(spanRef);
 
 function onInput(e: InputEvent) {

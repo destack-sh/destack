@@ -6,7 +6,7 @@ import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type Panel, type PanelGroup, PANEL_ICONS_SOLID, getPanelActions } from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
-import { PlusIcon } from "@heroicons/vue/24/outline";
+import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { useActiveScroll } from "@/composables/useScroll";
@@ -104,11 +104,11 @@ async function createFileInPanelGroup() {
             <span class="text-xs">{{ p.name.length > 0 ? p.name : "(Unnamed)" }}</span>
             <!-- Close button -->
             <button
-              class="h-fit max-h-fit rounded-sm px-1 text-xs transition duration-150 hover:bg-gray-200 hover:text-gray-700 group-hover:text-gray-400"
+              class="h-fit max-h-fit rounded-sm p-0.5 text-xs transition duration-150 hover:bg-gray-200 hover:text-gray-800"
               :class="i == selectedTab ? 'text-gray-400' : 'opacity-0 group-hover:opacity-100'"
               @click.stop.prevent="bench.closePanel(p)"
             >
-              x
+              <XMarkIcon class="h-3 w-3" />
             </button>
             <!-- 'border' on bottom if tab is focused and active -->
             <div v-if="bench.focusedPanelId == p.id" class="absolute bottom-0 left-0 right-0 h-0.5 bg-orange-600" />

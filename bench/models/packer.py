@@ -43,14 +43,14 @@ class NodePacker(typing.Generic[NodeDataT, NodeT]):
 
     def pack(self, node: NodeT) -> NodeDataT:
         """Pack the node and any relevant normalized related nodes."""
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} does not support 'pack'")
 
     def unpack(self, data: NodeDataT, parent: Optional[NodeT]) -> NodeT | list[NodeT]:
         """
         Unpack the node and any relevant normalized related nodes.
         If returning a list, the first item is the main node.
         """
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} does not support 'unpack'")
 
     # we don't need an 'unwalk' here because child models are associated automatically
 
@@ -325,11 +325,6 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
             last_changed_at=module.last_changed_at,
             revision=-1,  # no revision for module
         )
-
-    def unpack(
-        self, data: wire.ModuleData, parent: Optional[models.ProjectVersion]
-    ) -> models.ProjectVersion:
-        raise NotImplementedError
 
 
 @node_packer(MOT.FILE, wire.FileData, models.File)
@@ -909,10 +904,10 @@ class DataPacker(typing.Generic[DataT, NodeT]):
     """Generic data packer for non-node data types"""
 
     def pack(self, model: ModelT) -> DataT:
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} does not support pack")
 
     def unpack(self, data: DataT) -> ModelT:
-        raise NotImplementedError
+        raise NotImplementedError(f"{self.__class__.__name__} does not support unpack")
 
 
 _data_packers_by_data: dict[typing.Type[DataT], "DataPacker"] = {}

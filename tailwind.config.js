@@ -18,6 +18,17 @@ module.exports = {
       blur: {
         xs: "2px",
       },
+      typography: (theme) => ({
+        DEFAULT: {
+          // text-gray-900 for everything
+          css: {
+            color: theme("colors.gray.900"),
+            a: {
+              color: theme("colors.gray.900"),
+            },
+          },
+        },
+      }),
     },
   },
   plugins: [

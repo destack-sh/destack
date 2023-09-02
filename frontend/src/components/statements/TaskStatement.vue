@@ -160,7 +160,7 @@ defineExpose({
   <div v-if="!folded">
     <EditableSpan
       ref="descriptionRef"
-      :class="showDescription ? '' : 'h-0'"
+      :class="[showDescription ? '' : 'h-0', 'text-gray-900']"
       regex="description"
       v-model="description"
       :readonly="context.readonly.value"
