@@ -80,15 +80,15 @@ type Command = {
 function simpleStatementCommand(
   group: Group,
   type: StatementType,
-  options?: { rootTypeTag?: TypeTag; icon?: any; label?: string; description?: string; aliases?: string[] }
+  options?: { tag?: TypeTag; icon?: any; label?: string; description?: string; aliases?: string[] }
 ): Command {
   return {
     group,
-    label: options?.label ?? getStatementLabel(type, options?.rootTypeTag),
-    icon: options?.icon ?? getStatementIconSolid(type, options?.rootTypeTag),
-    description: options?.description ?? getStatementDescription(type, options?.rootTypeTag),
+    label: options?.label ?? getStatementLabel(type, options?.tag),
+    icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
+    description: options?.description ?? getStatementDescription(type, options?.tag),
     aliases: options?.aliases,
-    action: () => (context.morpthToSymbol({ type, rootTypeTag: options?.rootTypeTag }), emit("morphed")),
+    action: () => (context.morpthToSymbol({ type, tag: options?.tag }), emit("morphed")),
   };
 }
 
@@ -110,20 +110,18 @@ const commands = computed(() => {
       action: morphToText,
     },
     simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
-      rootTypeTag: TypeTag.Struct,
+      tag: TypeTag.Struct,
       aliases: ["type", "struct"],
     }),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { rootTypeTag: TypeTag.Enum, aliases: ["type", "enum"] }),
+    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { tag: TypeTag.Enum, aliases: ["type", "enum"] }),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
 
     // advanced statements
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, { aliases: ["const", "config", "secret"] }),
     // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Group),
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
   ];
 

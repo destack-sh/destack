@@ -104,13 +104,16 @@ class HasFlow(Runnable, StatementBase):
         pass
 
 
+# avoid circular import because Reference -> IsFlowNode
+from bench.language.basic import HasText  # noqa: E402
+
+
 @node
-class Flow(HasType, HasFlow, HasTags, Statement):
+class Flow(HasType, HasFlow, HasTags, HasText, Statement):
     """An orchestrated flow of triggered runs."""
 
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.CODE
-    description: Optional[str] = None
     _is_async: bool = False
 
     def _clear(self) -> None:

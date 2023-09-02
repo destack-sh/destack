@@ -298,8 +298,7 @@ class Statement(CrudThing, Revisioned, os.Document):
     file_id: UUID = os.field(os.FT.KEYWORD)
     type: StatementType = os.field(os.FT.KEYWORD)
     name: Optional[str] = NAME_FIELD
-    description: Optional[str] = os.field(os.FT.TEXT)
-    html: Optional[str] = HTML_FIELD
+    text: Optional[str] = os.field(os.FT.TEXT)
     code: Optional[str] = os.field(os.FT.TEXT)
     # can't index value as it would explode our mappings (module index is global)
 
@@ -316,8 +315,7 @@ class StatementPacker(CrudThingPacker, Packer[models.Statement, Statement, wire.
             file_id=node.file_id,
             type=node.type,
             name=node.name,
-            description=node.description,
-            html=node.text,
+            text=node.text,
             code=node.code,
         )
 

@@ -9,6 +9,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
+from bench.language.basic import HasText
 from bench.language.const import DatasetViewLayout, StatementType, TypeFlag, TypeTag
 from bench.language.core import (
     HasCrud,
@@ -157,10 +158,9 @@ class DatasetViewField(ModuleNode):
     order_key: Optional[str] = None
 
 
-@node(tracked=["description", "versioned"])
-class Dataset(HasType, HasTags, Search["RecordData", Record], Statement):
+@node(tracked=["text", "versioned"])
+class Dataset(HasType, HasTags, HasText, Search["RecordData", Record], Statement):
     type: StatementType = StatementType.DATASET
-    description: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
@@ -435,10 +435,10 @@ class RecordSearch(Search["RecordData", Record]):
             raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
 
 
-@node(tracked=["description", "value"])
-class Value(HasType, HasTags, Statement):
-    type: StatementType = StatementType.VALUE
-    description: Optional[str] = None
+@node(tracked=["text", "value"])
+class Variable(HasType, HasTags, HasText, Statement):
+    type: StatementType = StatementType.VARIABLE
+    text: Optional[str] = None
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
     value: Any = field(default_factory=dict)

@@ -17,7 +17,6 @@ import {
   type FieldUpdateInput,
   type UpdateRecordMutation,
   type UpdateSymbolCodeMutation,
-  type UpdateSymbolDescriptionMutation,
   type UpdateStatementTextMutation,
   type UpdateFieldMutation,
   type Field,
@@ -80,51 +79,6 @@ export function useSymbolContentOps() {
       },
       undo: async () => {
         return await updateStatementReferenceMut({ id, referenceCk: oldReferenceCk });
-      },
-    });
-  }
-
-  const { mutate: updateSymbolDescriptionMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateSymbolDescription,
-    graphql(/* GraphQL */ `
-      mutation updateSymbolDescription($id: GlobalID!, $description: String!) {
-        updateSymbolDescription(input: { id: $id, description: $description }) {
-          ... on Statement {
-            id
-            description
-            revision
-          }
-          ...OperationInfoContent
-        }
-      }
-    `),
-    {
-      optimisticResponse: (vars: { id: string; description: string }) =>
-        ({
-          updateSymbolDescription: {
-            __typename: "Statement",
-            id: vars.id,
-            description: vars.description,
-            revision: PENDING_REVISION,
-          },
-        } as UpdateSymbolDescriptionMutation),
-    }
-  );
-
-  async function updateSymbolDescription(
-    tx: Transaction | null,
-    id: string,
-    oldDescription: string,
-    newDescription: string
-  ) {
-    await ops.perform({
-      tx,
-      type: "statement.updateDescription",
-      do: async () => {
-        return await updateSymbolDescriptionMut({ id: id, description: newDescription });
-      },
-      undo: async () => {
-        return await updateSymbolDescriptionMut({ id: id, description: oldDescription });
       },
     });
   }
@@ -574,7 +528,7 @@ export function useSymbolContentOps() {
         $key: String!
         $orderKey: String!
         $name: String
-        $description: String
+        $text: String
         $flags: Int!
         $referenceCk: UUID
         $metadata: JSON
@@ -589,7 +543,7 @@ export function useSymbolContentOps() {
             key: $key
             orderKey: $orderKey
             name: $name
-            description: $description
+            text: $text
             flags: $flags
             referenceCk: $referenceCk
             metadata: $metadata
@@ -611,7 +565,7 @@ export function useSymbolContentOps() {
             name
             tag
             hint
-            description
+            text
             referenceCk
             flags
             metadata
@@ -641,7 +595,7 @@ export function useSymbolContentOps() {
         orderKey: string;
         statementId: string;
         name: string;
-        description: string | null;
+        text: string | null;
         flags: number;
         referenceCk: string | null;
         metadata: any;
@@ -665,7 +619,7 @@ export function useSymbolContentOps() {
             hint: vars.hint ?? null,
             name: vars.name,
             key: vars.key,
-            description: vars.description ?? null,
+            text: vars.text ?? null,
             orderKey: vars.orderKey,
             referenceCk: vars.referenceCk,
             flags: vars.flags,
@@ -785,7 +739,7 @@ export function useSymbolContentOps() {
       | "ck"
       | "key"
       | "name"
-      | "description"
+      | "text"
       | "tag"
       | "hint"
       | "orderKey"
@@ -800,7 +754,7 @@ export function useSymbolContentOps() {
       statementId,
       // set optional values to null if not provided
       hint: input.hint ?? null,
-      description: input.description ?? null,
+      text: input.text ?? null,
       referenceCk: input.referenceCk ?? null,
       flags: input.flags ?? 0,
     } as FieldCreateInput & { referenceCk: string | null; flags: number };
@@ -816,7 +770,7 @@ export function useSymbolContentOps() {
       | "name"
       | "tag"
       | "hint"
-      | "description"
+      | "text"
       | "key"
       | "orderKey"
       | "flags"
@@ -871,7 +825,7 @@ export function useSymbolContentOps() {
         $tag: TypeTag!
         $hint: TypeHint
         $name: String
-        $description: String
+        $text: String
         $flags: Int!
         $referenceCk: UUID
         $metadata: JSON
@@ -882,7 +836,7 @@ export function useSymbolContentOps() {
             tag: $tag
             hint: $hint
             name: $name
-            description: $description
+            text: $text
             flags: $flags
             referenceCk: $referenceCk
             metadata: $metadata
@@ -895,7 +849,7 @@ export function useSymbolContentOps() {
             updatedAt
             revision
             name
-            description
+            text
             flags
             referenceCk
             metadata
@@ -910,7 +864,7 @@ export function useSymbolContentOps() {
         tag: TypeTag;
         hint: TypeHint | null;
         name: string | null;
-        description: string;
+        text: string;
         flags: number;
         referenceCk?: string;
         metadata?: any;
@@ -924,7 +878,7 @@ export function useSymbolContentOps() {
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
             name: vars.name,
-            description: vars.description,
+            text: vars.text,
             flags: vars.flags,
             referenceCk: vars.referenceCk ?? null,
             metadata: vars.metadata ?? null,
@@ -1667,7 +1621,6 @@ export function useSymbolContentOps() {
   return {
     registry,
     updateStatementReference,
-    updateSymbolDescription,
     updateSymbolCode,
     updateStatementText,
     updateValue,

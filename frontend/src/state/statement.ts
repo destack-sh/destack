@@ -164,23 +164,18 @@ export function useStatementContext() {
     await Promise.all([morphType, updateText]);
   }
 
-  async function morphTo(config: {
-    type: StatementType | null;
-    name?: string;
-    rootTypeFlags?: number;
-    rootTypeTag?: TypeTag;
-  }) {
+  async function morphTo(config: { type: StatementType | null; name?: string; flags?: number; tag?: TypeTag }) {
     if (statement.value.type != StatementType.Blank || config.type == null) {
       throw new Error("cannot morph from non-blank without symbol type: " + statement.value.id);
     }
     const defaults = getDefaultSymbolDefinition(config.type);
     let newTypeTag;
-    if (config.rootTypeTag) {
-      newTypeTag = config.rootTypeTag;
-    } else if (rootTypeTag.value == null) {
-      newTypeTag = defaults.rootTypeTag;
+    if (config.tag) {
+      newTypeTag = config.tag;
+    } else if (tag.value == null) {
+      newTypeTag = defaults.tag;
     } else {
-      newTypeTag = isTypeTagCompatible(rootTypeTag.value, config.type) ? rootTypeTag.value : defaults.rootTypeTag;
+      newTypeTag = isTypeTagCompatible(tag.value, config.type) ? tag.value : defaults.tag;
     }
 
     const tx = openTransaction({ name: "morph init", blockPartialUndo: true, collapseUndoToFirst: true });
@@ -190,16 +185,14 @@ export function useStatementContext() {
       {
         type: statement.value.type,
         name: undefined,
-        lang: statement.value.lang ?? undefined,
-        rootTypeTag: statement.value.rootTypeTag ?? undefined,
-        rootTypeFlags: statement.value.rootTypeFlags ?? undefined,
+        tag: statement.value.tag ?? undefined,
+        flags: statement.value.flags ?? undefined,
       },
       {
         type: config?.type,
         name: config.name,
-        lang: config.rootTypeTag ?? defaults.language,
-        rootTypeTag: newTypeTag,
-        rootTypeFlags: config.rootTypeFlags,
+        tag: newTypeTag,
+        flags: config.flags,
       }
     );
     closeTransaction(tx);
@@ -217,12 +210,12 @@ export function useStatementContext() {
       {
         type: statement.value.type,
         name: statement.value.name ?? undefined,
-        rootTypeTag: statement.value.rootTypeTag ?? undefined,
+        tag: statement.value.tag ?? undefined,
       },
       {
         type: StatementType.Type,
         name: statement.value.name ?? undefined,
-        rootTypeTag: TypeTag.Enum,
+        tag: TypeTag.Enum,
       }
     );
   }
@@ -275,20 +268,9 @@ export function useStatementContext() {
     });
   }
 
-  function syncDescription(content: Ref<string>, editing: Ref<boolean | undefined>) {
-    return syncProperty({
-      value: content,
-      editing,
-      read: () => (content.value = statement.value?.description ?? ""),
-      write: () =>
-        ops.symbol.updateSymbolDescription(null, statement.value.id, statement.value.description ?? "", content.value),
-      enabled: computed(() => !isDeleted.value),
-    });
-  }
-
   // typing
 
-  const rootTypeTag = computed(() => statement.value.rootTypeTag);
+  const tag = computed(() => statement.value.tag);
   const fields = computed(
     () =>
       statement.value.fields
@@ -423,7 +405,7 @@ export function useStatementContext() {
       tag: newField.tag ?? oldField.tag,
       hint: newField.hint ?? null,
       name: newField.name ?? oldField.name,
-      description: newField.description ?? oldField.description,
+      text: newField.text ?? oldField.text,
       referenceCk: newField.referenceCk ?? null,
       flags: newField.flags,
     } as Field;
@@ -457,7 +439,7 @@ export function useStatementContext() {
     focused: context.focused,
     editing: context.editing,
     xOffset: context.xOffset,
-    typeRootTag: rootTypeTag,
+    typeRootTag: tag,
     standalone: context.standalone,
     bounding: context.bounding,
     symbolSubtype,
@@ -475,7 +457,6 @@ export function useStatementContext() {
     syncText,
     syncName,
     syncCode,
-    syncDescription,
     deleteSelf,
     deleteSelfLeft,
     deleteLeft,
@@ -517,7 +498,7 @@ function makeFieldInput(id: string, field: Field): FieldCreateInput {
     key: newFieldKey(field.ck),
     orderKey: field.orderKey,
     referenceCk: field.referenceCk ?? null,
-    description: field.description ?? null,
+    text: field.text ?? null,
     name: field.name ?? null,
     flags: field.flags,
   };
@@ -529,7 +510,7 @@ function makeFieldUpdate(field: Field): FieldUpdateInput {
     tag: field.tag,
     hint: field.hint ?? null,
     referenceCk: field.referenceCk ?? null,
-    description: field.description ?? null,
+    text: field.text ?? null,
     name: field.name ?? null,
     flags: field.flags,
   };
@@ -537,7 +518,7 @@ function makeFieldUpdate(field: Field): FieldUpdateInput {
 
 export function getDefaultSymbolDefinition(type: StatementType): {
   language?: string;
-  rootTypeTag?: TypeTag;
+  tag?: TypeTag;
 } {
   if (type == StatementType.Code) {
     return {
@@ -550,7 +531,7 @@ export function getDefaultSymbolDefinition(type: StatementType): {
   } else if (type == StatementType.Type) {
     // default to struct
     return {
-      rootTypeTag: TypeTag.Struct,
+      tag: TypeTag.Struct,
     };
   } else {
     // no special content for other symbol types
@@ -625,43 +606,39 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
-  [StatementType.Value]: VariableIcon,
+  [StatementType.Variable]: VariableIcon,
   [StatementType.Dataset]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: CpuChipIconOutline,
-  [StatementType.Expectation]: AdjustmentsHorizontalIconOutline,
-  [StatementType.Group]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Text]: Bars3BottomLeftIcon,
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
-  [StatementType.Value]: VariableIcon,
+  [StatementType.Variable]: VariableIcon,
   [StatementType.Dataset]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: CpuChipIconSolid,
-  [StatementType.Expectation]: AdjustmentsHorizontalIconSolid,
-  [StatementType.Group]: ListBulletIcon,
   [StatementType.Reference]: ArrowUpRightIcon,
 };
 
-export function getStatementIconOutline(type: StatementType, rootTypeTag?: TypeTag | null) {
-  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+export function getStatementIconOutline(type: StatementType, tag?: TypeTag | null) {
+  if (type == StatementType.Type && tag == TypeTag.Struct) {
     return RectangleGroupIconOutline;
-  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
     return ViewColumnsIconOutline;
   } else {
     return STATEMENT_ICONS_OUTLINE[type];
   }
 }
 
-export function getStatementIconSolid(type: StatementType, rootTypeTag?: TypeTag | null) {
-  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+export function getStatementIconSolid(type: StatementType, tag?: TypeTag | null) {
+  if (type == StatementType.Type && tag == TypeTag.Struct) {
     return RectangleGroupIconSolid;
-  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
     return ViewColumnsIconSolid;
   } else {
     return STATEMENT_ICONS_SOLID[type];
@@ -675,19 +652,17 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Type]: "Type",
   [StatementType.Task]: "Task",
   [StatementType.Code]: "Code",
-  [StatementType.Value]: "Variable",
+  [StatementType.Variable]: "Variable",
   [StatementType.Dataset]: "Dataset",
   [StatementType.Model]: "Model",
-  [StatementType.Expectation]: "Expectaction",
-  [StatementType.Group]: "Group",
   [StatementType.Flow]: "Flow",
   [StatementType.Reference]: "Reference",
 };
 
-export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | null) {
-  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+export function getStatementLabel(type: StatementType, tag?: TypeTag | null) {
+  if (type == StatementType.Type && tag == TypeTag.Struct) {
     return "Class";
-  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
     return "Choice";
   } else {
     return STATEMENT_TYPE_LABELS[type];
@@ -700,20 +675,18 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Dataset]: "Context, examples, feedback - any records",
   [StatementType.Code]: "Connect, test & customize with Python",
   [StatementType.Task]: "Structured prompt with I/O fields",
-  [StatementType.Expectation]: "Tune desired AI behaviour",
-  [StatementType.Value]: "Common values for configuration or secrets",
+  [StatementType.Variable]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
-  [StatementType.Group]: "Relate neighbouring statements",
   [StatementType.Flow]: "Connect code and tasks with triggers",
   [StatementType.Blank]: "Empty statement",
   [StatementType.Model]: "An AI model of any kind",
   [StatementType.Tag]: "Organize and transform statements",
 };
 
-export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {
-  if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
+export function getStatementDescription(type: StatementType, tag?: TypeTag | null) {
+  if (type == StatementType.Type && tag == TypeTag.Struct) {
     return "A type of an object with some fields";
-  } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
+  } else if (type == StatementType.Type && tag == TypeTag.Enum) {
     return "A choice type offering multiple options";
   } else {
     return STATEMENT_TYPE_DESCRIPTIONS[type];

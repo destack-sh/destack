@@ -22,27 +22,27 @@ const context = useStatementContext();
 const module = useCurrentModule();
 const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const description: Ref<string> = ref(context.statement.value.description ?? "");
-const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncDescription(
-  description,
-  computed(() => descriptionRef.value?.focused)
+const text: Ref<string> = ref(context.statement.value.text ?? "");
+const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+context.syncText(
+  text,
+  computed(() => textRef.value?.focused)
 );
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const fieldsLength = computed(() => context.selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const addingDescription = ref(false);
-const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
+const addingText = ref(false);
+const showText = computed(() => text.value.length > 0 || addingText.value);
 
-// dynamic field refs for names, values & descriptions for each field
+// dynamic field refs for names, values & texts for each field
 type ColumnType = "type";
 const grid = useNavigationGrid<ColumnType, InstanceType<typeof FieldInterface>>(
   ref(["type"] as ColumnType[]),
   context.selfFields,
   {
-    gridNavigateUp: focusDescriptionFromBottom,
+    gridNavigateUp: focusTextFromBottom,
     gridNavigateDown,
   }
 );
@@ -120,19 +120,19 @@ function writeType(fieldId: string, newType: Field) {
   context.updateField(oldType, { ...oldType, ...newType, id: fieldId });
 }
 
-function focusDescriptionFromTop() {
+function focusTextFromTop() {
   if (props.folded) {
     context.navigateDown();
-  } else if (description.value?.length > 0 || addingDescription.value) {
-    descriptionRef.value?.focus();
+  } else if (text.value?.length > 0 || addingText.value) {
+    textRef.value?.focus();
   } else {
     focusFirstIfExists();
   }
 }
 
-function focusDescriptionFromBottom() {
-  if (description.value?.length > 0 || addingDescription.value) {
-    descriptionRef.value?.focus();
+function focusTextFromBottom() {
+  if (text.value?.length > 0 || addingText.value) {
+    textRef.value?.focus();
   } else {
     declarationRef.value?.focus();
   }
@@ -150,7 +150,7 @@ function focusLast() {
   if (fieldsLength.value > 0) {
     grid.focus(fieldsLength.value - 1, "type");
   } else {
-    focusDescriptionFromBottom();
+    focusTextFromBottom();
   }
 }
 
@@ -173,13 +173,13 @@ const extraActions = computed(() => {
       },
     },
     {
-      label: "Add description",
+      label: "Add text",
       icon: Bars3Icon,
-      disabled: showDescription.value,
+      disabled: showText.value,
       action: () => {
         unfoldIfFolded();
-        addingDescription.value = true;
-        nextTick(() => descriptionRef.value?.focus());
+        addingText.value = true;
+        nextTick(() => textRef.value?.focus());
       },
     },
   ];
@@ -205,7 +205,7 @@ defineExpose({
     position == "first" || props.folded ? declarationRef.value?.focus() : addFieldRef.value?.focus(),
   blur: () => {
     declarationRef.value?.blur();
-    descriptionRef.value?.blur();
+    textRef.value?.blur();
     addFieldRef.value?.blur();
     grid.blur();
   },
@@ -217,7 +217,7 @@ defineExpose({
     <div class="flex flex-row items-center">
       <TypedStatementDeclaration
         ref="declarationRef"
-        @navigate-down="focusDescriptionFromTop"
+        @navigate-down="focusTextFromTop"
         @navigate-up="context.navigateUp"
       />
       <StatementTags ref="tagsRef" class="ml-1.5" />
@@ -238,13 +238,13 @@ defineExpose({
   >
     <span v-for="field in context.selfFields.value" :key="field.id">{{ field.name }}</span>
   </button>
-  <!-- Description -->
+  <!-- Text -->
   <EditableSpan
-    ref="descriptionRef"
+    ref="textRef"
     v-if="!folded"
-    :class="[addingDescription ? '' : 'h-0', 'text-gray-900']"
+    :class="[addingText ? '' : 'h-0', 'text-gray-900']"
     regex="name"
-    v-model="description"
+    v-model="text"
     :readonly="context.readonly.value"
     @navigate-left="declarationRef?.focus()"
     @navigate-up="declarationRef?.focus()"
@@ -252,11 +252,11 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="!folded && description.length == 0 && !context.readonly.value && addingDescription"
-    @click="descriptionRef?.focus()"
+    v-if="!folded && text.length == 0 && !context.readonly.value && addingText"
+    @click="textRef?.focus()"
     class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
-    Add description
+    Add text
   </button>
   <!-- Fields (enum options or struct fields) -->
   <div v-if="fieldsLength > 0 && !folded" class="mb-0.5 flex w-full flex-col">

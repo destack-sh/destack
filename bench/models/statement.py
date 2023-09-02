@@ -45,7 +45,7 @@ class Field(CrudNode):
     hint = models.CharField(max_length=20, choices=get_choices(TypeHint), null=True, blank=True)
     flags = models.IntegerField(default=0)
     metadata = models.JSONField(null=True, blank=True)
-    description = models.TextField(null=True, blank=True)
+    text = models.TextField(null=True, blank=True)
     reference_ck = models.UUIDField(null=True, blank=True)
 
     def __str__(self):
@@ -315,13 +315,10 @@ class Statement(CrudNode):
     order_key = models.CharField(max_length=64)  # in file/parent
 
     # statement data
-    description = models.TextField(null=True, blank=True)
-    key = models.CharField(max_length=48, null=True, blank=True)
-    root_type_tag = models.CharField(
-        max_length=32, choices=get_choices(TypeTag), null=True, blank=True
-    )
-    root_type_flags = models.IntegerField(null=True, blank=True)
-    lang = models.CharField(max_length=32, null=True, blank=True)
+    key = models.CharField(max_length=32, null=True, blank=True)
+    tag = models.CharField(max_length=24, choices=get_choices(TypeTag), null=True, blank=True)
+    flags = models.IntegerField(null=True, blank=True)
+    heading_level = models.IntegerField(null=True, blank=True)
     text = models.TextField(null=True, blank=True)
     code = models.TextField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)

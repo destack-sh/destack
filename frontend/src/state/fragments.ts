@@ -162,7 +162,7 @@ export const FieldType = graphql(/* GraphQL */ `
     tag
     hint
     flags
-    description
+    text
     orderKey
     referenceCk
     parent {
@@ -255,12 +255,10 @@ export const StatementContentType = graphql(/* GraphQL */ `
     # symbol contents
     key
     text
-    lang
     code
-    description
     value
-    rootTypeTag
-    rootTypeFlags
+    tag
+    flags
     referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent
@@ -343,7 +341,8 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     ck
     type
     name
-    description
+    text
+    headingLevel
     revision
     file {
       id
@@ -353,8 +352,8 @@ export const InterpStatementType = graphql(/* GraphQL */ `
     }
     orderKey
     key
-    rootTypeTag
-    rootTypeFlags
+    tag
+    flags
     referenceCk
     tags(filters: { isVisible: true }) {
       ...TaggingContent

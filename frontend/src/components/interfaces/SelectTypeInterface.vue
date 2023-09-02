@@ -91,7 +91,7 @@ const availableTypes: Ref<Array<Field & FieldInfo>> = computed(() => {
     if (props.refTypes != null) {
       let refType: TypeTag | null = null;
       if (statement.type == StatementType.Type) {
-        refType = statement.rootTypeTag ?? null;
+        refType = statement.tag ?? null;
       } else if (statement.type == StatementType.Dataset) {
         refType = TypeTag.Struct;
       } else {

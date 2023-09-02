@@ -29,14 +29,14 @@ const context = useStatementContext();
 
 const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
 const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
-const description: Ref<string> = ref(context.statement.value.description ?? "");
-const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncDescription(
-  description,
-  computed(() => descriptionRef.value?.focused)
+const text: Ref<string> = ref(context.statement.value.text ?? "");
+const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+context.syncText(
+  text,
+  computed(() => textRef.value?.focused)
 );
-const addingDescription = ref(false);
-const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
+const addingText = ref(false);
+const showText = computed(() => text.value.length > 0 || addingText.value);
 
 const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
@@ -53,13 +53,13 @@ function unfoldIfFolded() {
 const extraActions = computed(() => {
   const inlineActions: StatementAction[] = [
     {
-      label: "Add description",
+      label: "Add text",
       icon: Bars3Icon,
-      disabled: showDescription.value,
+      disabled: showText.value,
       action: () => {
         unfoldIfFolded();
-        addingDescription.value = true;
-        nextTick(() => descriptionRef.value?.focus());
+        addingText.value = true;
+        nextTick(() => textRef.value?.focus());
       },
     },
     {
@@ -111,7 +111,7 @@ function focus(position: "first" | "last" = "first") {
   } else if (typeRef.value != null) {
     typeRef.value?.focus(position);
   } else {
-    descriptionRef.value?.focus();
+    textRef.value?.focus();
   }
 }
 
@@ -120,7 +120,7 @@ defineExpose({
   blur: () => {
     declarationRef.value?.blur();
     typeRef.value?.blur();
-    descriptionRef.value?.blur();
+    textRef.value?.blur();
   },
   run,
 });
@@ -132,9 +132,7 @@ defineExpose({
       <StatementDeclaration
         ref="declarationRef"
         class="inline-flex"
-        @navigate-down="
-          folded ? context.navigateDown() : addingDescription ? descriptionRef?.focus() : typeRef?.focus('first')
-        "
+        @navigate-down="folded ? context.navigateDown() : addingText ? textRef?.focus() : typeRef?.focus('first')"
         @navigate-right="typeRef?.focus"
       />
       <StatementTags ref="tagsRef" />
@@ -159,10 +157,10 @@ defineExpose({
   <!-- Content -->
   <div v-if="!folded">
     <EditableSpan
-      ref="descriptionRef"
-      :class="[showDescription ? '' : 'h-0', 'text-gray-900']"
+      ref="textRef"
+      :class="[showText ? '' : 'h-0', 'text-gray-900']"
       regex="description"
-      v-model="description"
+      v-model="text"
       :readonly="context.readonly.value"
       @navigate-left="declarationRef?.focus()"
       @navigate-up="declarationRef?.focus()"
@@ -170,20 +168,20 @@ defineExpose({
       @enter="context.insertBelow"
     />
     <button
-      v-if="description.length == 0 && !context.readonly.value && addingDescription"
+      v-if="text.length == 0 && !context.readonly.value && addingText"
       tabindex="-1"
-      @click="descriptionRef?.focus()"
+      @click="textRef?.focus()"
       class="w-fit rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
-      Add description
+      Add text
     </button>
     <!-- Inline type -->
     <FunctionType
       v-if="isTyped && (context.fields.value.length > 0 || !context.readonly.value)"
       ref="typeRef"
-      @navigate-up="showDescription ? descriptionRef?.focus() : declarationRef?.focus()"
+      @navigate-up="showText ? textRef?.focus() : declarationRef?.focus()"
       @navigate-down="context.navigateDown"
-      @navigate-left="descriptionRef?.focus"
+      @navigate-left="textRef?.focus"
     />
   </div>
 </template>

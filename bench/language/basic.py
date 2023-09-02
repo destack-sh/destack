@@ -1,3 +1,4 @@
+import enum
 import itertools
 from typing import Optional
 from uuid import UUID
@@ -10,9 +11,7 @@ from bench.language.core import (
     StatementType,
     node,
 )
-from bench.language.flow import IsFlowNode
 from bench.language.issue import IssueType
-from bench.language.tag import HasTags
 
 # common statements
 
@@ -27,15 +26,31 @@ class Blank(Statement):
         pass
 
 
-@node(tracked=["text"])
-class Text(Statement):
+@node
+class HasText:
     """A comment that's not semantic/interpreted by default."""
 
-    type: StatementType = StatementType.TEXT
     text: str | None = None
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         pass
+
+
+class TextHeadingLevel(enum.IntEnum):
+    H1 = 1
+    H2 = 2
+    H3 = 3
+
+
+@node(tracked=["text", "heading_level"])
+class Text(HasText, Statement):
+    heading_level: Optional[TextHeadingLevel] = None
+    type: StatementType = StatementType.TEXT
+
+
+# avoid circular import because Reference IsFlowNode
+from bench.language.flow import IsFlowNode  # noqa: E402
+from bench.language.tag import HasTags  # noqa: E402
 
 
 @node(tracked=["reference"])
@@ -44,7 +59,7 @@ class Reference(Statement, HasTags, IsFlowNode):
 
     type: StatementType = StatementType.REFERENCE
     reference: Statement | StatementReference = None
-    description: str | None = None
+    text: str | None = None
 
     def _clear(self) -> None:
         HasTags._clear(self)
@@ -73,27 +88,6 @@ class Reference(Statement, HasTags, IsFlowNode):
             return self.reference
         else:
             return None
-
-
-@node(tracked=[])
-class Group(Statement, HasTags):
-    """A named block of statements."""
-
-    type: StatementType = StatementType.GROUP
-    description: str | None = None
-
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        for n in itertools.chain(self.tags):
-            visitor.visit(n)
-
-
-@node(tracked=["description"])
-class Expectation(Statement):  # not clear how this will evolve yet
-    type: StatementType = StatementType.EXPECTATION
-    description: Optional[str] = None
-
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
 
 
 # hard-coded, do not change ever :BenchUuidNamespace

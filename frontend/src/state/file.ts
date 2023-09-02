@@ -929,8 +929,8 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
       parentId: location.parentId,
       orderKey: location.orderKey,
       fileId: nav?.value?.file.id,
-      rootTypeTag: TypeTag.Struct,
-      rootTypeFlags: TypeFlag.IsArray,
+      tag: TypeTag.Struct,
+      flags: TypeFlag.IsArray,
       name: getRandomAdjective() + " documents",
     };
     const tx = openTransaction({

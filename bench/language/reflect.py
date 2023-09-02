@@ -15,7 +15,7 @@ def _derive_constant_key(path: str) -> UUID:
     return uuid5(BENCH_UUID_NAMESPACE, f"reflect:{path}")
 
 
-def x_enum(name: str, description: str, *, file: File):
+def x_enum(name: str, text: str, *, file: File):
     """Map a Python type into a Bench type."""
 
     def decorator(cls):
@@ -24,7 +24,7 @@ def x_enum(name: str, description: str, *, file: File):
             if n != value.name:
                 raise ValueError(f"name must equal value in {cls}: {n} != {value.name}")
         bench_type = type_from_instance_type(cls, name=name)
-        bench_type.description = description
+        bench_type.text = text
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
         file.append_statement(bench_type)
@@ -35,7 +35,7 @@ def x_enum(name: str, description: str, *, file: File):
 
 @typing.dataclass_transform()
 def x_struct(
-    name: str, description: str, *, file: File, return_type: bool = False
+    name: str, text: str, *, file: File, return_type: bool = False
 ) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         # turn it into dataclass that behaves like a dict
@@ -43,7 +43,7 @@ def x_struct(
         # and it needs to be a real distinct class to type map references to it properly
         cls = dataclass(cls)
         bench_type = type_from_instance_type(cls, name=name)
-        bench_type.description = description
+        bench_type.text = text
         if bench_type.tag != TypeTag.STRUCT:
             raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
         file.append_statement(bench_type)
@@ -64,12 +64,12 @@ def x_struct(
 
 @typing.dataclass_transform()
 def x_task(
-    name: str, description: str, *, file: File
+    name: str, text: str, *, file: File
 ) -> typing.Callable[[typing.Callable], typing.Callable]:
     def decorator(fn):
         from bench.language.task import Task
 
-        task = Task(name=name, description=description)
+        task = Task(name=name, text=text)
         file.append_statement(task)
         task_type = type_from_instance_type(fn, name=None)
         task._take_fields_from(task_type, reset_id=False)
@@ -79,15 +79,13 @@ def x_task(
 
 
 @typing.dataclass_transform()
-def x_tag(
-    name: str, description: str, *, file: File
-) -> typing.Callable[[typing.Type], typing.Type]:
+def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         from bench.language.tag import Tag
 
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
-        tag = Tag(name=name, description=description)
+        tag = Tag(name=name, text=text)
         file.append_statement(tag)
         tag_type = type_from_instance_type(cls, name=None)
         tag._take_fields_from(tag_type, reset_id=False)
@@ -102,12 +100,12 @@ _model_compilers: dict[str, typing.Callable] = {}
 
 @typing.dataclass_transform()
 def x_model(
-    name: str, description: str, *, external_name: str, file: File
+    name: str, text: str, *, external_name: str, file: File
 ) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
         from bench.language.model import Model
 
-        model = Model(name=name, external_name=external_name, description=description)
+        model = Model(name=name, external_name=external_name, text=text)
         file.append_statement(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
         model._take_fields_from(model_type, reset_id=True)

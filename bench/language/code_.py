@@ -16,7 +16,8 @@ import msgpack
 import structlog
 from more_itertools import first, last
 
-from bench.language.const import StatementType, TypeTag
+from bench.language.basic import HasText
+from bench.language.const import TypeTag
 from bench.language.core import (
     IssueType,
     LookupBy,
@@ -26,7 +27,7 @@ from bench.language.core import (
     StatementPath,
     node,
 )
-from bench.language.flow import HasFlow, IsFlowNode
+from bench.language.flow import IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
@@ -55,11 +56,10 @@ class CodeParse:
 
 
 @node(tracked=["language", "code"])
-class Code(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
+class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
     language: str = "python"  # will probably merge into environment when we have it
     tag: TypeTag = TypeTag.FUNCTION
-    type: StatementType = StatementType.CODE
-    description: Optional[str] = None
+    text: Optional[str] = None
     code: Optional[str] = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
@@ -74,7 +74,6 @@ class Code(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
         HasType._clear(self)
         HasTags._clear(self)
         IsFlowNode._clear(self)
-        HasFlow._clear(self)
         self._parse = None
         self._transform = None
         self._statement_references = None
@@ -86,7 +85,6 @@ class Code(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
-        HasFlow._interp(self, scope)
 
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async

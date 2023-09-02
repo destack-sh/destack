@@ -36,7 +36,7 @@ const props = defineProps<{
   isView?: boolean;
   hideOutline?: boolean;
   hideType?: boolean;
-  hideDescription?: boolean;
+  hideText?: boolean;
   orientation?: "horizontal" | "vertical";
   statementId?: string;
 }>();
@@ -60,16 +60,16 @@ const emit = defineEmits<{
 const tupleName = computed(() => props.tupleName ?? "field");
 const value: Ref<Field> = ref(props.modelValue ?? ANY_FIELD);
 const name: Ref<string> = ref(props.modelValue?.name ?? "");
-const description: Ref<string> = ref(props.modelValue?.description ?? "");
+const text: Ref<string> = ref(props.modelValue?.text ?? "");
 const editing = ref(false);
 const editingType = ref(false);
-const hasDescription = computed(() => description.value.trim().length > 0);
+const hasText = computed(() => text.value.trim().length > 0);
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
 const previewRef: Ref<HTMLDivElement | null> = ref(null);
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const typeButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 const actionRefs = useElementRefs();
 const previewSize = useElementSize(previewRef);
@@ -93,15 +93,15 @@ syncProperty({
     emit("update:modelValue", value.value);
   },
 });
-// sync description
+// sync text
 syncProperty({
-  value: description,
-  editing: computed(() => descriptionRef.value?.focused),
-  read: () => (description.value = value.value.description ?? ""),
+  value: text,
+  editing: computed(() => textRef.value?.focused),
+  read: () => (text.value = value.value.text ?? ""),
   write: () => {
     value.value = {
       ...value.value,
-      description: description.value,
+      text: text.value,
     };
     emit("update:modelValue", value.value);
   },
@@ -315,8 +315,8 @@ defineExpose({
           >
           <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />
         </div>
-        <span v-if="description && !hideDescription" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
-          {{ description }}
+        <span v-if="text && !hideText" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
+          {{ text }}
         </span>
       </div>
     </button>
@@ -342,7 +342,7 @@ defineExpose({
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
             @navigate-right="typeButtonRef?.focus()"
-            @navigate-down="descriptionRef?.focus()"
+            @navigate-down="textRef?.focus()"
             @enter="close(false), emit('enter')"
           />
           <!-- Name placeholder -->
@@ -399,14 +399,14 @@ defineExpose({
             </div>
           </FadeTransition>
         </div>
-        <!-- Description -->
+        <!-- Text -->
         <span
           class="max-w-fullrounded-sm relative mt-1 w-full p-1 text-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         >
           <EditableSpan
-            ref="descriptionRef"
+            ref="textRef"
             regex="description"
-            v-model="description"
+            v-model="text"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden whitespace-normal"
             @navigate-up="nameRef?.focus()"
@@ -414,10 +414,8 @@ defineExpose({
             @navigate-down="actionRefs.focus(actions[0].label)"
             @enter="close(false), emit('enter')"
           />
-          <!-- Description placeholder -->
-          <span v-if="!hasDescription" class="text-gray-400" @click="descriptionRef?.focus"
-            >Add {{ tupleName }} description</span
-          >
+          <!-- Text placeholder -->
+          <span v-if="!hasText" class="text-gray-400" @click="textRef?.focus">Add {{ tupleName }} text</span>
         </span>
         <!-- Actions -->
         <div class="mt-0.5 flex flex-col" v-if="actions.length > 0">
@@ -441,7 +439,7 @@ defineExpose({
               action.action(value);
               action.keepOpen || close();
             "
-            @keydown.up.exact.stop.prevent="i == 0 ? descriptionRef?.focus() : actionRefs.focus(actions[i - 1].label)"
+            @keydown.up.exact.stop.prevent="i == 0 ? textRef?.focus() : actionRefs.focus(actions[i - 1].label)"
             @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
           >
             <component :is="action.icon" class="h-4 w-4 text-gray-500" />

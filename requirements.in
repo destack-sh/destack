@@ -1,6 +1,6 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
 
-aiohttp==3.8.3
+aiohttp==3.8.5
 aiostream==0.4.5
 anthropic==0.2.9
 boto3==1.26.125
@@ -21,7 +21,7 @@ django-pgcrypto-fields==2.6.0
 django-prometheus==2.2.0
 django-structlog==4.0.1
 django-stubs==4.2.3
-django==4.2.1
+django==4.2.3
 django_choices_field==2.1
 djangorestframework-dataclasses==1.1.1
 djangorestframework==3.14.0
@@ -47,7 +47,7 @@ psycopg2==2.9.5
 pydub==0.25.1
 python-dotenv==0.21.0
 pytz==2022.1
-redis[hiredis]==4.5.3
+redis[hiredis]==4.5.4
 sentry-sdk[django]==1.18.0
 social-auth-app-django==5.0.0
 strawberry-graphql-django==0.16.0

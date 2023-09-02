@@ -103,7 +103,7 @@ class HasTags(StatementBase):
 
 
 # avoid circular import because Tag is HasType but Type is HasTags
-from bench.language.type import HasType, new_field_key  # noqa
+from bench.language.type import HasType, new_field_key  # noqa: E402
 
 
 @node(tracked=["name"])
@@ -111,7 +111,7 @@ class Tag(HasType, HasTags, Statement):
     """A tag statement."""
 
     name: str = None
-    description: str = None
+    text: str = None
     key: str = None
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT

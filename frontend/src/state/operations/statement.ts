@@ -62,13 +62,11 @@ export function useStatementOps() {
         $type: StatementType!
         $name: String
         $key: String
-        $lang: String
         $code: String
         $text: String
-        $description: String
         $value: JSON
-        $rootTypeTag: TypeTag
-        $rootTypeFlags: Int
+        $tag: TypeTag
+        $flags: Int
       ) {
         createStatement(
           input: {
@@ -79,14 +77,12 @@ export function useStatementOps() {
             orderKey: $orderKey
             type: $type
             name: $name
-            lang: $lang
             key: $key
             code: $code
             text: $text
-            description: $description
             value: $value
-            rootTypeTag: $rootTypeTag
-            rootTypeFlags: $rootTypeFlags
+            tag: $tag
+            flags: $flags
           }
         ) {
           ... on Statement {
@@ -110,13 +106,11 @@ export function useStatementOps() {
             }
             # symbol contents
             key
-            lang
             code
             text
-            description
             value
-            rootTypeTag
-            rootTypeFlags
+            tag
+            flags
             referenceCk
             tags(filters: { isVisible: true }) {
               id
@@ -163,13 +157,11 @@ export function useStatementOps() {
         type: StatementType;
         name: string | null;
         key: string | null;
-        lang: string | null;
         code: string | null;
         text: string | null;
-        description: string | null;
         value: any | null;
-        rootTypeTag: TypeTag | null;
-        rootTypeFlags: number | null;
+        tag: TypeTag | null;
+        flags: number | null;
       }) {
         return {
           __typename: "Mutation",
@@ -190,17 +182,15 @@ export function useStatementOps() {
             key: vars.key,
             type: vars.type,
             name: vars.name,
-            description: vars.description,
             value: vars.value,
             code: vars.code,
             text: vars.text,
             referenceCk: null,
-            rootTypeTag: vars.rootTypeTag,
-            rootTypeFlags: vars.rootTypeFlags,
+            tag: vars.tag,
+            flags: vars.flags,
             tags: [],
             fields: [],
             triggers: [],
-            lang: vars.lang,
             // interp
             resolvedFields: [],
             issues: [],
@@ -257,14 +247,12 @@ export function useStatementOps() {
           orderKey,
           type: StatementType.Blank,
           name: null,
-          lang: null,
           code: null,
           text: null,
           key: null,
           value: null,
-          description: null,
-          rootTypeTag: null,
-          rootTypeFlags: null,
+          tag: null,
+          flags: null,
         });
       },
       undo: async () => {
@@ -288,9 +276,9 @@ export function useStatementOps() {
       name?: string;
       key?: string;
       referenceCk?: string;
-      description?: string;
-      rootTypeTag?: TypeTag;
-      rootTypeFlags?: number;
+      text?: string;
+      tag?: TypeTag;
+      flags?: number;
     }
   ) {
     return await ops.perform({
@@ -305,14 +293,12 @@ export function useStatementOps() {
           orderKey: input.orderKey,
           type: input.type,
           name: input.name ?? null,
-          lang: null,
           code: null,
-          text: null,
           value: null,
           key: input.key ?? null,
-          description: input.description ?? null,
-          rootTypeTag: input.rootTypeTag ?? null,
-          rootTypeFlags: input.rootTypeFlags ?? null,
+          text: input.text ?? null,
+          tag: input.tag ?? null,
+          flags: input.flags ?? null,
         });
       },
       undo: async () => {
@@ -333,13 +319,11 @@ export function useStatementOps() {
         $orderKey: String!
         $type: StatementType!
         $name: String
-        $lang: String
         $code: String
         $text: String
-        $description: String
         $value: JSON
-        $rootTypeTag: TypeTag
-        $rootTypeFlags: Int
+        $tag: TypeTag
+        $flags: Int
       ) {
         updateStatement(
           input: {
@@ -347,13 +331,11 @@ export function useStatementOps() {
             orderKey: $orderKey
             type: $type
             name: $name
-            lang: $lang
             code: $code
             text: $text
-            description: $description
             value: $value
-            rootTypeTag: $rootTypeTag
-            rootTypeFlags: $rootTypeFlags
+            tag: $tag
+            flags: $flags
           }
         ) {
           ... on Statement {
@@ -364,14 +346,11 @@ export function useStatementOps() {
             updatedAt
             name
             orderKey
-            # symbol contents
-            lang
             code
             text
-            description
             value
-            rootTypeTag
-            rootTypeFlags
+            tag
+            flags
           }
           ...OperationInfoContent
         }
@@ -385,14 +364,12 @@ export function useStatementOps() {
         orderKey: string;
         type: StatementType;
         name: string | null;
-        lang: string | null;
         code: string | null;
-        text: string | null;
         key: string | null;
-        description: string | null;
+        text: string | null;
         value: any | null;
-        rootTypeTag: TypeTag | null;
-        rootTypeFlags: number | null;
+        tag: TypeTag | null;
+        flags: number | null;
       }) =>
         ({
           __typename: "Mutation",
@@ -405,15 +382,13 @@ export function useStatementOps() {
             updatedAt: new Date().toISOString(),
             type: vars.type,
             name: vars.name,
-            description: vars.description,
             value: vars.value,
             code: vars.code,
             key: vars.key,
             text: vars.text,
-            rootTypeTag: vars.rootTypeTag,
-            rootTypeFlags: vars.rootTypeFlags,
+            tag: vars.tag,
+            flags: vars.flags,
             fields: [],
-            lang: vars.lang,
           },
         } as UpdateStatementMutation),
     }
@@ -422,46 +397,22 @@ export function useStatementOps() {
   const { mutate: morphStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.MorphStatement,
     graphql(/* GraphQL */ `
-      mutation morphStatement(
-        $id: GlobalID!
-        $type: StatementType!
-        $name: String
-        $rootTypeTag: TypeTag
-        $rootTypeFlags: Int
-        $lang: String
-      ) {
-        morphStatement(
-          input: {
-            id: $id
-            type: $type
-            name: $name
-            rootTypeTag: $rootTypeTag
-            rootTypeFlags: $rootTypeFlags
-            lang: $lang
-          }
-        ) {
+      mutation morphStatement($id: GlobalID!, $type: StatementType!, $name: String, $tag: TypeTag, $flags: Int) {
+        morphStatement(input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags }) {
           ... on Statement {
             id
             revision
             type
             name
-            rootTypeTag
-            rootTypeFlags
-            lang
+            tag
+            flags
           }
           ...OperationInfoContent
         }
       }
     `),
     {
-      optimisticResponse: (vars: {
-        id: string;
-        type: StatementType;
-        name?: string;
-        rootTypeTag?: TypeTag;
-        rootTypeFlags?: number;
-        lang?: string;
-      }) =>
+      optimisticResponse: (vars: { id: string; type: StatementType; name?: string; tag?: TypeTag; flags?: number }) =>
         ({
           morphStatement: {
             __typename: "Statement",
@@ -469,9 +420,8 @@ export function useStatementOps() {
             revision: PENDING_REVISION,
             type: vars.type,
             name: vars.name ?? null,
-            rootTypeTag: vars.rootTypeTag ?? null,
-            rootTypeFlags: vars.rootTypeFlags ?? null,
-            lang: vars.lang ?? null,
+            tag: vars.tag ?? null,
+            flags: vars.flags ?? null,
           },
         } as MorphStatementMutation),
     }
@@ -483,16 +433,14 @@ export function useStatementOps() {
     oldStatement: {
       type: StatementType;
       name?: string;
-      rootTypeTag?: TypeTag;
-      rootTypeFlags?: number;
-      lang?: string;
+      tag?: TypeTag;
+      flags?: number;
     },
     newStatement: {
       type: StatementType;
       name?: string;
-      rootTypeTag?: TypeTag;
-      rootTypeFlags?: number;
-      lang?: string;
+      tag?: TypeTag;
+      flags?: number;
     }
   ) {
     await ops.perform({
