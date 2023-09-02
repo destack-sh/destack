@@ -434,7 +434,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
       if (reference == null) return null;
-      tag = reference.rootTypeTag as TypeTag;
+      tag = reference.tag as TypeTag;
     }
     const storageFormat = getStorageFormat(tag, field.hint ?? undefined, field.flags);
     if (tag == TypeTag.Vector) {
@@ -449,7 +449,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
       if (reference == null) return field;
-      return { ...field, tag: reference.rootTypeTag as TypeTag };
+      return { ...field, tag: reference.tag as TypeTag };
     } else {
       return field;
     }
@@ -606,11 +606,11 @@ export function newSessionId(): string {
 
 export function getStatementSubtype(statement: {
   type?: StatementType | null;
-  rootTypeTag?: TypeTag | null;
-  rootTypeFlags?: number | null;
+  tag?: TypeTag | null;
+  flags?: number | null;
 }) {
   if (statement.type == StatementType.Type) {
-    if (statement.rootTypeTag == TypeTag.Enum) {
+    if (statement.tag == TypeTag.Enum) {
       return "choice";
     } else {
       return "type";

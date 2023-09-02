@@ -71,18 +71,18 @@ const context = useStatementContext();
 const module = useCurrentModule();
 const PAGE_SIZE = context.standalone.value ? 50 : 10;
 const panel = usePanelContext();
-const addingDescription = ref(false);
-const showDescription = computed(() => description.value.length > 0 || addingDescription.value);
+const addingText = ref(false);
+const showText = computed(() => text.value.length > 0 || addingText.value);
 
 const appearance = useAppearance();
 const client = useApolloClient();
 const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
 const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const description: Ref<string> = ref(context.statement.value.description ?? "");
-const descriptionRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncDescription(
-  description,
-  computed(() => descriptionRef.value?.focused)
+const text: Ref<string> = ref(context.statement.value.text ?? "");
+const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
+context.syncText(
+  text,
+  computed(() => textRef.value?.focused)
 );
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
@@ -120,7 +120,7 @@ const enumFields = computed(() =>
   context.allFields.value.filter(
     (f) =>
       f.tag == TypeTag.Enum ||
-      (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.rootTypeTag == TypeTag.Enum)
+      (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.tag == TypeTag.Enum)
   )
 );
 // TODO @UX: apply inline search to local records immediately/optmistically
@@ -311,7 +311,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | Ins
     return [{ id: "" }, ...recordsInView.value];
   }),
   {
-    gridNavigateUp: focusDescriptionFromBottom,
+    gridNavigateUp: focusTextFromBottom,
     gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
   }
 );
@@ -443,19 +443,19 @@ onStartTyping((e) => {
   }
 });
 
-function focusDescriptionFromTop() {
+function focusTextFromTop() {
   if (props.folded) {
     context.navigateDown();
-  } else if (description.value?.length > 0 || addingDescription.value) {
-    descriptionRef.value?.focus();
+  } else if (text.value?.length > 0 || addingText.value) {
+    textRef.value?.focus();
   } else {
     focusFirst();
   }
 }
 
-function focusDescriptionFromBottom() {
-  if (description.value?.length > 0 || addingDescription.value) {
-    descriptionRef.value?.focus();
+function focusTextFromBottom() {
+  if (text.value?.length > 0 || addingText.value) {
+    textRef.value?.focus();
   } else {
     declarationRef.value?.focus();
   }
@@ -481,7 +481,7 @@ function focusLastRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(-1, columnsInOrder.value[0]);
   } else {
-    focusDescriptionFromBottom();
+    focusTextFromBottom();
   }
 }
 
@@ -693,13 +693,13 @@ const extraActions = computed(() => {
     },
   });
   actions.push({
-    label: "Add description",
+    label: "Add text",
     icon: Bars3Icon,
-    disabled: showDescription.value,
+    disabled: showText.value,
     action: () => {
       unfoldIfFolded();
-      addingDescription.value = true;
-      nextTick(() => descriptionRef.value?.focus());
+      addingText.value = true;
+      nextTick(() => textRef.value?.focus());
     },
   });
   actions.push({
@@ -762,7 +762,7 @@ defineExpose({
   },
   blur: () => {
     declarationRef.value?.blur();
-    descriptionRef.value?.blur();
+    textRef.value?.blur();
     addRecordRef.value?.blur();
     grid.blur();
   },
@@ -777,7 +777,7 @@ defineExpose({
     <div class="flex max-w-full flex-row items-center">
       <TypedDeclarationCell
         ref="declarationRef"
-        @navigate-down="focusDescriptionFromTop"
+        @navigate-down="focusTextFromTop"
         @navigate-up="context.navigateUp"
         @add-base="createUnionField"
       />
@@ -851,13 +851,13 @@ defineExpose({
       <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
     </template>
   </button>
-  <!-- Description -->
+  <!-- Text -->
   <EditableSpan
     v-if="!folded"
-    ref="descriptionRef"
-    :class="[addingDescription ? '' : 'h-0', 'text-gray-900']"
+    ref="textRef"
+    :class="[addingText ? '' : 'h-0', 'text-gray-900']"
     regex="name"
-    v-model="description"
+    v-model="text"
     :readonly="context.readonly.value"
     @navigate-left="declarationRef?.focus()"
     @navigate-up="declarationRef?.focus()"
@@ -866,11 +866,11 @@ defineExpose({
   />
   <button
     tabindex="-1"
-    v-if="!folded && description.length == 0 && !context.readonly.value && addingDescription"
-    @click="descriptionRef?.focus()"
+    v-if="!folded && text.length == 0 && !context.readonly.value && addingText"
+    @click="textRef?.focus()"
     class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
   >
-    Add description
+    Add text
   </button>
   <!-- Sorts/filters -->
   <div

@@ -26,7 +26,7 @@ const resolvedReference = computed(() => {
 const nav = useNavigation();
 const altState = useKeyModifier("Alt");
 
-const resolvedTag = computed(() => resolvedReference.value?.rootTypeTag ?? props.type.tag);
+const resolvedTag = computed(() => resolvedReference.value?.tag ?? props.type.tag);
 
 const icon = computed(() => {
   if (

@@ -168,7 +168,7 @@ type Field implements HasCrud & ModuleNode & Node {
   tag: TypeTag!
   hint: TypeHint
   flags: Int!
-  description: String
+  text: String
   referenceCk: UUID
   metadata: JSON
 }
@@ -182,7 +182,7 @@ input FieldCreateInput {
   name: String = null
   tag: TypeTag!
   hint: TypeHint = null
-  description: String = null
+  text: String = null
   flags: Int! = 0
   referenceCk: UUID = null
   metadata: JSON = null
@@ -214,20 +214,20 @@ input FieldRestoreInput {
   id: GlobalID!
 }
 
-input FieldUpdateDescriptionInput {
-  id: GlobalID!
-  description: String = null
-}
-
 input FieldUpdateInput {
   id: GlobalID!
   name: String = null
   tag: TypeTag!
   hint: TypeHint = null
-  description: String = null
+  text: String = null
   flags: Int! = 0
   referenceCk: UUID = null
   metadata: JSON = null
+}
+
+input FieldUpdateTextInput {
+  id: GlobalID!
+  text: String = null
 }
 
 input FieldUpdateTypeInput {
@@ -437,9 +437,11 @@ enum ModuleMutationType {
   MORPH_STATEMENT
   MOVE_STATEMENT
   RENAME_STATEMENT
+  UPDATE_STATEMENT_FLAGS
   UPDATE_STATEMENT_TEXT
+  UPDATE_STATEMENT_HEADING_LEVEL
   UPDATE_STATEMENT_REFERENCE
-  UPDATE_SYMBOL_DESCRIPTION
+  UPDATE_SYMBOL_text
   UPDATE_SYMBOL_CODE
   UPDATE_SYMBOL_MODIFIER
   UPDATE_SYMBOL_LANGUAGE
@@ -463,7 +465,7 @@ enum ModuleMutationType {
   UPDATE_FIELD
   DELETE_FIELD
   RENAME_FIELD
-  UPDATE_FIELD_DESCRIPTION
+  UPDATE_FIELD_TEXT
   UPDATE_FIELD_TYPE
   UPDATE_FIELD_METADATA
   MOVE_FIELD
@@ -531,14 +533,14 @@ type Mutation {
   batchMoveStatement(input: StatementBatchMoveInput!): StatementBatchOperationInfo!
   batchPasteStatement(input: StatementBatchPasteInput!): StatementBatchOperationInfo!
   updateStatementText(input: StatementUpdateTextInput!): StatementOperationInfo!
+  updateStatementHeadingLevel(input: StatementUpdateHeadingLevelInput!): StatementOperationInfo!
   updateStatementReference(input: StatementUpdateReferenceInput!): StatementOperationInfo!
-  updateSymbolDescription(input: SymbolUpdateDescriptionInput!): StatementOperationInfo!
   updateSymbolCode(input: SymbolUpdateCodeInput!): StatementOperationInfo!
   updateSymbolValue(input: SymbolUpdateValueInput!): StatementOperationInfo!
   createField(input: FieldCreateInput!): FieldOperationInfo!
   updateField(input: FieldUpdateInput!): FieldOperationInfo!
   updateFieldName(input: FieldRenameInput!): FieldOperationInfo!
-  updateFieldDescription(input: FieldUpdateDescriptionInput!): FieldOperationInfo!
+  updateFieldText(input: FieldUpdateTextInput!): FieldOperationInfo!
   updateFieldType(input: FieldUpdateTypeInput!): FieldOperationInfo!
   moveField(input: FieldMoveInput!): FieldOperationInfo!
   softDeleteField(input: FieldDeleteInput!): FieldOperationInfo!
@@ -1579,17 +1581,16 @@ type Statement implements HasCrud & ModuleNode & Node {
   name: String
   key: String
   orderKey: String!
+  headingLevel: Int
+  code: String
   text: String
+  value: JSON
   referenceCk: UUID
-  rootTypeTag: TypeTag
-  rootTypeFlags: Int
+  tag: TypeTag
+  flags: Int
   tags(filters: TaggingFilter): [Tagging!]!
   triggers(filters: TriggerFilter): [Trigger!]!
   fields(filters: FieldFilter): [Field!]!
-  lang: String
-  code: String
-  description: String
-  value: JSON
   issues: [Issue!]
   resolvedFields: [ResolvedField!]
 }
@@ -1632,13 +1633,11 @@ input StatementCreateInput {
   type: StatementType!
   parentId: GlobalID = null
   name: String = null
-  rootTypeTag: TypeTag = null
-  rootTypeFlags: Int = null
-  description: String = null
-  lang: String = null
+  tag: TypeTag = null
+  flags: Int = null
+  text: String = null
   key: String = null
   referenceCk: UUID = null
-  text: String = null
   code: String = null
   value: JSON = null
 }
@@ -1657,9 +1656,8 @@ input StatementMorphInput {
   id: GlobalID!
   type: StatementType!
   name: String = null
-  rootTypeTag: TypeTag = null
-  rootTypeFlags: Int = null
-  lang: String = null
+  tag: TypeTag = null
+  flags: Int = null
 }
 
 input StatementMoveInput {
@@ -1690,14 +1688,17 @@ enum StatementType {
   BLANK
   TYPE
   TASK
-  EXPECTATION
   CODE
   FLOW
   MODEL
-  VALUE
+  VARIABLE
   DATASET
   REFERENCE
-  GROUP
+}
+
+input StatementUpdateHeadingLevelInput {
+  id: GlobalID!
+  headingLevel: Int = null
 }
 
 input StatementUpdateInput {
@@ -1705,13 +1706,11 @@ input StatementUpdateInput {
   orderKey: String = null
   type: StatementType = null
   name: String = null
-  rootTypeTag: TypeTag = null
-  rootTypeFlags: Int = null
-  description: String = null
-  lang: String = null
+  tag: TypeTag = null
+  flags: Int = null
+  text: String = null
   key: String = null
   referenceCk: UUID = null
-  text: String = null
   code: String = null
   value: JSON = null
 }
@@ -1737,11 +1736,6 @@ type Subscription {
 input SymbolUpdateCodeInput {
   id: GlobalID!
   code: String = null
-}
-
-input SymbolUpdateDescriptionInput {
-  id: GlobalID!
-  description: String!
 }
 
 input SymbolUpdateValueInput {

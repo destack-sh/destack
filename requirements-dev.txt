@@ -4,7 +4,7 @@
 #
 #    pip-compile --output-file=requirements-dev.txt requirements-dev.in requirements.in
 #
-aiohttp==3.8.3
+aiohttp==3.8.5
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -24,7 +24,7 @@ anthropic==0.2.9
     # via
     #   -c requirements.txt
     #   -r requirements.in
-anyio==3.7.1
+anyio==4.0.0
     # via
     #   -c requirements.txt
     #   httpcore
@@ -40,6 +40,7 @@ async-timeout==4.0.3
     # via
     #   -c requirements.txt
     #   aiohttp
+    #   redis
 attrs==23.1.0
     # via
     #   -c requirements.txt
@@ -77,7 +78,7 @@ brotli==1.0.9
     # via
     #   -c requirements.txt
     #   -r requirements.in
-build==0.10.0
+build==1.0.0
     # via pip-tools
 cachetools==5.2.0
     # via
@@ -105,12 +106,12 @@ channels==4.0.0
     #   -c requirements.txt
     #   -r requirements.in
     #   strawberry-graphql
-charset-normalizer==2.1.1
+charset-normalizer==3.2.0
     # via
     #   -c requirements.txt
     #   aiohttp
     #   requests
-click==8.1.6
+click==8.1.7
     # via
     #   -c requirements.txt
     #   black
@@ -159,7 +160,7 @@ dj-database-url==1.0.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
-django==4.2.1
+django==4.2.3
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -261,7 +262,7 @@ drf-spectacular==0.24.2
     #   -r requirements.in
 execnet==2.0.2
     # via pytest-xdist
-filelock==3.12.2
+filelock==3.12.3
     # via virtualenv
 flake8==6.1.0
     # via -r requirements-dev.in
@@ -306,7 +307,7 @@ hyperlink==21.0.0
     #   -c requirements.txt
     #   autobahn
     #   twisted
-identify==2.5.26
+identify==2.5.27
     # via pre-commit
 idna==3.4
     # via
@@ -406,7 +407,7 @@ multidict==6.0.4
     #   -c requirements.txt
     #   aiohttp
     #   yarl
-mypy==1.5.0
+mypy==1.5.1
     # via
     #   -c requirements.txt
     #   -r requirements-dev.in
@@ -477,7 +478,7 @@ platformdirs==3.10.0
     # via
     #   black
     #   virtualenv
-pluggy==1.2.0
+pluggy==1.3.0
     # via pytest
 posthog==3.0.1
     # via
@@ -579,7 +580,7 @@ pyyaml==6.0.1
     #   kubernetes-asyncio
     #   libcst
     #   pre-commit
-redis[hiredis]==4.5.3
+redis[hiredis]==4.5.4
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -608,7 +609,7 @@ rich==13.5.2
     # via
     #   -c requirements.txt
     #   strawberry-graphql
-rpds-py==0.9.2
+rpds-py==0.10.0
     # via
     #   -c requirements.txt
     #   jsonschema
@@ -619,7 +620,7 @@ rsa==4.9
     #   google-auth
 ruff==0.0.284
     # via -r requirements-dev.in
-s3transfer==0.6.1
+s3transfer==0.6.2
     # via
     #   -c requirements.txt
     #   boto3
@@ -659,7 +660,7 @@ sqlparse==0.4.4
     # via
     #   -c requirements.txt
     #   django
-starlette==0.31.0
+starlette==0.31.1
     # via
     #   -c requirements.txt
     #   strawberry-graphql
@@ -684,7 +685,7 @@ tqdm==4.66.1
     # via
     #   -c requirements.txt
     #   openai
-twisted[tls]==22.10.0
+twisted[tls]==23.8.0
     # via
     #   -c requirements.txt
     #   daphne
@@ -698,7 +699,7 @@ typer==0.9.0
     #   strawberry-graphql
 types-dj-database-url==1.0.0
     # via -r requirements-dev.in
-types-docutils==0.20.0.2
+types-docutils==0.20.0.3
     # via types-pygments
 types-psycopg2==2.9.21.2
     # via -r requirements-dev.in
@@ -715,7 +716,7 @@ types-pyyaml==6.0.12.11
     #   djangorestframework-stubs
 types-requests==2.31.0.2
     # via djangorestframework-stubs
-types-setuptools==68.0.0.3
+types-setuptools==68.1.0.1
     # via types-pygments
 types-urllib3==1.26.25.14
     # via types-requests
@@ -757,13 +758,13 @@ uvicorn==0.23.2
     #   -c requirements.txt
     #   -r requirements.in
     #   strawberry-graphql
-virtualenv==20.24.3
+virtualenv==20.24.4
     # via pre-commit
-websocket-client==1.6.1
+websocket-client==1.6.2
     # via
     #   -c requirements.txt
     #   kubernetes
-wheel==0.41.1
+wheel==0.41.2
     # via pip-tools
 wrapt==1.15.0
     # via

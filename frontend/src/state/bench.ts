@@ -80,7 +80,18 @@ export type FileHeader = Pick<
 >;
 export type StatementHeader = Pick<
   Statement,
-  "__typename" | "id" | "ck" | "type" | "name" | "createdAt" | "updatedAt" | "deletedAt" | "orderKey" | "parent"
+  | "__typename"
+  | "id"
+  | "ck"
+  | "type"
+  | "name"
+  | "text"
+  | "headingLevel"
+  | "createdAt"
+  | "updatedAt"
+  | "deletedAt"
+  | "orderKey"
+  | "parent"
 >;
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";

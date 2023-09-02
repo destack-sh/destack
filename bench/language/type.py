@@ -13,6 +13,7 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
+from bench.language.basic import HasText
 from bench.language.const import (
     FieldReferenceMask,
     RemoteObjectStatus,
@@ -184,7 +185,7 @@ class TypeBase(abc.ABC):
     tag: TypeTag
     hint: Optional[TypeHint]
     flags: TypeFlag
-    description: Optional[str]
+    text: Optional[str]
     fields: list["TypeBase"]
     resolved_fields: list["TypeBase"]  # resolved fields with unions and such
     reference: Union[None, StatementReference, "HasType"]
@@ -284,15 +285,14 @@ def new_field_key(ck: UUID) -> str:
     return key
 
 
-@node(tracked=["name", "description", "tag", "hint", "flags", "metadata"])
-class Field(ModuleNode, HasCrud, HasSession, TypeBase, FieldQueryOps):
+@node(tracked=["name", "tag", "hint", "flags", "metadata"])
+class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
     parent: Statement | None = None
     name: Optional[str] = None
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
     key: str = field(default=None)
-    description: Optional[str] = None
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
     reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
@@ -577,7 +577,7 @@ from bench.language.tag import HasTags  # noqa
 
 @node
 class Type(HasType, HasTags, Statement):
-    description: Optional[str] = None
+    text: Optional[str] = None
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types

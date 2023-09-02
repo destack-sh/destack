@@ -37,11 +37,11 @@ const popoverPin = pinAbsoluteElement(
 const selectingReference = ref(false);
 const query = ref("");
 const resolvedReference = computed(() => module.statementOf(context.statement.value.referenceCk));
-const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
+const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.tag));
 const referenceIcon = computed(() =>
   resolvedReference.value == null
     ? null
-    : getStatementIconSolid(resolvedReference.value?.type, resolvedReference.value?.rootTypeTag)
+    : getStatementIconSolid(resolvedReference.value?.type, resolvedReference.value?.tag)
 );
 
 onStartTyping(() => {
@@ -199,7 +199,7 @@ defineExpose({
                 <div class="flex items-baseline justify-between">
                   <span class="flex flex-row items-center">
                     <component
-                      :is="getStatementIconSolid(reference.type, reference.rootTypeTag)"
+                      :is="getStatementIconSolid(reference.type, reference.tag)"
                       class="h-4 w-4 text-orange-600"
                     />
                     <span class="ml-1 font-semibold text-orange-600">{{ reference.name }}</span>

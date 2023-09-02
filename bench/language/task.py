@@ -4,11 +4,11 @@ import itertools
 import random
 from typing import Collection, Optional, Self
 
-from bench.language.basic import Blank, Expectation, Text
+from bench.language.basic import Blank, HasText, Text
 from bench.language.code_ import Code
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import ModuleVisitor, Scope, Statement, node
-from bench.language.dataset import Dataset, Value
+from bench.language.dataset import Dataset, Variable
 from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.issue import IssueType
 from bench.language.model import Model
@@ -61,9 +61,8 @@ class TaskMetadata:
     retries: Optional[int]
 
 
-@node(tracked=["description"])
-class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
-    description: Optional[str] = None
+@node(tracked=["text"])
+class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
     _is_async: bool = True
@@ -88,7 +87,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, Runnable, Statement):
         # check that all children can be interpreted
         for child in self.resolved_children:
             statement = child.statement
-            if isinstance(statement, (IsFlowNode, Expectation, Text, Blank)):
+            if isinstance(statement, (IsFlowNode, Text, Blank)):
                 continue
             elif isinstance(statement, Runnable) and child.has_tag(tool_tag):
                 continue
@@ -247,9 +246,7 @@ class TaskRunner(abc.ABC):
         # TODO @Instruction @Broken: handle instruction tags through proxies (e.g. a referenced type)
         for child in self.task.resolved_children:
             statement = child.statement
-            if isinstance(statement, Expectation):
-                compiler.add_expectation(statement)
-            elif child.has_tag(tool_tag):
+            if child.has_tag(tool_tag):
                 compiler.add_tool(statement)
             elif child.has_tag(consider_tag):
                 compiler.add_consideration(statement)
@@ -303,14 +300,14 @@ class TaskRunner(abc.ABC):
 
 
 class TaskCompiler(abc.ABC):
+    # nocheckin: update task compiler
     def __init__(self, task: Task, inputs: dict | list[dict], is_batched: bool):
         self.task = task
         self.inputs = inputs
         self.is_batched = is_batched
         self.steps: list[Task] = []
-        self.considerations: list[Value | Dataset] = []
+        self.considerations: list[Variable | Dataset] = []
         self.tools_by_py_ident: dict[str, Task | Code | Model] = {}
-        self.expectations: list[Expectation] = []
 
     @property
     def tools(self) -> Collection[Task | Code | Model]:
@@ -322,10 +319,7 @@ class TaskCompiler(abc.ABC):
     def add_tool(self, function: Task | Code | Model) -> None:
         self.tools_by_py_ident[function.py_ident] = function
 
-    def add_expectation(self, expectation: Expectation) -> None:
-        self.expectations.append(expectation)
-
-    def add_consideration(self, consideration: Value | Dataset) -> None:
+    def add_consideration(self, consideration: Variable | Dataset) -> None:
         self.considerations.append(consideration)
 
     async def run(self, model: Model, runner: TaskRunner) -> dict | TaskError:

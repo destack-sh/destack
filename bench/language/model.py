@@ -35,7 +35,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 @node
 class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
     external_name: typing.Optional[str] = None
-    description: typing.Optional[str] = None
+    text: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.MODEL
     _is_async: bool = True

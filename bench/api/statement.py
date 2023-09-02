@@ -99,7 +99,7 @@ class Field(HasCrud, ModuleNode, Revisioned, relay.Node):
     tag: TypeTag
     hint: Optional[TypeHint]
     flags: int
-    description: auto
+    text: auto
     reference_ck: auto
     metadata: auto
 
@@ -114,18 +114,16 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     name: auto
     key: auto
     order_key: auto
+    heading_level: Optional[int]
+    code: auto
     text: auto
-    # symbol contents
+    value: auto
     reference_ck: auto
-    root_type_tag: Optional[TypeTag]
-    root_type_flags: Optional[int]
+    tag: Optional[TypeTag]
+    flags: Optional[int]
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
     triggers: list[Trigger] = strawberry_django.field(filters=TriggerFilter)
     fields: list[Field] = strawberry_django.field(filters=FieldFilter)
-    lang: auto
-    code: auto
-    description: auto
-    value: auto
     # interp
     issues: Optional[list[Issue]] = strawberry_django.field()
     resolved_fields: Optional[list[ResolvedField]] = strawberry_django.field()
@@ -142,13 +140,11 @@ class StatementCreateInput:
     type: StatementType
     parent_id: Optional[GlobalID] = None
     name: Optional[str] = None
-    root_type_tag: Optional[TypeTag] = None
-    root_type_flags: Optional[int] = None
-    description: Optional[str] = None
-    lang: Optional[str] = None
+    tag: Optional[TypeTag] = None
+    flags: Optional[int] = None
+    text: Optional[str] = None
     key: Optional[str] = None
     reference_ck: Optional[UUID] = None
-    text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
 
@@ -161,13 +157,11 @@ class StatementUpdateInput(strawberry_django.NodeInput):
     order_key: Optional[str] = None
     type: Optional[StatementType] = None
     name: Optional[str] = None
-    root_type_tag: Optional[TypeTag] = None
-    root_type_flags: Optional[int] = None
-    description: Optional[str] = None
-    lang: Optional[str] = None
+    tag: Optional[TypeTag] = None
+    flags: Optional[int] = None
+    text: Optional[str] = None
     key: Optional[str] = None
     reference_ck: Optional[UUID] = None
-    text: Optional[str] = None
     code: Optional[str] = None
     value: Optional[JSON] = None
 
@@ -181,9 +175,8 @@ class StatementDeleteInput(strawberry_django.NodeInput):
 class StatementMorphInput(strawberry_django.NodeInput):
     type: StatementType
     name: Optional[str] = None
-    root_type_tag: Optional[TypeTag] = None
-    root_type_flags: Optional[int] = None
-    lang: Optional[str] = None
+    tag: Optional[TypeTag] = None
+    flags: Optional[int] = None
 
 
 @strawberry_django.partial(models.Statement)
@@ -284,14 +277,12 @@ class StatementMutation:
             name=input.name,
             parent_statement=parent_statement,
             order_key=input.order_key,
-            root_type_tag=input.root_type_tag,
-            root_type_flags=input.root_type_flags,
-            description=input.description,
+            tag=input.tag,
+            flags=input.flags,
+            text=input.text,
             key=input.key,
             reference_ck=input.reference_ck,
-            lang=input.lang,
             code=input.code,
-            text=input.text,
             value=input.value,
         )
         return statement
@@ -305,9 +296,8 @@ class StatementMutation:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
         statement.name = input.name
-        statement.root_type_tag = input.root_type_tag
-        statement.root_type_flags = input.root_type_flags
-        statement.lang = input.lang
+        statement.tag = input.tag
+        statement.flags = input.flags
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)
@@ -476,8 +466,13 @@ class StatementUpdateTextInput(strawberry_django.NodeInput):
 
 
 @strawberry.input
-class SymbolUpdateDescriptionInput(strawberry_django.NodeInput):
-    description: str
+class StatementUpdateHeadingLevelInput(strawberry_django.NodeInput):
+    heading_level: Optional[int] = None
+
+
+@strawberry.input
+class SymbolUpdateTextInput(strawberry_django.NodeInput):
+    text: str
 
 
 @strawberry.input
@@ -488,11 +483,6 @@ class StatementUpdateReferenceInput(strawberry_django.NodeInput):
 @strawberry.input
 class SymbolUpdateCodeInput(strawberry_django.NodeInput):
     code: Optional[str] = None
-
-
-@strawberry.input
-class StatementUpdateLanguageInput(strawberry_django.NodeInput):
-    language: str
 
 
 @strawberry.input
@@ -584,7 +574,7 @@ class FieldCreateInput:
     name: Optional[str] = None
     tag: TypeTag
     hint: Optional[TypeHint] = None
-    description: Optional[str] = None
+    text: Optional[str] = None
     flags: int = 0
     reference_ck: Optional[UUID] = None
     metadata: Optional[JSON] = None
@@ -595,7 +585,7 @@ class FieldUpdateInput(strawberry_django.NodeInput):
     name: Optional[str] = None
     tag: TypeTag
     hint: Optional[TypeHint] = None
-    description: Optional[str] = None
+    text: Optional[str] = None
     flags: int = 0
     reference_ck: Optional[UUID] = None
     metadata: Optional[JSON] = None
@@ -607,8 +597,8 @@ class FieldRenameInput(strawberry_django.NodeInput):
 
 
 @strawberry.input
-class FieldUpdateDescriptionInput(strawberry_django.NodeInput):
-    description: Optional[str] = None
+class FieldUpdateTextInput(strawberry_django.NodeInput):
+    text: Optional[str] = None
 
 
 @strawberry.input
@@ -642,20 +632,20 @@ class SymbolMutation:
         statement.text = input.text
         return statement
 
+    @tracked_db_mutation(MMT.UPDATE_STATEMENT_HEADING_LEVEL)
+    def update_statement_heading_level(
+        self, input: StatementUpdateHeadingLevelInput
+    ) -> Statement | OperationInfo:
+        statement = models.Statement.objects.get(id=input.id.node_id)
+        statement.heading_level = input.heading_level
+        return statement
+
     @tracked_db_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
     def update_statement_reference(
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.reference_ck = input.reference_ck
-        return statement
-
-    @tracked_db_mutation(MMT.UPDATE_SYMBOL_DESCRIPTION)
-    def update_symbol_description(
-        self, input: SymbolUpdateDescriptionInput
-    ) -> Statement | OperationInfo:
-        statement = models.Statement.objects.get(id=input.id.node_id)
-        statement.description = input.description
         return statement
 
     @tracked_db_mutation(MMT.UPDATE_SYMBOL_CODE)
@@ -679,7 +669,7 @@ class SymbolMutation:
             key=input.key,
             order_key=input.order_key,
             name=input.name,
-            description=input.description,
+            text=input.text,
             tag=input.tag,
             hint=input.hint,
             flags=input.flags,
@@ -692,7 +682,7 @@ class SymbolMutation:
     def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
-        field.description = input.description
+        field.text = input.text
         field.tag = input.tag
         field.hint = input.hint
         field.flags = input.flags
@@ -706,10 +696,10 @@ class SymbolMutation:
         field.name = input.name
         return field
 
-    @tracked_db_mutation(MMT.UPDATE_FIELD_DESCRIPTION)
-    def update_field_description(self, input: FieldUpdateDescriptionInput) -> Field | OperationInfo:
+    @tracked_db_mutation(MMT.UPDATE_FIELD_TEXT)
+    def update_field_text(self, input: FieldUpdateTextInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
-        field.description = input.description
+        field.text = input.text
         return field
 
     @tracked_db_mutation(MMT.UPDATE_FIELD_TYPE)

@@ -41,7 +41,7 @@ if TYPE_CHECKING:
         Tagging,
         Task,
         Trigger,
-        Value,
+        Variable,
     )
 
 logger = structlog.get_logger(__name__)
@@ -63,7 +63,7 @@ class Tracer:
     def field_append(self, symbol: HasType, field: Field):
         pass
 
-    def value_update(self, value: Value, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         pass
 
     def dataset_clear(self, dataset: Dataset):
@@ -280,7 +280,7 @@ class SessionTracer(Tracer):
         self._flush_cancel.set()
         await self._flush(force=True)  # flush pending data
 
-    def value_update(self, value: Value, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         for tracer in self.tracers:
             tracer.value_update(value, key)
 
@@ -497,7 +497,7 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def value_update(self, value: Value, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(value), properties=["value"])
@@ -520,7 +520,9 @@ class MutationTracer(Tracer):
 
         self.mutator.delete(wire.pack_node_flat(record))
 
-    def dataset_update(self, dataset: Dataset | Value, record: Record, key: Optional[str] = None):
+    def dataset_update(
+        self, dataset: Dataset | Variable, record: Record, key: Optional[str] = None
+    ):
         from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(record))
@@ -535,7 +537,7 @@ class TypeCheckingTracer(Tracer):
     def run_exit(self, statement: Runnable, result):
         check_type(result, statement, is_output=True)
 
-    def value_update(self, value: Value, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         check_type(value.value, value)
 
     def dataset_append(self, dataset: Dataset, record: Record):
@@ -567,7 +569,7 @@ class PermissionCheckingTracer(Tracer):
     def symbol_create(self, symbol: Statement):
         self.session.check_can(ModuleOp.CREATE, symbol)
 
-    def value_update(self, value: Value, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
     def dataset_clear(self, dataset: Dataset):

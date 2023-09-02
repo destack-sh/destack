@@ -4,7 +4,7 @@
 #
 #    pip-compile requirements.in
 #
-aiohttp==3.8.3
+aiohttp==3.8.5
     # via
     #   -r requirements.in
     #   anthropic
@@ -17,7 +17,7 @@ aiostream==0.4.5
     # via -r requirements.in
 anthropic==0.2.9
     # via -r requirements.in
-anyio==3.7.1
+anyio==4.0.0
     # via
     #   httpcore
     #   starlette
@@ -28,7 +28,9 @@ asgiref==3.7.2
     #   django
     #   strawberry-graphql
 async-timeout==4.0.3
-    # via aiohttp
+    # via
+    #   aiohttp
+    #   redis
 attrs==23.1.0
     # via
     #   aiohttp
@@ -71,11 +73,11 @@ channels==4.0.0
     # via
     #   -r requirements.in
     #   strawberry-graphql
-charset-normalizer==2.1.1
+charset-normalizer==3.2.0
     # via
     #   aiohttp
     #   requests
-click==8.1.6
+click==8.1.7
     # via
     #   typer
     #   uvicorn
@@ -103,7 +105,7 @@ deprecated==1.2.14
     # via opentelemetry-api
 dj-database-url==1.0.0
     # via -r requirements.in
-django==4.2.1
+django==4.2.3
     # via
     #   -r requirements.in
     #   channels
@@ -242,7 +244,7 @@ multidict==6.0.4
     # via
     #   aiohttp
     #   yarl
-mypy==1.5.0
+mypy==1.5.1
     # via django-stubs
 mypy-extensions==1.0.0
     # via
@@ -327,7 +329,7 @@ pyyaml==6.0.1
     #   kubernetes
     #   kubernetes-asyncio
     #   libcst
-redis[hiredis]==4.5.3
+redis[hiredis]==4.5.4
     # via -r requirements.in
 referencing==0.30.2
     # via
@@ -348,13 +350,13 @@ requests-oauthlib==1.3.1
     #   social-auth-core
 rich==13.5.2
     # via strawberry-graphql
-rpds-py==0.9.2
+rpds-py==0.10.0
     # via
     #   jsonschema
     #   referencing
 rsa==4.9
     # via google-auth
-s3transfer==0.6.1
+s3transfer==0.6.2
     # via boto3
 sentry-sdk[django]==1.18.0
     # via -r requirements.in
@@ -380,7 +382,7 @@ social-auth-core==4.4.2
     # via social-auth-app-django
 sqlparse==0.4.4
     # via django
-starlette==0.31.0
+starlette==0.31.1
     # via strawberry-graphql
 strawberry-graphql[channels,debug-server,opentelemetry]==0.204.0
     # via
@@ -394,7 +396,7 @@ tokenizers==0.13.3
     # via anthropic
 tqdm==4.66.1
     # via openai
-twisted[tls]==22.10.0
+twisted[tls]==23.8.0
     # via daphne
 txaio==23.1.1
     # via autobahn
@@ -435,7 +437,7 @@ uvicorn==0.23.2
     # via
     #   -r requirements.in
     #   strawberry-graphql
-websocket-client==1.6.1
+websocket-client==1.6.2
     # via kubernetes
 wrapt==1.15.0
     # via deprecated

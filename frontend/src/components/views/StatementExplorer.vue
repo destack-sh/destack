@@ -80,7 +80,7 @@ defineExpose({
       :key="ordered.id"
       :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref as HTMLElement)"
       tabindex="-1"
-      class="flex flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
+      class="flex max-w-full flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
         'text-orange-600': ordered.ck == bench?.focusedStatementCk,
         'text-gray-700 hover:bg-orange-100': ordered.ck != bench?.focusedStatementCk,
@@ -94,14 +94,26 @@ defineExpose({
       @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
       @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
     >
-      <span class="text rounded-sm font-mono">
+      <!-- Hide icon for text headings -->
+      <span
+        class="text rounded-sm font-mono"
+        v-if="!(ordered.statement.type == StatementType.Text && ordered.statement.headingLevel != null)"
+      >
         <component
-          :is="getStatementIconSolid(ordered.statement.type, ordered.statement.rootTypeTag)"
+          :is="getStatementIconSolid(ordered.statement.type, ordered.statement.tag)"
           class="mt-0.5 h-4 w-4"
           :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
-      <span class="">{{ getStatementName(ordered.statement as any) }}</span>
+      <!-- Show text for unnamed statements -->
+      <span
+        v-if="(ordered.statement.name ?? '').length == 0 && ordered.statement.text != null"
+        class="truncate text-gray-400"
+      >
+        {{ ordered.statement.text }}
+      </span>
+      <!-- Default to proper name -->
+      <span class="truncate">{{ getStatementName(ordered.statement) }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

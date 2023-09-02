@@ -26,7 +26,7 @@ context.syncName(
   computed(() => nameRef.value?.focused)
 );
 const hasName = computed(() => name.value.trim().length > 0);
-const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.rootTypeTag));
+const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.tag));
 
 const canOpenInStandaloneEditor = computed(
   () => !context.standalone.value && STATEMENT_STANDALONE_TYPES.includes(context.statement.value.type)
@@ -59,9 +59,9 @@ defineExpose({
         class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 py-0.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover/icon:opacity-100"
       >
         <span class="font-semibold">
-          {{ getStatementLabel(context.statement.value.type, context.statement.value.rootTypeTag) }}</span
+          {{ getStatementLabel(context.statement.value.type, context.statement.value.tag) }}</span
         >:
-        {{ getStatementDescription(context.statement.value.type, context.statement.value.rootTypeTag) }}
+        {{ getStatementDescription(context.statement.value.type, context.statement.value.tag) }}
       </span>
     </span>
     <!-- Alt click to open in full -->

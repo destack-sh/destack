@@ -862,10 +862,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             if statement.type == StatementType.REFERENCE:
                 if isinstance(statement.reference, Statement):
                     resolved_children.append(ResolvedStatement(statement.reference, statement.tags))
-            elif statement.type == StatementType.GROUP:
-                resolved_children.extend(
-                    ResolvedStatement(s, statement.tags) for s in statement.children
-                )
             else:
                 resolved_children.append(ResolvedStatement(statement))
         self.resolved_children = resolved_children

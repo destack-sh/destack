@@ -1,8 +1,8 @@
-from .basic import Blank, Expectation, Group, Reference, Text
+from .basic import Blank, HasText, Reference, Text
 from .code_ import Code
 from .const import DatasetViewLayout, ScheduleType, StatementType, TriggerType, TypeHint, TypeTag
 from .core import File, Module, Scope, Session, Statement
-from .dataset import Dataset, DatasetView, Record, Value
+from .dataset import Dataset, DatasetView, Record, Variable
 from .flow import Flow, HasFlow, Trigger
 from .issue import Issue, IssueType
 from .model import Model
@@ -17,18 +17,17 @@ from .utils import Runnable
 __all__ = [
     "Aggregation",
     "Blank",
-    "Group",
     "Code",
     "Dataset",
     "DatasetView",
     "DatasetViewLayout",
-    "Expectation",
     "Field",
     "File",
     "Flow",
     "HasFlow",
     "HasTags",
     "HasType",
+    "HasText",
     "Issue",
     "IssueType",
     "LogEntry",
@@ -65,5 +64,5 @@ __all__ = [
     "TypeHint",
     "TypeStorageFormat",
     "TypeTag",
-    "Value",
+    "Variable",
 ]

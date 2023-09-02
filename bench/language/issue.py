@@ -31,7 +31,7 @@ class IssueType(enum.StrEnum):
     UNCLEAR_INTENT = "UNCLEAR_INTENT"
 
     @property
-    def description(self):
+    def text(self):
         return _ISSUE_MESSAGES[self.value]
 
 
@@ -100,9 +100,9 @@ class Issue:
         elif isinstance(subject, (Statement, Statement)):
             self.subject = subject
 
-        if "subject" in type.description:
+        if "subject" in type.text:
             kwargs["subject"] = self.subject
-        self.message = type.description.format(**kwargs)
+        self.message = type.text.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[type]
         # generate id if not provided
         if "id" not in kwargs:

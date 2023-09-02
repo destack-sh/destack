@@ -12,8 +12,7 @@ from typing import Any, Optional
 import anthropic
 import openai
 
-from bench.language import Dataset, Tag, Value
-from bench.language.basic import Expectation
+from bench.language import Dataset, Tag, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
@@ -124,7 +123,7 @@ class JsonSchemaElementType(enum.StrEnum):
 class JsonSchemaElement:
     name: Optional[str]
     type: JsonSchemaElementType
-    description: Optional[str] = None
+    text: Optional[str] = None
     properties: Optional[list["JsonSchemaElement"]] = None
     items: Optional["JsonSchemaElement"] = None
     enum: Optional[list[str]] = None
@@ -146,7 +145,7 @@ class JsonSchemaElement:
         return dict(
             name=self.name,
             type=self.type,
-            description=self.description,
+            text=self.text,
             properties=properties,
             items=items,
             enum=self.enum,
@@ -175,7 +174,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.array,
-            description=type.description,
+            text=type.text,
             items=element_type,
         )
     elif type.flags & TypeFlag.IsArrayable:
@@ -184,7 +183,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=None,
             type=JsonSchemaElementType.object,
-            description=type.description,
+            text=type.text,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
@@ -194,7 +193,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.object,
-            description=type.description,
+            text=type.text,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
@@ -204,14 +203,14 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.string,
-            description=type.description,
+            text=type.text,
             enum=[value.name for value in fields],
         )
     elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
         return JsonSchemaElement(
             name=type.py_ident,
             type=_PARAM_TYPE_BY_TAG[type.effective_tag],
-            description=type.description,
+            text=type.text,
         )
     else:
         raise IncapableError(f"unsupported type {type}")
@@ -245,13 +244,13 @@ class OpenAIChatRole(enum.StrEnum):
 @x_struct("OpenAIFunction", "Function in OpenAI chat models", file=_openai_chat)
 class OpenAIFunction:
     name: Key
-    description: Optional[str]
+    text: Optional[str]
     parameters: "JsonSchemaElement"
 
     def to_dict(self) -> dict[str, Any]:  # :ToDict
         return dict(
             name=self.name,
-            description=self.description,
+            text=self.text,
             parameters=JsonSchemaElement.to_dict(self.parameters),
         )
 
@@ -392,7 +391,7 @@ class OpenAIChatCompiler(TaskCompiler):
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
-        description="Error if no reasonable termination is possible given the instructions."
+        text="Error if no reasonable termination is possible given the instructions."
         " Strongly prefer calling 'terminate' with the relevant error info instead.",
         parameters=JsonSchemaElement(
             name=None,  # not needed for root object
@@ -401,7 +400,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 JsonSchemaElement(
                     name="reason",
                     type=JsonSchemaElementType.string,
-                    description="The reason of incapability",
+                    text="The reason of incapability",
                     properties=None,
                     enum=None,
                 )
@@ -420,29 +419,23 @@ class OpenAIChatCompiler(TaskCompiler):
     def _compile_tool(self, tool: Code | Task | Model) -> OpenAIFunction:
         return OpenAIFunction(
             name=tool.py_ident,
-            description=tool.description,
+            text=tool.text,
             parameters=_type_to_json_schema(tool, is_output=False),
         )
 
     def _compile_terminate_function(self) -> OpenAIFunction:
         return OpenAIFunction(
             name="terminate",
-            description="Complete the task with an answer (if any).",
+            text="Complete the task with an answer (if any).",
             parameters=_type_to_json_schema(self.task, is_output=True),
         )
 
-    def _compile_expectation(self, expectation: Expectation) -> OpenAIChatMessage:
-        return OpenAIChatMessage(
-            role=OpenAIChatRole.system,
-            content=f"Expectation '{expectation.name}': {expectation.description}",
-        )
-
-    async def _compile_consideration(self, consideration: Value | Dataset) -> OpenAIChatMessage:
-        if isinstance(consideration, Value):
+    async def _compile_consideration(self, consideration: Variable | Dataset) -> OpenAIChatMessage:
+        if isinstance(consideration, Variable):
             value_str = json.dumps(consideration._raw_named_value())
             return OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Consideration '{consideration.name}': {consideration.description} = {value_str}",
+                content=f"Consideration '{consideration.name}': {consideration.text} = {value_str}",
             )
         elif isinstance(consideration, Dataset):
             # TODO @Performance: cache dataset when used in task
@@ -451,7 +444,7 @@ class OpenAIChatCompiler(TaskCompiler):
             records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
             return OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Consideration '{consideration.name}': {consideration.description} = \n{records_str}",
+                content=f"Consideration '{consideration.name}': {consideration.text} = \n{records_str}",
             )
         else:
             raise NotImplementedError
@@ -493,11 +486,10 @@ class OpenAIChatCompiler(TaskCompiler):
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your task is '{self.task.name or '<no name>'}': {self.task.description or '<no descr>'}."
+                content=f"Your task is '{self.task.name or '<no name>'}': {self.task.text or '<no descr>'}."
                 f" You will be given user inputs and you must call the most appropriate function.",
             ),
             *considerations,
-            *(self._compile_expectation(expectation) for expectation in self.expectations),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
                 content=f"{nonce_str}Inputs for '{self.task.name}': \n\n: {inputs}",
