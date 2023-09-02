@@ -15,14 +15,14 @@ class StatementType(enum.StrEnum):
     BLANK = "blank"
     TYPE = "type"
     TASK = "task"
-    EXPECTATION = "expectation"
+    EXPECTATION = "expectation"  # nocheckin: remove EXPECTATION
     CODE = "code"
     FLOW = "flow"
     MODEL = "model"
-    VALUE = "value"
+    VALUE = "value"  # nocheckin: rename VALUE -> VARIABLE
     DATASET = "dataset"
     REFERENCE = "reference"
-    GROUP = "group"
+    GROUP = "group"  # nocheckin: remove GROUP
 
 
 RUNNABLE_STATEMENT_TYPES = {

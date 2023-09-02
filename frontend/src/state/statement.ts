@@ -32,7 +32,6 @@ import {
   PaperAirplaneIcon as PaperAirplaneIconOutline,
   Bars3BottomLeftIcon,
   ViewColumnsIcon as ViewColumnsIconOutline,
-  VariableIcon as VariableIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   TagIcon as TagIconSolid,
@@ -165,7 +164,7 @@ export function useStatementContext() {
     await Promise.all([morphType, updateText]);
   }
 
-  async function morpthToSymbol(config: {
+  async function morphTo(config: {
     type: StatementType | null;
     name?: string;
     rootTypeFlags?: number;
@@ -470,7 +469,7 @@ export function useStatementContext() {
     escape,
     morphToBlank,
     morphToComment,
-    morpthToSymbol,
+    morpthToSymbol: morphTo,
     setStatementType,
     setStatementTypeEnum,
     syncText,
@@ -687,7 +686,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
 
 export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
-    return "Object";
+    return "Class";
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
     return "Choice";
   } else {
@@ -696,11 +695,11 @@ export function getStatementLabel(type: StatementType, rootTypeTag?: TypeTag | n
 }
 
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
-  [StatementType.Text]: "A plain markdown comment",
-  [StatementType.Type]: "An object, choice or union type",
+  [StatementType.Text]: "A plain comment or instruction",
+  [StatementType.Type]: "A class, choice or union type",
   [StatementType.Dataset]: "Context, examples, feedback - any records",
   [StatementType.Code]: "Connect, test & customize with Python",
-  [StatementType.Task]: "Instruct AI to do something",
+  [StatementType.Task]: "Structured prompt with I/O fields",
   [StatementType.Expectation]: "Tune desired AI behaviour",
   [StatementType.Value]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
@@ -713,9 +712,9 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
 
 export function getStatementDescription(type: StatementType, rootTypeTag?: TypeTag | null) {
   if (type == StatementType.Type && rootTypeTag == TypeTag.Struct) {
-    return "An object type with multiple fields";
+    return "A type of an object with some fields";
   } else if (type == StatementType.Type && rootTypeTag == TypeTag.Enum) {
-    return "A choice type with multiple options";
+    return "A choice type offering multiple options";
   } else {
     return STATEMENT_TYPE_DESCRIPTIONS[type];
   }

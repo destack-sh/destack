@@ -106,7 +106,7 @@ const commands = computed(() => {
       label: "Text",
       aliases: ["comment", "markdown", "title", "header"],
       icon: getStatementIconSolid(StatementType.Text),
-      description: "Just type for a markdown comment",
+      description: "Just type for a plain comment",
       action: morphToText,
     },
     simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
@@ -117,9 +117,9 @@ const commands = computed(() => {
     simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
 
     // advanced statements
+    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Expectation, { aliases: ["prompt", "AI", "model", "bot"] }),
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Value),
     // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
@@ -243,7 +243,7 @@ defineExpose({
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"
-          class="absolute z-50 flex h-fit max-h-[340px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
+          class="absolute z-50 flex h-fit max-h-[360px] w-[340px] flex-col gap-1 overflow-y-auto rounded-sm bg-white p-1 py-1 shadow-md ring-1 ring-orange-900 ring-opacity-20 focus:outline-none"
           :class="[isInTopHalfOfPanel ? 'top-7' : 'bottom-7']"
         >
           <div v-if="filteredCommands.length == 0" class="w-full px-2 py-1">

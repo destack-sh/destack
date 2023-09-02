@@ -73,7 +73,8 @@ const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
     statement.value.type != StatementType.Reference &&
-    statement.value.type != StatementType.Group
+    statement.value.type != StatementType.Group &&
+    statement.value.type != StatementType.Text
 );
 const isContentFolded = computed(
   () => !props.standalone && (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value)

@@ -1,6 +1,6 @@
 {
   "name": "bench",
-  "version": "0.6.100",
+  "version": "0.6.101",
   "license": "UNLICENSED",
   "engines": {
     "node": ">=16.x"
@@ -28,12 +28,6 @@
     "@tailwindcss/aspect-ratio": "^0.4.2",
     "@tailwindcss/forms": "^0.5.3",
     "@tailwindcss/typography": "^0.5.9",
-    "@tiptap/extension-bubble-menu": "^2.0.3",
-    "@tiptap/extension-placeholder": "^2.0.3",
-    "@tiptap/extension-typography": "^2.0.3",
-    "@tiptap/pm": "^2.0.3",
-    "@tiptap/starter-kit": "^2.0.3",
-    "@tiptap/vue-3": "^2.0.3",
     "@vue/apollo-composable": "^4.0.0-beta.5",
     "@vueuse/core": "^9.12.0",
     "apollo-upload-client": "^17.0.0",
