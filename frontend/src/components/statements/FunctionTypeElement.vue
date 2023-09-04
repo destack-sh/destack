@@ -3,32 +3,23 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
-import { makeField, useStatementContext } from "@/state/statement";
+import { makeField, useFields } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
 import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { usePanelContext } from "@/state/bench";
-import { GraphQLID } from "graphql";
+import type { StatementEmit, StatementProps } from "@/components/statements";
+import { useOperations } from "@/state/operations";
 
-const context = useStatementContext();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
+const emit = defineEmits<StatementEmit>();
+
 const module = useCurrentModule();
+const ops = useOperations();
 
-const emit = defineEmits<{
-  (e: "navigateUp"): void;
-  (e: "navigateDown"): void;
-  (e: "navigateRight"): void;
-  (e: "navigateLeft"): void;
-}>();
-
-const nodes = computed(() => context.fields.value ?? []);
-const inputs = computed(
-  () => context.allFields.value?.filter((n) => !(n.flags & TypeFlag.IsOutput)).map((n) => n as Field) ?? []
-);
-const outputs = computed(
-  () => context.allFields.value?.filter((n) => n.flags & TypeFlag.IsOutput).map((n) => n as Field) ?? []
-);
+const { inputs, outputs, fields, selfFields, inheritedFields } = useFields(toRef(props, "statement"));
 
 type ColumnType = "type";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);
@@ -62,15 +53,15 @@ function readColumn(field: Field, column: ColumnType) {
   }
 }
 function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnType, value: any) {
-  const field = nodes.value?.find((m) => m.id === fieldId);
+  const field = fields.value?.find((m) => m.id === fieldId);
   if (!field) {
     return;
   }
   const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    context.updateField(field as Field, { ...value, flags } as Field);
+    ops.symbol.updateField(null, field as Field, { ...value, flags } as Field);
   } else {
-    context.updateField(field as Field, { ...field, [column]: value, flags } as Field);
+    ops.symbol.updateField(null, field as Field, { ...field, [column]: value, flags } as Field);
   }
 }
 
@@ -78,12 +69,12 @@ function insertBelow(
   kind: "input" | "output",
   template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">
 ) {
-  const lastField = nodes.value[nodes.value.length - 1];
+  const lastField = fields.value[fields.value.length - 1];
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
   // function fields are required by default
   const flags = (kind == "output" ? TypeFlag.IsOutput : 0) | ((template.flags ?? 0) & ~TypeFlag.IsOptional);
   const newFieldNode = makeField({ projectVersionId: module.id.value, ...template, orderKey, flags });
-  context.createNewField(newFieldNode);
+  ops.symbol.createField(null, props.statement.id, newFieldNode);
   nextTick(() => {
     const grid = kind == "input" ? inputGrid : outputGrid;
     grid.getRef(newFieldNode.id, "type").open("all");
@@ -91,19 +82,19 @@ function insertBelow(
 }
 
 function moveField(node: Field, position: "before" | "after", other: Field) {
-  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
+  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
-    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveField(node, orderKey);
+    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    ops.symbol.moveField(null, props.statement.id, node.orderKey, orderKey);
   } else {
-    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveField(node, orderKey);
+    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    ops.symbol.moveField(null, props.statement.id, node.orderKey, orderKey);
   }
 }
 
 function dropField(droppedId: string, position: "left" | "right" | "above" | "below", fieldId: string) {
-  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
-  const field = context.selfFields.value.find((n) => n.id == fieldId);
+  const dropped = selfFields.value.find((n) => n.id == droppedId);
+  const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
   if ((dropped.flags & TypeFlag.IsOutput) != (field.flags & TypeFlag.IsOutput)) return; // ignore drops between input/output (requires transaction)
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
@@ -116,13 +107,13 @@ function deleteField(kind: "input" | "output", fieldId: string) {
     return;
   }
   const field = fields[fieldIdx];
-  context.deleteField(field as any); // must exist
+  ops.symbol.deleteField(null, props.statement.id, field.id); // must exist
   (kind == "input" ? inputGrid : outputGrid).focus(fieldIdx - 1, "type"); // move focus above
 }
 
 function focus(what: "first" | "last", kind: "input" | "output") {
-  const nodes = kind == "input" ? inputs.value : outputs.value;
-  if (nodes.length == 0) {
+  const fields = kind == "input" ? inputs.value : outputs.value;
+  if (fields.length == 0) {
     // focus add button
     (kind == "input" ? addInputRef : addOutputRef).value?.focus();
   } else {
@@ -136,10 +127,10 @@ function focusColumn(kind: "input" | "output", rowIdx: number, columnIdx: number
     // wrap
     columnIdx = columnIdx + columnsInOrder.value.length;
   }
-  const nodes = kind == "input" ? inputs.value : outputs.value;
-  if (rowIdx < nodes.length) {
+  const fields = kind == "input" ? inputs.value : outputs.value;
+  if (rowIdx < fields.length) {
     (kind == "input" ? inputGrid : outputGrid).focus(rowIdx, columnsInOrder.value[columnIdx]);
-  } else if (rowIdx == nodes.length) {
+  } else if (rowIdx == fields.length) {
     // focus add button
     (kind == "input" ? addInputRef : addOutputRef).value?.focus();
   } else {
@@ -180,9 +171,9 @@ defineExpose({
           :ref="(el: any) => inputGrid.registerColumnRef(field.id, 'type', el)"
           :model-value="readColumn(field as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('input', field.id, 'type', val)"
-          :readonly="context.readonly.value"
+          :readonly="readonly"
           :ref-types="[TypeTag.Struct, TypeTag.Enum]"
-          :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
+          :inlined="inheritedFields.find((n) => n.key == field.key) != null"
           tuple-name="input"
           orientation="vertical"
           @navigate-left="inputGrid.navigateLeft(field.id, 'type')"
@@ -197,14 +188,14 @@ defineExpose({
       </template>
       <!-- Add a field -->
       <button
-        v-show="!context.readonly.value"
+        v-show="!readonly"
         tabindex="-1"
         ref="addInputRef"
         class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createInputRef?.show()"
         @enter="createInputRef?.show()"
         @keydown.up.exact.prevent="inputs.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
-        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.down.exact.prevent="emit('navigateDown')"
         @keydown.right.exact.prevent="addOutputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Input
@@ -214,7 +205,8 @@ defineExpose({
     <!-- Lil' arrow -->
     <component
       :is="isHorizontal ? ArrowLongRightIcon : ArrowLongDownIcon"
-      class="-mt-7 h-5 w-5 self-center text-gray-700"
+      class="h-5 w-5 self-center text-gray-700"
+      :class="[fields.length > 0 ? '-mt-7' : '']"
     />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
@@ -225,9 +217,9 @@ defineExpose({
           :is="'type' == 'type' ? FieldInterface : ValueInterface"
           :model-value="readColumn(field as Field, 'type')"
           @update:model-value="(val: any) => writeColumn('output', field.id, 'type', val)"
-          :readonly="context.readonly.value"
+          :readonly="readonly"
           :ref-types="[TypeTag.Struct, TypeTag.Enum]"
-          :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
+          :inlined="inheritedFields.find((n) => n.key == field.key) != null"
           tuple-name="output"
           orientation="vertical"
           @navigate-left="outputGrid.navigateLeft(field.id, 'type')"
@@ -242,14 +234,14 @@ defineExpose({
       </template>
       <!-- Add a field -->
       <button
-        v-if="!context.readonly.value"
+        v-if="!readonly"
         tabindex="-1"
         ref="addOutputRef"
         class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         @click="createOutputRef?.show()"
         @enter="createOutputRef?.show()"
         @keydown.up.exact.prevent="outputs.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
-        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.down.exact.prevent="emit('navigateDown')"
         @keydown.left.exact.prevent="addInputRef?.focus"
       >
         <PlusIcon class="h-4 w-4" /> Output

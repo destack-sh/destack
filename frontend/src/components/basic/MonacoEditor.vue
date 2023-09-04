@@ -9,9 +9,6 @@ const props = defineProps<{
   language: "json" | "jsonl" | "csv" | "python" | "markdown" | "btl";
   focused: boolean;
   readonly?: boolean;
-  lineNumberOffset: number;
-  lineNumberShiftPx?: number;
-  hideLineNumbers?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -20,7 +17,7 @@ const emit = defineEmits<{
   (e: "navigateDown"): void;
   (e: "escape"): void;
   (e: "enter"): void;
-  (e: "toggleActions"): void;
+  (e: "openActions"): void;
   (e: "execute"): void;
 }>();
 
@@ -111,7 +108,6 @@ function initMonaco(monaco: Monaco) {
   updateEditorHeight(editorContainer.value, props.modelValue);
 
   // create editor
-  const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
   editor.value = monaco.editor.create(editorContainer.value, {
     value: props.modelValue,
     language: props.language,
@@ -128,7 +124,6 @@ function initMonaco(monaco: Monaco) {
     // set font to same mono from tailwind config
     fontSize: 14,
     fontFamily: "Druid Sans Mono, monospace",
-    lineNumbers: props.hideLineNumbers ? "off" : lineNumbers,
     renderLineHighlight: "none",
     scrollbar: {
       vertical: "hidden",
@@ -174,7 +169,7 @@ function initMonaco(monaco: Monaco) {
     editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
-    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("toggleActions"));
+    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("openActions"));
     editor.value.onKeyDown((e) => {
       if (e.keyCode === monaco.KeyCode.Backspace) {
         if (editor.value?.getValue() === "") {
@@ -220,29 +215,6 @@ watch(
   (value) => {
     if (editor.value && value !== editor.value.getValue()) {
       editor.value.setValue(value);
-    }
-  }
-);
-// sync line number offset into editor
-watch(
-  () => [props.lineNumberOffset, props.hideLineNumbers],
-  () => {
-    if (editor.value) {
-      if (!props.hideLineNumbers) {
-        const lineNumbers = (i: number) => (i + (props.lineNumberOffset ?? 0)).toString();
-        editor.value.updateOptions({ lineNumbers });
-      } else {
-        editor.value.updateOptions({ lineNumbers: "off" });
-      }
-    }
-  }
-);
-// sync line number offset into editor (as line decorations witdh)
-watch(
-  () => props.lineNumberShiftPx,
-  () => {
-    if (editor.value) {
-      editor.value.updateOptions({ lineDecorationsWidth: props.lineNumberShiftPx ?? 24 });
     }
   }
 );

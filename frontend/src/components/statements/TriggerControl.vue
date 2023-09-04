@@ -15,7 +15,7 @@ import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref } from "vue";
 
-const props = defineProps<StatementProps>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
 
 const { triggers } = useTriggers(toRef(props, "statement"));

@@ -124,6 +124,8 @@ export function useFields(statement: Ref<Statement>) {
     }
     return fieldsByName;
   });
+  const inputs = computed(() => allFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
+  const outputs = computed(() => allFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
 
   function createField(field: Field) {
     ops.symbol.createField(null, statement.value.id, {
@@ -243,6 +245,8 @@ export function useFields(statement: Ref<Statement>) {
     selfFields,
     allFields,
     inheritedFields,
+    inputs,
+    outputs,
     baseTypes,
     createField,
     createNewField,

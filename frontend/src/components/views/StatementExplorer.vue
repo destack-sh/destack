@@ -108,7 +108,8 @@ defineExpose({
       <!-- Show text for unnamed statements -->
       <span
         v-if="(ordered.statement.name ?? '').length == 0 && ordered.statement.text != null"
-        class="truncate text-gray-400"
+        class="truncate"
+        :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
       >
         {{ ordered.statement.text }}
       </span>

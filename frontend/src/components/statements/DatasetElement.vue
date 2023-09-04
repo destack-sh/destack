@@ -65,7 +65,7 @@ import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import StatementTags from "@/components/statements/StatementTags.vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "openActions"): void }>();
 
 const context = useStatementContext();
 const module = useCurrentModule();
@@ -746,7 +746,7 @@ defineExpose({
     grid.blur();
   },
   // prevent outer drag and drop while inside grid
-  innerDrag: computed(() => !position.isOutside.value),
+  capturingDrag: computed(() => !position.isOutside.value),
   loading,
 });
 </script>

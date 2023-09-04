@@ -1,9 +1,7 @@
 <script lang="ts" setup>
-import StatementActions from "@/components/statements/StatementActions.vue";
-import StatementTags from "@/components/statements/StatementTags.vue";
 import type { StatementAction } from "@/state/bench";
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { getStatementIconSolid, useStatementContext } from "@/state/statement";
+import { getStatementIconSolid } from "@/state/statement";
 import { TagIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref } from "vue";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
@@ -13,20 +11,18 @@ import type { Statement } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { onStartTyping, useKeyModifier } from "@vueuse/core";
-import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import type { StatementEmit, StatementProps } from "@/components/statements";
 
-defineProps<{ folded?: boolean }>();
-defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
-const context = useStatementContext();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
+const emit = defineEmits<StatementEmit>();
+
 const module = useCurrentModule();
 const ops = useOperations();
 const appearance = useAppearance();
-const nav = useNavigation();
 
 const altKeyState = useKeyModifier("Alt");
 const referenceRef = ref<HTMLButtonElement | null>(null);
-const tagsRef = ref<InstanceType<typeof StatementTags> | null>(null);
 const popoverRef = ref<HTMLDivElement | null>(null);
 const inputRef = ref<InstanceType<typeof ComboboxInput> | null>(null);
 const popoverPin = pinAbsoluteElement(

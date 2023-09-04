@@ -14,7 +14,7 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useTags } from "@/state/statement";
 
-const props = defineProps<StatementProps>();
+const props = defineProps<Pick<StatementProps, "statement">>();
 const emit = defineEmits<StatementEmit>();
 
 const { tags } = useTags(toRef(props, "statement"));
