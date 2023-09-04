@@ -1,5 +1,6 @@
 import BlankElement from "@/components/statements/BlankElement.vue";
 import CodeElement from "@/components/statements/CodeElement.vue";
+import DatasetElement from "@/components/statements/DatasetElement.vue";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
 import ListTypeElement from "@/components/statements/ListTypeElement.vue";
@@ -45,6 +46,7 @@ export type StatementProps = {
   editing: boolean;
   readonly: boolean;
   bounding: UseElementBoundingReturn;
+  xoffset: number;
 };
 
 export type StatementEmit = {
@@ -135,6 +137,11 @@ const VARIABLE: StatementElement = {
   component: VariableElement,
   exists: (iface, statement) => statement.value != null,
 };
+const DATASET: StatementElement = {
+  id: "dataset",
+  component: DatasetElement,
+  exists: (iface, statement) => true, // unknown, but doesn't matter
+};
 
 export const STATEMENT_INTERFACES: Partial<Record<StatementType, StatementInterface>> = {};
 
@@ -186,6 +193,13 @@ register(StatementType.Variable, {
   hasTags: true,
   hasTriggers: true,
   elements: [{ ...VARIABLE, showIfEmpty: true }, TEXT],
+});
+register(StatementType.Dataset, {
+  primaryPart: "dataset",
+  foldable: "list-all",
+  needsDeclaration: false,
+  hasTags: true,
+  elements: [TEXT, DATASET],
 });
 
 // nocheckin: cover all interfaces (dataset, type, variable, tag)
