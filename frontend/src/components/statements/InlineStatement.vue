@@ -22,7 +22,7 @@ import {
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
-import { useCurrentModule, type Statement, TypeFlag } from "@/state/module";
+import { useCurrentModule, type Statement } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
@@ -720,6 +720,7 @@ defineExpose({
             :editing="isEditing"
             :readonly="readonly"
             :bounding="containerBounding"
+            :xoffset="contentOffsetX"
             v-on="handleStatementPartEvents('element', element.id)"
           />
         </template>
@@ -746,7 +747,7 @@ defineExpose({
       </div>
       <!-- Issues in right gutter -->
       <div
-        v-if="!hasIssues"
+        v-if="hasIssues"
         class="group/issues absolute left-full top-1 flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,

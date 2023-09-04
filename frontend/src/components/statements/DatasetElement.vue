@@ -6,55 +6,33 @@ import { getInterface } from "@/components/inputs";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
-import StatementActions from "@/components/statements/StatementActions.vue";
-import TypedDeclarationCell from "@/components/statements/TypedStatementDeclaration.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
-import { humanizeNumber } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import {
-  QueryOp,
-  SortOrder,
-  ModuleMutationType,
-  TypeHint,
-  type SearchSort,
-  type SearchQuery,
-  type SearchRecordsQueryVariables,
-} from "@/gql/graphql";
+import { QueryOp, SortOrder, ModuleMutationType, TypeHint, type SearchSort, type SearchQuery } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import {
-  usePanelContext,
-  useElementPanelSettings,
-  type RecordAction,
-  type StatementAction,
-  type StatementHeader,
-} from "@/state/bench";
+import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
 import { useCurrentModule, type Field, newNodeIdentity } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { useStatementContext, type DatasetStatementProperties } from "@/state/statement";
+import { useFields, type DatasetStatementProperties } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
   ArrowDownIcon,
   ArrowPathIcon,
-  CubeTransparentIcon,
   EllipsisHorizontalIcon,
   MagnifyingGlassIcon,
   PlusIcon,
   Square2StackIcon,
-  SquaresPlusIcon,
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
   XMarkIcon,
-  Bars3Icon,
-  XCircleIcon as XCircleIconOutline,
-  TagIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref, onMounted } from "vue";
+import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { TypeStorageFormat, getStorageFormat, SubfieldType, canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
@@ -62,28 +40,18 @@ import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
-import StatementTags from "@/components/statements/StatementTags.vue";
+import type { StatementEmit, StatementProps } from "@/components/statements";
 
-const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "openActions"): void }>();
+const PAGE_SIZE = 10;
 
-const context = useStatementContext();
+const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "xoffset">>();
+const emit = defineEmits<StatementEmit>();
+
 const module = useCurrentModule();
-const PAGE_SIZE = context.standalone.value ? 50 : 10;
 const panel = usePanelContext();
-const addingText = ref(false);
-const showText = computed(() => text.value.length > 0 || addingText.value);
-
 const appearance = useAppearance();
 const client = useApolloClient();
-const declarationRef: Ref<InstanceType<typeof TypedDeclarationCell> | null> = ref(null);
-const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const text: Ref<string> = ref(context.statement.value.text ?? "");
-const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncText(
-  text,
-  computed(() => textRef.value?.focused)
-);
+
 const gridRef: Ref<HTMLDivElement | null> = ref(null);
 const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -91,7 +59,10 @@ const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const searchRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
-const properties = useElementPanelSettings<DatasetStatementProperties>(context.statement, {
+const fields = useFields(toRef(props, "statement"));
+const { allFields, selfFields, inheritedFields } = fields;
+
+const properties = useElementPanelSettings<DatasetStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
   wrapColumns: false,
 });
@@ -105,11 +76,11 @@ onMounted(() => {
 
 // find every string-stored field for search
 const stringFields = computed(() =>
-  context.allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
+  allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
 );
 const nameFields = computed(() => stringFields.value.filter((f) => f.hint == TypeHint.Name));
 const enumFields = computed(() =>
-  context.allFields.value.filter(
+  allFields.value.filter(
     (f) =>
       f.tag == TypeTag.Enum ||
       (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.tag == TypeTag.Enum)
@@ -176,9 +147,6 @@ function addSort(field: Field, order: SortOrder) {
     properties.sorts.push({ key, order });
   }
 }
-function clearSort() {
-  properties.sorts = undefined;
-}
 function removeSort(sort: { key: string }) {
   properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
 }
@@ -223,7 +191,7 @@ const SEARCH_QUERY = graphql(/* GraphQL */ `
 const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
   () =>
     ({
-      statementId: context.statement.value.id,
+      statementId: props.statement.id,
       after: null as string | null,
       query: inlineQuery.value,
       sort: sort.value,
@@ -251,19 +219,18 @@ const recordsFetched = computed(
 const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
-const totalCount = computed(() => recordsFetchedResult?.value?.searchRecords.totalCount ?? 0);
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 
 // auto refetch when bumped (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
-useMutationListener([ModuleMutationType.BumpStatement], context.statement.value?.id, () => {
+useMutationListener([ModuleMutationType.BumpStatement], props.statement.id, () => {
   refetchDebounced();
 });
 // trigger refetch (debounced) once if just created to autoload if the dataset was duplicated
 onMounted(() => {
-  const delta = DateTime.now().diff(DateTime.fromISO(context.statement.value?.createdAt ?? ""));
+  const delta = DateTime.now().diff(DateTime.fromISO(props.statement.createdAt ?? ""));
   if (delta.as("seconds") < 1) {
     refetchDebounced();
   }
@@ -281,7 +248,7 @@ function loadMore() {
 
 // grid & grid sizing
 
-const columnsInOrder: Ref<string[]> = computed(() => context.allFields.value?.map((n) => n.key ?? "") ?? []);
+const columnsInOrder: Ref<string[]> = computed(() => allFields.value?.map((n) => n.key ?? "") ?? []);
 const rowIdsInOrder: Ref<string[]> = computed(() => recordsInView.value?.map((r) => r.id) ?? []);
 const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | InstanceType<typeof ValueInterface>>(
   columnsInOrder,
@@ -290,7 +257,7 @@ const grid = useNavigationGrid<string, InstanceType<typeof FieldInterface> | Ins
     return [{ id: "" }, ...recordsInView.value];
   }),
   {
-    gridNavigateUp: focusTextFromBottom,
+    gridNavigateUp: () => emit("navigateUp"),
     gridNavigateDown: () => (loadMoreRef.value ?? addRecordRef.value)?.focus(),
   }
 );
@@ -324,20 +291,18 @@ watch(
     properties.wrapColumns,
     panel.panel.value.contentWidth,
     panel.panel.value.contentMarginX,
-    context.xOffset,
+    props.xoffset,
     panel.size.value,
-    context.allFields.value,
+    allFields.value,
     Object.values(grid.refsByColumn.value).map((r) => [r.previewSize.width.value, r.previewSize.height.value]),
   ],
   () => {
     // update column widths
     const targetMinTotalWidth =
       Math.min(panel.size.value.width - panel.panel.value.contentMarginX * 2, panel.panel.value.contentWidth) -
-      context.xOffset.value -
+      props.xoffset -
       8; // from Statement interface
-    const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = context.allFields.value.map((f) =>
-      getInterface(f)
-    );
+    const ifaces: ({ minWidth?: number; grow?: number } | undefined)[] = allFields.value.map((f) => getInterface(f));
     if (showPropertiesColumn) {
       ifaces.push({ minWidth: propertiesColumnWidth, grow: 0.05 }); // 'fake' properties column
     }
@@ -386,7 +351,7 @@ watch(
       rowHeights.value = heights;
     }
   },
-  { immediate: context.allFields.value.length == 0 } // force update on first render if no columns to trigger initial sizing
+  { immediate: allFields.value.length == 0 } // force update on first render if no columns to trigger initial sizing
 );
 
 const gridBounding = useElementBounding(gridRef);
@@ -412,55 +377,21 @@ useActiveScroll(gridRef);
 
 // auto-edit value field if starting to type (clear & focus)
 onStartTyping((e) => {
-  if (context.readonly.value) return;
+  if (props.readonly) return;
   const cell = grid.findRef((r) => r.$el.parentNode.contains(e.target));
   if (cell != null && cell.rowId != "") {
-    const field = context.allFields.value.find((f) => f.key == cell.column);
+    const field = allFields.value.find((f) => f.key == cell.column);
     if (field == null) return;
     deleteRecordField(cell.rowId, module.getTypedKey(field) as string);
     nextTick(() => (cell.ref as unknown as { edit?: () => void }).edit?.());
   }
 });
 
-function focusTextFromTop() {
-  if (props.folded) {
-    context.navigateDown();
-  } else if (text.value?.length > 0 || addingText.value) {
-    textRef.value?.focus();
-  } else {
-    focusFirst();
-  }
-}
-
-function focusTextFromBottom() {
-  if (text.value?.length > 0 || addingText.value) {
-    textRef.value?.focus();
-  } else {
-    declarationRef.value?.focus();
-  }
-}
-
-function focusFirst() {
-  if (grid.refs.value.length > 0) {
-    grid.focus(0, columnsInOrder.value[0]);
-  } else {
-    focusFirstRecord();
-  }
-}
-
-function focusFirstRecord() {
-  if (grid.refs.value.length > 0) {
-    grid.focus(0, columnsInOrder.value[0]);
-  } else {
-    addRecordRef.value?.focus();
-  }
-}
-
 function focusLastRecord() {
   if (grid.refs.value.length > 0) {
     grid.focus(-1, columnsInOrder.value[0]);
   } else {
-    focusTextFromBottom();
+    emit("navigateUp");
   }
 }
 
@@ -470,24 +401,15 @@ const ops = useOperations();
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
   grid.beginBatchChange();
-  const field = context.createNewField(template);
+  const field = fields.createNewField(template);
   nextTick(() => {
     grid.flush();
     nextTick(() => (grid.getRef("", field.key) as InstanceType<typeof FieldInterface>).open("all"));
   });
 }
 
-function createUnionField() {
-  grid.beginBatchChange();
-  context.createUnionField();
-  nextTick(() => {
-    declarationRef.value?.focusLastBase();
-    grid.flush();
-  });
-}
-
 function duplicateField(fieldId: string) {
-  const field = context.duplicateField(fieldId);
+  const field = fields.duplicateField(fieldId);
   if (field != null) {
     nextTick(() => grid.focus("", field.key ?? ""));
   }
@@ -496,33 +418,33 @@ function duplicateField(fieldId: string) {
 function updateField(key: string, changed: Field) {
   // we use key instead of id here because of the module.runtimeTypeOf hack (has different id, see above)
   // note: this was changed, not sure if it's still needed
-  const old = context.fields.value.find((n) => n.key == key);
+  const old = allFields.value.find((n) => n.key == key);
   if (old == null) return;
-  context.updateField(old, { ...changed, id: old.id });
+  fields.updateField(old, { ...changed, id: old.id });
 }
 
 function deleteField(node: Field) {
-  const fieldIdx = context.selfFields.value?.findIndex((n) => n.id === node.id);
+  const fieldIdx = selfFields.value?.findIndex((n) => n.id === node.id);
   grid.beginBatchChange();
-  context.deleteField(node);
+  fields.deleteField(node);
   grid.focus(fieldIdx - 1, "name");
   nextTick(() => grid.flush());
 }
 
 function moveField(field: Field, position: "before" | "after", other: Field) {
-  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
+  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
-    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveField(field, orderKey);
+    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    fields.moveField(field, orderKey);
   } else {
-    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveField(field, orderKey);
+    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    fields.moveField(field, orderKey);
   }
 }
 
 function dropField(droppedId: string, position: "above" | "below" | "right" | "left", fieldId: string) {
-  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
-  const field = context.selfFields.value.find((n) => n.id == fieldId);
+  const dropped = selfFields.value.find((n) => n.id == droppedId);
+  const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
   nextTick(() => grid.focus("", dropped.key ?? ""));
@@ -534,14 +456,7 @@ function insertRecordAtEnd() {
 
 function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   const identity = newNodeIdentity(module.id.value, "Record");
-  ops.symbol.createRecord(
-    null,
-    identity.id,
-    identity.ck,
-    context.statement.value.id,
-    null,
-    options?.value ?? ({} as any)
-  );
+  ops.symbol.createRecord(null, identity.id, identity.ck, props.statement.id, null, options?.value ?? ({} as any));
   // add record to search results optimistically (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: identity.id });
   const optimisticRecord = {
@@ -599,7 +514,7 @@ function writeRecordField(recordId: string, key: string, value: any) {
   if (record == null) throw new Error("record not found: " + recordId);
   const oldValue = record?.value;
   const newValue = { ...oldValue, [key]: value };
-  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldValue, newValue);
+  ops.symbol.updateRecord(null, props.statement.id, recordId, oldValue, newValue);
 }
 
 function deleteRecordField(recordId: string, key: string) {
@@ -609,18 +524,18 @@ function deleteRecordField(recordId: string, key: string) {
   const newValue = { ...oldValue };
   // TODO @Robustness: figure out better way to clear field in opensearch backend (maybe update by query?)
   newValue[key] = [];
-  ops.symbol.updateRecord(null, context.statement.value.id, recordId, oldValue, newValue);
+  ops.symbol.updateRecord(null, props.statement.id, recordId, oldValue, newValue);
 }
 
 function deleteRecord(recordId: string) {
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
   if (recordIdx < 0) throw new Error("record not found: " + recordId);
-  ops.symbol.softDeleteRecord(null, context.statement.value.id, recordId);
+  ops.symbol.softDeleteRecord(null, props.statement.id, recordId);
   grid.focus(recordIdx, columnsInOrder.value[0]);
 }
 
 // drag & drop
-const magic = useMagicActions(context.statement as Ref<StatementHeader>);
+const magic = useMagicActions(toRef(props, "statement"));
 async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
   console.log("drop insert files into dataset", recordId, column, position, files);
   const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
@@ -639,17 +554,12 @@ const position = useMouseInElement(gridRef);
 
 // actions
 
-function unfoldIfFolded() {
-  if (props.folded) emit("toggleFold");
-}
-
-const extraActions = computed(() => {
+const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Search",
     icon: MagnifyingGlassIcon,
     action: () => {
-      unfoldIfFolded();
       properties.inlineQuery = "";
       nextTick(() => searchRef.value?.focus());
     },
@@ -664,48 +574,11 @@ const extraActions = computed(() => {
     });
   }
   actions.push({
-    label: "Add tag",
-    icon: TagIcon,
-    action: () => {
-      unfoldIfFolded();
-      tagsRef.value?.open();
-    },
-  });
-  actions.push({
-    label: "Add text",
-    icon: Bars3Icon,
-    disabled: showText.value,
-    action: () => {
-      unfoldIfFolded();
-      addingText.value = true;
-      nextTick(() => textRef.value?.focus());
-    },
-  });
-  actions.push({
     label: "Add record",
     icon: PlusIcon,
     action: () => {
-      unfoldIfFolded();
       insertRecordAtEnd();
     },
-  });
-  actions.push({
-    label: "Add field",
-    icon: SquaresPlusIcon,
-    action: () => {
-      unfoldIfFolded();
-      createFieldRef.value?.show();
-    },
-    hideInline: true,
-  });
-  actions.push({
-    label: "Include type",
-    icon: CubeTransparentIcon,
-    action: () => {
-      unfoldIfFolded();
-      createUnionField();
-    },
-    hideInline: true,
   });
   actions.push({
     label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
@@ -715,7 +588,6 @@ const extraActions = computed(() => {
   });
   return actions;
 });
-context.setCustomActions(extraActions);
 
 const recordActions: RecordAction[] = [
   {
@@ -733,45 +605,38 @@ const recordActions: RecordAction[] = [
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    if (position == "first" || props.folded) {
-      declarationRef.value?.focus();
-    } else {
-      (loadMoreRef.value ?? addRecordRef.value)?.focus();
-    }
+    (loadMoreRef.value ?? addRecordRef.value)?.focus();
   },
   blur: () => {
-    declarationRef.value?.blur();
-    textRef.value?.blur();
     addRecordRef.value?.blur();
     grid.blur();
   },
   // prevent outer drag and drop while inside grid
   capturingDrag: computed(() => !position.isOutside.value),
   loading,
+  actions,
 });
 </script>
 <template>
-  <!-- Sorts/filters -->
-  <div
-    v-if="(!folded && (properties.sorts ?? []).length > 0) || properties.query != null"
+  <!-- Sorts/filters nocheckin reenable -->
+  <!-- <div
+    v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
     class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
-  >
-    <!-- Sort pills -->
-    <span
+  > -->
+  <!-- Sort pills -->
+  <!-- <span
       v-for="sort in properties.sorts ?? []"
       :key="sort.key"
       class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
-    >
-      <span class="">{{ context.allFields.value.find((f) => sort.key.includes(f.key))?.name }}</span>
-      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
-      <!-- Clear button -->
-      <button @click="removeSort(sort)">
+    > -->
+  <!-- <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
+      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span> -->
+  <!-- Clear button -->
+  <!-- <button @click="removeSort(sort)">
         <XMarkIcon class="h-3 w-3 text-gray-400" />
       </button>
     </span>
-    <!-- Filter pills (for simple/single field filters) -->
-    <!-- (soon) -->
-  </div>
+  </div> -->
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div
@@ -798,7 +663,7 @@ defineExpose({
       <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
       <div
         class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
-        :class="(context.focused.value && !context.editing.value) || !isHeaderRowFloating ? '' : 'bg-white'"
+        :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
         :style="{
           position: isHeaderRowFloating ? 'fixed' : 'absolute',
           left: isHeaderRowFloating
@@ -809,15 +674,15 @@ defineExpose({
           clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
         }"
       >
-        <div v-for="(field, x) in context.allFields.value" :key="field?.id" class="">
+        <div v-for="(field, x) in allFields" :key="field?.id" class="">
           <div class="whitespace-nowrap focus-within:bg-orange-100">
             <FieldInterface
               :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
               :key="field?.id + '.header'"
               :type="field"
-              :readonly="context.readonly.value"
+              :readonly="readonly"
               :ref-types="[TypeTag.Struct, TypeTag.Enum]"
-              :inlined="context.inheritedFields.value.find((n) => n.key == field.key) != null"
+              :inlined="inheritedFields.find((n) => n.key == field.key) != null"
               is-view
               hide-outline
               orientation="horizontal"
@@ -839,6 +704,7 @@ defineExpose({
             />
           </div>
         </div>
+        <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
         <!-- Properties column (add + settings) -->
         <div
           v-if="showPropertiesColumn"
@@ -849,7 +715,7 @@ defineExpose({
           <div class="flex h-full w-full flex-row items-center whitespace-nowrap">
             <!-- Add column -->
             <button
-              v-if="!context.readonly.value"
+              v-if="!readonly"
               tabindex="-1"
               class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click="createFieldRef?.show()"
@@ -878,13 +744,7 @@ defineExpose({
           <div class="relative">
             <div class="absolute right-0.5 flex flex-row-reverse items-center gap-0.5">
               <!-- Standard actions -->
-              <ActionPopover
-                v-if="!context.readonly.value"
-                anchor="right"
-                v-slot="{ open }"
-                :thing="record"
-                :actions="recordActions"
-              >
+              <ActionPopover v-if="!readonly" anchor="right" v-slot="{ open }" :thing="record" :actions="recordActions">
                 <div
                   class="p-0.5 text-gray-400 hover:text-gray-700"
                   :class="[
@@ -898,7 +758,7 @@ defineExpose({
               </ActionPopover>
               <!-- Insert record -->
               <button
-                v-if="!context.readonly.value"
+                v-if="!readonly"
                 class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-focus-within/record:opacity-100 group-hover/record:opacity-100"
                 @click="() => insertRecord({ belowRecordId: record.id })"
               >
@@ -909,7 +769,7 @@ defineExpose({
         </div>
         <!-- Record values -->
         <div
-          v-for="(field, x) in context.allFields.value"
+          v-for="(field, x) in allFields"
           :key="record.id + '.' + field?.id"
           class="h-full overflow-hidden"
           :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
@@ -925,11 +785,11 @@ defineExpose({
             :model-value="record.value?.[module.getTypedKey(field) as string]"
             @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
             :type="module.effectiveTypeOf(field)"
-            :readonly="context.readonly.value"
-            :active="context.editing.value || context.focused.value"
+            :readonly="readonly"
+            :active="editing || focused"
             :wrap="Boolean(properties.wrapColumns)"
             debounced
-            :supports-drop="!context.readonly.value"
+            :supports-drop="!readonly"
             @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
             @navigate-left="grid.navigateLeft(record.id, field.key as string)"
             @navigate-right="grid.navigateRight(record.id, field.key as string)"
@@ -976,7 +836,7 @@ defineExpose({
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="loadMore()"
         @keydown.up.exact.prevent="focusLastRecord"
-        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.down.exact.prevent="emit('navigateDown')"
         :disabled="loading"
       >
         <template v-if="loading">
@@ -990,13 +850,13 @@ defineExpose({
       </button>
       <!-- Insert button -->
       <button
-        v-if="!context.readonly.value"
+        v-if="!readonly"
         ref="addRecordRef"
         class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
         :style="{ height: minRowHeight + 'px' }"
         @click.stop="insertRecordAtEnd()"
         @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
-        @keydown.down.exact.prevent="context.navigateDown"
+        @keydown.down.exact.prevent="emit('navigateDown')"
         :disabled="loading"
       >
         <PlusIcon class="h-4 w-4" /> New
