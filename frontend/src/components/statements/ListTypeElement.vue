@@ -1,71 +1,79 @@
 <script lang="ts" setup>
-import EditableSpan from "@/components/basic/EditableSpan.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { TypeTag } from "@/gql/graphql";
-import type { StatementAction } from "@/state/bench";
-import { makeField } from "@/state/statement";
+import { makeField, useFields } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
 import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
-import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { useCurrentModule, type Field } from "@/state/module";
+import type { StatementEmit, StatementProps } from "@/components/statements";
+import { useOperations } from "@/state/operations";
 
-const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
+const emit = defineEmits<StatementEmit>();
 
 const module = useCurrentModule();
+const ops = useOperations();
 
-const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
-const fieldsLength = computed(() => context.selfFields.value?.length ?? 0);
+const isEnum = computed(() => props.statement.tag == TypeTag.Enum);
+const { fields, selfFields } = useFields(toRef(props, "statement"));
+const fieldsLength = computed(() => selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const addingText = ref(false);
-const showText = computed(() => text.value.length > 0 || addingText.value);
 
 // dynamic field refs for names, values & texts for each field
 type ColumnType = "type";
 const grid = useNavigationGrid<ColumnType, InstanceType<typeof FieldInterface>>(
   ref(["type"] as ColumnType[]),
-  context.selfFields,
+  selfFields,
   {
-    gridNavigateUp: focusTextFromBottom,
+    gridNavigateUp: () => emit("navigateUp"),
     gridNavigateDown,
   }
 );
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
-function createOption() {
-  const lastField = context.fields.value?.[context.fields.value.length - 1];
+function nextOrderKey() {
+  const lastField = fields.value?.[fields.value.length - 1];
   const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
+  return orderKey;
+}
+
+function createOption() {
   const name = "Option " + (fieldsLength.value + 1);
   const newField = makeField({
     projectVersionId: module.id.value,
     name,
     tag: TypeTag.Literal,
-    orderKey,
+    orderKey: nextOrderKey(),
   });
-  context.createField(newField);
+  ops.symbol.createField(null, props.statement.id, newField);
   nextTick(() => {
     grid.getRef(newField.id, "type").open("all");
   });
 }
 
-function createUnionField() {
-  context.createUnionField();
-  nextTick(() => declarationRef.value?.focusLastBase());
-}
-
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
-  const field = context.createNewField(template);
+  const field = makeField({ ...template, orderKey: nextOrderKey() });
+  ops.symbol.createField(null, props.statement.id, field);
   nextTick(() => {
     grid.getRef(field.id, "type").open("all");
   });
 }
 
 function duplicateField(fieldId: string) {
-  const newField = context.duplicateField(fieldId);
+  const field = selfFields.value?.find((m) => m.id === fieldId);
+  if (field == null) return;
+
+  const newField = makeField({
+    ...field,
+    id: null,
+    ck: null,
+    orderKey: nextOrderKey(),
+  });
+  ops.symbol.createField(null, props.statement.id, newField);
   if (newField != null) {
     nextTick(() => {
       grid.getRef(newField?.id, "type").open("all");
@@ -74,56 +82,38 @@ function duplicateField(fieldId: string) {
 }
 
 function deleteField(fieldId: string) {
-  const fieldIdx = context.selfFields.value?.findIndex((m) => m.id === fieldId);
+  const fieldIdx = selfFields.value?.findIndex((m) => m.id === fieldId);
   if (fieldIdx == null || fieldIdx < 0) {
     return;
   }
-  const field = context.selfFields.value?.[fieldIdx];
-  context.deleteField(field as Field); // must exist
+  const field = selfFields.value?.[fieldIdx];
+  ops.symbol.softDeleteField(null, props.statement.id, field.id); // must exist
   grid.focus(fieldIdx - 1, "type"); // move focus above
 }
 
-function moveField(node: Field, position: "before" | "after", other: Field) {
-  const otherIndex = context.selfFields.value?.findIndex((n) => n.id == other.id);
+function moveField(field: Field, position: "before" | "after", other: Field) {
+  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
-    const orderKey = generateKeyBetween(context.selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    context.moveField(node, orderKey);
+    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+    ops.symbol.moveField(null, field.id, field.orderKey, orderKey);
   } else {
-    const orderKey = generateKeyBetween(other.orderKey, context.selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    context.moveField(node, orderKey);
+    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
+    ops.symbol.moveField(null, field.id, field.orderKey, orderKey);
   }
 }
 
 function dropField(droppedId: string, position: "above" | "below" | "left" | "right", fieldId: string) {
-  const dropped = context.selfFields.value.find((n) => n.id == droppedId);
-  const field = context.selfFields.value.find((n) => n.id == fieldId);
+  const dropped = selfFields.value.find((n) => n.id == droppedId);
+  const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
   moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
   nextTick(() => grid.focus(droppedId, "type"));
 }
 
 function writeType(fieldId: string, newType: Field) {
-  const oldType = context.selfFields.value?.find((m) => m.id === fieldId);
+  const oldType = selfFields.value?.find((m) => m.id === fieldId);
   if (!oldType) return;
-  context.updateField(oldType, { ...oldType, ...newType, id: fieldId });
-}
-
-function focusTextFromTop() {
-  if (props.folded) {
-    context.navigateDown();
-  } else if (text.value?.length > 0 || addingText.value) {
-    textRef.value?.focus();
-  } else {
-    focusFirstIfExists();
-  }
-}
-
-function focusTextFromBottom() {
-  if (text.value?.length > 0 || addingText.value) {
-    textRef.value?.focus();
-  } else {
-    declarationRef.value?.focus();
-  }
+  ops.symbol.updateField(null, oldType, { ...oldType, ...newType, id: fieldId });
 }
 
 function focusFirstIfExists() {
@@ -138,7 +128,7 @@ function focusLast() {
   if (fieldsLength.value > 0) {
     grid.focus(fieldsLength.value - 1, "type");
   } else {
-    focusTextFromBottom();
+    emit("navigateDown");
   }
 }
 
@@ -146,54 +136,10 @@ function gridNavigateDown() {
   addFieldRef.value?.focus();
 }
 
-function unfoldIfFolded() {
-  if (props.folded) emit("toggleFold");
-}
-
-const extraActions = computed(() => {
-  const actions: StatementAction[] = [
-    {
-      label: "Add tag",
-      icon: TagIcon,
-      action: () => {
-        unfoldIfFolded();
-        tagsRef.value?.open();
-      },
-    },
-    {
-      label: "Add text",
-      icon: Bars3Icon,
-      disabled: showText.value,
-      action: () => {
-        unfoldIfFolded();
-        addingText.value = true;
-        nextTick(() => textRef.value?.focus());
-      },
-    },
-  ];
-  actions.push({
-    label: "Add " + (isEnum.value ? "option" : "field"),
-    icon: SquaresPlusIcon,
-    action: () => (unfoldIfFolded(), isEnum.value ? createOption() : createFieldRef.value?.show()),
-  });
-  if (!isEnum.value) {
-    actions.push({
-      label: "Extend type",
-      icon: CubeTransparentIcon,
-      action: () => (unfoldIfFolded(), createUnionField()),
-      hideInline: true,
-    });
-  }
-  return actions;
-});
-context.setCustomActions(extraActions);
-
 defineExpose({
   focus: (position: "first" | "last" = "first") =>
-    position == "first" || props.folded ? declarationRef.value?.focus() : addFieldRef.value?.focus(),
+    position == "first" ? focusFirstIfExists() : addFieldRef.value?.focus(),
   blur: () => {
-    declarationRef.value?.blur();
-    textRef.value?.blur();
     addFieldRef.value?.blur();
     grid.blur();
   },
@@ -201,14 +147,14 @@ defineExpose({
 </script>
 <template>
   <!-- Fields (enum options or struct fields) -->
-  <div v-if="fieldsLength > 0 && !folded" class="mb-0.5 flex w-full flex-col">
+  <div v-if="fieldsLength > 0" class="mb-0.5 flex w-full flex-col">
     <FieldInterface
-      v-for="field of context.selfFields.value"
+      v-for="field of selfFields"
       :key="field.id"
       :model-value="field"
       @update:model-value="(val: any) => writeType(field.id, val)"
       :ref="(el: any) => grid.registerColumnRef(field.id, 'type', el)"
-      :readonly="context.readonly.value"
+      :readonly="readonly"
       :isEnum="isEnum"
       :tupleName="isEnum ? 'option' : 'field'"
       orientation="vertical"
@@ -227,22 +173,18 @@ defineExpose({
   <div class="mb-1">
     <!-- Add a field -->
     <button
-      v-show="!context.readonly.value && !folded"
+      v-show="!readonly"
       tabindex="-1"
       ref="addFieldRef"
       class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="isEnum ? createOption() : createFieldRef?.show()"
       @enter="isEnum ? createOption() : createFieldRef?.show()"
       @keydown.up.exact.prevent="focusLast"
-      @keydown.down.exact.prevent="context.navigateDown"
+      @keydown.down.exact.prevent="$emit('navigateDown')"
     >
       <PlusIcon class="h-4 w-4" />{{ isEnum ? "Option" : "Field" }}
     </button>
     <!-- Create popup right below button -->
-    <CreateFieldInterface
-      ref="createFieldRef"
-      :title="'New field on ' + context.statement.value.name"
-      @select="createNewField"
-    />
+    <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
   </div>
 </template>

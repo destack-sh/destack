@@ -1,24 +1,18 @@
 <script lang="ts" setup>
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
-import StatementActions from "@/components/statements/StatementActions.vue";
-import StatementTags from "@/components/statements/StatementTags.vue";
-import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
-import { useStatementContext } from "@/state/statement";
 import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import { useMouseInElement } from "@vueuse/core";
 import { computed, nextTick, ref, type Ref } from "vue";
 
 const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
+const emit = defineEmits<{ (e: "toggleFold"): void; (e: "openActions"): void }>();
 const context = useStatementContext();
 const ops = useOperations();
 
-const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
-const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
 const structRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -114,7 +108,7 @@ defineExpose({
     structRef.value?.blur?.();
   },
   // prevent outer drag and drop while inside grid
-  innerDrag: computed(() => !position.isOutside.value),
+  capturingDrag: computed(() => !position.isOutside.value),
 });
 </script>
 <template>

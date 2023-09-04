@@ -16,7 +16,7 @@ import type { StatementEmit } from "@/components/statements";
 import type { TypeFlag } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 
-const props = defineProps<StatementProps>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "bounding" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
 
 const query: Ref<string> = ref("");

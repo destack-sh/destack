@@ -13,7 +13,7 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 
-const props = defineProps<StatementProps>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
 const ops = useOperations();
@@ -22,7 +22,7 @@ const name: Ref<string> = ref(props.statement.name ?? "");
 syncProperty({
   value: name,
   editing: computed(() => nameRef.value?.focused),
-  read: () => (name.value = props.statement.text ?? ""),
+  read: () => (name.value = props.statement.name ?? ""),
   write: () => ops.statement.rename(null, props.statement.id, props.statement.name ?? "", name.value),
   debounceMs: 500,
   debounceMaxWait: 2000,

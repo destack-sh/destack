@@ -4,9 +4,10 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
+import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 
-const props = defineProps<StatementProps>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused">>();
 const emit = defineEmits<StatementEmit>();
 
 const ops = useOperations();
@@ -45,19 +46,31 @@ defineExpose({
 });
 </script>
 <template>
-  <AnnotatedText
-    ref="textRef"
-    :model-value="text || ''"
-    @update:model-value="text = $event"
-    @navigate-up="emit('navigateUp')"
-    @navigate-down="emit('navigateDown')"
-    @enter-start="emit('enterLeft')"
-    @enter="emit('enter')"
-    @toggle-actions="emit('openActions')"
-    @delete-start="emit('deleteLeft')"
-    @delete-if-empty="emit('deleteSelf')"
-    @paste="emit('paste')"
-    :focused="focused"
-    :readonly="readonly"
-  />
+  <div class="relative w-full" @click="textRef?.focus">
+    <AnnotatedText
+      ref="textRef"
+      :model-value="text || ''"
+      @update:model-value="text = $event"
+      @navigate-up="emit('navigateUp')"
+      @navigate-down="emit('navigateDown')"
+      @enter-start="emit('enterLeft')"
+      @enter="emit('enter')"
+      @toggle-actions="emit('openActions')"
+      @delete-start="emit('deleteLeft')"
+      @delete-if-empty="emit('deleteSelf')"
+      @paste="emit('paste')"
+      :focused="focused"
+      :readonly="readonly"
+    />
+    <template v-if="text.length == 0">&nbsp;</template>
+    <button
+      v-if="text.length == 0"
+      class="absolute left-0 top-0 -m-0.5 -mx-1 flex flex-row items-center rounded-sm p-0.5 transition-colors duration-75 hover:bg-orange-100"
+      :class="[focused ? 'text-gray-500' : 'text-gray-300']"
+      @click="textRef?.focus"
+    >
+      <PlusIcon class="h-4 w-4" />
+      Text
+    </button>
+  </div>
 </template>
