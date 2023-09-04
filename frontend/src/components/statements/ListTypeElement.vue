@@ -1,33 +1,21 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
-import InlineActions from "@/components/statements/StatementActions.vue";
-import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { TypeTag } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
-import { makeField, useStatementContext } from "@/state/statement";
+import { makeField } from "@/state/statement";
 import { generateKeyBetween } from "@/utils/fractional";
 import { Bars3Icon, PlusIcon, SquaresPlusIcon, TagIcon } from "@heroicons/vue/24/outline";
 import CubeTransparentIcon from "@heroicons/vue/24/outline/CubeTransparentIcon";
 import { computed, nextTick, ref, type Ref } from "vue";
-import StatementTags from "@/components/statements/StatementTags.vue";
 import { useCurrentModule, type Field } from "@/state/module";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
 
-const context = useStatementContext();
 const module = useCurrentModule();
-const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
-const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const text: Ref<string> = ref(context.statement.value.text ?? "");
-const textRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-context.syncText(
-  text,
-  computed(() => textRef.value?.focused)
-);
 
 const isEnum = computed(() => context.typeRootTag.value == TypeTag.Enum);
 const fieldsLength = computed(() => context.selfFields.value?.length ?? 0);

@@ -5,37 +5,37 @@ import {
   getStatementDescription,
   getStatementIconSolid,
   getStatementLabel,
-  useStatementContext,
 } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
 import { usePanelContext, type StatementHeader } from "@/state/bench";
+import type { StatementEmit, StatementProps } from "@/components/statements";
+import { useOperations } from "@/state/operations";
+import { syncProperty } from "@/utils/sync";
 
-const context = useStatementContext();
+const props = defineProps<StatementProps>();
+const emit = defineEmits<StatementEmit>();
 
-const emit = defineEmits<{
-  (e: "navigateDown"): void;
-  (e: "navigateLeft"): void;
-  (e: "navigateRight"): void;
-}>();
-
+const ops = useOperations();
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-const name: Ref<string> = ref(context.statement.value.name ?? "");
-context.syncName(
-  name,
-  computed(() => nameRef.value?.focused)
-);
+const name: Ref<string> = ref(props.statement.name ?? "");
+syncProperty({
+  value: name,
+  editing: computed(() => nameRef.value?.focused),
+  read: () => (name.value = props.statement.text ?? ""),
+  write: () => ops.statement.rename(null, props.statement.id, props.statement.name ?? "", name.value),
+  debounceMs: 500,
+  debounceMaxWait: 2000,
+});
 const hasName = computed(() => name.value.trim().length > 0);
-const icon = computed(() => getStatementIconSolid(context.statement.value.type, context.statement.value.tag));
+const icon = computed(() => getStatementIconSolid(props.statement.type, props.statement.tag));
 
-const canOpenInStandaloneEditor = computed(
-  () => !context.standalone.value && STATEMENT_STANDALONE_TYPES.includes(context.statement.value.type)
-);
+const canOpenInStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(props.statement.type));
 const altKey = useKeyModifier("Alt");
 const panel = usePanelContext();
 
 function openInEditor() {
-  panel.panel.value.bench.openEditStatement(context.statement.value as StatementHeader, { focus: true });
+  panel.panel.value.bench.openEditStatement(props.statement as StatementHeader, { focus: true });
 }
 
 function focus(position: "first" | "last" = "first") {
@@ -58,10 +58,9 @@ defineExpose({
       <span
         class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 py-0.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover/icon:opacity-100"
       >
-        <span class="font-semibold">
-          {{ getStatementLabel(context.statement.value.type, context.statement.value.tag) }}</span
+        <span class="font-semibold"> {{ getStatementLabel(statement.type, statement.tag) }}</span
         >:
-        {{ getStatementDescription(context.statement.value.type, context.statement.value.tag) }}
+        {{ getStatementDescription(statement.type, statement.tag) }}
       </span>
     </span>
     <!-- Alt click to open in full -->
@@ -73,15 +72,15 @@ defineExpose({
           ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'
           : 'cursor-text'
       "
-      @click="altKey && canOpenInStandaloneEditor && openInEditor()"
       regex="name"
       v-model="name"
-      :readonly="context.readonly.value"
-      @navigate-up="context.navigateUp"
+      :readonly="readonly"
+      @click="altKey && canOpenInStandaloneEditor && openInEditor()"
+      @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
-      @enter="context.insertBelow"
+      @enter="emit('enter')"
     />
     <!-- Anonymous placeholder if unnamed (as a button) -->
     <button

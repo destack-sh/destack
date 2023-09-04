@@ -2,7 +2,6 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useMagicActions } from "@/state/file";
 import type { StatementAction } from "@/state/bench";
-import { useStatementContext } from "@/state/statement";
 import type { StatementHeader } from "@/state/bench";
 import { Square2StackIcon } from "@heroicons/vue/24/outline";
 import { computed, type Ref } from "vue";
