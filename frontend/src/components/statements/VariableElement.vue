@@ -1,92 +1,65 @@
 <script lang="ts" setup>
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
+import type { StatementEmit, StatementProps } from "@/components/statements";
 import type { Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
-import { CubeTransparentIcon, SquaresPlusIcon, PlusIcon, TagIcon } from "@heroicons/vue/24/outline";
+import { useFields } from "@/state/statement";
+import { SquaresPlusIcon, PlusIcon } from "@heroicons/vue/24/outline";
 import { useMouseInElement } from "@vueuse/core";
-import { computed, nextTick, ref, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, type Ref } from "vue";
 
-const props = defineProps<{ folded?: boolean }>();
-const emit = defineEmits<{ (e: "toggleFold"): void; (e: "openActions"): void }>();
-const context = useStatementContext();
+const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
+const emit = defineEmits<StatementEmit>();
+
 const ops = useOperations();
+const { allFields, fields, createNewField, duplicateField, updateField, deleteField } = useFields(
+  toRef(props, "statement")
+);
 
 const structRef: Ref<InstanceType<typeof StructInterface> | null> = ref(null);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const position = useMouseInElement(computed(() => structRef.value?.$el));
 
-function createUnionField() {
-  context.createUnionField();
-  nextTick(() => declarationRef.value?.focusLastBase());
-}
-
-function createNewField(template: Field) {
-  const field = context.createNewField(template);
+function createNewFieldAndFocus(template: Field) {
+  const field = createNewField(template);
   nextTick(() => structRef.value?.openField(field.id));
 }
 
-function duplicateField(field: Pick<Field, "id">) {
-  const newField = context.duplicateField(field.id);
+function duplicateFieldAndFocus(field: Pick<Field, "id">) {
+  const newField = duplicateField(field.id);
   if (newField == null) return;
   nextTick(() => structRef.value?.focus(newField.id));
 }
 
 function writeValue(value: any) {
-  ops.symbol.updateValue(null, context.statement.value.id, context.statement.value.value, value);
-}
-
-function unfoldIfFolded() {
-  if (props.folded) emit("toggleFold");
+  ops.symbol.updateValue(null, props.statement.id, props.statement.value, value);
 }
 
 const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
-    label: "Extend type",
-    icon: CubeTransparentIcon,
-    action: () => {
-      unfoldIfFolded();
-      createUnionField();
-    },
-    hideInline: true,
-  });
-  actions.push({
-    label: "Add tag",
-    icon: TagIcon,
-    action: () => {
-      unfoldIfFolded();
-      tagsRef.value?.open();
-    },
-  });
-  actions.push({
     label: "Add field",
     icon: SquaresPlusIcon,
     action: () => {
-      unfoldIfFolded();
       createFieldRef.value?.show();
     },
   });
   return actions;
 });
-context.setCustomActions(actions);
 
 function focus(position: "first" | "last" = "first") {
-  if (position == "first" || props.folded) {
-    declarationRef.value?.focus();
+  if (addFieldRef.value != null) {
+    addFieldRef.value.focus();
   } else {
-    if (addFieldRef.value != null) {
-      addFieldRef.value.focus();
-    } else {
-      structRef.value?.focus("last");
-    }
+    structRef.value?.focus("last");
   }
 }
 
 function focusLastField() {
-  if (context.allFields.value.length > 0) {
+  if (fields.value.length > 0) {
     structRef.value?.focus("last");
   } else {
     focus("first");
@@ -97,14 +70,13 @@ function focusEnd() {
   if (addFieldRef.value != null) {
     addFieldRef.value.focus();
   } else {
-    context.navigateDown();
+    emit("navigateDown");
   }
 }
 
 defineExpose({
   focus,
   blur: () => {
-    declarationRef.value?.blur();
     structRef.value?.blur?.();
   },
   // prevent outer drag and drop while inside grid
@@ -112,39 +84,41 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- Value -->
-  <StructInterface
-    ref="structRef"
-    class="-mx-1 w-full"
-    :fields="context.allFields.value"
-    :model-value="context.statement.value.value ?? {}"
-    @update:model-value="writeValue($event)"
-    @update:field="context.updateField($event, $event)"
-    @delete:field="context.deleteField($event)"
-    @duplicate:field="duplicateField($event)"
-    @navigate-up="declarationRef?.focus"
-    @navigate-down="focusEnd"
-    :readonly="context.readonly.value"
-    :active="context.focused.value"
-    :appearance="{ hideFieldType: false, minimalFields: false }"
-    debounced
-  />
-  <!-- Add a field -->
-  <button
-    v-if="!context.readonly.value"
-    ref="addFieldRef"
-    tabindex="-1"
-    class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-    @click="createFieldRef?.show()"
-    @enter="createFieldRef?.show()"
-    @keydown.up.exact.prevent="focusLastField"
-    @keydown.down.exact.prevent="context.navigateDown"
-  >
-    <PlusIcon class="h-4 w-4" /> Field
-  </button>
-  <CreateFieldInterface
-    ref="createFieldRef"
-    :title="'New field on ' + context.statement.value.name"
-    @select="(f) => createNewField(f as Field)"
-  />
+  <div>
+    <!-- Value -->
+    <StructInterface
+      ref="structRef"
+      class="-mx-1 w-full"
+      :fields="allFields"
+      :model-value="statement.value ?? {}"
+      @update:model-value="writeValue($event)"
+      @update:field="updateField($event, $event)"
+      @delete:field="deleteField($event)"
+      @duplicate:field="duplicateFieldAndFocus($event)"
+      @navigate-up="emit('navigateUp')"
+      @navigate-down="focusEnd"
+      :readonly="readonly"
+      :active="focused"
+      :appearance="{ hideFieldType: false, minimalFields: false }"
+      debounced
+    />
+    <!-- Add a field -->
+    <button
+      v-if="!readonly"
+      ref="addFieldRef"
+      tabindex="-1"
+      class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      @click="createFieldRef?.show()"
+      @enter="createFieldRef?.show()"
+      @keydown.up.exact.prevent="focusLastField"
+      @keydown.down.exact.prevent="emit('navigateDown')"
+    >
+      <PlusIcon class="h-4 w-4" /> Field
+    </button>
+    <CreateFieldInterface
+      ref="createFieldRef"
+      :title="'New field'"
+      @select="(f) => createNewFieldAndFocus(f as Field)"
+    />
+  </div>
 </template>

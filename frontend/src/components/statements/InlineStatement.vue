@@ -5,14 +5,12 @@ import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import {
   BASIC_CONTROL_PARTS,
   STATEMENT_INTERFACES,
-  type StatementControl,
+  STATEMENT_STANDALONE_TYPES,
   type StatementInterface,
   type StatementPart,
   type StatementPartComponent,
 } from "@/components/statements";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
-import TaggingControl from "@/components/statements/TaggingControl.vue";
-import TriggerControl from "@/components/statements/TriggerControl.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -26,7 +24,7 @@ import {
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
 import { useCurrentModule, type Statement, TypeFlag } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { STATEMENT_STANDALONE_TYPES, STATEMENT_TYPE_LABELS } from "@/state/statement";
+import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
@@ -47,7 +45,6 @@ const props = defineProps<{
   depth: number;
   ancestors: Statement[];
   readonly: boolean;
-  standalone: boolean;
   shown?: boolean;
 }>();
 const file = toRef(props, "file");
@@ -56,16 +53,17 @@ const ancestors = toRef(props, "ancestors");
 
 const bench = useBenchState();
 const appearance = useAppearance();
-const nav: Ref<NavigationContext | null> = useNavigationContext(!props.standalone) ?? ref(null);
+const nav: Ref<NavigationContext | null> = useNavigationContext() ?? ref(null);
 const panel = usePanelContext();
 const module = useCurrentModule();
 const ops = useOperations();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
 const location = computed(() => nav?.value?.getLocation(statement.value));
-const isActive = computed(() => props.standalone || nav?.value?.panel.activeStatementCk == statement.value?.ck);
-const isFocused = computed(() => isActive.value && (props.standalone || (nav?.value?.panel.focused ?? false)));
-const isEditing = computed(() => isFocused.value && (props.standalone || (nav?.value?.panel.editing ?? false)));
+const fields = useFieldsState(statement);
+const isActive = computed(() => nav?.value?.panel.activeStatementCk == statement.value?.ck);
+const isFocused = computed(() => isActive.value && (nav?.value?.panel.focused ?? false));
+const isEditing = computed(() => isFocused.value && (nav?.value?.panel.editing ?? false));
 const isSelected = computed(() => nav?.value?.panel.isSelected(statement.value));
 const isInSelection = computed(() => isSelected.value && (nav?.value?.panel.selectedElementIds?.length ?? 0) > 1);
 const isAnySelection = computed(() => nav?.value?.panel.hasSelection);
@@ -75,12 +73,9 @@ const canContentFold = computed(
     statement.value.type != StatementType.Reference &&
     statement.value.type != StatementType.Text
 );
-const isContentFolded = computed(
-  () => !props.standalone && (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value)
-);
+const isContentFolded = computed(() => (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value));
 
 function toggleContentFold(descendants?: boolean) {
-  if (props.standalone) return;
   if (descendants) {
     (panel.panel.value as EditFilePanel).setStatementContentsFolded(
       module.getDescendantsOf(statement.value.id),
@@ -112,31 +107,30 @@ const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 // manage interfaces
 
-const statementInterface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
+const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
 const controlsOverflow = ref(false); // nocheckin overflow controls
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 
 const activeControlParts = computed(() => {
-  if (statementInterface.value == null) return [];
-  const iface = statementInterface.value as StatementInterface;
+  if (iface.value == null) return [];
+  const i = iface.value as StatementInterface;
   return [
-    ...BASIC_CONTROL_PARTS.filter((p) => p.enabled(iface, props.statement) && p.exists(iface, props.statement)),
-    ...(iface.extraControls?.filter((p) => p.enabled(iface, props.statement) && p.exists(iface, props.statement)) ??
-      []),
+    ...BASIC_CONTROL_PARTS.filter((p) => p.enabled(i, props.statement) && p.exists(i, props.statement)),
+    ...(i.extraControls?.filter((p) => p.enabled(i, props.statement) && p.exists(i, props.statement)) ?? []),
   ];
 });
 const activeElementParts = computed(() =>
-  statementInterface.value == null
+  iface.value == null
     ? []
-    : statementInterface.value?.elements?.filter((p) =>
-        p.exists(statementInterface.value as StatementInterface, props.statement)
+    : iface.value?.elements?.filter(
+        (p) => p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement)
       ) ?? []
 );
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 const partsInOrder: Ref<StatementPart[]> = computed(() => [
   ...activeControlParts.value,
-  ...(statementInterface.value?.extraControls ?? []),
+  ...(iface.value?.extraControls ?? []),
   ...(activeElementParts.value ?? []),
 ]);
 const partsInOrderRowwise: Ref<StatementPart[][]> = computed(() => {
@@ -146,7 +140,7 @@ const partsInOrderRowwise: Ref<StatementPart[][]> = computed(() => {
   } else {
     // controls in one row, elements have their own rows
     return [
-      [...activeControlParts.value, ...(statementInterface.value?.extraControls ?? [])],
+      [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
       ...(activeElementParts.value ?? []).map((e) => [e]),
     ].filter((row) => row.length > 0);
   }
@@ -303,12 +297,8 @@ whenever(inStatementFocused, () => {
 });
 
 function focusInEditor() {
-  if (props.standalone) {
-    bench.focusStatement(statement.value as any);
-  } else {
-    bench.focusFile(file.value as any);
-    nav?.value?.panel.focusElement(statement.value);
-  }
+  bench.focusFile(file.value as any);
+  nav?.value?.panel.focusElement(statement.value);
 }
 
 function onClickContainer(e: MouseEvent) {
@@ -342,7 +332,7 @@ function insertStatementOnClick(e: MouseEvent) {
 }
 
 // drag & drop
-const capturingDrag = computed(() => Object.values(partsRefs.value).find((e) => e.capturingDrag === true));
+const capturingDrag = computed(() => Object.values(partsRefs.value).find((e) => e?.capturingDrag === true));
 const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
@@ -408,17 +398,15 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
 }
 
 // actions
-const hasStandaloneEditor = computed(
-  () => !props.standalone && STATEMENT_STANDALONE_TYPES.includes(statement.value.type)
-);
+const STANDALONE_ENABLED = false; // not supported right now
+const hasStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(statement.value.type));
 const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
-  if (hasStandaloneEditor.value) {
+  if (hasStandaloneEditor.value && STANDALONE_ENABLED) {
     actions.push({
       groupId: "nav",
       label: "Open",
       icon: ArrowsPointingOutIcon,
-      disabled: props.standalone,
       hideInline: true,
       action: () => {
         nav?.value?.panel.bench.openEditStatement(statement.value, { focus: true });
@@ -428,7 +416,6 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       groupId: "nav",
       label: "Open on other side",
       icon: ArrowsPointingOutIcon,
-      disabled: props.standalone,
       hideInline: true,
       action: () => {
         nav?.value?.panel.bench.openEditStatement(statement.value, {
@@ -438,6 +425,8 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
         });
       },
     });
+  }
+  if (canContentFold.value) {
     actions.push({
       groupId: "nav",
       label: isContentFolded.value ? "Expand" : "Collapse",
@@ -457,28 +446,26 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       nextTick(focus);
     },
   });
-  if (!props.standalone) {
-    // doesn't work in standalone editor because it needs file context right now
-    actions.push({
-      groupId: "edit",
-      label: "Duplicate",
-      icon: Square2StackIcon,
-      action: () => magic.duplicate(),
-    });
-    actions.push({
-      groupId: "edit",
-      label: "Delete",
-      hideInline: true,
-      icon: TrashIcon,
-      action: () => magic.delete(),
-    });
-  }
+  // doesn't work in standalone editor because it needs file context right now
+  actions.push({
+    groupId: "edit",
+    label: "Duplicate",
+    icon: Square2StackIcon,
+    action: () => magic.duplicate(),
+  });
+  actions.push({
+    groupId: "edit",
+    label: "Delete",
+    hideInline: true,
+    icon: TrashIcon,
+    action: () => magic.delete(),
+  });
   return actions;
 });
-const allActions: Ref<StatementAction[]> = computed(() => [
+const actions: Ref<StatementAction[]> = computed(() => [
   ...defaultActions.value,
   ...(Object.values(partsRefs.value)
-    .flatMap((e) => e.actions ?? [])
+    .flatMap((e) => e?.actions ?? [])
     .map((a) => ({ ...a, groupId: a.groupId ?? "custom" })) ?? []),
 ]);
 const actionGroups = computed(() => [
@@ -500,6 +487,7 @@ defineExpose({
   blur,
   bounding: containerBounding,
   loading: computed(() => false /* nocheckin element loading state */),
+  actions,
 });
 </script>
 <template>
@@ -533,7 +521,7 @@ defineExpose({
       }"
     >
       <!-- Left gutter -->
-      <div v-if="!standalone" class="absolute top-1">
+      <div class="absolute top-1">
         <!-- Small positioning hack to get content right-aligned on absolute left offset -->
         <div class="relative">
           <div class="absolute right-0 flex flex-row-reverse items-center gap-0.5">
@@ -542,7 +530,7 @@ defineExpose({
               ref="actionPopoverRef"
               anchor="right"
               :thing="isInSelection ? null : statement"
-              :actions="isInSelection ? nav?.selectionActions ?? [] : allActions"
+              :actions="isInSelection ? nav?.selectionActions ?? [] : actions"
               :groups="actionGroups"
               v-slot="{ open }"
               @click.stop
@@ -579,7 +567,7 @@ defineExpose({
             </ActionPopover>
             <!-- Add statement below button -->
             <button
-              v-if="!standalone && !bench.readonly && !props.readonly"
+              v-if="!bench.readonly && !props.readonly"
               class="group rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
               :class="isActive ? 'opacity-100' : 'opacity-0'"
               @click="insertStatementOnClick"
@@ -599,12 +587,12 @@ defineExpose({
       </div>
       <!-- Statement drag & drop indicator (top/bottom) :DragStyle -->
       <div
-        v-if="!readonly && !standalone"
+        v-if="!readonly"
         class="absolute -top-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
         :class="dragOver && dragInTopHalf ? 'opacity-100' : 'opacity-0'"
       />
       <div
-        v-if="!readonly && !standalone"
+        v-if="!readonly"
         class="absolute -bottom-0.5 left-0 z-[5] h-1 w-full bg-orange-300 transition duration-150"
         :class="dragOver && dragInBottomHalf ? 'opacity-100' : 'opacity-0'"
       />
@@ -638,10 +626,7 @@ defineExpose({
         -->
 
         <!-- Header -->
-        <div
-          class="flex w-full flex-row justify-between"
-          v-if="statementInterface?.needsName || statement.name != null"
-        >
+        <div class="flex w-full flex-row justify-between" v-if="iface?.needsDeclaration || statement.name != null">
           <!-- Declaration or title (if text with heading level) -->
           <div class="flex flex-row gap-1.5">
             <DeclarationControl
@@ -651,7 +636,7 @@ defineExpose({
               v-on="handleStatementPartEvents('control', 'declaration')"
             />
             <!-- Controls inline -->
-            <div v-if="!controlsOverflow" class="flex flex-row">
+            <div v-if="!controlsOverflow" class="flex flex-row flex-nowrap">
               <component
                 v-for="control in activeControlParts.filter((c) => c.id != 'declaration')"
                 :key="control.id"
@@ -678,17 +663,16 @@ defineExpose({
               v-on="handleStatementPartEvents('control', control.id)"
             />
           </div>
-
           <!-- Actions -->
           <div
             class="transition-opacity duration-150"
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
-            <!-- Extra controls -->
-            <!-- Last/current run info? -->
+            <!-- nocheckin: Extra controls -->
+            <!-- nocheckin: Last/current run info? -->
             <!-- Actions -->
             <button
-              v-for="action in allActions.filter((action) => !action.hideInline && !action.disabled)"
+              v-for="action in actions.filter((action) => !action.hideInline && !action.disabled)"
               :key="action.label"
               class="group relative p-0.5 text-gray-400 hover:text-gray-700"
               :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
@@ -706,26 +690,42 @@ defineExpose({
             </button>
           </div>
         </div>
-        <!-- Missing statement interface -->
-        <div v-if="statementInterface == null" class="w-full font-bold text-red-600">
-          {{ statement.type }}
-        </div>
-        <!-- Body elements -->
-        <component
-          v-for="element in activeElementParts"
-          :ref="(ref: any) => (partsRefs[element.id] = ref)"
-          :key="element.id"
-          :is="element.component"
-          :statement="statement"
-          :focused="isFocused"
-          :editing="isEditing"
-          :readonly="readonly"
-          :bounding="containerBounding"
-          v-on="handleStatementPartEvents('element', element.id)"
-        />
+        <!-- Body -->
+        <!-- Folded -->
+        <template v-if="isContentFolded && iface?.foldable != null">
+          <button class="flex flex-row gap-1 rounded-sm hover:bg-gray-100" @click="toggleContentFold()">
+            <span
+              v-for="field in iface.foldable.includes('all') ? fields.allFields.value : fields.selfFields.value"
+              class="text-gray-400"
+              :key="field.id"
+            >
+              {{ field.name }}
+            </span>
+          </button>
+        </template>
+        <!-- Actual body -->
+        <template v-else>
+          <!-- Missing statement interface -->
+          <div v-if="iface == null" class="w-full font-bold text-red-600">
+            {{ statement.type }}
+          </div>
+          <!-- Body elements -->
+          <component
+            v-for="element in activeElementParts"
+            :ref="(ref: any) => (partsRefs[element.id] = ref)"
+            :key="element.id"
+            :is="element.component"
+            :statement="statement"
+            :focused="isFocused"
+            :editing="isEditing"
+            :readonly="readonly"
+            :bounding="containerBounding"
+            v-on="handleStatementPartEvents('element', element.id)"
+          />
+        </template>
         <!-- Fold / unfold elements -->
         <button
-          v-if="!standalone && canContentFold"
+          v-if="canContentFold"
           class="group absolute -left-5 top-7 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
           :class="isActive ? 'opacity-100' : 'opacity-0'"
           @click="(e) => toggleContentFold(e.altKey)"
@@ -746,7 +746,7 @@ defineExpose({
       </div>
       <!-- Issues in right gutter -->
       <div
-        v-if="!standalone && hasIssues"
+        v-if="!hasIssues"
         class="group/issues absolute left-full top-1 flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,

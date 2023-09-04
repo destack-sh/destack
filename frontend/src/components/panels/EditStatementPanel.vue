@@ -103,23 +103,7 @@ const statementPath = computed(() => module.nodePathOf(statement.value?.id));
       <!-- Title -->
       <!-- TODO @UX: parse and enrich statement editor title & use larger space for statements in standalone editor -->
       <!-- Statement -->
-      <Statement
-        ref="statementComponentRef"
-        class="relative mx-auto w-full justify-between"
-        :class="appearance.baseClass"
-        :style="{
-          'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px',
-          paddingLeft: `${panel.contentMarginX}px`,
-          paddingRight: `${panel.contentMarginX}px`,
-        }"
-        :file="(file as FileHeader)"
-        :statement="statement"
-        :readonly="bench.readonly"
-        :depth="0"
-        :ancestors="[]"
-        standalone
-        :shown="statementComponentLoaded"
-      />
+      <!-- not supported right now -->
     </div>
   </div>
 </template>

@@ -74,10 +74,8 @@ export function useTriggers(statement: Ref<Statement>) {
   };
 }
 
-export function useFields(statement: Ref<Statement>) {
+export function useFieldsState(statement: Ref<Statement>) {
   const module = useCurrentModule();
-  const ops = useOperations();
-
   const fields = computed(
     () =>
       statement.value.fields
@@ -106,6 +104,15 @@ export function useFields(statement: Ref<Statement>) {
     );
   });
   const allFields = computed(() => [...inheritedFields.value, ...selfFields.value]);
+  return { fields, resolvedFields, selfFields, baseTypes, inheritedFields, allFields };
+}
+
+export function useFields(statement: Ref<Statement>) {
+  const module = useCurrentModule();
+  const ops = useOperations();
+
+  const { fields, resolvedFields, selfFields, baseTypes, inheritedFields, allFields } = useFieldsState(statement);
+
   const fieldsByName = computed(() => {
     const fieldsByName: Record<string, Field> = {};
     for (const field of fields.value) {
@@ -399,8 +406,6 @@ export function getStatementDescription(type: StatementType, tag?: TypeTag | nul
     return STATEMENT_TYPE_DESCRIPTIONS[type];
   }
 }
-
-export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
 
 export type DatasetStatementProperties = {
   inlineQuery?: string;
