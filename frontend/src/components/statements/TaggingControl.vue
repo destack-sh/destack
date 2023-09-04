@@ -159,7 +159,7 @@ defineExpose({
                   class="ml-5 max-w-full truncate text-xs"
                   :class="['', active ? 'text-gray-700' : 'text-gray-500']"
                 >
-                  {{ tag.description }}
+                  {{ tag.text }}
                 </span>
               </li>
             </ComboboxOption>

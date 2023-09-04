@@ -32,7 +32,7 @@ import {
 import { useMagicActions } from "@/state/file";
 import { useCurrentModule, type Field, newNodeIdentity } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { useStatementContext } from "@/state/statement";
+import { useStatementContext, type DatasetStatementProperties } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
@@ -90,14 +90,6 @@ const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 const searchRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
-
-type DatasetStatementProperties = {
-  inlineQuery?: string;
-  wrapColumns: boolean;
-  // local 'view' (because we don't have proper module dataset view yet, this is the only view)
-  sorts?: SearchSort[];
-  query?: SearchQuery;
-};
 
 const properties = useElementPanelSettings<DatasetStatementProperties>(context.statement, {
   inlineQuery: undefined,
@@ -263,9 +255,6 @@ const totalCount = computed(() => recordsFetchedResult?.value?.searchRecords.tot
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
 const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
-const overfetchedRecord = computed(() =>
-  pageInfo.value?.hasNextPage ? recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.node : null
-);
 
 // auto refetch when bumped (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
@@ -288,16 +277,6 @@ function loadMore() {
       limit: PAGE_SIZE + 1, // technically no need to overfetch but limit is a key arg for the relay style pagination merge policy
     },
   });
-}
-
-function toggleInlineSearch() {
-  if (properties.inlineQuery == null) {
-    properties.inlineQuery = "";
-    nextTick(() => searchRef.value?.focus());
-  } else {
-    properties.inlineQuery = undefined;
-    nextTick(() => declarationRef.value?.focus());
-  }
 }
 
 // grid & grid sizing
@@ -772,106 +751,6 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- Declaration -->
-  <div class="flex max-w-full flex-row justify-between gap-2">
-    <div class="flex max-w-full flex-row items-center">
-      <TypedDeclarationCell
-        ref="declarationRef"
-        @navigate-down="focusTextFromTop"
-        @navigate-up="context.navigateUp"
-        @add-base="createUnionField"
-      />
-      <!-- Views (soon) -->
-      <!-- Count -->
-      <span class="ml-1.5 text-gray-400">{{ humanizeNumber(totalCount) }}</span>
-      <StatementTags ref="tagsRef" class="ml-1.5" />
-    </div>
-    <!-- Inline actions -->
-    <!-- always show when focused or inline query is active (not perfect from a UX standpoint...) -->
-    <div
-      class="flex flex-shrink-0 flex-row gap-1 transition duration-150 group-hover/statement:opacity-100"
-      :class="context.focused.value || properties.inlineQuery != null ? '' : 'opacity-0'"
-    >
-      <!-- Quick inline search -->
-      <button
-        tabindex="-1"
-        class="mb-0.5 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-        @click="() => toggleInlineSearch()"
-      >
-        <MagnifyingGlassIcon class="h-4 w-4" />
-      </button>
-      <div
-        v-if="properties.inlineQuery != null"
-        class="relative h-full w-40 transition-transform duration-150"
-        @click="searchRef?.focus"
-      >
-        <EditableSpan
-          ref="searchRef"
-          :class="context.focused.value ? '' : 'h-0'"
-          :model-value="properties.inlineQuery ?? ''"
-          :readonly="false"
-          @update:model-value="(v) => (properties.inlineQuery = v)"
-          @keydown.escape.exact.prevent="toggleInlineSearch"
-          class="overflow-hidden whitespace-nowrap"
-          placeholder
-        />
-        <!-- Placeholder -->
-        <span class="text-gray-400" v-if="(properties.inlineQuery ?? '').trim() == ''">Type to search...</span>
-        <!-- Cancel button -->
-        <button
-          tabindex="-1"
-          v-if="(properties.inlineQuery ?? '').trim() != ''"
-          class="absolute right-0 top-0 h-full rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-          @click="() => (properties.inlineQuery = undefined)"
-        >
-          <XCircleIconOutline class="h-4 w-4" />
-        </button>
-      </div>
-      <!-- Other actions -->
-      <!-- not entirely sure why we need the margin hack here and above... -->
-      <StatementActions class="-mt-0.5" :extraActions="extraActions" />
-      <CreateFieldInterface
-        ref="createFieldRef"
-        :title="'New field on ' + context.statement.value.name"
-        @select="createNewField"
-      />
-    </div>
-  </div>
-  <!-- Folded info -->
-  <button
-    v-if="folded"
-    class="mt-0.5 flex max-w-full flex-shrink flex-row gap-1.5 truncate text-gray-400"
-    :class="folded ? 'rounded-sm hover:bg-gray-100' : ''"
-    @click="$emit('toggleFold')"
-  >
-    <span>{{ humanizeNumber(totalCount) }} {{ totalCount == 1 ? "record" : "records" }}</span>
-    <!-- folded info -->
-    <template v-if="folded">
-      •
-      <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
-    </template>
-  </button>
-  <!-- Text -->
-  <EditableSpan
-    v-if="!folded"
-    ref="textRef"
-    :class="[addingText ? '' : 'h-0', 'text-gray-900']"
-    regex="name"
-    v-model="text"
-    :readonly="context.readonly.value"
-    @navigate-left="declarationRef?.focus()"
-    @navigate-up="declarationRef?.focus()"
-    @navigate-down="focusFirst"
-    @enter="context.insertBelow"
-  />
-  <button
-    tabindex="-1"
-    v-if="!folded && text.length == 0 && !context.readonly.value && addingText"
-    @click="textRef?.focus()"
-    class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
-  >
-    Add text
-  </button>
   <!-- Sorts/filters -->
   <div
     v-if="(!folded && (properties.sorts ?? []).length > 0) || properties.query != null"
@@ -896,7 +775,6 @@ defineExpose({
   <!-- Table (in table form but manually sized) -->
   <!-- Wrapper to contain any scrolling -->
   <div
-    v-if="!folded"
     ref="gridRef"
     class="overflow-x-auto"
     :style="{

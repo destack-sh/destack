@@ -83,7 +83,7 @@ defineExpose({
       @navigate-right="emit('navigateRight')"
       @enter="context.insertBelow"
     />
-    <!-- Anonymous placeholder if unnamed as a button -->
+    <!-- Anonymous placeholder if unnamed (as a button) -->
     <button
       tabindex="-1"
       v-if="!hasName"

@@ -1,15 +1,7 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
-import BlankStatement from "@/components/statements/BlankStatement.vue";
-import BlockStatement from "@/components/statements/BlockStatement.vue";
-import CodeStatement from "@/components/statements/CodeStatement.vue";
-import DatasetStatement from "@/components/statements/DatasetStatement.vue";
-import ReferenceStatement from "@/components/statements/ReferenceStatement.vue";
-import TaskStatement from "@/components/statements/TaskStatement.vue";
-import TextStatement from "@/components/statements/TextStatement.vue";
-import TypeStatement from "@/components/statements/TypeStatement.vue";
-import ValueStatement from "@/components/statements/ValueStatement.vue";
+import type { StatementElement } from "@/components/statements";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -22,12 +14,7 @@ import {
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
 import { useCurrentModule, type Statement } from "@/state/module";
-import {
-  STATEMENT_CONTEXT,
-  STATEMENT_STANDALONE_TYPES,
-  STATEMENT_TYPE_LABELS,
-  type StatementContext,
-} from "@/state/statement";
+import { STATEMENT_STANDALONE_TYPES, STATEMENT_TYPE_LABELS } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
@@ -40,7 +27,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, onBeforeUnmount, provide, ref, toRef, watch, type Component, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   file: FileHeader;
@@ -73,7 +60,6 @@ const canContentFold = computed(
   () =>
     statement.value.type != StatementType.Blank &&
     statement.value.type != StatementType.Reference &&
-    statement.value.type != StatementType.Group &&
     statement.value.type != StatementType.Text
 );
 const isContentFolded = computed(
@@ -107,64 +93,10 @@ const highlightOffsetX = computed(() =>
 );
 
 // manage interfaces
-type StatementInterface = {
-  component: Component;
-  props?: any;
-};
-
-// TODO @Cleanup @Architecture: unify statement interfaces/components
-const statementInterface: Ref<StatementInterface> = computed(() => {
-  if (statement.value.type == StatementType.Text) {
-    return {
-      component: TextStatement,
-    };
-  } else if (statement.value.type == StatementType.Type) {
-    return {
-      component: TypeStatement,
-    };
-  } else if (statement.value.type == StatementType.Task || statement.value.type == StatementType.Flow) {
-    return {
-      component: TaskStatement,
-      props: { isTyped: true },
-    };
-  } else if (statement.value.type == StatementType.Expectation || statement.value.type == StatementType.Tag) {
-    return {
-      component: TaskStatement,
-      props: { isTyped: false },
-    };
-  } else if (statement.value.type == StatementType.Code) {
-    return {
-      component: CodeStatement,
-    };
-  } else if (statement.value.type == StatementType.Dataset) {
-    return {
-      component: DatasetStatement,
-    };
-  } else if (statement.value.type == StatementType.Value) {
-    return {
-      component: ValueStatement,
-    };
-  } else if (statement.value.type == StatementType.Group) {
-    return {
-      component: BlockStatement,
-    };
-  } else if (statement.value.type == StatementType.Reference) {
-    return {
-      component: ReferenceStatement,
-    };
-  }
-
-  // default to blank statement
-  return {
-    component: BlankStatement,
-    props: { showDots: true },
-  };
-});
 
 const containerRef = ref<HTMLElement | null>(null);
 const containerBounding = useElementBounding(containerRef);
 const innerWrapperRef = ref<HTMLElement | null>(null);
-const statementRef = ref<InstanceType<typeof BlankStatement>>();
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
@@ -293,28 +225,6 @@ function insertStatementOnClick(e: MouseEvent) {
   e.preventDefault();
   e.stopPropagation();
 }
-
-// provide context
-const destroyed = ref(false); // (useful for delete tracking if component had no time to update)
-onBeforeUnmount(() => {
-  destroyed.value = true;
-});
-const context = {
-  readonly: computed(() => bench.readonly || props.readonly),
-  active: isActive,
-  focused: isFocused,
-  editing: isEditing,
-  standalone: toRef(props, "standalone"),
-  depth: toRef(props, "depth"),
-  xOffset: contentOffsetX,
-  statement,
-  reference: computed(() => module.statementOf(statement.value.referenceCk) ?? null),
-  file,
-  bounding: containerBounding,
-  destroyed,
-  customActions: ref([]),
-} as StatementContext;
-provide(STATEMENT_CONTEXT, context);
 
 // drag & drop
 const innerDrag = computed(() => (statementRef.value as any)?.innerDrag == true);
@@ -468,12 +378,8 @@ defineExpose({
     return statementRef.value?.focus(position);
   },
   blur: () => statementRef.value?.blur(),
-  root: statementRef,
   bounding: containerBounding,
   loading: computed(() => statementRef.value == null || (statementRef.value?.loading ?? false)),
-  showActionsPopover,
-  context,
-  allActions,
 });
 </script>
 <template>
@@ -612,14 +518,39 @@ defineExpose({
           'text-md': !bench.textSmall,
         }"
       >
-        <component
-          ref="statementRef"
-          :is="statementInterface.component"
-          v-bind="statementInterface.props"
-          :folded="isContentFolded"
-          @toggle-fold="toggleContentFold"
-          @toggleActions="showActionsPopover"
-        />
+        <!-- nocheckin statement inner structure -->
+        <!-- Concerns:
+          - reasonably easy to extend/amend
+         - centralize state, actions, operations and permissioning 
+          - no magic 'statement context', only props/emits/composables
+         - flexible for different views (e.g. fullscreen code, dataset, screen, flow)
+          - extract 'inline statement' wrapper for files
+         - drag/hover select actions inside statements (fields, records, into text)
+         - custom action interfaces (e.g. search for dataset)
+         - runnable info
+         - folding
+         - keyboard navigation between all components
+         - handle lots of X gracefully (long name, long text, many triggers, tags, etc.)
+         - morphing & continuous granularity between statement types
+          - e.g. easy and obtrusive to add name to text statement, text to code statement, etc.
+          - automatic conversion if e.g. you want to run text (turn into task) 
+         - different styles? (e.g. tags & triggers above or below)
+         - diffing?
+        -->
+
+        <!-- Declaration or title (if text with heading level) -->
+
+        <!-- Last/current run info? -->
+        <!-- Actions -->
+
+        <!-- Triggers -->
+
+        <!-- Taggings -->
+
+        <!-- Text -->
+
+        <!-- Body elements (could be multipart, e.g. function type + code) -->
+        <!-- elements == tiles? -->
       </div>
       <!-- Issues in right gutter -->
       <div

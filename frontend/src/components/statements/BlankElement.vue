@@ -7,33 +7,20 @@ import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButto
 import { useFocus, type MaybeElementRef } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { StatementType } from "@/gql/graphql";
-import {
-  getStatementLabel,
-  getStatementDescription,
-  getStatementIconSolid,
-  useStatementContext,
-} from "@/state/statement";
+import { getStatementLabel, getStatementDescription, getStatementIconSolid } from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
 import { usePanelContext } from "@/state/bench";
+import { type StatementProps } from "@/components/statements";
+import type { StatementEmit } from "@/components/statements";
 
-defineProps<{ showDots?: boolean; folded?: boolean }>();
-const emit = defineEmits<{
-  (e: "navigateUp", position?: number): void;
-  (e: "navigateDown", position?: number): void;
-  (e: "navigateLeft"): void;
-  (e: "navigateRight"): void;
-  (e: "enter"): void;
-  (e: "escape"): void;
-  (e: "deleteLeft"): void;
-  (e: "morphed"): void;
-}>();
+const props = defineProps<StatementProps>();
+const emit = defineEmits<StatementEmit>();
 
-const context = useStatementContext();
 const query: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const panel = usePanelContext();
-const isInTopHalfOfPanel = computed(() => context.bounding.y.value < panel.size.value.height / 2);
+const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
 
 // open/close commanding and auto-convert to text on anything else
 watch(query, (query) => {
@@ -183,13 +170,13 @@ defineExpose({
 });
 </script>
 <template>
-  <span class="flex w-full flex-row items-center outline-none" @click="spanRef?.focus()">
+  <div class="flex w-full flex-row items-center outline-none" @click="spanRef?.focus()">
     <EditableSpan
       ref="spanRef"
       v-if="!commanding"
       v-model="query"
-      :readonly="context.readonly.value"
-      @navigate-up="context.navigateUp"
+      :readonly="readonly"
+      @navigate-up="emit('navigateUp')"
       @navigate-down="context.navigateDown"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
@@ -199,13 +186,8 @@ defineExpose({
       @paste.prevent="context.paste"
     />
     <!-- Empty dots / prompt -->
-    <div
-      v-if="
-        showDots && context.statement.value.type == StatementType.Blank && query?.length == 0 && context.focused.value
-      "
-      class="h-full w-full select-none items-center group-hover:opacity-100"
-    >
-      <span class="text-gray-400" v-if="!context.editing.value"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
+    <div v-if="focused" class="h-full w-full select-none items-center group-hover:opacity-100">
+      <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
       <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
     </div>
     <!-- Command selection -->
@@ -282,5 +264,5 @@ defineExpose({
         </ComboboxOptions>
       </FadeTransition>
     </Combobox>
-  </span>
+  </div>
 </template>

@@ -44,7 +44,7 @@ const inlineActions: Ref<StatementAction[]> = computed(() => {
       <FadeTransition name="fade" mode="out-in">
         <component :is="action.active ? BusySpinnerIcon : action.icon" class="h-4 w-4" />
       </FadeTransition>
-      <!-- Label -->
+      <!-- Label popover -->
       <span
         v-if="!action.active"
         class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"

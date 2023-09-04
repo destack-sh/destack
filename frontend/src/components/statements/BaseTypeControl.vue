@@ -3,14 +3,12 @@ import { useElementRefs } from "@/composables/useGrid";
 import type { Field } from "@/state/module";
 import { useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
-import StatementDeclaration from "@/components/statements/StatementDeclaration.vue";
 import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import { ArrowRightIcon } from "@heroicons/vue/24/outline";
 import { TypeTag } from "@/gql/graphql";
 
 const context = useStatementContext();
 
-const declarationRef: Ref<InstanceType<typeof StatementDeclaration> | null> = ref(null);
 const baseTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const baseTypes = computed(() => context.baseTypes.value);
 const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
@@ -36,7 +34,6 @@ defineExpose({
 });
 </script>
 <template>
-  <StatementDeclaration ref="declarationRef" @navigate-up="emit('navigateUp')" @navigate-down="emit('navigateDown')" />
   <!-- Base types -->
   <div class="ml-1 whitespace-nowrap" v-if="(baseTypes.length ?? 0) > 0">
     <ArrowRightIcon class="mb-0.5 mr-1 inline-block h-4 w-4 text-orange-600" />

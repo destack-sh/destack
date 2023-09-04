@@ -118,68 +118,39 @@ defineExpose({
 });
 </script>
 <template>
-  <div>
-    <div class="flex max-w-full flex-row justify-between">
-      <div class="flex flex-row items-center">
-        <TypedStatementDeclaration
-          ref="declarationRef"
-          @navigate-up="context.navigateUp"
-          @navigate-down="context.fields.value.length > 0 ? structRef?.focus('first') : addFieldRef?.focus()"
-        />
-        <StatementTags ref="tagsRef" class="ml-1.5" />
-      </div>
-      <div
-        class="flex flex-row items-center gap-1 transition duration-150 group-hover/statement:opacity-100"
-        :class="context.focused.value ? '' : 'opacity-0'"
-      >
-        <StatementActions :extra-actions="actions" />
-      </div>
-    </div>
-    <!-- Folded info -->
-    <button
-      v-if="folded"
-      class="-mx-0.5 flex max-w-full flex-row gap-1.5 truncate px-0.5 text-gray-400 hover:bg-gray-100"
-      @click="$emit('toggleFold')"
-    >
-      <span v-for="field in context.allFields.value" :key="field.id">{{ field.name }}</span>
-    </button>
-    <!-- Value -->
-    <StructInterface
-      v-if="!folded"
-      ref="structRef"
-      class="-mx-1 w-full table-fixed"
-      :fields="context.allFields.value"
-      :model-value="context.statement.value.value ?? {}"
-      @update:model-value="writeValue($event)"
-      @update:field="context.updateField($event, $event)"
-      @delete:field="context.deleteField($event)"
-      @duplicate:field="duplicateField($event)"
-      @navigate-up="declarationRef?.focus"
-      @navigate-down="focusEnd"
-      :readonly="context.readonly.value"
-      :active="context.focused.value"
-      :appearance="{ hideFieldType: false, minimalFields: false }"
-      debounced
-    />
-    <div v-if="!folded" class="mb-1">
-      <!-- Add a field -->
-      <button
-        v-if="!context.readonly.value"
-        ref="addFieldRef"
-        tabindex="-1"
-        class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        @click="createFieldRef?.show()"
-        @enter="createFieldRef?.show()"
-        @keydown.up.exact.prevent="focusLastField"
-        @keydown.down.exact.prevent="context.navigateDown"
-      >
-        <PlusIcon class="h-4 w-4" /> Field
-      </button>
-    </div>
-    <CreateFieldInterface
-      ref="createFieldRef"
-      :title="'New field on ' + context.statement.value.name"
-      @select="(f) => createNewField(f as Field)"
-    />
-  </div>
+  <!-- Value -->
+  <StructInterface
+    ref="structRef"
+    class="-mx-1 w-full"
+    :fields="context.allFields.value"
+    :model-value="context.statement.value.value ?? {}"
+    @update:model-value="writeValue($event)"
+    @update:field="context.updateField($event, $event)"
+    @delete:field="context.deleteField($event)"
+    @duplicate:field="duplicateField($event)"
+    @navigate-up="declarationRef?.focus"
+    @navigate-down="focusEnd"
+    :readonly="context.readonly.value"
+    :active="context.focused.value"
+    :appearance="{ hideFieldType: false, minimalFields: false }"
+    debounced
+  />
+  <!-- Add a field -->
+  <button
+    v-if="!context.readonly.value"
+    ref="addFieldRef"
+    tabindex="-1"
+    class="flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+    @click="createFieldRef?.show()"
+    @enter="createFieldRef?.show()"
+    @keydown.up.exact.prevent="focusLastField"
+    @keydown.down.exact.prevent="context.navigateDown"
+  >
+    <PlusIcon class="h-4 w-4" /> Field
+  </button>
+  <CreateFieldInterface
+    ref="createFieldRef"
+    :title="'New field on ' + context.statement.value.name"
+    @select="(f) => createNewField(f as Field)"
+  />
 </template>
