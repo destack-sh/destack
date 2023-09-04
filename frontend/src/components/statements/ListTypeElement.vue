@@ -18,7 +18,7 @@ const module = useCurrentModule();
 const ops = useOperations();
 
 const isEnum = computed(() => props.statement.tag == TypeTag.Enum);
-const { fields, selfFields } = useFields(toRef(props, "statement"));
+const { fields, selfFields, duplicateField } = useFields(toRef(props, "statement"));
 const fieldsLength = computed(() => selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -63,17 +63,8 @@ function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "refere
   });
 }
 
-function duplicateField(fieldId: string) {
-  const field = selfFields.value?.find((m) => m.id === fieldId);
-  if (field == null) return;
-
-  const newField = makeField({
-    ...field,
-    id: null,
-    ck: null,
-    orderKey: nextOrderKey(),
-  });
-  ops.symbol.createField(null, props.statement.id, newField);
+function duplicateFieldAndFocus(fieldId: string) {
+  const newField = duplicateField(fieldId);
   if (newField != null) {
     nextTick(() => {
       grid.getRef(newField?.id, "type").open("all");
@@ -147,7 +138,7 @@ defineExpose({
 </script>
 <template>
   <!-- Fields (enum options or struct fields) -->
-  <div v-if="fieldsLength > 0" class="mb-0.5 flex w-full flex-col">
+  <div>
     <FieldInterface
       v-for="field of selfFields"
       :key="field.id"
@@ -163,28 +154,28 @@ defineExpose({
       @navigate-up="grid.navigateUp(field.id, 'type')"
       @navigate-down="grid.navigateDown(field.id, 'type')"
       @delete-self="deleteField(field.id)"
-      @duplicate-self="duplicateField(field.id)"
+      @duplicate-self="duplicateFieldAndFocus(field.id)"
       @keydown.delete.exact="isEditing || deleteField(field.id)"
       @drop="(p, v) => dropField(v.id, p, field.id)"
       @enter="grid.navigateDown(field.id, 'type')"
       class="-mx-1 self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
     />
-  </div>
-  <div class="mb-1">
-    <!-- Add a field -->
-    <button
-      v-show="!readonly"
-      tabindex="-1"
-      ref="addFieldRef"
-      class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-      @click="isEnum ? createOption() : createFieldRef?.show()"
-      @enter="isEnum ? createOption() : createFieldRef?.show()"
-      @keydown.up.exact.prevent="focusLast"
-      @keydown.down.exact.prevent="$emit('navigateDown')"
-    >
-      <PlusIcon class="h-4 w-4" />{{ isEnum ? "Option" : "Field" }}
-    </button>
-    <!-- Create popup right below button -->
-    <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
+    <div class="mb-1">
+      <!-- Add a field -->
+      <button
+        v-show="!readonly"
+        tabindex="-1"
+        ref="addFieldRef"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        @click="isEnum ? createOption() : createFieldRef?.show()"
+        @enter="isEnum ? createOption() : createFieldRef?.show()"
+        @keydown.up.exact.prevent="focusLast"
+        @keydown.down.exact.prevent="$emit('navigateDown')"
+      >
+        <PlusIcon class="h-4 w-4" />{{ isEnum ? "Option" : "Field" }}
+      </button>
+      <!-- Create popup right below button -->
+      <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
+    </div>
   </div>
 </template>

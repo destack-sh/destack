@@ -1,17 +1,13 @@
 <script lang="ts" setup>
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import {
-  STATEMENT_STANDALONE_TYPES,
-  getStatementDescription,
-  getStatementIconSolid,
-  getStatementLabel,
-} from "@/state/statement";
+import { getStatementDescription, getStatementIconSolid, getStatementLabel } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
 import { usePanelContext, type StatementHeader } from "@/state/bench";
-import type { StatementEmit, StatementProps } from "@/components/statements";
+import { STATEMENT_INTERFACES, type StatementEmit, type StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
+import { StatementType } from "@/gql/graphql";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -30,7 +26,7 @@ syncProperty({
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(props.statement.type, props.statement.tag));
 
-const canOpenInStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(props.statement.type));
+const canOpenInStandaloneEditor = computed(() => STATEMENT_INTERFACES[props.statement.type]?.foldable ?? false);
 const altKey = useKeyModifier("Alt");
 const panel = usePanelContext();
 
@@ -85,7 +81,7 @@ defineExpose({
     <!-- Anonymous placeholder if unnamed (as a button) -->
     <button
       tabindex="-1"
-      v-if="!hasName"
+      v-if="!hasName && statement.type != StatementType.Reference"
       @click="nameRef?.focus()"
       class="-ml-0.5 w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >
