@@ -212,52 +212,6 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- Declaration -->
-  <div class="flex flex-row justify-between">
-    <div class="flex flex-row items-center">
-      <TypedStatementDeclaration
-        ref="declarationRef"
-        @navigate-down="focusTextFromTop"
-        @navigate-up="context.navigateUp"
-      />
-      <StatementTags ref="tagsRef" class="ml-1.5" />
-    </div>
-    <div class="flex flex-row">
-      <InlineActions
-        class="transition duration-150 group-hover/statement:opacity-100"
-        :class="context.focused.value ? '' : 'opacity-0'"
-        :extraActions="extraActions"
-      />
-    </div>
-  </div>
-  <!-- Folded info -->
-  <button
-    v-if="folded"
-    class="-mx-0.5 flex max-w-full flex-row gap-1.5 truncate rounded-sm px-0.5 text-gray-400 hover:bg-gray-100"
-    @click="emit('toggleFold')"
-  >
-    <span v-for="field in context.selfFields.value" :key="field.id">{{ field.name }}</span>
-  </button>
-  <!-- Text -->
-  <EditableSpan
-    ref="textRef"
-    v-if="!folded"
-    :class="[addingText ? '' : 'h-0', 'text-gray-900']"
-    regex="name"
-    v-model="text"
-    :readonly="context.readonly.value"
-    @navigate-left="declarationRef?.focus()"
-    @navigate-up="declarationRef?.focus()"
-    @navigate-down="focusFirstIfExists"
-  />
-  <button
-    tabindex="-1"
-    v-if="!folded && text.length == 0 && !context.readonly.value && addingText"
-    @click="textRef?.focus()"
-    class="-mx-0.5 w-fit rounded-sm px-0.5 text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
-  >
-    Add text
-  </button>
   <!-- Fields (enum options or struct fields) -->
   <div v-if="fieldsLength > 0 && !folded" class="mb-0.5 flex w-full flex-col">
     <FieldInterface

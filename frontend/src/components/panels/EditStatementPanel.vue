@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
-import Statement from "@/components/panels/Statement.vue";
+import Statement from "@/components/statements/InlineStatement.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import { graphql } from "@/gql";
 import { useAppearance } from "@/state/appearance";

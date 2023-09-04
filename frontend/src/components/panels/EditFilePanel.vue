@@ -1,21 +1,14 @@
 <script lang="ts" setup>
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
-import StatementComponent from "@/components/panels/Statement.vue";
+import StatementComponent from "@/components/statements/InlineStatement.vue";
 import StatementAddArea from "@/components/panels/StatementAddArea.vue";
 import TitleBanner from "@/components/panels/TitleBanner.vue";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import {
-  EditFilePanel,
-  useBenchState,
-  type PanelContext,
-  type FileAction,
-  type StatementHeader,
-  type NavElement,
-} from "@/state/bench";
+import { EditFilePanel, useBenchState, type PanelContext, type FileAction, type NavElement } from "@/state/bench";
 import { provideFileState, type FileState } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity, getNodeIdFromCk } from "@/state/module";
