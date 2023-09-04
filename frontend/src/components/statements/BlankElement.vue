@@ -13,6 +13,8 @@ import { useActiveScroll } from "@/composables/useScroll";
 import { usePanelContext } from "@/state/bench";
 import { type StatementProps } from "@/components/statements";
 import type { StatementEmit } from "@/components/statements";
+import type { TypeFlag } from "@/state/module";
+import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
 
 const props = defineProps<StatementProps>();
 const emit = defineEmits<StatementEmit>();
@@ -20,7 +22,7 @@ const emit = defineEmits<StatementEmit>();
 const query: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const panel = usePanelContext();
-const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
+const ops = useOperations();
 
 // open/close commanding and auto-convert to text on anything else
 watch(query, (query) => {
@@ -28,10 +30,11 @@ watch(query, (query) => {
     commanding.value = false;
   } else if (query == "/") {
     openCommandSelection();
-    return;
   } else if (!commanding.value) {
-    context.morphToComment(query);
-    emit("morphed");
+    const tx = openTransaction();
+    ops.statement.morph(tx, props.statement.id, props.statement, { type: StatementType.Text });
+    ops.symbol.updateStatementText(tx, props.statement.id, "", query);
+    closeTransaction(tx);
   }
 });
 
@@ -67,7 +70,15 @@ type Command = {
 function simpleStatementCommand(
   group: Group,
   type: StatementType,
-  options?: { tag?: TypeTag; icon?: any; label?: string; description?: string; aliases?: string[] }
+  options?: {
+    tag?: TypeTag;
+    flags?: TypeFlag;
+    headingLevel?: number;
+    icon?: any;
+    label?: string;
+    description?: string;
+    aliases?: string[];
+  }
 ): Command {
   return {
     group,
@@ -75,7 +86,12 @@ function simpleStatementCommand(
     icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
     description: options?.description ?? getStatementDescription(type, options?.tag),
     aliases: options?.aliases,
-    action: () => (context.morpthToSymbol({ type, tag: options?.tag }), emit("morphed")),
+    action: () =>
+      ops.statement.morph(null, props.statement.id, props.statement, {
+        type,
+        tag: options?.tag,
+        flags: options?.flags,
+      }),
   };
 }
 
@@ -162,6 +178,7 @@ function blur() {
 }
 
 const appearance = useAppearance();
+const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => focus(),
@@ -177,16 +194,16 @@ defineExpose({
       v-model="query"
       :readonly="readonly"
       @navigate-up="emit('navigateUp')"
-      @navigate-down="context.navigateDown"
+      @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
-      @enter="context.insertBelow"
+      @enter="emit('enter')"
       @escape="emit('escape')"
-      @delete-left="context.deleteSelfLeft"
-      @paste.prevent="context.paste"
+      @delete-left="emit('deleteLeft')"
+      @paste.prevent="emit('paste')"
     />
     <!-- Empty dots / prompt -->
-    <div v-if="focused" class="h-full w-full select-none items-center group-hover:opacity-100">
+    <div v-if="focused && !commanding" class="h-full w-full select-none items-center group-hover:opacity-100">
       <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
       <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
     </div>

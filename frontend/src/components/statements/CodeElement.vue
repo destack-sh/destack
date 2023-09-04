@@ -24,11 +24,6 @@ import { nextTick, computed, ref, type Ref, watch } from "vue";
 import StatementTags from "@/components/statements/StatementTags.vue";
 import { useActiveScroll } from "@/composables/useScroll";
 import RunTile from "@/components/tiles/RunTile.vue";
-import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
-import { getRunStatusColor } from "@/state/session";
-import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import TypedStatementDeclaration from "@/components/statements/TypedStatementDeclaration.vue";
-import StatementTriggers from "@/components/statements/StatementTriggers.vue";
 
 const props = defineProps<{ folded?: boolean }>();
 const emit = defineEmits<{ (e: "toggleFold"): void; (e: "toggleActions"): void }>();
@@ -50,15 +45,6 @@ const sessions = useCurrentSessions();
 const runs = sessions.runsOf(context.statement.value);
 const currentRun = computed(() => runs.value.filter((r) => r.status != RunStatus.Scheduled)[0]);
 
-const inputs = computed(() => context.fields.value.filter((f) => !(f.flags & TypeFlag.IsOutput)));
-const outputs = computed(() => context.fields.value.filter((f) => f.flags & TypeFlag.IsOutput));
-const numCodeLines = computed(() => code.value.split("\n").length);
-
-const declarationRef: Ref<InstanceType<typeof TypedStatementDeclaration> | null> = ref(null);
-const tagsRef: Ref<InstanceType<typeof StatementTags> | null> = ref(null);
-const typeRef: Ref<InstanceType<typeof FunctionType> | null> = ref(null);
-const outputRef = ref<HTMLDivElement | null>(null);
-const runTileRef: Ref<InstanceType<typeof RunTile> | null> = ref(null);
 const hasTypes = computed(() => context.fields.value.length > 0);
 const addingTypes = ref(false);
 const showOutput: Ref<"logs" | "flamegraph" | "error" | null> = ref(context.standalone.value ? "logs" : null);

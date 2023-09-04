@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import TriggerInterface from "@/components/interfaces/TriggerInterface.vue";
+import type { StatementEmit, StatementProps } from "@/components/statements";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useElementRefs } from "@/composables/useGrid";
 import { useNow } from "@/composables/useNow";
@@ -7,24 +8,27 @@ import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
 import { newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { useStatementContext } from "@/state/statement";
+import { useTriggers } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
 import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
-import { computed, ref, type Ref } from "vue";
+import { computed, ref, toRef, type Ref } from "vue";
 
-const context = useStatementContext();
+const props = defineProps<StatementProps>();
+const emit = defineEmits<StatementEmit>();
+
+const { triggers } = useTriggers(toRef(props, "statement"));
 const module = useCurrentModule();
 const ops = useOperations();
 
-const editing = ref<string | null>(null);
+const editingTrigger = ref<string | null>(null);
 const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
 const actionRefs = useElementRefs();
 const triggerInterfaceRef = ref<InstanceType<typeof TriggerInterface> | null>(null);
 
-const currentTrigger = computed(() => context.triggers.value.find((t) => t.id == editing.value));
+const currentTrigger = computed(() => triggers.value.find((t) => t.id == editingTrigger.value));
 
 function addNew() {
   const identity = newNodeIdentity(module.id.value, "Trigger");
@@ -39,40 +43,38 @@ function addNew() {
     cron: "0 */1 * * *",
     mapping: null,
   };
-  ops.symbol.createTrigger(null, context.statement.value.id, newTrigger);
-  editing.value = newTrigger.id;
+  ops.symbol.createTrigger(null, props.statement.id, newTrigger);
+  editingTrigger.value = newTrigger.id;
 }
 
 function editTrigger(trigger: Pick<Trigger, "id">) {
-  editing.value = trigger.id;
+  editingTrigger.value = trigger.id;
 }
 
 function updateTrigger(trigger: Trigger) {
-  const oldTrigger = context.triggers.value.find((t) => t.id == trigger.id);
+  const oldTrigger = triggers.value.find((t) => t.id == trigger.id);
   if (oldTrigger == null) return;
   ops.symbol.updateTrigger(null, oldTrigger, trigger);
 }
 
 function duplicateTrigger(trigger: Trigger) {
   const newTrigger = { ...trigger, ...newNodeIdentity(module.id.value, "Trigger") };
-  ops.symbol.createTrigger(null, context.statement.value.id, newTrigger);
-  editing.value = newTrigger.id;
+  ops.symbol.createTrigger(null, props.statement.id, newTrigger);
+  editingTrigger.value = newTrigger.id;
 }
 
 function deleteTrigger(trigger: Trigger) {
-  ops.symbol.softDeleteTrigger(null, context.statement.value.id, trigger);
+  ops.symbol.softDeleteTrigger(null, props.statement.id, trigger);
   close();
 }
 
 function close() {
-  editing.value = null;
+  editingTrigger.value = null;
 }
 
 const now = useNow(1000);
 const triggerSchedules: Ref<(TriggerSchedule | null)[]> = computed(() =>
-  context.triggers.value.map((t) =>
-    t.type == TriggerType.Time ? getTriggerSchedule(t as TimeTrigger, now.value) : null
-  )
+  triggers.value.map((t) => (t.type == TriggerType.Time ? getTriggerSchedule(t as TimeTrigger, now.value) : null))
 );
 
 const actions = computed(() => [
@@ -92,7 +94,7 @@ const actions = computed(() => [
   <div class="group relative flex flex-row gap-1.5">
     <!-- Existing triggers -->
     <button
-      v-for="(trigger, i) in context.triggers.value"
+      v-for="(trigger, i) in triggers"
       :key="trigger.id"
       class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
       :class="[trigger.active ? 'text-orange-900' : 'text-gray-600']"
@@ -138,19 +140,6 @@ const actions = computed(() => [
           </span>
         </div>
       </div>
-    </button>
-    <!-- Add trigger button -->
-    <button
-      v-if="!context.readonly.value"
-      class="group/add flex flex-row rounded-xl border-gray-600 border-opacity-25 px-1 py-0 text-gray-400 hover:bg-orange-100 hover:text-gray-700 group-hover/add:ring-1"
-      :class="
-        context.focused.value
-          ? ''
-          : 'opacity-0 transition-opacity duration-150 group-hover/statement:opacity-100 group-hover:opacity-100'
-      "
-      @click="addNew"
-    >
-      <BoltIcon class="mt-0.5 h-4 w-4" />
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />

@@ -152,15 +152,15 @@ export function useSymbolContentOps() {
     }
   );
 
-  async function updateStatementText(tx: Transaction | null, id: string, oldCode: string, newCode: string) {
+  async function updateStatementText(tx: Transaction | null, id: string, oldText: string, newText: string) {
     await ops.perform({
       tx,
       type: "statement.updateText",
       do: async () => {
-        return await updateStatementTextMut({ id, text: newCode });
+        return await updateStatementTextMut({ id, text: newText });
       },
       undo: async () => {
-        return await updateStatementTextMut({ id, text: oldCode });
+        return await updateStatementTextMut({ id, text: oldText });
       },
     });
   }

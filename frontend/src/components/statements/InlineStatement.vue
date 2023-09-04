@@ -1,7 +1,15 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
-import type { StatementElement } from "@/components/statements";
+import {
+  STATEMENT_INTERFACES,
+  type StatementControl,
+  type StatementPart,
+  type StatementPartComponent,
+} from "@/components/statements";
+import DeclarationControl from "@/components/statements/DeclarationControl.vue";
+import TaggingControl from "@/components/statements/TaggingControl.vue";
+import TriggerControl from "@/components/statements/TriggerControl.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -13,7 +21,8 @@ import {
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
-import { useCurrentModule, type Statement } from "@/state/module";
+import { useCurrentModule, type Statement, TypeFlag } from "@/state/module";
+import { useOperations } from "@/state/operations";
 import { STATEMENT_STANDALONE_TYPES, STATEMENT_TYPE_LABELS } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
@@ -47,6 +56,7 @@ const appearance = useAppearance();
 const nav: Ref<NavigationContext | null> = useNavigationContext(!props.standalone) ?? ref(null);
 const panel = usePanelContext();
 const module = useCurrentModule();
+const ops = useOperations();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
 const location = computed(() => nav?.value?.getLocation(statement.value));
@@ -91,15 +101,130 @@ const contentOffsetX = computed(() => props.depth * INDENT_OFFSET_X);
 const highlightOffsetX = computed(() =>
   isAncestorHighlight.value ? ancestorHighlightDepth.value * INDENT_OFFSET_X : contentOffsetX.value
 );
-
-// manage interfaces
-
 const containerRef = ref<HTMLElement | null>(null);
 const containerBounding = useElementBounding(containerRef);
 const innerWrapperRef = ref<HTMLElement | null>(null);
-const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
+
+// manage interfaces
+
+// all available control parts
+const BASIC_CONTROL_PARTS: StatementControl[] = [
+  {
+    id: "declaration",
+    component: DeclarationControl,
+    enabled: computed(() => statementInterface.value?.primaryPart == "declaration" || props.statement.name != null),
+    exists: computed(() => statement.value.name != null),
+  },
+  {
+    id: "bases",
+    component: null, // nocheckin type bases component
+    enabled: computed(() => statementInterface.value?.hasBases ?? false),
+    exists: computed(
+      () => statement.value.fields?.filter((b) => b.deletedAt != null && b.flags & TypeFlag.IsUnionWith).length > 0
+    ),
+  },
+  {
+    id: "tagging",
+    component: TaggingControl,
+    enabled: computed(() => statementInterface.value?.hasTags ?? false),
+    exists: computed(() => statement.value.tags?.filter((t) => t.deletedAt != null).length > 0),
+  },
+  {
+    id: "trigger",
+    component: TriggerControl,
+    enabled: computed(() => statementInterface.value?.hasTriggers ?? false),
+    exists: computed(() => statement.value.triggers?.filter((t) => t.deletedAt != null).length > 0),
+  },
+];
+const activeControlParts = computed(() => BASIC_CONTROL_PARTS.filter((p) => p.enabled.value && p.exists.value));
+
+const statementInterface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
+const controlsOverflow = ref(false); // nocheckin overflow controls
+const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
+const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
+const partsInOrder: Ref<StatementPart[]> = computed(() => [
+  ...activeControlParts.value,
+  ...(statementInterface.value?.extraControls ?? []),
+  ...(statementInterface.value?.elements ?? []),
+]);
+const partsInOrderRowwise: Ref<StatementPart[][]> = computed(() => {
+  if (controlsOverflow.value) {
+    // everything in its own row
+    return [...partsInOrder.value.map((p) => [p])];
+  } else {
+    // controls in one row, elements have their own rows
+    return [
+      [...activeControlParts.value, ...(statementInterface.value?.extraControls ?? [])],
+      ...(statementInterface.value?.elements ?? []).map((e) => [e]),
+    ].filter((row) => row.length > 0);
+  }
+});
+
+function handleStatementPartEvents(kind: "control" | "element", id: string) {
+  return {
+    navigateUp: () => navigate("up", id),
+    navigateDown: () => navigate("down", id),
+    navigateLeft: () => navigate("left", id),
+    navigateRight: () => navigate("right", id),
+    enterLeft: () => magic.insertAbove(),
+    enter: () => magic.insertBelow(true),
+    deleteLeft: () => {
+      const above = nav?.value?.getAbove(statement.value);
+      if (above != null) ops.statement.softDelete(null, above.id);
+    },
+    escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
+    openActions: showActionsPopover,
+  };
+}
+
+function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
+  const y = partsInOrderRowwise.value.findIndex((row) => row.find((p) => p.id == partId));
+  if (y == null || y < 0) return;
+  const x = partsInOrderRowwise.value[y].findIndex((p) => p.id == partId);
+  if (x == null || x < 0) return;
+
+  // navigate inside statement parts if possible, otherwise navigate in file
+  if (direction == "left" && x == 0) direction = "up";
+  if (direction == "right" && x == partsInOrderRowwise.value[y].length - 1) direction = "down";
+  console.log("navigate", direction, x, y, partId); // nocheckin
+  if (direction == "up") {
+    if (y > 0) {
+      const nextPart = partsInOrderRowwise.value[y - 1][Math.min(x, partsInOrderRowwise.value[y - 1].length - 1)];
+      partsRefs.value[nextPart.id]?.focus("last");
+    } else {
+      const above = nav?.value?.getAbove(statement.value);
+      if (above != null) nav?.value?.statementsComponents[above.id]?.focus("last");
+    }
+  } else if (direction == "down") {
+    if (y < partsInOrderRowwise.value.length - 1) {
+      const nextPart = partsInOrderRowwise.value[y + 1][Math.min(x, partsInOrderRowwise.value[y + 1].length - 1)];
+      partsRefs.value[nextPart.id]?.focus("first");
+    } else {
+      const below = nav?.value?.getBelow(statement.value);
+      if (below != null) nav?.value?.statementsComponents[below.id]?.focus("first");
+    }
+  } else if (direction == "left") {
+    const nextPart = partsInOrderRowwise.value[y][x - 1];
+    partsRefs.value[nextPart.id]?.focus("last");
+  } else if (direction == "right") {
+    const nextPart = partsInOrderRowwise.value[y][x + 1];
+    partsRefs.value[nextPart.id]?.focus("first");
+  }
+}
+
+function focus(focus: "first" | "last" = "first") {
+  if (focus == "first") {
+    partsRefs.value[partsInOrder.value[0].id]?.focus("first");
+  } else {
+    partsRefs.value[partsInOrder.value[partsInOrder.value.length - 1].id]?.focus("last");
+  }
+}
+
+function blur() {
+  Object.values(partsRefs.value).forEach((e) => e.blur());
+}
 
 // update container bounding whenever location changes (since ResizeObserver doesn't seem to be triggered in that case)
 watch(location, () => {
@@ -125,7 +250,7 @@ watch(
   () => [isEditing.value, props.shown],
   () => {
     if (isEditing.value && props.shown && !inContainerFocused.value) {
-      statementRef.value?.focus();
+      focus();
     }
   },
   { immediate: true }
@@ -133,10 +258,10 @@ watch(
 
 // refocus if statement interface changed and we're editing
 watch(
-  () => statementInterface.value.component,
-  (oldComponent, newComponent) => {
-    if (isEditing.value && oldComponent !== newComponent) {
-      nextTick(() => statementRef.value?.focus());
+  () => statement.value.type,
+  (oldType, newType) => {
+    if (isEditing.value && oldType !== newType) {
+      nextTick(focus);
     }
   },
   { deep: false }
@@ -151,7 +276,7 @@ watch(
       // (otherwise we may cancel focus before it happens)
       nextTick(() => {
         if (!isEditing.value && inStatementFocused.value) {
-          statementRef.value?.blur();
+          blur();
         }
       });
     }
@@ -227,7 +352,7 @@ function insertStatementOnClick(e: MouseEvent) {
 }
 
 // drag & drop
-const innerDrag = computed(() => (statementRef.value as any)?.innerDrag == true);
+const innerDrag = computed(() => Object.values(partsRefs.value).find((e) => e.innerDrag === true));
 const {
   isOverDropZone: dragOver,
   inTopHalf: dragInTopHalf,
@@ -335,7 +460,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     icon: PencilSquareIcon,
     action: () => {
       nav?.value?.panel.editElement(statement.value);
-      nextTick(() => statementRef.value?.focus());
+      nextTick(focus);
     },
   });
   if (!props.standalone) {
@@ -357,7 +482,9 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
 });
 const allActions: Ref<StatementAction[]> = computed(() => [
   ...defaultActions.value,
-  ...(context.customActions.value?.map((a) => ({ ...a, groupId: "custom" })) ?? []),
+  ...(Object.values(partsRefs.value)
+    .flatMap((e) => e.actions ?? [])
+    .map((a) => ({ ...a, groupId: a.groupId ?? "custom" })) ?? []),
 ]);
 const actionGroups = computed(() => [
   { id: "general" },
@@ -374,12 +501,10 @@ const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
 const hasErrors = computed(() => issues.value?.find((i) => i.kind == IssueKind.Error));
 
 defineExpose({
-  focus: (position: "first" | "last" = "first") => {
-    return statementRef.value?.focus(position);
-  },
-  blur: () => statementRef.value?.blur(),
+  focus,
+  blur,
   bounding: containerBounding,
-  loading: computed(() => statementRef.value == null || (statementRef.value?.loading ?? false)),
+  loading: computed(() => false /* nocheckin element loading state */),
 });
 </script>
 <template>
@@ -519,6 +644,10 @@ defineExpose({
         }"
       >
         <!-- nocheckin statement inner structure -->
+        <div v-if="statementInterface == null" class="w-full font-bold text-red-600">
+          <!-- Missing statement interface -->
+          {{ statement.type }}
+        </div>
         <!-- Concerns:
           - reasonably easy to extend/amend
          - centralize state, actions, operations and permissioning 
@@ -543,14 +672,25 @@ defineExpose({
         <!-- Last/current run info? -->
         <!-- Actions -->
 
+        <!-- Bases -->
+
         <!-- Triggers -->
 
         <!-- Taggings -->
 
-        <!-- Text -->
-
-        <!-- Body elements (could be multipart, e.g. function type + code) -->
-        <!-- elements == tiles? -->
+        <!-- Body elements -->
+        <component
+          v-for="element in statementInterface?.elements ?? []"
+          :ref="(ref: any) => (partsRefs[element.id] = ref)"
+          :key="element.id"
+          :is="element.component"
+          :statement="statement"
+          :focused="isFocused"
+          :editing="isEditing"
+          :readonly="readonly"
+          :bounding="containerBounding"
+          v-on="handleStatementPartEvents('element', element.id)"
+        />
       </div>
       <!-- Issues in right gutter -->
       <div
@@ -562,12 +702,12 @@ defineExpose({
         }"
       >
         <button
-          class="flex rounded-sm p-0.5 font-bold text-red-600 underline-offset-4 transition duration-75 hover:bg-orange-100"
+          class="flex rounded-sm p-0.5 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
           :class="[hasIssues ? 'opacity-100' : 'opacity-0']"
           @click="bench.openActiveView('issues')"
         >
-          <XCircleIcon v-if="hasErrors" class="h-5 w-5 text-red-600" />
-          <ExclamationTriangleIcon v-else class="h-5 w-5 text-yellow-600" />
+          <XCircleIcon v-if="hasErrors" class="h-4 w-4 text-red-600" />
+          <ExclamationTriangleIcon v-else class="h-4 w-4 text-yellow-600" />
         </button>
         <!-- Preview on hover -->
         <div

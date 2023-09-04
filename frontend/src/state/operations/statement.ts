@@ -432,15 +432,17 @@ export function useStatementOps() {
     id: string,
     oldStatement: {
       type: StatementType;
-      name?: string;
-      tag?: TypeTag;
-      flags?: number;
+      name?: string | null;
+      tag?: TypeTag | null;
+      flags?: number | null;
+      headingLevel?: number | null;
     },
     newStatement: {
       type: StatementType;
-      name?: string;
-      tag?: TypeTag;
-      flags?: number;
+      name?: string | null;
+      tag?: TypeTag | null;
+      flags?: number | null;
+      headingLevel?: number | null;
     }
   ) {
     await ops.perform({

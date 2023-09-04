@@ -6,7 +6,7 @@ const props = defineProps<{
   modelValue: string;
   readonly: boolean;
   suppressAllShortcuts?: boolean;
-  regex?: string | RegExp | "name" | "description";
+  supportedAnnotations?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -32,7 +32,7 @@ defineExpose({
 <template>
   <EditableSpan
     ref="spanRef"
-    :regex="regex"
+    regex="description"
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     :readonly="readonly"

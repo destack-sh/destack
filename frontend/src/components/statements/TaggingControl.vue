@@ -1,19 +1,23 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
 import { newNodeIdentity, useCurrentModule } from "@/state/module";
-import { useStatementContext } from "@/state/statement";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { TagIcon as TagIconOutline } from "@heroicons/vue/24/outline";
 import { TagIcon as TagIconSolid } from "@heroicons/vue/24/solid";
-import { computed, nextTick, ref } from "vue";
+import { computed, nextTick, ref, toRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useOperations } from "@/state/operations";
 import type { Tagging } from "@/gql/graphql";
 import type { Statement } from "@/gql/graphql";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import type { StatementEmit, StatementProps } from "@/components/statements";
+import { useTags } from "@/state/statement";
 
-const context = useStatementContext();
+const props = defineProps<StatementProps>();
+const emit = defineEmits<StatementEmit>();
+
+const { tags } = useTags(toRef(props, "statement"));
 const module = useCurrentModule();
 const appearance = useAppearance();
 const ops = useOperations();
@@ -29,7 +33,7 @@ const popoverPin = pinAbsoluteElement(
 
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredTags = computed(() => {
-  const unassigned = module.tags.value.filter((t) => !context.tags.value.some((t2) => t2.key == t.key));
+  const unassigned = module.tags.value.filter((t) => !tags.value.some((t2) => t2.key == t.key));
   if (query.value.trim() == "") return unassigned;
   const [idxs] = uf.search(
     unassigned.map((t) => t.name ?? ""),
@@ -49,7 +53,7 @@ function close() {
 
 function createTagging(tag: Pick<Statement, "ck" | "key" | "name">) {
   const identity = newNodeIdentity(module.id.value, "Tagging");
-  ops.symbol.createTagging(null, context.statement.value.id, {
+  ops.symbol.createTagging(null, props.statement.id, {
     id: identity.id,
     ck: identity.ck,
     key: tag.key as string,
@@ -59,7 +63,7 @@ function createTagging(tag: Pick<Statement, "ck" | "key" | "name">) {
 }
 
 function deleteTagging(tagging: Pick<Tagging, "id">) {
-  ops.symbol.softDeleteTagging(null, context.statement.value.id, tagging);
+  ops.symbol.softDeleteTagging(null, props.statement.id, tagging);
 }
 
 defineExpose({
@@ -72,7 +76,7 @@ defineExpose({
     <!-- Existing tags -->
     <!-- obviously deleting on click is bad UX and will be fixed when we have proper tag value menus -->
     <button
-      v-for="tagging in context.tags.value"
+      v-for="tagging in tags"
       :key="tagging.id"
       class="flex flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200"
       @click="deleteTagging(tagging)"
@@ -106,10 +110,6 @@ defineExpose({
         :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
       >
         <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
-          <!-- Title -->
-          <h5 class="px-1 text-left text-xs font-semibold text-gray-500">
-            Add tag to {{ context.statement.value.name ?? "statement" }}
-          </h5>
           <!-- Input -->
           <ComboboxInput
             as="input"
@@ -123,8 +123,7 @@ defineExpose({
               'text-sm': appearance.textSmall,
               'text-md': !appearance.textSmall,
             }"
-          >
-          </ComboboxInput>
+          />
           <!-- Tag options -->
           <ComboboxOptions
             class="mt-1 max-h-48 overflow-auto"

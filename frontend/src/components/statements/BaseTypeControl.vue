@@ -1,7 +1,6 @@
 <script lang="ts" setup>
 import { useElementRefs } from "@/composables/useGrid";
 import type { Field } from "@/state/module";
-import { useStatementContext } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import TypeInterface from "@/components/interfaces/TypeInterface.vue";
 import { ArrowRightIcon } from "@heroicons/vue/24/outline";
@@ -11,7 +10,6 @@ const context = useStatementContext();
 
 const baseTypesRefs = useElementRefs<InstanceType<typeof TypeInterface>>();
 const baseTypes = computed(() => context.baseTypes.value);
-const extendButtonRef: Ref<HTMLButtonElement | null> = ref(null);
 
 const emit = defineEmits<{
   (e: "navigateUp"): void;
