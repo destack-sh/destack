@@ -465,6 +465,14 @@ export function useStatementOps() {
       headingLevel?: number | null;
     }
   ) {
+    const old = {
+      id,
+      type: oldStatement.type,
+      name: oldStatement.name ?? undefined,
+      tag: oldStatement.tag ?? undefined,
+      flags: oldStatement.flags ?? undefined,
+      headingLevel: oldStatement.headingLevel ?? undefined,
+    };
     await ops.perform({
       tx,
       type: "statement.morph",
@@ -479,14 +487,7 @@ export function useStatementOps() {
         });
       },
       undo: async () => {
-        return await morphStatementMut({
-          id,
-          type: oldStatement.type,
-          name: oldStatement.name ?? undefined,
-          tag: oldStatement.tag ?? undefined,
-          flags: oldStatement.flags ?? undefined,
-          headingLevel: oldStatement.headingLevel ?? undefined,
-        });
+        return await morphStatementMut(old);
       },
     });
   }

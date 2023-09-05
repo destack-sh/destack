@@ -26,10 +26,18 @@ const ops = useOperations();
 
 // open/close commanding and auto-convert to text on anything else
 watch(query, (query) => {
-  if (query.trim() == "") {
+  if (query == "") {
     commanding.value = false;
   } else if (query == "/") {
     openCommandSelection();
+  } else if (query.startsWith("#")) {
+    const headingLevel = (query.match(/^#+ /)?.[0].length ?? 0) - 1;
+    if (headingLevel > 0 && headingLevel < 4) {
+      ops.statement.morph(null, props.statement.id, props.statement, {
+        type: StatementType.Text,
+        headingLevel: headingLevel,
+      });
+    }
   } else if (!commanding.value) {
     const tx = openTransaction();
     ops.statement.morph(tx, props.statement.id, props.statement, { type: StatementType.Text });
@@ -210,12 +218,14 @@ defineExpose({
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
       @enter="emit('enter')"
-      @escape="emit('escape')"
       @delete-left="emit('deleteLeft')"
       @paste.prevent="emit('paste')"
     />
     <!-- Empty dots / prompt -->
-    <div v-if="focused && !commanding" class="h-full w-full select-none items-center group-hover:opacity-100">
+    <div
+      v-if="focused && !commanding && query == ''"
+      class="h-full w-full select-none items-center group-hover:opacity-100"
+    >
       <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
       <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
     </div>

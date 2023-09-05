@@ -76,48 +76,52 @@ defineExpose({
 <template>
   <ul v-if="orderedStatements != null" role="list" class="flex flex-col text-sm">
     <li
-      v-for="ordered in orderedStatements"
-      :key="ordered.id"
-      :ref="(ref) => statementsGrid.registerColumnRef(ordered.id, 'name', ref as HTMLElement)"
+      v-for="o in orderedStatements"
+      :key="o.id"
+      :ref="(ref) => statementsGrid.registerColumnRef(o.id, 'name', ref as HTMLElement)"
       tabindex="-1"
       class="flex max-w-full flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
-        'text-orange-600': ordered.ck == bench?.focusedStatementCk,
-        'text-gray-700 hover:bg-orange-100': ordered.ck != bench?.focusedStatementCk,
-        'mt-1 text-2xl': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 1,
-        'mt-0.5 text-xl': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 2,
-        'text-lg': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 3,
+        'text-orange-600': o.ck == bench?.focusedStatementCk,
+        'text-gray-700 hover:bg-orange-100': o.ck != bench?.focusedStatementCk,
+        'mt-1 text-2xl': o.statement.type == StatementType.Text && o.statement.headingLevel == 1,
+        'mt-0.5 text-xl': o.statement.type == StatementType.Text && o.statement.headingLevel == 2,
+        'text-lg': o.statement.type == StatementType.Text && o.statement.headingLevel == 3,
       }"
       :style="{
-        marginLeft: ordered.depth * 8 + 'px',
+        marginLeft: o.depth * 8 + 'px',
       }"
-      @click.prevent="focusStatement(ordered.statement)"
-      @mousedown.prevent="focusStatement(ordered.statement)"
-      @keydown.enter.exact.prevent="focusStatementAndGoThere(ordered.statement)"
-      @keydown.up.exact.prevent="statementsGrid.navigateUp(ordered.id, 'name')"
-      @keydown.down.exact.prevent="statementsGrid.navigateDown(ordered.id, 'name')"
+      @click.prevent="focusStatement(o.statement)"
+      @mousedown.prevent="focusStatement(o.statement)"
+      @keydown.enter.exact.prevent="focusStatementAndGoThere(o.statement)"
+      @keydown.up.exact.prevent="statementsGrid.navigateUp(o.id, 'name')"
+      @keydown.down.exact.prevent="statementsGrid.navigateDown(o.id, 'name')"
     >
       <!-- Hide icon for text headings -->
       <span
         class="text rounded-sm font-mono"
-        v-if="!(ordered.statement.type == StatementType.Text && ordered.statement.headingLevel != null)"
+        v-if="!(o.statement.type == StatementType.Text && o.statement.headingLevel != null)"
       >
         <component
-          :is="getStatementIconSolid(ordered.statement.type, ordered.statement.tag)"
+          :is="getStatementIconSolid(o.statement.type, o.statement.tag)"
           class="mt-0.5 h-4 w-4"
-          :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
+          :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
       <!-- Show text for unnamed statements -->
       <span
-        v-if="(ordered.statement.name ?? '').length == 0 && ordered.statement.text != null"
+        v-if="
+          (o.statement.name ?? '').length == 0 &&
+          o.statement.text != null &&
+          !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0)
+        "
         class="truncate"
-        :class="[ordered.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
+        :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
       >
-        {{ ordered.statement.text }}
+        {{ o.statement.text }}
       </span>
       <!-- Default to proper name -->
-      <span class="truncate" v-else>{{ getStatementName(ordered.statement) ?? "(Unnamed)" }}</span>
+      <span class="truncate" v-else>{{ getStatementName(o.statement) ?? "(Unnamed)" }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

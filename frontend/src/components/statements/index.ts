@@ -32,7 +32,6 @@ export type StatementPartId = StatementControlId | StatementElementId;
 export type StatementPart = {
   id: StatementPartId;
   component: StatementPartComponent;
-  actions?: StatementAction[];
   exists: (iface: StatementInterface, statement: Statement) => boolean;
 };
 
@@ -72,6 +71,23 @@ export type StatementEmit = {
   (e: "openActions"): void;
 };
 
+export type StatementEmitDict = {
+  // there must be some way to do this with generics, but I can't figure it out
+  navigateUp: () => void;
+  navigateDown: () => void;
+  navigateLeft: () => void;
+  navigateRight: () => void;
+  deleteLeft: () => void;
+  deleteSelf: () => void;
+  enterLeft: () => void;
+  enter: () => void;
+  escape: () => void;
+  paste: () => void;
+  run: (args?: Record<string, any>) => void;
+  focus: (partId: StatementPartId) => void;
+  openActions: () => void;
+};
+
 export type StatementInterface = {
   type: StatementType;
   foldable?: "function-self" | "function-all" | "list-self" | "list-all";
@@ -91,7 +107,8 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     id: "declaration",
     component: DeclarationControl,
     enabled: (iface, statement) =>
-      iface.needsDeclaration || (statement.type == StatementType.Text && statement.headingLevel != null),
+      iface.needsDeclaration ||
+      (statement.type == StatementType.Text && (statement.headingLevel != null || statement.name != null)),
     exists: (iface, statement) => statement.name != null,
   },
   {
@@ -163,7 +180,7 @@ function register(type: StatementType, value: Omit<StatementInterface, "type">) 
 }
 
 register(StatementType.Blank, { primaryPart: "blank", elements: [BLANK] });
-register(StatementType.Text, { primaryPart: "text", hasTags: true, elements: [TEXT] });
+register(StatementType.Text, { primaryPart: "text", hasTags: true, elements: [{ ...TEXT, showIfEmpty: false }] });
 register(StatementType.Code, {
   primaryPart: "code",
   foldable: "function-self",
@@ -187,7 +204,7 @@ register(StatementType.Task, {
   isRunnable: true,
   hasTags: true,
   hasTriggers: true,
-  elements: [TEXT, FUNCTION_TYPE],
+  elements: [TEXT, { ...FUNCTION_TYPE, showIfEmpty: true }],
 });
 register(StatementType.Reference, {
   primaryPart: "reference",

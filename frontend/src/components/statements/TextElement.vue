@@ -30,15 +30,21 @@ function focus(position: "first" | "last" = "first") {
   textRef.value?.focus(focusEnd ? "last" : "first");
 }
 
-// morph back to blank if it's empty for smooth back and forth between text and blank
-watch(text, () => {
-  if (text.value.trim() == "") {
-    ops.statement.morph(null, props.statement.id, props.statement.value, {
-      type: StatementType.Blank,
-      headingLevel: null,
-    });
-  }
-});
+// if text statement: morph to blank if empty
+watch(
+  text,
+  () => {
+    if (props.statement.type == StatementType.Text && (props.statement.headingLevel ?? 0) == 0) {
+      if (text.value == "") {
+        ops.statement.morph(null, props.statement.id, props.statement, {
+          type: StatementType.Blank,
+          headingLevel: null,
+        });
+      }
+    }
+  },
+  { immediate: true }
+);
 
 defineExpose({
   focus,
@@ -65,12 +71,11 @@ defineExpose({
     <template v-if="text.length == 0">&nbsp;</template>
     <button
       v-if="text.length == 0"
-      class="absolute left-0 top-0 -m-0.5 -mx-1 flex flex-row items-center rounded-sm p-0.5 transition-colors duration-75 hover:bg-orange-100"
-      :class="[focused ? 'text-gray-500' : 'text-gray-300']"
+      class="absolute left-0 top-0 -m-0.5 -mx-0.5 flex flex-row items-center rounded-sm p-0.5 transition-colors duration-75 hover:bg-orange-100"
+      :class="[focused ? 'text-gray-400' : 'text-gray-300']"
       @click="textRef?.focus"
     >
-      <PlusIcon class="h-4 w-4" />
-      Text
+      Add text...
     </button>
   </div>
 </template>

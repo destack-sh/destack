@@ -37,6 +37,7 @@ import {
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
   XMarkIcon,
+  SquaresPlusIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -491,6 +492,13 @@ const actions = computed(() => {
       action: () => refetch(),
     });
   }
+  actions.push({
+    label: "Add field",
+    icon: SquaresPlusIcon,
+    action: () => {
+      createFieldRef.value?.show();
+    },
+  });
   actions.push({
     label: "Add record",
     icon: PlusIcon,
