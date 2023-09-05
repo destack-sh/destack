@@ -117,7 +117,6 @@ const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 //  actions and add popovers would be factored out so we don't need their instances.
 
 const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
-const controlsOverflow = computed(() => activeControlParts.value.length > 3); // not ideal but hey
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 
 const partsForceShown: Ref<StatementPartId[]> = ref([]);
@@ -182,17 +181,11 @@ function getPartsInOrder(options?: { includeInactive?: boolean }) {
     ...(iface.value?.extraControls ?? []),
     ...(options?.includeInactive ? elementParts.value.map((p) => p.part) : activeElementParts.value),
   ];
-  let partsInOrderRowwise: StatementPart[][];
-  if (controlsOverflow.value) {
-    // everything in its own row
-    partsInOrderRowwise = [...partsInOrder.map((p) => [p])];
-  } else {
-    // controls in one row, elements have their own rows
-    partsInOrderRowwise = [
-      [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
-      ...(activeElementParts.value ?? []).map((e) => [e]),
-    ].filter((row) => row.length > 0);
-  }
+  // controls in one 'row', elements have their own rows
+  const partsInOrderRowwise: StatementPart[][] = [
+    [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
+    ...(activeElementParts.value ?? []).map((e) => [e]),
+  ].filter((row) => row.length > 0);
   return { partsInOrder, partsInOrderRowwise };
 }
 
@@ -701,7 +694,7 @@ defineExpose({
           class="flex w-full flex-row justify-between pb-0.5"
         >
           <!-- Declaration or title (if text with heading) -->
-          <div class="flex flex-row gap-1.5">
+          <div class="flex flex-row flex-wrap gap-x-1.5 gap-y-1">
             <DeclarationControl
               v-if="
                 iface?.needsDeclaration ||
@@ -713,22 +706,6 @@ defineExpose({
               v-on="handleStatementPartEvents('control', 'declaration')"
             />
             <!-- Controls inline -->
-            <div v-if="!controlsOverflow" class="flex flex-row flex-nowrap">
-              <component
-                v-for="{ part: control } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
-                :ref="(ref: any) => (partsRefs[control.id] = ref)"
-                :key="control.id"
-                :is="control.component"
-                :statement="statement"
-                :focused="isFocused"
-                :editing="isEditing"
-                :readonly="readonly"
-                v-on="handleStatementPartEvents('control', control.id)"
-              />
-            </div>
-          </div>
-          <!-- Controls on their own row -->
-          <div v-if="controlsOverflow" class="flex flex-row flex-wrap gap-x-1.5 gap-y-1">
             <component
               v-for="{ part: control } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
               :ref="(ref: any) => (partsRefs[control.id] = ref)"
@@ -743,7 +720,7 @@ defineExpose({
           </div>
           <!-- Actions -->
           <div
-            class="flex flex-shrink-0 flex-row transition-opacity duration-150"
+            class="flex flex-shrink-0 flex-row self-start transition-opacity duration-150"
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
             <!-- nocheckin: Extra controls -->

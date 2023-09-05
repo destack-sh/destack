@@ -74,7 +74,7 @@ defineExpose({
     <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
-      class="text-md font-semibold"
+      class="text-md flex-shrink-0 whitespace-nowrap font-semibold"
       :class="[
         altKey && canOpenInStandaloneEditor
           ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'

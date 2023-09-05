@@ -121,7 +121,7 @@ defineExpose({
       v-for="(trigger, i) in triggers"
       :ref="(ref: any) => triggerRefs.registerRef(trigger.id, ref)"
       :key="trigger.id"
-      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200 focus:bg-orange-200"
+      class="group/trigger relative flex h-fit max-h-fit flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200 focus:bg-orange-200"
       :class="[trigger.active ? 'text-orange-900' : 'text-gray-600']"
       @click="editTrigger(trigger)"
       @keydown.delete.exact.prevent="deleteTrigger(trigger)"

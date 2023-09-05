@@ -146,9 +146,16 @@ export function useFields(statement: Ref<Statement>) {
       null
     );
     const reference = module.statementOf(template.referenceCk ?? "");
-    const nameFromReference = reference?.name != null ? getFieldNameFromTypeName(reference?.name) : undefined;
+    const nameFromReference =
+      reference?.name != null && template.tag != TypeTag.Literal
+        ? getFieldNameFromTypeName(reference?.name)
+        : undefined;
     const name: string =
-      TYPEHINT_KEYWORD[template.hint as TypeHint] ?? TYPETAG_KEYWORD[template.tag] ?? nameFromReference ?? "field";
+      template.name ??
+      TYPEHINT_KEYWORD[template.hint as TypeHint] ??
+      TYPETAG_KEYWORD[template.tag] ??
+      nameFromReference ??
+      "field";
     const identity = newNodeIdentity(module.id.value, "Field");
     if ((template.id != null) != (template.ck != null)) {
       throw new Error("must provide both id and ck or neither");
