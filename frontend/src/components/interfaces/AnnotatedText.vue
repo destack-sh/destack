@@ -15,7 +15,9 @@ const emit = defineEmits<{
   (e: "navigateDown", position?: number): void;
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
+  (e: "enterLeft"): void;
   (e: "enter"): void;
+  (e: "enterRight"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
 }>();
@@ -39,7 +41,9 @@ defineExpose({
     @navigate-right="emit('navigateRight')"
     @navigate-up="emit('navigateUp')"
     @navigate-down="emit('navigateDown')"
+    @enter-left="emit('enterLeft')"
     @enter="emit('enter')"
+    @enter-right="emit('enterRight')"
     @escape="emit('escape')"
   />
 </template>

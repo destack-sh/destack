@@ -5,7 +5,7 @@ import { StatementType } from "@/gql/graphql";
 import { useBenchState, type StatementAction, usePanelContext } from "@/state/bench";
 import { TypeFlag } from "@/state/module";
 import { useCurrentSessions } from "@/state/session";
-import { PlayIcon, WindowIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
 import { computed } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
@@ -19,22 +19,25 @@ const { currentRun, currentRunActive } = sessions.currentRunOf(props.statement);
 
 defineExpose({
   focus: () => {
-    // nocheckin
+    // nothing?
   },
   blur: () => {
-    // nothing
+    // nothing?
   },
   actions: computed(() => {
     const actions: StatementAction[] = [];
     if (!props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput))) {
       // can only run inline if no inputs
       actions.push({
-        label: "Run",
+        label: currentRunActive.value ? "Stop" : "Run",
         groupId: "run",
-        disabled: currentRunActive.value,
-        icon: PlayIcon,
+        icon: currentRunActive.value ? StopIcon : PlayIcon,
         action: () => {
-          emit("run");
+          if (currentRunActive.value) {
+            sessions.cancel(currentRun.value);
+          } else {
+            emit("run");
+          }
         },
       });
     }

@@ -59,9 +59,9 @@ defineExpose({
   <div
     class="relative flex w-fit flex-row whitespace-nowrap"
     :class="{
-      'text-2xl': headingLevel == 1,
-      'text-xl': headingLevel == 2,
-      'text-lg': headingLevel == 3,
+      'mt-2 text-2xl': headingLevel == 1,
+      'mt-1 text-xl': headingLevel == 2,
+      'mt-0.5 text-lg': headingLevel == 3,
       'text-orange-600': headingLevel == 0,
       'text-gray-900': headingLevel > 0,
     }"
@@ -96,6 +96,9 @@ defineExpose({
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
+      @enter-left="emit('enterLeft')"
+      @enter-right="emit('enterRight')"
+      @enter="emit('enter')"
       @delete-left="
         () => {
           if (headingLevel > 0) {
@@ -113,7 +116,6 @@ defineExpose({
           }
         }
       "
-      @enter="emit('enter')"
     />
     <!-- Anonymous placeholder if unnamed (as a button) -->
     <button

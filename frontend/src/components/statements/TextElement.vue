@@ -4,7 +4,6 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { PlusIcon } from "@heroicons/vue/24/outline";
 import { computed, ref, watch, type Ref } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused">>();
@@ -60,10 +59,10 @@ defineExpose({
       @update:model-value="text = $event"
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
-      @enter-start="emit('enterLeft')"
+      @enter-left="emit('enterLeft')"
       @enter="emit('enter')"
-      @toggle-actions="emit('openActions')"
-      @delete-start="emit('deleteLeft')"
+      @enter-right="emit('enterRight')"
+      @delete-left="emit('deleteLeft')"
       @delete-if-empty="emit('deleteSelf')"
       @paste="emit('paste')"
       :focused="focused"
@@ -76,7 +75,7 @@ defineExpose({
       :class="[focused ? 'text-gray-400' : 'text-gray-300']"
       @click="textRef?.focus"
     >
-      Add text...
+      Enter text...
     </button>
   </div>
 </template>

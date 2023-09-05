@@ -6,6 +6,7 @@ import { useNavigationGrid } from "@/composables/useGrid";
 import { onStartTyping } from "@vueuse/core";
 import { computed, nextTick, ref, toRef } from "vue";
 import { useCurrentModule } from "@/state/module";
+import { TypeTag } from "@/gql/graphql";
 
 type StructAppearance = {
   verticalBorders?: boolean;
@@ -133,6 +134,7 @@ defineExpose({
           class="w-full self-start border border-transparent p-1 text-gray-400 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :hide-outline="appearance.hideFieldOutline"
           hide-text
+          :ref-types="[TypeTag.Enum, TypeTag.Struct]"
           :model-value="field"
           @update:model-value="emit('update:field', { ...$event, id: field.id, key: field.key } as Field)"
           @delete-self="emit('delete:field', field)"
