@@ -84,6 +84,7 @@ defineExpose({
   actions: [
     {
       label: "Add tag",
+      groupId: "edit",
       icon: TagIconOutline,
       disabled: props.readonly,
       action: () => open(),

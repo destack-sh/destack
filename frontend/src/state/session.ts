@@ -509,6 +509,13 @@ export function _useSessions(
     );
   }
 
+  function currentRunOf(statement: { ck: string }) {
+    const runs = runsOf(statement);
+    const currentRun = computed(() => runs.value.filter((r) => r.status != RunStatus.Scheduled)[0]);
+    const currentRunActive = computed(() => ACTIVE_RUN_STATUSES.includes(currentRun.value?.status ?? ""));
+    return { runs, currentRun, currentRunActive };
+  }
+
   const now = useNow(100);
   function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
@@ -536,6 +543,7 @@ export function _useSessions(
     subscribeToRun,
     onWorkerSetChange,
     runsOf,
+    currentRunOf,
     run,
     pause,
     resume,

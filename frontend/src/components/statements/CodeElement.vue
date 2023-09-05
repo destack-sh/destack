@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import { nextTick, computed, ref, type Ref, watch } from "vue";
+import { computed, ref, type Ref } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";

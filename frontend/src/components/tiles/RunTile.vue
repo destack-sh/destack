@@ -3,10 +3,10 @@ import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import { Bars3Icon, ChartBarIcon, FireIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChartBarIcon, FireIcon, QueueListIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "flamegraph" | "error";
+type View = "logs" | "flamegraph" | "error" | "trace";
 
 const props = defineProps<{
   projectId: string;
@@ -43,7 +43,9 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'flamegraph', 'error'].filter((v) => v != 'error' || run?.status == RunStatus.Failed)"
+          v-for="view in ['logs', 'flamegraph', 'error', 'trace'].filter(
+            (v) => v != 'error' || run?.status == RunStatus.Failed
+          )"
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
@@ -54,7 +56,7 @@ defineExpose({
               {
                 logs: Bars3Icon,
                 flamegraph: FireIcon,
-                trace: ChartBarIcon,
+                trace: QueueListIcon,
                 error: XCircleIcon,
               }[view]
             "

@@ -107,6 +107,7 @@ defineExpose({
   actions: [
     {
       label: "Add trigger",
+      groupId: "edit",
       icon: BoltIcon,
       disabled: props.readonly,
       action: () => addNew(),

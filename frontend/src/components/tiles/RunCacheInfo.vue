@@ -1,5 +1,5 @@
 <script lang="ts" setup>
-import { formatDuration, useTimeFromNow } from "@/composables/useNow";
+import { useTimeFromNow } from "@/composables/useNow";
 import type { Run } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import { BoltIcon } from "@heroicons/vue/24/solid";
@@ -37,7 +37,7 @@ const cachedPercentage = computed(() => {
     >
       Cached
       {{ now.getTimeFromNowString(cachedGeneratedAt) }} ago<br />
-      <!-- TODO @Broken: run cached info saved % is incorrect -->
+      <!-- TODO @Broken: run cached info saved % is incorrect? when did that happen? -->
       <!-- <template v-if="cachedPercentage > 0">
         Saved {{ cachedPercentage.toFixed() }}% (~{{ formatDuration((cachedDuration - run.duration) * 1000) }})
       </template> -->

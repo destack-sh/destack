@@ -1,10 +1,13 @@
+import BaseTypeControl from "@/components/statements/BaseTypeControl.vue";
 import BlankElement from "@/components/statements/BlankElement.vue";
 import CodeElement from "@/components/statements/CodeElement.vue";
+import CurrentRunControl from "@/components/statements/CurrentRunControl.vue";
 import DatasetElement from "@/components/statements/DatasetElement.vue";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
 import ListTypeElement from "@/components/statements/ListTypeElement.vue";
 import ReferenceControl from "@/components/statements/ReferenceControl.vue";
+import RunElement from "@/components/statements/RunElement.vue";
 import TaggingControl from "@/components/statements/TaggingControl.vue";
 import TextElement from "@/components/statements/TextElement.vue";
 import TriggerControl from "@/components/statements/TriggerControl.vue";
@@ -15,6 +18,7 @@ import { TypeFlag, type Statement } from "@/state/module";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 
 export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
+export const STANDALONE_ENABLED = false; // needs proper support
 
 export type StatementPartComponent = InstanceType<any> & {
   actions?: StatementAction[];
@@ -25,8 +29,23 @@ export type StatementPartComponent = InstanceType<any> & {
   loading?: boolean;
 };
 
-export type StatementControlId = "declaration" | "bases" | "tagging" | "trigger" | "reference";
-export type StatementElementId = "blank" | "text" | "type.function" | "type.list" | "code" | "variable" | "dataset";
+export type StatementControlId =
+  | "declaration"
+  | "bases"
+  | "tagging"
+  | "trigger"
+  | "reference"
+  | "run.meta"
+  | "dataset.search";
+export type StatementElementId =
+  | "blank"
+  | "text"
+  | "type.function"
+  | "type.list"
+  | "code"
+  | "variable"
+  | "dataset"
+  | "run";
 export type StatementPartId = StatementControlId | StatementElementId;
 
 export type StatementPart = {
@@ -113,7 +132,7 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
   },
   {
     id: "bases",
-    component: null,
+    component: BaseTypeControl,
     enabled: (iface, statement) => iface.hasBases ?? false,
     exists: (iface, statement) =>
       statement.fields?.find((b) => b.deletedAt == null && b.flags & TypeFlag.IsUnionWith) != null,
@@ -137,6 +156,12 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     exists: (iface, statement) => true,
   },
 ];
+const RUN_META: StatementControl = {
+  id: "run.meta",
+  component: CurrentRunControl,
+  enabled: (iface, statement) => false,
+  exists: (iface, statement) => false,
+};
 
 const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: () => true };
 const TEXT: StatementElement = {
@@ -169,6 +194,11 @@ const DATASET: StatementElement = {
   component: DatasetElement,
   exists: (iface, statement) => true, // unknown, but doesn't matter
 };
+const RUN: StatementElement = {
+  id: "run",
+  component: RunElement,
+  exists: (iface, statement) => false, // only shown manually,
+};
 
 export const STATEMENT_INTERFACES: Partial<Record<StatementType, StatementInterface>> = {};
 
@@ -186,14 +216,17 @@ register(StatementType.Code, {
   foldable: "function-self",
   needsDeclaration: true,
   isRunnable: true,
+  hasBases: true,
   hasTags: true,
   hasTriggers: true,
-  elements: [TEXT, FUNCTION_TYPE, { ...CODE, showIfEmpty: true }],
+  extraControls: [RUN_META],
+  elements: [TEXT, FUNCTION_TYPE, { ...CODE, showIfEmpty: true }, RUN],
 });
 register(StatementType.Type, {
   primaryPart: "type",
   foldable: "list-self",
   needsDeclaration: true,
+  hasBases: true,
   hasTags: true,
   elements: [TEXT, { ...LIST_TYPE, showIfEmpty: true }],
 });
@@ -203,13 +236,16 @@ register(StatementType.Task, {
   needsDeclaration: true,
   isRunnable: true,
   hasTags: true,
+  hasBases: true,
   hasTriggers: true,
-  elements: [TEXT, { ...FUNCTION_TYPE, showIfEmpty: true }],
+  extraControls: [RUN_META],
+  elements: [TEXT, { ...FUNCTION_TYPE, showIfEmpty: true }, RUN],
 });
 register(StatementType.Reference, {
   primaryPart: "reference",
   needsDeclaration: false,
   hasTags: true,
+  hasBases: true,
   hasTriggers: true,
   elements: [TEXT],
 });
@@ -225,5 +261,6 @@ register(StatementType.Dataset, {
   foldable: "list-all",
   needsDeclaration: true,
   hasTags: true,
+  hasBases: true,
   elements: [TEXT, DATASET],
 });

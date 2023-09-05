@@ -120,6 +120,7 @@ const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Add " + (isEnum.value ? "option" : "field"),
+    groupId: "edit",
     icon: SquaresPlusIcon,
     action: () => {
       isEnum.value ? createOption() : createFieldRef.value?.show();

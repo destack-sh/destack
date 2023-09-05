@@ -22,7 +22,6 @@ import { useOperations } from "@/state/operations";
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
-const module = useCurrentModule();
 const ops = useOperations();
 
 const fieldsX = useFields(toRef(props, "statement"));
@@ -167,14 +166,18 @@ defineExpose({
   actions: [
     {
       label: "Add input",
+      groupId: "edit",
       icon: ArrowDownRightIcon,
+      hideInline: true,
       action: () => {
         createInputRef.value?.show();
       },
     },
     {
       label: "Add output",
+      groupId: "edit",
       icon: ArrowUpRightIcon,
+      hideInline: true,
       action: () => {
         createOutputRef.value?.show();
       },
