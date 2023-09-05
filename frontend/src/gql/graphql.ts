@@ -3528,6 +3528,8 @@ export type StatementHeaderFragment = {
   type: StatementType;
   revision: number;
   name?: string | null;
+  headingLevel?: number | null;
+  text?: string | null;
   orderKey: string;
   createdAt: any;
   updatedAt: any;
@@ -3616,6 +3618,7 @@ export type StatementContentFragment = {
   orderKey: string;
   key?: string | null;
   text?: string | null;
+  headingLevel?: number | null;
   code?: string | null;
   value?: any | null;
   tag?: TypeTag | null;
@@ -4341,6 +4344,7 @@ export type CreateStatementMutation = {
         key?: string | null;
         code?: string | null;
         text?: string | null;
+        headingLevel?: number | null;
         value?: any | null;
         tag?: TypeTag | null;
         flags?: number | null;
@@ -4429,6 +4433,7 @@ export type MorphStatementMutation = {
         name?: string | null;
         tag?: TypeTag | null;
         flags?: number | null;
+        headingLevel?: number | null;
       };
 };
 
@@ -5865,6 +5870,8 @@ export const StatementHeaderFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "type" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },
           { kind: "Field", name: { kind: "Name", value: "name" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+          { kind: "Field", name: { kind: "Name", value: "text" } },
           { kind: "Field", name: { kind: "Name", value: "orderKey" } },
           {
             kind: "Field",
@@ -6138,6 +6145,7 @@ export const StatementContentFragmentDoc = {
           },
           { kind: "Field", name: { kind: "Name", value: "key" } },
           { kind: "Field", name: { kind: "Name", value: "text" } },
+          { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
           { kind: "Field", name: { kind: "Name", value: "code" } },
           { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "tag" } },
@@ -11826,6 +11834,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "code" } },
                       { kind: "Field", name: { kind: "Name", value: "text" } },
+                      { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
@@ -12211,6 +12220,7 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
+                      { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                     ],
                   },
                 },

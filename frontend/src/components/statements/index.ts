@@ -12,7 +12,6 @@ import VariableElement from "@/components/statements/VariableElement.vue";
 import { StatementType } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { TypeFlag, type Statement } from "@/state/module";
-import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 
 export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
@@ -91,7 +90,8 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
   {
     id: "declaration",
     component: DeclarationControl,
-    enabled: (iface, statement) => iface.needsDeclaration || statement.name != null,
+    enabled: (iface, statement) =>
+      iface.needsDeclaration || (statement.type == StatementType.Text && statement.headingLevel != null),
     exists: (iface, statement) => statement.name != null,
   },
   {
@@ -199,15 +199,14 @@ register(StatementType.Reference, {
 register(StatementType.Variable, {
   primaryPart: "variable",
   foldable: "list-all",
-  needsDeclaration: false,
+  needsDeclaration: true,
   hasTags: true,
-  hasTriggers: true,
   elements: [{ ...VARIABLE, showIfEmpty: true }, TEXT],
 });
 register(StatementType.Dataset, {
   primaryPart: "dataset",
   foldable: "list-all",
-  needsDeclaration: false,
+  needsDeclaration: true,
   hasTags: true,
   elements: [TEXT, DATASET],
 });

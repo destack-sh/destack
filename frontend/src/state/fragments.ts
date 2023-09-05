@@ -134,6 +134,8 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     type
     revision
     name
+    headingLevel
+    text
     orderKey
     parent {
       ... on File {
@@ -255,6 +257,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     # symbol contents
     key
     text
+    headingLevel
     code
     value
     tag

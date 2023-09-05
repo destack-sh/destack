@@ -113,7 +113,7 @@ const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 //  actions and add popovers would be factored out so we don't need their instances.
 
 const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
-const controlsOverflow = computed(() => activeControlParts.value.length > 3);
+const controlsOverflow = computed(() => activeControlParts.value.length > 3); // not ideal but hey
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 
 const enabledControlParts = computed(() => {
@@ -139,23 +139,6 @@ const elementParts = computed(() => {
 const activeElementParts = computed(() => elementParts.value.filter((p) => p.active).map((p) => p.part));
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
-const partsInOrder: Ref<StatementPart[]> = computed(() => [
-  ...enabledControlParts.value.map((p) => p.part),
-  ...(iface.value?.extraControls ?? []),
-  ...(elementParts.value.map((e) => e.part) ?? []),
-]);
-const partsInOrderRowwise: Ref<StatementPart[][]> = computed(() => {
-  if (controlsOverflow.value) {
-    // everything in its own row
-    return [...partsInOrder.value.map((p) => [p])];
-  } else {
-    // controls in one row, elements have their own rows
-    return [
-      [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
-      ...(activeElementParts.value ?? []).map((e) => [e]),
-    ].filter((row) => row.length > 0);
-  }
-});
 
 function handleStatementPartEvents(kind: "control" | "element", id: string) {
   return {
@@ -167,7 +150,11 @@ function handleStatementPartEvents(kind: "control" | "element", id: string) {
     enter: () => magic.insertBelow(true),
     deleteLeft: () => {
       const above = nav?.value?.getAbove(statement.value);
-      if (above != null) ops.statement.softDelete(null, above.id);
+      nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last");
+      ops.statement.softDelete(null, statement.value.id);
+    },
+    delete: () => {
+      ops.statement.softDelete(null, statement.value.id);
     },
     focus: (partId: StatementPartId) => focus(partId),
     escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
@@ -175,52 +162,74 @@ function handleStatementPartEvents(kind: "control" | "element", id: string) {
   };
 }
 
+function getPartsInOrder() {
+  const partsInOrder: StatementPart[] = [
+    ...activeControlParts.value,
+    ...(iface.value?.extraControls ?? []),
+    ...activeElementParts.value,
+  ];
+  let partsInOrderRowwise: StatementPart[][];
+  if (controlsOverflow.value) {
+    // everything in its own row
+    partsInOrderRowwise = [...partsInOrder.map((p) => [p])];
+  } else {
+    // controls in one row, elements have their own rows
+    partsInOrderRowwise = [
+      [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
+      ...(activeElementParts.value ?? []).map((e) => [e]),
+    ].filter((row) => row.length > 0);
+  }
+  return { partsInOrder, partsInOrderRowwise };
+}
+
 function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
-  const y = partsInOrderRowwise.value.findIndex((row) => row.find((p) => p.id == partId));
+  const { partsInOrderRowwise } = getPartsInOrder();
+  const y = partsInOrderRowwise.findIndex((row) => row.find((p) => p.id == partId));
   if (y == null || y < 0) return;
-  const x = partsInOrderRowwise.value[y].findIndex((p) => p.id == partId);
+  const x = partsInOrderRowwise[y].findIndex((p) => p.id == partId);
   if (x == null || x < 0) return;
 
   // navigate inside statement parts if possible, otherwise navigate in file
   if (direction == "left" && x == 0) direction = "up";
-  if (direction == "right" && x == partsInOrderRowwise.value[y].length - 1) direction = "down";
+  if (direction == "right" && x == partsInOrderRowwise[y].length - 1) direction = "down";
   if (direction == "up") {
     if (y > 0) {
-      const nextPart = partsInOrderRowwise.value[y - 1][Math.min(x, partsInOrderRowwise.value[y - 1].length - 1)];
+      const nextPart = partsInOrderRowwise[y - 1][Math.min(x, partsInOrderRowwise[y - 1].length - 1)];
       partsRefs.value[nextPart.id]?.focus("last");
     } else {
       const above = nav?.value?.getAbove(statement.value);
       if (above != null) nav?.value?.statementsComponents[above.id]?.focus("last");
     }
   } else if (direction == "down") {
-    if (y < partsInOrderRowwise.value.length - 1) {
-      const nextPart = partsInOrderRowwise.value[y + 1][Math.min(x, partsInOrderRowwise.value[y + 1].length - 1)];
+    if (y < partsInOrderRowwise.length - 1) {
+      const nextPart = partsInOrderRowwise[y + 1][Math.min(x, partsInOrderRowwise[y + 1].length - 1)];
       partsRefs.value[nextPart.id]?.focus("first");
     } else {
       const below = nav?.value?.getBelow(statement.value);
       if (below != null) nav?.value?.statementsComponents[below.id]?.focus("first");
     }
   } else if (direction == "left") {
-    const nextPart = partsInOrderRowwise.value[y][x - 1];
+    const nextPart = partsInOrderRowwise[y][x - 1];
     partsRefs.value[nextPart.id]?.focus("last");
   } else if (direction == "right") {
-    const nextPart = partsInOrderRowwise.value[y][x + 1];
+    const nextPart = partsInOrderRowwise[y][x + 1];
     partsRefs.value[nextPart.id]?.focus("first");
   }
 }
 
 function focus(focus: "first" | "last" | StatementPartId = "first") {
+  const { partsInOrder } = getPartsInOrder();
   if (focus == "first") {
-    partsRefs.value[partsInOrder.value[0].id]?.focus("first");
+    partsRefs.value[partsInOrder[0].id]?.focus("first");
   } else if (focus == "last") {
-    partsRefs.value[partsInOrder.value[partsInOrder.value.length - 1].id]?.focus("last");
+    partsRefs.value[partsInOrder[partsInOrder.length - 1].id]?.focus("last");
   } else {
     partsRefs.value[focus]?.focus("first");
   }
 }
 
 function blur() {
-  Object.values(partsRefs.value).forEach((e) => e.blur());
+  Object.values(partsRefs.value).forEach((e) => e.blur?.());
 }
 
 // update container bounding whenever location changes (since ResizeObserver doesn't seem to be triggered in that case)
@@ -618,25 +627,20 @@ defineExpose({
           'text-md': !bench.textSmall,
         }"
       >
-        <!-- nocheckin statement structure concerns:
-         - custom action interfaces (e.g. search for dataset)
-         - runnable info
-         - keyboard navigation between all components
-         - handle lots of X gracefully (long name, long text, many triggers, tags, etc.)
-         - morphing & continuous granularity between statement types
-          - e.g. easy and obtrusive to add name to text statement, text to code statement, etc.
-          - automatic conversion if e.g. you want to run text (turn into task) 
-        -->
-
         <!-- Header -->
         <div
-          v-if="iface?.needsDeclaration || enabledControlParts.length > 0 || statement.name != null"
+          v-if="
+            iface?.needsDeclaration ||
+            activeControlParts.length > 0 ||
+            (statement.type == StatementType.Text && statement.headingLevel != null) ||
+            statement.name != null
+          "
           class="flex w-full flex-row justify-between pb-0.5"
         >
-          <!-- Declaration or title (if text with heading level) -->
+          <!-- Declaration or title (if text with heading) -->
           <div class="flex flex-row gap-1.5">
             <DeclarationControl
-              v-if="iface?.needsDeclaration || statement.name != null"
+              v-if="iface?.needsDeclaration || (statement.type == StatementType.Text && statement.headingLevel != null)"
               :ref="(ref: any) => (partsRefs['declaration'] = ref)"
               :statement="statement"
               :readonly="readonly"
@@ -645,8 +649,7 @@ defineExpose({
             <!-- Controls inline -->
             <div v-if="!controlsOverflow" class="flex flex-row flex-nowrap">
               <component
-                v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
-                v-show="active"
+                v-for="{ part: control } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
                 :ref="(ref: any) => (partsRefs[control.id] = ref)"
                 :key="control.id"
                 :is="control.component"
@@ -658,12 +661,10 @@ defineExpose({
               />
             </div>
           </div>
-
           <!-- Controls on their own row -->
           <div v-if="controlsOverflow" class="flex flex-row flex-wrap gap-x-1.5 gap-y-1">
             <component
-              v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
-              v-show="active"
+              v-for="{ part: control } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
               :ref="(ref: any) => (partsRefs[control.id] = ref)"
               :key="control.id"
               :is="control.component"
@@ -680,7 +681,7 @@ defineExpose({
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
             <!-- nocheckin: Extra controls -->
-            <!-- nocheckin: Last/current run info? -->
+            <!-- nocheckin: Current run info -->
             <!-- Actions -->
             <button
               v-for="action in actions.filter((action) => !action.hideInline && !action.disabled)"

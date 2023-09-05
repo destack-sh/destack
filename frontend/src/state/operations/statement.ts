@@ -108,6 +108,7 @@ export function useStatementOps() {
             key
             code
             text
+            headingLevel
             value
             tag
             flags
@@ -185,6 +186,7 @@ export function useStatementOps() {
             value: vars.value,
             code: vars.code,
             text: vars.text,
+            headingLevel: null,
             referenceCk: null,
             tag: vars.tag,
             flags: vars.flags,
@@ -415,6 +417,7 @@ export function useStatementOps() {
             name
             tag
             flags
+            headingLevel
           }
           ...OperationInfoContent
         }

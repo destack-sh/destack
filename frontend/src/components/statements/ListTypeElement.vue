@@ -10,6 +10,7 @@ import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { useCurrentModule, type Field } from "@/state/module";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
+import type { StatementAction } from "@/state/bench";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -127,6 +128,18 @@ function gridNavigateDown() {
   addFieldRef.value?.focus();
 }
 
+const actions = computed(() => {
+  const actions: StatementAction[] = [];
+  actions.push({
+    label: "Add " + (isEnum.value ? "option" : "field"),
+    icon: SquaresPlusIcon,
+    action: () => {
+      isEnum.value ? createOption() : createFieldRef.value?.show();
+    },
+  });
+  return actions;
+});
+
 defineExpose({
   focus: (position: "first" | "last" = "first") =>
     position == "first" ? focusFirstIfExists() : addFieldRef.value?.focus(),
@@ -134,6 +147,7 @@ defineExpose({
     addFieldRef.value?.blur();
     grid.blur();
   },
+  actions,
 });
 </script>
 <template>

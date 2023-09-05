@@ -51,10 +51,18 @@ const actions = computed(() => {
 });
 
 function focus(position: "first" | "last" = "first") {
-  if (addFieldRef.value != null) {
-    addFieldRef.value.focus();
+  if (position == "first") {
+    if (fields.value.length > 0) {
+      structRef.value?.focus("first");
+    } else {
+      addFieldRef.value?.focus();
+    }
   } else {
-    structRef.value?.focus("last");
+    if (addFieldRef.value != null) {
+      addFieldRef.value.focus();
+    } else {
+      structRef.value?.focus("last");
+    }
   }
 }
 
@@ -81,6 +89,7 @@ defineExpose({
   },
   // prevent outer drag and drop while inside grid
   capturingDrag: computed(() => !position.isOutside.value),
+  actions,
 });
 </script>
 <template>
