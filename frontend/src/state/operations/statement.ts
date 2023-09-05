@@ -397,8 +397,17 @@ export function useStatementOps() {
   const { mutate: morphStatementMut } = registry.defineModuleMutation(
     ModuleMutationType.MorphStatement,
     graphql(/* GraphQL */ `
-      mutation morphStatement($id: GlobalID!, $type: StatementType!, $name: String, $tag: TypeTag, $flags: Int) {
-        morphStatement(input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags }) {
+      mutation morphStatement(
+        $id: GlobalID!
+        $type: StatementType!
+        $name: String
+        $tag: TypeTag
+        $flags: Int
+        $headingLevel: Int
+      ) {
+        morphStatement(
+          input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags, headingLevel: $headingLevel }
+        ) {
           ... on Statement {
             id
             revision
@@ -412,7 +421,14 @@ export function useStatementOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; type: StatementType; name?: string; tag?: TypeTag; flags?: number }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        type: StatementType;
+        name?: string;
+        tag?: TypeTag;
+        flags?: number;
+        headingLevel?: number;
+      }) =>
         ({
           morphStatement: {
             __typename: "Statement",
@@ -422,6 +438,7 @@ export function useStatementOps() {
             name: vars.name ?? null,
             tag: vars.tag ?? null,
             flags: vars.flags ?? null,
+            headingLevel: vars.headingLevel ?? null,
           },
         } as MorphStatementMutation),
     }
@@ -439,9 +456,9 @@ export function useStatementOps() {
     },
     newStatement: {
       type: StatementType;
-      name?: string | null;
-      tag?: TypeTag | null;
-      flags?: number | null;
+      name?: string;
+      tag?: TypeTag;
+      flags?: number;
       headingLevel?: number | null;
     }
   ) {
@@ -449,10 +466,24 @@ export function useStatementOps() {
       tx,
       type: "statement.morph",
       do: async () => {
-        return await morphStatementMut({ id, ...newStatement });
+        return await morphStatementMut({
+          id,
+          type: newStatement.type,
+          name: newStatement.name ?? undefined,
+          tag: newStatement.tag ?? undefined,
+          flags: newStatement.flags ?? undefined,
+          headingLevel: newStatement.headingLevel ?? undefined,
+        });
       },
       undo: async () => {
-        return await morphStatementMut({ id, ...oldStatement });
+        return await morphStatementMut({
+          id,
+          type: oldStatement.type,
+          name: oldStatement.name ?? undefined,
+          tag: oldStatement.tag ?? undefined,
+          flags: oldStatement.flags ?? undefined,
+          headingLevel: oldStatement.headingLevel ?? undefined,
+        });
       },
     });
   }

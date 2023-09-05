@@ -177,6 +177,7 @@ class StatementMorphInput(strawberry_django.NodeInput):
     name: Optional[str] = None
     tag: Optional[TypeTag] = None
     flags: Optional[int] = None
+    heading_level: Optional[int] = None
 
 
 @strawberry_django.partial(models.Statement)
@@ -298,6 +299,7 @@ class StatementMutation:
         statement.name = input.name
         statement.tag = input.tag
         statement.flags = input.flags
+        statement.heading_level = input.heading_level
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)

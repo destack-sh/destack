@@ -2118,6 +2118,7 @@ export type StatementFilter = {
 
 export type StatementMorphInput = {
   flags?: InputMaybe<Scalars["Int"]>;
+  headingLevel?: InputMaybe<Scalars["Int"]>;
   id: Scalars["GlobalID"];
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<TypeTag>;
@@ -4373,6 +4374,7 @@ export type MorphStatementMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<TypeTag>;
   flags?: InputMaybe<Scalars["Int"]>;
+  headingLevel?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type MorphStatementMutation = {
@@ -11972,6 +11974,11 @@ export const MorphStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -12010,6 +12017,11 @@ export const MorphStatementDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "flags" },
                       value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "headingLevel" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
                     },
                   ],
                 },

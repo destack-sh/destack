@@ -28,7 +28,6 @@ import {
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
-  XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -44,7 +43,8 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 
 const PAGE_SIZE = 10;
 
-const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "xoffset">>();
+const props =
+  defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "visible" | "xoffset">>();
 const emit = defineEmits<StatementEmit>();
 
 const module = useCurrentModule();
@@ -57,7 +57,6 @@ const innerGridRef: Ref<HTMLDivElement | null> = ref(null);
 const loadMoreRef: Ref<HTMLButtonElement | null> = ref(null);
 const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
-const searchRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
 const fields = useFields(toRef(props, "statement"));
 const { allFields, selfFields, inheritedFields } = fields;
@@ -207,7 +206,7 @@ const {
   fetchMore,
 } = useQuery(SEARCH_QUERY, toValueRef(searchQueryVariables), {
   fetchPolicy: "network-only",
-  enabled: computed(() => !module.loading.value) as any, // the vue composable typing is all fucked up
+  enabled: computed(() => !module.loading.value && props.visible) as any, // the vue composable typing is all fucked up
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
 const recordsFetched = computed(
@@ -561,7 +560,7 @@ const actions = computed(() => {
     icon: MagnifyingGlassIcon,
     action: () => {
       properties.inlineQuery = "";
-      nextTick(() => searchRef.value?.focus());
+      emit("focus", "dataset.search");
     },
     hideInline: true,
   });

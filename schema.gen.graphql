@@ -1658,6 +1658,7 @@ input StatementMorphInput {
   name: String = null
   tag: TypeTag = null
   flags: Int = null
+  headingLevel: Int = null
 }
 
 input StatementMoveInput {

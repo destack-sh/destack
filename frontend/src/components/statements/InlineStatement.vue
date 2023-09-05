@@ -119,13 +119,14 @@ const activeControlParts = computed(() => {
     ...(i.extraControls?.filter((p) => p.enabled(i, props.statement) && p.exists(i, props.statement)) ?? []),
   ];
 });
-const activeElementParts = computed(() =>
-  iface.value == null
-    ? []
-    : iface.value?.elements?.filter(
-        (p) => p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement)
-      ) ?? []
-);
+const elementParts = computed(() => {
+  if (iface.value == null) return [];
+  return iface.value?.elements.map((p) => ({
+    part: p,
+    active: p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement),
+  }));
+});
+const activeElementParts = computed(() => elementParts.value.filter((p) => p.active).map((p) => p.part));
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 const partsInOrder: Ref<StatementPart[]> = computed(() => [
@@ -477,7 +478,13 @@ function showActionsPopover() {
   actionPopoverRef.value?.show();
 }
 
-// runtime
+// sessions
+
+function run() {
+  // nocheckin run yo
+}
+
+// interp
 const issues = module.issuesOfRef(statement);
 const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
 const hasErrors = computed(() => issues.value?.find((i) => i.kind == IssueKind.Error));
@@ -488,6 +495,8 @@ defineExpose({
   bounding: containerBounding,
   loading: computed(() => false /* nocheckin element loading state */),
   actions,
+  showActionsPopover,
+  run,
 });
 </script>
 <template>
@@ -704,26 +713,26 @@ defineExpose({
           </button>
         </template>
         <!-- Actual body -->
-        <template v-else>
-          <!-- Missing statement interface -->
-          <div v-if="iface == null" class="w-full font-bold text-red-600">
-            {{ statement.type }}
-          </div>
-          <!-- Body elements -->
-          <component
-            v-for="element in activeElementParts"
-            :ref="(ref: any) => (partsRefs[element.id] = ref)"
-            :key="element.id"
-            :is="element.component"
-            :statement="statement"
-            :focused="isFocused"
-            :editing="isEditing"
-            :readonly="readonly"
-            :bounding="containerBounding"
-            :xoffset="contentOffsetX"
-            v-on="handleStatementPartEvents('element', element.id)"
-          />
-        </template>
+        <!-- Missing statement interface -->
+        <div v-if="iface == null" class="w-full font-bold text-red-600">
+          {{ statement.type }}
+        </div>
+        <!-- Body elements -->
+        <component
+          v-for="{ part: element, active } in elementParts"
+          v-show="active && !isContentFolded"
+          :ref="(ref: any) => (partsRefs[element.id] = ref)"
+          :key="element.id"
+          :is="element.component"
+          :statement="statement"
+          :focused="isFocused"
+          :editing="isEditing"
+          :readonly="readonly"
+          :visible="active && !isContentFolded"
+          :bounding="containerBounding"
+          :xoffset="contentOffsetX"
+          v-on="handleStatementPartEvents('element', element.id)"
+        />
         <!-- Fold / unfold elements -->
         <button
           v-if="canContentFold"
