@@ -13,8 +13,10 @@ import type { Statement } from "@/gql/graphql";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useTags } from "@/state/statement";
+import { useElementRefs } from "@/composables/useGrid";
+import type { StatementAction } from "@/state/bench";
 
-const props = defineProps<Pick<StatementProps, "statement">>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
 const { tags } = useTags(toRef(props, "statement"));
@@ -30,6 +32,7 @@ const popoverPin = pinAbsoluteElement(
   computed(() => popoverRef.value),
   { pos: true, width: true, keepInView: true }
 );
+const taggingRefs = useElementRefs<HTMLButtonElement>();
 
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredTags = computed(() => {
@@ -67,6 +70,25 @@ function deleteTagging(tagging: Pick<Tagging, "id">) {
 }
 
 defineExpose({
+  focus: (focus: "first" | "last" = "first") => {
+    if (focus == "first") {
+      taggingRefs.focus(tags.value[0]?.id);
+    } else {
+      taggingRefs.focus(tags.value[tags.value.length - 1]?.id);
+    }
+  },
+  blur: () => {
+    taggingRefs.refs.value.forEach((ref) => ref.blur?.());
+    close();
+  },
+  actions: [
+    {
+      label: "Add tag",
+      icon: TagIconOutline,
+      disabled: props.readonly,
+      action: () => open(),
+    },
+  ] as StatementAction[],
   open,
   close,
 });
@@ -76,10 +98,14 @@ defineExpose({
     <!-- Existing tags -->
     <!-- obviously deleting on click is bad UX and will be fixed when we have proper tag value menus -->
     <button
-      v-for="tagging in tags"
+      v-for="(tagging, i) in tags"
+      :ref="(ref: any) => taggingRefs.registerRef(tagging.id, ref)"
       :key="tagging.id"
-      class="flex flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200"
+      class="flex flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200 focus:bg-yellow-200"
       @click="deleteTagging(tagging)"
+      @keydown.delete.exact="deleteTagging(tagging)"
+      @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : taggingRefs.focus(tags[i - 1]?.id)"
+      @keydown.right.exact.prevent="i == tags.length - 1 ? emit('navigateRight') : taggingRefs.focus(tags[i + 1]?.id)"
     >
       <TagIconSolid class="mt-0.5 h-4 w-4" />
       <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>

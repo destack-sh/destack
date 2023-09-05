@@ -9,11 +9,19 @@ import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
-import { QueryOp, SortOrder, ModuleMutationType, TypeHint, type SearchSort, type SearchQuery } from "@/gql/graphql";
+import {
+  QueryOp,
+  SortOrder,
+  ModuleMutationType,
+  TypeHint,
+  type SearchSort,
+  type SearchQuery,
+  type SearchRecordsQueryVariables,
+} from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { useCurrentModule, type Field, newNodeIdentity } from "@/state/module";
+import { useCurrentModule, type Field, newNodeIdentity, type Statement } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields, type DatasetStatementProperties } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
@@ -28,23 +36,25 @@ import {
   TrashIcon,
   ChevronDoubleDownIcon,
   ChevronDoubleUpIcon,
+  XMarkIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
-import { TypeStorageFormat, getStorageFormat, SubfieldType, canSort, getMainSubfield } from "@/state/type";
+import { canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
 import { useMutationListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import type { StatementEmit, StatementProps } from "@/components/statements";
+import { RECORD_SEARCH_QUERY, useDatasetInlineSearch } from "@/state/dataset";
 
 const PAGE_SIZE = 10;
 
 const props =
-  defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "visible" | "xoffset">>();
+  defineProps<Pick<StatementProps, "statement" | "focused" | "readonly" | "editing" | "xoffset" | "visible">>();
 const emit = defineEmits<StatementEmit>();
 
 const module = useCurrentModule();
@@ -73,66 +83,7 @@ onMounted(() => {
   }
 });
 
-// find every string-stored field for search
-const stringFields = computed(() =>
-  allFields.value.filter((f) => getStorageFormat(f.tag, f.hint, f.flags) == TypeStorageFormat.STRING)
-);
-const nameFields = computed(() => stringFields.value.filter((f) => f.hint == TypeHint.Name));
-const enumFields = computed(() =>
-  allFields.value.filter(
-    (f) =>
-      f.tag == TypeTag.Enum ||
-      (f.tag == TypeTag.TypeReference && module.statementOf(f.referenceCk)?.tag == TypeTag.Enum)
-  )
-);
-// TODO @UX: apply inline search to local records immediately/optmistically
-// update search query on inline query change
-const inlineQuery: Ref<SearchQuery | undefined> = ref(undefined);
-function getInlineQuery() {
-  if ((properties.inlineQuery ?? "").trim().length == 0) return undefined;
-  const subqueries = [
-    ...stringFields.value.map(
-      (f) =>
-        ({
-          op: QueryOp.Matches,
-          key: "value." + module.getTypedKey(f),
-          value: properties.inlineQuery,
-        } as SearchQuery)
-    ),
-    ...nameFields.value.map(
-      (f) =>
-        ({
-          op: QueryOp.StartsWith,
-          key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
-          value: properties.inlineQuery,
-        } as SearchQuery)
-    ),
-  ];
-  // filter for enum fields members that match the query
-  for (const enumField of enumFields.value) {
-    const matchingMembers = module
-      .statementOf(enumField.referenceCk)
-      ?.fields.filter((m) => m.name?.toLowerCase().startsWith(properties.inlineQuery?.toLowerCase() ?? ""));
-    if (matchingMembers == null || matchingMembers.length == 0) continue;
-    subqueries.push({
-      key: "value." + module.getTypedKey(enumField),
-      op: QueryOp.Equals,
-      value: matchingMembers.map((m) => m.key),
-    } as SearchQuery);
-  }
-
-  if (subqueries.length == 0) return undefined; // TODO @UX: indicate inline search is not possible if no plausible subqueries
-  return { op: QueryOp.Or, queries: subqueries } as SearchQuery;
-}
-function updateInlineQuery() {
-  inlineQuery.value = getInlineQuery();
-}
-const updateInlineQueryDebounced = useDebounceFn(updateInlineQuery, 100);
-watch(
-  () => [properties.inlineQuery, stringFields.value, nameFields.value, enumFields.value],
-  updateInlineQueryDebounced,
-  { immediate: true }
-);
+const { inlineQuery } = useDatasetInlineSearch(fields, toRef(properties, "inlineQuery"));
 
 function addSort(field: Field, order: SortOrder) {
   const subkey = canSort(field, { excludeSubfields: true }) ? "" : "." + getMainSubfield(field);
@@ -155,38 +106,6 @@ const sort: Ref<SearchSort[] | null> = computed(() => {
 });
 
 // :QueryFieldPolicies
-const SEARCH_QUERY = graphql(/* GraphQL */ `
-  query searchRecords(
-    $statementId: GlobalID!
-    $query: SearchQuery
-    $sort: [SearchSort!]
-    $after: String
-    $limit: Int
-    $count: Boolean
-  ) {
-    searchRecords(statementId: $statementId, query: $query, sort: $sort, after: $after, limit: $limit, count: $count) {
-      totalCount
-      pageInfo {
-        hasNextPage
-        hasPreviousPage
-        startCursor
-        endCursor
-      }
-      edges {
-        cursor
-        node {
-          id
-          revision
-          createdAt
-          updatedAt
-          deletedAt
-          orderKey
-          value
-        }
-      }
-    }
-  }
-`);
 const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
   () =>
     ({
@@ -194,7 +113,7 @@ const searchQueryVariables: Ref<SearchRecordsQueryVariables> = computed(
       after: null as string | null,
       query: inlineQuery.value,
       sort: sort.value,
-      limit: PAGE_SIZE + 1, // overfetch by one to get order key for next page
+      limit: PAGE_SIZE,
       count: true,
     } as SearchRecordsQueryVariables)
 );
@@ -204,7 +123,7 @@ const {
   error: recordsError,
   refetch,
   fetchMore,
-} = useQuery(SEARCH_QUERY, toValueRef(searchQueryVariables), {
+} = useQuery(RECORD_SEARCH_QUERY, toValueRef(searchQueryVariables), {
   fetchPolicy: "network-only",
   enabled: computed(() => !module.loading.value && props.visible) as any, // the vue composable typing is all fucked up
 });
@@ -240,7 +159,7 @@ function loadMore() {
   fetchMore({
     variables: {
       after: recordsFetchedResult.value?.searchRecords.edges.slice(-1)[0]?.cursor,
-      limit: PAGE_SIZE + 1, // technically no need to overfetch but limit is a key arg for the relay style pagination merge policy
+      limit: PAGE_SIZE,
     },
   });
 }
@@ -471,7 +390,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   };
   client.client.cache.updateQuery(
     {
-      query: SEARCH_QUERY,
+      query: RECORD_SEARCH_QUERY,
       variables: searchQueryVariables.value,
     },
     (
@@ -604,7 +523,15 @@ const recordActions: RecordAction[] = [
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    (loadMoreRef.value ?? addRecordRef.value)?.focus();
+    if (position == "first") {
+      if (grid.refs.value.length > 0) {
+        grid.focus(0, columnsInOrder.value[0]);
+      } else {
+        addRecordRef.value?.focus();
+      }
+    } else {
+      focusLastRecord();
+    }
   },
   blur: () => {
     addRecordRef.value?.blur();
@@ -617,249 +544,257 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- Sorts/filters nocheckin reenable -->
-  <!-- <div
-    v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
-    class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
-  > -->
-  <!-- Sort pills -->
-  <!-- <span
-      v-for="sort in properties.sorts ?? []"
-      :key="sort.key"
-      class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
-    > -->
-  <!-- <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
-      <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span> -->
-  <!-- Clear button -->
-  <!-- <button @click="removeSort(sort)">
-        <XMarkIcon class="h-3 w-3 text-gray-400" />
-      </button>
-    </span>
-  </div> -->
-  <!-- Table (in table form but manually sized) -->
-  <!-- Wrapper to contain any scrolling -->
-  <div
-    ref="gridRef"
-    class="overflow-x-auto"
-    :style="{
-      'margin-left': -gridOffsetX + 'px',
-      'margin-right': -gridOffsetX + 'px',
-      'padding-left': gridOffsetX + 'px',
-      'padding-right': gridOffsetX + 'px',
-      'max-width': panel.size.value.width + 'px',
-    }"
-  >
-    <!-- Inner grid -->
-    <div ref="innerGridRef" class="-mx-1 flex min-w-fit flex-col">
-      <!-- Header placeholder -->
-      <div
-        :style="{
-          width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
-          height: minRowHeight - 1 + 'px',
-        }"
-      />
-      <!-- Header (with types) -->
-      <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
-      <div
-        class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
-        :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
-        :style="{
-          position: isHeaderRowFloating ? 'fixed' : 'absolute',
-          left: isHeaderRowFloating
-            ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
-            : -gridScrollOffsetX + 4 + 'px',
-          top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 2 + 'px' : undefined,
-          /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
-          clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
-        }"
+  <div>
+    <!-- Sorts/filters -->
+    <div
+      v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
+      class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
+    >
+      <!-- Sort pills -->
+      <span
+        v-for="sort in properties.sorts ?? []"
+        :key="sort.key"
+        class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
       >
-        <div v-for="(field, x) in allFields" :key="field?.id" class="">
-          <div class="whitespace-nowrap focus-within:bg-orange-100">
-            <FieldInterface
-              :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
-              :key="field?.id + '.header'"
-              :type="field"
-              :readonly="readonly"
-              :ref-types="[TypeTag.Struct, TypeTag.Enum]"
-              :inlined="inheritedFields.find((n) => n.key == field.key) != null"
-              is-view
-              hide-outline
-              orientation="horizontal"
-              class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-              :model-value="field"
-              @update:model-value="(node: any) => updateField(field.key, node)"
-              @navigate-left="grid.navigateLeft('', field.key as string)"
-              @navigate-right="grid.navigateRight('', field.key as string)"
-              @navigate-up="grid.navigateUp('', field.key as string)"
-              @navigate-down="grid.navigateDown('', field.key as string)"
-              @delete-self="deleteField(field)"
-              @duplicate-self="duplicateField(field.id)"
-              @drop="(p, v) => dropField(v.id, p, field.id)"
-              @sort="(order) => addSort(field, order)"
-              @enter="grid.navigateDown('', field.key as string)"
-              :style="{
-                width: columnWidths[x] + 'px',
-              }"
-            />
-          </div>
-        </div>
-        <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
-        <!-- Properties column (add + settings) -->
+        <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
+        <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
+        <!-- Clear button -->
+        <button @click="removeSort(sort)">
+          <XMarkIcon class="h-3 w-3 text-gray-400" />
+        </button>
+      </span>
+    </div>
+    <!-- Table (in table form but manually sized) -->
+    <!-- Wrapper to contain any scrolling -->
+    <div
+      ref="gridRef"
+      class="overflow-x-auto"
+      :style="{
+        'margin-left': -gridOffsetX + 'px',
+        'margin-right': -gridOffsetX + 'px',
+        'padding-left': gridOffsetX + 'px',
+        'padding-right': gridOffsetX + 'px',
+        'max-width': panel.size.value.width + 'px',
+      }"
+    >
+      <!-- Inner grid -->
+      <div ref="innerGridRef" class="-mx-1 flex min-w-fit flex-col">
+        <!-- Header placeholder -->
         <div
-          v-if="showPropertiesColumn"
           :style="{
-            width: columnWidths[columnWidths.length - 1] + 'px',
+            width: columnWidths.reduce((a, b) => a + b, 0) + 'px',
+            height: minRowHeight - 1 + 'px',
+          }"
+        />
+        <!-- Header (with types) -->
+        <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
+        <div
+          class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
+          :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
+          :style="{
+            position: isHeaderRowFloating ? 'fixed' : 'absolute',
+            left: isHeaderRowFloating
+              ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
+              : -gridScrollOffsetX + 4 + 'px',
+            top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 2 + 'px' : undefined,
+            /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
+            clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
           }"
         >
-          <div class="flex h-full w-full flex-row items-center whitespace-nowrap">
-            <!-- Add column -->
-            <button
-              v-if="!readonly"
-              tabindex="-1"
-              class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-              @click="createFieldRef?.show()"
-            >
-              <PlusIcon class="h-4 w-4" />
-            </button>
-            <!-- Properties -->
-            <button
-              tabindex="-1"
-              class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-              @click="true /* TODO @UX: do something on database properties column button */"
-            >
-              <EllipsisHorizontalIcon class="h-4 w-4" />
-            </button>
+          <div v-for="(field, x) in allFields" :key="field?.id" class="">
+            <div class="whitespace-nowrap focus-within:bg-orange-100">
+              <FieldInterface
+                :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
+                :key="field?.id + '.header'"
+                :type="field"
+                :readonly="readonly"
+                :ref-types="[TypeTag.Struct, TypeTag.Enum]"
+                :inlined="inheritedFields.find((n) => n.key == field.key) != null"
+                is-view
+                hide-outline
+                orientation="horizontal"
+                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+                :model-value="field"
+                @update:model-value="(node: any) => updateField(field.key, node)"
+                @navigate-left="grid.navigateLeft('', field.key as string)"
+                @navigate-right="grid.navigateRight('', field.key as string)"
+                @navigate-up="grid.navigateUp('', field.key as string)"
+                @navigate-down="grid.navigateDown('', field.key as string)"
+                @delete-self="deleteField(field)"
+                @duplicate-self="duplicateField(field.id)"
+                @drop="(p, v) => dropField(v.id, p, field.id)"
+                @sort="(order) => addSort(field, order)"
+                @enter="grid.navigateDown('', field.key as string)"
+                :style="{
+                  width: columnWidths[x] + 'px',
+                }"
+              />
+            </div>
           </div>
-        </div>
-      </div>
-      <!-- Records -->
-      <div
-        v-for="(record, y) in recordsInView"
-        :key="record.id"
-        class="group/record relative flex flex-row self-start border-b border-orange-900 border-opacity-[12%] align-top"
-      >
-        <!-- Record actions -->
-        <div class="absolute -left-0.5 mt-1">
-          <div class="relative">
-            <div class="absolute right-0.5 flex flex-row-reverse items-center gap-0.5">
-              <!-- Standard actions -->
-              <ActionPopover v-if="!readonly" anchor="right" v-slot="{ open }" :thing="record" :actions="recordActions">
-                <div
-                  class="p-0.5 text-gray-400 hover:text-gray-700"
-                  :class="[
-                    open
-                      ? ''
-                      : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
-                  ]"
-                >
-                  <DragHandleIcon class="h-4 w-4" />
-                </div>
-              </ActionPopover>
-              <!-- Insert record -->
+          <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
+          <!-- Properties column (add + settings) -->
+          <div
+            v-if="showPropertiesColumn"
+            :style="{
+              width: columnWidths[columnWidths.length - 1] + 'px',
+            }"
+          >
+            <div class="flex h-full w-full flex-row items-center whitespace-nowrap">
+              <!-- Add column -->
               <button
                 v-if="!readonly"
-                class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-focus-within/record:opacity-100 group-hover/record:opacity-100"
-                @click="() => insertRecord({ belowRecordId: record.id })"
+                tabindex="-1"
+                class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+                @click="createFieldRef?.show()"
               >
                 <PlusIcon class="h-4 w-4" />
+              </button>
+              <!-- Properties -->
+              <button
+                tabindex="-1"
+                class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+                @click="true /* TODO @UX: do something on database properties column button */"
+              >
+                <EllipsisHorizontalIcon class="h-4 w-4" />
               </button>
             </div>
           </div>
         </div>
-        <!-- Record values -->
+        <!-- Records -->
         <div
-          v-for="(field, x) in allFields"
-          :key="record.id + '.' + field?.id"
-          class="h-full overflow-hidden"
-          :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
-          :style="{
-            minHeight: minRowHeight + 'px',
-            width: columnWidths[x] + 'px',
-            height: rowHeights[y] + rowPadding * 2 + 'px',
-          }"
+          v-for="(record, y) in recordsInView"
+          :key="record.id"
+          class="group/record relative flex flex-row self-start border-b border-orange-900 border-opacity-[12%] align-top"
         >
-          <!-- TODO @Cleanup: not sure why the Boolean(properties.wrapColumns) is needed, but wrapColumns is an object otherwise?  -->
-          <ValueInterface
-            :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
-            :model-value="record.value?.[module.getTypedKey(field) as string]"
-            @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
-            :type="module.effectiveTypeOf(field)"
-            :readonly="readonly"
-            :active="editing || focused"
-            :wrap="Boolean(properties.wrapColumns)"
-            debounced
-            :supports-drop="!readonly"
-            @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
-            @navigate-left="grid.navigateLeft(record.id, field.key as string)"
-            @navigate-right="grid.navigateRight(record.id, field.key as string)"
-            @navigate-up="grid.navigateUp(record.id, field.key as string)"
-            @navigate-down="grid.navigateDown(record.id, field.key as string)"
-            @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
-            class="scroll-hidden h-full w-full overflow-auto border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-            :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
-          />
-        </div>
-        <!-- Extra properties column (empty) -->
-        <div v-if="showPropertiesColumn">
+          <!-- Record actions -->
+          <div class="absolute -left-0.5 mt-1">
+            <div class="relative">
+              <div class="absolute right-0.5 flex flex-row-reverse items-center gap-0.5">
+                <!-- Standard actions -->
+                <ActionPopover
+                  v-if="!readonly"
+                  anchor="right"
+                  v-slot="{ open }"
+                  :thing="record"
+                  :actions="recordActions"
+                >
+                  <div
+                    class="p-0.5 text-gray-400 hover:text-gray-700"
+                    :class="[
+                      open
+                        ? ''
+                        : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
+                    ]"
+                  >
+                    <DragHandleIcon class="h-4 w-4" />
+                  </div>
+                </ActionPopover>
+                <!-- Insert record -->
+                <button
+                  v-if="!readonly"
+                  class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-focus-within/record:opacity-100 group-hover/record:opacity-100"
+                  @click="() => insertRecord({ belowRecordId: record.id })"
+                >
+                  <PlusIcon class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Record values -->
           <div
+            v-for="(field, x) in allFields"
+            :key="record.id + '.' + field?.id"
             class="h-full overflow-hidden"
-            :class="[
-              verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900 border-opacity-[12%]' : '',
-            ]"
+            :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
             :style="{
               minHeight: minRowHeight + 'px',
-              width: columnWidths[columnWidths.length - 1] + 'px',
+              width: columnWidths[x] + 'px',
               height: rowHeights[y] + rowPadding * 2 + 'px',
             }"
           >
-            <div class="h-full w-full overflow-hidden border border-transparent p-1"></div>
+            <!-- TODO @Cleanup: not sure why the Boolean(properties.wrapColumns) is needed, but wrapColumns is an object otherwise?  -->
+            <ValueInterface
+              :ref="(el: any) => grid.registerColumnRef(record.id, field.key as string, el)"
+              :model-value="record.value?.[module.getTypedKey(field) as string]"
+              @update:model-value="(val) => writeRecordField(record.id, module.getTypedKey(field) as string, val)"
+              :type="module.effectiveTypeOf(field)"
+              :readonly="readonly"
+              :active="editing || focused"
+              :wrap="Boolean(properties.wrapColumns)"
+              debounced
+              :supports-drop="!readonly"
+              @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
+              @navigate-left="grid.navigateLeft(record.id, field.key as string)"
+              @navigate-right="grid.navigateRight(record.id, field.key as string)"
+              @navigate-up="grid.navigateUp(record.id, field.key as string)"
+              @navigate-down="grid.navigateDown(record.id, field.key as string)"
+              @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
+              class="scroll-hidden h-full w-full overflow-auto border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+              :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
+            />
+          </div>
+          <!-- Extra properties column (empty) -->
+          <div v-if="showPropertiesColumn">
+            <div
+              class="h-full overflow-hidden"
+              :class="[
+                verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900 border-opacity-[12%]' : '',
+              ]"
+              :style="{
+                minHeight: minRowHeight + 'px',
+                width: columnWidths[columnWidths.length - 1] + 'px',
+                height: rowHeights[y] + rowPadding * 2 + 'px',
+              }"
+            >
+              <div class="h-full w-full overflow-hidden border border-transparent p-1"></div>
+            </div>
           </div>
         </div>
+        <!-- Bottom actions -->
+        <!-- Failed to load -->
+        <button
+          v-if="!loading && recordsError != null"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-red-600 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          :style="{ minHeight: minRowHeight + 'px' }"
+          @click.stop="refetch()"
+        >
+          <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
+          <span class="max-w-full truncate">{{ recordsError.message }}</span>
+        </button>
+        <!-- Load more/loading -->
+        <button
+          v-if="pageInfo?.hasNextPage"
+          ref="loadMoreRef"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          :style="{ height: minRowHeight + 'px' }"
+          @click.stop="loadMore()"
+          @keydown.up.exact.prevent="focusLastRecord"
+          @keydown.down.exact.prevent="emit('navigateDown')"
+          :disabled="loading"
+        >
+          <template v-if="loading">
+            <BusySpinnerIcon class="mr-1 h-4 w-4" :class="loading ? 'animate-spin' : ''" />
+            Loading
+          </template>
+          <template v-else>
+            <ArrowDownIcon class="h-4 w-4" />
+            Load more
+          </template>
+        </button>
+        <!-- Insert button -->
+        <button
+          v-if="!readonly"
+          ref="addRecordRef"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          :style="{ height: minRowHeight + 'px' }"
+          @click.stop="insertRecordAtEnd()"
+          @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
+          @keydown.down.exact.prevent="emit('navigateDown')"
+          :disabled="loading"
+        >
+          <PlusIcon class="h-4 w-4" /> New
+        </button>
       </div>
-      <!-- Bottom actions -->
-      <!-- Failed to load -->
-      <button
-        v-if="!loading && recordsError != null"
-        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-red-600 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        :style="{ minHeight: minRowHeight + 'px' }"
-        @click.stop="refetch()"
-      >
-        <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
-        <span class="max-w-full truncate">{{ recordsError.message }}</span>
-      </button>
-      <!-- Load more/loading -->
-      <button
-        v-if="pageInfo?.hasNextPage"
-        ref="loadMoreRef"
-        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        :style="{ height: minRowHeight + 'px' }"
-        @click.stop="loadMore()"
-        @keydown.up.exact.prevent="focusLastRecord"
-        @keydown.down.exact.prevent="emit('navigateDown')"
-        :disabled="loading"
-      >
-        <template v-if="loading">
-          <BusySpinnerIcon class="mr-1 h-4 w-4" :class="loading ? 'animate-spin' : ''" />
-          Loading
-        </template>
-        <template v-else>
-          <ArrowDownIcon class="h-4 w-4" />
-          Load more
-        </template>
-      </button>
-      <!-- Insert button -->
-      <button
-        v-if="!readonly"
-        ref="addRecordRef"
-        class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
-        :style="{ height: minRowHeight + 'px' }"
-        @click.stop="insertRecordAtEnd()"
-        @keydown.up.exact.prevent="(loadMoreRef?.focus ?? focusLastRecord)()"
-        @keydown.down.exact.prevent="emit('navigateDown')"
-        :disabled="loading"
-      >
-        <PlusIcon class="h-4 w-4" /> New
-      </button>
     </div>
   </div>
 </template>

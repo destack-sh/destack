@@ -6,11 +6,12 @@ import { useElementRefs } from "@/composables/useGrid";
 import { useNow } from "@/composables/useNow";
 import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
+import type { StatementAction } from "@/state/bench";
 import { newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useTriggers } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
-import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref } from "vue";
@@ -27,6 +28,7 @@ const editablePopoverRef: Ref<HTMLDivElement | null> = ref(null);
 const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInView: true });
 const actionRefs = useElementRefs();
 const triggerInterfaceRef = ref<InstanceType<typeof TriggerInterface> | null>(null);
+const triggerRefs = useElementRefs<HTMLButtonElement>();
 
 const currentTrigger = computed(() => triggers.value.find((t) => t.id == editingTrigger.value));
 
@@ -77,7 +79,7 @@ const triggerSchedules: Ref<(TriggerSchedule | null)[]> = computed(() =>
   triggers.value.map((t) => (t.type == TriggerType.Time ? getTriggerSchedule(t as TimeTrigger, now.value) : null))
 );
 
-const actions = computed(() => [
+const triggerActions = computed(() => [
   {
     label: "Duplicate trigger",
     icon: Square2StackIcon,
@@ -89,16 +91,44 @@ const actions = computed(() => [
     action: deleteTrigger,
   },
 ]);
+
+defineExpose({
+  focus: (focus: "first" | "last" = "first") => {
+    if (focus == "first") {
+      triggerRefs.focus(triggers.value[0]?.id);
+    } else {
+      triggerRefs.focus(triggers.value[triggers.value.length - 1]?.id);
+    }
+  },
+  blur: () => {
+    triggerRefs.refs.value.forEach((ref) => ref.blur?.());
+    close();
+  },
+  actions: [
+    {
+      label: "Add trigger",
+      icon: BoltIcon,
+      disabled: props.readonly,
+      action: () => addNew(),
+    },
+  ] as StatementAction[],
+});
 </script>
 <template>
   <div class="group relative flex flex-row gap-1.5">
     <!-- Existing triggers -->
     <button
       v-for="(trigger, i) in triggers"
+      :ref="(ref: any) => triggerRefs.registerRef(trigger.id, ref)"
       :key="trigger.id"
-      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200"
+      class="group/trigger relative flex flex-row items-center rounded-xl bg-orange-100 px-1.5 ring-1 ring-inset ring-orange-600/20 hover:bg-orange-200 focus:bg-orange-200"
       :class="[trigger.active ? 'text-orange-900' : 'text-gray-600']"
       @click="editTrigger(trigger)"
+      @keydown.delete.exact.prevent="deleteTrigger(trigger)"
+      @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : triggerRefs.focus(triggers[i - 1]?.id)"
+      @keydown.right.exact.prevent="
+        i == triggers.length - 1 ? emit('navigateRight') : triggerRefs.focus(triggers[i + 1]?.id)
+      "
     >
       <span class="mr-1 inline-flex flex-row">
         <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="h-4 w-4" />
@@ -157,12 +187,12 @@ const actions = computed(() => [
         :readonly="false"
         :model-value="currentTrigger"
         @update:model-value="updateTrigger($event)"
-        @navigate-down="actionRefs.focus(actions[0].label)"
+        @navigate-down="actionRefs.focus(triggerActions[0].label)"
       >
         <template v-slot:actions>
           <div class="flex flex-row items-center gap-1 px-1">
             <button
-              v-for="action in actions"
+              v-for="action in triggerActions"
               :key="action.label"
               class="p-0.5 text-gray-400 hover:bg-orange-100"
               @click="action.action(currentTrigger)"

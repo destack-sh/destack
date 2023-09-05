@@ -3317,6 +3317,44 @@ export type ClientStatusFragment = {
   present: boolean;
 } & { " $fragmentName"?: "ClientStatusFragment" };
 
+export type SearchRecordsQueryVariables = Exact<{
+  statementId: Scalars["GlobalID"];
+  query?: InputMaybe<SearchQuery>;
+  sort?: InputMaybe<Array<SearchSort> | SearchSort>;
+  after?: InputMaybe<Scalars["String"]>;
+  limit?: InputMaybe<Scalars["Int"]>;
+  count?: InputMaybe<Scalars["Boolean"]>;
+}>;
+
+export type SearchRecordsQuery = {
+  __typename?: "Query";
+  searchRecords: {
+    __typename?: "RecordConnection";
+    totalCount?: number | null;
+    pageInfo: {
+      __typename?: "PageInfo";
+      hasNextPage: boolean;
+      hasPreviousPage: boolean;
+      startCursor?: string | null;
+      endCursor?: string | null;
+    };
+    edges: Array<{
+      __typename?: "RecordEdge";
+      cursor: string;
+      node: {
+        __typename?: "Record";
+        id: any;
+        revision: number;
+        createdAt: any;
+        updatedAt: any;
+        deletedAt?: any | null;
+        orderKey?: string | null;
+        value: any;
+      };
+    }>;
+  };
+};
+
 export type PageInfoFragment = {
   __typename?: "PageInfo";
   hasNextPage: boolean;
@@ -8919,6 +8957,137 @@ export const ClientsChangedDocument = {
     ...ClientContentTypeFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<ClientsChangedSubscription, ClientsChangedSubscriptionVariables>;
+export const SearchRecordsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "searchRecords" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "query" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "SearchQuery" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+          type: {
+            kind: "ListType",
+            type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "SearchSort" } } },
+          },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "after" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "count" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "searchRecords" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "statementId" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "query" },
+                value: { kind: "Variable", name: { kind: "Name", value: "query" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "sort" },
+                value: { kind: "Variable", name: { kind: "Name", value: "sort" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "after" },
+                value: { kind: "Variable", name: { kind: "Name", value: "after" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "limit" },
+                value: { kind: "Variable", name: { kind: "Name", value: "limit" } },
+              },
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "count" },
+                value: { kind: "Variable", name: { kind: "Name", value: "count" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "totalCount" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "pageInfo" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "hasNextPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "hasPreviousPage" } },
+                      { kind: "Field", name: { kind: "Name", value: "startCursor" } },
+                      { kind: "Field", name: { kind: "Name", value: "endCursor" } },
+                    ],
+                  },
+                },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "edges" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "cursor" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "node" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [
+                            { kind: "Field", name: { kind: "Name", value: "id" } },
+                            { kind: "Field", name: { kind: "Name", value: "revision" } },
+                            { kind: "Field", name: { kind: "Name", value: "createdAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
+                            { kind: "Field", name: { kind: "Name", value: "value" } },
+                          ],
+                        },
+                      },
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+  ],
+} as unknown as DocumentNode<SearchRecordsQuery, SearchRecordsQueryVariables>;
 export const ModuleContentByIdDocument = {
   kind: "Document",
   definitions: [

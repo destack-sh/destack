@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { useCurrentModule, useNavigation } from "@/state/module";
-import { getStatementIconSolid } from "@/state/statement";
+import { getStatementDescription, getStatementIconOutline, getStatementIconSolid } from "@/state/statement";
 import { computed, nextTick, ref, type Ref } from "vue";
 import { Combobox, ComboboxInput, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import uFuzzy from "@leeoniya/ufuzzy";
@@ -11,7 +11,6 @@ import { pinAbsoluteElement } from "@/composables/useFixed";
 import { onStartTyping, useKeyModifier } from "@vueuse/core";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import { useNavigationContext, type NavigationContext, useMagicActions } from "@/state/file";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "editing">>();
 const emit = defineEmits<StatementEmit>();
@@ -85,19 +84,22 @@ defineExpose({
 </script>
 <template>
   <div>
-    <button
-      ref="referenceRef"
-      tabindex="-1"
-      @click="altKeyState && resolvedReference != null ? nav?.focusStatement(resolvedReference) : open()"
-      @keydown.enter.exact.stop.prevent="open"
-      @keydown.up.stop.prevent="emit('navigateUp')"
-      @keydown.down.stop.prevent="emit('navigateDown')"
-      class="mb-1 flex flex-row whitespace-nowrap px-0.5 font-semibold text-orange-600 decoration-gray-900 underline-offset-4 focus:bg-orange-100 focus:outline-none focus:ring-0"
-      :class="altKeyState ? 'hover:underline' : 'hover:bg-orange-100'"
-    >
-      <component v-if="referenceIcon" :is="referenceIcon" class="mr-1 mt-0.5 h-4 w-4 text-orange-600" />
-      {{ resolvedReference?.name ?? (statement.referenceCk == null ? "..." : "???") }}
-    </button>
+    <div class="flex flex-row">
+      <component :is="getStatementIconOutline(statement.type)" class="mr-1 mt-0.5 h-4 w-4 text-orange-600" />
+      <button
+        ref="referenceRef"
+        tabindex="-1"
+        @click="altKeyState && resolvedReference != null ? nav?.focusStatement(resolvedReference) : open()"
+        @keydown.enter.exact.stop.prevent="open"
+        @keydown.up.stop.prevent="emit('navigateUp')"
+        @keydown.down.stop.prevent="emit('navigateDown')"
+        class="flex flex-row whitespace-nowrap px-0.5 font-semibold text-orange-600 decoration-gray-900 underline-offset-4 focus:bg-orange-100 focus:outline-none focus:ring-0"
+        :class="altKeyState ? 'hover:underline' : 'hover:bg-orange-100'"
+      >
+        <component v-if="referenceIcon" :is="referenceIcon" class="mr-1 mt-0.5 h-4 w-4 text-orange-600" />
+        {{ resolvedReference?.name ?? (statement.referenceCk == null ? "..." : "???") }}
+      </button>
+    </div>
     <!-- Prevent scroll and capture click outside -->
     <div
       v-if="selectingReference"

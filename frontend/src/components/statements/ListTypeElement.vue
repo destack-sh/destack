@@ -78,7 +78,7 @@ function deleteField(fieldId: string) {
     return;
   }
   const field = selfFields.value?.[fieldIdx];
-  ops.symbol.softDeleteField(null, props.statement.id, field.id); // must exist
+  ops.symbol.softDeleteField(null, props.statement.id, field); // must exist
   grid.focus(fieldIdx - 1, "type"); // move focus above
 }
 

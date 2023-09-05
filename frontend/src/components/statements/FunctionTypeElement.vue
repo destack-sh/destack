@@ -107,7 +107,7 @@ function deleteField(kind: "input" | "output", fieldId: string) {
     return;
   }
   const field = fields[fieldIdx];
-  ops.symbol.deleteField(null, props.statement.id, field.id); // must exist
+  ops.symbol.softDeleteField(null, props.statement.id, field); // must exist
   (kind == "input" ? inputGrid : outputGrid).focus(fieldIdx - 1, "type"); // move focus above
 }
 

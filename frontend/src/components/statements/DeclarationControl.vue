@@ -7,7 +7,6 @@ import { usePanelContext, type StatementHeader } from "@/state/bench";
 import { STATEMENT_INTERFACES, type StatementEmit, type StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { StatementType } from "@/gql/graphql";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -35,7 +34,7 @@ function openInEditor() {
 }
 
 function focus(position: "first" | "last" = "first") {
-  nameRef.value?.focus();
+  nameRef.value?.focus(position);
 }
 
 defineExpose({
@@ -81,7 +80,7 @@ defineExpose({
     <!-- Anonymous placeholder if unnamed (as a button) -->
     <button
       tabindex="-1"
-      v-if="!hasName && statement.type != StatementType.Reference"
+      v-if="!hasName"
       @click="nameRef?.focus()"
       class="-ml-0.5 w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
     >

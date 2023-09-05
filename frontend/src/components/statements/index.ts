@@ -12,6 +12,7 @@ import VariableElement from "@/components/statements/VariableElement.vue";
 import { StatementType } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { TypeFlag, type Statement } from "@/state/module";
+import { PencilSquareIcon } from "@heroicons/vue/24/outline";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 
 export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
@@ -25,18 +26,24 @@ export type StatementPartComponent = InstanceType<any> & {
   loading?: boolean;
 };
 
+export type StatementControlId = "declaration" | "bases" | "tagging" | "trigger" | "reference";
+export type StatementElementId = "blank" | "text" | "type.function" | "type.list" | "code" | "variable" | "dataset";
+export type StatementPartId = StatementControlId | StatementElementId;
+
 export type StatementPart = {
-  id: string;
+  id: StatementPartId;
   component: StatementPartComponent;
   actions?: StatementAction[];
   exists: (iface: StatementInterface, statement: Statement) => boolean;
 };
 
 export type StatementControl = StatementPart & {
+  id: StatementControlId;
   enabled: (iface: StatementInterface, statement: Statement) => boolean;
 };
 
 export type StatementElement = StatementPart & {
+  id: StatementElementId;
   showIfEmpty?: boolean;
 };
 
@@ -62,7 +69,7 @@ export type StatementEmit = {
   (e: "escape"): void;
   (e: "paste"): void;
   (e: "run", args?: Record<string, any>): void;
-  (e: "focus", partId: string): void;
+  (e: "focus", partId: StatementPartId): void;
   (e: "openActions"): void;
 };
 
@@ -70,6 +77,7 @@ export type StatementInterface = {
   type: StatementType;
   foldable?: "function-self" | "function-all" | "list-self" | "list-all";
   needsDeclaration?: boolean;
+  showControls?: boolean;
   primaryPart: string;
   hasBases?: boolean;
   hasTags?: boolean;
@@ -113,7 +121,7 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
   },
 ];
 
-const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: () => true }; // nocheckin: type statement parts
+const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: () => true };
 const TEXT: StatementElement = {
   id: "text",
   component: TextElement,
@@ -183,7 +191,7 @@ register(StatementType.Task, {
 });
 register(StatementType.Reference, {
   primaryPart: "reference",
-  needsDeclaration: true,
+  needsDeclaration: false,
   hasTags: true,
   hasTriggers: true,
   elements: [TEXT],
@@ -203,5 +211,3 @@ register(StatementType.Dataset, {
   hasTags: true,
   elements: [TEXT, DATASET],
 });
-
-// nocheckin: cover all interfaces (dataset, type, variable, tag)

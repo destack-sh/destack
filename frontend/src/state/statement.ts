@@ -74,25 +74,35 @@ export function useTriggers(statement: Ref<Statement>) {
   };
 }
 
-export function useFieldsState(statement: Ref<Statement>) {
+function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
+  return computed(() => (enabled?.value !== false ? func() : []));
+}
+
+export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>) {
   const module = useCurrentModule();
-  const fields = computed(
+
+  const fields = _computedEmptyIfDisabled(
     () =>
       statement.value.fields
         ?.map((n) => n as Field)
         .filter((n) => n.deletedAt == null)
-        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? [],
+    enabled
   );
-  const resolvedFields = computed(
+  const resolvedFields = _computedEmptyIfDisabled(
     () =>
       statement.value.resolvedFields
         ?.map((n) => n as ResolvedField)
         .map((n) => (n?.fieldCk == null ? null : module.fieldOf(n.fieldCk)))
         .filter((n) => n != null && n.deletedAt == null)
         .map((n) => n as Field)
-        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? []
+        .sort((a, b) => (a.orderKey < b.orderKey ? -1 : 1)) ?? [],
+    enabled
   );
-  const selfFields = computed(() => fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)) ?? []);
+  const selfFields = _computedEmptyIfDisabled(
+    () => fields.value?.filter((n) => !(n.flags & TypeFlag.IsUnionWith)) ?? [],
+    enabled
+  );
   const baseTypes = computed(
     () => fields.value?.filter((n) => n.flags & TypeFlag.IsUnionWith).map((n) => n as Field) ?? []
   );
