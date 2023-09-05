@@ -1,4 +1,4 @@
-import type StatementComponent from "@/components/panels/Statement.vue";
+import type StatementComponent from "@/components/statements/InlineStatement.vue";
 import { getRandomAdjective } from "@/composables/useRandomName";
 import { StatementType, TypeTag, type StatementContentFragment } from "@/gql/graphql";
 import { EditFilePanel, useBenchState, type FileHeader, type StatementHeader, type Action } from "@/state/bench";

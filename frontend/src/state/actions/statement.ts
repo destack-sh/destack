@@ -460,7 +460,7 @@ function _doProvideStatementActions(file: Ref<NavigationContext | null>) {
     shortcuts: ["ctrl+enter", "meta+enter"],
     enabled: computed(() => cur.value?.statement != null),
     apply: async () => {
-      (cur.value?.component?.root as unknown as { run?: () => void }).run?.();
+      cur.value?.component?.run();
     },
   });
 

@@ -10,7 +10,7 @@ import { newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useTriggers } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
-import { BoltIcon, Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
+import { Square2StackIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { PauseIcon } from "@heroicons/vue/24/solid";
 import { DateTime } from "luxon";
 import { computed, ref, toRef, type Ref } from "vue";

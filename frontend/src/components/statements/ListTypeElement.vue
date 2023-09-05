@@ -56,7 +56,7 @@ function createOption() {
 }
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
-  const field = makeField({ ...template, orderKey: nextOrderKey() });
+  const field = makeField({ projectVersionId: module.id.value, ...template, orderKey: nextOrderKey() });
   ops.symbol.createField(null, props.statement.id, field);
   nextTick(() => {
     grid.getRef(field.id, "type").open("all");

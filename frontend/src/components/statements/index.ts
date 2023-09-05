@@ -45,6 +45,7 @@ export type StatementProps = {
   focused: boolean;
   editing: boolean;
   readonly: boolean;
+  visible: boolean;
   bounding: UseElementBoundingReturn;
   xoffset: number;
 };
@@ -61,6 +62,7 @@ export type StatementEmit = {
   (e: "escape"): void;
   (e: "paste"): void;
   (e: "run", args?: Record<string, any>): void;
+  (e: "focus", partId: string): void;
   (e: "openActions"): void;
 };
 
