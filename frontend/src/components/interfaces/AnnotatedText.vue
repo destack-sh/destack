@@ -32,7 +32,6 @@ defineExpose({
 <template>
   <EditableSpan
     ref="spanRef"
-    regex="description"
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
     :readonly="readonly"

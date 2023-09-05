@@ -9,6 +9,7 @@ import {
   type StatementInterface,
   type StatementPart,
   type StatementPartComponent,
+  type StatementPartId,
 } from "@/components/statements";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
@@ -59,8 +60,6 @@ const module = useCurrentModule();
 const ops = useOperations();
 const magic = useMagicActions(statement as Ref<StatementHeader | null>);
 
-const location = computed(() => nav?.value?.getLocation(statement.value));
-const fields = useFieldsState(statement);
 const isActive = computed(() => nav?.value?.panel.activeStatementCk == statement.value?.ck);
 const isFocused = computed(() => isActive.value && (nav?.value?.panel.focused ?? false));
 const isEditing = computed(() => isFocused.value && (nav?.value?.panel.editing ?? false));
@@ -74,6 +73,9 @@ const canContentFold = computed(
     statement.value.type != StatementType.Text
 );
 const isContentFolded = computed(() => (panel.panel.value as EditFilePanel).isStatementContentFolded(statement.value));
+
+const location = computed(() => nav?.value?.getLocation(statement.value));
+const fields = useFieldsState(statement, isContentFolded);
 
 function toggleContentFold(descendants?: boolean) {
   if (descendants) {
@@ -106,33 +108,41 @@ const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 // manage interfaces
+// TODO @Performance: don't instantiate inactive statement parts
+//  We currently need to to contribute their available actions, but ideally the
+//  actions and add popovers would be factored out so we don't need their instances.
 
 const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
-const controlsOverflow = ref(false); // nocheckin overflow controls
+const controlsOverflow = computed(() => activeControlParts.value.length > 3);
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 
-const activeControlParts = computed(() => {
+const enabledControlParts = computed(() => {
   if (iface.value == null) return [];
   const i = iface.value as StatementInterface;
-  return [
-    ...BASIC_CONTROL_PARTS.filter((p) => p.enabled(i, props.statement) && p.exists(i, props.statement)),
-    ...(i.extraControls?.filter((p) => p.enabled(i, props.statement) && p.exists(i, props.statement)) ?? []),
+  const enabledControlParts = [
+    ...BASIC_CONTROL_PARTS.filter((p) => p.enabled(i, props.statement)),
+    ...(i.extraControls?.filter((p) => p.enabled(i, props.statement)) ?? []),
   ];
+  return enabledControlParts.map((p) => ({
+    part: p,
+    active: p.exists(iface.value as StatementInterface, props.statement),
+  }));
 });
+const activeControlParts = computed(() => enabledControlParts.value.filter((p) => p.active).map((p) => p.part));
 const elementParts = computed(() => {
   if (iface.value == null) return [];
   return iface.value?.elements.map((p) => ({
     part: p,
-    active: p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement),
+    active: !isContentFolded.value && (p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement)),
   }));
 });
 const activeElementParts = computed(() => elementParts.value.filter((p) => p.active).map((p) => p.part));
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 const partsInOrder: Ref<StatementPart[]> = computed(() => [
-  ...activeControlParts.value,
+  ...enabledControlParts.value.map((p) => p.part),
   ...(iface.value?.extraControls ?? []),
-  ...(activeElementParts.value ?? []),
+  ...(elementParts.value.map((e) => e.part) ?? []),
 ]);
 const partsInOrderRowwise: Ref<StatementPart[][]> = computed(() => {
   if (controlsOverflow.value) {
@@ -159,6 +169,7 @@ function handleStatementPartEvents(kind: "control" | "element", id: string) {
       const above = nav?.value?.getAbove(statement.value);
       if (above != null) ops.statement.softDelete(null, above.id);
     },
+    focus: (partId: StatementPartId) => focus(partId),
     escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
     openActions: showActionsPopover,
   };
@@ -173,7 +184,6 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
   // navigate inside statement parts if possible, otherwise navigate in file
   if (direction == "left" && x == 0) direction = "up";
   if (direction == "right" && x == partsInOrderRowwise.value[y].length - 1) direction = "down";
-  console.log("navigate", direction, x, y, partId); // nocheckin
   if (direction == "up") {
     if (y > 0) {
       const nextPart = partsInOrderRowwise.value[y - 1][Math.min(x, partsInOrderRowwise.value[y - 1].length - 1)];
@@ -199,11 +209,13 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
   }
 }
 
-function focus(focus: "first" | "last" = "first") {
+function focus(focus: "first" | "last" | StatementPartId = "first") {
   if (focus == "first") {
     partsRefs.value[partsInOrder.value[0].id]?.focus("first");
-  } else {
+  } else if (focus == "last") {
     partsRefs.value[partsInOrder.value[partsInOrder.value.length - 1].id]?.focus("last");
+  } else {
+    partsRefs.value[focus]?.focus("first");
   }
 }
 
@@ -439,17 +451,6 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   }
   actions.push({
     groupId: "edit",
-    label: "Rename",
-    icon: PencilSquareIcon,
-    hideInline: true,
-    action: () => {
-      nav?.value?.panel.editElement(statement.value);
-      nextTick(focus);
-    },
-  });
-  // doesn't work in standalone editor because it needs file context right now
-  actions.push({
-    groupId: "edit",
     label: "Duplicate",
     icon: Square2StackIcon,
     action: () => magic.duplicate(),
@@ -463,12 +464,14 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   });
   return actions;
 });
-const actions: Ref<StatementAction[]> = computed(() => [
-  ...defaultActions.value,
-  ...(Object.values(partsRefs.value)
-    .flatMap((e) => e?.actions ?? [])
-    .map((a) => ({ ...a, groupId: a.groupId ?? "custom" })) ?? []),
-]);
+const actions: Ref<StatementAction[]> = computed(() =>
+  [
+    ...defaultActions.value,
+    ...(Object.values(partsRefs.value)
+      .flatMap((e) => e?.actions ?? [])
+      .map((a) => ({ ...a, groupId: a.groupId ?? "custom" })) ?? []),
+  ].reverse()
+);
 const actionGroups = computed(() => [
   { id: "general" },
   { id: "custom", label: STATEMENT_TYPE_LABELS[statement.value.type] ?? "Statement" },
@@ -493,7 +496,7 @@ defineExpose({
   focus,
   blur,
   bounding: containerBounding,
-  loading: computed(() => false /* nocheckin element loading state */),
+  loading: computed(() => elementParts.value.some((p) => p.active && partsRefs.value[p.part.id]?.loading === true)),
   actions,
   showActionsPopover,
   run,
@@ -616,29 +619,24 @@ defineExpose({
         }"
       >
         <!-- nocheckin statement structure concerns:
-          - reasonably easy to extend/amend
-         - centralize state, actions, operations and permissioning 
-          - no magic 'statement context', only props/emits/composables
-         - flexible for different views (e.g. fullscreen code, dataset, screen, flow)
-          - extract 'inline statement' wrapper for files
-         - drag/hover select actions inside statements (fields, records, into text)
          - custom action interfaces (e.g. search for dataset)
          - runnable info
-         - folding
          - keyboard navigation between all components
          - handle lots of X gracefully (long name, long text, many triggers, tags, etc.)
          - morphing & continuous granularity between statement types
           - e.g. easy and obtrusive to add name to text statement, text to code statement, etc.
           - automatic conversion if e.g. you want to run text (turn into task) 
-         - different styles? (e.g. tags & triggers above or below)
-         - diffing?
         -->
 
         <!-- Header -->
-        <div class="flex w-full flex-row justify-between" v-if="iface?.needsDeclaration || statement.name != null">
+        <div
+          v-if="iface?.needsDeclaration || enabledControlParts.length > 0 || statement.name != null"
+          class="flex w-full flex-row justify-between pb-0.5"
+        >
           <!-- Declaration or title (if text with heading level) -->
           <div class="flex flex-row gap-1.5">
             <DeclarationControl
+              v-if="iface?.needsDeclaration || statement.name != null"
               :ref="(ref: any) => (partsRefs['declaration'] = ref)"
               :statement="statement"
               :readonly="readonly"
@@ -647,7 +645,9 @@ defineExpose({
             <!-- Controls inline -->
             <div v-if="!controlsOverflow" class="flex flex-row flex-nowrap">
               <component
-                v-for="control in activeControlParts.filter((c) => c.id != 'declaration')"
+                v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
+                v-show="active"
+                :ref="(ref: any) => (partsRefs[control.id] = ref)"
                 :key="control.id"
                 :is="control.component"
                 :statement="statement"
@@ -662,7 +662,9 @@ defineExpose({
           <!-- Controls on their own row -->
           <div v-if="controlsOverflow" class="flex flex-row flex-wrap gap-x-1.5 gap-y-1">
             <component
-              v-for="control in activeControlParts.filter((c) => c.id != 'declaration')"
+              v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
+              v-show="active"
+              :ref="(ref: any) => (partsRefs[control.id] = ref)"
               :key="control.id"
               :is="control.component"
               :statement="statement"
@@ -674,7 +676,7 @@ defineExpose({
           </div>
           <!-- Actions -->
           <div
-            class="transition-opacity duration-150"
+            class="flex flex-shrink-0 flex-row transition-opacity duration-150"
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
             <!-- nocheckin: Extra controls -->
@@ -720,7 +722,7 @@ defineExpose({
         <!-- Body elements -->
         <component
           v-for="{ part: element, active } in elementParts"
-          v-show="active && !isContentFolded"
+          v-show="active"
           :ref="(ref: any) => (partsRefs[element.id] = ref)"
           :key="element.id"
           :is="element.component"
@@ -728,7 +730,7 @@ defineExpose({
           :focused="isFocused"
           :editing="isEditing"
           :readonly="readonly"
-          :visible="active && !isContentFolded"
+          :visible="active"
           :bounding="containerBounding"
           :xoffset="contentOffsetX"
           v-on="handleStatementPartEvents('element', element.id)"

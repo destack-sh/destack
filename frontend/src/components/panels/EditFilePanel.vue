@@ -116,29 +116,33 @@ const fileState: Ref<FileState | null> = computed(() => {
 });
 const context = provideFileState(fileState);
 
+const WAIT_FOR_COMPLETE_LOAD = false;
 const statementsLoaded = ref(false); // first time that all statements are loaded (subsequent loads are ignored)
 watchEffect(() => {
   if (statementsLoaded.value || fileLoading.value) return;
-  if (Object.keys(statementsComponents.value).length == statements.value.length) {
-    for (const statement of statements.value) {
-      if (statementsComponents.value[statement.id].loading) {
-        return;
+  if (WAIT_FOR_COMPLETE_LOAD) {
+    if (Object.keys(statementsComponents.value).length == statements.value.length) {
+      for (const statement of statements.value) {
+        if (statementsComponents.value[statement.id].loading) {
+          return;
+        }
       }
     }
-    statementsLoaded.value = true;
-    panel.value.stopEditingElement(); // reset editing element on load
-    if (panel.value.focused && panel.value.activeStatementCk != null) {
-      // focus active statement
-      statementsComponents.value[panel.value.activeStatementCk]?.focus();
-      // scroll into view
-      nextTick(() => {
-        statementsComponents.value[panel.value.activeStatementCk as string]?.$el?.parentNode?.scrollIntoView({
-          behavior: "instant",
-          block: "center",
-          inline: "center",
-        });
+  }
+
+  statementsLoaded.value = true;
+  panel.value.stopEditingElement(); // reset editing element on load
+  if (panel.value.focused && panel.value.activeStatementCk != null) {
+    // focus active statement
+    statementsComponents.value[panel.value.activeStatementCk]?.focus();
+    // scroll into view
+    nextTick(() => {
+      statementsComponents.value[panel.value.activeStatementCk as string]?.$el?.parentNode?.scrollIntoView({
+        behavior: "instant",
+        block: "center",
+        inline: "center",
       });
-    }
+    });
   }
 });
 
