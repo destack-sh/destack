@@ -55,6 +55,7 @@ type Group = {
 
 const GROUPS = {
   BASIC: { name: "Basic statements" },
+  LAYOUT: { name: "Layout statements" },
   ADVANCED: { name: "Advanced statements" },
 };
 
@@ -91,6 +92,7 @@ function simpleStatementCommand(
         type,
         tag: options?.tag,
         flags: options?.flags,
+        headingLevel: options?.headingLevel,
       }),
   };
 }
@@ -120,6 +122,16 @@ const commands = computed(() => {
     simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
     simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
+
+    // layout statements
+    ...[1, 2, 3].map((level) =>
+      simpleStatementCommand(GROUPS.LAYOUT, StatementType.Text, {
+        headingLevel: level,
+        label: `Heading ${level}`,
+        description: `Text with heading ${level}`,
+        aliases: [`h${level}`],
+      })
+    ),
 
     // advanced statements
     simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, { aliases: ["const", "config", "secret"] }),

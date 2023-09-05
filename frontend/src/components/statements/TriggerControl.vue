@@ -172,7 +172,11 @@ defineExpose({
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->
-    <div v-if="editing" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />
+    <div
+      v-if="editing && currentTrigger != null"
+      class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
+      @click.stop="close()"
+    />
     <!-- Edit popover -->
     <div
       v-if="editing && currentTrigger != null"

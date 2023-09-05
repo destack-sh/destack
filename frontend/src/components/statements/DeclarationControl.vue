@@ -7,6 +7,7 @@ import { usePanelContext, type StatementHeader } from "@/state/bench";
 import { STATEMENT_INTERFACES, type StatementEmit, type StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
+import { StatementType } from "@/gql/graphql";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -24,6 +25,9 @@ syncProperty({
 });
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(props.statement.type, props.statement.tag));
+const headingLevel = computed(() =>
+  props.statement.type != StatementType.Text ? 0 : props.statement.headingLevel ?? 0
+);
 
 const canOpenInStandaloneEditor = computed(() => STATEMENT_INTERFACES[props.statement.type]?.foldable ?? false);
 const altKey = useKeyModifier("Alt");
@@ -45,10 +49,19 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex w-fit flex-row whitespace-nowrap">
+  <div
+    class="relative flex w-fit flex-row whitespace-nowrap"
+    :class="{
+      'text-2xl': headingLevel == 1,
+      'text-xl': headingLevel == 2,
+      'text-lg': headingLevel == 3,
+      'text-orange-600': headingLevel == 0,
+      'text-gray-900': headingLevel > 0,
+    }"
+  >
     <!-- Icon -->
-    <span class="group/icon relative">
-      <component :is="icon" class="absolute top-0.5 h-4 w-4 text-orange-600" />
+    <span class="group/icon relative mr-[18px]" v-if="headingLevel == 0">
+      <component :is="icon" class="absolute top-0.5 h-4 w-4" />
       <!-- Statement label on hover -->
       <span
         class="pointer-events-none absolute left-full top-6 z-30 rounded-sm bg-white px-1.5 py-0.5 text-xs text-gray-500 opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover/icon:opacity-100"
@@ -61,12 +74,13 @@ defineExpose({
     <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
-      class="text-md ml-[18px] px-0.5 font-semibold text-orange-600"
-      :class="
+      class="text-md font-semibold"
+      :class="[
         altKey && canOpenInStandaloneEditor
           ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'
-          : 'cursor-text'
-      "
+          : 'cursor-text',
+        headingLevel == 0 ? 'px-0.5' : '',
+      ]"
       regex="name"
       v-model="name"
       :readonly="readonly"

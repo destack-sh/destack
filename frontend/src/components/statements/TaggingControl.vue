@@ -133,7 +133,7 @@ defineExpose({
         v-if="addingTag"
         ref="popoverRef"
         class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="[popoverPin.pinned.value ? '' : 'absolute -top-9']"
+        :class="[popoverPin.pinned.value ? '' : 'absolute -top-4']"
       >
         <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
           <!-- Input -->

@@ -84,6 +84,9 @@ defineExpose({
       :class="{
         'text-orange-600': ordered.ck == bench?.focusedStatementCk,
         'text-gray-700 hover:bg-orange-100': ordered.ck != bench?.focusedStatementCk,
+        'mt-1 text-2xl': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 1,
+        'mt-0.5 text-xl': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 2,
+        'text-lg': ordered.statement.type == StatementType.Text && ordered.statement.headingLevel == 3,
       }"
       :style="{
         marginLeft: ordered.depth * 8 + 'px',
@@ -114,7 +117,7 @@ defineExpose({
         {{ ordered.statement.text }}
       </span>
       <!-- Default to proper name -->
-      <span class="truncate">{{ getStatementName(ordered.statement) }}</span>
+      <span class="truncate" v-else>{{ getStatementName(ordered.statement) ?? "(Unnamed)" }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">
