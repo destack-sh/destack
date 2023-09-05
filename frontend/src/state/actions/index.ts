@@ -104,7 +104,7 @@ export function provideAction(action: RegisteredAction, mode: "global" | "single
     return computed(() => actionsStore.action(action.id));
   }
 
-  console.log(`provide action ${action.id} (${mode})`);
+  console.debug(`provide action ${action.id} (${mode})`);
   const mounted = ref(false);
 
   function toResolvedAction() {

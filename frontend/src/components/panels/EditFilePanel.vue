@@ -34,8 +34,6 @@ const ops = useOperations();
 
 // file state
 
-console.log("file panel", bench.projectVersionId, panel.value.fileCk);
-
 const {
   result: file,
   loading: fileLoading,

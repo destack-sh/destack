@@ -84,9 +84,9 @@ defineExpose({
       :class="{
         'text-orange-600': o.ck == bench?.focusedStatementCk,
         'text-gray-700 hover:bg-orange-100': o.ck != bench?.focusedStatementCk,
-        'mt-1 text-2xl': o.statement.type == StatementType.Text && o.statement.headingLevel == 1,
-        'mt-0.5 text-xl': o.statement.type == StatementType.Text && o.statement.headingLevel == 2,
-        'text-lg': o.statement.type == StatementType.Text && o.statement.headingLevel == 3,
+        '-mb-0.5 mt-1 text-xl font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 1,
+        'mt-0.5 text-lg font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 2,
+        'text-md font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 3,
       }"
       :style="{
         marginLeft: o.depth * 8 + 'px',

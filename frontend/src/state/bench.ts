@@ -857,6 +857,7 @@ export type Action<T> = {
   disabled?: boolean;
   keepOpen?: boolean;
   hideInline?: boolean;
+  hideInMenu?: boolean;
   groupId?: string;
 };
 

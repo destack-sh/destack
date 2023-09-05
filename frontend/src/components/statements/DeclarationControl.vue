@@ -4,7 +4,12 @@ import { getStatementDescription, getStatementIconSolid, getStatementLabel } fro
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
 import { usePanelContext, type StatementHeader } from "@/state/bench";
-import { STATEMENT_INTERFACES, type StatementEmit, type StatementProps } from "@/components/statements";
+import {
+  STANDALONE_ENABLED,
+  STATEMENT_INTERFACES,
+  type StatementEmit,
+  type StatementProps,
+} from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { StatementType } from "@/gql/graphql";
@@ -29,7 +34,9 @@ const headingLevel = computed(() =>
   props.statement.type != StatementType.Text ? 0 : props.statement.headingLevel ?? 0
 );
 
-const canOpenInStandaloneEditor = computed(() => STATEMENT_INTERFACES[props.statement.type]?.foldable ?? false);
+const canOpenInStandaloneEditor = computed(
+  () => (STANDALONE_ENABLED && STATEMENT_INTERFACES[props.statement.type]?.foldable) ?? false
+);
 const altKey = useKeyModifier("Alt");
 const panel = usePanelContext();
 

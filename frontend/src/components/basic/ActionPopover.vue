@@ -18,7 +18,6 @@ import FadeTransition from "@/components/basic/FadeTransition.vue";
 
 const props = defineProps<{
   actions: Action<any>[];
-  groups?: ActionGroup[];
   thing: any;
   anchor: "left" | "right";
   small?: boolean;
@@ -43,12 +42,13 @@ const popoverPin = pinAbsoluteElement(
 const query = ref("");
 const uf = new uFuzzy({ intraMode: 0 });
 const filteredActions = computed(() => {
-  if (query.value.trim() == "") return props.actions;
+  const actions = props.actions.filter((a) => !a.hideInMenu);
+  if (query.value.trim() == "") return actions;
   const [idxs] = uf.search(
-    props.actions.map((a) => a.label),
+    actions.map((a) => a.label),
     query.value
   );
-  return idxs?.map((idx) => props.actions[idx]) ?? [];
+  return idxs?.map((idx) => actions[idx]) ?? [];
 });
 const closed = ref(false);
 

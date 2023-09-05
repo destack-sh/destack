@@ -27,6 +27,7 @@ function toggleInlineSearch() {
 </script>
 <template>
   <!-- Quick inline search -->
+  <!-- nocheckin: use dataset search control -->
   <button
     tabindex="-1"
     class="mb-0.5 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"

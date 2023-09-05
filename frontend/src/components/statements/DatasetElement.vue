@@ -477,6 +477,7 @@ const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Search",
+    groupId: "nav",
     icon: MagnifyingGlassIcon,
     action: () => {
       properties.inlineQuery = "";
@@ -494,6 +495,7 @@ const actions = computed(() => {
   }
   actions.push({
     label: "Add field",
+    groupId: "edit",
     icon: SquaresPlusIcon,
     action: () => {
       createFieldRef.value?.show();
@@ -501,6 +503,7 @@ const actions = computed(() => {
   });
   actions.push({
     label: "Add record",
+    groupId: "edit",
     icon: PlusIcon,
     action: () => {
       insertRecordAtEnd();
@@ -508,6 +511,7 @@ const actions = computed(() => {
   });
   actions.push({
     label: properties.wrapColumns ? "Unwrap columns" : "Wrap columns",
+    groupId: "nav",
     icon: properties.wrapColumns ? ChevronDoubleUpIcon : ChevronDoubleDownIcon,
     action: () => (properties.wrapColumns = !properties.wrapColumns),
     hideInline: true,
@@ -661,7 +665,7 @@ defineExpose({
               <button
                 tabindex="-1"
                 class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-                @click="true /* TODO @UX: do something on database properties column button */"
+                @click="emit('openActions')"
               >
                 <EllipsisHorizontalIcon class="h-4 w-4" />
               </button>

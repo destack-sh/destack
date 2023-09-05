@@ -42,6 +42,7 @@ const actions = computed(() => {
   const actions: StatementAction[] = [];
   actions.push({
     label: "Add field",
+    groupId: "edit",
     icon: SquaresPlusIcon,
     action: () => {
       createFieldRef.value?.show();

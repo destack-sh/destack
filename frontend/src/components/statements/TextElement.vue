@@ -53,7 +53,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative w-full" @click="textRef?.focus">
+  <div class="relative w-full text-gray-900" @click="textRef?.focus">
     <AnnotatedText
       ref="textRef"
       :model-value="text || ''"

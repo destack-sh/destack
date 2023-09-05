@@ -4,6 +4,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
 import {
   BASIC_CONTROL_PARTS,
+  STANDALONE_ENABLED,
   STATEMENT_INTERFACES,
   STATEMENT_STANDALONE_TYPES,
   type StatementElementId,
@@ -27,18 +28,22 @@ import {
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
 import { useCurrentModule, type Statement } from "@/state/module";
 import { useOperations } from "@/state/operations";
+import { useCurrentSessions } from "@/state/session";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
   AtSymbolIcon,
+  Bars3BottomLeftIcon,
   Bars3BottomRightIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  EllipsisHorizontalIcon,
   PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   TrashIcon,
+  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
@@ -433,7 +438,6 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
 }
 
 // actions
-const STANDALONE_ENABLED = false; // not supported right now
 const hasStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(statement.value.type));
 const canHaveText = computed(() => iface.value?.elements.some((e) => e.id == "text"));
 const defaultActions: Ref<StatementAction[]> = computed(() => {
@@ -445,7 +449,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       hideInline: true,
       action: () => {
-        nav?.value?.panel.bench.openEditStatement(statement.value, { focus: true });
+        bench.openEditStatement(statement.value, { focus: true });
       },
     });
     actions.push({
@@ -454,11 +458,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: ArrowsPointingOutIcon,
       hideInline: true,
       action: () => {
-        nav?.value?.panel.bench.openEditStatement(statement.value, {
-          group: panel.panel.value.group,
-          focus: true,
-          opposite: true,
-        });
+        bench.openEditStatement(statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
       },
     });
   }
@@ -469,6 +469,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       icon: isContentFolded.value ? ChevronDownIcon : ChevronRightIcon,
       disabled: !canContentFold.value,
       hideInline: true,
+      hideInMenu: true,
       action: () => toggleContentFold(false),
     });
   }
@@ -476,7 +477,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     actions.push({
       groupId: "edit",
       label: "Add text",
-      icon: Bars3BottomRightIcon,
+      icon: Bars3BottomLeftIcon,
       hideInline: false,
       action: () => {
         partsForceShown.value.push("text");
@@ -497,13 +498,13 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     });
   }
   actions.push({
-    groupId: "edit",
+    groupId: "edit-core",
     label: "Duplicate",
     icon: Square2StackIcon,
     action: () => magic.duplicate(),
   });
   actions.push({
-    groupId: "edit",
+    groupId: "edit-core",
     label: "Delete",
     hideInline: true,
     icon: TrashIcon,
@@ -512,10 +513,10 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   return actions;
 });
 const actions: Ref<StatementAction[]> = computed(() => {
-  const actions: StatementAction[] = [];
+  const actions: StatementAction[] = [...defaultActions.value];
   // collect actions and ensure that we're unfolded & the source element is always shown (even if currently hidden)
   const { partsInOrder } = getPartsInOrder({ includeInactive: true });
-  for (const part of partsInOrder) {
+  for (const part of partsInOrder.reverse()) {
     const partComponent = partsRefs.value[part.id];
     if (partComponent?.actions == null) continue;
     partComponent.actions.forEach((a: StatementAction) => {
@@ -533,14 +534,13 @@ const actions: Ref<StatementAction[]> = computed(() => {
       });
     });
   }
-  // default/common actions last
-  actions.push(...defaultActions.value);
   return actions;
 });
-const actionGroups = computed(() => [
-  { id: "general" },
-  { id: "custom", label: STATEMENT_TYPE_LABELS[statement.value.type] ?? "Statement" },
-]);
+function orderActions(actions: StatementAction[], order: string[]) {
+  return actions.slice().sort((a, b) => order.indexOf(a.groupId ?? "other") - order.indexOf(b.groupId ?? "other"));
+}
+const actionsPopoverOrder = computed(() => orderActions(actions.value, ["run", "edit", "edit-core", "nav", "other"]));
+const actionsInlineOrder = computed(() => orderActions(actions.value, ["edit", "nav", "other", "edit-core"]));
 
 function showActionsPopover() {
   actionPopoverRef.value?.show();
@@ -548,8 +548,9 @@ function showActionsPopover() {
 
 // sessions
 
+const sessions = useCurrentSessions();
 function run() {
-  // nocheckin run & run element
+  sessions.run(props.statement);
 }
 
 // interp
@@ -607,8 +608,7 @@ defineExpose({
               ref="actionPopoverRef"
               anchor="right"
               :thing="isInSelection ? null : statement"
-              :actions="isInSelection ? nav?.selectionActions ?? [] : actions"
-              :groups="actionGroups"
+              :actions="isInSelection ? nav?.selectionActions ?? [] : actionsPopoverOrder"
               v-slot="{ open }"
               @click.stop
               @close="nav?.panel?.focusElement(statement)"
@@ -634,7 +634,7 @@ defineExpose({
                 <DragHandleIcon class="h-4 w-4" />
                 <!-- Label -->
                 <span
-                  class="pointer-events-none absolute -left-10 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+                  class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
                 >
                   <strong>Click</strong> for actions
                   <br />
@@ -694,7 +694,7 @@ defineExpose({
           class="flex w-full flex-row justify-between pb-0.5"
         >
           <!-- Declaration or title (if text with heading) -->
-          <div class="flex flex-row flex-wrap gap-x-1.5 gap-y-1">
+          <div class="flex flex-row flex-wrap gap-y-1">
             <DeclarationControl
               v-if="
                 iface?.needsDeclaration ||
@@ -704,10 +704,11 @@ defineExpose({
               :statement="statement"
               :readonly="readonly"
               v-on="handleStatementPartEvents('control', 'declaration')"
+              class="mr-1.5"
             />
             <!-- Controls inline -->
             <component
-              v-for="{ part: control } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
+              v-for="{ part: control, active } in enabledControlParts.filter((c) => c.part.id != 'declaration')"
               :ref="(ref: any) => (partsRefs[control.id] = ref)"
               :key="control.id"
               :is="control.component"
@@ -716,18 +717,29 @@ defineExpose({
               :editing="isEditing"
               :readonly="readonly"
               v-on="handleStatementPartEvents('control', control.id)"
+              :class="[active ? 'mr-1.5' : '']"
             />
           </div>
           <!-- Actions -->
           <div
-            class="flex flex-shrink-0 flex-row self-start transition-opacity duration-150"
+            class="flex flex-shrink-0 gap-x-0.5 self-start transition-opacity duration-150"
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
-            <!-- nocheckin: Extra controls -->
-            <!-- nocheckin: Current run info -->
+            <!-- Extra controls -->
+            <component
+              v-for="{ id, component } in iface?.extraControls ?? []"
+              :key="id"
+              :is="component"
+              :statement="statement"
+              :focused="isFocused"
+              :editing="isEditing"
+              :readonly="readonly"
+            />
+            <!-- Extra space between extra controls and actions -->
+            <span />
             <!-- Actions -->
             <button
-              v-for="action in actions.filter((action) => !action.hideInline && !action.disabled)"
+              v-for="action in actionsInlineOrder.filter((action) => !action.hideInline && !action.disabled)"
               :key="action.label"
               class="group relative p-0.5 text-gray-400 hover:text-gray-700"
               :class="action.active ? 'animate-spin cursor-not-allowed' : 'hover:bg-orange-100'"
@@ -749,7 +761,7 @@ defineExpose({
         <!-- Folded -->
         <template v-if="isContentFolded && iface?.foldable != null">
           <button
-            class="flex max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
+            class="flex min-h-[20px] max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
             @click="toggleContentFold()"
           >
             <span
@@ -759,6 +771,7 @@ defineExpose({
             >
               {{ field.name }}
             </span>
+            <EllipsisHorizontalIcon class="h-4 w-4 self-center text-gray-400" />
           </button>
         </template>
         <!-- Actual body -->
