@@ -13,7 +13,7 @@ const emit = defineEmits<StatementEmit>();
 const ops = useOperations();
 const textRef: Ref<InstanceType<typeof AnnotatedText> | null> = ref(null);
 const text: Ref<string> = ref(props.statement.text ?? "");
-syncProperty({
+const textSync = syncProperty({
   value: text,
   editing: computed(() => textRef.value?.focused),
   read: () => (text.value = props.statement.text ?? ""),
@@ -49,6 +49,7 @@ watch(
 defineExpose({
   focus,
   blur: () => textRef.value?.blur(),
+  syncNow: () => textSync.flushNow(),
 });
 </script>
 <template>
