@@ -64,9 +64,6 @@ function navigateRightIfAtEnd(event: any) {
 
 const spanRef = ref<HTMLElement | null>(null);
 
-// On focus we auto-select the end of the span always. Later (soon?),
-// we'll want to set either focus start, end or all.
-
 function focus(pos: "first" | "last" = "first") {
   spanRef.value?.focus();
   if (pos == "first") {
@@ -141,8 +138,16 @@ function onInput(e: InputEvent) {
       selection.collapse((e.target as HTMLElement).childNodes[0], currentPos - 1);
     }
   } else {
-    emit("update:modelValue", value);
+    emit("update:modelValue", fromNbsp(value));
   }
+}
+
+function toNbsp(s: string) {
+  return s.replace(/ /g, "\u00a0");
+}
+
+function fromNbsp(s: string) {
+  return s.replace(/\u00a0/g, " ");
 }
 
 defineExpose({
@@ -161,14 +166,14 @@ defineExpose({
     tabindex="-1"
     spellcheck="false"
     ref="spanRef"
-    class="outline-none"
+    class="whitespace-pre-wrap outline-none"
     :class="suppressAllShortcuts ? '' : 'mousetrap mousetrap-no-do'"
     :contenteditable="!readonly"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.exact.left="navigateLeftIfAtStart"
     @keydown.exact.right="navigateRightIfAtEnd"
-    @keydown.enter.exact.prevent="emit('enter', modelValue)"
+    @keydown.enter.exact.prevent="emit('enter', fromNbsp(modelValue))"
     @keydown.backspace.exact="deleteLeftIfEmpty"
     @keydown.escape.prevent="emit('escape')"
     @input="e => onInput(e as InputEvent)"

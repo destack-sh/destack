@@ -89,6 +89,23 @@ defineExpose({
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
+      @delete-left="
+        () => {
+          if (headingLevel > 0) {
+            // remove heading level
+            ops.statement.morph(null, props.statement.id, props.statement, {
+              type: (props.statement.text ?? '').length > 0 ? StatementType.Text : StatementType.Blank,
+              headingLevel: null,
+            });
+          } else if (props.statement.type == StatementType.Text) {
+            // remove name from text
+            ops.statement.rename(null, props.statement.id, props.statement.name ?? '', null);
+          } else {
+            // actually delete
+            emit('deleteLeft');
+          }
+        }
+      "
       @enter="emit('enter')"
     />
     <!-- Anonymous placeholder if unnamed (as a button) -->

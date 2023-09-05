@@ -19,7 +19,8 @@ const module = useCurrentModule();
 const ops = useOperations();
 
 const isEnum = computed(() => props.statement.tag == TypeTag.Enum);
-const { fields, selfFields, duplicateField } = useFields(toRef(props, "statement"));
+const fieldsX = useFields(toRef(props, "statement"));
+const { fields, selfFields, duplicateField } = fieldsX;
 const fieldsLength = computed(() => selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -36,29 +37,16 @@ const grid = useNavigationGrid<ColumnType, InstanceType<typeof FieldInterface>>(
 );
 const isEditing = computed(() => grid.refs.value.find((n) => n.editing));
 
-function nextOrderKey() {
-  const lastField = fields.value?.[fields.value.length - 1];
-  const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
-  return orderKey;
-}
-
 function createOption() {
   const name = "Option " + (fieldsLength.value + 1);
-  const newField = makeField({
-    projectVersionId: module.id.value,
-    name,
-    tag: TypeTag.Literal,
-    orderKey: nextOrderKey(),
-  });
-  ops.symbol.createField(null, props.statement.id, newField);
+  const newField = fieldsX.createNewField({ name, tag: TypeTag.Literal, flags: 0 });
   nextTick(() => {
     grid.getRef(newField.id, "type").open("all");
   });
 }
 
 function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
-  const field = makeField({ projectVersionId: module.id.value, ...template, orderKey: nextOrderKey() });
-  ops.symbol.createField(null, props.statement.id, field);
+  const field = fieldsX.createNewField(template);
   nextTick(() => {
     grid.getRef(field.id, "type").open("all");
   });

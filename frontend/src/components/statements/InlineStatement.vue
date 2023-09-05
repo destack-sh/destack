@@ -6,6 +6,8 @@ import {
   BASIC_CONTROL_PARTS,
   STATEMENT_INTERFACES,
   STATEMENT_STANDALONE_TYPES,
+  type StatementElementId,
+  type StatementEmitDict,
   type StatementInterface,
   type StatementPart,
   type StatementPartComponent,
@@ -29,6 +31,8 @@ import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
   ArrowsPointingOutIcon,
+  AtSymbolIcon,
+  Bars3BottomRightIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   PencilSquareIcon,
@@ -116,6 +120,7 @@ const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
 const controlsOverflow = computed(() => activeControlParts.value.length > 3); // not ideal but hey
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
 
+const partsForceShown: Ref<StatementPartId[]> = ref([]);
 const enabledControlParts = computed(() => {
   if (iface.value == null) return [];
   const i = iface.value as StatementInterface;
@@ -125,7 +130,10 @@ const enabledControlParts = computed(() => {
   ];
   return enabledControlParts.map((p) => ({
     part: p,
-    active: p.exists(iface.value as StatementInterface, props.statement),
+    active:
+      p.id == "declaration" ||
+      partsForceShown.value.includes(p.id) ||
+      p.exists(iface.value as StatementInterface, props.statement),
   }));
 });
 const activeControlParts = computed(() => enabledControlParts.value.filter((p) => p.active).map((p) => p.part));
@@ -133,14 +141,18 @@ const elementParts = computed(() => {
   if (iface.value == null) return [];
   return iface.value?.elements.map((p) => ({
     part: p,
-    active: !isContentFolded.value && (p.showIfEmpty || p.exists(iface.value as StatementInterface, props.statement)),
+    active:
+      !isContentFolded.value &&
+      (p.showIfEmpty ||
+        partsForceShown.value.includes(p.id) ||
+        p.exists(iface.value as StatementInterface, props.statement)),
   }));
 });
 const activeElementParts = computed(() => elementParts.value.filter((p) => p.active).map((p) => p.part));
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
-function handleStatementPartEvents(kind: "control" | "element", id: string) {
+function handleStatementPartEvents(kind: "control" | "element", id: string): StatementEmitDict {
   return {
     navigateUp: () => navigate("up", id),
     navigateDown: () => navigate("down", id),
@@ -148,12 +160,14 @@ function handleStatementPartEvents(kind: "control" | "element", id: string) {
     navigateRight: () => navigate("right", id),
     enterLeft: () => magic.insertAbove(),
     enter: () => magic.insertBelow(true),
+    paste: () => nav.value?.paste(),
+    run,
     deleteLeft: () => {
       const above = nav?.value?.getAbove(statement.value);
       nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last");
       ops.statement.softDelete(null, statement.value.id);
     },
-    delete: () => {
+    deleteSelf: () => {
       ops.statement.softDelete(null, statement.value.id);
     },
     focus: (partId: StatementPartId) => focus(partId),
@@ -162,11 +176,11 @@ function handleStatementPartEvents(kind: "control" | "element", id: string) {
   };
 }
 
-function getPartsInOrder() {
+function getPartsInOrder(options?: { includeInactive?: boolean }) {
   const partsInOrder: StatementPart[] = [
-    ...activeControlParts.value,
+    ...(options?.includeInactive ? enabledControlParts.value.map((p) => p.part) : activeControlParts.value),
     ...(iface.value?.extraControls ?? []),
-    ...activeElementParts.value,
+    ...(options?.includeInactive ? elementParts.value.map((p) => p.part) : activeElementParts.value),
   ];
   let partsInOrderRowwise: StatementPart[][];
   if (controlsOverflow.value) {
@@ -191,7 +205,7 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
 
   // navigate inside statement parts if possible, otherwise navigate in file
   if (direction == "left" && x == 0) direction = "up";
-  if (direction == "right" && x == partsInOrderRowwise[y].length - 1) direction = "down";
+  if (direction == "right" && x >= partsInOrderRowwise[y].length - 1) direction = "down";
   if (direction == "up") {
     if (y > 0) {
       const nextPart = partsInOrderRowwise[y - 1][Math.min(x, partsInOrderRowwise[y - 1].length - 1)];
@@ -207,6 +221,10 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
     } else {
       const below = nav?.value?.getBelow(statement.value);
       if (below != null) nav?.value?.statementsComponents[below.id]?.focus("first");
+      else if (props.statement.type != StatementType.Blank) {
+        // insert new statement below
+        magic.insertBelow(true);
+      }
     }
   } else if (direction == "left") {
     const nextPart = partsInOrderRowwise[y][x - 1];
@@ -219,7 +237,9 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
 
 function focus(focus: "first" | "last" | StatementPartId = "first") {
   const { partsInOrder } = getPartsInOrder();
-  if (focus == "first") {
+  if (partsInOrder.length == 0) {
+    console.warn("statement has no parts to focus", props.statement, focus, iface.value, partsInOrder);
+  } else if (focus == "first") {
     partsRefs.value[partsInOrder[0].id]?.focus("first");
   } else if (focus == "last") {
     partsRefs.value[partsInOrder[partsInOrder.length - 1].id]?.focus("last");
@@ -229,7 +249,7 @@ function focus(focus: "first" | "last" | StatementPartId = "first") {
 }
 
 function blur() {
-  Object.values(partsRefs.value).forEach((e) => e.blur?.());
+  Object.values(partsRefs.value).forEach((e) => e?.blur?.());
 }
 
 // update container bounding whenever location changes (since ResizeObserver doesn't seem to be triggered in that case)
@@ -264,9 +284,9 @@ watch(
 
 // refocus if statement interface changed and we're editing
 watch(
-  () => statement.value.type,
-  (oldType, newType) => {
-    if (isEditing.value && oldType !== newType) {
+  () => iface.value,
+  (a, b) => {
+    if (isEditing.value && a?.type !== b?.type) {
       nextTick(focus);
     }
   },
@@ -422,6 +442,7 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
 // actions
 const STANDALONE_ENABLED = false; // not supported right now
 const hasStandaloneEditor = computed(() => STATEMENT_STANDALONE_TYPES.includes(statement.value.type));
+const canHaveText = computed(() => iface.value?.elements.some((e) => e.id == "text"));
 const defaultActions: Ref<StatementAction[]> = computed(() => {
   const actions = [];
   if (hasStandaloneEditor.value && STANDALONE_ENABLED) {
@@ -458,6 +479,30 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       action: () => toggleContentFold(false),
     });
   }
+  if (canHaveText.value && (props.statement.text ?? "").length == 0 && !partsForceShown.value.includes("text")) {
+    actions.push({
+      groupId: "edit",
+      label: "Add text",
+      icon: Bars3BottomRightIcon,
+      hideInline: false,
+      action: () => {
+        partsForceShown.value.push("text");
+        nextTick(() => focus("text"));
+      },
+    });
+  }
+  if (props.statement.type == StatementType.Text && props.statement.name == null) {
+    actions.push({
+      groupId: "edit",
+      label: "Add name",
+      icon: AtSymbolIcon,
+      hideInline: false,
+      action: () => {
+        ops.statement.rename(null, props.statement.id, null, "");
+        nextTick(() => focus("declaration"));
+      },
+    });
+  }
   actions.push({
     groupId: "edit",
     label: "Duplicate",
@@ -473,14 +518,32 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   });
   return actions;
 });
-const actions: Ref<StatementAction[]> = computed(() =>
-  [
-    ...defaultActions.value,
-    ...(Object.values(partsRefs.value)
-      .flatMap((e) => e?.actions ?? [])
-      .map((a) => ({ ...a, groupId: a.groupId ?? "custom" })) ?? []),
-  ].reverse()
-);
+const actions: Ref<StatementAction[]> = computed(() => {
+  const actions: StatementAction[] = [];
+  // collect actions and ensure that we're unfolded & the source element is always shown (even if currently hidden)
+  const { partsInOrder } = getPartsInOrder({ includeInactive: true });
+  for (const part of partsInOrder) {
+    const partComponent = partsRefs.value[part.id];
+    if (partComponent?.actions == null) continue;
+    partComponent.actions.forEach((a: StatementAction) => {
+      actions.push({
+        ...a,
+        action: (thing: StatementHeader) => {
+          if (!partsForceShown.value.includes(part.id)) {
+            partsForceShown.value.push(part.id);
+          }
+          if (isContentFolded.value) {
+            toggleContentFold(false);
+          }
+          a.action(thing);
+        },
+      });
+    });
+  }
+  // default/common actions last
+  actions.push(...defaultActions.value);
+  return actions;
+});
 const actionGroups = computed(() => [
   { id: "general" },
   { id: "custom", label: STATEMENT_TYPE_LABELS[statement.value.type] ?? "Statement" },
@@ -493,7 +556,7 @@ function showActionsPopover() {
 // sessions
 
 function run() {
-  // nocheckin run yo
+  // nocheckin run & run element
 }
 
 // interp
@@ -640,7 +703,10 @@ defineExpose({
           <!-- Declaration or title (if text with heading) -->
           <div class="flex flex-row gap-1.5">
             <DeclarationControl
-              v-if="iface?.needsDeclaration || (statement.type == StatementType.Text && statement.headingLevel != null)"
+              v-if="
+                iface?.needsDeclaration ||
+                (statement.type == StatementType.Text && (statement.headingLevel != null || statement.name != null))
+              "
               :ref="(ref: any) => (partsRefs['declaration'] = ref)"
               :statement="statement"
               :readonly="readonly"
@@ -705,7 +771,10 @@ defineExpose({
         <!-- Body -->
         <!-- Folded -->
         <template v-if="isContentFolded && iface?.foldable != null">
-          <button class="flex flex-row gap-1 rounded-sm hover:bg-gray-100" @click="toggleContentFold()">
+          <button
+            class="flex max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
+            @click="toggleContentFold()"
+          >
             <span
               v-for="field in iface.foldable.includes('all') ? fields.allFields.value : fields.selfFields.value"
               class="text-gray-400"
@@ -799,6 +868,7 @@ defineExpose({
       >
       <span>{{ statement?.ck.slice(0, 5) }}/{{ statement?.id.slice(-6, -1) }}</span>
       <span class="mx-0.5">{{ statement.type.toLocaleLowerCase() }}</span>
+      <span class="mx-0.5">{{ activeControlParts.length }}c {{ activeElementParts.length }}e</span>
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">a</template>
       <template v-if="isFocused">f</template>

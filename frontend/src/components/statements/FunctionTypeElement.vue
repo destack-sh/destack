@@ -7,7 +7,13 @@ import { makeField, useFields } from "@/state/statement";
 import { TypeTag, type Field } from "@/gql/graphql";
 import { TypeFlag, useCurrentModule } from "@/state/module";
 import { generateKeyBetween } from "@/utils/fractional";
-import { ArrowLongDownIcon, ArrowLongRightIcon, PlusIcon } from "@heroicons/vue/24/outline";
+import {
+  ArrowDownRightIcon,
+  ArrowLongDownIcon,
+  ArrowLongRightIcon,
+  ArrowUpRightIcon,
+  PlusIcon,
+} from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, toRef, type Ref } from "vue";
 import { usePanelContext } from "@/state/bench";
 import type { StatementEmit, StatementProps } from "@/components/statements";
@@ -19,7 +25,8 @@ const emit = defineEmits<StatementEmit>();
 const module = useCurrentModule();
 const ops = useOperations();
 
-const { inputs, outputs, fields, selfFields, inheritedFields } = useFields(toRef(props, "statement"));
+const fieldsX = useFields(toRef(props, "statement"));
+const { inputs, outputs, fields, selfFields, inheritedFields } = fieldsX;
 
 type ColumnType = "type";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);
@@ -69,15 +76,12 @@ function insertBelow(
   kind: "input" | "output",
   template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">
 ) {
-  const lastField = fields.value[fields.value.length - 1];
-  const orderKey = generateKeyBetween(lastField?.orderKey ?? null, null);
   // function fields are required by default
   const flags = (kind == "output" ? TypeFlag.IsOutput : 0) | ((template.flags ?? 0) & ~TypeFlag.IsOptional);
-  const newFieldNode = makeField({ projectVersionId: module.id.value, ...template, orderKey, flags });
-  ops.symbol.createField(null, props.statement.id, newFieldNode);
+  const newField = fieldsX.createNewField({ ...template, flags });
   nextTick(() => {
     const grid = kind == "input" ? inputGrid : outputGrid;
-    grid.getRef(newFieldNode.id, "type").open("all");
+    grid.getRef(newField.id, "type").open("all");
   });
 }
 
@@ -160,6 +164,22 @@ defineExpose({
   createOutput: () => {
     createOutputRef.value?.show();
   },
+  actions: [
+    {
+      label: "Add input",
+      icon: ArrowDownRightIcon,
+      action: () => {
+        createInputRef.value?.show();
+      },
+    },
+    {
+      label: "Add output",
+      icon: ArrowUpRightIcon,
+      action: () => {
+        createOutputRef.value?.show();
+      },
+    },
+  ],
 });
 </script>
 <template>

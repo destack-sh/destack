@@ -1,18 +1,6 @@
-import {
-  StatementType,
-  TypeHint,
-  TypeTag,
-  type FieldCreateInput,
-  type FieldUpdateInput,
-  type SearchSort,
-  type SearchQuery,
-} from "@/gql/graphql";
-import { useActions } from "@/state/actions";
-import type { StatementAction } from "@/state/bench";
-import { useNavigationContext } from "@/state/file";
+import { StatementType, TypeHint, TypeTag, type SearchSort, type SearchQuery } from "@/gql/graphql";
 import {
   TypeFlag,
-  getStatementSubtype,
   useCurrentModule,
   type Field,
   type Tagging,
@@ -21,12 +9,11 @@ import {
   newNodeIdentity,
   type Statement,
 } from "@/state/module";
-import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
+import { useOperations } from "@/state/operations";
 import { newFieldKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { getFieldNameFromTypeName } from "@/utils/functools";
-import { syncProperty } from "@/utils/sync";
 import {
   ArrowUpRightIcon,
   CircleStackIcon as CircleStackIconOutline,
@@ -144,7 +131,7 @@ export function useFields(statement: Ref<Statement>) {
   const inputs = computed(() => allFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
   const outputs = computed(() => allFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
 
-  function createField(field: Field) {
+  function _createField(field: Field) {
     ops.symbol.createField(null, statement.value.id, {
       ...field,
       statement: { __typename: "Statement", id: statement.value.id } as any,
@@ -178,7 +165,7 @@ export function useFields(statement: Ref<Statement>) {
       flags: template.flags ?? 0,
       referenceCk: template.referenceCk ?? null,
     });
-    createField(field);
+    _createField(field);
     return field;
   }
 
@@ -195,7 +182,7 @@ export function useFields(statement: Ref<Statement>) {
       flags: TypeFlag.IsUnionWith,
       referenceCk: referenceCk ?? null,
     });
-    createField(field);
+    _createField(field);
     return field;
   }
 
@@ -217,7 +204,7 @@ export function useFields(statement: Ref<Statement>) {
       orderKey,
       referenceCk: field.referenceCk ?? null,
     };
-    createField(newFieldNode as Field);
+    _createField(newFieldNode as Field);
     return newFieldNode;
   }
 
@@ -265,7 +252,6 @@ export function useFields(statement: Ref<Statement>) {
     inputs,
     outputs,
     baseTypes,
-    createField,
     createNewField,
     createUnionField,
     duplicateField,
