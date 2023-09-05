@@ -65,9 +65,9 @@ function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnTy
   }
   const flags = value.flags | (kind == "output" ? TypeFlag.IsOutput : 0);
   if (column == "type") {
-    ops.symbol.updateField(null, field as Field, { ...value, flags } as Field);
+    fieldsX.updateField(field as Field, { ...value, flags } as Field);
   } else {
-    ops.symbol.updateField(null, field as Field, { ...field, [column]: value, flags } as Field);
+    fieldsX.updateField(field as Field, { ...field, [column]: value, flags } as Field);
   }
 }
 
@@ -269,7 +269,12 @@ defineExpose({
       >
         <PlusIcon class="h-4 w-4" /> Output
       </button>
-      <CreateFieldInterface ref="createOutputRef" title="Add output" @select="insertBelow('output', $event)" />
+      <CreateFieldInterface
+        ref="createOutputRef"
+        title="Add output"
+        :ref-types="[TypeTag.Enum, TypeTag.Struct]"
+        @select="insertBelow('output', $event)"
+      />
     </div>
   </div>
 </template>

@@ -2,10 +2,10 @@
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import SelectTypeInterface from "@/components/interfaces/SelectTypeInterface.vue";
 import { pinAbsoluteElement } from "@/composables/useFixed";
-import type { Field } from "@/gql/graphql";
+import type { Field, TypeTag } from "@/gql/graphql";
 import { ref } from "vue";
 
-defineProps<{ title: string }>();
+defineProps<{ title: string; refOnly?: boolean; refTypes?: TypeTag[] }>();
 
 const emit = defineEmits<{
   (e: "select", type: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">): void;
@@ -44,7 +44,13 @@ defineExpose({
       :class="popoverPin.pinned.value ? '' : 'absolute top-8'"
     >
       <h5 class="px-1 text-left text-xs font-semibold text-gray-500">{{ title }}</h5>
-      <SelectTypeInterface class="mt-2" hide-flags @update:model-value="hide(), emit('select', $event)" />
+      <SelectTypeInterface
+        class="mt-2"
+        hide-flags
+        :ref-only="refOnly"
+        :ref-types="refTypes"
+        @update:model-value="hide(), emit('select', $event)"
+      />
     </div>
   </FadeTransition>
 </template>

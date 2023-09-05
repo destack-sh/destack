@@ -83,6 +83,7 @@ export type StatementEmit = {
   (e: "deleteSelf"): void;
   (e: "enterLeft"): void;
   (e: "enter"): void;
+  (e: "enterRight"): void;
   (e: "escape"): void;
   (e: "paste"): void;
   (e: "run", args?: Record<string, any>): void;
@@ -100,6 +101,7 @@ export type StatementEmitDict = {
   deleteSelf: () => void;
   enterLeft: () => void;
   enter: () => void;
+  enterRight: () => void;
   escape: () => void;
   paste: () => void;
   run: (args?: Record<string, any>) => void;

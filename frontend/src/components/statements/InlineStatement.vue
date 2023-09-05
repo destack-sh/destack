@@ -156,20 +156,21 @@ const activeElementParts = computed(() => elementParts.value.filter((p) => p.act
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
-function handleStatementPartEvents(kind: "control" | "element", id: string): StatementEmitDict {
+function handleStatementPartEvents(kind: "control" | "element", partId: string): StatementEmitDict {
   return {
-    navigateUp: () => navigate("up", id),
-    navigateDown: () => navigate("down", id),
-    navigateLeft: () => navigate("left", id),
-    navigateRight: () => navigate("right", id),
+    navigateUp: () => navigate("up", partId),
+    navigateDown: () => navigate("down", partId),
+    navigateLeft: () => navigate("left", partId),
+    navigateRight: () => navigate("right", partId),
     enterLeft: () => magic.insertAbove(),
     enter: () => magic.insertBelow(true),
+    enterRight: () => magic.insertBelow(true),
     paste: () => nav.value?.paste(),
     run,
     deleteLeft: () => {
       const above = nav?.value?.getAbove(statement.value);
-      nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last");
       ops.statement.softDelete(null, statement.value.id);
+      nextTick(() => nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last"));
     },
     deleteSelf: () => {
       ops.statement.softDelete(null, statement.value.id);

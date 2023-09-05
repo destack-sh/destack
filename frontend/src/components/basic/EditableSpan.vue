@@ -29,12 +29,14 @@ const emit = defineEmits<{
   (e: "navigateDown", position?: number): void;
   (e: "navigateLeft"): void;
   (e: "navigateRight"): void;
+  (e: "enterLeft", value: string): void;
   (e: "enter", value: string): void;
+  (e: "enterRight", value: string): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
 }>();
 
-function deleteLeftIfEmpty(e: KeyboardEvent) {
+function deleteLeftIfAtStart(e: KeyboardEvent) {
   if (props.modelValue.length == 0) {
     emit("deleteLeft");
     e.stopPropagation();
@@ -142,6 +144,20 @@ function onInput(e: InputEvent) {
   }
 }
 
+function onEnter(e: KeyboardEvent) {
+  // fire enter start if at start of text, enter right if at end of text, otherwise enter
+  const selection = window.getSelection();
+  if (selection && selection.anchorOffset == 0) {
+    emit("enterLeft", props.modelValue);
+  } else if (selection && selection.anchorOffset == props.modelValue.length) {
+    emit("enterRight", props.modelValue);
+  } else {
+    emit("enter", props.modelValue);
+  }
+  e.preventDefault();
+  e.stopPropagation();
+}
+
 function toNbsp(s: string) {
   return s.replace(/ /g, "\u00a0");
 }
@@ -173,8 +189,8 @@ defineExpose({
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.exact.left="navigateLeftIfAtStart"
     @keydown.exact.right="navigateRightIfAtEnd"
-    @keydown.enter.exact.prevent="emit('enter', fromNbsp(modelValue))"
-    @keydown.backspace.exact="deleteLeftIfEmpty"
+    @keydown.enter.exact.prevent="e => onEnter(e as KeyboardEvent)"
+    @keydown.backspace.exact="deleteLeftIfAtStart"
     @keydown.escape.prevent="emit('escape')"
     @input="e => onInput(e as InputEvent)"
   >

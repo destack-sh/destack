@@ -643,7 +643,12 @@ defineExpose({
               />
             </div>
           </div>
-          <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
+          <CreateFieldInterface
+            ref="createFieldRef"
+            :title="'New field'"
+            :ref-types="[TypeTag.Enum, TypeTag.Struct]"
+            @select="createNewField"
+          />
           <!-- Properties column (add + settings) -->
           <div
             v-if="showPropertiesColumn"

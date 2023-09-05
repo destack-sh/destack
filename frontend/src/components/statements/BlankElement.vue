@@ -217,7 +217,9 @@ defineExpose({
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
       @navigate-right="emit('navigateRight')"
+      @enter-left="emit('enterLeft')"
       @enter="emit('enter')"
+      @enter-right="emit('enterRight')"
       @delete-left="emit('deleteLeft')"
       @paste.prevent="emit('paste')"
     />

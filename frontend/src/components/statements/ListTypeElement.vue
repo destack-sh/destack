@@ -93,7 +93,7 @@ function dropField(droppedId: string, position: "above" | "below" | "left" | "ri
 function writeType(fieldId: string, newType: Field) {
   const oldType = selfFields.value?.find((m) => m.id === fieldId);
   if (!oldType) return;
-  ops.symbol.updateField(null, oldType, { ...oldType, ...newType, id: fieldId });
+  fieldsX.updateField(oldType, { ...oldType, ...newType, id: fieldId });
 }
 
 function focusFirstIfExists() {
@@ -151,6 +151,7 @@ defineExpose({
       :readonly="readonly"
       :isEnum="isEnum"
       :tupleName="isEnum ? 'option' : 'field'"
+      :ref-types="[TypeTag.Enum, TypeTag.Struct]"
       orientation="vertical"
       @navigate-left="grid.navigateLeft(field.id, 'type')"
       @navigate-right="grid.navigateRight(field.id, 'type')"
@@ -178,7 +179,12 @@ defineExpose({
         <PlusIcon class="h-4 w-4" />{{ isEnum ? "Option" : "Field" }}
       </button>
       <!-- Create popup right below button -->
-      <CreateFieldInterface ref="createFieldRef" :title="'New field'" @select="createNewField" />
+      <CreateFieldInterface
+        ref="createFieldRef"
+        :title="'New field'"
+        :ref-types="[TypeTag.Enum, TypeTag.Struct]"
+        @select="createNewField"
+      />
     </div>
   </div>
 </template>

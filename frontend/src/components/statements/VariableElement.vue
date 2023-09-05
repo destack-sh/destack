@@ -2,7 +2,7 @@
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import type { Field } from "@/gql/graphql";
+import { TypeTag, type Field } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { useOperations } from "@/state/operations";
 import { useFields } from "@/state/statement";
@@ -128,6 +128,7 @@ defineExpose({
     <CreateFieldInterface
       ref="createFieldRef"
       :title="'New field'"
+      :ref-types="[TypeTag.Enum, TypeTag.Struct]"
       @select="(f) => createNewFieldAndFocus(f as Field)"
     />
   </div>
