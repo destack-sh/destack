@@ -76,7 +76,8 @@ function stopCommanding() {
 function selectCommand(command: MorphCommand) {
   commanding.value = false;
   query.value = "";
-  command.action();
+  ops.statement.morph(null, props.statement.id, props.statement, { ...command.identity, name: props.statement.name });
+  command.action?.();
 }
 
 const { filteredCommands } = useStatementMorph(toRef(props, "statement"), { query: commandQuery });
@@ -148,7 +149,7 @@ defineExpose({
         class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
         @click.stop="commanding = false"
       />
-      <!-- Command popup options :MorphCommandStyle -->
+      <!-- Morph command popup options -->
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"

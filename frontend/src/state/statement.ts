@@ -424,11 +424,12 @@ export type MorphCommandGroup = {
 
 export type MorphCommand = {
   group: MorphCommandGroup;
+  identity: MorphIdentity;
   label: string;
   icon: any;
   description: string;
   aliases?: string[];
-  action: () => void;
+  action?: () => void;
 };
 
 export type MorphIdentity = {
@@ -438,22 +439,28 @@ export type MorphIdentity = {
   headingLevel?: number | null;
 };
 
+export function getMorphIdentity(statement: Statement): MorphIdentity {
+  return {
+    type: statement.type,
+    tag: statement.tag,
+    flags: statement.flags,
+    headingLevel: statement.headingLevel,
+  };
+}
+
+export function canMorphTo(statement: Statement, to: MorphIdentity) {
+  return true; // no restrictions yet?
+}
+
 export function useStatementMorph(
   statement: Ref<Statement>,
   options?: { query?: Ref<string>; onMorph?: (id: MorphIdentity) => void }
 ) {
-  const ops = useOperations();
-
   const GROUPS = {
     BASIC: { name: "Basic statements" },
     LAYOUT: { name: "Layout statements" },
     ADVANCED: { name: "Advanced statements" },
   };
-
-  function _doMorph(to: MorphIdentity) {
-    ops.statement.morph(null, statement.value.id, statement.value, to);
-    options?.onMorph?.(to);
-  }
 
   function simpleStatementCommand(
     group: MorphCommandGroup,
@@ -465,19 +472,14 @@ export function useStatementMorph(
       aliases?: string[];
     }
   ): MorphCommand {
+    const identity = { type, ...options };
     return {
       group,
       label: options?.label ?? getStatementLabel(type, options?.tag),
       icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
       description: options?.description ?? getStatementDescription(type, options?.tag),
       aliases: options?.aliases,
-      action: () =>
-        ops.statement.morph(null, statement.value.id, statement.value, {
-          type,
-          tag: options?.tag ?? undefined,
-          flags: options?.flags ?? undefined,
-          headingLevel: options?.headingLevel,
-        }),
+      identity,
     };
   }
 
@@ -490,7 +492,7 @@ export function useStatementMorph(
         aliases: ["comment", "markdown", "title", "header"],
         icon: getStatementIconSolid(StatementType.Text),
         description: "Just type for a plain comment",
-        action: () => _doMorph({ type: StatementType.Text, headingLevel: null }),
+        identity: { type: StatementType.Text, headingLevel: null },
       },
       simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
         tag: TypeTag.Struct,
@@ -526,6 +528,7 @@ export function useStatementMorph(
   const filteredCommands = computed(() => {
     if (options?.query == null) return commands.value;
     return commands.value
+      .filter((command) => canMorphTo(statement.value, command.identity))
       .map((command) => {
         const query = options.query?.value.toLowerCase() as string; // can't change
         const titleMatch = command.label.toLowerCase().includes(query);
