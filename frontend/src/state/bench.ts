@@ -862,6 +862,7 @@ export type Action<T> = {
   label: string;
   icon: any;
   action: (item: T) => void;
+  component?: (item: T) => InstanceType<any>;
   active?: boolean;
   disabled?: boolean;
   keepOpen?: boolean;

@@ -1,22 +1,18 @@
-import abc
 import enum
 import itertools
 import random
-from typing import Collection, Optional, Self
+from typing import Optional, Self
 
-from bench.language.basic import Blank, HasText, Text
-from bench.language.code_ import Code
+from bench.language.basic import HasText
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import ModuleVisitor, Scope, Statement, node
-from bench.language.dataset import Dataset, Variable
 from bench.language.flow import HasFlow, IsFlowNode
-from bench.language.issue import IssueType
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.tag import HasTags
 from bench.language.type import HasType
 from bench.language.utils import Runnable
-from bench.utils.utils import DotDict, DotList
+from bench.utils.utils import DotList
 
 
 class TaskErrorType(enum.StrEnum):
@@ -59,6 +55,7 @@ class LimitExceededError(TaskError):
 @reflect_struct("TaskMetadata", "Default metadata of a task", return_type=True)
 class TaskMetadata:
     retries: Optional[int]
+    nonce: Optional[str]
 
 
 @node(tracked=["text"])
@@ -74,31 +71,9 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         IsFlowNode._clear(self)
 
     def _interp(self, scope: Scope) -> None:
-        from bench.language.libs import symbolx_lib
-
-        # not great, see :CentralStdlibAccess
-        tool_tag = symbolx_lib.lookup_or_error(".builtins.tool")
-        consider_tag = symbolx_lib.lookup_or_error(".builtins.consider")
-
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
-
-        # check that all children can be interpreted
-        for child in self.resolved_children:
-            statement = child.statement
-            if isinstance(statement, (IsFlowNode, Text, Blank)):
-                continue
-            elif isinstance(statement, Runnable) and child.has_tag(tool_tag):
-                continue
-            elif child.has_tag(consider_tag):
-                continue
-            else:
-                self._on_issue(
-                    type=IssueType.UNCLEAR_INTENT,
-                    subject=statement,
-                    reason="does not affect outer task",
-                )
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags, self.triggers):
@@ -139,6 +114,31 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
                 ]
             if isinstance(model, Model):
                 model = [model]
+
+            # nocheckin: simple task compilation
+            # - decision model
+            #   - function calling
+            #     - tool 'coercion' (e.g. dataset -> metadata + search function)
+            # - tool models == functions? (but with more or less flexible I/O)
+            # - has flow (NOT YET)
+            #   - constrained sub-flows
+            #   - triggers
+            #   - 'inlined' pre/post code (e.g. to include context based on query)
+            #   - interrupts & reproducibility
+            #    - nonces (put into metadata?)
+            # - task metadata
+            #   - progress reporting?
+            #   - retries
+            # - flexible rendering
+            #   - 'compilation'/rendering for (annotated) text, types, tools, etc.
+            #   - walk statements?
+            # - automatic model selection
+            # - error handling
+            #   - automatic retries & fallbacks
+            # - interp (warnings/errors)
+            #  - should use same 'parsing' logic in interp (maybe even pre-parse?)
+            # - continuous granularity
+            #  - plug in different flow runner?
 
             # shortcut for built-in tasks with fixed implementations
             if self.path == "symbolx.lib.builtins.embed":
@@ -210,118 +210,3 @@ class TaskProxy:  # :SyncProxy
     @classmethod
     def to_sync(cls, task: Task) -> "TaskProxy":
         return cls(task, is_async=False)
-
-
-class TaskRunner(abc.ABC):
-    def __init__(
-        self,
-        task: Task,
-        max_steps: int,
-        max_function_calls: int,
-        max_errors: int,
-        max_model_errors: int,
-        nonce: str = None,
-    ):
-        self.task = task
-        self.max_steps = max_steps
-        self.max_function_calls = max_function_calls
-        self.max_errors = max_errors
-        self.max_model_errors = max_model_errors
-        self.num_steps = 0
-        self.num_function_calls = 0
-        self.num_errors = 0
-        self.num_model_errors = 0
-        self.nonce = nonce
-
-    async def __call__(self, model: Model, inputs: dict, is_batched: bool):
-        """Runs a single contiguous 'block' of a task on a single model."""
-        from bench.language.libs import symbolx_lib
-
-        # compile
-        # not great, see :CentralStdlibAccess
-        tool_tag = symbolx_lib.lookup_or_error(".builtins.tool")
-        consider_tag = symbolx_lib.lookup_or_error(".builtins.consider")
-
-        compiler = model.compile(self.task, inputs, is_batched)
-        # TODO @Instruction @Broken: handle instruction tags through proxies (e.g. a referenced type)
-        for child in self.task.resolved_children:
-            statement = child.statement
-            if child.has_tag(tool_tag):
-                compiler.add_tool(statement)
-            elif child.has_tag(consider_tag):
-                compiler.add_consideration(statement)
-
-        for step in self.task.get_children_by_tag(
-            self.task.module.lookup("symbolx.lib.builtins.step")
-        ):
-            if not isinstance(step, Task):
-                continue  # report issue?
-            compiler.add_step(step)
-
-        # run
-        # should probably track task runner state in run metadata?
-        ret = await compiler.run(model, self)
-        if isinstance(ret, TaskError):
-            raise ret
-        elif not isinstance(ret, DotDict):
-            ret = DotDict(ret)
-        return ret
-
-    async def step(self):
-        self.num_steps += 1
-        if self.num_steps > self.max_steps:
-            raise LimitExceededError("max steps exceeded")
-
-    async def error(self, error: TaskError):
-        self.num_errors += 1
-        if self.num_errors > self.max_errors:
-            raise LimitExceededError("max errors exceeded")
-
-    async def model_step(self, model: Model):
-        pass
-
-    async def model_error(self, model: Model, error: TaskError):
-        self.num_model_errors += 1
-        if self.num_model_errors > self.max_model_errors:
-            raise LimitExceededError("max model errors exceeded")
-
-    @property
-    def can_call_another_function(self) -> bool:
-        return self.num_function_calls < self.max_function_calls
-
-    async def call_function(self, function: Task | Code | Model, inputs: dict) -> dict | TaskError:
-        try:
-            self.num_function_calls += 1
-            if self.num_function_calls > self.max_function_calls:
-                raise LimitExceededError("max function calls exceeded")
-            return await function.to_async()(**inputs)
-        except (IncapableError, ValueError, TypeError) as e:
-            return TaskError.from_exception(e)
-
-
-class TaskCompiler(abc.ABC):
-    # nocheckin: update task compiler with new text stuff
-    def __init__(self, task: Task, inputs: dict | list[dict], is_batched: bool):
-        self.task = task
-        self.inputs = inputs
-        self.is_batched = is_batched
-        self.steps: list[Task] = []
-        self.considerations: list[Variable | Dataset] = []
-        self.tools_by_py_ident: dict[str, Task | Code | Model] = {}
-
-    @property
-    def tools(self) -> Collection[Task | Code | Model]:
-        return self.tools_by_py_ident.values()
-
-    def add_step(self, step: Task) -> None:
-        self.steps.append(step)
-
-    def add_tool(self, function: Task | Code | Model) -> None:
-        self.tools_by_py_ident[function.py_ident] = function
-
-    def add_consideration(self, consideration: Variable | Dataset) -> None:
-        self.considerations.append(consideration)
-
-    async def run(self, model: Model, runner: TaskRunner) -> dict | TaskError:
-        """Runs the compiled task and returns the result"""
-        raise NotImplementedError

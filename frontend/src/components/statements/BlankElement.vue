@@ -1,23 +1,24 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import EditableSpan from "@/components/basic/EditableSpan.vue";
-import { TypeTag } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { Combobox, ComboboxOption, ComboboxInput, ComboboxOptions, ComboboxButton } from "@headlessui/vue";
 import { useFocus, type MaybeElementRef } from "@vueuse/core";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref, toRef } from "vue";
 import { StatementType } from "@/gql/graphql";
-import { getStatementLabel, getStatementDescription, getStatementIconSolid } from "@/state/statement";
 import { EllipsisHorizontalIcon } from "@heroicons/vue/24/outline";
 import { useActiveScroll } from "@/composables/useScroll";
 import { usePanelContext } from "@/state/bench";
 import { type StatementProps } from "@/components/statements";
 import type { StatementEmit } from "@/components/statements";
-import type { TypeFlag } from "@/state/module";
 import { closeTransaction, openTransaction, useOperations } from "@/state/operations";
+import { useStatementMorph, type MorphCommand } from "@/state/statement";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "bounding" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
+
+const appearance = useAppearance();
+const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
 
 const query: Ref<string> = ref("");
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -47,7 +48,6 @@ watch(query, (query) => {
 });
 
 // command selection dropdown
-// (not sure if this is the best place to put it)
 const commanding: Ref<boolean> = ref(false);
 const commandQuery: Ref<string> = ref("");
 const commandInputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
@@ -57,117 +57,10 @@ const { focused: commandInputRefFocused } = useFocus(commandInputRef as MaybeEle
 
 useActiveScroll(computed(() => commandOptionsRef.value?.$el));
 
-type Group = {
-  name: string;
-};
-
-const GROUPS = {
-  BASIC: { name: "Basic statements" },
-  LAYOUT: { name: "Layout statements" },
-  ADVANCED: { name: "Advanced statements" },
-};
-
-type Command = {
-  group: Group;
-  label: string;
-  icon: any;
-  description: string;
-  aliases?: string[];
-  action: () => void;
-};
-
-function simpleStatementCommand(
-  group: Group,
-  type: StatementType,
-  options?: {
-    tag?: TypeTag;
-    flags?: TypeFlag;
-    headingLevel?: number;
-    icon?: any;
-    label?: string;
-    description?: string;
-    aliases?: string[];
-  }
-): Command {
-  return {
-    group,
-    label: options?.label ?? getStatementLabel(type, options?.tag),
-    icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
-    description: options?.description ?? getStatementDescription(type, options?.tag),
-    aliases: options?.aliases,
-    action: () =>
-      ops.statement.morph(null, props.statement.id, props.statement, {
-        type,
-        tag: options?.tag,
-        flags: options?.flags,
-        headingLevel: options?.headingLevel,
-      }),
-  };
-}
-
 function morphToText() {
   query.value = "";
   nextTick(() => spanRef.value?.focus());
 }
-
-// TODO @UX: blank statement menu sucks
-const commands = computed(() => {
-  const commands: Command[] = [
-    // basic statements
-    {
-      group: GROUPS.BASIC,
-      label: "Text",
-      aliases: ["comment", "markdown", "title", "header"],
-      icon: getStatementIconSolid(StatementType.Text),
-      description: "Just type for a plain comment",
-      action: morphToText,
-    },
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
-      tag: TypeTag.Struct,
-      aliases: ["type", "struct"],
-    }),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { tag: TypeTag.Enum, aliases: ["type", "enum"] }),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, { aliases: ["table", "retrieval", "rag", "samples"] }),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
-    simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
-
-    // layout statements
-    ...[1, 2, 3].map((level) =>
-      simpleStatementCommand(GROUPS.LAYOUT, StatementType.Text, {
-        headingLevel: level,
-        label: `Heading ${level}`,
-        description: `Text with heading ${level}`,
-        aliases: [`h${level}`],
-      })
-    ),
-
-    // advanced statements
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, { aliases: ["const", "config", "secret"] }),
-    // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
-    simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
-  ];
-
-  return commands;
-});
-
-const filteredCommands = computed(() => {
-  return commands.value
-    .map((command) => {
-      const titleMatch = command.label.toLowerCase().includes(commandQuery.value.toLowerCase());
-      const aliasMatch = command.aliases?.some((alias) =>
-        alias.toLowerCase().includes(commandQuery.value.toLowerCase())
-      );
-      const descriptionMatch = command.description.toLowerCase().includes(commandQuery.value.toLowerCase());
-
-      return {
-        ...command,
-        score: titleMatch ? 1 : aliasMatch ? 0.5 : descriptionMatch ? 0.25 : 0,
-      };
-    })
-    .filter((c) => c.score > 0)
-    .sort((a, b) => b.score - a.score);
-});
 
 function openCommandSelection() {
   commanding.value = true;
@@ -180,29 +73,24 @@ function stopCommanding() {
   nextTick(() => spanRef.value?.focus());
 }
 
-function selectCommand(command: Command) {
+function selectCommand(command: MorphCommand) {
   commanding.value = false;
   query.value = "";
   command.action();
 }
 
-function focus() {
-  spanRef.value?.focus();
-  commanding.value = false;
-}
-
-function blur() {
-  spanRef.value?.blur();
-  commandInputRefFocused.value = false;
-  commanding.value = false;
-}
-
-const appearance = useAppearance();
-const isInTopHalfOfPanel = computed(() => props.bounding.y.value < panel.size.value.height / 2);
+const { filteredCommands } = useStatementMorph(toRef(props, "statement"), { query: commandQuery });
 
 defineExpose({
-  focus: (position: "first" | "last" = "first") => focus(),
-  blur,
+  focus: (position: "first" | "last" = "first") => {
+    spanRef.value?.focus();
+    commanding.value = false;
+  },
+  blur: () => {
+    spanRef.value?.blur();
+    commandInputRefFocused.value = false;
+    commanding.value = false;
+  },
   loading: ref(false),
 });
 </script>
@@ -260,7 +148,7 @@ defineExpose({
         class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
         @click.stop="commanding = false"
       />
-      <!-- Command popup options -->
+      <!-- Command popup options :MorphCommandStyle -->
       <FadeTransition>
         <ComboboxOptions
           ref="commandOptionsRef"

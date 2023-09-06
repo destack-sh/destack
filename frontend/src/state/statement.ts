@@ -417,3 +417,129 @@ export type DatasetStatementProperties = {
   sorts?: SearchSort[];
   query?: SearchQuery;
 };
+
+export type MorphCommandGroup = {
+  name: string;
+};
+
+export type MorphCommand = {
+  group: MorphCommandGroup;
+  label: string;
+  icon: any;
+  description: string;
+  aliases?: string[];
+  action: () => void;
+};
+
+export type MorphIdentity = {
+  type: StatementType;
+  tag?: TypeTag | null;
+  flags?: TypeFlag | null;
+  headingLevel?: number | null;
+};
+
+export function useStatementMorph(
+  statement: Ref<Statement>,
+  options?: { query?: Ref<string>; onMorph?: (id: MorphIdentity) => void }
+) {
+  const ops = useOperations();
+
+  const GROUPS = {
+    BASIC: { name: "Basic statements" },
+    LAYOUT: { name: "Layout statements" },
+    ADVANCED: { name: "Advanced statements" },
+  };
+
+  function _doMorph(to: MorphIdentity) {
+    ops.statement.morph(null, statement.value.id, statement.value, to);
+    options?.onMorph?.(to);
+  }
+
+  function simpleStatementCommand(
+    group: MorphCommandGroup,
+    type: StatementType,
+    options?: Omit<MorphIdentity, "type"> & {
+      icon?: any;
+      label?: string;
+      description?: string;
+      aliases?: string[];
+    }
+  ): MorphCommand {
+    return {
+      group,
+      label: options?.label ?? getStatementLabel(type, options?.tag),
+      icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
+      description: options?.description ?? getStatementDescription(type, options?.tag),
+      aliases: options?.aliases,
+      action: () =>
+        ops.statement.morph(null, statement.value.id, statement.value, {
+          type,
+          tag: options?.tag ?? undefined,
+          flags: options?.flags ?? undefined,
+          headingLevel: options?.headingLevel,
+        }),
+    };
+  }
+
+  const commands = computed(() => {
+    const commands: MorphCommand[] = [
+      // basic statements
+      {
+        group: GROUPS.BASIC,
+        label: "Text",
+        aliases: ["comment", "markdown", "title", "header"],
+        icon: getStatementIconSolid(StatementType.Text),
+        description: "Just type for a plain comment",
+        action: () => _doMorph({ type: StatementType.Text, headingLevel: null }),
+      },
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Type, {
+        tag: TypeTag.Struct,
+        aliases: ["type", "struct"],
+      }),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { tag: TypeTag.Enum, aliases: ["type", "enum"] }),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, {
+        aliases: ["table", "retrieval", "rag", "samples"],
+      }),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Code),
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Task, { aliases: ["prompt", "AI", "model", "bot"] }),
+
+      // layout statements
+      ...[1, 2, 3].map((level) =>
+        simpleStatementCommand(GROUPS.LAYOUT, StatementType.Text, {
+          headingLevel: level,
+          label: `Heading ${level}`,
+          description: `Text with heading ${level}`,
+          aliases: [`h${level}`],
+        })
+      ),
+
+      // advanced statements
+      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Variable, { aliases: ["const", "config", "secret"] }),
+      // singleStatementCommand(GROUPS.ADVANCED, StatementType.Flow), not fully implemented
+      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Tag),
+      simpleStatementCommand(GROUPS.ADVANCED, StatementType.Reference),
+    ];
+
+    return commands;
+  });
+
+  const filteredCommands = computed(() => {
+    if (options?.query == null) return commands.value;
+    return commands.value
+      .map((command) => {
+        const query = options.query?.value.toLowerCase() as string; // can't change
+        const titleMatch = command.label.toLowerCase().includes(query);
+        const aliasMatch = command.aliases?.some((alias) => alias.toLowerCase().includes(query));
+        const descriptionMatch = command.description.toLowerCase().includes(query);
+
+        return {
+          ...command,
+          score: titleMatch ? 1 : aliasMatch ? 0.5 : descriptionMatch ? 0.25 : 0,
+        };
+      })
+      .filter((c) => c.score > 0)
+      .sort((a, b) => b.score - a.score);
+  });
+
+  return { commands, filteredCommands };
+}
