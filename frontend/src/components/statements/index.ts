@@ -90,6 +90,7 @@ export type StatementEmit = {
   (e: "run", args?: Record<string, any>): void;
   (e: "focus", partId: StatementPartId): void;
   (e: "openActions"): void;
+  (e: "illegal", char: string): void;
 };
 
 export type StatementEmitDict = {
@@ -108,6 +109,7 @@ export type StatementEmitDict = {
   run: (args?: Record<string, any>) => void;
   focus: (partId: StatementPartId) => void;
   openActions: () => void;
+  illegal: (char: string) => void;
 };
 
 export type StatementInterface = {

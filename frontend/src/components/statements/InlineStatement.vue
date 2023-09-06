@@ -155,7 +155,7 @@ const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
 function handleStatementPartEvents(kind: "control" | "element", partId: string): StatementEmitDict {
   const addTextOrInsertBelow = () => {
-    // if is control, has text or can have text navigate to text
+    // if part is control, has text or can have text navigate to text
     //  (i.e. jump from declaration to text on enter)
     if (kind == "control" && canHaveText.value) {
       partsForceShown.value.push("text");
@@ -186,6 +186,11 @@ function handleStatementPartEvents(kind: "control" | "element", partId: string):
     focus: (partId: StatementPartId) => focus(partId),
     escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
     openActions: showActionsPopover,
+    illegal: (char: string) => {
+      if (char == "#" && partId == "declaration") {
+        actions.value.find((a) => a.label == "Add tag")?.action(statement.value);
+      }
+    },
   };
 }
 
@@ -251,6 +256,7 @@ function focus(focus: "first" | "last" | StatementPartId = "first") {
     partsRefs.value[partsInOrder[partsInOrder.length - 1].id]?.focus("last");
   } else {
     partsRefs.value[focus]?.focus("first");
+    if (partsRefs.value[focus] == null) console.warn("part to focus not found", props.statement, focus, partsInOrder);
   }
 }
 
@@ -657,7 +663,7 @@ defineExpose({
                   ...appearance.baseClass,
                 }"
               >
-                <DragHandleIcon class="h-4 w-4" />
+                <EllipsisVerticalIcon class="h-4 w-4" />
                 <!-- Label -->
                 <span
                   class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
@@ -746,6 +752,7 @@ defineExpose({
               :class="[active ? 'mr-1.5' : '']"
             />
             <!-- TODO @UX: statement inline instant actions? -->
+            <!-- :InlineButtonPillStyle -->
           </div>
           <!-- Actions -->
           <div

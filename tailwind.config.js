@@ -29,6 +29,22 @@ module.exports = {
           },
         },
       }),
+      animation: {
+        fadeInSlow: "fadeInSlow 1.0s forwards",
+      },
+      keyframes: {
+        fadeInSlow: {
+          "0%": {
+            opacity: 0,
+          },
+          "75%": {
+            opacity: 0,
+          },
+          "100%": {
+            opacity: 1,
+          },
+        },
+      },
     },
   },
   plugins: [
