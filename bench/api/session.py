@@ -476,6 +476,10 @@ class SessionQuery:
         runs = models.Run.objects.filter(id__in=run_ids).prefetch_related(
             "trigger", "trigger_user", "trigger_access_token"
         )
+        if len(runs) != len(run_ids):
+            logger.warning("runs.search.db.missing", project_id=project_id, runs=run_ids)
+            # some runs have been deleted, we need to filter them out
+            runs = [r for r in runs if r.id in run_ids]
         logger.debug("runs.search.resolve", project_id=project_id, hits=len(runs))
         for i, r in enumerate(os_results["hits"]["hits"][0:effective_limit]):
             cursor = encode_cursor(r, after, i)

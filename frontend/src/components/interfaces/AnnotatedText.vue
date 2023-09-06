@@ -32,6 +32,7 @@ defineExpose({
 });
 </script>
 <template>
+  <!-- placeholder until we get actual annotated text -->
   <EditableSpan
     ref="spanRef"
     :model-value="modelValue"

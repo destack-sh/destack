@@ -155,14 +155,25 @@ const activeElementParts = computed(() => elementParts.value.filter((p) => p.act
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
 function handleStatementPartEvents(kind: "control" | "element", partId: string): StatementEmitDict {
+  const addTextOrInsertBelow = () => {
+    // if is control, has text or can have text navigate to text
+    //  (i.e. jump from declaration to text on enter)
+    if (kind == "control" && canHaveText.value) {
+      partsForceShown.value.push("text");
+      nextTick(() => focus("text"));
+    } else {
+      magic.insertBelow(true);
+    }
+  };
+
   return {
     navigateUp: () => navigate("up", partId),
     navigateDown: () => navigate("down", partId),
     navigateLeft: () => navigate("left", partId),
     navigateRight: () => navigate("right", partId),
     enterLeft: () => magic.insertAbove(),
-    enter: () => magic.insertBelow(true),
-    enterRight: () => magic.insertBelow(true),
+    enter: addTextOrInsertBelow,
+    enterRight: addTextOrInsertBelow,
     paste: () => nav.value?.paste(),
     run,
     deleteLeft: () => {
@@ -182,7 +193,6 @@ function handleStatementPartEvents(kind: "control" | "element", partId: string):
 function getPartsInOrder(options?: { includeInactive?: boolean }) {
   const partsInOrder: StatementPart[] = [
     ...(options?.includeInactive ? enabledControlParts.value.map((p) => p.part) : activeControlParts.value),
-    ...(iface.value?.extraControls ?? []),
     ...(options?.includeInactive ? elementParts.value.map((p) => p.part) : activeElementParts.value),
   ];
   // controls in one 'row', elements have their own rows
@@ -721,6 +731,7 @@ defineExpose({
               v-on="handleStatementPartEvents('control', control.id)"
               :class="[active ? 'mr-1.5' : '']"
             />
+            <!-- TODO @UX: statement inline instant actions? -->
           </div>
           <!-- Actions -->
           <div

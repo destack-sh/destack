@@ -12,6 +12,7 @@ import { IS_DEBUG } from "@/utils/globals";
 import { useBenchState } from "@/state/bench";
 import { getStatementIconSolid } from "@/state/statement";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
+import { PlayIcon } from "@heroicons/vue/24/solid";
 
 const props = defineProps<{
   projectId: string;
@@ -93,8 +94,15 @@ defineExpose({ runs, loading, totalCount, pageInfo });
       </tr>
     </thead>
     <!-- Runs -->
-    <tbody class="divide-y divide-orange-900 divide-opacity-[12%]">
+    <tbody class="divide-y divide-orange-900 divide-opacity-[12%] text-gray-900">
       <tr v-for="run in runs" :key="run.id" class="group/run divide-orange-900 divide-opacity-[12%]">
+        <!-- ID (to copy) -->
+        <td class="whitespace-nowrap px-2.5 py-1.5">
+          <button class="flex flex-row items-center hover:underline" @click="bench.openViewRun(run, { focus: true })">
+            <PlayIcon class="mr-1 h-4 w-4 text-gray-400" />
+            <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
+          </button>
+        </td>
         <!-- Statement -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
           <button
@@ -109,15 +117,6 @@ defineExpose({ runs, loading, totalCount, pageInfo });
             <span>{{ (statementsByCk[run.runnableCk] as InterpStatement).name }}</span>
           </button>
           <span v-else class="text-gray-400">(deleted)</span>
-        </td>
-        <!-- ID (to copy) -->
-        <td class="whitespace-nowrap px-2.5 py-1.5">
-          <button
-            class="inline-flex flex-row items-center text-gray-400 hover:underline"
-            @click="bench.openViewRun(run, { focus: true })"
-          >
-            <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
-          </button>
         </td>
         <!-- Status -->
         <td class="whitespace-nowrap px-2.5 py-1.5">

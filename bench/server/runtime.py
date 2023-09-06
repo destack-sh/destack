@@ -12,6 +12,7 @@ import structlog
 from asgiref.sync import sync_to_async
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from more_itertools import first
 
 from bench import models
 from bench.language import (
@@ -152,6 +153,20 @@ def _unpack_log(log: mirror.LogEntry):
     return log_packer.pack(doc)
 
 
+def _get_projects_to_manage() -> list[models.Project]:
+    projects = list(Project.objects.all())
+
+    # sanity check if default libs in code match those in DB
+    for lib in DEFAULT_MODULES.values():
+        project = first((p for p in projects if p.id == lib.ck), None)
+        if project is None:
+            raise RuntimeError(f"default lib {lib} not found in DB")
+        if project.head_id != lib.id:
+            raise RuntimeError(f"default lib {lib} head mismatch with {project}: {project.head}")
+
+    return projects
+
+
 class RuntimeServer(Monitored):
     """
     Bench runtime server to host per-module runtime workers that
@@ -187,7 +202,7 @@ class RuntimeServer(Monitored):
         ]
 
         logger.info("load_modules")
-        projects = [project async for project in Project.objects.all()]
+        projects = await sync_to_async(_get_projects_to_manage)()
         await asyncio.gather(*[self._prepare_worker(project.head_id) for project in projects])
 
         await self.user_worker_observer.start()
@@ -243,7 +258,7 @@ class RuntimeServer(Monitored):
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
-            logger.error("write_module.failed", msg=msg, exc_info=True)
+            logger.error("module.write.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
 
@@ -259,7 +274,7 @@ class RuntimeServer(Monitored):
             success = True
         except Exception as e:
             sentry_capture_if_enabled(e)
-            logger.error("write_session.failed", msg=msg, exc_info=True)
+            logger.error("session.write.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteSessionPayload(success=success))
 

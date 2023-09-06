@@ -352,7 +352,7 @@ export type Issue = ModuleNode &
 
 export enum IssueKind {
   Error = "Error",
-  Suggestion = "Suggestion",
+  Notice = "Notice",
   Warning = "Warning",
 }
 

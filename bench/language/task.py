@@ -300,7 +300,7 @@ class TaskRunner(abc.ABC):
 
 
 class TaskCompiler(abc.ABC):
-    # nocheckin: update task compiler
+    # nocheckin: update task compiler with new text stuff
     def __init__(self, task: Task, inputs: dict | list[dict], is_batched: bool):
         self.task = task
         self.inputs = inputs

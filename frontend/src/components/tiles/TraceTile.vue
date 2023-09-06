@@ -144,7 +144,7 @@ const bars = computed(() => {
 const totalHeight = computed(() => bars.value.reduce((a, b) => Math.max(a, b.y + barHeight), 0));
 
 function openRun(run: Run) {
-  bench.openViewRun(run, { focus: true, group: panel.panel.value.group, opposite: true });
+  bench.openViewRun(run, { focus: true, group: panel.panel.value.group });
 }
 
 // other traces will come later (timeline, mutations, logs, etc.)

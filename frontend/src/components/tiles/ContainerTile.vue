@@ -14,9 +14,9 @@ const props = defineProps<{
       :class="[sublabelPosition == 'opposite' ? 'justify-between' : '']"
     >
       {{ label }}
-      <span class="inline-flex flex-row gap-2 font-normal text-gray-400">
-        <span v-if="sublabel" class="ml-1">{{ sublabel }}</span>
-        <slot name="sublabel" class="ml-1" />
+      <span class="mx-1.5 inline-flex flex-row gap-2 font-normal text-gray-400">
+        <span v-if="sublabel">{{ sublabel }}</span>
+        <slot name="sublabel" />
       </span>
     </div>
     <div

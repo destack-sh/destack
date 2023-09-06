@@ -55,6 +55,7 @@ defineExpose({
 </script>
 <template>
   <div class="relative w-full text-gray-900" @click="textRef?.focus">
+    <!-- Actual text -->
     <AnnotatedText
       ref="textRef"
       :model-value="text || ''"
@@ -70,6 +71,7 @@ defineExpose({
       :focused="focused"
       :readonly="readonly"
     />
+    <!-- Placeholder if empty -->
     <template v-if="text.length == 0">&nbsp;</template>
     <button
       v-if="text.length == 0"
@@ -79,5 +81,6 @@ defineExpose({
     >
       Enter text...
     </button>
+    <!-- TODO @UX: text element inline actions pill? (maybe only if statement type is text?) -->
   </div>
 </template>

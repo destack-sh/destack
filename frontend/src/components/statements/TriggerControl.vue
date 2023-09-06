@@ -7,7 +7,7 @@ import { useNow } from "@/composables/useNow";
 import type { Trigger } from "@/gql/graphql";
 import { ScheduleType, TriggerType } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
-import { newNodeIdentity, useCurrentModule } from "@/state/module";
+import { TypeFlag, newNodeIdentity, useCurrentModule } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useTriggers } from "@/state/statement";
 import { TRIGGER_ICONS_SOLID, getTriggerSchedule, type TriggerSchedule, type TimeTrigger } from "@/state/trigger";
@@ -109,7 +109,8 @@ defineExpose({
       label: "Add trigger",
       groupId: "edit",
       icon: BoltIcon,
-      disabled: props.readonly,
+      disabled:
+        props.readonly || props.statement.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput)),
       action: () => addNew(),
     },
   ] as StatementAction[],
