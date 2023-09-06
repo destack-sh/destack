@@ -15,11 +15,13 @@ import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import { useActiveScroll } from "@/composables/useScroll";
 
 const props = defineProps<{
   actions: Action<any>[];
   thing: any;
   anchor: "left" | "right";
+  hideSearch?: boolean;
   small?: boolean;
 }>();
 const emit = defineEmits<{
@@ -38,6 +40,8 @@ const popoverPin = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
   { pos: true, width: true, keepInView: true }
 );
+
+useActiveScroll(computed(() => popoverPanelRef.value?.$el));
 
 const query = ref("");
 const uf = new uFuzzy({ intraMode: 0 });
@@ -118,7 +122,7 @@ defineExpose({
         <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click) -->
         <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (doActionIfOpen(action), close())">
           <ComboboxInput
-            v-if="!small"
+            v-if="!small && !hideSearch"
             as="input"
             ref="inputRef"
             class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
@@ -136,7 +140,7 @@ defineExpose({
             static
             :class="{
               'font-mono': appearance.fontMono,
-              'mt-1 text-sm': !small,
+              'mt-1 text-sm': !small && !hideSearch,
               'text-xs': small,
             }"
           >
