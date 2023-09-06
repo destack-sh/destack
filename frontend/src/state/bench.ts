@@ -34,6 +34,7 @@ import {
   PlayIcon as PlayIconOutline,
   XCircleIcon,
   WindowIcon as WindowIconOutline,
+  ArrowUturnLeftIcon,
 } from "@heroicons/vue/24/outline";
 import {
   CodeBracketIcon as CodeBracketIconSolid,
@@ -739,8 +740,8 @@ export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchS
     });
   }
 
-  // close
-  const closeActions = [
+  // close / reopen
+  const closeActions: PanelAction[] = [
     {
       groupId: "close",
       label: "Close",
@@ -758,6 +759,13 @@ export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchS
       label: "Close All",
       icon: XCircleIcon,
       action: () => bench.closePanelGroup(panel.group as PanelGroup),
+    },
+    {
+      groupId: "close",
+      label: "Reopen Closed",
+      icon: ArrowUturnLeftIcon,
+      disabled: bench.recentlyClosedPanels.length == 0,
+      action: () => bench.reopenLastClosedPanel({ focus: true }),
     },
   ];
   actions.push(...closeActions);

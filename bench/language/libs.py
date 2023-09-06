@@ -412,8 +412,8 @@ class OpenAIChatCompiler(TaskCompiler):
 
     def render_value_flat(self, value: Any, type: TypeBase, *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
-        if type.tag == TypeTag.ENUM:
-            return value.name
+        if type.effective_tag == TypeTag.ENUM:
+            return type.get_field(value).name
         else:
             return strip_value_flat(value, type, *args, **kwargs)
 

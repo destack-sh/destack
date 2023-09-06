@@ -239,6 +239,7 @@ defineExpose({
               ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
           "
+          sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
         >
           <TraceTile :root-id="panel.lastRunId" layout="list" live />
@@ -252,6 +253,7 @@ defineExpose({
               ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
           "
+          sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
         >
           <span v-if="outputFields?.length == 0" class="w-full text-center text-gray-400">No outputs</span>
@@ -271,6 +273,7 @@ defineExpose({
               ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
               : undefined
           "
+          sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
         >
           <ErrorTraceback :runnable-ck="panel.statementCk" :error-nice="panel.lastError" class="p-1" />
@@ -284,6 +287,7 @@ defineExpose({
               ? `last ${Math.min(RUNS_HISTORY_LIMIT, runsTileRef?.totalCount)} of ${runsTileRef?.totalCount}`
               : undefined
           "
+          sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
         >
           <template v-slot:sublabel>

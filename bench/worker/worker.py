@@ -397,7 +397,9 @@ class ModuleWorkerProcess(ModuleWriter):
             except RunError as e:
                 self.log.debug("run.failed", job=job, exc_info=e)
             except Exception as e:
-                self.log.error("run.failed", job=job, sentry=sentry_capture_if_enabled(e))
+                self.log.error(
+                    "run.failed.internal", job=job, sentry=sentry_capture_if_enabled(e), exc_info=e
+                )
             finally:
                 job.terminated.set()
                 self.queue.task_done()
@@ -548,7 +550,9 @@ class ModuleWorkerProcess(ModuleWriter):
                 logger.debug("worker.flush_dirty_runs", runs=len(self._dirty_dangling_runs))
                 runs = list(self._dirty_dangling_runs.values())
                 self._dirty_dangling_runs = {}
-                await self.write_session(session=None, runs=runs, logs=[])
+                success = await self.write_session(session=None, runs=runs, logs=[])
+                if not success:
+                    logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
             await asyncio.sleep(interval)
 
     async def write_module(self, mutations: list[ModuleMutation]) -> bool:
