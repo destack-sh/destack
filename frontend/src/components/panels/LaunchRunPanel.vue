@@ -17,6 +17,7 @@ import { ACTIVE_RUN_STATUSES, TERMINAL_RUN_STATUSES, useCurrentSessions } from "
 import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
+import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 
 const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -109,7 +110,7 @@ function subscribeUntilTermination(run: Run) {
     if (TERMINAL_RUN_STATUSES.includes(run.status)) {
       panel.value.lastRunTerminatedAt = run.terminatedAt;
       panel.value.lastOutput = run.outputs;
-      panel.value.lastError = run.error;
+      panel.value.lastError = run.errorNice;
     }
   });
   subscribedToCurrentRun.value = true;
@@ -136,7 +137,7 @@ async function run() {
   if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
     panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
     panel.value.lastOutput = result?.run.outputs;
-    panel.value.lastError = result?.run.error;
+    panel.value.lastError = result?.run.errorNice;
   } else {
     subscribeUntilTermination(run);
   }
@@ -260,6 +261,19 @@ defineExpose({
             readonly
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />
+        </ContainerTile>
+        <!-- Error -->
+        <ContainerTile
+          v-if="panel.lastError != null"
+          label="Error"
+          :sublabel="
+            panel.lastRunTerminatedAt != null
+              ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
+              : undefined
+          "
+          :style="{ ...baseTilePositionX }"
+        >
+          <ErrorTraceback :runnable-ck="panel.statementCk" :error-nice="panel.lastError" class="p-1" />
         </ContainerTile>
         <!-- Runs  -->
         <ContainerTile

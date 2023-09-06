@@ -10,6 +10,7 @@ import {
   type Statement,
   type SearchSort,
   ProjectAccessLevel,
+  type RunError,
 } from "@/gql/graphql";
 import {
   CONTENT_MARGIN_X_NARROW,
@@ -1066,7 +1067,7 @@ export class LaunchRunPanel extends Panel {
   statementType?: StatementType.Task | StatementType.Code;
   inputs: Record<string, any> = {};
   lastOutput?: Record<string, any> = {};
-  lastError?: Record<string, any> = {};
+  lastError?: RunError | null = null;
   lastRunTerminatedAt?: string;
   lastRunId?: string;
   lastSessionId?: string;

@@ -1,22 +1,23 @@
 <script lang="ts" setup>
-import { RunStatus, type Run } from "@/gql/graphql";
+import type { RunError } from "@/gql/graphql";
 import { useCurrentModule } from "@/state/module";
 import { computed } from "vue";
 
 const props = defineProps<{
-  run: Run;
+  errorNice: RunError;
+  runnableCk: string;
 }>();
 const module = useCurrentModule();
-const runnableName = computed(() => module.statementOf(props.run.runnableCk)?.name);
+const runnableName = computed(() => module.statementOf(props.runnableCk)?.name);
 </script>
 <template>
-  <div class="relative w-full font-mono" :class="[run.status == RunStatus.Failed ? 'text-red-600' : 'text-gray-600']">
-    {{ runnableName ?? "run" }} {{ run.status.toLowerCase() }}:
-    <span class="font-bold">{{ run.errorNice?.message }}</span>
+  <div class="relative w-full font-mono text-red-600">
+    {{ runnableName ?? "run" }} failed:
+    <span class="font-bold">{{ errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
       <li
-        v-for="(frame, i) of run.errorNice?.traceback"
+        v-for="(frame, i) of errorNice?.traceback"
         :key="i"
         class="flex max-w-full flex-col overflow-hidden py-0.5 hover:bg-red-100"
       >
@@ -36,6 +37,5 @@ const runnableName = computed(() => module.statementOf(props.run.runnableCk)?.na
         </span>
       </li>
     </ul>
-    <slot />
   </div>
 </template>
