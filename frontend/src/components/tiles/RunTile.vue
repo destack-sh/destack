@@ -49,7 +49,7 @@ defineExpose({
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-          @click="activeView = (view as View)"
+          @click="activeView = view as View"
         >
           <component
             :is="
@@ -96,7 +96,11 @@ defineExpose({
         live
         :limit="500"
       />
-      <ErrorTraceback v-else-if="activeView == 'error'" :run="run" />
+      <ErrorTraceback
+        v-else-if="activeView == 'error' && run.errorNice != null"
+        :runnable-ck="run.runnableCk"
+        :error-nice="run.errorNice"
+      />
     </div>
   </div>
 </template>

@@ -236,7 +236,7 @@ defineExpose({
         </ContainerTile>
         <!-- Error -->
         <ContainerTile v-else-if="run.errorNice != null" label="Error" :style="{ ...baseTilePositionX }">
-          <ErrorTraceback :run="(run as Run)" class="p-1" />
+          <ErrorTraceback :runnable-ck="run.runnableCk" :error-nice="run.errorNice" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
         <!-- TODO @Performance: pass in run to trace tiles (they all use the same data) -->
