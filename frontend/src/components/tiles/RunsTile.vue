@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
-import { TriggerType, type SearchQuery, type SearchSort } from "@/gql/graphql";
+import { TriggerType, type SearchQuery, type SearchSort, type Run } from "@/gql/graphql";
 import { useRuns, getRunStatusColor, getRunStatusIconSolid } from "@/state/session";
 import { useCurrentModule, useNavigation, type NodeBase, type InterpStatement } from "@/state/module";
 import { useKeyModifier } from "@vueuse/core";
@@ -11,6 +11,7 @@ import { getUUIDFromGlobalID } from "@/utils/functools";
 import { IS_DEBUG } from "@/utils/globals";
 import { useBenchState } from "@/state/bench";
 import { getStatementIconSolid } from "@/state/statement";
+import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 
 const props = defineProps<{
   projectId: string;
@@ -136,6 +137,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
                   : now.getTimeFromNowString(run.startedAt, { useNow: false })
               }}
             </span>
+            <RunCacheInfo :run="(run as Run)" class="" />
           </span>
         </td>
         <!-- Trigger -->

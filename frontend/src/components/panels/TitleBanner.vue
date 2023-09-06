@@ -39,6 +39,8 @@ defineExpose({
           :model-value="modelValue"
           @update:model-value="emit('update:modelValue', $event)"
           @enter="emit('enter')"
+          @enter-left="emit('enter')"
+          @enter-right="emit('enter')"
           @keyup.up.prevent="() => ({}) /* noop */"
           @keydown.down.prevent.stop="() => emit('navigateDown')"
         />
