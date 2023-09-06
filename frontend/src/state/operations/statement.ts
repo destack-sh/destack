@@ -459,9 +459,9 @@ export function useStatementOps() {
     },
     newStatement: {
       type: StatementType;
-      name?: string;
-      tag?: TypeTag;
-      flags?: number;
+      name?: string | null;
+      tag?: TypeTag | null;
+      flags?: number | null;
       headingLevel?: number | null;
     }
   ) {

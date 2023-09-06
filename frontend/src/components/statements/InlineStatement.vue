@@ -15,6 +15,7 @@ import {
   type StatementPartId,
 } from "@/components/statements";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
+import MorphStatement from "@/components/statements/MorphStatement.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -32,6 +33,7 @@ import { useCurrentSessions } from "@/state/session";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
 import { setDragData, useRelativeDropZone } from "@/utils/drop";
 import {
+  ArrowPathRoundedSquareIcon,
   ArrowsPointingOutIcon,
   AtSymbolIcon,
   Bars3BottomLeftIcon,
@@ -488,6 +490,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       label: "Add text",
       icon: Bars3BottomLeftIcon,
       hideInline: false,
+      disabled: props.readonly,
       action: () => {
         partsForceShown.value.push("text");
         nextTick(() => focus("text"));
@@ -500,6 +503,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       label: "Add name",
       icon: AtSymbolIcon,
       hideInline: false,
+      disabled: props.readonly,
       action: () => {
         ops.statement.rename(null, props.statement.id, null, "");
         nextTick(() => focus("declaration"));
@@ -508,14 +512,27 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   }
   actions.push({
     groupId: "edit-core",
+    label: "Turn into",
+    icon: ArrowPathRoundedSquareIcon,
+    hideInline: true,
+    disabled: props.readonly,
+    action: () => {
+      /* noop */
+    },
+    component: () => MorphStatement,
+  });
+  actions.push({
+    groupId: "edit-core",
     label: "Duplicate",
     icon: Square2StackIcon,
+    disabled: props.readonly,
     action: () => magic.duplicate(),
   });
   actions.push({
     groupId: "edit-core",
     label: "Delete",
     hideInline: true,
+    disabled: props.readonly,
     icon: TrashIcon,
     action: () => magic.delete(),
   });

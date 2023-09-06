@@ -35,14 +35,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.task import (
-    IncapableError,
-    Task,
-    TaskCompiler,
-    TaskError,
-    TaskErrorType,
-    TaskRunner,
-)
+from bench.language.task import IncapableError, Task, TaskError, TaskErrorType
 from bench.language.type import (
     Field,
     Key,
@@ -66,11 +59,6 @@ _symbolx_utils = symbolx_lib.create_file("utils")
 
 @x_tag("tool", "A tool for a bot", file=_symbolx_builtins)
 class Tool:
-    pass
-
-
-@x_tag("consider", "Ensure the bot knows this", file=_symbolx_builtins)
-class Consider:
     pass
 
 
@@ -383,7 +371,7 @@ class OpenAIChatCompletionModel(Model):
         return OpenAIChatCompiler(task, inputs, is_batched)
 
 
-class OpenAIChatCompiler(TaskCompiler):
+class OpenAIChatCompiler:
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and capable Bench bot that interprets instructions generously."
@@ -471,7 +459,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 content=json.dumps(map_value(result, function, map_v=self.render_value_flat)),
             )
 
-    async def run(self, model: OpenAIChatCompletionModel, runner: TaskRunner) -> dict:
+    async def run(self, model: OpenAIChatCompletionModel) -> dict:
         inputs = map_value(
             self.inputs,
             self.task,

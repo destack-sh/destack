@@ -11,7 +11,7 @@ import {
   PopoverButton,
   PopoverPanel,
 } from "@headlessui/vue";
-import { EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
+import { ChevronRightIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
@@ -55,17 +55,43 @@ const filteredActions = computed(() => {
   return idxs?.map((idx) => actions[idx]) ?? [];
 });
 const closed = ref(false);
+const nestedComponent = ref<InstanceType<any> | null>(null);
+const nestedActionIndex = ref<number | null>(null);
 
 // focus input when popover opens
 watch(popoverOpenRef, () => {
   emit("open");
-  nextTick(() => inputRef.value?.$el.focus());
+  nextTick(focus);
 });
 // clear input and closed when popover opens/closes
 watch(popoverOpenRef, () => {
   emit("close");
-  nextTick(() => ((query.value = ""), (closed.value = false)));
+  nextTick(blur);
 });
+
+function focus() {
+  inputRef.value?.$el.focus();
+}
+
+function blur() {
+  query.value = "";
+  closed.value = false;
+}
+
+function openComponent(action: Action<any>) {
+  if (action.component == null) return;
+  nestedComponent.value = action.component(props.thing);
+  nestedActionIndex.value = props.actions.findIndex((a) => a.label == action.label);
+}
+
+function selectAction(action: Action<any>, close: () => void) {
+  if (action.component != null) {
+    openComponent(action);
+  } else {
+    doActionIfOpen(action);
+    close();
+  }
+}
 
 function doActionIfOpen(action: Action<any>) {
   if (!closed.value) {
@@ -84,6 +110,8 @@ const anchor = computed(
 const appearance = useAppearance();
 
 defineExpose({
+  focus,
+  blur,
   show: () => popoverButtonRef.value?.$el.click(),
   open: computed(() => popoverOpenRef.value != null),
 });
@@ -120,7 +148,7 @@ defineExpose({
         <span ref="popoverOpenRef" class="hidden" />
         <!-- Input & actions -->
         <!-- note: we use closed to ensure action is only called once (since it's triggered by update model value and click) -->
-        <Combobox as="div" :model-value="null" @update:model-value="(action: any) => (doActionIfOpen(action), close())">
+        <Combobox as="div" :model-value="null" @update:model-value="(action: any) => selectAction(action, close)">
           <ComboboxInput
             v-if="!small && !hideSearch"
             as="input"
@@ -151,13 +179,15 @@ defineExpose({
               :value="action"
               :disabled="action.disabled || action.active"
               v-slot="{ active }"
-              @click.prevent.stop="doActionIfOpen(action), close()"
+              @click.prevent.stop="selectAction(action, close)"
+              class="flex flex-row items-center justify-between"
               :class="[
                 i > 0 && filteredActions[i - 1].groupId != action.groupId
                   ? ' border-t border-orange-900 border-opacity-[12%] ' + (small ? 'mt-0.5 pt-0.5' : 'mt-1 pt-1')
                   : '',
               ]"
             >
+              <!-- Actual label -->
               <button
                 class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 focus:outline-none"
                 :class="[
@@ -168,6 +198,14 @@ defineExpose({
                 <component :is="action.icon" class="h-4 w-4" />
                 <span class="text-gray-700">{{ action.label }}</span>
               </button>
+              <!-- Keyboard shortcut or chevron for nested action components -->
+              <div
+                v-if="action.component != null"
+                class="px-1 py-1.5 text-gray-400"
+                :class="[active ? 'bg-orange-100' : '']"
+              >
+                <ChevronRightIcon class="h-4 w-4" />
+              </div>
             </ComboboxOption>
             <div v-if="filteredActions.length == 0" class="pt-1 text-center">
               <span class="text-gray-400">No results</span>
