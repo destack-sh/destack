@@ -143,6 +143,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field?.id, 'type')"
           @navigate-right="grid.navigateRight(field?.id, 'type')"
           @navigate-left="grid.navigateLeft(field?.id, 'type')"
+          @enter="grid.navigateDown(field?.id, 'type')"
           :style="{
             minHeight: appearance.minRowHeight + 'px',
             height: rowHeights[y] + 'px',
