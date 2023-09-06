@@ -344,6 +344,8 @@ defineExpose({
             @navigate-right="typeButtonRef?.focus()"
             @navigate-down="textRef?.focus()"
             @enter="close(false), emit('enter')"
+            @enter-left="close(false), emit('enter')"
+            @enter-right="close(false), emit('enter')"
           />
           <!-- Name placeholder -->
           <span v-if="!value.name" class="absolute left-[5px] top-[5px] text-gray-400" @click="nameRef?.focus"
