@@ -550,6 +550,9 @@ function showActionsPopover() {
 const sessions = useCurrentSessions();
 function run() {
   sessions.run(props.statement);
+  if (!partsForceShown.value.includes("run")) {
+    partsForceShown.value.push("run");
+  }
 }
 
 // interp
