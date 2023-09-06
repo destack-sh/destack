@@ -241,7 +241,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     const ck = uuidv5(`builtin:${name}`, BENCH_UUID_NAMESPACE);
     const id = uuidv5(VERSION, ck);
     const gid = btoa(`ProjectVersion:${id}`);
-    defaultLibs[gid] = _useModuleFlat(ref(gid), { cache: true, required: `${name}@${VERSION}` }).idx;
+    defaultLibs[name] = _useModuleFlat(ref(gid), { cache: true, required: `${name}@${VERSION}` }).idx;
   }
 
   const dependenciesIndex: Ref<ModuleIndex[]> = computed(() =>
@@ -488,6 +488,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     idx,
     dependenciesIndex,
     // utils
+    defaultLibs,
     runMetadataFields,
     runMetadataKey,
     fileOf,

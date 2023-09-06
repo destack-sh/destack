@@ -21,6 +21,7 @@ import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import type { Run } from "@/gql/graphql";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
+import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -165,6 +166,7 @@ defineExpose({
                     : now.getTimeFromNowString(run.startedAt, { useNow: false })
                 }}
               </span>
+              <RunCacheInfo :run="(run as Run)" class="px-0.5" />
             </span>
           </div>
           <!-- Trigger -->

@@ -180,12 +180,13 @@ function openRun(run: Run) {
           {{ node.runnable?.name ?? "???" }}
         </span>
         <!-- Duration -->
-        <span class="ml-1">
+        <span class="ml-1 flex flex-row items-center">
           <span class="font-semibold">{{ formatDuration(node.duration * 1000) }}</span>
           <template v-if="node.children.length > 0">
             /
             <span class="font-light">{{ formatDuration(node.durationSelf * 1000) }}</span>
           </template>
+          <RunCacheInfo :run="node.run" class="px-0.5" />
         </span>
         <!-- Run id -->
         <span class="ml-1 font-normal text-gray-400 underline-offset-4 group-hover/run:underline">
@@ -247,7 +248,7 @@ function openRun(run: Run) {
             /
             <span class="font-light">{{ formatDuration(node.durationSelf * 1000) }}</span>
           </template>
-          <RunCacheInfo :run="node.run" class="px-1" />
+          <RunCacheInfo :run="node.run" class="px-0.5" />
         </span>
       </div>
     </div>

@@ -386,8 +386,9 @@ class OpenAIChatCompletionModel(Model):
 class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
-        content="You are a precise Bench bot that interprets instructions generously."
-        " Be concise, don't say anything, just call a provided function properly.",
+        content="You are a precise and capable Bench bot that interprets instructions generously."
+        "Perform any reasonable task to a best estimate, you do almost anything."
+        " Be concise, don't say much, always call a function.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
