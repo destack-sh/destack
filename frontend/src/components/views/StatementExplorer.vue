@@ -6,7 +6,6 @@ import { orderStatements, useCurrentModule, useNavigation, type InterpStatement 
 import { getStatementIconSolid } from "@/state/statement";
 import { computed, nextTick } from "vue";
 
-const props = defineProps<{ showAllStatements?: boolean }>();
 const emit = defineEmits<{
   (e: "navigateUp"): void;
   (e: "navigateDown"): void;
@@ -17,13 +16,15 @@ const bench = useBenchState();
 const nav = useNavigation();
 
 const orderedStatements = computed(() => {
-  if (bench.focusedFileCk == null) {
-    return undefined;
-  }
+  if (bench.focusedFileCk == null) return undefined;
   const statements = Object.values(module.idx.value?.statementsById ?? {}).filter(
-    (s) => s.file.id == bench.focusedFileId && s.type != StatementType.Blank
+    (s) => s.file.id == bench.focusedFileId
   );
-  return orderStatements(statements);
+  const { ordered, statementsByParentId } = orderStatements(statements);
+  // exclude blank statements without children
+  return ordered.filter(
+    (o) => o.statement.type != StatementType.Blank || (statementsByParentId[o.id]?.length ?? 0) > 0
+  );
 });
 
 function getStatementName(statement: {
@@ -80,7 +81,7 @@ defineExpose({
       :key="o.id"
       :ref="(ref) => statementsGrid.registerColumnRef(o.id, 'name', ref as HTMLElement)"
       tabindex="-1"
-      class="flex max-w-full flex-row gap-1.5 border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
+      class="flex max-w-full flex-row border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
       :class="{
         'text-orange-600': o.ck == bench?.focusedStatementCk,
         'text-gray-700 hover:bg-orange-100': o.ck != bench?.focusedStatementCk,
@@ -99,8 +100,11 @@ defineExpose({
     >
       <!-- Hide icon for text headings -->
       <span
-        class="text rounded-sm font-mono"
-        v-if="!(o.statement.type == StatementType.Text && o.statement.headingLevel != null)"
+        v-if="
+          !(o.statement.type == StatementType.Text && o.statement.headingLevel != null) &&
+          o.statement.type != StatementType.Blank
+        "
+        class="text mr-1.5 rounded-sm font-mono"
       >
         <component
           :is="getStatementIconSolid(o.statement.type, o.statement.tag)"
@@ -108,9 +112,11 @@ defineExpose({
           :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
         />
       </span>
+      <!-- 'Name' -->
+      <span v-if="o.statement.type == StatementType.Blank" class="text-gray-400">(Blank)</span>
       <!-- Show text for unnamed statements -->
       <span
-        v-if="
+        v-else-if="
           (o.statement.name ?? '').length == 0 &&
           o.statement.text != null &&
           !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0)

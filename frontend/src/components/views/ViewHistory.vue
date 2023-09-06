@@ -260,7 +260,8 @@ defineExpose({
           @keydown.up.exact.prevent="versionsGrid.navigateUp(version.id, 'name')"
           @keydown.down.exact.prevent="versionsGrid.navigateDown(version.id, 'name')"
           @keydown.enter.exact.prevent="goToVersion(version)"
-          class="group outline-none"
+          @click="goToVersion(version)"
+          class="group outline-none hover:cursor-pointer"
         >
           <!-- Focus border is inside the inner div because of the vertical margin required for the line -->
           <div class="relative mb-2 border border-transparent pb-1 hover:bg-orange-100 group-focus:border-orange-600">

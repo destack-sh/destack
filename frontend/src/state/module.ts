@@ -530,8 +530,8 @@ export type OrderedStatement<T extends OrderableStatement> = {
   statement: T;
 };
 
-export function orderStatements<T extends OrderableStatement>(statements: T[]): OrderedStatement<T>[] {
-  if (statements.length == 0) return [];
+export function orderStatements<T extends OrderableStatement>(statements: T[]) {
+  if (statements.length == 0) return { ordered: [], statementsByParentId: {} };
   const ordered: OrderedStatement<T>[] = [];
   const statementsByParentId: GRecord<string, T[]> = {};
   // group by parent
@@ -561,7 +561,7 @@ export function orderStatements<T extends OrderableStatement>(statements: T[]): 
   }
   const fileId = statements.find((s) => s.parent?.__typename == "File")?.parent?.id; // assumes all statements are from the same file
   walkDfs(fileId, 0, []);
-  return ordered;
+  return { ordered, statementsByParentId };
 }
 
 export type StatementFilter = {

@@ -83,17 +83,6 @@ export function provideFileState(file: Ref<FileState | null>) {
     return statementsByCk;
   });
 
-  // statementsByParentId must be ordered like orderedStatements
-  const statementsByParentId: Ref<Record<string, Statement[]>> = computed(() => {
-    const result: Record<string, Statement[]> = {};
-    for (const statement of statements.value) {
-      const parentId = statement.parent?.id ?? "";
-      if (!result[parentId]) result[parentId] = [];
-      result[parentId].push(statement as Statement);
-    }
-    return result;
-  });
-
   const statementPositions = computed(() => {
     const result: Record<string, number> = {};
     for (let i = 0; i < statements.value.length; i++) {
@@ -103,9 +92,9 @@ export function provideFileState(file: Ref<FileState | null>) {
   });
 
   // TODO @Cleanup: use module.orderStatements here (like in StatementExplorer)
-  const positionedStatements = computed(() => orderStatements(file.value?.statementsUnordered ?? []));
-  const statements = computed(() => positionedStatements.value.map((positioned) => positioned.statement));
-  const depths = computed(() => positionedStatements.value.map((positioned) => positioned.depth));
+  const ordered = computed(() => orderStatements(file.value?.statementsUnordered ?? []));
+  const statements = computed(() => ordered.value.ordered.map((positioned) => positioned.statement));
+  const depths = computed(() => ordered.value.ordered.map((positioned) => positioned.depth));
 
   // provide context
   const context = computed(() => {
@@ -116,9 +105,9 @@ export function provideFileState(file: Ref<FileState | null>) {
       statementsComponents: file.value.statementsComponents ?? {},
       statementsById: statementsById.value,
       statementsByCk: statementsByCk.value,
-      statementsByParentId: statementsByParentId.value,
+      statementsByParentId: ordered.value.statementsByParentId,
       statementPositions: statementPositions.value,
-      positionedStatements: positionedStatements.value,
+      positionedStatements: ordered.value.ordered,
       depths: depths.value,
     } as FileContext;
   });
