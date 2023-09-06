@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { pinAbsoluteElement } from "@/composables/useFixed";
 import { useAppearance } from "@/state/appearance";
-import type { Action, ActionGroup } from "@/state/bench";
+import { usePanelContext, type Action, type ActionGroup } from "@/state/bench";
 import {
   Combobox,
   ComboboxInput,
@@ -40,6 +40,11 @@ const { pinned: popoverPinned, fixed: popoverFixed } = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
   { pos: true, width: true, keepInView: true }
 );
+const panel = usePanelContext();
+const isInRightThirdOfPanel = computed(() => {
+  if (popoverFixed.value == null) return false;
+  return popoverFixed.value.x + popoverFixed.value.width > panel.size.value.width * 0.66;
+});
 
 useActiveScroll(computed(() => popoverPanelRef.value?.$el));
 
@@ -215,13 +220,16 @@ defineExpose({
           </ComboboxOptions>
         </Combobox>
         <!-- Nested component -->
-        <!-- TODO @UX -->
+        <!-- TODO @UX: improve nested action popover component (smooth open/close on hover, better transitions, etc.) -->
         <FadeTransition>
           <div
             v-if="nestedComponent != null && popoverFixed != null"
-            class="fixed rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
+            class="z-70 fixed rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
             :style="{
-              left: popoverFixed.x + popoverFixed.width - 4 + 'px',
+              // offset is hardcoded because we don't know the width of the nested component :NestedActionComponentWidth
+              left: isInRightThirdOfPanel
+                ? popoverFixed.x - 160 + 'px'
+                : popoverFixed.x + popoverFixed.width - 4 + 'px',
               top: popoverFixed.y + 'px',
             }"
           >

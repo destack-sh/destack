@@ -32,12 +32,13 @@ defineExpose({
 </script>
 <template>
   <Combobox as="div" class="relative flex w-full flex-col" @update:model-value="selectCommand($event)">
+    <!-- :NestedActionComponentWidth -->
     <ComboboxOptions
       ref="commandOptionsRef"
       class="flex h-fit max-h-[360px] w-[160px] flex-col gap-1 overflow-y-auto p-1 py-1"
       static
     >
-      <ComboboxOption v-for="command in commands" :key="command.label" v-slot="{ active }">
+      <ComboboxOption v-for="command in commands" :key="command.label" :value="command" v-slot="{ active }">
         <li
           class="flex flex-row items-center justify-between gap-2"
           :class="[
