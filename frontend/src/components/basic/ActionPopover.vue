@@ -12,7 +12,7 @@ import {
   PopoverPanel,
 } from "@headlessui/vue";
 import { ChevronRightIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref, shallowRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActiveScroll } from "@/composables/useScroll";
@@ -36,7 +36,7 @@ const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null)
 const popoverButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const popoverOpenRef: Ref<HTMLElement | null> = ref(null);
 const inputRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);
-const popoverPin = pinAbsoluteElement(
+const { pinned: popoverPinned, fixed: popoverFixed } = pinAbsoluteElement(
   computed(() => popoverPanelRef.value?.$el),
   { pos: true, width: true, keepInView: true }
 );
@@ -55,7 +55,7 @@ const filteredActions = computed(() => {
   return idxs?.map((idx) => actions[idx]) ?? [];
 });
 const closed = ref(false);
-const nestedComponent = ref<InstanceType<any> | null>(null);
+const nestedComponent = shallowRef<{ component: InstanceType<any> | null; props: any } | null>(null);
 const nestedActionIndex = ref<number | null>(null);
 
 // focus input when popover opens
@@ -76,6 +76,8 @@ function focus() {
 function blur() {
   query.value = "";
   closed.value = false;
+  nestedComponent.value = null;
+  nestedActionIndex.value = null;
 }
 
 function openComponent(action: Action<any>) {
@@ -142,7 +144,7 @@ defineExpose({
         ref="popoverPanelRef"
         as="div"
         class="z-50 flex flex-col gap-2 rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="[popoverPin.pinned.value ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-64 p-2 ']"
+        :class="[popoverPinned ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-64 p-2 ']"
         unmount
       >
         <span ref="popoverOpenRef" class="hidden" />
@@ -164,7 +166,7 @@ defineExpose({
             @keydown.enter.prevent.stop="close"
           />
           <ComboboxOptions
-            class="max-h-[220px] overflow-auto"
+            class="scroll-hidden max-h-[220px] overflow-auto"
             static
             :class="{
               'font-mono': appearance.fontMono,
@@ -212,6 +214,20 @@ defineExpose({
             </div>
           </ComboboxOptions>
         </Combobox>
+        <!-- Nested component -->
+        <!-- TODO @UX -->
+        <FadeTransition>
+          <div
+            v-if="nestedComponent != null && popoverFixed != null"
+            class="fixed rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
+            :style="{
+              left: popoverFixed.x + popoverFixed.width - 4 + 'px',
+              top: popoverFixed.y + 'px',
+            }"
+          >
+            <component :is="nestedComponent.component" v-bind="nestedComponent.props" @close="close" />
+          </div>
+        </FadeTransition>
       </PopoverPanel>
     </FadeTransition>
   </Popover>

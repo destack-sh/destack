@@ -37,16 +37,13 @@ import {
   ArrowsPointingOutIcon,
   AtSymbolIcon,
   Bars3BottomLeftIcon,
-  Bars3BottomRightIcon,
   ChevronDownIcon,
   ChevronRightIcon,
   EllipsisHorizontalIcon,
   EllipsisVerticalIcon,
-  PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
   TrashIcon,
-  WindowIcon,
 } from "@heroicons/vue/24/outline";
 import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
@@ -519,7 +516,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     action: () => {
       /* noop */
     },
-    component: () => MorphStatement,
+    component: () => ({ component: MorphStatement, props: { statement: props.statement } }),
   });
   actions.push({
     groupId: "edit-core",
