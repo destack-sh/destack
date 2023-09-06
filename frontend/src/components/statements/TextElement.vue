@@ -35,6 +35,8 @@ watch(
   () => {
     if (props.statement.type == StatementType.Text && (props.statement.headingLevel ?? 0) == 0) {
       if (text.value == "") {
+        // should ideally be done in one tx, but we don't have that yet
+        textSync.flushNow();
         ops.statement.morph(null, props.statement.id, props.statement, {
           type: StatementType.Blank,
           headingLevel: null,
