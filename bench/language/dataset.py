@@ -50,6 +50,9 @@ class Record(ModuleNode, HasSession, HasCrud):
     def __repr__(self):
         return f"<Record {self}>"
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
+
     @property
     def parent_id(self):
         return self.parent.id

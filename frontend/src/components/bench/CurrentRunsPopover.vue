@@ -62,8 +62,7 @@ function launch(statement: InterpStatement) {
         'bg-orange-100': open,
       }"
     >
-      <BusySpinnerIcon v-if="activeRuns.length > 0" class="h-5 w-5 animate-spin text-gray-700" />
-      <PlayIcon v-else class="h-5 w-5 text-orange-600" />
+      <PlayIcon class="h-5 w-5 text-orange-600" />
       <span class="ml-1 text-gray-900" v-if="activeRuns.length > 0">
         {{ module.statementOf(activeRunsAsc[0].runnableCk)?.name }}
       </span>

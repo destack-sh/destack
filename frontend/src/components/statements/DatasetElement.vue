@@ -51,6 +51,7 @@ import { TypeTag } from "@/gql/graphql";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { RECORD_SEARCH_QUERY, useDatasetInlineSearch } from "@/state/dataset";
+import { humanizeNumber } from "@/composables/useNow";
 
 const PAGE_SIZE = 10;
 
@@ -129,6 +130,7 @@ const {
   enabled: computed(() => !module.loading.value && props.visible) as any, // the vue composable typing is all fucked up
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
+const totalCount = computed(() => recordsFetchedResult.value?.searchRecords.totalCount);
 const recordsFetched = computed(
   () =>
     recordsFetchedResult.value?.searchRecords.edges
@@ -475,16 +477,6 @@ const position = useMouseInElement(gridRef);
 
 const actions = computed(() => {
   const actions: StatementAction[] = [];
-  actions.push({
-    label: "Search",
-    groupId: "nav",
-    icon: MagnifyingGlassIcon,
-    action: () => {
-      properties.inlineQuery = "";
-      emit("focus", "dataset.search");
-    },
-    hideInline: true,
-  });
   if (IS_LOCALHOST || IS_DEBUG) {
     actions.push({
       label: "Reload view",
@@ -795,7 +787,7 @@ defineExpose({
           </template>
           <template v-else>
             <ArrowDownIcon class="h-4 w-4" />
-            Load more
+            Load {{ PAGE_SIZE }} more (of {{ humanizeNumber(totalCount ?? 0) }})
           </template>
         </button>
         <!-- Insert button -->

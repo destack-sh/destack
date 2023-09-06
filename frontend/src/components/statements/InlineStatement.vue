@@ -129,10 +129,7 @@ const partsForceShown: Ref<StatementPartId[]> = ref([]);
 const enabledControlParts = computed(() => {
   if (iface.value == null) return [];
   const i = iface.value as StatementInterface;
-  const enabledControlParts = [
-    ...BASIC_CONTROL_PARTS.filter((p) => p.enabled(i, props.statement)),
-    ...(i.extraControls?.filter((p) => p.enabled(i, props.statement)) ?? []),
-  ];
+  const enabledControlParts = [...BASIC_CONTROL_PARTS.filter((p) => p.enabled(i, props.statement))];
   return enabledControlParts.map((p) => ({
     part: p,
     active:
@@ -730,6 +727,7 @@ defineExpose({
             <!-- Extra controls -->
             <component
               v-for="{ id, component } in iface?.extraControls ?? []"
+              :ref="(ref: any) => (partsRefs[id] = ref)"
               :key="id"
               :is="component"
               :statement="statement"
