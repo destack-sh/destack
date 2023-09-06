@@ -39,6 +39,7 @@ import {
   ChevronDownIcon,
   ChevronRightIcon,
   EllipsisHorizontalIcon,
+  EllipsisVerticalIcon,
   PencilSquareIcon,
   PlusIcon,
   Square2StackIcon,
@@ -723,7 +724,7 @@ defineExpose({
           </div>
           <!-- Actions -->
           <div
-            class="flex flex-shrink-0 gap-x-0.5 self-start transition-opacity duration-150"
+            class="relative flex flex-shrink-0 gap-x-0.5 self-start transition-opacity duration-150"
             :class="[isFocused ? 'opacity-100' : 'opacity-0 group-hover/statement:opacity-100']"
           >
             <!-- Extra controls -->
@@ -756,6 +757,24 @@ defineExpose({
                 {{ action.label }}
               </span>
             </button>
+            <!-- All actions popover (same as on other side for convenience) -->
+            <ActionPopover
+              anchor="right"
+              hide-search
+              :thing="statement"
+              :actions="actionsPopoverOrder"
+              @click.stop
+              @close="nav?.panel?.focusElement(statement)"
+            >
+              <div class="group p-0.5 text-gray-400 hover:text-gray-700">
+                <EllipsisVerticalIcon class="h-4 w-4" />
+                <span
+                  class="pointer-events-none absolute -right-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                >
+                  More actions
+                </span>
+              </div>
+            </ActionPopover>
           </div>
         </div>
         <!-- Body -->
