@@ -1,9 +1,14 @@
 import { computed, ref, type Ref } from "vue";
 
-export function useElementRefs<RefType = HTMLInputElement>(options?: {
-  onRegister?: (id: string, ref: RefType) => void;
-  onUnregister?: (id: string, ref: RefType) => void;
-}) {
+export function useElementRefs<RefType = HTMLInputElement>(
+  elements?: Ref<{ id: string }[]>,
+  options?: {
+    onRegister?: (id: string, ref: RefType) => void;
+    onUnregister?: (id: string, ref: RefType) => void;
+    navigateLeft?: (index: number) => void;
+    navigateRight?: (index: number) => void;
+  }
+) {
   const refs: Ref<Record<string, RefType>> = ref({});
 
   function registerRef(id: string, ref: RefType | undefined) {
@@ -28,11 +33,33 @@ export function useElementRefs<RefType = HTMLInputElement>(options?: {
     (refs.value[id] as { focus?: () => void })?.focus?.();
   }
 
+  function navigateRight(id: string | number) {
+    if (elements == null) throw new Error("elements not set");
+    const index = typeof id == "number" ? id : elements?.value?.findIndex((m) => m.id === id) ?? -1;
+    if (index == elements?.value?.length - 1) {
+      options?.navigateRight?.(index);
+    } else {
+      focus(elements?.value?.[index + 1].id);
+    }
+  }
+
+  function navigateLeft(id: string | number) {
+    if (elements == null) throw new Error("elements not set");
+    const index = typeof id == "number" ? id : elements?.value?.findIndex((m) => m.id === id) ?? -1;
+    if (index == 0) {
+      options?.navigateLeft?.(index);
+    } else {
+      focus(elements?.value?.[index - 1].id);
+    }
+  }
+
   return {
     registerRef,
     refs: computed(() => Object.values(refs.value)),
     getRef,
     focus,
+    navigateLeft,
+    navigateRight,
   };
 }
 

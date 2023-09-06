@@ -116,6 +116,7 @@ defineExpose({
           }
         }
       "
+      @illegal="emit('illegal', $event)"
     />
     <!-- Anonymous placeholder if unnamed (as a button) -->
     <button

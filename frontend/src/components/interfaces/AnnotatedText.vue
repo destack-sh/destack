@@ -20,6 +20,7 @@ const emit = defineEmits<{
   (e: "enterRight"): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
+  (e: "illegal", char: string): void;
 }>();
 
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
@@ -32,7 +33,7 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- placeholder until we get actual annotated text -->
+  <!-- placeholder passthrough until we get actual annotated text -->
   <EditableSpan
     ref="spanRef"
     :model-value="modelValue"
@@ -46,5 +47,6 @@ defineExpose({
     @enter="emit('enter')"
     @enter-right="emit('enterRight')"
     @escape="emit('escape')"
+    @illegal="emit('illegal', $event)"
   />
 </template>

@@ -34,6 +34,7 @@ const emit = defineEmits<{
   (e: "enterRight", value: string): void;
   (e: "escape"): void;
   (e: "deleteLeft"): void;
+  (e: "illegal", char: string): void;
 }>();
 
 function deleteLeftIfAtStart(e: KeyboardEvent) {
@@ -139,6 +140,8 @@ function onInput(e: InputEvent) {
     if (selection) {
       selection.collapse((e.target as HTMLElement).childNodes[0], currentPos - 1);
     }
+    const illegalChar = value[currentPos - 1];
+    emit("illegal", illegalChar);
   } else {
     emit("update:modelValue", fromNbsp(value));
   }

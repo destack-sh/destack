@@ -187,6 +187,8 @@ defineExpose({
               :disabled="action.disabled || action.active"
               v-slot="{ active }"
               @click.prevent.stop="selectAction(action, close)"
+              @keydown.enter.prevent.stop="selectAction(action, close)"
+              @keydown.right.prevent.stop="openComponent(action)"
               class="flex flex-row items-center justify-between"
               :class="[
                 i > 0 && filteredActions[i - 1].groupId != action.groupId

@@ -1,10 +1,11 @@
 <script lang="ts" setup>
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
+import { useElementRefs } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
-import { computed, ref, watch, type Ref } from "vue";
+import { computed, nextTick, ref, watch, type Ref } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused">>();
 const emit = defineEmits<StatementEmit>();
@@ -26,7 +27,12 @@ function focus(position: "first" | "last" = "first") {
   // (likely due to a morph to blank where we want to keep editing smoothly)
   const focusEnd = props.statement.revision < 0 || position == "last";
   // not sure why we need both, but acquiring focus doesn't always succeed otherwise
-  textRef.value?.focus(focusEnd ? "last" : "first");
+  textRef.value?.focus(focusEnd ? "last" : "first"); // maybe we should always focus last here?
+}
+
+function blur() {
+  textRef.value?.blur();
+  quickActionsRefs.refs.value.forEach((ref) => ref?.blur());
 }
 
 // if text statement: morph to blank if empty
@@ -47,14 +53,64 @@ watch(
   { immediate: true }
 );
 
+// quick inline actions
+type QuickAction = {
+  id: string;
+  action: () => void;
+};
+const quickActions = computed(() => {
+  if (
+    props.statement.type != StatementType.Text ||
+    (props.statement.headingLevel ?? 0) != 0 ||
+    props.statement.name != null ||
+    props.readonly
+  )
+    return [];
+  const actions: QuickAction[] = [
+    {
+      id: "task",
+      action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
+    },
+  ];
+  if (props.statement.name == null) {
+    actions.push({
+      id: "name",
+      action: () => {
+        ops.statement.rename(null, props.statement.id, null, "");
+        nextTick(() => emit("focus", "declaration"));
+      },
+    });
+  }
+  actions.push({
+    id: "code",
+    action: () => {
+      ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Code });
+      nextTick(() => emit("focus", "code"));
+    },
+  });
+  actions.push({
+    id: "data",
+    action: () => {
+      ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Dataset });
+      nextTick(() => emit("focus", "dataset"));
+    },
+  });
+
+  return actions;
+});
+const quickActionsRefs = useElementRefs<HTMLButtonElement>(quickActions, {
+  navigateLeft: () => textRef.value?.focus("last"),
+  navigateRight: () => emit("navigateRight"),
+});
+
 defineExpose({
   focus,
-  blur: () => textRef.value?.blur(),
+  blur,
   syncNow: () => textSync.flushNow(),
 });
 </script>
 <template>
-  <div class="relative w-full text-gray-900" @click="textRef?.focus">
+  <div class="relative flex w-full flex-row text-gray-900" @click="textRef?.focus">
     <!-- Actual text -->
     <AnnotatedText
       ref="textRef"
@@ -62,6 +118,8 @@ defineExpose({
       @update:model-value="text = $event"
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
+      @navigate-left="emit('navigateLeft')"
+      @navigate-right="quickActions.length > 0 ? quickActionsRefs.focus(quickActions[0].id) : emit('navigateRight')"
       @enter-left="emit('enterLeft')"
       @enter="emit('enter')"
       @enter-right="emit('enterRight')"
@@ -81,6 +139,45 @@ defineExpose({
     >
       Enter text...
     </button>
-    <!-- TODO @UX: text element inline actions pill? (maybe only if statement type is text?) -->
+    <!-- Quick inline actions (positioned as not to disturb the flow) -->
+    <!-- :InlineButtonPillStyle -->
+    <div class="relative">
+      <div
+        v-if="quickActions.length > 0 && focused"
+        class="absolute ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity"
+      >
+        <button
+          v-for="action in quickActions"
+          :key="action.id"
+          :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
+          class="flex h-fit max-h-fit flex-row rounded-sm bg-orange-100 bg-opacity-20 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700"
+          @click="action.action"
+          @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
+          @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"
+        >
+          {{ action.id }}
+        </button>
+      </div>
+    </div>
   </div>
 </template>
+<style>
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.fade-in-slow {
+  animation: fadeIn 500ms forwards;
+  animation-delay: 1s;
+}
+
+.fade-out-fast:hover {
+  opacity: 0;
+  transition: opacity 150ms;
+}
+</style>
