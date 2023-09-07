@@ -458,6 +458,7 @@ class ReqRunInferencePayload(Payload):
     model_path: str
     inputs: typing.Any
     timeout: int
+    run_id: UUID
 
 
 @payload(NMessageType.RUN_PROXY_INFERENCE_REP)

@@ -12,29 +12,29 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
-from bench.language.core import MOT
+from bench.language.core import MNT
 from bench.models import ProjectAccessLevel, packer
-from bench.models.packer import MOT_BY_BASE_MODEL_CLASS
+from bench.models.packer import MNT_BY_BASE_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
 
 # this is a hack until we have proper generated module GQL types
-GQL_NODE_NAME_BY_MOT = {
-    MOT.MODULE: "ProjectVersion",
-    MOT.FILE: "File",
-    MOT.STATEMENT: "Statement",
-    MOT.RECORD: "Record",
-    MOT.FIELD: "Field",
-    MOT.TAGGING: "Tagging",
-    MOT.TRIGGER: "Trigger",
-    MOT.COMMENT: "Comment",
-    MOT.DATASET_VIEW: "DatasetView",
-    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
-    MOT.RESOLVED_FIELD: "ResolvedField",
-    MOT.ISSUE: "Issue",
+GQL_NODE_NAME_BY_MNT = {
+    MNT.Module: "ProjectVersion",
+    MNT.File: "File",
+    MNT.Statement: "Statement",
+    MNT.Record: "Record",
+    MNT.Field: "Field",
+    MNT.Tagging: "Tagging",
+    MNT.Trigger: "Trigger",
+    MNT.Comment: "Comment",
+    MNT.DatasetView: "DatasetView",
+    MNT.DatasetViewField: "DatasetViewField",
+    MNT.ResolvedField: "ResolvedField",
+    MNT.Issue: "Issue",
 }
-MOT_NAME_BY_GQL_NODE = {v: k for k, v in GQL_NODE_NAME_BY_MOT.items()}
-assert len(GQL_NODE_NAME_BY_MOT) == len(MOT), f"missing {set(MOT) - GQL_NODE_NAME_BY_MOT.keys()}"
+MNT_NAME_BY_GQL_NODE = {v: k for k, v in GQL_NODE_NAME_BY_MNT.items()}
+assert len(GQL_NODE_NAME_BY_MNT) == len(MNT), f"missing {set(MNT) - GQL_NODE_NAME_BY_MNT.keys()}"
 
 
 class StaticPrefetchedQueryset:
@@ -96,7 +96,7 @@ def _add_field_name(name: str):
 
 
 def _collect_fields():
-    for model in packer.MOT_BY_BASE_MODEL_CLASS.keys():
+    for model in packer.MNT_BY_BASE_MODEL_CLASS.keys():
         for field in model._meta.fields:
             _add_field_name(field.name)
             # and related name if any
@@ -166,7 +166,7 @@ def read_module_node(
         base_model = _BASE_MODEL_BY_CAMEL_FIELD.get(field.name)
         if base_model and base_model not in included:
             included.add(base_model)
-    excluded = MOT_BY_BASE_MODEL_CLASS.keys() - included
+    excluded = MNT_BY_BASE_MODEL_CLASS.keys() - included
 
     # collect them
     tree = packer.collect_node(node, excluded=excluded)
@@ -217,7 +217,7 @@ def _resolve_node(
         django_field = n._meta.get_field(py_name)
         # error on invalid relations to models outside the module tree
         if (
-            django_field.related_model not in packer.MOT_BY_BASE_MODEL_CLASS
+            django_field.related_model not in packer.MNT_BY_BASE_MODEL_CLASS
             and django_field.related_model not in ALLOWED_EXTERNAL_RELATIONS
         ):
             raise ValueError(

@@ -1,32 +1,47 @@
+import abc
 import enum
 import itertools
 import random
-from typing import Optional, Self
+from dataclasses import dataclass
+from typing import Collection, Optional, Self, Union
 
 from bench.language.basic import HasText
 from bench.language.const import StatementType, TypeTag
-from bench.language.core import ModuleVisitor, Scope, Statement, node
+from bench.language.core import Module, ModuleNode, ModuleVisitor, Scope, Statement, node
 from bench.language.flow import HasFlow, IsFlowNode
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
+from bench.language.session import Run, RunError, RunErrorKind
 from bench.language.tag import HasTags
-from bench.language.type import HasType
+from bench.language.type import HasType, instantiate_value
 from bench.language.utils import Runnable
 from bench.utils.utils import DotList
 
 
 class TaskErrorType(enum.StrEnum):
-    INCAPABLE = "incapable"
-    TIMEOUT = "timeout"
-    INVALID_FORMAT = "invalid_format"
-    INVALID_TYPE = "invalid_type"
-    EXCEEDED_LIMIT = "exceeded_limit"
-    UNKNOWN = "unknown"
+    Incapable = "Incapable"
+    Timeout = "Timeout"
+    InvalidFormat = "InvalidFormat"
+    InvalidType = "InvalidType"
+    TooLarge = "TooLarge"
+    ExceededLimit = "ExceededLimit"
+    Unknown = "Unknown"
 
 
-class TaskError(ValueError):
-    def __init__(self, type: TaskErrorType, message: str = None, path: str = None):
-        super().__init__(f"{type.value}: {message}")
+class TaskError(RunError):
+    def __init__(
+        self,
+        type: TaskErrorType,
+        runnable: Union[Model, "Task"],
+        message: str = None,
+        path: str = None,
+    ):
+        super().__init__(
+            kind=RunErrorKind.Runtime,
+            type=type.name,
+            runnable=runnable,
+            message=f"{type.value}: {message}",
+        )
         self.type = type
         self.path = path
 
@@ -35,26 +50,28 @@ class TaskError(ValueError):
         if isinstance(e, TaskError):
             return e
         elif isinstance(e, ValueError):
-            return TaskError(TaskErrorType.INVALID_FORMAT, str(e), path)
+            return TaskError(TaskErrorType.InvalidFormat, str(e), path)
         elif isinstance(e, TypeError):
-            return TaskError(TaskErrorType.INVALID_TYPE, str(e), path)
+            return TaskError(TaskErrorType.InvalidType, str(e), path)
         else:
-            return TaskError(TaskErrorType.UNKNOWN, str(e), path)
+            return TaskError(TaskErrorType.Unknown, str(e), path)
 
 
 class IncapableError(TaskError):
     def __init__(self, message: str = None, path: str = None):
-        super().__init__(TaskErrorType.INCAPABLE, message, path)
+        super().__init__(TaskErrorType.Incapable, message, path)
 
 
 class LimitExceededError(TaskError):
     def __init__(self, message: str = None, path: str = None):
-        super().__init__(TaskErrorType.EXCEEDED_LIMIT, message, path)
+        super().__init__(TaskErrorType.ExceededLimit, message, path)
 
 
 @reflect_struct("TaskMetadata", "Default metadata of a task", return_type=True)
 class TaskMetadata:
     retries: Optional[int]
+    retry: Optional[int]
+    batch_size: Optional[int]
     nonce: Optional[str]
 
 
@@ -63,6 +80,12 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     tag: TypeTag = TypeTag.FUNCTION
     type: StatementType = StatementType.TASK
     _is_async: bool = True
+    _root_models: list[Model] = None
+    _randomized: bool = False
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.fields, self.tags, self.triggers):
+            visitor.visit_child(n)
 
     def _clear(self) -> None:
         Statement._clear(self)
@@ -71,26 +94,27 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         IsFlowNode._clear(self)
 
     def _interp(self, scope: Scope) -> None:
+        from bench.language.builtin import symbolx_lib
+
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags, self.triggers):
-            visitor.visit(n)
+        randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
+        self._randomized = self.has_tag(randomize_tag)
+
+        # TODO @Broken @UX: interp task
+        #  - check if task is possible given the fields, models & available runnables
 
     async def __call__(
         self,
         *args,
-        model: Model | list[Model] | str | list[str] = None,
         retries: int = None,
         cache: bool = None,
         timeout: float = None,
         batch: list[dict] = None,
         **kwargs,
     ):
-        from bench.language.builtin import symbolx_lib
-
         # map/batch inputs
         inputs = self._inputs_from_args(args, kwargs)
         is_batched = batch is not None
@@ -98,82 +122,30 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             inputs = DotList(batch)
             del batch
 
+        # shortcut for built-in tasks with fixed implementations
+        if self.path == "symbolx.lib.builtins.embed":
+            mono_model: Model | None = self.module.lookup_or_error("openai.lib.text.ada")
+        elif self.path == "symbolx.lib.builtins.transcribe":
+            raise NotImplementedError
+        else:
+            root_models = [self.module.lookup_or_error("openai.lib.chat.gpt4")]
+            mono_model = None
+
+        # do task
+        view = ModuleView(self.module, self)
+        view.collect(max_child_depth=None, max_reference_depth=1)
         try:
             self.session.tracer.run_enter(self, inputs)
             if inputs and is_batched:
                 raise ValueError("cannot specify both inputs and batch")
 
-            # get models
-            model = model or self.session.default_models
-            if isinstance(model, str):
-                model = self.session.module.lookup(model, statement_t=Model)
-            elif isinstance(model, list):
-                model = [
-                    self.session.module.lookup(m, statement_t=Model) if isinstance(m, str) else m
-                    for m in model
-                ]
-            if isinstance(model, Model):
-                model = [model]
-
-            # nocheckin: simple task compilation
-            # - decision model
-            #   - function calling
-            #     - tool 'coercion' (e.g. dataset -> metadata + search function)
-            # - tool models == functions? (but with more or less flexible I/O)
-            # - task metadata
-            #   - progress reporting?
-            #   - retries
-            # - flexible rendering
-            #   - 'compilation'/rendering for (annotated) text, types, tools, etc.
-            #   - walk statements?
-            # - automatic model selection
-            # - error handling
-            #   - automatic retries & fallbacks
-            # - interp (warnings/errors)
-            #  - use same 'parsing' logic in interp (maybe even pre-parse?)
-            # - continuous granularity
-            #   - procedures/behavior constraints between flows and tasks (control)
-            #
-            # - has flow (NOT YET)
-            #   - constrained sub-flows
-            #   - triggers
-            #   - 'inlined' pre/post code (e.g. to include context based on query)
-            #     - is that a trigger (on an event?)? a tag ('test')
-            #   - interrupts & reproducibility
-            #    - nonces (put into metadata?)
-
-            # shortcut for built-in tasks with fixed implementations
-            if self.path == "symbolx.lib.builtins.embed":
-                ada = self.session.module.lookup("openai.lib.text.ada", statement_t=Model)
-                if ada is None:
-                    raise RuntimeError("openai.lib.text.ada not found")
-                if is_batched:
-                    ret = await ada(text=inputs["text"], cache=cache, timeout=timeout)
-                else:
-                    ret = await ada(**inputs, cache=cache, timeout=timeout)
-            elif self.path == "symbolx.lib.builtins.transcribe":
-                raise NotImplementedError
+            if mono_model:
+                output = await mono_model()
             else:
-                if not model:
-                    raise RuntimeError(f"{self} has no default models and none were specified")
-                # TODO @Robustness: rotate models (on failure?)
-                randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
-                if self.has_tag(randomize_tag):
-                    nonce = str(random.randint(0, 2**16))
-                else:
-                    nonce = None
-
-                runner = TaskRunner(
-                    self,
-                    max_steps=20,
-                    max_function_calls=10,
-                    max_errors=5,
-                    max_model_errors=5,
-                    nonce=nonce,
-                )
-                ret = await runner(model[0], inputs, is_batched)
-            self.session.tracer.run_exit(self, ret)
-            return ret
+                nonce = str(random.randint(0, 2**16)) if self._randomized else None
+                output = await run_task(self, root_models, view, inputs, nonce)
+            self.session.tracer.run_exit(self, output)
+            return output
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
@@ -185,6 +157,85 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         if self._is_async:
             return TaskProxy.to_sync(self)
         return self
+
+
+class ModuleView(ModuleVisitor):
+    def __init__(self, module: Module, origin: Statement):
+        super().__init__()
+        self.module = module
+        self.origin = origin
+
+    @property
+    def nodes(self) -> Collection[ModuleNode]:
+        return self._visited_node_by_ck.values()
+
+    def collect(self, max_child_depth: Optional[int], max_reference_depth: Optional[int]):
+        visitor = ModuleVisitor()
+        visitor.visit_child(self.origin)
+        pass  # nocheckin expand view properly
+
+
+async def run_task(
+    task: Task, root_models: list[Model], view: ModuleView, inputs: dict, nonce: Optional[str]
+):
+    num_retries_total = 0
+    root_model = root_models[0]
+
+    while num_retries_total < 5:
+        # nocheckin: track metadata in task/model runs
+        previous_results = []
+
+        # get next thing to run or terminate
+        compiled = root_model.compiler.compile(task, view, inputs, previous_results, nonce)
+        try:
+            output = await root_model.compiler.run(root_model, compiled)
+            if output.runnable is None:
+                # done, terminate
+                return instantiate_value(output.result_raw, task, is_output=True)
+
+            # runnable to call
+            inputs = instantiate_value(output.result_raw, output.runnable, is_output=False)
+        except Exception as e:
+            previous_results.append(TaskError.from_exception(e))
+            continue
+
+        # call runnable
+        try:
+            _ = await output.runnable(**inputs)
+        except Exception:  # noqa: E722
+            pass  # nothing to do, already captured by tracer
+
+        # nocheckin: get run from tracer somehow?
+
+
+@dataclass
+class CompiledInput(abc.ABC):
+    task: Task
+
+
+@dataclass
+class TaskOutput(abc.ABC):
+    """
+    Output of a basic task run.
+    If runnable is given, it's a function call, otherwise it terminates."""
+
+    result_raw: dict  # raw (i.e. not instantiated) result
+    runnable: Optional[Runnable] = None
+
+
+class TaskCompiler(abc.ABC):
+    def compile(
+        self,
+        task: Task,
+        view: ModuleView,
+        inputs: dict,
+        previous_results: list[TaskError | Run],
+        nonce: Optional[str],
+    ) -> CompiledInput:
+        raise NotImplementedError
+
+    async def run(self, model: Model, input: CompiledInput) -> TaskOutput:
+        raise NotImplementedError
 
 
 class TaskProxy:  # :SyncProxy

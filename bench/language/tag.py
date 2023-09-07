@@ -83,11 +83,6 @@ class HasTags(StatementBase):
                 return tagging
         raise KeyError(key)
 
-    def get_children_by_tag(self, key: typing.Union[str, "Tag", Tagging]) -> list["Statement"]:
-        """Returns all resolved children with the given tag."""
-        key = self._to_tag_key(key)
-        return [c for c in self.resolved_children if isinstance(c, HasTags) and c.has_tag(key)]
-
     def _clear(self) -> None:
         for tagging in self.tags:
             tagging._tag = None
@@ -132,4 +127,4 @@ class Tag(HasType, HasTags, Statement):
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags):
-            visitor.visit(n)
+            visitor.visit_child(n)

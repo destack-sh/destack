@@ -85,6 +85,7 @@ class RunMetadata:
     test: Optional[bool]
     queue_position: Optional[int]
     cached_at: Optional[datetime]
+    cached_in: Optional[UUID]
     cached_duration: Optional[float]
     progress: Optional[float]
 
@@ -164,6 +165,7 @@ class Run:
         self.metadata[key] = value
 
     # direct accessors for default metadata (not great but good enough for now)
+    # nocheckin: wrap all default run metadata and task metadata here
 
     @property
     def cached_duration(self) -> Optional[float]:

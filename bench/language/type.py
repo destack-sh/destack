@@ -28,10 +28,10 @@ from bench.language.core import (
     HasSession,
     ModuleNode,
     ModuleVisitor,
+    NodePath,
     Scope,
     Statement,
     StatementBase,
-    StatementPath,
     StatementReference,
     get_node_id,
     node,
@@ -186,6 +186,7 @@ class TypeBase(abc.ABC):
     hint: Optional[TypeHint]
     flags: TypeFlag
     text: Optional[str]
+    text_plain: Optional[str]
     fields: list["TypeBase"]
     resolved_fields: list["TypeBase"]  # resolved fields with unions and such
     reference: Union[None, StatementReference, "HasType"]
@@ -295,7 +296,7 @@ class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
     key: str = field(default=None)
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
-    reference: Union[None, StatementPath, Statement, UUID, "Type"] = None
+    reference: Union[None, NodePath, Statement, UUID, "Type"] = None
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
     def __post_init__(self):
@@ -314,7 +315,8 @@ class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
+        if isinstance(self.reference, Statement):
+            visitor.visit_reference(self.reference)
 
     @property
     def path(self) -> str:
@@ -409,18 +411,20 @@ class HasType(TypeBase, StatementBase):
             self._fields_by_ident[field_.py_ident] = field_
 
         # resolve references
-        for n in self.walk_type():
-            if n.tag != TypeTag.TYPE_REFERENCE or isinstance(n.reference, Statement):
+        for f in self.walk_type():
+            # TODO @Cleanup @Architecture: move field reference resolution into Field._interp
+            #  we'll also need text reference resolution and tagging resolution there
+            if f.tag != TypeTag.TYPE_REFERENCE or isinstance(f.reference, Statement):
                 continue  # nothing to resolve
             statement = None
-            if n.reference is not None:
-                statement = scope.lookup(n.reference, statement_t=Type)
+            if f.reference is not None:
+                statement = scope.lookup(f.reference, statement_t=Type)
             if not isinstance(statement, TypeBase):
                 self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=n.name or "<root>"
+                    type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
                 )
                 continue
-            n.reference = statement
+            f.reference = statement
 
         # expand unions (recursively)
         _resolve_unions(self, [])
@@ -593,7 +597,7 @@ class Type(HasType, HasTags, Statement):
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for n in itertools.chain(self.fields, self.tags):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     def __call__(self, *args, **kwargs):
         combined_kwargs = {**kwargs}

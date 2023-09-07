@@ -24,10 +24,10 @@ from bench.language.const import (
 )
 from bench.language.core import (
     CRUD_PROPERTIES,
-    MOT,
+    MNT,
     Module,
     ModuleNode,
-    ModuleObjectType,
+    ModuleNodeType,
     ModuleVisitor,
     Session,
 )
@@ -56,7 +56,7 @@ from bench.utils.serialize import from_dict, to_dict
 #
 
 
-ParentsT = set[MOT]
+ParentsT = set[MNT]
 NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
 NodeT = typing.TypeVar("NodeT", bound=ModuleNode)
 DataT = typing.TypeVar("DataT")
@@ -291,13 +291,13 @@ class PackContext(ModuleVisitor):
 # registered packers
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
-MOT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MOT] = {}
-BASE_DATA_CLASS_BY_MOT: dict[MOT, typing.Type[NodeDataT]] = {}
+MNT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MNT] = {}
+BASE_DATA_CLASS_BY_MNT: dict[MNT, typing.Type[NodeDataT]] = {}
 
 _DATA_CLASS_BY_NAME: dict[str, typing.Type[NodeDataT]] = {}
 
 
-def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT] | None):
+def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT] | None):
     """Decorator to register a node packer for a given type"""
 
     # unrelated, add data class to data class by name for :WireFormat serialization hack
@@ -315,12 +315,12 @@ def node_packer(t: MOT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
         packer = cls()
         _node_packers_by_node[node_t] = packer
         _node_packers_by_data[data_t] = packer
-        MOT_BY_DATA_CLASS[data_t] = t
-        if t not in BASE_DATA_CLASS_BY_MOT:
-            BASE_DATA_CLASS_BY_MOT[t] = data_t
-        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MOT[t]):  # noqa
+        MNT_BY_DATA_CLASS[data_t] = t
+        if t not in BASE_DATA_CLASS_BY_MNT:
+            BASE_DATA_CLASS_BY_MNT[t] = data_t
+        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MNT[t]):  # noqa
             raise ValueError(
-                f"cannot register {data_t} as {t}, it is not a subclass of {BASE_DATA_CLASS_BY_MOT[t]}"
+                f"cannot register {data_t} as {t}, it is not a subclass of {BASE_DATA_CLASS_BY_MNT[t]}"
             )
         return cls
 
@@ -352,7 +352,7 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
             packed_node = packer.pack(node)
             packed[node.id] = packed_node
 
-        to_pack = [node for node in ctx.visited if node.id not in packed]
+        to_pack = [node for node in ctx.tree if node.id not in packed]
 
     return packed[root.id], list(packed.values())
 
@@ -414,8 +414,8 @@ class NodeData:
     parent_id: Optional[UUID]
 
     @property
-    def mot(self) -> ModuleObjectType:
-        return MOT_BY_DATA_CLASS[type(self)]
+    def mnt(self) -> ModuleNodeType:
+        return MNT_BY_DATA_CLASS[type(self)]
 
     def equals_ignoring_crud(self, other: "NodeData") -> bool:
         for field in dataclasses.fields(self):
@@ -480,7 +480,7 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
-@node_packer(MOT.MODULE, ModuleData, lang.Module)
+@node_packer(MNT.Module, ModuleData, lang.Module)
 class ModulePacker(NodePacker[ModuleData, lang.Module]):
     PARENTS: ClassVar[ParentsT] = set()
 
@@ -529,9 +529,9 @@ class FileData(NodeData, HasCrud):
         return f"<File {str(self)}>"
 
 
-@node_packer(MOT.FILE, FileData, lang.File)
+@node_packer(MNT.File, FileData, lang.File)
 class FilePacker(NodePacker[FileData, lang.File]):
-    PARENTS: ClassVar[ParentsT] = {MOT.MODULE}
+    PARENTS: ClassVar[ParentsT] = {MNT.Module}
 
     def pack(self, file: lang.File) -> "FileData":
         return FileData(
@@ -579,9 +579,9 @@ class StatementData(NodeData, HasOrder, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MOT.STATEMENT, StatementData, lang.Statement)
+@node_packer(MNT.Statement, StatementData, lang.Statement)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT, MOT.FILE}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
         return StatementData(
@@ -630,9 +630,9 @@ class BlankData(StatementData):
     pass  # it's blank
 
 
-@node_packer(MOT.STATEMENT, BlankData, lang.Blank)
+@node_packer(MNT.Statement, BlankData, lang.Blank)
 class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Blank) -> "BlankData":
         statement_data = super().pack(symbol)
@@ -651,9 +651,9 @@ class TextData(StatementData):
     text: str
 
 
-@node_packer(MOT.STATEMENT, TextData, lang.Text)
+@node_packer(MNT.Statement, TextData, lang.Text)
 class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Text) -> "TextData":
         statement_data = super().pack(symbol)
@@ -674,9 +674,9 @@ class ReferenceData(StatementData):
     reference_ck: Optional[UUID]
 
 
-@node_packer(MOT.STATEMENT, ReferenceData, lang.Reference)
+@node_packer(MNT.Statement, ReferenceData, lang.Reference)
 class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Reference) -> "ReferenceData":
         statement_data = super().pack(symbol)
@@ -706,9 +706,9 @@ class TypeData(StatementData):
     text: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, TypeData, lang.Type)
+@node_packer(MNT.Statement, TypeData, lang.Type)
 class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Type) -> "TypeData":
         statement_data = super().pack(symbol)
@@ -746,9 +746,9 @@ class TagData(StatementData):
     key: str
 
 
-@node_packer(MOT.STATEMENT, TagData, lang.Tag)
+@node_packer(MNT.Statement, TagData, lang.Tag)
 class TagPacker(StatementPacker, NodePacker[TagData, lang.Tag]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Tag) -> "TagData":
         statement_data = super().pack(symbol)
@@ -781,9 +781,9 @@ class TaskData(StatementData):
     text: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, TaskData, lang.Task)
+@node_packer(MNT.Statement, TaskData, lang.Task)
 class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Task) -> "TaskData":
         statement_data = super().pack(symbol)
@@ -816,9 +816,9 @@ class CodeData(StatementData):
     code: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, CodeData, lang.Code)
+@node_packer(MNT.Statement, CodeData, lang.Code)
 class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Code) -> "CodeData":
         statement_data = super().pack(symbol)
@@ -848,9 +848,9 @@ class FlowData(StatementData):
     text: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, FlowData, lang.Flow)
+@node_packer(MNT.Statement, FlowData, lang.Flow)
 class FlowPacker(StatementPacker, NodePacker[FlowData, lang.Flow]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Flow) -> "FlowData":
         statement_data = super().pack(symbol)
@@ -875,9 +875,9 @@ class ModelData(StatementData):
     text: Optional[str]
 
 
-@node_packer(MOT.STATEMENT, ModelData, lang.Model)
+@node_packer(MNT.Statement, ModelData, lang.Model)
 class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Model) -> "ModelData":
         statement_data = super().pack(symbol)
@@ -909,9 +909,9 @@ class VariableData(StatementData):
     value: Optional[typing.Any]
 
 
-@node_packer(MOT.STATEMENT, VariableData, lang.Variable)
+@node_packer(MNT.Statement, VariableData, lang.Variable)
 class VariablePacker(StatementPacker, NodePacker[VariableData, lang.Variable]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Variable) -> "VariableData":
         statement_data = super().pack(symbol)
@@ -940,9 +940,9 @@ class DatasetData(StatementData):
     versioned: bool
 
 
-@node_packer(MOT.STATEMENT, DatasetData, lang.Dataset)
+@node_packer(MNT.Statement, DatasetData, lang.Dataset)
 class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, symbol: lang.Dataset) -> "DatasetData":
         statement_data = super().pack(symbol)
@@ -1004,9 +1004,9 @@ class FieldData(NodeData, HasOrder, HasCrud):
         return f"<Field {str(self)}>"
 
 
-@node_packer(MOT.FIELD, FieldData, lang.Field)
+@node_packer(MNT.Field, FieldData, lang.Field)
 class FieldPacker(NodePacker[FieldData, lang.Field]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, field: lang.Field) -> "FieldData":
         reference = field.reference.ck if isinstance(field.reference, lang.Statement) else None
@@ -1070,9 +1070,9 @@ class TriggerData(NodeData, HasCrud):
     scope_ck: Optional[UUID]
 
 
-@node_packer(MOT.TRIGGER, TriggerData, lang.Trigger)
+@node_packer(MNT.Trigger, TriggerData, lang.Trigger)
 class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, trigger: lang.Trigger) -> "TriggerData":
         return TriggerData(
@@ -1137,9 +1137,9 @@ class TaggingData(NodeData, HasCrud):
         return f"<Tagging {self}>"
 
 
-@node_packer(MOT.TAGGING, TaggingData, lang.Tagging)
+@node_packer(MNT.Tagging, TaggingData, lang.Tagging)
 class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     def pack(self, tagging: lang.Tagging) -> "TaggingData":
         reference = tagging.reference.ck if isinstance(tagging.reference, lang.Statement) else None
@@ -1181,7 +1181,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 @dataclass
 class DatasetViewData(NodeData, HasOrder, HasCrud):
-    PARENTS: ClassVar[ParentsT] = {MOT.FILE, MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     id: UUID
     name: str
@@ -1190,9 +1190,9 @@ class DatasetViewData(NodeData, HasOrder, HasCrud):
     length: Optional[int] = None
 
 
-@node_packer(MOT.DATASET_VIEW, DatasetViewData, lang.DatasetView)
+@node_packer(MNT.DatasetView, DatasetViewData, lang.DatasetView)
 class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, view: lang.DatasetView) -> "DatasetViewData":
         return DatasetViewData(
@@ -1231,7 +1231,7 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
 
 @dataclass
 class RecordData(NodeData, HasOrder, HasCrud):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     value: Optional[typing.Any] = None
 
@@ -1242,9 +1242,9 @@ class RecordData(NodeData, HasOrder, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MOT.RECORD, RecordData, lang.Record)
+@node_packer(MNT.Record, RecordData, lang.Record)
 class RecordPacker(NodePacker[RecordData, lang.Record]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, record: lang.Record) -> "RecordData":
         return RecordData(
@@ -1283,9 +1283,9 @@ class ResolvedFieldData(NodeData):
     field_ck: UUID
 
 
-@node_packer(MOT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
+@node_packer(MNT.ResolvedField, ResolvedFieldData, lang.ResolvedField)
 class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
         return ResolvedFieldData(
@@ -1306,9 +1306,9 @@ class IssueData(NodeData):
     message: Optional[str]
 
 
-@node_packer(MOT.ISSUE, IssueData, lang.Issue)
+@node_packer(MNT.Issue, IssueData, lang.Issue)
 class IssuePacker(NodePacker[IssueData, lang.Issue]):
-    PARENTS: ClassVar[ParentsT] = {MOT.STATEMENT}
+    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, issue: lang.Issue) -> "IssueData":
         return IssueData(

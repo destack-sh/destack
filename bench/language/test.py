@@ -7,7 +7,7 @@ import pytest
 from bench.language import Code, Dataset, Field, Task, Type, TypeHint, TypeTag
 from bench.language.code_ import _parse_code
 from bench.language.const import TriggerType, TypeFlag
-from bench.language.core import LookupBy, Module, Session, SessionContext, StatementPath
+from bench.language.core import LookupBy, Module, NodePath, Session, SessionContext
 from bench.language.issue import BenchError, IssueType
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -25,7 +25,7 @@ my_lambda = lambda x: (p * 2 for p in x)
     """
     )
     assert analysis.references == {
-        "some_documents": StatementPath(".", "some_documents"),
+        "some_documents": NodePath(".", "some_documents"),
     }
     assert analysis.is_async
 
@@ -48,7 +48,7 @@ test.files = ",".join(file_paths[:50])
     """
     )
     assert analysis.references == {
-        "test": StatementPath(".", "test"),
+        "test": NodePath(".", "test"),
     }
     assert not analysis.is_async
 
@@ -64,13 +64,13 @@ print(bananas)
 """,
     )
     assert analysis.references == {
-        "EntityType": StatementPath("symbolx.lib.nlp", "EntityType"),
-        "NotionClient": StatementPath("notion.sdk", "Client"),
-        "Recipe": StatementPath(".cooking", "Recipe"),
-        "Ingredient": StatementPath(".cooking", "Ingredient"),
-        "notion_recipes": StatementPath(".cooking", "notion_recipes"),
-        "bananas": StatementPath(".", "bananas"),
-        "test_utils": StatementPath(".utils", "test_utils"),
+        "EntityType": NodePath("symbolx.lib.nlp", "EntityType"),
+        "NotionClient": NodePath("notion.sdk", "Client"),
+        "Recipe": NodePath(".cooking", "Recipe"),
+        "Ingredient": NodePath(".cooking", "Ingredient"),
+        "notion_recipes": NodePath(".cooking", "notion_recipes"),
+        "bananas": NodePath(".", "bananas"),
+        "test_utils": NodePath(".utils", "test_utils"),
     }
     assert not analysis.is_async
 

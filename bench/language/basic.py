@@ -5,6 +5,7 @@ from uuid import UUID
 
 from bench.language.core import (
     ModuleVisitor,
+    NodeReference,
     Scope,
     Statement,
     StatementReference,
@@ -28,15 +29,28 @@ class Blank(Statement):
 
 @node
 class HasText:
-    """A comment that's not semantic/interpreted by default."""
+    """Some instruction text with optional references."""
 
     text: str | None = None
+    _text_references: list[NodeReference] = None  # not parsed out yet, see :BE-301
+
+    @property
+    def text_plain(self) -> Optional[str]:
+        return self.text  # the same because there are no annotations yet
+
+    def _clear(self) -> None:
+        pass
+
+    def _interp(self, scope: Scope) -> None:
+        pass
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         pass
 
 
 class TextHeadingLevel(enum.IntEnum):
+    """Classic headings big to small."""
+
     H1 = 1
     H2 = 2
     H3 = 3
@@ -47,6 +61,16 @@ class Text(HasText, Statement):
     heading_level: Optional[TextHeadingLevel] = None
     type: StatementType = StatementType.TEXT
 
+    def _clear(self) -> None:
+        Statement._clear(self)
+        HasText._clear(self)
+
+    def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
+
 
 # avoid circular import because Reference IsFlowNode
 from bench.language.flow import IsFlowNode  # noqa: E402
@@ -54,7 +78,7 @@ from bench.language.tag import HasTags  # noqa: E402
 
 
 @node(tracked=["reference"])
-class Reference(Statement, HasTags, IsFlowNode):
+class Reference(Statement, HasTags, HasText, IsFlowNode):
     """A reference to another statement."""
 
     type: StatementType = StatementType.REFERENCE
@@ -78,7 +102,9 @@ class Reference(Statement, HasTags, IsFlowNode):
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.tags, self.triggers):
-            visitor.visit(n)
+            visitor.visit_child(n)
+        if isinstance(self.reference, Statement):
+            visitor.visit_reference(self.reference)
 
     @property
     def reference_ck(self) -> Optional[UUID]:

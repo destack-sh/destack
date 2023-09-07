@@ -18,15 +18,7 @@ from more_itertools import first, last
 
 from bench.language.basic import HasText
 from bench.language.const import TypeTag
-from bench.language.core import (
-    IssueType,
-    LookupBy,
-    ModuleVisitor,
-    Scope,
-    Statement,
-    StatementPath,
-    node,
-)
+from bench.language.core import IssueType, LookupBy, ModuleVisitor, NodePath, Scope, Statement, node
 from bench.language.flow import IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
@@ -50,9 +42,9 @@ class CodeTransformation:
 
 @node
 class CodeParse:
-    references: dict[str, StatementPath] = field(default_factory=dict)
+    references: dict[str, NodePath] = field(default_factory=dict)
     is_async: bool = False
-    x_imports: dict[int, dict[str, StatementPath]] = field(default_factory=dict)
+    x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
 @node(tracked=["language", "code"])
@@ -108,7 +100,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags, self.triggers):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     @cached_property
     def cached(self) -> bool:
@@ -141,7 +133,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
     def _do_import_sync(self, path: str, name: str) -> tuple[Any, ...]:
         """Import a statement or exported Python object at runtime."""
-        reference = StatementPath(path, name)
+        reference = NodePath(path, name)
         resolved = self.lookup(reference, by=LookupBy.PyIdent)
         if resolved is None:
             # fall back to code object import
@@ -156,7 +148,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
     async def _do_import_async(self, path: str, name: str) -> tuple[Any, ...]:
         """Import a statement or exported Python object at runtime."""
-        reference = StatementPath(path, name)
+        reference = NodePath(path, name)
         resolved = self.lookup(reference, by=LookupBy.PyIdent)
         if resolved is None:
             # fall back to code object import
@@ -495,12 +487,12 @@ def _parse_code(code: str | None) -> "CodeParse":
 
     class ReferenceExtractor(ast.NodeVisitor):
         def __init__(self):
-            self.references: dict[str, StatementPath] = {}
+            self.references: dict[str, NodePath] = {}
             self.local_variables = set()
             self.imports = set()
             self.is_async = False
             self.codelines = code.splitlines()
-            self.x_imports: dict[int, dict[str, StatementPath]] = {}
+            self.x_imports: dict[int, dict[str, NodePath]] = {}
 
         def visit_Import(self, node):
             for alias in node.names:
@@ -524,7 +516,7 @@ def _parse_code(code: str | None) -> "CodeParse":
                 if reference is not None:
                     local_references = {}
                     for alias in node.names:
-                        local_references[alias.asname or alias.name] = StatementPath(
+                        local_references[alias.asname or alias.name] = NodePath(
                             reference, alias.name
                         )
                     self.x_imports[node.lineno - 1] = local_references
@@ -573,7 +565,7 @@ def _parse_code(code: str | None) -> "CodeParse":
                 and node.id not in STATIC_BUILTINS
                 and node.id not in DYNAMIC_BUILTINS
             ):
-                self.references[node.id] = StatementPath(".", node.id)
+                self.references[node.id] = NodePath(".", node.id)
             self.generic_visit(node)
 
         def visit_For(self, node):
