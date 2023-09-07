@@ -2,17 +2,17 @@
 Built-in library implementations.
 """
 
-import asyncio
 import enum
 import json
 import typing
+from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import Any, Optional
 
 import anthropic
 import openai
 
-from bench.language import Dataset, Tag, Variable
+from bench.language import Dataset, HasText, Run, Runnable, Tag, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
@@ -35,7 +35,17 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.task import IncapableError, Task, TaskError, TaskErrorType
+from bench.language.session import RunStatus
+from bench.language.task import (
+    CompiledInput,
+    IncapableError,
+    ModuleView,
+    Task,
+    TaskCompiler,
+    TaskError,
+    TaskErrorType,
+    TaskOutput,
+)
 from bench.language.type import (
     Field,
     Key,
@@ -324,7 +334,7 @@ class OpenAIChatCompletion:
 )
 @x_model(
     "gpt4-32k",
-    "OpenAI's latest and largest 8k context GPT4 based chat model",
+    "OpenAI's latest and largest 32k context GPT4 based chat model",
     external_name="gpt-4-32k",
     file=_openai_chat,
 )
@@ -367,11 +377,19 @@ class OpenAIChatCompletionModel(Model):
             ),
         )
 
-    def _compiler(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
-        return OpenAIChatCompiler(task, inputs, is_batched)
+    def _compiler(self) -> "TaskCompiler":
+        return OpenAIChatCompiler()
 
 
-class OpenAIChatCompiler:
+@dataclass
+class OpenAIChatInput(CompiledInput):
+    settings: OpenAIChatSettings
+    messages: list[OpenAIChatMessage]
+    functions: list[OpenAIFunction]
+    runnables_by_name: dict[str, Runnable]
+
+
+class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and capable Bench bot that interprets instructions generously."
@@ -398,103 +416,112 @@ class OpenAIChatCompiler:
         ),
     )
 
-    def render_value_flat(self, value: Any, type: TypeBase, *args, **kwargs) -> Any:
+    def _render_value_flat(self, value: Any, type: TypeBase, *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type.effective_tag == TypeTag.ENUM:
             return type.get_field(value).name
         else:
             return strip_value_flat(value, type, *args, **kwargs)
 
-    def _compile_tool(self, tool: Code | Task | Model) -> OpenAIFunction:
+    def _render_statement_with_text(self, statement: Statement) -> str:
+        """Model-friendly rendering of instantiated statement."""
+        if isinstance(statement, HasText):
+            return f"{statement.name}: {statement.text_plain or '<no text>'}"
+        else:
+            return statement.name or "<no name>"
+
+    def _compile_function(self, tool: Code | Task | Model) -> OpenAIFunction:
         return OpenAIFunction(
             name=tool.py_ident,
             text=tool.text,
             parameters=_type_to_json_schema(tool, is_output=False),
         )
 
-    def _compile_terminate_function(self) -> OpenAIFunction:
-        return OpenAIFunction(
-            name="terminate",
-            text="Complete the task with an answer (if any).",
-            parameters=_type_to_json_schema(self.task, is_output=True),
-        )
-
-    async def _compile_consideration(self, consideration: Variable | Dataset) -> OpenAIChatMessage:
-        if isinstance(consideration, Variable):
-            value_str = json.dumps(consideration._raw_named_value())
+    async def _compile_statement(self, statement: Statement) -> OpenAIChatMessage:
+        if isinstance(statement, Variable):
+            value_str = json.dumps(statement._raw_named_value())
             return OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Consideration '{consideration.name}': {consideration.text} = {value_str}",
+                content=f"Consideration '{statement.name}': {statement.text} = {value_str}",
             )
-        elif isinstance(consideration, Dataset):
-            # TODO @Performance: cache dataset when used in task
-            # TODO @Instruction: use datasets more intelligently
-            records = await consideration.limit(10).atolist()
+        elif isinstance(statement, Dataset):
+            records = await statement.limit(10).atolist()
             records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
             return OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Consideration '{consideration.name}': {consideration.text} = \n{records_str}",
+                content=f"Consideration '{statement.name}': {statement.text} = \n{records_str}",
             )
         else:
             raise NotImplementedError
 
-    def _compile_error(self, error: TaskError) -> OpenAIChatMessage:
-        return OpenAIChatMessage(
-            role=OpenAIChatRole.system,
-            content=f"Avoid previous error: {error}",
-        )
-
-    def _compile_function_result(
-        self, function: Code | Task | Model, result: dict | TaskError
-    ) -> OpenAIChatMessage:
-        if isinstance(result, TaskError):
+    def _compile_run(self, run: Run) -> OpenAIChatMessage:
+        if run.status == RunStatus.Failed:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Avoid Previous error: {result}",
+                content=f"Avoid previous error: {run.error}",
             )
         else:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
-                name=function.py_ident,
-                content=json.dumps(map_value(result, function, map_v=self.render_value_flat)),
+                name=run.runnable.py_ident,
+                content=json.dumps(
+                    map_value(run.outputs, run.runnable, map_v=self._render_value_flat)
+                ),
             )
 
-    async def run(self, model: OpenAIChatCompletionModel) -> dict:
+    def compile(
+        self,
+        task: Task,
+        view: ModuleView,
+        inputs: dict,
+        previous_results: list[TaskError | Run],
+        nonce: Optional[str],
+    ) -> OpenAIChatInput:
+        # custom messages
+
+        # default/wrapper messages
         inputs = map_value(
-            self.inputs,
-            self.task,
+            inputs,
+            task,
             map_k=lambda f: (f.py_ident, f.py_ident),
-            map_v=self.render_value_flat,
+            map_v=self._render_value_flat,
             is_output=False,
         )
-        considerations = await asyncio.gather(
-            *(self._compile_consideration(consideration) for consideration in self.considerations)
-        )
-        nonce_str = f"nonce:{runner.nonce} " if runner.nonce else ""
+        nonce_str = f"nonce:{nonce} " if nonce else ""
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your task is '{self.task.name or '<no name>'}': {self.task.text or '<no descr>'}."
+                content=f"Your task is {self._render_statement_with_text(task)}"
                 f" You will be given user inputs and you must call the most appropriate function.",
             ),
-            *considerations,
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"{nonce_str}Inputs for '{self.task.name}': \n\n: {inputs}",
+                content=f"{nonce_str}Inputs for '{task.name}': \n\n: {inputs}",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now, perform the task '{self.task.name}' using the inputs as needed, considering the instructions carefully."
+                content=f"Now perform the task '{task.name}' using the inputs as needed, considering the instructions carefully."
                 f" Finally, call a relevant function as instructed.",
             ),
         ]
+
+        # relevant functions
+        available_functions = [f for f in view.nodes if isinstance(f, Code)]
         functions: list[OpenAIFunction] = [
-            *(self._compile_tool(tool) for tool in self.tools),
+            # nocheckin: select functions from view more intelligently
+            *(self._compile_function(f) for f in available_functions),
             # include function to terminate with a result for overall task
-            self._compile_terminate_function(),
+            OpenAIFunction(
+                name="terminate",
+                text=f"Complete the task {task.name} with an answer (if any).",
+                parameters=_type_to_json_schema(task, is_output=True),
+            ),
             self.PANIC_FUNCTION,
         ]
+        functions_by_name: dict[str, Runnable] = {f.py_ident: f for f in available_functions}
+
+        # settings
         settings = OpenAIChatSettings(
             temperature=0.8,
             max_tokens=None,
@@ -506,57 +533,52 @@ class OpenAIChatCompiler:
             function_call="auto",
             user=None,
         )
-        errors: list[TaskError] = []
 
-        async def _error(error: TaskError):
-            await runner.error(error)
-            errors.append(error)
-            messages.append(self._compile_error(error))
-            return error
+        return OpenAIChatInput(
+            task=task,
+            settings=settings,
+            messages=messages,
+            functions=functions,
+            runnables_by_name=functions_by_name,
+        )
 
-        while True:
-            await runner.step()
-            completion: Optional[OpenAIChatCompletion] = None
-            while completion is None:
-                try:
-                    await runner.model_step(model)
-                    completion = await model(
-                        messages=messages, functions=functions, settings=settings
-                    )
-                    break
-                except RuntimeError as e:
-                    await runner.model_error(model, e)
-                    continue
-            m = completion.message
-            messages.append(m)
-            if m.function_call is None:  # missing function call
-                await _error(TaskError(TaskErrorType.INVALID_FORMAT, "no function call"))
-                continue
-            try:  # try to parse arguments (only json format check, no type check)
-                arguments = json.loads(m.function_call.arguments)
-            except JSONDecodeError as e:
-                await _error(TaskError(TaskErrorType.INVALID_FORMAT, str(e)))
-                continue
-            # handle valid function call
-            if m.function_call.name == "panic":
-                raise await _error(TaskError(TaskErrorType.INCAPABLE, arguments["reason"]))
-            elif m.function_call.name == "terminate":
-                try:
-                    check_type(arguments, self.task, is_output=True)
-                    return arguments
-                except (ValueError, TypeError, TaskError) as e:
-                    await _error(e)
-            elif m.function_call.name not in self.tools_by_py_ident:
-                await _error(
-                    TaskError(
-                        TaskErrorType.INVALID_FORMAT,
-                        f"unknown function {m.function_call.name}",
-                    )
-                )
-            else:
-                function = self.tools_by_py_ident[m.function_call.name]
-                ret = await runner.call_function(function, arguments)
-                messages.append(self._compile_function_result(function, ret))
+    async def run(
+        self,
+        model: OpenAIChatCompletionModel,
+        input: OpenAIChatInput,
+    ) -> TaskOutput:
+        completion = await model(
+            messages=input.messages, functions=input.functions, settings=input.settings
+        )
+        rep: OpenAIChatMessage = completion.message
+        if rep.function_call is None:  # missing function call
+            raise TaskError(TaskErrorType.InvalidFormat, model, "no function call")
+
+        # try to parse arguments (only json format check, no type check)
+        try:
+            arguments = json.loads(rep.function_call.arguments)
+        except JSONDecodeError as e:
+            raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
+
+        # handle standard panic/terminate
+        if rep.function_call.name == "panic":
+            raise TaskError(TaskErrorType.Incapable, arguments["reason"])
+        elif rep.function_call.name == "terminate":
+            try:
+                check_type(arguments, input.task, is_output=True)
+                return TaskOutput(result_raw=arguments)
+            except (ValueError, TypeError) as e:
+                raise TaskError.from_exception(e, model)
+
+        # handle other function calls
+        if rep.function_call.name not in input.runnables_by_name:
+            raise TaskError(
+                TaskErrorType.InvalidFormat,
+                model,
+                f"unknown function {rep.function_call.name}",
+            )
+        function = input.runnables_by_name[rep.function_call.name]
+        return TaskOutput(result_raw=arguments, function=function)
 
 
 @x_struct(

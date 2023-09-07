@@ -17,8 +17,6 @@ const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const nav = useNavigation();
 
-const altKey = useKeyModifier("Alt");
-
 const activeRuns = sessions.activeRoots;
 const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
@@ -63,10 +61,13 @@ function launch(statement: InterpStatement) {
       }"
     >
       <PlayIcon class="h-5 w-5 text-orange-600" />
-      <span class="ml-1 text-gray-900" v-if="activeRuns.length > 0">
-        {{ module.statementOf(activeRunsAsc[0].runnableCk)?.name }}
+      <!-- little number with current runs -->
+      <span
+        class="absolute -bottom-1 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-xs text-gray-900 transition-opacity duration-150"
+        :class="[activeRuns.length > 0 ? 'opacity-100' : 'opacity-0']"
+      >
+        {{ activeRuns.length }}
       </span>
-      <span v-if="activeRuns.length > 1" class="ml-1.5 text-gray-400">+{{ activeRuns.length - 1 }}</span>
     </PopoverButton>
 
     <FadeTransition>

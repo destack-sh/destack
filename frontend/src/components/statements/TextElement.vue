@@ -154,12 +154,12 @@ defineExpose({
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
     <!-- :InlineButtonPillStyle -->
     <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
-      <div class="absolute -top-3.5 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity">
+      <div class="absolute -top-4 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity">
         <button
           v-for="action in quickActions"
           :key="action.id"
           :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
-          class="group flex h-fit max-h-fit flex-row items-center rounded-sm bg-orange-100 bg-opacity-20 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700 focus:outline-none"
+          class="group flex h-fit max-h-fit flex-row items-center rounded-sm bg-orange-100 bg-opacity-10 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700 focus:outline-none"
           @click="action.action"
           @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
           @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"

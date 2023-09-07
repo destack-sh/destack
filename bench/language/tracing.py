@@ -11,7 +11,7 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import TriggerType
-from bench.language.core import MOT, ModuleOp, Session, Statement
+from bench.language.core import MNT, ModuleOp, Session, Statement
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
 from bench.language.session import LogEntry, Run, RunError
@@ -100,14 +100,20 @@ class Tracer:
 
     # execution
 
-    def run_enter(self, statement: Runnable, inputs):
+    def run_enter(self, statement: Runnable, inputs: dict):
         pass
 
-    def run_exit(self, statement: Runnable, result):
+    def run_exit(self, statement: Runnable, result: dict):
         pass
 
     def run_cached(
-        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+        self,
+        statement: Runnable,
+        inputs: dict,
+        result: dict,
+        generated_at: datetime,
+        generated_in: UUID,
+        duration: float,
     ):
         pass
 
@@ -321,10 +327,16 @@ class SessionTracer(Tracer):
                 logger.exception("trace.run.exception", exc_info=True, tracer=tracer)
 
     def run_cached(
-        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+        self,
+        statement: Runnable,
+        inputs: dict,
+        result: dict,
+        generated_at: datetime,
+        generated_in: UUID,
+        duration: float,
     ):
         for tracer in reversed(self.tracers):
-            tracer.run_cached(statement, inputs, result, generated_at, duration)
+            tracer.run_cached(statement, inputs, result, generated_at, generated_in, duration)
 
 
 _active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
@@ -503,7 +515,7 @@ class MutationTracer(Tracer):
         self.mutator.update(wire.pack_node_flat(value), properties=["value"])
 
     def dataset_clear(self, dataset: Dataset):
-        self.mutator.truncate(dataset, MOT.RECORD)
+        self.mutator.truncate(dataset, MNT.Record)
 
     def dataset_append(self, dataset: Dataset, record: Record):
         from bench.language import wire

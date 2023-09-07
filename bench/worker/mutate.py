@@ -9,7 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language.mutate import MMT, MOT, ModuleMutation, ModuleMutator
+from bench.language.mutate import MMT, MNT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.models.packer import INTERP_MODEL_TYPES
 from bench.opensearch import mirror
@@ -21,21 +21,21 @@ MutableThing = Union[
     mirror.Record,
 ]
 
-_MOT_TO_TYPE_NAME = {
-    MOT.MODULE: "Module",
-    MOT.FILE: "File",
-    MOT.STATEMENT: "Statement",
-    MOT.FIELD: "Field",
-    MOT.RESOLVED_FIELD: "ResolvedField",
-    MOT.RECORD: "Record",
-    MOT.TAGGING: "Tagging",
-    MOT.TRIGGER: "Trigger",
-    MOT.DATASET_VIEW: "DatasetView",
-    MOT.DATASET_VIEW_FIELD: "DatasetViewField",
-    MOT.COMMENT: "Comment",
-    MOT.ISSUE: "Issue",
+_MNT_TO_TYPE_NAME = {
+    MNT.Module: "Module",
+    MNT.File: "File",
+    MNT.Statement: "Statement",
+    MNT.Field: "Field",
+    MNT.ResolvedField: "ResolvedField",
+    MNT.Record: "Record",
+    MNT.Tagging: "Tagging",
+    MNT.Trigger: "Trigger",
+    MNT.DatasetView: "DatasetView",
+    MNT.DatasetViewField: "DatasetViewField",
+    MNT.Comment: "Comment",
+    MNT.Issue: "Issue",
 }
-assert len(_MOT_TO_TYPE_NAME) == len(MOT), f"mismatch: {len(_MOT_TO_TYPE_NAME)} != {len(MOT)}"
+assert len(_MNT_TO_TYPE_NAME) == len(MNT), f"mismatch: {len(_MNT_TO_TYPE_NAME)} != {len(MNT)}"
 
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
@@ -48,7 +48,7 @@ def trim_record_mutations(
     bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
     trimmed_mutations = []
     for mutation in mutations:
-        if mutation.scope == MOT.RECORD:
+        if mutation.scope == MNT.Record:
             num_record_updates += 1
             bumped_statement_ids[mutation.statement_id] = mutation.file_id
             if num_record_updates < MAX_RECORD_MUTATIONS_PER_BATCH:
@@ -119,7 +119,7 @@ def map_mutation_from_api(
         return stripped_internal_mutations, api_mutations
     else:
         # map everything else to a simple internal mutation (CUD_X)
-        internal_type = MMT(type.kind + "_" + api_mutation.mot)
+        internal_type = MMT(type.kind + "_" + api_mutation.mnt.caps_name)
         internal_mutation = ModuleMutation(
             type=internal_type,
             project_version_id=api_mutation.project_version_id,
@@ -162,7 +162,7 @@ def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutat
 
 # extra fields in API mutations that are not in internal module data
 _EXTRA_FIELDS_BY_SCOPE = {
-    MOT.FILE: {
+    MNT.File: {
         "parent_id": None,
         "directory": False,
     },
@@ -180,7 +180,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
     input_cls = INPUT_CLASS_BY_TYPE.get(mutation.type)
     if input_cls is None:
         return None
-    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.mot, {})
+    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.mnt, {})
     input_args = {}
     for field in fields(input_cls):
         if field.name == "project_version_id":
@@ -236,18 +236,18 @@ def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
     # so we check against the mutation file id.. this should be fine?
     from strawberry.relay import GlobalID
 
-    if key == "parent_id" and mutation.type.mot == MOT.STATEMENT:
+    if key == "parent_id" and mutation.type.mnt == MNT.Statement:
         if value == mutation.file_id:
             type_name = "File"
         else:
             type_name = "Statement"
-    elif key == "parent_id" and mutation.type.mot == MOT.FILE:
+    elif key == "parent_id" and mutation.type.mnt == MNT.File:
         # same as above
         if value == mutation.project_version_id:
             type_name = "ProjectVersion"
         else:
             type_name = "File"
     else:
-        type_name = _MOT_TO_TYPE_NAME[mutation.type.mot]
+        type_name = _MNT_TO_TYPE_NAME[mutation.type.mnt]
     value = GlobalID(type_name, str(value))
     return value

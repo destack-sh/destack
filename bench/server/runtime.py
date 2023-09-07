@@ -27,7 +27,7 @@ from bench.language import (
     wire,
 )
 from bench.language.cache import CacheAsync
-from bench.language.core import MOT, Module, ModuleReference, parse_absolute_statement_reference
+from bench.language.core import MNT, Module, ModuleReference, parse_absolute_statement_reference
 from bench.language.flow import IsFlowNode, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
@@ -489,7 +489,13 @@ class RuntimeServer(Monitored):
             inputs = instantiate_value(msg.p.inputs, model, is_output=False)
             output = await asyncio.wait_for(
                 asyncio.shield(
-                    model._inference(inputs=inputs, cache_subkey=cache_subkey, log=log, cache=cache)
+                    model._inference(
+                        inputs=inputs,
+                        cache_subkey=cache_subkey,
+                        log=log,
+                        cache=cache,
+                        run_id=msg.p.run_id,
+                    )
                 ),
                 msg.p.timeout,
             )
@@ -874,7 +880,7 @@ class RuntimeWorker:
         # resolved fields
         interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
         if old_module is None:
-            interp_mut.truncate(new_source.module, MOT.RESOLVED_FIELD)
+            interp_mut.truncate(new_source.module, MNT.ResolvedField)
         for statement in self.module._statements_by_id.values():
             old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
             if not isinstance(statement, HasType):
@@ -884,7 +890,7 @@ class RuntimeWorker:
                 or old_statement.resolved_fields != statement.resolved_fields
             ):
                 if old_statement is not None:
-                    interp_mut.truncate(statement, MOT.RESOLVED_FIELD)
+                    interp_mut.truncate(statement, MNT.ResolvedField)
                 for resolved in statement.resolved_fields:
                     if isinstance(resolved, ResolvedField):
                         interp_mut.create(resolved)
@@ -892,7 +898,7 @@ class RuntimeWorker:
         new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues}
         old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
         if old_module is None:
-            interp_mut.truncate(new_source.module, MOT.ISSUE)
+            interp_mut.truncate(new_source.module, MNT.Issue)
         else:
             for issue in old_module.issues:
                 if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
@@ -900,7 +906,7 @@ class RuntimeWorker:
         for issue in new_issues.values():
             if issue.id not in old_issues:
                 if old_module and issue.subject_id not in old_tree:
-                    interp_mut.truncate(issue.subject, MOT.ISSUE)  # clear in case of restore
+                    interp_mut.truncate(issue.subject, MNT.Issue)  # clear in case of restore
                 interp_mut.create(issue)
 
         # update triggers

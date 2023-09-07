@@ -180,7 +180,7 @@ class Dataset(HasType, HasTags, HasText, Search["RecordData", Record], Statement
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     def view_by_name(self, name: str) -> DatasetView:
         view = first((view for view in self.views if view.name == name), None)
@@ -459,7 +459,7 @@ class Variable(HasType, HasTags, HasText, Statement):
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     def _onread(self, key: str) -> None:
         pass

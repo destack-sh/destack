@@ -130,7 +130,7 @@ class Flow(HasType, HasFlow, HasTags, HasText, Statement):
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.fields, self.tags, self.triggers):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     def to_sync(self) -> "Flow":
         if not self._is_async:

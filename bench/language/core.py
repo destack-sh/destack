@@ -22,7 +22,7 @@ from bench.language.issue import BenchError, Issue, IssueHandler, IssueKind, Iss
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, required_field, to_all_caps, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language.mutate import ModuleMutation, ModuleMutator
@@ -33,39 +33,47 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class ModuleObjectType(enum.StrEnum):
+class ModuleNodeType(enum.StrEnum):
     # source
-    MODULE = "MODULE"
-    FILE = "FILE"
-    STATEMENT = "STATEMENT"
-    TRIGGER = "TRIGGER"
-    TAGGING = "TAGGING"
-    FIELD = "FIELD"
-    RECORD = "RECORD"
-    DATASET_VIEW = "DATASET_VIEW"
-    DATASET_VIEW_FIELD = "DATASET_VIEW_FIELD"
+    Module = "Module"
+    File = "File"
+    Statement = "Statement"
+    Trigger = "Trigger"
+    Tagging = "Tagging"
+    Field = "Field"
+    Record = "Record"
+    DatasetView = "DatasetView"
+    DatasetViewField = "DatasetViewField"
     # interp
-    ISSUE = "ISSUE"
-    RESOLVED_FIELD = "RESOLVED_FIELD"
+    Issue = "Issue"
+    ResolvedField = "ResolvedField"
     # user
-    COMMENT = "COMMENT"
+    Comment = "Comment"
+
+    @property
+    def caps_name(self):
+        return MNT_CAPS_CASE[self]
 
 
-MOT = ModuleObjectType
+MNT = ModuleNodeType
+MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
+INTERP_NODE_TYPES = {ModuleNodeType.Issue, ModuleNodeType.ResolvedField}
+
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
 )
-INTERP_MOTS = {ModuleObjectType.ISSUE, ModuleObjectType.RESOLVED_FIELD}
+NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
+StatementReference = typing.Union["Statement", NodePath, UUID]
+NodeReference = typing.Union["ModuleNode", NodePath, UUID]
+TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("reference", NodeReference)])
 
-StatementPath = NamedTuple("StatementPath", [("path", str), ("name", str)])
-StatementReference = typing.Union["Statement", StatementPath, UUID]
-STATEMENT_REFERENCE_REGEX = re.compile(
+NODE_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
 )
 
 
 def parse_absolute_statement_reference(path: str) -> tuple[str, str]:
-    match = STATEMENT_REFERENCE_REGEX.match(path)
+    match = NODE_REFERENCE_REGEX.match(path)
     if not match:
         raise ValueError(f"invalid absolute statement reference: {path}")
     module_name = match.group("module_owner") + "." + match.group("module_name")
@@ -73,12 +81,12 @@ def parse_absolute_statement_reference(path: str) -> tuple[str, str]:
     return module_name, localized_path
 
 
-def parse_statement_path(statement_path: str) -> "StatementPath":
+def parse_statement_path(statement_path: str) -> "NodePath":
     path, name = statement_path.rsplit(".", 1)
-    return StatementPath(path, name)
+    return NodePath(path, name)
 
 
-def statement_path_as_str(statement_path: "StatementPath") -> str:
+def statement_path_as_str(statement_path: "NodePath") -> str:
     return f"{statement_path.path}:{statement_path.name}"
 
 
@@ -90,7 +98,7 @@ class LookupBy(enum.StrEnum):
 def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
     """
     Decorator alias for module node.
-    Only tracked properties may be mutated during a session (by the user).
+    Only tracked properties may be mutated during a session (by the 'user'/run).
     """
 
     def decorate(cls):
@@ -139,26 +147,28 @@ def get_node_id(module_id: UUID, ck: UUID):
 
 class ModuleVisitor:
     def __init__(self):
-        self._visited_by_ck: dict[UUID, ModuleNode] = {}
+        self._visited_node_by_ck: dict[UUID, ModuleNode] = {}
+        self._visited_reference_by_ck: dict[UUID, ModuleNode] = {}
 
     def __str__(self):
-        return f"{len(self._visited_by_ck)} nodes"
+        return f"{len(self._visited_node_by_ck)} nodes"
 
     def __repr__(self):
         return f"<ModuleVisitor {str(self)}>"
 
     @property
-    def visited(self):
-        return self._visited_by_ck.values()
+    def tree(self):
+        return self._visited_node_by_ck.values()
 
-    def visit(self, node: "ModuleNode"):
-        if node.ck in self._visited_by_ck and self._visited_by_ck[node.ck].id != node.id:
-            raise ValueError(f"cannot visit {node} twice: {self._visited_by_ck[node.ck]}")
-        self._visited_by_ck[node.ck] = node
+    def visit_child(self, node: "ModuleNode"):
+        if node.ck in self._visited_node_by_ck and self._visited_node_by_ck[node.ck].id != node.id:
+            raise ValueError(
+                f"cannot visit child {node} twice: {self._visited_node_by_ck[node.ck]}"
+            )
+        self._visited_node_by_ck[node.ck] = node
 
-    def visit_all(self, nodes: typing.Iterable["ModuleNode"]):
-        for node in nodes:
-            self.visit(node)
+    def visit_reference(self, node: "ModuleNode"):
+        self._visited_reference_by_ck[node.ck] = node
 
 
 @node
@@ -214,7 +224,7 @@ class ModuleNode(abc.ABC):
 
     def _walk(self) -> typing.Iterator["ModuleNode"]:
         visitor = ModuleVisitor()
-        visitor.visit(self)
+        visitor.visit_child(self)
 
         seen: dict[UUID, ModuleNode] = {}
         to_visit = [self]
@@ -222,9 +232,9 @@ class ModuleNode(abc.ABC):
             for node in to_visit:
                 seen[node.ck] = node
                 node._visit(visitor)
-            to_visit = [n for n in visitor.visited if n.ck not in seen]
+            to_visit = [n for n in visitor.tree if n.ck not in seen]
 
-        yield from visitor._visited_by_ck.values()
+        yield from visitor._visited_node_by_ck.values()
 
     def copy(self):
         from bench.language import wire
@@ -388,7 +398,7 @@ class Scope:
 
     def lookup(
         self,
-        path: Union["StatementPath", UUID, str],
+        path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
         statement_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
@@ -408,10 +418,10 @@ class Scope:
             return self._find_statement(path.name, by=by)
         # strip leading . in path
         if path.path.startswith("."):
-            path = StatementPath(path.path[1:], path.name)
+            path = NodePath(path.path[1:], path.name)
         parts = path.path.split(".", 2)
         if len(parts) > 1:
-            first_part, inner_part = parts[0], StatementPath(parts[1], path.name)
+            first_part, inner_part = parts[0], NodePath(parts[1], path.name)
         else:
             first_part, inner_part = parts[0], path.name
         scope = self._find_scope(first_part, by=by)
@@ -494,7 +504,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for file in self.files:
-            visitor.visit(file)
+            visitor.visit_child(file)
 
     def add_builtin(self, file: "File") -> None:
         self.builtins.append(file)
@@ -508,7 +518,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def lookup(
         self,
-        path: Union["StatementPath", UUID, str],
+        path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
         statement_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
@@ -528,7 +538,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def lookup_or_error(
         self,
-        path: Union["StatementPath", UUID, str],
+        path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
         statement_t: typing.Type[StatementT] | None = None,
     ) -> StatementT:
@@ -697,7 +707,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for statement in self.statements:
-            visitor.visit(statement)
+            visitor.visit_child(statement)
 
     def append_statement(self, *statements: "Statement"):
         """Appends the statements to this file."""
@@ -782,7 +792,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     file: File | None = None
     parent: Union["Statement", File] = None
     children: list["Statement"] | None = None
-    resolved_children: list[ResolvedStatement] | None = None
     order_key: str | None = None
     type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
@@ -854,25 +863,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             self.children = [*statements]
         else:
             self.children.extend(statements)
-        self._resolve_children()
-
-    def _resolve_children(self):
-        resolved_children: list[ResolvedStatement] = []
-        for statement in self.children or []:
-            if statement.type == StatementType.REFERENCE:
-                if isinstance(statement.reference, Statement):
-                    resolved_children.append(ResolvedStatement(statement.reference, statement.tags))
-            else:
-                resolved_children.append(ResolvedStatement(statement))
-        self.resolved_children = resolved_children
-
-    def get_children_by_type(
-        self, *types: typing.Union[StatementType, typing.Type["Statement"]]
-    ) -> list["Statement"]:
-        if self.resolved_children is None:
-            raise RuntimeError(f"{self} is not indexed")
-        types = [t if isinstance(t, StatementType) else t.type for t in types]
-        return [s.statement for s in self.resolved_children if s.statement.type in types]
 
     def walk_descendants(self) -> typing.Iterator["Statement"]:
         """Yields all descendant statements in DFS order."""
@@ -898,7 +888,6 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def _index(self):
         self._clear()
         self.children = self.file.statements_by_parent_id.get(self.id, [])
-        self._resolve_children()
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
@@ -927,7 +916,6 @@ class StatementBase(abc.ABC):
 
     parent: Statement | File
     session: "Session"
-    resolved_children: list["ResolvedStatement"]
     _scopes_by_name: dict[str, Scope] | None
     _names_by_py_ident: dict[str, str] | None
 
@@ -1042,10 +1030,6 @@ class Session:
         self.ctx = ctx
         self.module = module
         self.instances_by_id: dict[UUID, "HasSession"] = {}
-        self.default_models: list[Statement] = [
-            module.lookup_or_error("openai.lib.chat.gpt4"),
-            module.lookup_or_error("openai.lib.chat.gpt3"),
-        ]
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
@@ -1080,6 +1064,10 @@ class Session:
 
     def async_to_sync(self, fn: typing.Awaitable | typing.Callable | typing.Coroutine) -> Callable:
         return async_to_sync(fn)  # type: ignore
+
+    @property
+    def current_run(self) -> "Run":
+        return self.tracer.run.current_frame
 
     @property
     def is_open(self) -> bool:

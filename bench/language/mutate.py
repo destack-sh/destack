@@ -10,7 +10,7 @@ from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
 from bench.language.const import StatementType
-from bench.language.core import Module, ModuleNode, ModuleObjectType
+from bench.language.core import Module, ModuleNode, ModuleNodeType
 from bench.language.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
 
@@ -108,7 +108,7 @@ class ModuleMutationType(enum.StrEnum):
         return _MODULE_MUTATION_MAP[self][0]
 
     @property
-    def mot(self) -> "ModuleObjectType":
+    def mnt(self) -> "ModuleNodeType":
         return _MODULE_MUTATION_MAP[self][1]
 
     @property
@@ -120,8 +120,8 @@ class ModuleMutationType(enum.StrEnum):
         return self not in NON_SEMANTIC_MUTATIONS
 
     @staticmethod
-    def from_mot(mmk: "ModuleMutationKind", mot: "ModuleObjectType") -> "ModuleMutationType":
-        return ModuleMutationType(f"{mmk.value}_{mot.value}")
+    def from_nt(mmk: "ModuleMutationKind", nt: "ModuleNodeType") -> "ModuleMutationType":
+        return ModuleMutationType(f"{mmk.value}_{nt.value}")
 
 
 class ModuleMutationKind(enum.StrEnum):
@@ -190,83 +190,83 @@ NON_SEMANTIC_MUTATIONS = {
 
 MMT = ModuleMutationType
 MMK = ModuleMutationKind
-MOT = ModuleObjectType
+MNT = ModuleNodeType
 
-_MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MOT]] = {
+_MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     # Files
-    MMT.TRUNCATE_FILES: (MMK.TRUNCATE, MOT.FILE),
-    MMT.BUMP_FILE: (MMK.BUMP, MOT.FILE),
-    MMT.PASTE_FILE: (MMK.CREATE, MOT.FILE),
-    MMT.CREATE_FILE: (MMK.CREATE, MOT.FILE),
-    MMT.SOFT_DELETE_FILE: (MMK.DELETE, MOT.FILE),
-    MMT.RESTORE_FILE: (MMK.CREATE, MOT.FILE),
-    MMT.RENAME_FILE: (MMK.UPDATE, MOT.FILE),
-    MMT.MOVE_FILE: (MMK.UPDATE, MOT.FILE),
-    MMT.UPDATE_FILE: (MMK.UPDATE, MOT.FILE),
-    MMT.DELETE_FILE: (MMK.DELETE, MOT.FILE),
+    MMT.TRUNCATE_FILES: (MMK.TRUNCATE, MNT.File),
+    MMT.BUMP_FILE: (MMK.BUMP, MNT.File),
+    MMT.PASTE_FILE: (MMK.CREATE, MNT.File),
+    MMT.CREATE_FILE: (MMK.CREATE, MNT.File),
+    MMT.SOFT_DELETE_FILE: (MMK.DELETE, MNT.File),
+    MMT.RESTORE_FILE: (MMK.CREATE, MNT.File),
+    MMT.RENAME_FILE: (MMK.UPDATE, MNT.File),
+    MMT.MOVE_FILE: (MMK.UPDATE, MNT.File),
+    MMT.UPDATE_FILE: (MMK.UPDATE, MNT.File),
+    MMT.DELETE_FILE: (MMK.DELETE, MNT.File),
     # Statements
-    MMT.TRUNCATE_STATEMENTS: (MMK.TRUNCATE, MOT.STATEMENT),
-    MMT.BUMP_STATEMENT: (MMK.BUMP, MOT.STATEMENT),
-    MMT.PASTE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
-    MMT.CREATE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
-    MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
-    MMT.RESTORE_STATEMENT: (MMK.CREATE, MOT.STATEMENT),
-    MMT.MORPH_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.MOVE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.RENAME_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.DELETE_STATEMENT: (MMK.DELETE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_FLAGS: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_HEADING_LEVEL: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_SYMBOL_text: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_SYMBOL_CODE: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_SYMBOL_MODIFIER: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MOT.STATEMENT),
-    MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MOT.STATEMENT),
+    MMT.TRUNCATE_STATEMENTS: (MMK.TRUNCATE, MNT.Statement),
+    MMT.BUMP_STATEMENT: (MMK.BUMP, MNT.Statement),
+    MMT.PASTE_STATEMENT: (MMK.CREATE, MNT.Statement),
+    MMT.CREATE_STATEMENT: (MMK.CREATE, MNT.Statement),
+    MMT.SOFT_DELETE_STATEMENT: (MMK.DELETE, MNT.Statement),
+    MMT.RESTORE_STATEMENT: (MMK.CREATE, MNT.Statement),
+    MMT.MORPH_STATEMENT: (MMK.UPDATE, MNT.Statement),
+    MMT.MOVE_STATEMENT: (MMK.UPDATE, MNT.Statement),
+    MMT.RENAME_STATEMENT: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_STATEMENT: (MMK.UPDATE, MNT.Statement),
+    MMT.DELETE_STATEMENT: (MMK.DELETE, MNT.Statement),
+    MMT.UPDATE_STATEMENT_TEXT: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_STATEMENT_FLAGS: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_STATEMENT_HEADING_LEVEL: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_STATEMENT_REFERENCE: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_SYMBOL_text: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_SYMBOL_CODE: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_SYMBOL_MODIFIER: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MNT.Statement),
+    MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MNT.Statement),
     # Taggings
-    MMT.TRUNCATE_TAGGINGS: (MMK.TRUNCATE, MOT.TAGGING),
-    MMT.CREATE_TAGGING: (MMK.CREATE, MOT.TAGGING),
-    MMT.UPDATE_TAGGING: (MMK.UPDATE, MOT.TAGGING),
-    MMT.DELETE_TAGGING: (MMK.DELETE, MOT.TAGGING),
-    MMT.SOFT_DELETE_TAGGING: (MMK.DELETE, MOT.TAGGING),
-    MMT.RESTORE_TAGGING: (MMK.CREATE, MOT.TAGGING),
-    MMT.MOVE_TAGGING: (MMK.UPDATE, MOT.TAGGING),
-    MMT.UPDATE_TAGGING_METADATA: (MMK.UPDATE, MOT.TAGGING),
+    MMT.TRUNCATE_TAGGINGS: (MMK.TRUNCATE, MNT.Tagging),
+    MMT.CREATE_TAGGING: (MMK.CREATE, MNT.Tagging),
+    MMT.UPDATE_TAGGING: (MMK.UPDATE, MNT.Tagging),
+    MMT.DELETE_TAGGING: (MMK.DELETE, MNT.Tagging),
+    MMT.SOFT_DELETE_TAGGING: (MMK.DELETE, MNT.Tagging),
+    MMT.RESTORE_TAGGING: (MMK.CREATE, MNT.Tagging),
+    MMT.MOVE_TAGGING: (MMK.UPDATE, MNT.Tagging),
+    MMT.UPDATE_TAGGING_METADATA: (MMK.UPDATE, MNT.Tagging),
     # Triggers
-    MMT.TRUNCATE_TRIGGERS: (MMK.TRUNCATE, MOT.TRIGGER),
-    MMT.CREATE_TRIGGER: (MMK.CREATE, MOT.TRIGGER),
-    MMT.UPDATE_TRIGGER: (MMK.UPDATE, MOT.TRIGGER),
-    MMT.DELETE_TRIGGER: (MMK.DELETE, MOT.TRIGGER),
-    MMT.SOFT_DELETE_TRIGGER: (MMK.DELETE, MOT.TRIGGER),
-    MMT.RESTORE_TRIGGER: (MMK.CREATE, MOT.TRIGGER),
+    MMT.TRUNCATE_TRIGGERS: (MMK.TRUNCATE, MNT.Trigger),
+    MMT.CREATE_TRIGGER: (MMK.CREATE, MNT.Trigger),
+    MMT.UPDATE_TRIGGER: (MMK.UPDATE, MNT.Trigger),
+    MMT.DELETE_TRIGGER: (MMK.DELETE, MNT.Trigger),
+    MMT.SOFT_DELETE_TRIGGER: (MMK.DELETE, MNT.Trigger),
+    MMT.RESTORE_TRIGGER: (MMK.CREATE, MNT.Trigger),
     # Fields
-    MMT.TRUNCATE_FIELDS: (MMK.TRUNCATE, MOT.FIELD),
-    MMT.CREATE_FIELD: (MMK.CREATE, MOT.FIELD),
-    MMT.UPDATE_FIELD: (MMK.UPDATE, MOT.FIELD),
-    MMT.RENAME_FIELD: (MMK.UPDATE, MOT.FIELD),
-    MMT.UPDATE_FIELD_TEXT: (MMK.UPDATE, MOT.FIELD),
-    MMT.UPDATE_FIELD_TYPE: (MMK.UPDATE, MOT.FIELD),
-    MMT.UPDATE_FIELD_METADATA: (MMK.UPDATE, MOT.FIELD),
-    MMT.MOVE_FIELD: (MMK.UPDATE, MOT.FIELD),
-    MMT.DELETE_FIELD: (MMK.DELETE, MOT.FIELD),
-    MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MOT.FIELD),
-    MMT.RESTORE_FIELD: (MMK.CREATE, MOT.FIELD),
+    MMT.TRUNCATE_FIELDS: (MMK.TRUNCATE, MNT.Field),
+    MMT.CREATE_FIELD: (MMK.CREATE, MNT.Field),
+    MMT.UPDATE_FIELD: (MMK.UPDATE, MNT.Field),
+    MMT.RENAME_FIELD: (MMK.UPDATE, MNT.Field),
+    MMT.UPDATE_FIELD_TEXT: (MMK.UPDATE, MNT.Field),
+    MMT.UPDATE_FIELD_TYPE: (MMK.UPDATE, MNT.Field),
+    MMT.UPDATE_FIELD_METADATA: (MMK.UPDATE, MNT.Field),
+    MMT.MOVE_FIELD: (MMK.UPDATE, MNT.Field),
+    MMT.DELETE_FIELD: (MMK.DELETE, MNT.Field),
+    MMT.SOFT_DELETE_FIELD: (MMK.DELETE, MNT.Field),
+    MMT.RESTORE_FIELD: (MMK.CREATE, MNT.Field),
     # Records
-    MMT.TRUNCATE_RECORDS: (MMK.TRUNCATE, MOT.RECORD),
-    MMT.CREATE_RECORD: (MMK.CREATE, MOT.RECORD),
-    MMT.UPDATE_RECORD: (MMK.UPDATE, MOT.RECORD),
-    MMT.MOVE_RECORD: (MMK.UPDATE, MOT.RECORD),
-    MMT.DELETE_RECORD: (MMK.DELETE, MOT.RECORD),
-    MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MOT.RECORD),
-    MMT.RESTORE_RECORD: (MMK.CREATE, MOT.RECORD),
+    MMT.TRUNCATE_RECORDS: (MMK.TRUNCATE, MNT.Record),
+    MMT.CREATE_RECORD: (MMK.CREATE, MNT.Record),
+    MMT.UPDATE_RECORD: (MMK.UPDATE, MNT.Record),
+    MMT.MOVE_RECORD: (MMK.UPDATE, MNT.Record),
+    MMT.DELETE_RECORD: (MMK.DELETE, MNT.Record),
+    MMT.SOFT_DELETE_RECORD: (MMK.DELETE, MNT.Record),
+    MMT.RESTORE_RECORD: (MMK.CREATE, MNT.Record),
     # Interp
-    MMT.TRUNCATE_ISSUES: (MMK.TRUNCATE, MOT.ISSUE),
-    MMT.CREATE_ISSUE: (MMK.CREATE, MOT.ISSUE),
-    MMT.DELETE_ISSUE: (MMK.DELETE, MOT.ISSUE),
-    MMT.TRUNCATE_RESOLVED_FIELDS: (MMK.TRUNCATE, MOT.RESOLVED_FIELD),
-    MMT.CREATE_RESOLVED_FIELD: (MMK.CREATE, MOT.RESOLVED_FIELD),
+    MMT.TRUNCATE_ISSUES: (MMK.TRUNCATE, MNT.Issue),
+    MMT.CREATE_ISSUE: (MMK.CREATE, MNT.Issue),
+    MMT.DELETE_ISSUE: (MMK.DELETE, MNT.Issue),
+    MMT.TRUNCATE_RESOLVED_FIELDS: (MMK.TRUNCATE, MNT.ResolvedField),
+    MMT.CREATE_RESOLVED_FIELD: (MMK.CREATE, MNT.ResolvedField),
 }
 
 # assert that all mutations are in the map
@@ -289,7 +289,7 @@ class ModuleMutation:
     # and the deserializer doesn't know which one to use (so will pick the first that fits)
     # really annoyingly manual until we get a proper :WireFormat
 
-    _data__mot: Optional[ModuleObjectType] = None  # discriminator for 'union'
+    _data__mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
     _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
     _data: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
@@ -303,7 +303,7 @@ class ModuleMutation:
 
         _data = data.get("_data")
         if _data is not None:
-            _data_cls = wire.BASE_DATA_CLASS_BY_MOT[data["_data__mot"]]
+            _data_cls = wire.BASE_DATA_CLASS_BY_MNT[data["_data__mnt"]]
             if data.get("_data_statement__type") is not None:
                 _data_cls = wire.STATEMENT_DATA_CLASS_BY_TYPE[data["_data_statement__type"]]
             _data = from_dict(_data_cls, _data)
@@ -317,7 +317,7 @@ class ModuleMutation:
     def data(self, value: "NodeData"):
         from bench.language import wire
 
-        self._data__mot = wire.MOT_BY_DATA_CLASS[type(value)]
+        self._data__mnt = wire.MNT_BY_DATA_CLASS[type(value)]
         if type(value) in wire.STATEMENT_TYPE_BY_DATA_CLASS:
             # map to _symbol_<type>
             statement_type = wire.STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
@@ -325,14 +325,14 @@ class ModuleMutation:
         self._data = value
 
     @property
-    def scope(self) -> ModuleObjectType:
-        if self._data__mot is None:
-            raise ValueError(f"mot is not set on {self}")
-        return self._data__mot
+    def scope(self) -> ModuleNodeType:
+        if self._data__mnt is None:
+            raise ValueError(f"mnt is not set on {self}")
+        return self._data__mnt
 
     @property
-    def mot(self) -> ModuleObjectType:
-        return self.type.mot
+    def mnt(self) -> ModuleNodeType:
+        return self.type.mnt
 
     def __str__(self):
         data_str = f" {self.data}" if self.data else ""
@@ -407,41 +407,41 @@ class ModuleMutator:
         self.mutations = []
 
     def do(
-        self, type: MMT, obj: "NodeData", apply: bool = True, properties: list[str] = None
+        self, type: MMT, node: "NodeData", apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
         from bench.language import wire
 
-        if isinstance(obj, wire.StatementData):
-            statement_id = obj.id
-            file_id = self.file_id or self.tree.get_ancestor(obj.parent_id, wire.FileData).id
-        elif isinstance(obj, wire.FileData):
+        if isinstance(node, wire.StatementData):
+            statement_id = node.id
+            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, wire.FileData).id
+        elif isinstance(node, wire.FileData):
             statement_id = None
-            file_id = obj.id
-        elif isinstance(obj, wire.ModuleData):
+            file_id = node.id
+        elif isinstance(node, wire.ModuleData):
             statement_id = None
             file_id = None
         else:
             if self.statement_id:
                 statement_id = self.statement_id
             else:
-                statement = self.tree.get_ancestor(obj.parent_id, wire.StatementData)
+                statement = self.tree.get_ancestor(node.parent_id, wire.StatementData)
                 statement_id = statement.id if statement else None
             if self.file_id:
                 file_id = self.file_id
             else:
-                file = self.tree.get_ancestor(obj.parent_id, wire.FileData)
+                file = self.tree.get_ancestor(node.parent_id, wire.FileData)
                 file_id = self.file_id or file.id
         if properties and type.kind != MMK.UPDATE:
             raise ValueError(f"properties only supported for update mutations: {properties}")
         mutation = ModuleMutation(
             type=type,
             project_version_id=self.module_id,
-            revision=obj.revision if isinstance(obj, wire.HasCrud) else None,
+            revision=node.revision if isinstance(node, wire.HasCrud) else None,
             file_id=file_id,
             statement_id=statement_id,
             properties=properties,
         )
-        mutation.data = obj
+        mutation.data = node
         self.mutations.append(mutation)
         if apply:
             self.apply(mutation)
@@ -451,7 +451,7 @@ class ModuleMutator:
         return self
 
     def apply(self, mut: ModuleMutation):
-        from bench.language.wire import BASE_DATA_CLASS_BY_MOT
+        from bench.language.wire import BASE_DATA_CLASS_BY_MNT
 
         if mut.type.kind == MMK.CREATE:
             self.tree.add(mut.data)
@@ -460,67 +460,67 @@ class ModuleMutator:
         elif mut.type.kind == MMK.DELETE:
             self.tree.remove(mut.data)
         elif mut.type.kind == MMK.TRUNCATE:
-            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MOT[mut.mot])
+            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MNT[mut.mnt])
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 
     def truncate(
-        self, obj: Union["NodeData", ModuleNode], mot: MOT, apply: bool = True
+        self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
     ) -> "ModuleMutator":
         """Truncates all records of the given statement."""
-        obj = pack_node_flat_if_needed(obj)
-        mmt = MMT(f"TRUNCATE_{mot.name}S")
-        self.do(mmt, obj, apply=apply)
+        node = pack_node_flat_if_needed(node)
+        mmt = MMT(f"TRUNCATE_{mnt.caps_name}S")
+        self.do(mmt, node, apply=apply)
         return self
 
     def create_many(
-        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
     ) -> "ModuleMutator":
-        for obj in objs:
+        for obj in nodes:
             self.create(obj, apply=apply)
         return self
 
-    def create(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
-        from bench.language.wire import MOT_BY_DATA_CLASS
+    def create(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+        from bench.language.wire import MNT_BY_DATA_CLASS
 
-        obj = pack_node_flat_if_needed(obj)
-        mot = MOT_BY_DATA_CLASS[type(obj)]
-        mmt = MMT(f"CREATE_{mot.name}")
-        self.do(mmt, obj, apply=apply)
+        node = pack_node_flat_if_needed(node)
+        mnt = MNT_BY_DATA_CLASS[type(node)]
+        mmt = MMT(f"CREATE_{mnt.caps_name}")
+        self.do(mmt, node, apply=apply)
         return self
 
     def update_many(
-        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
     ) -> "ModuleMutator":
-        for obj in objs:
+        for obj in nodes:
             self.update(obj, apply=apply)
         return self
 
     def update(
-        self, obj: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
+        self, node: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
     ) -> "ModuleMutator":
-        from bench.language.wire import MOT_BY_DATA_CLASS
+        from bench.language.wire import MNT_BY_DATA_CLASS
 
-        obj = pack_node_flat_if_needed(obj)
-        mot = MOT_BY_DATA_CLASS[type(obj)]
-        mmt = MMT(f"UPDATE_{mot.name}")
-        self.do(mmt, obj, apply=apply, properties=properties)
+        node = pack_node_flat_if_needed(node)
+        mnt = MNT_BY_DATA_CLASS[type(node)]
+        mmt = MMT(f"UPDATE_{mnt.caps_name}")
+        self.do(mmt, node, apply=apply, properties=properties)
         return self
 
     def delete_many(
-        self, *objs: Union["NodeData", ModuleNode], apply: bool = True
+        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
     ) -> "ModuleMutator":
-        for obj in objs:
+        for obj in nodes:
             self.delete(obj, apply=apply)
         return self
 
-    def delete(self, obj: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
-        from bench.language.wire import MOT_BY_DATA_CLASS
+    def delete(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+        from bench.language.wire import MNT_BY_DATA_CLASS
 
-        obj = pack_node_flat_if_needed(obj)
-        mot = MOT_BY_DATA_CLASS[type(obj)]
-        mmt = MMT(f"DELETE_{mot.name}")
-        self.do(mmt, obj, apply=apply)
+        node = pack_node_flat_if_needed(node)
+        mnt = MNT_BY_DATA_CLASS[type(node)]
+        mmt = MMT(f"DELETE_{mnt.caps_name}")
+        self.do(mmt, node, apply=apply)
         return self
 
     def bundle(self) -> "MutationBundle":
@@ -617,7 +617,7 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
     new_tree = ModuleTree(new_module.nodes)
 
     for node in new_tree.walk_bfs():
-        if node.mot == ModuleObjectType.MODULE:
+        if node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
         if node.id not in old_tree.nodes:
             mutator.create(node)
@@ -626,7 +626,7 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
             if not node.equals_ignoring_crud(old_node):
                 mutator.update(node)
     for node in old_tree.walk_bfs():
-        if node.mot == ModuleObjectType.MODULE:
+        if node.mnt == ModuleNodeType.Module:
             continue
         if node.id not in new_tree.nodes:
             mutator.delete(node)
@@ -645,7 +645,7 @@ def create_module(module: ModuleTreeData) -> list[ModuleMutation]:
     """
     mutator = ModuleMutator(module)
     for node in ModuleTree(module.nodes).walk_bfs():
-        if node.mot == ModuleObjectType.MODULE:
+        if node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
         mutator.create(node)
     return mutator.mutations

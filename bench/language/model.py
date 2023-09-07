@@ -8,6 +8,7 @@ from datetime import datetime
 from json import JSONDecodeError
 from logging import Logger
 from typing import Any, Self
+from uuid import UUID
 
 import msgpack
 import structlog
@@ -24,7 +25,7 @@ from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language.task import Task, TaskCompiler
+    from bench.language.task import TaskCompiler
 
 logger = structlog.get_logger(__name__)
 
@@ -73,7 +74,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for n in itertools.chain(self.fields, self.tags, self.triggers):
-            visitor.visit(n)
+            visitor.visit_child(n)
 
     @property
     def should_cache(self) -> bool:
@@ -124,6 +125,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                     model_path=self.path,
                     inputs=inputs_raw,
                     timeout=timeout,
+                    run_id=self.session.current_run.id,
                 )
                 rep: NMessage[RepRunInferencePayload] = await request(
                     NMessageType.RUN_PROXY_INFERENCE,
@@ -151,8 +153,9 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                         self._inference(
                             inputs=inputs,
                             cache_subkey=cache_subkey,
-                            log=log,
                             cache=self.cache if cache else None,
+                            run_id=self.session.current_run.id,
+                            log=log,
                         )
                     ),
                     timeout,
@@ -170,6 +173,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
         inputs: Any,
         cache_subkey: str,
         cache: CacheAsync | None,
+        run_id: UUID,
         log: Logger = logger,
     ) -> Any:
         """
@@ -185,6 +189,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
             # result is assumed to be JSON serializable, will obviously error here if not
             inference = Inference(
                 generated_at=now,
+                generated_in=run_id,
                 duration=duration,
                 inputs=strip_value(inputs, self, is_output=False, ignore_outer_map=True),
                 outputs=strip_value(output, self, is_output=True, ignore_outer_map=True),
@@ -221,11 +226,12 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
             self._compiler_impl = actual_model_compiler
         return self._compiler_impl
 
-    def _compiler(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
+    def _compiler(self) -> "TaskCompiler":
         raise NotImplementedError  # stub for :LibCompiler of model compiler
 
-    def compile(self, task: "Task", inputs: dict, is_batched: bool) -> "TaskCompiler":
-        return self._compiler_resolved(self, task, inputs, is_batched)
+    @property
+    def compiler(self) -> "TaskCompiler":
+        return self._compiler_resolved(self)
 
     def to_async(self) -> "Self":
         return self
@@ -268,6 +274,7 @@ class Inference:
     """A model inference - inputs/outputs are raw."""
 
     generated_at: datetime
+    generated_in: UUID
     duration: float
     inputs: Any
     outputs: Any

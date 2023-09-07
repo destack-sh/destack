@@ -9,7 +9,7 @@ from bench import models
 from bench.language import wire
 from bench.language.core import get_node_id
 from bench.language.dataset import MAX_VERSIONED_RECORDS_TOTAL
-from bench.language.mutate import MMK, MMT, MOT, ModuleMutation
+from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
 from bench.language.utils import Runnable
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -166,7 +166,7 @@ def write_mutations_to_os(
     dataset_statements_by_id: dict[UUID, models.Statement] = {
         statement.id: statement
         for statement in models.Statement.objects.filter(
-            id__in={m.statement_id for m in mutations if m.mot == MOT.RECORD}
+            id__in={m.statement_id for m in mutations if m.mnt == MNT.Record}
         )
     }
     # mut state
@@ -198,7 +198,7 @@ def write_mutations_to_os(
             field_mappings_dirty[0] = True
 
         # OS is the primary store for records
-        if m.mot == MOT.RECORD:
+        if m.mnt == MNT.Record:
             if field_mappings_dirty[0]:
                 _flush()  # records may require previous field mappings to be updated
             statement = dataset_statements_by_id[m.statement_id]

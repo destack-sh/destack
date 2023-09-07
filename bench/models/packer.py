@@ -19,15 +19,15 @@ from django.db.models import Model, QuerySet
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
-from bench.language.core import INTERP_MOTS, ModuleObjectType
+from bench.language.core import INTERP_NODE_TYPES, ModuleNodeType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle
 from bench.language.wire import ModuleTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
-MOT = ModuleObjectType
-ParentsT = set[MOT]
+MNT = ModuleNodeType
+ParentsT = set[MNT]
 NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
 NodeT = TypeVar("NodeT", bound=Model)
 DataT = TypeVar("DataT")
@@ -100,12 +100,12 @@ DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
 # some node models correspond to multiple actual module node / node data types
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[tuple[typing.Type[NodeT], Optional[str]], NodePacker] = {}
-BASE_MODEL_CLASS_BY_MOT: dict[MOT, typing.Type[Model]] = {}
-MOT_BY_BASE_MODEL_CLASS: dict[typing.Type[Model], MOT] = {}
+BASE_MODEL_CLASS_BY_MNT: dict[MNT, typing.Type[Model]] = {}
+MNT_BY_BASE_MODEL_CLASS: dict[typing.Type[Model], MNT] = {}
 
 
 def node_packer(
-    t: MOT,
+    t: MNT,
     data_t: typing.Type[NodeDataT],
     node_t: typing.Type[NodeT],
     subtype: Optional[str] = None,
@@ -124,11 +124,11 @@ def node_packer(
         packer = cls()
         _node_packers_by_data[data_t] = packer
         _node_packers_by_node[(node_t, subtype)] = packer
-        if t not in BASE_MODEL_CLASS_BY_MOT:
-            BASE_MODEL_CLASS_BY_MOT[t] = node_t
-            MOT_BY_BASE_MODEL_CLASS[node_t] = t
-        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MOT[t]):  # type: ignore
-            raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MOT[t]}")
+        if t not in BASE_MODEL_CLASS_BY_MNT:
+            BASE_MODEL_CLASS_BY_MNT[t] = node_t
+            MNT_BY_BASE_MODEL_CLASS[node_t] = t
+        elif not issubclass(node_t, BASE_MODEL_CLASS_BY_MNT[t]):  # type: ignore
+            raise ValueError(f"model {node_t} is not a subclass of {BASE_MODEL_CLASS_BY_MNT[t]}")
         return cls
 
     return decorator
@@ -307,7 +307,7 @@ def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> list[No
     return unpacked
 
 
-@node_packer(MOT.MODULE, wire.ModuleData, models.ProjectVersion)
+@node_packer(MNT.Module, wire.ModuleData, models.ProjectVersion)
 class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
         return [models.File.objects.filter(project_version__in=nodes)]
@@ -327,7 +327,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
         )
 
 
-@node_packer(MOT.FILE, wire.FileData, models.File)
+@node_packer(MNT.File, wire.FileData, models.File)
 class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [
@@ -364,7 +364,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
         )
 
 
-@node_packer(MOT.STATEMENT, wire.StatementData, models.Statement)
+@node_packer(MNT.Statement, wire.StatementData, models.Statement)
 class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: "PackContext") -> list[QuerySet[Model]]:
         return [
@@ -410,7 +410,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
         )
 
 
-@node_packer(MOT.STATEMENT, wire.BlankData, models.Statement, StatementType.BLANK)
+@node_packer(MNT.Statement, wire.BlankData, models.Statement, StatementType.BLANK)
 class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.BlankData:
         statement_data = super().pack(statement)
@@ -422,7 +422,7 @@ class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement])
         return super().unpack(data, parent)
 
 
-@node_packer(MOT.STATEMENT, wire.TextData, models.Statement, StatementType.TEXT)
+@node_packer(MNT.Statement, wire.TextData, models.Statement, StatementType.TEXT)
 class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.TextData:
         statement_data = super().pack(statement)
@@ -439,7 +439,7 @@ class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.ReferenceData, models.Statement, StatementType.REFERENCE)
+@node_packer(MNT.Statement, wire.ReferenceData, models.Statement, StatementType.REFERENCE)
 class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.ReferenceData:
         statement_data = super().pack(statement)
@@ -456,7 +456,7 @@ class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Sta
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.TypeData, models.Statement, StatementType.TYPE)
+@node_packer(MNT.Statement, wire.TypeData, models.Statement, StatementType.TYPE)
 class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.TypeData:
         statement_data = super().pack(statement)
@@ -479,7 +479,7 @@ class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.TagData, models.Statement, StatementType.TAG)
+@node_packer(MNT.Statement, wire.TagData, models.Statement, StatementType.TAG)
 class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.TagData:
         statement_data = super().pack(statement)
@@ -494,7 +494,7 @@ class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.TaskData, models.Statement, StatementType.TASK)
+@node_packer(MNT.Statement, wire.TaskData, models.Statement, StatementType.TASK)
 class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.TaskData:
         statement_data = super().pack(statement)
@@ -508,7 +508,7 @@ class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.FlowData, models.Statement, StatementType.FLOW)
+@node_packer(MNT.Statement, wire.FlowData, models.Statement, StatementType.FLOW)
 class FlowPacker(StatementPacker, NodePacker[wire.FlowData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.FlowData:
         statement_data = super().pack(statement)
@@ -525,7 +525,7 @@ class FlowPacker(StatementPacker, NodePacker[wire.FlowData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.CodeData, models.Statement, StatementType.CODE)
+@node_packer(MNT.Statement, wire.CodeData, models.Statement, StatementType.CODE)
 class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.CodeData:
         statement_data = super().pack(statement)
@@ -540,7 +540,7 @@ class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.ModelData, models.Statement, StatementType.MODEL)
+@node_packer(MNT.Statement, wire.ModelData, models.Statement, StatementType.MODEL)
 class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.ModelData:
         statement_data = super().pack(statement)
@@ -557,7 +557,7 @@ class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement])
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.VariableData, models.Statement, StatementType.VARIABLE)
+@node_packer(MNT.Statement, wire.VariableData, models.Statement, StatementType.VARIABLE)
 class VariablePacker(StatementPacker, NodePacker[wire.VariableData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.VariableData:
         statement_data = super().pack(statement)
@@ -574,7 +574,7 @@ class VariablePacker(StatementPacker, NodePacker[wire.VariableData, models.State
         return statement
 
 
-@node_packer(MOT.STATEMENT, wire.DatasetData, models.Statement, StatementType.DATASET)
+@node_packer(MNT.Statement, wire.DatasetData, models.Statement, StatementType.DATASET)
 class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
     def pack(self, statement: models.Statement) -> wire.DatasetData:
         statement_data = super().pack(statement)
@@ -592,7 +592,7 @@ class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Stateme
         return statement
 
 
-@node_packer(MOT.FIELD, wire.FieldData, models.Field)
+@node_packer(MNT.Field, wire.FieldData, models.Field)
 class FieldPacker(NodePacker[wire.FieldData, models.Field]):
     def pack(self, field: models.Field) -> wire.FieldData:
         return wire.FieldData(
@@ -632,7 +632,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
         )
 
 
-@node_packer(MOT.TRIGGER, wire.TriggerData, models.Trigger)
+@node_packer(MNT.Trigger, wire.TriggerData, models.Trigger)
 class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
     def pack(self, trigger: models.Trigger) -> wire.TriggerData:
         return wire.TriggerData(
@@ -672,7 +672,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
         )
 
 
-@node_packer(MOT.TAGGING, wire.TaggingData, models.Tagging)
+@node_packer(MNT.Tagging, wire.TaggingData, models.Tagging)
 class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
     def pack(self, tagging: models.Tagging) -> wire.TaggingData:
         return wire.TaggingData(
@@ -703,7 +703,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
 # interp module data
 
 
-@node_packer(MOT.ISSUE, wire.IssueData, models.Issue)
+@node_packer(MNT.Issue, wire.IssueData, models.Issue)
 class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
@@ -744,7 +744,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         )
 
 
-@node_packer(MOT.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
+@node_packer(MNT.ResolvedField, wire.ResolvedFieldData, models.ResolvedField)
 class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
         return wire.ResolvedFieldData(
@@ -1020,13 +1020,13 @@ def write_mutations(
     module_data = pack_node_flat(project_v)
 
     for mmt, batch in mut.batched_apply(module, module_data):
-        if mmt.mot == MOT.RECORD:
+        if mmt.mnt == MNT.Record:
             continue  # stored in OpenSearch only (for now) (see below) :DbRecord
         elif mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
             file_ids = [m.file_id for m in batch if m.file_id is not None]
-            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             if statement_ids:
                 if hasattr(model_cls, "statement"):
                     model_cls.objects.filter(statement_id__in=statement_ids).delete()
@@ -1043,7 +1043,7 @@ def write_mutations(
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
             nodes = unpack_nodes(project_v, module, [m.data for m in batch])
-            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MMK.UPDATE
@@ -1054,7 +1054,7 @@ def write_mutations(
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:
-            model_cls = BASE_MODEL_CLASS_BY_MOT[mmt.mot]
+            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
     write_mutations_to_os(project_v, mut.mutations, wait_for_os)
@@ -1098,4 +1098,4 @@ def write_session(
     write_session_to_os(project_v, session, runs, logs)
 
 
-INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MOT[mot] for mot in INTERP_MOTS)
+INTERP_MODEL_TYPES = tuple(BASE_MODEL_CLASS_BY_MNT[mnt] for mnt in INTERP_NODE_TYPES)
