@@ -179,7 +179,7 @@ class Dataset(HasType, HasTags, HasText, Search["RecordData", Record], Statement
         HasTags._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags):
+        for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
 
     def view_by_name(self, name: str) -> DatasetView:
@@ -458,7 +458,7 @@ class Variable(HasType, HasTags, HasText, Statement):
         HasTags._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags):
+        for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
 
     def _onread(self, key: str) -> None:

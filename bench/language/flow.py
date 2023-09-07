@@ -129,7 +129,7 @@ class Flow(HasType, HasFlow, HasTags, HasText, Statement):
         Statement._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags, self.triggers):
+        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
             visitor.visit_child(n)
 
     def to_sync(self) -> "Flow":

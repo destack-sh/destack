@@ -66,16 +66,16 @@ const quickActions = computed(() => {
     props.statement.type != StatementType.Text ||
     (props.statement.headingLevel ?? 0) != 0 ||
     props.statement.name != null ||
-    props.readonly
+    props.readonly ||
+    !props.focused
   )
     return [];
-  const actions: QuickAction[] = [
-    {
-      id: "task",
-      icon: getStatementIconSolid(StatementType.Task),
-      action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
-    },
-  ];
+  const actions: QuickAction[] = [];
+  actions.push({
+    id: "task",
+    icon: getStatementIconSolid(StatementType.Task),
+    action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
+  });
   if (props.statement.name == null) {
     actions.push({
       id: "name",

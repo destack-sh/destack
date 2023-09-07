@@ -484,6 +484,8 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     parent_scope: Scope = None
     committed: bool = False
     status: ModuleStatus = ModuleStatus.Raw
+    # index
+    _files_by_parent_id: dict[UUID, list["File"]] | None = None
 
     def __str__(self):
         issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
@@ -505,7 +507,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        for file in self.files:
+        for file in self._files_by_parent_id.get(self.id, []):
             visitor.visit_child(file)
 
     def add_builtin(self, file: "File") -> None:
@@ -555,6 +557,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         file = File(name=name, parent=self, module=self)
         file._assign_id(self.id)
         self.files.append(file)
+        file._index()
         return file
 
     def add_file(self, file: "File") -> None:
@@ -564,6 +567,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             file._assign_id(self.id)
         file.module = self
         file.parent = self
+        file._index()
         self.files.append(file)
         self._on_added(file)
 
@@ -606,6 +610,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for file in self.files:
             file._clear()
         self.status = ModuleStatus.Raw
+        self._files_by_parent_id = None
 
     def index(self):
         self._expect_status(ModuleStatus.Raw)
@@ -615,7 +620,9 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for dependency in self.dependencies.values():
             self._statements_by_id.update(dependency._statements_by_id)
             self._statements_by_ck.update(dependency._statements_by_ck)
+        self._files_by_parent_id = defaultdict(list)
         for file in self.files:
+            self._files_by_parent_id[file.parent_id].append(file)
             file._index()
             self._add_file(file, by_name=True)
         self.status = ModuleStatus.Index
@@ -678,7 +685,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     children: list["File"] = field(default_factory=list)
     statements: list["Statement"] = field(default_factory=list)
     # index
-    statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
+    _statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -708,7 +715,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             return to_pyidentifier(self.name, IdentifierType.PATH)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        for statement in self.statements:
+        for statement in self._statements_by_parent_id.get(self.id, []):
             visitor.visit_child(statement)
 
     def append_statement(self, *statements: "Statement"):
@@ -720,6 +727,8 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 raise ValueError(f"statement {statement} belongs to {statement.parent}")
             statement.order_key = ok
             statement.parent = self
+            statement.file = self
+            statement._index()
             for descendant in statement.walk_descendants():
                 descendant.file = self
                 self.statements.append(descendant)
@@ -728,7 +737,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     append = append_statement  # alias for File
 
     def _assign_oks(self):
-        for statements in self.statements_by_parent_id.values():
+        for statements in self._statements_by_parent_id.values():
             oks = generate_n_keys_between(None, None, len(statements))
             for ok, statement in zip(oks, statements):
                 statement.order_key = ok
@@ -743,18 +752,18 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         """Indexes all statements in this file into the scope."""
         # per parent (incl. root = None) sort by order key
         sorted_statements = []
-        self.statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
+        self._statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
         for statement in self.statements:
-            self.statements_by_parent_id[statement.parent_id].append(statement)
+            self._statements_by_parent_id[statement.parent_id].append(statement)
 
         def walk_dfs(statement: Statement):
             sorted_statements.append(statement)
-            children = self.statements_by_parent_id.get(statement.id)
+            children = self._statements_by_parent_id.get(statement.id)
             if children is not None:
                 for child in sorted(children, key=lambda s: s.order_key):
                     walk_dfs(child)
 
-        roots = self.statements_by_parent_id.get(self.id, [])
+        roots = self._statements_by_parent_id.get(self.id, [])
         for statement in sorted(roots, key=lambda s: s.order_key):
             walk_dfs(statement)
 
@@ -889,7 +898,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def _index(self):
         self._clear()
-        self.children = self.file.statements_by_parent_id.get(self.id, [])
+        self.children = self.file._statements_by_parent_id.get(self.id, [])
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
@@ -903,6 +912,10 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def _interp(self, scope: Scope) -> None:
         """Updates, resolves and checks any derived/interpreted values on this statement."""
         pass
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for child in self.children or []:
+            visitor.visit_child(child)
 
     def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
         """Clears and re-interprets this statement in scope."""

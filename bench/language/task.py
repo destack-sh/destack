@@ -12,6 +12,7 @@ from bench.language.basic import HasText
 from bench.language.const import StatementType, TypeTag
 from bench.language.core import Module, ModuleNode, ModuleVisitor, Scope, Statement, node
 from bench.language.flow import HasFlow, IsFlowNode
+from bench.language.issue import IssueType
 from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.session import Run, RunError, RunErrorKind
@@ -87,7 +88,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     _randomized: bool = False
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags, self.triggers):
+        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
             visitor.visit_child(n)
 
     def _clear(self) -> None:
@@ -106,7 +107,9 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
         self._randomized = self.has_tag(randomize_tag)
 
-        # TODO @Broken @UX: interp task
+        if not self.resolved_fields:
+            self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
+        # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
 
     async def __call__(
@@ -136,7 +139,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
         # do task
         view = ModuleView(self.module, self)
-        view.collect(max_child_depth=None, max_reference_depth=1)
+        view.collect()
         try:
             self.session.tracer.run_enter(self, inputs)
             if inputs and is_batched:
@@ -167,47 +170,47 @@ class ModuleView:
         super().__init__()
         self.module = module
         self.origin = origin
+        self._nodes_by_distance: list[list[ModuleNode]] = []
 
     @property
     def nodes(self) -> Collection[ModuleNode]:
-        return self._descendant_by_ck.values()
+        return itertools.chain.from_iterable(self._nodes_by_distance)
 
-    def collect(self, max_child_depth: Optional[int], max_reference_depth: Optional[int]) -> None:
-        # nocheckin expand view properly
+    @property
+    def nodes_by_distance(self) -> list[list[ModuleNode]]:
+        return self._nodes_by_distance
+
+    def collect(self) -> None:
+        self._nodes_by_distance = []
+
+        # TODO @Task: gather module view more intelligently (prevent reference jungle)
         seen: dict[UUID, ModuleNode] = {}
-
-        # first follow all children
         child_visitor = ModuleVisitor()
         to_visit = [self.origin]
-        child_depth = 0
-        while to_visit and (max_child_depth is None or child_depth < max_child_depth):
-            for node in to_visit:
-                seen[node.ck] = node
-                node._visit(child_visitor)
-            to_visit = [n for n in child_visitor.subtree if n.ck not in seen]
-
-        # then follow all references
-        to_visit = [*child_visitor.references]
-        reference_depth = 0
-        while to_visit and (max_reference_depth is None or reference_depth < max_reference_depth):
-            for node in to_visit:
-                seen[node.ck] = node
-                node._visit(self)
-            to_visit = [n for n in self.references if n.ck not in seen]
+        while to_visit:
+            self._nodes_by_distance.append(to_visit)
+            for n in to_visit:
+                seen[n.ck] = n
+                n._visit(child_visitor)
+            to_visit = [
+                n
+                for n in itertools.chain(child_visitor.subtree, child_visitor.references)
+                if n.ck not in seen
+            ]
 
 
 async def run_task(
     task: Task, root_models: list[Model], view: ModuleView, inputs: dict, nonce: Optional[str]
 ) -> dict:
     num_retries_total = 0
-    root_model = root_models[0]
+    root_model = root_models[0]  # TODO @Broken @Tass: select between multiple root models
 
     previous_results = []
     while num_retries_total < 5:
         num_retries_total += 1
-        # TODO @UX: track metadata in task/model runs
+        # TODO @UX @Task: track metadata in task/model runs
         # get next thing to run or terminate
-        compiled = root_model.compiler.compile(task, view, inputs, previous_results, nonce)
+        compiled = await root_model.compiler.compile(task, view, inputs, previous_results, nonce)
         try:
             step = await root_model.compiler.run(root_model, compiled)
             if step.runnable is None:
@@ -251,7 +254,7 @@ class TaskOutput(abc.ABC):
 
 
 class TaskCompiler(abc.ABC):
-    def compile(
+    async def compile(
         self,
         task: Task,
         view: ModuleView,

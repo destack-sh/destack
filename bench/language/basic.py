@@ -24,7 +24,8 @@ class Blank(Statement):
     type: StatementType = StatementType.BLANK
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
+        for child in self.children:
+            visitor.visit_child(child)
 
 
 @node
@@ -69,7 +70,8 @@ class Text(HasText, Statement):
         HasText._interp(self, scope)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
+        for child in self.children:
+            visitor.visit_child(child)
 
 
 # avoid circular import because Reference IsFlowNode
@@ -101,7 +103,7 @@ class Reference(Statement, HasTags, HasText, IsFlowNode):
             self.reference = resolved
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.tags, self.triggers):
+        for n in itertools.chain(self.children, self.tags, self.triggers):
             visitor.visit_child(n)
         if isinstance(self.reference, Statement):
             visitor.visit_reference(self.reference)
