@@ -154,7 +154,9 @@ defineExpose({
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
     <!-- :InlineButtonPillStyle -->
     <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
-      <div class="absolute -top-4 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity">
+      <div
+        class="absolute -top-4 z-20 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity"
+      >
         <button
           v-for="action in quickActions"
           :key="action.id"

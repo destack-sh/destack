@@ -147,28 +147,30 @@ def get_node_id(module_id: UUID, ck: UUID):
 
 class ModuleVisitor:
     def __init__(self):
-        self._visited_node_by_ck: dict[UUID, ModuleNode] = {}
-        self._visited_reference_by_ck: dict[UUID, ModuleNode] = {}
+        self._descendant_by_ck: dict[UUID, ModuleNode] = {}
+        self._reference_by_ck: dict[UUID, ModuleNode] = {}
 
     def __str__(self):
-        return f"{len(self._visited_node_by_ck)} nodes"
+        return f"{len(self._descendant_by_ck)} nodes"
 
     def __repr__(self):
         return f"<ModuleVisitor {str(self)}>"
 
     @property
-    def tree(self):
-        return self._visited_node_by_ck.values()
+    def subtree(self) -> typing.Collection["ModuleNode"]:
+        return self._descendant_by_ck.values()
+
+    @property
+    def references(self) -> typing.Collection["ModuleNode"]:
+        return self._reference_by_ck.values()
 
     def visit_child(self, node: "ModuleNode"):
-        if node.ck in self._visited_node_by_ck and self._visited_node_by_ck[node.ck].id != node.id:
-            raise ValueError(
-                f"cannot visit child {node} twice: {self._visited_node_by_ck[node.ck]}"
-            )
-        self._visited_node_by_ck[node.ck] = node
+        if node.ck in self._descendant_by_ck and self._descendant_by_ck[node.ck].id != node.id:
+            raise ValueError(f"cannot visit child {node} twice: {self._descendant_by_ck[node.ck]}")
+        self._descendant_by_ck[node.ck] = node
 
     def visit_reference(self, node: "ModuleNode"):
-        self._visited_reference_by_ck[node.ck] = node
+        self._reference_by_ck[node.ck] = node
 
 
 @node
@@ -232,9 +234,9 @@ class ModuleNode(abc.ABC):
             for node in to_visit:
                 seen[node.ck] = node
                 node._visit(visitor)
-            to_visit = [n for n in visitor.tree if n.ck not in seen]
+            to_visit = [n for n in visitor.subtree if n.ck not in seen]
 
-        yield from visitor._visited_node_by_ck.values()
+        yield from visitor._descendant_by_ck.values()
 
     def copy(self):
         from bench.language import wire

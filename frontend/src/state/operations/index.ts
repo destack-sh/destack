@@ -183,7 +183,7 @@ export const useOperationsStore = defineStore("operations", {
 
     async perform<T>(operation: Operation<T>): Promise<T | null> {
       operation = { ...operation, id: operation.id ?? Math.random().toString(16).substring(2, 8) };
-      console.debug(`perform ${operation.type} (id=${operation.id}, tx=${operation.tx?.id ?? "<none>"})`); // nocheckin
+      console.debug(`perform ${operation.type} (id=${operation.id}, tx=${operation.tx?.id ?? "<none>"})`);
       // add operation to transaction if any
       if (operation.tx != null) {
         if (typeof operation.tx != "object") {

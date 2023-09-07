@@ -63,7 +63,7 @@ function launch(statement: InterpStatement) {
       <PlayIcon class="h-5 w-5 text-orange-600" />
       <!-- little number with current runs -->
       <span
-        class="absolute -bottom-1 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full text-xs text-gray-900 transition-opacity duration-150"
+        class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-xs font-semibold text-gray-900 transition-opacity duration-150"
         :class="[activeRuns.length > 0 ? 'opacity-100' : 'opacity-0']"
       >
         {{ activeRuns.length }}

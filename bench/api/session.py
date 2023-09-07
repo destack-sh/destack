@@ -109,7 +109,7 @@ class RunError:
             if data.get("statement_id")
             else None
         )
-        traceback = [RunCodeFrame.from_dict(frame) for frame in data.get("traceback", [])] or None
+        traceback = [RunCodeFrame.from_dict(frame) for frame in data.get("traceback") or []] or None
         return RunError(
             kind=data["kind"],
             type=data["type"],

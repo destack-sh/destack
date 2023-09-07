@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+from dataclasses import dataclass
 import sys
 from collections import deque
 from contextvars import ContextVar
@@ -103,14 +105,14 @@ class Tracer:
     def run_enter(self, statement: Runnable, inputs: dict):
         pass
 
-    def run_exit(self, statement: Runnable, result: dict):
+    def run_exit(self, statement: Runnable, outputs: dict):
         pass
 
     def run_cached(
         self,
         statement: Runnable,
         inputs: dict,
-        result: dict,
+        outputs: dict,
         generated_at: datetime,
         generated_in: UUID,
         duration: float,
@@ -314,9 +316,9 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.run_enter(statement, inputs)
 
-    def run_exit(self, statement: Runnable, result):
+    def run_exit(self, statement: Runnable, outputs):
         for tracer in reversed(self.tracers):
-            tracer.run_exit(statement, result)
+            tracer.run_exit(statement, outputs)
 
     def run_exception(self, statement: Runnable, exception: Exception):
         for tracer in reversed(self.tracers):
@@ -330,13 +332,13 @@ class SessionTracer(Tracer):
         self,
         statement: Runnable,
         inputs: dict,
-        result: dict,
+        outputs: dict,
         generated_at: datetime,
         generated_in: UUID,
         duration: float,
     ):
         for tracer in reversed(self.tracers):
-            tracer.run_cached(statement, inputs, result, generated_at, generated_in, duration)
+            tracer.run_cached(statement, inputs, outputs, generated_at, generated_in, duration)
 
 
 _active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
@@ -373,7 +375,7 @@ def _strip_and_truncate_py_value(
 
 class RunTracer(Tracer):
     """
-    A worker-side tracer that records code and model executions.
+    A run tracer that records code and model executions.
     """
 
     def __init__(self, session: Session, track: Callable[[Run], None]):
@@ -467,10 +469,10 @@ class RunTracer(Tracer):
         self.track(frame)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
 
-    def run_exit(self, statement: Runnable, result):
+    def run_exit(self, statement: Runnable, outputs):
         frame = self.pop_stacktrace()
         frame.terminated_at = utcnow_with_tz()
-        frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)
+        frame.outputs = _strip_and_truncate_py_value(outputs, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
@@ -488,18 +490,40 @@ class RunTracer(Tracer):
         logger.debug("trace.run.exception", frame=frame, stackdepth=len(self.stacktrace))
 
     def run_cached(
-        self, statement: Runnable, inputs, result, generated_at: datetime, duration: float
+        self,
+        statement: Runnable,
+        inputs,
+        outputs,
+        generated_at: datetime,
+        generated_in: UUID,
+        duration: float,
     ):
         frame = self._create_frame(runnable=statement, trace=True)
         frame.terminated_at = utcnow_with_tz()
         frame.cached_at = generated_at
+        frame.cached_in = generated_in
         frame.cached_duration = duration
         frame.inputs = _strip_and_truncate_py_value(inputs, statement, is_output=False)
-        frame.outputs = _strip_and_truncate_py_value(result, statement, is_output=True)
+        frame.outputs = _strip_and_truncate_py_value(outputs, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         self._update_cached_info()
         logger.debug("trace.run.cached", frame=frame, stackdepth=len(self.stacktrace))
+
+    @contextlib.contextmanager
+    def capture(self) -> list[Run]:
+        """Get all runs that are created within the context."""
+        start_ids = set(self.runs.keys())
+        capture = _RunCapture()
+        try:
+            yield
+        finally:
+            capture.runs = [run for run in self.runs.values() if run.id not in start_ids]
+
+
+@dataclass
+class _RunCapture:
+    runs: list[Run] = None
 
 
 class MutationTracer(Tracer):
@@ -546,8 +570,8 @@ class TypeCheckingTracer(Tracer):
     def run_enter(self, statement: Runnable, inputs):
         check_type(inputs, statement, is_output=False)
 
-    def run_exit(self, statement: Runnable, result):
-        check_type(result, statement, is_output=True)
+    def run_exit(self, statement: Runnable, outputs):
+        check_type(outputs, statement, is_output=True)
 
     def value_update(self, value: Variable, key: Optional[str] = None):
         check_type(value.value, value)

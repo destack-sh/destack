@@ -758,7 +758,7 @@ def check_type(
 
     # walk struct-like types
     if type.effective_tag == TypeTag.STRUCT or type.effective_tag == TypeTag.FUNCTION:
-        if type.tag == TypeTag.FUNCTION and is_output and not type.outputs:
+        if type.tag == TypeTag.FUNCTION and is_output:
             value = value or {}  # None is allowed for empty outputs
         is_dataclass = dataclasses.is_dataclass(value)
         for f in type.resolved_fields or type.fields:
@@ -1221,11 +1221,12 @@ def instantiate_value(
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,
+    map_k: Callable[[Field], tuple[str, str]] = None,
 ):
     return map_value(
         value=value,
         type=type,
-        map_k=lambda f: (f.typed_key, f.py_ident),
+        map_k=map_k or (lambda f: (f.typed_key, f.py_ident)),
         map_v=instantiate_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
@@ -1239,11 +1240,12 @@ def strip_value(
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,
+    map_k: Callable[[Field], tuple[str, str]] = None,
 ):
     return map_value(
         value=value,
         type=type,
-        map_k=lambda f: (f.py_ident, f.typed_key),
+        map_k=map_k or (lambda f: (f.py_ident, f.typed_key)),
         map_v=strip_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,

@@ -352,7 +352,7 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
             packed_node = packer.pack(node)
             packed[node.id] = packed_node
 
-        to_pack = [node for node in ctx.tree if node.id not in packed]
+        to_pack = [node for node in ctx.subtree if node.id not in packed]
 
     return packed[root.id], list(packed.values())
 

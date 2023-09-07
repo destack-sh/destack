@@ -165,7 +165,7 @@ class Run:
         self.metadata[key] = value
 
     # direct accessors for default metadata (not great but good enough for now)
-    # nocheckin: wrap all default run metadata and task metadata here
+    # TODO @Cleanup: wrap all default run metadata and task metadata here
 
     @property
     def cached_duration(self) -> Optional[float]:
@@ -191,6 +191,14 @@ class Run:
     @cached_at.setter
     def cached_at(self, value: Optional[datetime]):
         self.set_metadata(RunMetadata.cached_at, value.isoformat() if value else None)
+
+    @property
+    def cached_in(self) -> Optional[UUID]:
+        return self.get_metadata(RunMetadata.cached_in)
+
+    @cached_in.setter
+    def cached_in(self, value: Optional[UUID]):
+        self.set_metadata(RunMetadata.cached_in, value)
 
 
 _IGNORED_PACKAGE_PREFIXES = [
