@@ -120,12 +120,6 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             #   - function calling
             #     - tool 'coercion' (e.g. dataset -> metadata + search function)
             # - tool models == functions? (but with more or less flexible I/O)
-            # - has flow (NOT YET)
-            #   - constrained sub-flows
-            #   - triggers
-            #   - 'inlined' pre/post code (e.g. to include context based on query)
-            #   - interrupts & reproducibility
-            #    - nonces (put into metadata?)
             # - task metadata
             #   - progress reporting?
             #   - retries
@@ -136,9 +130,17 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             # - error handling
             #   - automatic retries & fallbacks
             # - interp (warnings/errors)
-            #  - should use same 'parsing' logic in interp (maybe even pre-parse?)
+            #  - use same 'parsing' logic in interp (maybe even pre-parse?)
             # - continuous granularity
-            #  - plug in different flow runner?
+            #   - procedures/behavior constraints between flows and tasks (control)
+            #
+            # - has flow (NOT YET)
+            #   - constrained sub-flows
+            #   - triggers
+            #   - 'inlined' pre/post code (e.g. to include context based on query)
+            #     - is that a trigger (on an event?)? a tag ('test')
+            #   - interrupts & reproducibility
+            #    - nonces (put into metadata?)
 
             # shortcut for built-in tasks with fixed implementations
             if self.path == "symbolx.lib.builtins.embed":

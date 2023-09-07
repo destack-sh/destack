@@ -15,7 +15,7 @@ import {
   type StatementPartId,
 } from "@/components/statements";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
-import MorphStatement from "@/components/statements/MorphStatement.vue";
+import MorphStatementInterface from "@/components/statements/MorphStatementInterface.vue";
 import { IssueKind, StatementType } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import {
@@ -522,7 +522,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
     action: () => {
       /* noop */
     },
-    component: () => ({ component: MorphStatement, props: { statement: props.statement } }),
+    component: () => ({ component: MorphStatementInterface, props: { statement: props.statement } }),
   });
   actions.push({
     groupId: "edit-core",

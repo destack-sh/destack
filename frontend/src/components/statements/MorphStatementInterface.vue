@@ -47,7 +47,7 @@ defineExpose({
             morphIdentity == command.identity ? 'text-orange-600' : 'text-gray-900',
           ]"
         >
-          <component :is="command.icon" class="h-4 w-4 text-gray-500" />
+          <component :is="command.iconOutline" class="h-4 w-4 text-gray-900" />
           <span class="flex flex-1 flex-col">
             {{ command.label }}
           </span>

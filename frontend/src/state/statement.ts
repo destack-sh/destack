@@ -426,7 +426,8 @@ export type MorphCommand = {
   group: MorphCommandGroup;
   identity: MorphIdentity;
   label: string;
-  icon: any;
+  iconOutline: any;
+  iconSolid: any;
   description: string;
   aliases?: string[];
   action?: () => void;
@@ -476,7 +477,8 @@ export function useStatementMorph(
     return {
       group,
       label: options?.label ?? getStatementLabel(type, options?.tag),
-      icon: options?.icon ?? getStatementIconSolid(type, options?.tag),
+      iconOutline: options?.icon ?? getStatementIconOutline(type, options?.tag),
+      iconSolid: options?.icon ?? getStatementIconSolid(type, options?.tag),
       description: options?.description ?? getStatementDescription(type, options?.tag),
       aliases: options?.aliases,
       identity,
@@ -490,7 +492,8 @@ export function useStatementMorph(
         group: GROUPS.BASIC,
         label: "Text",
         aliases: ["comment", "markdown", "title", "header"],
-        icon: getStatementIconSolid(StatementType.Text),
+        iconOutline: getStatementIconOutline(StatementType.Text),
+        iconSolid: getStatementIconSolid(StatementType.Text),
         description: "Just type for a plain comment",
         identity: { type: StatementType.Text, headingLevel: null },
       },

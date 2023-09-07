@@ -180,7 +180,7 @@ defineExpose({
             >
               <div class="py-1">
                 <div class="relative h-8 w-8 rounded-md bg-orange-500">
-                  <component :is="command.icon" class="absolute left-1.5 top-1.5 h-5 w-5 text-white" />
+                  <component :is="command.iconSolid" class="absolute left-1.5 top-1.5 h-5 w-5 text-white" />
                 </div>
               </div>
               <div class="flex flex-1 flex-col">
