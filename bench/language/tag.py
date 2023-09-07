@@ -126,5 +126,5 @@ class Tag(HasType, HasTags, Statement):
         HasTags._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags):
+        for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)

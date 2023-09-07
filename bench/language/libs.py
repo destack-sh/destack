@@ -8,6 +8,7 @@ import typing
 from dataclasses import dataclass
 from json import JSONDecodeError
 from typing import Any, Optional
+from uuid import UUID
 
 import anthropic
 import openai
@@ -35,7 +36,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.session import RunStatus, RunError
+from bench.language.session import RunError, RunStatus
 from bench.language.task import (
     CompiledInput,
     IncapableError,
@@ -423,12 +424,35 @@ class OpenAIChatCompiler(TaskCompiler):
         else:
             return strip_value_flat(value, type, *args, **kwargs)
 
-    def _render_statement_with_text(self, statement: Statement) -> str:
+    def _render_statement_header(self, statement: Statement) -> str:
         """Model-friendly rendering of instantiated statement."""
         if isinstance(statement, HasText):
-            return f"{statement.name}: {statement.text_plain or '<no text>'}"
+            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {statement.text_plain or '<no text>'}"
         else:
-            return statement.name or "<no name>"
+            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}"
+
+    # TODO @Performance @Task: cache statement rendering (for datasets)
+    async def _render_statement_content(
+        self, statement: Statement
+    ) -> tuple[str, list[UUID]] | None:
+        if isinstance(statement, Variable):
+            value_str = json.dumps(statement._raw_named_value())
+            return value_str, []
+        elif isinstance(statement, Dataset):
+            records = await statement.limit(10).atolist()
+            records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
+            return records_str, [r.id for r in records]
+        elif isinstance(statement, Type):
+            if statement.tag == TypeTag.ENUM:
+                options_str = ", ".join(value.name for value in statement.fields)
+                return f"options: {options_str}", [f.id for f in statement.fields]
+            elif statement.tag == TypeTag.STRUCT:
+                fields_str = ", ".join(
+                    f"{f.name}: {f.type.name} {f.type.description}" for f in statement.fields
+                )
+                return f"fields:\n{fields_str}", [f.id for f in statement.fields]
+        else:
+            return None
 
     def _compile_function(self, tool: Runnable, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
@@ -436,23 +460,6 @@ class OpenAIChatCompiler(TaskCompiler):
             text=tool.text,
             parameters=_type_to_json_schema(tool, is_output=False),
         )
-
-    async def _compile_statement(self, statement: Statement) -> OpenAIChatMessage:
-        if isinstance(statement, Variable):
-            value_str = json.dumps(statement._raw_named_value())
-            return OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"Consideration '{statement.name}': {statement.text} = {value_str}",
-            )
-        elif isinstance(statement, Dataset):
-            records = await statement.limit(10).atolist()
-            records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
-            return OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"Consideration '{statement.name}': {statement.text} = \n{records_str}",
-            )
-        else:
-            raise NotImplementedError
 
     def _compile_run(self, run: Run) -> OpenAIChatMessage:
         if run.status == RunStatus.Failed:
@@ -472,7 +479,7 @@ class OpenAIChatCompiler(TaskCompiler):
             content=f"Avoid previous error: {error}",
         )
 
-    def compile(
+    async def compile(
         self,
         task: Task,
         view: ModuleView,
@@ -480,9 +487,36 @@ class OpenAIChatCompiler(TaskCompiler):
         previous_results: list[TaskError | Run],
         nonce: Optional[str],
     ) -> OpenAIChatInput:
-        # custom messages
-        context_messages = []
-        # nocheckin: compile context nodes from view
+        # TODO @Task: improve context message / module view generation
+        # custom context messages
+        # ignore output types, they're covered by function schemas
+        covered_nodes = {n.id for o in task.outputs for n in o.walk_type()}
+        context_strs = []
+        for level in view.nodes_by_distance:
+            for node in level:
+                if node.id in covered_nodes:
+                    continue
+                if not isinstance(node, Statement) or node.id == task.id:
+                    continue
+                node: Statement
+                head = self._render_statement_header(node)
+                content = await self._render_statement_content(node)
+                if content:
+                    content, covered_children = content
+                    for c in covered_children:
+                        covered_nodes.add(c)
+                    context_strs.append(f"{head}\n{content}")
+                else:
+                    context_strs.append(head)
+        context_str = "\n".join(context_strs)
+        context_messages = [
+            OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"Additional user instructions for task '{task.name}':\n {context_str}\mFollow the above well.",
+            )
+        ]
+
+        # context from previous runs (function executions, failures)
         previous_messages = []
         for result in previous_results:
             if isinstance(result, TaskError):
@@ -490,9 +524,9 @@ class OpenAIChatCompiler(TaskCompiler):
             elif isinstance(result, Run):
                 previous_messages.append(self._compile_run(result))
             else:
-                raise UnreachableError()
+                raise ValueError(f"unexpected result {result}")
 
-        # default/wrapper messages
+        # system and wrapper messages
         inputs = map_value(
             inputs,
             task,
@@ -505,17 +539,18 @@ class OpenAIChatCompiler(TaskCompiler):
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your task is {self._render_statement_with_text(task)}.",
+                content=f"Your main task is {self._render_statement_header(task)}.",
             ),
+            *context_messages,
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"{nonce_str}The user's inputs for '{task.name}': \n\n: {inputs}",
+                content=f"{nonce_str}The user's inputs for '{task.name}': \n\n{inputs}",
             ),
             *previous_messages,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now complete the task '{task.name}' given the inputs with an appropriate function."
-                f" Consider the instructions carefully and follow the schema.",
+                content=f"Now complete the task '{task.name}' given the inputs according to the schema."
+                f" Consider the instructions and context for every part carefully.",
             ),
         ]
 
@@ -526,7 +561,8 @@ class OpenAIChatCompiler(TaskCompiler):
             user_function_prefix + f.py_ident: f for f in available_functions
         }
         functions: list[OpenAIFunction] = [
-            # nocheckin: select functions from view more intelligently
+            # TODO @Task: select functions from view more intelligently
+            #  (and coerce? e.g. datasets)
             *(self._compile_function(f, prefix=user_function_prefix) for f in available_functions),
             # include function to terminate with a result for overall task
             OpenAIFunction(

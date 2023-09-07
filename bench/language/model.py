@@ -5,7 +5,6 @@ import os
 import typing
 from dataclasses import dataclass
 from datetime import datetime
-from json import JSONDecodeError
 from logging import Logger
 from typing import Any, Self
 from uuid import UUID
@@ -73,7 +72,7 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                 break
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        for n in itertools.chain(self.fields, self.tags, self.triggers):
+        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
             visitor.visit_child(n)
 
     @property

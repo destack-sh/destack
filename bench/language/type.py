@@ -596,7 +596,7 @@ class Type(HasType, HasTags, Statement):
         HasType._interp(self, scope)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        for n in itertools.chain(self.fields, self.tags):
+        for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
 
     def __call__(self, *args, **kwargs):

@@ -92,15 +92,15 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
+            visitor.visit_child(n)
+
     def __call__(self, *args, **kwargs):
         if self._is_async:
             return self.__call_async__(*args, **kwargs)
         else:
             return self.__call_sync__(*args, **kwargs)
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.fields, self.tags, self.triggers):
-            visitor.visit_child(n)
 
     @cached_property
     def cached(self) -> bool:
