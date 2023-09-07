@@ -4,10 +4,12 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useElementRefs } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
+import { getStatementIconSolid } from "@/state/statement";
 import { syncProperty } from "@/utils/sync";
-import { computed, nextTick, ref, watch, type Ref } from "vue";
+import { AtSymbolIcon } from "@heroicons/vue/24/solid";
+import { computed, nextTick, ref, watch, type Ref, type Component } from "vue";
 
-const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused">>();
+const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused" | "editing">>();
 const emit = defineEmits<StatementEmit>();
 
 const ops = useOperations();
@@ -56,6 +58,7 @@ watch(
 // quick inline actions
 type QuickAction = {
   id: string;
+  icon: Component;
   action: () => void;
 };
 const quickActions = computed(() => {
@@ -69,12 +72,14 @@ const quickActions = computed(() => {
   const actions: QuickAction[] = [
     {
       id: "task",
+      icon: getStatementIconSolid(StatementType.Task),
       action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
     },
   ];
   if (props.statement.name == null) {
     actions.push({
       id: "name",
+      icon: AtSymbolIcon,
       action: () => {
         ops.statement.rename(null, props.statement.id, null, "");
         nextTick(() => emit("focus", "declaration"));
@@ -83,6 +88,7 @@ const quickActions = computed(() => {
   }
   actions.push({
     id: "code",
+    icon: getStatementIconSolid(StatementType.Code),
     action: () => {
       ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Code });
       nextTick(() => emit("focus", "code"));
@@ -90,6 +96,7 @@ const quickActions = computed(() => {
   });
   actions.push({
     id: "data",
+    icon: getStatementIconSolid(StatementType.Dataset),
     action: () => {
       ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Dataset });
       nextTick(() => emit("focus", "dataset"));
@@ -100,8 +107,12 @@ const quickActions = computed(() => {
 });
 const quickActionsRefs = useElementRefs<HTMLButtonElement>(quickActions, {
   navigateLeft: () => textRef.value?.focus("last"),
-  navigateRight: () => emit("navigateRight"),
+  navigateRight: () => focusAction(0),
 });
+
+function focusAction(id: string | number) {
+  quickActionsRefs.focus(id);
+}
 
 defineExpose({
   focus,
@@ -110,7 +121,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex w-full flex-row text-gray-900" @click="textRef?.focus">
+  <div class="relative w-full text-gray-900" @click="textRef?.focus">
     <!-- Actual text -->
     <AnnotatedText
       ref="textRef"
@@ -140,22 +151,24 @@ defineExpose({
       Enter text...
     </button>
     <!-- Quick inline actions (positioned as not to disturb the flow) -->
+    <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
     <!-- :InlineButtonPillStyle -->
-    <div class="relative">
-      <div
-        v-if="quickActions.length > 0 && focused"
-        class="absolute ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity"
-      >
+    <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
+      <div class="absolute -top-3.5 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity">
         <button
           v-for="action in quickActions"
           :key="action.id"
           :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
-          class="flex h-fit max-h-fit flex-row rounded-sm bg-orange-100 bg-opacity-20 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700"
+          class="group flex h-fit max-h-fit flex-row items-center rounded-sm bg-orange-100 bg-opacity-20 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700 focus:outline-none"
           @click="action.action"
           @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
           @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"
         >
-          {{ action.id }}
+          <component
+            :is="action.icon"
+            class="mr-0.5 mt-0.5 h-4 w-4 text-gray-300 transition-colors duration-150 group-hover:text-gray-500 group-focus:text-gray-500"
+          />
+          <span>{{ action.id }}</span>
         </button>
       </div>
     </div>

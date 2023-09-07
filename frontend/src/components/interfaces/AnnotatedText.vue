@@ -33,7 +33,7 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- placeholder passthrough until we get actual annotated text -->
+  <!-- placeholder passthrough until we get actual annotated text, see :BE-301 -->
   <EditableSpan
     ref="spanRef"
     :model-value="modelValue"

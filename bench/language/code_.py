@@ -647,7 +647,8 @@ def _parse_code(code: str | None) -> "CodeParse":
         tree = ast.parse(code)
         extractor = ReferenceExtractor()
         extractor.visit(tree)
-    except SyntaxError:
+    except (SystemError, SyntaxError) as e:
+        logger.debug("code.parse.error", e=e, excinfo=e)
         return CodeParse()
 
     # remove references to builtins

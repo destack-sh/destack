@@ -29,7 +29,8 @@ export function useElementRefs<RefType = HTMLInputElement>(
     return refs.value[id];
   }
 
-  function focus(id: string) {
+  function focus(id: string | number) {
+    id = typeof id == "number" ? elements?.value?.[id].id ?? "" : id;
     (refs.value[id] as { focus?: () => void })?.focus?.();
   }
 

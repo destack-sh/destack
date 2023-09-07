@@ -30,7 +30,7 @@ module.exports = {
         },
       }),
       animation: {
-        fadeInSlow: "fadeInSlow 1.0s forwards",
+        fadeInSlow: "fadeInSlow 1.5s forwards",
       },
       keyframes: {
         fadeInSlow: {
