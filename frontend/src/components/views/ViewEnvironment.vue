@@ -136,7 +136,7 @@ const statusIconSolid = computed(() =>
     </div>
     <!-- Environment -->
     <div
-      class="mt-0.5 flex flex-col gap-y-1 pl-3 pr-5 text-sm"
+      class="mt-0.5 flex flex-col gap-y-1.5 pl-3 pr-5 text-sm"
       v-if="environment != null && resourcesInfo != null && workerSet != null && projectUsage != null"
     >
       <!-- Status/actions -->

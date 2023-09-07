@@ -101,10 +101,15 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
                     log.debug("inference.cache.hit", output=describe_type(outputs))
                     check_type(outputs, self, is_output=True)
                     self.session.tracer.run_cached(
-                        self, inputs, outputs, inference.generated_at, inference.duration
+                        statement=self,
+                        inputs=inputs,
+                        outputs=outputs,
+                        generated_at=inference.generated_at,
+                        generated_in=inference.generated_in,
+                        duration=inference.duration,
                     )
                     return DotDict(outputs)
-                except (ValueError, TypeError, JSONDecodeError) as e:
+                except Exception as e:
                     log.warning("inference.cache.error", e=e, exc_info=e)
                     # ignore and continue, will be overwritten
 
@@ -282,6 +287,7 @@ class Inference:
     def to_json_bytes(self) -> bytes:
         inference_json = {
             "generated_at": self.generated_at.isoformat(),
+            "generated_in": str(self.generated_in),  # UUID is not JSON serializable
             "duration": self.duration,
             "inputs": self.inputs,
             "output": self.outputs,
@@ -293,6 +299,7 @@ class Inference:
         data = msgpack.unpackb(json_str, raw=False)
         return cls(
             generated_at=datetime.fromisoformat(data["generated_at"]),
+            generated_in=UUID(data["generated_in"]),
             duration=data["duration"],
             inputs=data["inputs"],
             outputs=data["output"],

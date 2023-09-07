@@ -35,7 +35,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.session import RunStatus
+from bench.language.session import RunStatus, RunError
 from bench.language.task import (
     CompiledInput,
     IncapableError,
@@ -392,14 +392,14 @@ class OpenAIChatInput(CompiledInput):
 class OpenAIChatCompiler(TaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
-        content="You are a precise and capable Bench bot that interprets instructions generously."
-        "Perform any reasonable task to a best estimate, you do almost anything."
-        " Be concise, don't say much, always call a function.",
+        content="You are a precise and highly capable bot that can do almost anything a user asks."
+        " Interpret inputs generously and attentively, be concise, be considerate."
+        " You are accessed through an API, so don't respond to the user directly.",
     )
     PANIC_FUNCTION = OpenAIFunction(
         name="panic",
-        text="Error if no reasonable termination is possible given the instructions."
-        " Strongly prefer calling 'terminate' with the relevant error info instead.",
+        text="Error if no reasonable termination is possible at all."
+        " Strongly prefer 'complete' with the relevant error info instead.",
         parameters=JsonSchemaElement(
             name=None,  # not needed for root object
             type=JsonSchemaElementType.object,
@@ -430,9 +430,9 @@ class OpenAIChatCompiler(TaskCompiler):
         else:
             return statement.name or "<no name>"
 
-    def _compile_function(self, tool: Code | Task | Model) -> OpenAIFunction:
+    def _compile_function(self, tool: Runnable, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
-            name=tool.py_ident,
+            name=prefix + tool.py_ident,
             text=tool.text,
             parameters=_type_to_json_schema(tool, is_output=False),
         )
@@ -456,10 +456,7 @@ class OpenAIChatCompiler(TaskCompiler):
 
     def _compile_run(self, run: Run) -> OpenAIChatMessage:
         if run.status == RunStatus.Failed:
-            return OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"Avoid previous error: {run.error}",
-            )
+            return self._compile_error(run)
         else:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
@@ -468,6 +465,12 @@ class OpenAIChatCompiler(TaskCompiler):
                     map_value(run.outputs, run.runnable, map_v=self._render_value_flat)
                 ),
             )
+
+    def _compile_error(self, error: RunError | TaskError) -> OpenAIChatMessage:
+        return OpenAIChatMessage(
+            role=OpenAIChatRole.system,
+            content=f"Avoid previous error: {error}",
+        )
 
     def compile(
         self,
@@ -478,6 +481,16 @@ class OpenAIChatCompiler(TaskCompiler):
         nonce: Optional[str],
     ) -> OpenAIChatInput:
         # custom messages
+        context_messages = []
+        # nocheckin: compile context nodes from view
+        previous_messages = []
+        for result in previous_results:
+            if isinstance(result, TaskError):
+                previous_messages.append(self._compile_error(result))
+            elif isinstance(result, Run):
+                previous_messages.append(self._compile_run(result))
+            else:
+                raise UnreachableError()
 
         # default/wrapper messages
         inputs = map_value(
@@ -487,39 +500,43 @@ class OpenAIChatCompiler(TaskCompiler):
             map_v=self._render_value_flat,
             is_output=False,
         )
-        nonce_str = f"nonce:{nonce} " if nonce else ""
+        nonce_str = f"nonce:{nonce}\n" if nonce else ""
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Your task is {self._render_statement_with_text(task)}"
-                f" You will be given user inputs and you must call the most appropriate function.",
+                content=f"Your task is {self._render_statement_with_text(task)}.",
             ),
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
-                content=f"{nonce_str}Inputs for '{task.name}': \n\n: {inputs}",
+                content=f"{nonce_str}The user's inputs for '{task.name}': \n\n: {inputs}",
             ),
+            *previous_messages,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now perform the task '{task.name}' using the inputs as needed, considering the instructions carefully."
-                f" Finally, call a relevant function as instructed.",
+                content=f"Now complete the task '{task.name}' given the inputs with an appropriate function."
+                f" Consider the instructions carefully and follow the schema.",
             ),
         ]
 
         # relevant functions
         available_functions = [f for f in view.nodes if isinstance(f, Code)]
+        user_function_prefix = "_"
+        user_functions_by_name: dict[str, Runnable] = {
+            user_function_prefix + f.py_ident: f for f in available_functions
+        }
         functions: list[OpenAIFunction] = [
             # nocheckin: select functions from view more intelligently
-            *(self._compile_function(f) for f in available_functions),
+            *(self._compile_function(f, prefix=user_function_prefix) for f in available_functions),
             # include function to terminate with a result for overall task
             OpenAIFunction(
-                name="terminate",
-                text=f"Complete the task {task.name} with an answer (if any).",
+                name="complete",
+                text=f"Complete the task '{task.name}' with an answer (if any)."
+                f" Call this on successful completion.",
                 parameters=_type_to_json_schema(task, is_output=True),
             ),
             self.PANIC_FUNCTION,
         ]
-        functions_by_name: dict[str, Runnable] = {f.py_ident: f for f in available_functions}
 
         # settings
         settings = OpenAIChatSettings(
@@ -539,7 +556,7 @@ class OpenAIChatCompiler(TaskCompiler):
             settings=settings,
             messages=messages,
             functions=functions,
-            runnables_by_name=functions_by_name,
+            runnables_by_name=user_functions_by_name,
         )
 
     async def run(
@@ -563,7 +580,7 @@ class OpenAIChatCompiler(TaskCompiler):
         # handle standard panic/terminate
         if rep.function_call.name == "panic":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
-        elif rep.function_call.name == "terminate":
+        elif rep.function_call.name == "complete":
             try:
                 check_type(arguments, input.task, is_output=True)
                 return TaskOutput(result_raw=arguments)

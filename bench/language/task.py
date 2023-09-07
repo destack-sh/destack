@@ -4,6 +4,9 @@ import itertools
 import random
 from dataclasses import dataclass
 from typing import Collection, Optional, Self, Union
+from uuid import UUID
+
+from more_itertools import first
 
 from bench.language.basic import HasText
 from bench.language.const import StatementType, TypeTag
@@ -159,7 +162,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         return self
 
 
-class ModuleView(ModuleVisitor):
+class ModuleView:
     def __init__(self, module: Module, origin: Statement):
         super().__init__()
         self.module = module
@@ -167,45 +170,69 @@ class ModuleView(ModuleVisitor):
 
     @property
     def nodes(self) -> Collection[ModuleNode]:
-        return self._visited_node_by_ck.values()
+        return self._descendant_by_ck.values()
 
-    def collect(self, max_child_depth: Optional[int], max_reference_depth: Optional[int]):
-        visitor = ModuleVisitor()
-        visitor.visit_child(self.origin)
-        pass  # nocheckin expand view properly
+    def collect(self, max_child_depth: Optional[int], max_reference_depth: Optional[int]) -> None:
+        # nocheckin expand view properly
+        seen: dict[UUID, ModuleNode] = {}
+
+        # first follow all children
+        child_visitor = ModuleVisitor()
+        to_visit = [self.origin]
+        child_depth = 0
+        while to_visit and (max_child_depth is None or child_depth < max_child_depth):
+            for node in to_visit:
+                seen[node.ck] = node
+                node._visit(child_visitor)
+            to_visit = [n for n in child_visitor.subtree if n.ck not in seen]
+
+        # then follow all references
+        to_visit = [*child_visitor.references]
+        reference_depth = 0
+        while to_visit and (max_reference_depth is None or reference_depth < max_reference_depth):
+            for node in to_visit:
+                seen[node.ck] = node
+                node._visit(self)
+            to_visit = [n for n in self.references if n.ck not in seen]
 
 
 async def run_task(
     task: Task, root_models: list[Model], view: ModuleView, inputs: dict, nonce: Optional[str]
-):
+) -> dict:
     num_retries_total = 0
     root_model = root_models[0]
 
+    previous_results = []
     while num_retries_total < 5:
-        # nocheckin: track metadata in task/model runs
-        previous_results = []
-
+        num_retries_total += 1
+        # TODO @UX: track metadata in task/model runs
         # get next thing to run or terminate
         compiled = root_model.compiler.compile(task, view, inputs, previous_results, nonce)
         try:
-            output = await root_model.compiler.run(root_model, compiled)
-            if output.runnable is None:
+            step = await root_model.compiler.run(root_model, compiled)
+            if step.runnable is None:
                 # done, terminate
-                return instantiate_value(output.result_raw, task, is_output=True)
+                output = instantiate_value(
+                    step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
+                )
+                return output
 
             # runnable to call
-            inputs = instantiate_value(output.result_raw, output.runnable, is_output=False)
+            inputs = instantiate_value(step.result_raw, step.runnable, is_output=False)
         except Exception as e:
             previous_results.append(TaskError.from_exception(e))
             continue
 
         # call runnable
         try:
-            _ = await output.runnable(**inputs)
-        except Exception:  # noqa: E722
+            with task.session.tracer.run.capture() as capture:
+                _ = await step.runnable(**inputs)
+            run = first((r for r in capture.runs if r.runnable == step.runnable), None)
+            assert run is not None, f"runnable run not found: {step.runnable}"
+        except Exception:  # noqa
             pass  # nothing to do, already captured by tracer
 
-        # nocheckin: get run from tracer somehow?
+    raise TaskError(TaskErrorType.ExceededLimit, task, f"max retries exceeded: {num_retries_total}")
 
 
 @dataclass
