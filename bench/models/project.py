@@ -17,7 +17,7 @@ from bench.language import wire
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement, duplicate_versioned_datasets
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
-from bench.settings import LOCAL, PROJECT_BUCKET_NAME
+from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
@@ -696,21 +696,25 @@ class File(CrudNode):
         constraints = []
 
 
-def create_global_project_s3_bucket():
+def create_global_project_s3_bucket(ignore_exists: bool):
     """
     Creates a public S3 bucket for all projects.
     """
     s3_client = get_s3_client()
     response = s3_client.create_bucket(
-        Bucket=PROJECT_BUCKET_NAME,
+        Bucket=GLOBAL_PROJECT_BUCKET_NAME,
         CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
     )
-    if response["ResponseMetadata"]["HTTPStatusCode"] != 200:
+    code = response["ResponseMetadata"]["HTTPStatusCode"]
+    if code == 409 and ignore_exists:
+        logger.info("global project bucket already exists")
+        return
+    if code != 200:
         raise RuntimeError(f"failed to create s3 bucket: {response}")
     if not LOCAL:
         # enable cors
         response = s3_client.put_bucket_cors(
-            Bucket=PROJECT_BUCKET_NAME,
+            Bucket=GLOBAL_PROJECT_BUCKET_NAME,
             CORSConfiguration={
                 "CORSRules": [
                     {
@@ -727,7 +731,7 @@ def create_global_project_s3_bucket():
             raise RuntimeError(f"failed to set cors on s3 bucket: {response}")
         # set encryption
         response = s3_client.put_bucket_encryption(
-            Bucket=PROJECT_BUCKET_NAME,
+            Bucket=GLOBAL_PROJECT_BUCKET_NAME,
             ServerSideEncryptionConfiguration={
                 "Rules": [
                     {

@@ -11,7 +11,7 @@ from django.db import models
 
 from bench.language.remote import REMOTE_OBJECT_HASH_LENGTH
 from bench.models.utils import UUIDModel
-from bench.settings import PROJECT_BUCKET_NAME
+from bench.settings import GLOBAL_PROJECT_BUCKET_NAME
 
 REMOTE_OBJECT_PRESIGNED_POST_EXPIRY = 60 * 60  # 1 hour
 REMOTE_OBJECT_PRESIGNED_GET_EXPIRY = 60 * 60 * 24  # 1 day
@@ -78,7 +78,7 @@ class RemoteObject(UUIDModel):
         s3_client = get_s3_client()
         try:
             metadata = s3_client.head_object(
-                Bucket=PROJECT_BUCKET_NAME,
+                Bucket=GLOBAL_PROJECT_BUCKET_NAME,
                 Key=str(self.id),
             )
             if metadata["ContentLength"] != self.content_length:
@@ -95,7 +95,7 @@ class RemoteObject(UUIDModel):
             return self.presigned_post
         s3_client = get_s3_client()
         response = s3_client.generate_presigned_post(
-            Bucket=PROJECT_BUCKET_NAME,
+            Bucket=GLOBAL_PROJECT_BUCKET_NAME,
             Key=str(self.id),
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_POST_EXPIRY,
             Fields={},
@@ -116,7 +116,7 @@ class RemoteObject(UUIDModel):
         response = s3_client.generate_presigned_url(
             ClientMethod="get_object",
             Params={
-                "Bucket": PROJECT_BUCKET_NAME,
+                "Bucket": GLOBAL_PROJECT_BUCKET_NAME,
                 "Key": str(self.id),
             },
             ExpiresIn=REMOTE_OBJECT_PRESIGNED_GET_EXPIRY,

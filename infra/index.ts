@@ -573,7 +573,7 @@ const serverStatefulSet = new k8s.apps.v1.StatefulSet(
                 { name: "SEND_API_PUB_MSG", value: "" },
               ],
               command: ["/bin/sh", "-c"],
-              args: ["python manage.py migrate && python manage.py libs upsert all"],
+              args: ["python manage.py migrate && python.manage.py s3 create && python manage.py libs upsert all"],
             },
           ],
           containers: [

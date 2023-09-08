@@ -16,4 +16,4 @@ class Command(BaseCommand):
     @transaction.atomic
     def handle(self, action: str, *args, **options):
         if action == "create":
-            create_global_project_s3_bucket()
+            create_global_project_s3_bucket(ignore_exists=True)
