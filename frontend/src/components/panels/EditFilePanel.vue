@@ -191,12 +191,8 @@ async function insertOrFocusStatementStart() {
   if (context.value?.positionedStatements.length == 0) {
     insertStatementStart();
   } else {
-    focusStatementStart();
+    panel.value.editElement(context.value?.positionedStatements[0].statement as NavElement);
   }
-}
-
-function focusStatementStart() {
-  panel.value.editElement(context.value?.positionedStatements[0].statement as NavElement);
 }
 
 async function insertOrFocusStatementEnd() {
@@ -490,7 +486,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
         }"
         v-model="name"
         @enter="goToContent"
-        @navigate-down="focusStatementStart"
+        @navigate-down="insertOrFocusStatementStart"
         :readonly="bench.readonly || isDeleted || isOtherVersion"
         :actions="fileActions.filter((f) => !f.hideInline)"
         :thing="fileHeader"

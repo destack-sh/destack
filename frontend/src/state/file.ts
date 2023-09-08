@@ -153,7 +153,7 @@ export type StatementLocation = {
   orderKey: string;
 };
 
-// TODO @Cleanup @Architecture: decouple navigation from file context?
+// TODO @Cleanup @Architecture: decouple navigation from file context? it's all a bit convoluted..
 export type NavigationContext = FileContext & {
   current: CurrentNavigationContext;
 
@@ -236,12 +236,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   function getLocationRightAbove(statement: StatementHeader): StatementLocation {
-    const above = getAbove(statement as StatementHeader);
-    const statementParentId = statementsById.value[statement.id]?.parent?.id;
-    const orderKey = generateKeyBetween(
-      above != null && above.parent?.id == statementParentId ? above?.orderKey : null,
-      statement.orderKey
-    );
+    const above = getPreviousSibling(statement);
+    const orderKey = generateKeyBetween(above != null ? above?.orderKey : null, statement.orderKey);
     return {
       fileId: file.value?.file?.id,
       parentId: statement.parent?.id,
@@ -250,12 +246,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   }
 
   function getLocationRightBelow(statement: StatementHeader): StatementLocation {
-    const below = getBelow(statement as StatementHeader);
-    const statementParentId = statementsById.value[statement.id]?.parent?.id;
-    const orderKey = generateKeyBetween(
-      statement.orderKey,
-      below != null && below.parent?.id == statementParentId ? below?.orderKey : null
-    );
+    const below = getNextSibling(statement);
+    const orderKey = generateKeyBetween(statement.orderKey, below != null ? below?.orderKey : null);
     return {
       fileId: file.value?.file?.id,
       parentId: statement.parent?.id,
@@ -340,11 +332,11 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     return null;
   }
 
-  function getAbove(statement: StatementHeader): StatementHeader | null {
+  function getAboveInOrder(statement: StatementHeader): StatementHeader | null {
     return statements.value[statementPositions.value[statement.id] - 1];
   }
 
-  function getBelow(statement: StatementHeader): StatementHeader | null {
+  function getBelowInOrder(statement: StatementHeader): StatementHeader | null {
     return statements.value[statementPositions.value[statement.id] + 1];
   }
 
@@ -427,7 +419,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   async function moveUp(statement: StatementHeader) {
     // insert between above and above prev sibling (if any)
-    const above = getAbove(statement);
+    const above = getAboveInOrder(statement);
     if (above == null) return;
     const aboveSiblings = statementsByParentId.value[above.parent?.id ?? ""];
     const abovePrevSibling = aboveSiblings
@@ -705,8 +697,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       children: statementsByParentId.value[statement.value?.id ?? ""] ?? [],
       position: statementPositions.value[statement.value?.id],
       location: statement.value == null ? undefined : getLocation(statement.value),
-      above: statement.value == null ? undefined : getAbove(statement.value),
-      below: statement.value == null ? undefined : getBelow(statement.value),
+      above: statement.value == null ? undefined : getAboveInOrder(statement.value),
+      below: statement.value == null ? undefined : getBelowInOrder(statement.value),
       aboveGroup: statement.value == null ? undefined : getAboveGroup(statement.value),
       belowGroup: statement.value == null ? undefined : getBelowGroup(statement.value),
     } as CurrentNavigationContext;
@@ -726,8 +718,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       getDescendants,
       getAboveGroup,
       getBelowGroup,
-      getAbove,
-      getBelow,
+      getAbove: getAboveInOrder,
+      getBelow: getBelowInOrder,
       isDescendantOf,
 
       // indentation

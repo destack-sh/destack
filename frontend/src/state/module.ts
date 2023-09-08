@@ -233,6 +233,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   const errors = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Error));
   const warnings = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Warning));
+  const notices = computed(() => issues.value?.filter((e) => e.kind == IssueKind.Notice));
 
   // TODO @Performance: cache default libs (and any other static module dependencies)
   // load default libraries, derive their ids deterministically from their names and current version :BuiltinLibs
@@ -485,6 +486,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     issues,
     errors,
     warnings,
+    notices,
     idx,
     dependenciesIndex,
     // utils

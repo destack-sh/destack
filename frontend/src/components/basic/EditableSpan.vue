@@ -122,7 +122,9 @@ function selectStart() {
     } else {
       // span has no text content yet
       selection.selectAllChildren(spanRef.value);
-      selection.collapseToStart();
+      if (props.modelValue.length > 0) {
+        selection.collapseToStart();
+      }
     }
   }
 }
