@@ -39,9 +39,9 @@ function blur() {
 
 // if text statement: morph to blank if empty
 watch(
-  text,
+  () => [text.value, props.readonly],
   () => {
-    if (props.statement.type == StatementType.Text && (props.statement.headingLevel ?? 0) == 0) {
+    if (!props.readonly && props.statement.type == StatementType.Text && (props.statement.headingLevel ?? 0) == 0) {
       if (text.value == "") {
         // should ideally be done in one tx, but we don't have that yet
         textSync.flushNow();
