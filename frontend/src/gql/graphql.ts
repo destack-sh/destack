@@ -368,7 +368,8 @@ export enum IssueType {
   Internal = "INTERNAL",
   MismatchedUnion = "MISMATCHED_UNION",
   MissingReference = "MISSING_REFERENCE",
-  UnclearIntent = "UNCLEAR_INTENT",
+  TaskImpossible = "TASK_IMPOSSIBLE",
+  TaskMissingIo = "TASK_MISSING_IO",
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 
@@ -3479,7 +3480,7 @@ export type ProjectVersionHeaderFragment = {
 } & { " $fragmentName"?: "ProjectVersionHeaderFragment" };
 
 export type ProjectHeaderFragment = {
-  __typename: "Project";
+  __typename?: "Project";
   id: any;
   createdAt: any;
   updatedAt: any;
@@ -3536,17 +3537,17 @@ export type StatementHeaderFragment = {
   deletedAt?: any | null;
   lastEditedAt?: any | null;
   parent:
-    | { __typename?: "Field" }
+    | { __typename?: "Field"; id: any }
     | { __typename?: "File"; id: any }
-    | { __typename?: "Issue" }
-    | { __typename?: "ProjectVersion" }
+    | { __typename?: "Issue"; id: any }
+    | { __typename?: "ProjectVersion"; id: any }
     | { __typename?: "Statement"; id: any }
-    | { __typename?: "Tagging" }
-    | { __typename?: "Trigger" };
+    | { __typename?: "Tagging"; id: any }
+    | { __typename?: "Trigger"; id: any };
 } & { " $fragmentName"?: "StatementHeaderFragment" };
 
 export type FieldContentFragment = {
-  __typename: "Field";
+  __typename?: "Field";
   id: any;
   ck: any;
   revision: number;
@@ -5738,7 +5739,6 @@ export const ProjectHeaderFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
-          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -5878,24 +5878,7 @@ export const StatementHeaderFragmentDoc = {
             name: { kind: "Name", value: "parent" },
             selectionSet: {
               kind: "SelectionSet",
-              selections: [
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-                {
-                  kind: "InlineFragment",
-                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "Statement" } },
-                  selectionSet: {
-                    kind: "SelectionSet",
-                    selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
-                  },
-                },
-              ],
+              selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
@@ -5966,7 +5949,6 @@ export const FieldContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
-          { kind: "Field", name: { kind: "Name", value: "__typename" } },
           { kind: "Field", name: { kind: "Name", value: "id" } },
           { kind: "Field", name: { kind: "Name", value: "ck" } },
           { kind: "Field", name: { kind: "Name", value: "revision" } },

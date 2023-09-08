@@ -47,7 +47,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref, type Component } from "vue";
 
 const props = defineProps<{
   file: FileHeader;

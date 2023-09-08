@@ -61,6 +61,7 @@ import {
   ArrowLeftIcon,
   ArrowRightIcon,
   HomeIcon as HomeIconSolid,
+  CubeIcon as CubeIconSolid,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
@@ -534,7 +535,7 @@ onBeforeUnmount(() => {
               @click="toggleActiveView('environment', true)"
               v-if="!workerSetHealthy"
             >
-              <CubeIcon class="h-5 w-5" />
+              <CubeIconSolid class="h-5 w-5" />
               <!-- Tooltip -->
               <span
                 class="pointer-events-none absolute -left-1/2 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"

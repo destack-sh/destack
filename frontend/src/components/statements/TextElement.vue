@@ -63,11 +63,11 @@ type QuickAction = {
 };
 const quickActions = computed(() => {
   if (
+    !props.focused ||
     props.statement.type != StatementType.Text ||
     (props.statement.headingLevel ?? 0) != 0 ||
     props.statement.name != null ||
-    props.readonly ||
-    !props.focused
+    props.readonly
   )
     return [];
   const actions: QuickAction[] = [];

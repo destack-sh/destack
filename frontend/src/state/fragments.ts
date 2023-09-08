@@ -68,7 +68,6 @@ export const ProjectVersionHeaderType = graphql(/* GraphQL */ `
 
 export const ProjectHeaderType = graphql(/* GraphQL */ `
   fragment ProjectHeader on Project {
-    __typename
     id
     createdAt
     updatedAt
@@ -138,12 +137,7 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
     text
     orderKey
     parent {
-      ... on File {
-        id
-      }
-      ... on Statement {
-        id
-      }
+      id
     }
     createdAt
     updatedAt
@@ -155,7 +149,6 @@ export const StatementHeaderType = graphql(/* GraphQL */ `
 export const FieldType = graphql(/* GraphQL */ `
   fragment FieldContent on Field {
     # :FieldContent
-    __typename
     id
     ck
     revision

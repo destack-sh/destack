@@ -354,8 +354,9 @@ class SessionQuery:
         project_id: GlobalID,
         project_version_id: GlobalID,
     ) -> SessionState | OperationInfo:
-        project = models.Project.objects.get(id=to_uuid(project_id))
+        project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
+        project = models.Project.objects.get(id=project_id)
         check_project_access(info, project, ProjectAccessLevel.Read)
 
         runnable_statements_ids = models.Statement.objects.filter(
@@ -366,7 +367,7 @@ class SessionQuery:
 
         # subquery to get the latest run per runnable_id
         latest_runs = models.Run.objects.filter(
-            runnable_id=OuterRef("pk"), project_version_id=project_version_id
+            runnable_id=OuterRef("pk"), project_id=project_id
         ).order_by("-updated_at")
 
         # get ids of the latest runs for each runnable statement
@@ -379,7 +380,10 @@ class SessionQuery:
         )
         latest_run_instances = models.Run.objects.filter(
             django.db.models.Q(id__in=latest_run_ids)
-            | django.db.models.Q(status__in=PENDING_RUN_STATUSES)
+            | (
+                django.db.models.Q(status__in=PENDING_RUN_STATUSES)
+                & django.db.models.Q(project_id=project_id)
+            )
         )
         return SessionState(worker_set=project.worker_set, runs=latest_run_instances)
 
