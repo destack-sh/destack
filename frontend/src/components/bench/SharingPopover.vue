@@ -13,7 +13,7 @@ import {
   PopoverButton,
   PopoverPanel,
 } from "@headlessui/vue";
-import { ChevronUpDownIcon, LinkIcon, ShareIcon } from "@heroicons/vue/24/outline";
+import { ChevronUpDownIcon, LinkIcon, ShareIcon } from "@heroicons/vue/24/solid";
 import { computed } from "vue";
 
 const props = defineProps<{

@@ -79,13 +79,13 @@ const documents = {
     types.HasCrudContentFragmentDoc,
   "\n  fragment ProjectVersionHeader on ProjectVersion {\n    id\n    ck\n    name\n    tag\n    description\n    committed\n    committedAt\n    parents {\n      id\n    }\n    children {\n      id\n    }\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n":
     types.ProjectVersionHeaderFragmentDoc,
-  "\n  fragment ProjectHeader on Project {\n    __typename\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n":
+  "\n  fragment ProjectHeader on Project {\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n":
     types.ProjectHeaderFragmentDoc,
   "\n  fragment FileHeader on File {\n    __typename\n    id\n    ck\n    revision\n    name\n    parent {\n      id\n    }\n    projectVersion {\n      id\n    }\n    deletedAt\n    id\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n":
     types.FileHeaderFragmentDoc,
-  "\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      ... on File {\n        id\n      }\n      ... on Statement {\n        id\n      }\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n":
+  "\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n":
     types.StatementHeaderFragmentDoc,
-  "\n  fragment FieldContent on Field {\n    # :FieldContent\n    __typename\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n":
+  "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n":
     types.FieldContentFragmentDoc,
   "\n  fragment TaggingContent on Tagging {\n    # :TaggingContent\n    id\n    ck\n    revision\n    key\n    parent {\n      id\n    }\n    referenceCk\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n":
     types.TaggingContentFragmentDoc,
@@ -493,8 +493,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment ProjectHeader on Project {\n    __typename\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n"
-): typeof documents["\n  fragment ProjectHeader on Project {\n    __typename\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n"];
+  source: "\n  fragment ProjectHeader on Project {\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n"
+): typeof documents["\n  fragment ProjectHeader on Project {\n    id\n    createdAt\n    updatedAt\n    name\n    slug\n    head {\n      ...ProjectVersionHeader\n    }\n    visibility\n    accessLevel\n    sharingEnabled\n    sharingToken\n    sharingLevel\n    owner {\n      ... on Organization {\n        id\n        slug\n        name\n      }\n      ... on User {\n        id\n        slug\n        username\n        name\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -505,14 +505,14 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      ... on File {\n        id\n      }\n      ... on Statement {\n        id\n      }\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n"
-): typeof documents["\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      ... on File {\n        id\n      }\n      ... on Statement {\n        id\n      }\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n"];
+  source: "\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n"
+): typeof documents["\n  fragment StatementHeader on Statement {\n    __typename\n    id\n    ck\n    type\n    revision\n    name\n    headingLevel\n    text\n    orderKey\n    parent {\n      id\n    }\n    createdAt\n    updatedAt\n    deletedAt\n    lastEditedAt\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n  fragment FieldContent on Field {\n    # :FieldContent\n    __typename\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n"
-): typeof documents["\n  fragment FieldContent on Field {\n    # :FieldContent\n    __typename\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n"];
+  source: "\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n"
+): typeof documents["\n  fragment FieldContent on Field {\n    # :FieldContent\n    id\n    ck\n    revision\n    name\n    key\n    tag\n    hint\n    flags\n    text\n    orderKey\n    referenceCk\n    parent {\n      id\n    }\n    metadata\n    # crud\n    createdAt\n    updatedAt\n    deletedAt\n    createdBy {\n      id\n    }\n    lastEditedAt\n    lastEditedBy {\n      id\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

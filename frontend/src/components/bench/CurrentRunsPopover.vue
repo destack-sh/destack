@@ -8,7 +8,8 @@ import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/
 import { getStatementIconSolid } from "@/state/statement";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { PlayIcon, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon as PlayIconOutline, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
+import { PlayIcon as PlayIconSolid } from "@heroicons/vue/24/solid";
 import { useKeyModifier } from "@vueuse/core";
 import { computed, ref } from "vue";
 
@@ -60,7 +61,7 @@ function launch(statement: InterpStatement) {
         'bg-orange-100': open,
       }"
     >
-      <PlayIcon class="h-5 w-5 text-orange-600" />
+      <PlayIconSolid class="h-5 w-5 text-orange-600" />
       <!-- little number with current runs -->
       <span
         class="absolute -bottom-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-xs font-semibold text-gray-900 transition-opacity duration-150"
@@ -147,7 +148,7 @@ function launch(statement: InterpStatement) {
                 class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
                 @click="() => run(statement)"
               >
-                <PlayIcon class="h-4 w-4" />
+                <PlayIconOutline class="h-4 w-4" />
               </button>
               <button
                 class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
