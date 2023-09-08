@@ -536,12 +536,7 @@ onBeforeUnmount(() => {
               v-if="!workerSetHealthy"
             >
               <CubeIconSolid class="h-5 w-5" />
-              <!-- Tooltip -->
-              <span
-                class="pointer-events-none absolute -left-1/2 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
-              >
-                Workers are {{ workerSet.status.toLocaleLowerCase() }}
-              </span>
+              <span v-if="!workerSetHealthy" class="ml-1">Environment is {{ workerSet.status.toLowerCase() }}</span>
             </span>
           </FadeTransition>
         </div>
