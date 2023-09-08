@@ -444,12 +444,10 @@ class OpenAIChatCompiler(TaskCompiler):
             return records_str, [r.id for r in records]
         elif isinstance(statement, Type):
             if statement.tag == TypeTag.ENUM:
-                options_str = ", ".join(value.name for value in statement.fields)
+                options_str = ", ".join(f"{f.name} ({f.text_plain})" for f in statement.fields)
                 return f"options: {options_str}", [f.id for f in statement.fields]
             elif statement.tag == TypeTag.STRUCT:
-                fields_str = ", ".join(
-                    f"{f.name}: {f.type.name} {f.type.description}" for f in statement.fields
-                )
+                fields_str = ", ".join(f"{f.name}: {f} {f.text_plain}" for f in statement.fields)
                 return f"fields:\n{fields_str}", [f.id for f in statement.fields]
         else:
             return None
