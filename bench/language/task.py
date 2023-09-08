@@ -107,7 +107,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
         self._randomized = self.has_tag(randomize_tag)
 
-        if not self.resolved_fields:
+        if not self.inputs or not self.outputs:
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
