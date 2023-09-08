@@ -174,8 +174,11 @@ const statusIconSolid = computed(() =>
             v-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
             class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
             @click="session.restartWorkerSet()"
-            :class="[session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700']"
-            :disabled="session.restarting.value"
+            :class="[
+              session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700',
+              !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
+            ]"
+            :disabled="session.restarting.value || !bench.canUse"
           >
             <PowerIcon class="mr-1 h-4 w-4" />
             {{ session.restarting.value ? "Restarting..." : "Restart" }}
@@ -184,8 +187,11 @@ const statusIconSolid = computed(() =>
             v-else-if="workerSet.status == WorkerSetStatus.Sleeping"
             class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
             @click="session.wakeWorkerSet()"
-            :class="[session.waking.value ? 'animate-pulse' : 'hover:bg-orange-100 hover:text-gray-700']"
-            :disabled="session.waking.value"
+            :class="[
+              session.waking.value ? 'animate-pulse' : 'hover:bg-orange-100 hover:text-gray-700',
+              !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
+            ]"
+            :disabled="session.waking.value || !bench.canUse"
           >
             <PowerIcon class="mr-1 h-4 w-4" />
             {{ session.waking.value ? "Waking..." : "Wake" }}

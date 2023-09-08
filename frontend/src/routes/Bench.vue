@@ -20,7 +20,16 @@ import { graphql, useFragment } from "@/gql";
 import { ProjectAccessLevel, WorkerSetStatus } from "@/gql/graphql";
 import { provideAction, useActions } from "@/state/actions";
 import { decodeSharingToken, useAuth } from "@/state/auth";
-import { PANEL_INSTANCE_TYPES, prettifySlug, useBenchPersistence, useBenchState, type ViewId } from "@/state/bench";
+import {
+  PANEL_INSTANCE_TYPES,
+  prettifySlug,
+  PROJECT_ACCESS_LEVEL_NAME,
+  projectAccessGt,
+  projectAccessLt,
+  useBenchPersistence,
+  useBenchState,
+  type ViewId,
+} from "@/state/bench";
 import { ProjectHeaderType, ProjectVersionHeaderType } from "@/state/fragments";
 import { useCurrentModule, type ModuleIndex } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
@@ -82,6 +91,7 @@ watch(
   () => {
     if (router.currentRoute.value.query.s != null) {
       ACTIVE_SHARING_TOKEN.value = decodeSharingToken(router.currentRoute.value.query.s as string);
+      console.debug("using sharing token from url", ACTIVE_SHARING_TOKEN.value);
     } else {
       ACTIVE_SHARING_TOKEN.value = null;
     }
@@ -370,14 +380,13 @@ watchEffect(() => {
   bench.readonly =
     !versionLoaded.value ||
     versionToViewId.value != projectHead.value?.id ||
-    (project.value?.accessLevel != null &&
-      ![ProjectAccessLevel.Admin, ProjectAccessLevel.Manage, ProjectAccessLevel.Edit].includes(
-        project.value?.accessLevel
-      )) ||
+    ![ProjectAccessLevel.Admin, ProjectAccessLevel.Manage, ProjectAccessLevel.Edit].includes(
+      bench.projectAccessLevel as ProjectAccessLevel
+    ) ||
     version.value?.committed == true;
 });
 
-// prepare bench state whenever project changes
+// prepare/update bench state whenever project changes
 watch(
   () => [project.value, versionToViewId.value, () => bench.projectId, () => bench.projectVersionId],
   () => {
@@ -393,6 +402,7 @@ watch(
     if (versionToViewId.value != null && bench.projectVersionId != versionToViewId.value) {
       bench.projectVersionId = versionToViewId.value;
     }
+    bench.projectAccessLevel = project.value?.accessLevel ?? null;
   },
   { immediate: true }
 );
@@ -477,12 +487,12 @@ onBeforeUnmount(() => {
           </FadeTransition>
           <!-- Read-only project notice -->
           <div
-            v-if="project != null && bench.readonly"
+            v-if="bench.projectAccessLevel != null && !bench.canEdit"
             class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIconSolid class="top-0.0 absolute h-5 w-5 text-gray-500" />
-              <span class="ml-6 select-none">Read only</span>
+              <span class="ml-6 select-none">{{ PROJECT_ACCESS_LEVEL_NAME[bench.projectAccessLevel] }} only</span>
             </span>
           </div>
         </div>
@@ -510,40 +520,34 @@ onBeforeUnmount(() => {
           </FadeTransition>
         </div>
         <!-- Connection status -->
-        <div v-if="versionLoaded" class="ml-1.5 flex">
-          <FadeTransition appear :duration="500">
-            <span
-              class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
-              :class="[!connectionHealthy ? 'animate-pulse text-yellow-600' : 'text-green-700']"
-              v-show="!connectionHealthy"
-            >
-              <component :is="connectionHealthy ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
-            </span>
-          </FadeTransition>
+        <div v-if="versionLoaded && !connectionHealthy" class="ml-1.5 flex">
+          <span
+            class="cursor-pointer p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+            :class="[!connectionHealthy ? 'animate-pulse text-yellow-600' : 'text-green-700']"
+          >
+            <component :is="connectionHealthy ? SignalIcon : SignalSlashIcon" class="h-4 w-4" />
+          </span>
         </div>
         <!-- Worker status -->
-        <div v-if="workerSet != null" class="ml-1 flex">
-          <FadeTransition appear :duration="500">
+        <div v-if="workerSet != null && !workerSetHealthy" class="ml-1.5 flex">
+          <span
+            class="group relative flex cursor-pointer items-center p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
+            :class="[
+              workerSet.status == WorkerSetStatus.Pending || workerSet.status == WorkerSetStatus.Updating
+                ? 'animate-pulse '
+                : '',
+              WORKER_STATUS_COLOR[workerSet.status],
+            ]"
+            @click="toggleActiveView('environment', true)"
+          >
+            <CubeIconSolid class="h-5 w-5" />
+            <span v-if="!workerSetHealthy" class="ml-1">{{ WORKER_STATUS_TITLE[workerSet.status] }}</span>
             <span
-              class="group relative flex cursor-pointer items-center p-1 text-sm transition-colors duration-150 hover:bg-orange-100"
-              :class="[
-                workerSet.status == WorkerSetStatus.Pending || workerSet.status == WorkerSetStatus.Updating
-                  ? 'animate-pulse '
-                  : '',
-                WORKER_STATUS_COLOR[workerSet.status],
-              ]"
-              @click="toggleActiveView('environment', true)"
-              v-if="!workerSetHealthy"
+              class="pointer-events-none absolute -left-4 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
             >
-              <CubeIconSolid class="h-5 w-5" />
-              <span v-if="!workerSetHealthy" class="ml-1">{{ WORKER_STATUS_TITLE[workerSet.status] }}</span>
-              <span
-                class="pointer-events-none absolute -left-4 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
-              >
-                Environment is {{ WORKER_STATUS_TITLE[workerSet.status].toLowerCase() }}
-              </span>
+              Environment is {{ WORKER_STATUS_TITLE[workerSet.status].toLowerCase() }}
             </span>
-          </FadeTransition>
+          </span>
         </div>
       </template>
 

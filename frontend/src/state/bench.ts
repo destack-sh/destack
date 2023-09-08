@@ -55,8 +55,21 @@ export const PROJECT_ACCESS_LEVELS = [
   ProjectAccessLevel.Admin,
 ];
 
+export const PROJECT_ACCESS_LEVEL_NAME: Record<ProjectAccessLevel, string> = {
+  [ProjectAccessLevel.Zero]: "None",
+  [ProjectAccessLevel.Read]: "Read",
+  [ProjectAccessLevel.Use]: "Use",
+  [ProjectAccessLevel.Edit]: "Edit",
+  [ProjectAccessLevel.Manage]: "Manage",
+  [ProjectAccessLevel.Admin]: "Admin",
+};
+
 export function projectAccessGt(a: ProjectAccessLevel, b: ProjectAccessLevel): boolean {
   return PROJECT_ACCESS_LEVELS.indexOf(a) > PROJECT_ACCESS_LEVELS.indexOf(b);
+}
+
+export function projectAccessLt(a: ProjectAccessLevel, b: ProjectAccessLevel): boolean {
+  return PROJECT_ACCESS_LEVELS.indexOf(a) < PROJECT_ACCESS_LEVELS.indexOf(b);
 }
 
 export type ProjectHeader = Pick<
@@ -268,6 +281,7 @@ export const useBenchState = defineStore("bench", {
       // bench
       projectId: null as string | null,
       projectVersionId: null as string | null,
+      projectAccessLevel: null as ProjectAccessLevel | null,
       readonly: false,
       // views
       activeViewId: "explorer" as ViewId,
@@ -289,6 +303,20 @@ export const useBenchState = defineStore("bench", {
     };
   },
   getters: {
+    // access
+    canRead(): boolean {
+      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Read);
+    },
+    canUse(): boolean {
+      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Use);
+    },
+    canEdit(): boolean {
+      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Edit);
+    },
+    canManage(): boolean {
+      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Manage);
+    },
+    // bench
     groups(state) {
       return [state.left, state.right];
     },
@@ -324,6 +352,7 @@ export const useBenchState = defineStore("bench", {
       if (this.focusedPanel?.groupId == null) return undefined;
       return this.group(this.focusedPanel?.groupId);
     },
+    // appearance
     appearance() {
       return useAppearanceState();
     },
@@ -342,10 +371,6 @@ export const useBenchState = defineStore("bench", {
     fontMono(): boolean {
       const appearance = useAppearanceState();
       return appearance.fontMono;
-    },
-    inlineMetrics(): boolean {
-      const appearance = useAppearanceState();
-      return appearance.inlineMetrics;
     },
   },
   actions: {

@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { useAppearance } from "@/state/appearance";
+import { useBenchState } from "@/state/bench";
 import type { Field } from "@/state/module";
 import { useSecrets, type SecretRecord } from "@/state/secret";
 import { syncProperty } from "@/utils/sync";
@@ -19,6 +20,7 @@ const emit = defineEmits<{
   (e: "enter"): void;
 }>();
 
+const bench = useBenchState();
 const ops = useSecrets();
 
 const setButtonRef = ref<HTMLButtonElement | null>(null);
@@ -124,7 +126,7 @@ defineExpose({
     }"
   >
     <button
-      v-if="!readonly && modelValue == null && preview"
+      v-if="bench.canUse && modelValue == null && preview"
       ref="setButtonRef"
       class="flex flex-row gap-0.5 justify-self-end p-0.5 text-gray-400 opacity-0 hover:bg-orange-100 focus:bg-orange-100 group-focus-within/iface:opacity-100 group-hover/iface:opacity-100"
     >
@@ -143,7 +145,7 @@ defineExpose({
       @keydown.enter.stop.prevent="writeSecretValue(), emit('enter')"
     />
     <!-- Controls -->
-    <div class="flex flex-row gap-0.5" v-if="modelValue != null || !preview">
+    <div class="flex flex-row gap-0.5" v-if="bench.canUse && (modelValue != null || !preview)">
       <button
         v-for="action in inlineActions"
         :key="action.label"

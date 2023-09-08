@@ -18,7 +18,7 @@ import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
-import RunControls from "@/components/tiles/RunControlsTile.vue";
+import RunControlsTile from "@/components/tiles/RunControlsTile.vue";
 
 const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -178,7 +178,7 @@ defineExpose({
   <div class="relative flex flex-col" :style="{ minHeight: panelSize.height + 'px' }">
     <!-- Fixed inline header -->
     <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%]"
+      class="bg-gray-50 shadow-sm"
       :editing="false"
       :thing="statement"
       :actions="terminalActions"
@@ -203,7 +203,14 @@ defineExpose({
         <!-- Title & source -->
         <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "(unnamed)" }}&nbsp;</h1>
         <!-- Run controls -->
-        <RunControls :run="currentRun" :runnable="statement" :inputs="panel.inputs" @rerun="onRun" @run="onRun" />
+        <RunControlsTile
+          :run="currentRun"
+          :runnable="statement"
+          :inputs="panel.inputs"
+          @rerun="onRun"
+          @run="onRun"
+          :hide="['rerun']"
+        />
       </div>
       <!-- Body -->
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">

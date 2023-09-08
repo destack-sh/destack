@@ -111,7 +111,7 @@ class Project(UUIDModel, CrudModel):
     visibility = models.CharField(
         max_length=32, choices=ProjectVisibility.choices, default=ProjectVisibility.PRIVATE
     )
-    sharing_enabled = models.BooleanField(default=False)
+    sharing_enabled = models.BooleanField(default=True)
     sharing_token = models.UUIDField(default=uuid4)
     sharing_level = models.IntegerField(default=ProjectAccessLevel.Read)
     organization: models.ForeignKey = models.ForeignKey(

@@ -32,6 +32,7 @@ defineExpose({
       groupId: "edit",
       icon: CubeTransparentIcon,
       hideInline: true,
+      disabled: props.readonly,
       action: () => {
         createUnionField();
       },

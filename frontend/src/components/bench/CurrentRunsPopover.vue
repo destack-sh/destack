@@ -144,7 +144,7 @@ function launch(statement: InterpStatement) {
             <!-- Controls -->
             <div class="flex flex-row">
               <button
-                v-if="!hasInputs(statement)"
+                v-if="!hasInputs(statement) && bench.canUse"
                 class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
                 @click="() => run(statement)"
               >

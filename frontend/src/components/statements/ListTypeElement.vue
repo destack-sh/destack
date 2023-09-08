@@ -122,6 +122,7 @@ const actions = computed(() => {
     label: "Add " + (isEnum.value ? "option" : "field"),
     groupId: "edit",
     icon: SquaresPlusIcon,
+    disabled: props.readonly,
     action: () => {
       isEnum.value ? createOption() : createFieldRef.value?.show();
     },

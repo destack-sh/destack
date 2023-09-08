@@ -47,7 +47,7 @@ import {
 } from "@heroicons/vue/24/outline";
 import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
-import { computed, nextTick, ref, toRef, watch, type Ref, type Component } from "vue";
+import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
   file: FileHeader;
@@ -579,6 +579,10 @@ function showActionsPopover() {
 
 const sessions = useCurrentSessions();
 function run() {
+  if (!bench.canUse) {
+    console.warn(`can't run ${statement.value} with access level ${bench.projectAccessLevel}`);
+    return;
+  }
   sessions.run(props.statement);
   if (!partsForceShown.value.includes("run")) {
     partsForceShown.value.push("run");

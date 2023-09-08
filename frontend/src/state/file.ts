@@ -669,6 +669,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     {
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
+      disabled: bench.readonly,
       action: () => {
         copy(getSelectedRoots());
         paste();
@@ -677,6 +678,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     {
       label: "Delete",
       icon: TrashIcon,
+      disabled: bench.readonly,
       action: () => {
         if (file.value?.panel.selectedElementIds == null) return;
         ops.statement.batchSoftDelete(file.value?.panel.selectedElementIds);

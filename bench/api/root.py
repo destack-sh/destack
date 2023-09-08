@@ -35,7 +35,7 @@ from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
 from bench.api.utils import HasCrud, get_user_from_info
-from bench.models import OwnerSlug
+from bench.models import OwnerSlug, ProjectAccessLevel
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
 
@@ -119,6 +119,8 @@ def get_featured_projects(self) -> typing.Iterable[Project]:
 @strawberry.type
 class Query(SessionQuery, ClientQuery, RecordQuery):
     system_info: SystemInfo = strawberry_django.field(resolver=lambda: SYSTEM_INFO)
+
+    # users/orgs
     me: Optional[User] = strawberry_django.field(resolver=get_me)
     user: Optional[User] = strawberry_django.node()
     users: strawberry_django.relay.ListConnectionWithTotalCount[
@@ -128,11 +130,12 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     owner_by_slug: Optional[Union[User, Organization]] = strawberry_django.field(
         resolver=get_user_or_organization_by_slug
     )
+
+    # project
     project: Optional[Project] = strawberry_django.node(extensions=[HasProjectAccess()])
     project_by_slug: Optional[Project] = strawberry_django.field(
         resolver=get_project_by_slug, extensions=[HasProjectAccess()]
     )
-    module: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node_by_id)
     project_version: Optional[ProjectVersion] = strawberry_django.node()
     project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
         resolver=get_project_version_by_slug, extensions=[HasProjectAccess()]
@@ -140,6 +143,12 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
         resolver=get_project_version_by_tag, extensions=[HasProjectAccess()]
     )
+    featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
+        Project
+    ] = strawberry_django.connection(resolver=get_featured_projects)
+
+    # module
+    module: Optional[ProjectVersion] = strawberry_django.field(resolver=read_module_node_by_id)
     file: Optional[File] = strawberry_django.field(resolver=read_module_node_by_id)
     statement: Optional[Annotated["Statement", lazy(".statement")]] = strawberry_django.field(
         resolver=read_module_node_by_id
@@ -148,11 +157,8 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
         extensions=[HasProjectAccess(map=lambda obj: obj.project)]
     )
     secret: Optional[Secret] = strawberry_django.node(
-        extensions=[HasProjectAccess(map=lambda obj: obj.project)]
+        extensions=[HasProjectAccess(map=lambda obj: obj.project, level=ProjectAccessLevel.Edit)]
     )
-    featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
-        Project
-    ] = strawberry_django.connection(resolver=get_featured_projects)
 
 
 @strawberry.type
