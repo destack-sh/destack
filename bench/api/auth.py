@@ -95,14 +95,14 @@ def has_project_access(
     if not isinstance(project, models.Project):
         raise ValueError(f"{type(project).__name__} {project} is not a Project")
 
-    possible_accesses = (
+    granted_accesses = (
         get_user_access(info, project),
         get_sharing_token_access(info, project),
         get_default_project_access(project),
         ProjectAccessInfo.zero(project),
     )
     # return the more permissive access level >= level if any
-    access = max((a for a in possible_accesses if a is not None), key=lambda a: a.level)
+    access = max((a for a in granted_accesses if a is not None), key=lambda a: a.level)
     if access.level < level:
         return None
     access.project_version = project_version
