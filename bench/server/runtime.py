@@ -53,7 +53,7 @@ from bench.msg.messages import (
     RepRunInferencePayload,
     RepSearch,
     RepSearchLogPayload,
-    RepSearchRecordPayload,
+    RepSearchRecordsPayload,
     RepSearchRunPayload,
     RepStartRunPayload,
     RepWakeRuntimePayload,
@@ -68,7 +68,7 @@ from bench.msg.messages import (
     ReqRunInferencePayload,
     ReqSearch,
     ReqSearchLogPayload,
-    ReqSearchRecordPayload,
+    ReqSearchRecordsPayload,
     ReqSearchRunsPayload,
     ReqStartRunPayload,
     ReqWakeRuntimePayload,
@@ -93,7 +93,7 @@ from bench.worker.mutate import get_api_mutation_from_internal, trim_record_muta
 
 logger = structlog.get_logger(__name__)
 
-MAX_SEARCH_RECORD_LIMIT = 500
+MAX_SEARCH_RECORDS_LIMIT = 500
 MAX_SEARCH_LOG_LIMIT = 1000
 MAX_SEARCH_RUN_LIMIT = 1000
 
@@ -190,7 +190,7 @@ class RuntimeServer(Monitored):
             await handle_reply(NMessageType.WRITE_MODULE, self.write_module),
             await handle_reply(NMessageType.WRITE_SESSION, self.write_session),
             await handle_reply(NMessageType.WAKE_RUNTIME, self.request_runtime),
-            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_record),
+            await handle_reply(NMessageType.SEARCH_RECORDS, self.search_records),
             await handle_reply(NMessageType.SEARCH_RUNS, self.search_runs),
             await handle_reply(NMessageType.SEARCH_LOGS, self.search_log),
             await handle_reply(NMessageType.READ_OBJECT, self.read_object),
@@ -283,12 +283,12 @@ class RuntimeServer(Monitored):
         project_v: models.ProjectVersion,
         type: Optional[mirror.DocumentType],
         extra_query: Optional[Query],
-        limit: int,
+        max_limit: int,
         req: ReqSearch,
         unpack: typing.Callable,
         rep_cls: typing.Type[RepSearch],
     ) -> RepSearch:
-        effective_limit = min(req.limit, limit)
+        effective_limit = min(req.limit, max_limit)
         try:
             search = prepare_search(
                 type=type,
@@ -336,7 +336,7 @@ class RuntimeServer(Monitored):
         return rep
 
     @message_handler
-    async def search_record(self, msg: NMessage[ReqSearchRecordPayload]) -> None:
+    async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
         logger.debug("search.record", msg=msg)
         extra_queries = []
         if msg.p.statement_ids:
@@ -347,12 +347,12 @@ class RuntimeServer(Monitored):
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
+            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RECORD,
-            limit=MAX_SEARCH_RECORD_LIMIT,
+            max_limit=MAX_SEARCH_RECORDS_LIMIT,
             req=msg.p,
             unpack=_unpack_record,
-            rep_cls=RepSearchRecordPayload,
+            rep_cls=RepSearchRecordsPayload,
         )
         await msg.reply(rep)
 
@@ -368,9 +368,9 @@ class RuntimeServer(Monitored):
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
+            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
             type=mirror.DocumentType.RUN,
-            limit=MAX_SEARCH_RUN_LIMIT,
+            max_limit=MAX_SEARCH_RUN_LIMIT,
             req=msg.p,
             unpack=_unpack_run,
             rep_cls=RepSearchRunPayload,
@@ -389,9 +389,9 @@ class RuntimeServer(Monitored):
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
-            extra_query=Q(QueryOp.AND, *extra_queries) if extra_queries else None,
+            extra_query=Q(QueryOp.AND, extra_queries) if extra_queries else None,
             type=mirror.DocumentType.LOG_ENTRY,
-            limit=MAX_SEARCH_LOG_LIMIT,
+            max_limit=MAX_SEARCH_LOG_LIMIT,
             req=msg.p,
             unpack=_unpack_log,
             rep_cls=RepSearchLogPayload,

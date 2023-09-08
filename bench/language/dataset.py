@@ -302,7 +302,11 @@ class RecordSearch(Search["RecordData", Record]):
     async def _do_search(self, after: str = None, limit: Optional[int] = None, count: bool = False):
         from bench.msg import NMessage
         from bench.msg.core import request
-        from bench.msg.messages import NMessageType, RepSearchRecordPayload, ReqSearchRecordPayload
+        from bench.msg.messages import (
+            NMessageType,
+            RepSearchRecordsPayload,
+            ReqSearchRecordsPayload,
+        )
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
@@ -311,9 +315,9 @@ class RecordSearch(Search["RecordData", Record]):
         else:
             statement_ids = None
             statement_cks = None
-        rep: NMessage[RepSearchRecordPayload] = await request(
+        rep: NMessage[RepSearchRecordsPayload] = await request(
             NMessageType.SEARCH_RECORDS,
-            ReqSearchRecordPayload(
+            ReqSearchRecordsPayload(
                 module_id=self.module.id,
                 statement_ids=statement_ids,
                 statement_cks=statement_cks,
@@ -323,7 +327,8 @@ class RecordSearch(Search["RecordData", Record]):
                 limit=batch_limit,
                 count=count,
             ),
-            reply_t=RepSearchRecordPayload,
+            timeout=5,
+            reply_t=RepSearchRecordsPayload,
         )
         if rep.p.error:
             raise RuntimeError(f"{self} failed (after={after}, limit={limit}): {rep.p.error}")
