@@ -22,6 +22,7 @@ import type { Run } from "@/gql/graphql";
 import StructInterface from "@/components/interfaces/StructInterface.vue";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
+import RunControls from "@/components/tiles/RunControlsTile.vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -120,6 +121,12 @@ defineExpose({
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
         <h1 class="text-3xl font-bold text-gray-900">Run #{{ runUuid.slice(-7, -1) }}&nbsp;</h1>
+        <RunControls
+          :run="(run as Run | undefined)"
+          :runnable="statement ?? undefined"
+          hide-run
+          @rerun="bench.openViewRun($event, { group: panel.group, focus: true })"
+        />
       </div>
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">
         <BusySpinnerIcon class="mx-auto h-8 w-8 animate-spin text-white" />
