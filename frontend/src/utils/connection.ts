@@ -1,15 +1,32 @@
 import type { PageInfo } from "@/gql/graphql";
 
-export type Connection<T> = {
+export type Connection<T, C = string> = {
+  __typename?: C;
   totalCount?: number;
-  edges: { cursor: string; node: T & { id: string } }[];
+  edges: { __typename: string; cursor: string; node: T & { id: string } }[];
   pageInfo: PageInfo;
 };
 
-export function getUpdatedConnectionQuery<T>(
+export function emptyConnection<T, C>(typename: C): Connection<T, C> {
+  return {
+    __typename: typename,
+    totalCount: 0,
+    edges: [],
+    pageInfo: {
+      __typename: "PageInfo",
+      hasNextPage: false,
+      hasPreviousPage: false,
+      startCursor: "",
+      endCursor: "",
+    },
+  };
+}
+
+export function getUpdatedConnectionQuery<T, C = string>(
   node: T & { id: string },
   prev: Connection<T> | undefined,
-  maxLength?: number
+  maxLength?: number,
+  insertAt?: "start" | "end"
 ): Connection<T> {
   // cursor is base64-encoded Connection:{nodeId}
   const newEdge = {
@@ -46,7 +63,7 @@ export function getUpdatedConnectionQuery<T>(
     startCursor: newEdge.cursor,
     hasPreviousPage: false,
   };
-  const edges = [newEdge, ...prev.edges];
+  const edges = insertAt == "start" ? [newEdge, ...prev.edges] : [...prev.edges, newEdge];
   return {
     ...prev,
     totalCount: (prev.totalCount ?? 0) + 1,
