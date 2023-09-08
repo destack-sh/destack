@@ -44,7 +44,7 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
 <template>
   <div class="relative flex flex-col" :style="{ minHeight: panelSize.height + 'px' }">
     <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%]"
+      class="bg-gray-50 shadow-sm"
       :thing="panel"
       :actions="[]"
       :editing="false"

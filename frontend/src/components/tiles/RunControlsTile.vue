@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import type { Run } from "@/gql/graphql";
+import { useBenchState } from "@/state/bench";
 import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
 import { ForwardIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
@@ -8,7 +9,7 @@ const props = defineProps<{
   run?: Run;
   runnable?: { id: string; ck: string };
   inputs?: any;
-  hideRun?: boolean;
+  hide?: ActionId[];
 }>();
 const emit = defineEmits<{
   (e: "run", run: Run): void;
@@ -16,22 +17,24 @@ const emit = defineEmits<{
   (e: "rerun", run: Run): void;
 }>();
 
+const bench = useBenchState();
 const sessions = useCurrentSessions();
 
+type ActionId = "run" | "stop" | "rerun";
 type Action = {
+  id: ActionId;
   label: string;
   icon: any;
   disabled: boolean;
-  hidden?: boolean;
   action: () => void;
 };
 const runActive = computed(() => props.run != null && ACTIVE_RUN_STATUSES.includes(props.run.status));
 const actions: Ref<Action[]> = computed(() => [
   {
+    id: "run",
     label: "Run",
     icon: PlayIcon,
-    disabled: runActive.value || props.runnable == null,
-    hidden: props.hideRun,
+    disabled: !bench.canUse || runActive.value || props.runnable == null,
     action: () => {
       if (props.runnable == null) throw new Error("runnable not set");
       const { run } = sessions.run(props.runnable, { inputs: props.inputs ?? {}, keyed: true });
@@ -39,9 +42,10 @@ const actions: Ref<Action[]> = computed(() => [
     },
   },
   {
+    id: "stop",
     label: "Stop",
     icon: StopIcon,
-    disabled: !runActive.value,
+    disabled: !bench.canUse || !runActive.value,
     action: () => {
       if (props.run == null) throw new Error("run not set");
       sessions.cancel(props.run);
@@ -49,9 +53,10 @@ const actions: Ref<Action[]> = computed(() => [
     },
   },
   {
+    id: "rerun",
     label: "Rerun",
     icon: ForwardIcon,
-    disabled: props.run == null || props.runnable == null,
+    disabled: !bench.canUse || props.run == null || props.runnable == null,
     action: () => {
       if (props.run == null || props.runnable == null) throw new Error("run not set");
       if (runActive.value) {
@@ -67,7 +72,7 @@ const actions: Ref<Action[]> = computed(() => [
 <template>
   <div class="flex flex-row gap-1.5">
     <button
-      v-for="action in actions.filter((a) => !a.hidden)"
+      v-for="action in actions.filter((a) => !props.hide?.includes(a.id))"
       :key="action.label"
       class="flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 shadow-sm"
       :class="[action.disabled ? 'focus:border-opacity-40' : 'hover:bg-orange-100 focus:bg-orange-100']"

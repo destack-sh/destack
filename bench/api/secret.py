@@ -11,7 +11,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_project_access
+from bench.api.auth import CheckTarget, HasProjectAccess, check_project_access
 from bench.api.utils import safe_mutation
 from bench.models import ProjectAccessLevel
 
@@ -30,7 +30,15 @@ class Secret(relay.Node):
     sha512: str
     name: Optional[str]
     project: Annotated["Project", lazy(".project")]
-    value_revealed: JSON = strawberry_django.field(resolver=reveal_secret_value)
+    value_revealed: JSON = strawberry_django.field(
+        resolver=reveal_secret_value,
+        extensions=[
+            # note that this doesn't seem to be working so the entire secret is >=Edit level
+            HasProjectAccess(
+                level=ProjectAccessLevel.Edit, target=CheckTarget.ROOT, map=lambda s: s.project
+            )
+        ],
+    )
 
 
 @strawberry.input

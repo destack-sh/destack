@@ -489,6 +489,7 @@ const actions = computed(() => {
     label: "Add field",
     groupId: "edit",
     icon: SquaresPlusIcon,
+    disabled: props.readonly,
     action: () => {
       createFieldRef.value?.show();
     },
@@ -496,6 +497,7 @@ const actions = computed(() => {
   actions.push({
     label: "Add record",
     groupId: "edit",
+    disabled: props.readonly,
     icon: PlusIcon,
     action: () => {
       insertRecordAtEnd();
@@ -791,7 +793,7 @@ defineExpose({
             Load {{ PAGE_SIZE }} more (of {{ humanizeNumber(totalCount ?? 0) }})
           </template>
         </button>
-        <!-- Insert button -->
+        <!-- Insert button (or 'nothing here') -->
         <button
           v-if="!readonly || recordsInView.length == 0"
           ref="addRecordRef"

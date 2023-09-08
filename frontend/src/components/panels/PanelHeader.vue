@@ -40,7 +40,7 @@ const auth = useAuth();
 </script>
 <template>
   <div
-    class="group fixed z-10 flex flex-row items-center justify-between gap-1 bg-white px-1.5 text-xs"
+    class="group fixed z-10 flex flex-row items-center justify-between gap-1 px-1.5 text-xs"
     :class="appearance.baseClass"
     :style="{ height: appearance.panelHeaderHeight - 4 + 'px', width: panel.size?.value?.width + 'px' }"
   >

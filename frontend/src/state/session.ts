@@ -338,7 +338,7 @@ export function _useSessions(
     waking.value = true;
     return sessionOps
       .wakeWorkerSet(filter.projectId.value as string)
-      .then((r) => r?.data?.wakeWorkerSet.__typename != "WakeWorkerSetPayload" || !r?.data?.wakeWorkerSet?.success)
+      .then((r) => r?.data?.wakeWorkerSet.__typename == "WakeWorkerSetPayload" && r?.data?.wakeWorkerSet?.success)
       .then((success) => {
         if (!success) {
           waking.value = false;
@@ -365,7 +365,10 @@ export function _useSessions(
 
   function withWorkers<T>(fn: () => Promise<T>, options?: { timeout?: number }): Promise<T> {
     if (!isWorkerSetReady.value) {
-      return wakeWorkerSet().then(() => {
+      return wakeWorkerSet().then((success) => {
+        if (!success) {
+          return Promise.reject(new Error("wake workers failed"));
+        }
         // if workers are ready now, just run function
         if (isWorkerSetReady.value) {
           return fn();
@@ -425,6 +428,11 @@ export function _useSessions(
     localRunsIds.add(runId);
     console.debug("run.start", run.id, run.runnable?.name, run.runnableCk, Object.keys(run.inputs));
 
+    function _discardRun() {
+      delete currentRuns.value[runId];
+      localRunsIds.delete(runId);
+    }
+
     function doRunWithLogs() {
       return sessionOps
         .run(runnable.id, run.id, run.session?.id, run.inputs, {
@@ -454,23 +462,25 @@ export function _useSessions(
                 ? r?.data?.run.logs?.map((l) => useFragment(LogEntryContentType, l))
                 : undefined,
           };
-        })
-        .catch((e) => {
-          delete currentRuns.value[runId];
-          if (e.message !== "run could not start") {
-            // damnit, some other error
-            notifications.show({
-              kind: "error",
-              type: "run.failed.internal",
-              message: "Run crashed",
-              description: "An internal error happened somewhere.",
-            });
-          }
-          throw e;
         });
     }
 
-    return { run, result: withWorkers(doRunWithLogs) };
+    return {
+      run,
+      result: withWorkers(doRunWithLogs).catch((e) => {
+        _discardRun();
+        if (e.message !== "run could not start") {
+          // damnit, some other error
+          notifications.show({
+            kind: "error",
+            type: "run.failed.internal",
+            message: "Run crashed",
+            description: "An internal error happened somewhere.",
+          });
+        }
+        throw e;
+      }),
+    };
   }
 
   function pause(run: { id: string }) {

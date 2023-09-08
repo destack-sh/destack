@@ -121,7 +121,6 @@ export type StatementInterface = {
   hasBases?: boolean;
   hasTags?: boolean;
   hasTriggers?: boolean;
-  isRunnable?: boolean;
   extraControls?: StatementControl[];
   elements: StatementElement[];
 };
@@ -226,7 +225,6 @@ register(StatementType.Code, {
   primaryPart: "code",
   foldable: "function-self",
   needsDeclaration: true,
-  isRunnable: true,
   hasBases: true,
   hasTags: true,
   hasTriggers: true,
@@ -245,7 +243,6 @@ register(StatementType.Task, {
   primaryPart: "declaration",
   foldable: "function-all",
   needsDeclaration: true,
-  isRunnable: true,
   hasTags: true,
   hasBases: true,
   hasTriggers: true,

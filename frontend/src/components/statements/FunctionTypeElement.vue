@@ -169,6 +169,7 @@ defineExpose({
       groupId: "edit",
       icon: ArrowDownRightIcon,
       hideInline: true,
+      disabled: props.readonly,
       action: () => {
         createInputRef.value?.show();
       },
@@ -177,6 +178,7 @@ defineExpose({
       label: "Add output",
       groupId: "edit",
       icon: ArrowUpRightIcon,
+      disabled: props.readonly,
       hideInline: true,
       action: () => {
         createOutputRef.value?.show();
@@ -230,7 +232,7 @@ defineExpose({
     <component
       :is="isHorizontal ? ArrowLongRightIcon : ArrowLongDownIcon"
       class="h-5 w-5 self-center text-gray-700"
-      :class="[fields.length > 0 ? '-mt-7' : '']"
+      :class="[fields.length > 0 && !readonly ? '-mt-7' : '']"
     />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->

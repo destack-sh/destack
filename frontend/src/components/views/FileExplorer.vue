@@ -1,7 +1,7 @@
 <script lang="ts" setup>
 import { useNavigationGrid } from "@/composables/useGrid";
 import { IssueKind } from "@/gql/graphql";
-import { useBenchState, type ViewId, type Action } from "@/state/bench";
+import { useBenchState, type ViewId, type Action, EditFilePanel } from "@/state/bench";
 import { useCurrentModule, type NodeBase, type InterpFile } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { ArrowsPointingOutIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -49,7 +49,13 @@ const contextMenuActions: Ref<Action<InterpFile>[]> = computed(
           {
             label: "Delete",
             icon: TrashIcon,
-            action: () => ops.file.softDelete(null, contextMenuFile.value?.id),
+            action: () => {
+              // auto close all edit-file panels for deleted files
+              bench.panels
+                .filter((p) => p.type == "edit-file" && (p as EditFilePanel).fileCk == contextMenuFile.value?.ck)
+                .forEach((p) => bench.closePanel(p));
+              ops.file.softDelete(null, contextMenuFile.value?.id);
+            },
           },
         ]) as Action<InterpFile>[]
 );

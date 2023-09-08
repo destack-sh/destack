@@ -67,6 +67,7 @@ const isOtherVersion = computed(
     fileHeader.value != null &&
     fileHeader.value?.projectVersion?.id != bench.projectVersionId
 );
+const effectiveReadonly = computed(() => bench.readonly || isDeleted.value || isOtherVersion.value);
 const name: Ref<string> = ref(fileHeader.value?.name ?? "");
 const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
 
@@ -230,12 +231,13 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       titleRef.value?.selectAll();
     },
     hideInline: true,
+    disabled: effectiveReadonly.value,
   },
   {
     label: "Duplicate",
     icon: DocumentDuplicateIcon,
     active: duplicating.value,
-    disabled: duplicating.value,
+    disabled: duplicating.value || effectiveReadonly.value,
     action: async () => {
       if (fileHeader.value == null) return;
       duplicating.value = true;
@@ -268,7 +270,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
     action: () => {
       // not implemented yet
     },
-    disabled: true,
+    disabled: true && effectiveReadonly.value,
   },
   {
     label: "Delete",
@@ -278,7 +280,7 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       ops.file.softDelete(null, fileHeader.value?.id);
       emit("close");
     },
-    disabled: bench.readonly,
+    disabled: effectiveReadonly.value,
     hideInline: true,
   },
 ]);
@@ -430,6 +432,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
   <!-- Only files have a white background :FileBackground -->
   <div class="relative overflow-x-hidden bg-white">
     <PanelHeader
+      class="bg-white shadow-sm"
       :thing="file"
       :actions="fileActions"
       :editing="panel.editing"
@@ -510,7 +513,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
-          :readonly="isDeleted || isOtherVersion"
+          :readonly="isDeleted || isOtherVersion || bench.readonly"
           :depth="positioned.depth"
           :ancestors="positioned.ancestors.map((ancestorId) => (context?.statementsById[ancestorId] as Statement))"
           :standalone="false"

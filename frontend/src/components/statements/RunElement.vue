@@ -31,6 +31,7 @@ defineExpose({
       actions.push({
         label: currentRunActive.value ? "Stop" : "Run",
         groupId: "run",
+        disabled: !bench.canUse,
         icon: currentRunActive.value ? StopIcon : PlayIcon,
         action: () => {
           if (currentRunActive.value) {

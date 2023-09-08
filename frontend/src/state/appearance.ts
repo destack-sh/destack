@@ -21,7 +21,6 @@ export const useAppearanceState = defineStore("appearance", {
     theme: "light" as Theme,
     textSmall: true,
     font: "sans" as Font,
-    inlineMetrics: false,
     contentWide: false,
     benchHeaderHeight: 52,
     panelHeaderHeight: 28,
