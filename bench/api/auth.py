@@ -198,7 +198,8 @@ def get_organization_role(info: Info, organization: "Organization") -> Optional[
 def can_write_organization(info: Info, obj: "Organization") -> bool:
     from bench.models import OrganizationRole  # avoid circular import
 
-    return get_organization_role(info, obj) >= OrganizationRole.Manager
+    role = get_organization_role(info, obj)
+    return role and role >= OrganizationRole.Manager
 
 
 def check_can_write_organization(info: Info, obj: "Organization") -> None:
@@ -207,7 +208,8 @@ def check_can_write_organization(info: Info, obj: "Organization") -> None:
 
 
 def check_organization_role(info: Info, obj: "Organization", level: "OrganizationRole") -> None:
-    if get_organization_role(info, obj) < level:
+    role = get_organization_role(info, obj)
+    if not role or role < level:
         raise PermissionDenied("User cannot do to this.")
 
 
