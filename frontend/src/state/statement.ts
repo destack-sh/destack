@@ -486,7 +486,10 @@ export function useStatementMorph(
   }
 
   const ops = useOperations();
-  function doMorph(statement: { id: string; ck: string } & MorphIdentity, identity: MorphIdentity & { name?: string }) {
+  function doMorph(
+    statement: { id: string; ck: string } & MorphIdentity,
+    identity: MorphIdentity & { name?: string | null }
+  ) {
     const needsKey = [StatementType.Type, StatementType.Tag].includes(identity.type);
     const key = needsKey ? newFieldKey(statement.ck) : undefined;
     ops.statement.morph(null, statement.id, statement, { ...identity, key });

@@ -21,7 +21,7 @@ import {
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useMagicActions } from "@/state/file";
-import { useCurrentModule, type Field, newNodeIdentity, type Statement } from "@/state/module";
+import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields, type DatasetStatementProperties } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
@@ -38,6 +38,7 @@ import {
   ChevronDoubleUpIcon,
   XMarkIcon,
   SquaresPlusIcon,
+  EllipsisVerticalIcon,
 } from "@heroicons/vue/24/outline";
 import { useApolloClient, useQuery } from "@vue/apollo-composable";
 import { onStartTyping, useDebounceFn, useElementBounding, useMouseInElement, useScroll } from "@vueuse/core";
@@ -52,6 +53,7 @@ import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { RECORD_SEARCH_QUERY, useDatasetInlineSearch } from "@/state/dataset";
 import { humanizeNumber } from "@/composables/useNow";
+import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 
 const PAGE_SIZE = 10;
 
@@ -131,18 +133,12 @@ const {
 });
 const pageInfo = computed(() => recordsFetchedResult.value?.searchRecords.pageInfo);
 const totalCount = computed(() => recordsFetchedResult.value?.searchRecords.totalCount);
-const recordsFetched = computed(
-  () =>
-    recordsFetchedResult.value?.searchRecords.edges
-      .slice(0, pageInfo.value?.hasNextPage ? -1 : undefined)
-      .map((e) => e.node) ?? []
-);
+const recordsFetched = computed(() => recordsFetchedResult.value?.searchRecords.edges.map((e) => e.node) ?? []);
 const loading = computed(
   () => (recordsFetchedResult.value == null || recordsLoading.value) && recordsError.value == null
 );
 
 const recordsInView = computed(() => recordsFetched.value.filter((n) => n.deletedAt == null));
-const lastRecordInView = computed(() => recordsInView.value?.[recordsInView.value.length - 1]);
 
 // auto refetch when bumped (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
@@ -372,7 +368,7 @@ function dropField(droppedId: string, position: "above" | "below" | "right" | "l
 }
 
 function insertRecordAtEnd() {
-  insertRecord({ belowRecordId: lastRecordInView.value?.id });
+  insertRecord({ belowRecordId: recordsInView.value?.[recordsInView.value.length - 1]?.id });
 }
 
 function insertRecord(options?: { belowRecordId?: string; value?: any }) {
@@ -380,7 +376,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   ops.symbol.createRecord(null, identity.id, identity.ck, props.statement.id, null, options?.value ?? ({} as any));
   // add record to search results optimistically (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: identity.id });
-  const optimisticRecord = {
+  const optimisticRecord: Record = {
     __typename: "Record",
     id: identity.id,
     ck: identity.ck,
@@ -396,34 +392,13 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
       query: RECORD_SEARCH_QUERY,
       variables: searchQueryVariables.value,
     },
-    (
-      data = {
-        searchRecords: {
-          __typename: "RecordConnection" as any,
-          totalCount: 0,
-          edges: [],
-          pageInfo: { hasNextPage: false, hasPreviousPage: false },
-        },
-      }
-    ) => ({
-      searchRecords: {
-        ...data?.searchRecords,
-        pageInfo: data?.searchRecords.pageInfo ?? {
-          startCursor: null,
-          endCursor: null,
-          hasNextPage: false,
-          hasPreviousPage: false,
-        },
-        totalCount: (data?.searchRecords.totalCount ?? 0) + 1,
-        edges: [
-          ...(data?.searchRecords.edges ?? []),
-          {
-            __typename: "RecordEdge" as any,
-            cursor: data?.searchRecords.pageInfo.endCursor ?? "0",
-            node: { __ref: recordRef, ...optimisticRecord } as any,
-          },
-        ],
-      },
+    (data) => ({
+      searchRecords: getUpdatedConnectionQuery<Record, "RecordConnection">(
+        { __ref: recordRef, ...optimisticRecord } as any,
+        data?.searchRecords ?? (emptyConnection<Record, "RecordConnection">("RecordConnection") as any),
+        undefined,
+        "end"
+      ) as any,
     })
   );
   // focus new record (for some reason the good ol' nextTick alone doesn't work here)
@@ -697,7 +672,7 @@ defineExpose({
                         : 'opacity-0 transition-opacity focus:opacity-100 group-focus-within/record:opacity-100 group-hover/record:opacity-100',
                     ]"
                   >
-                    <DragHandleIcon class="h-4 w-4" />
+                    <EllipsisVerticalIcon class="h-4 w-4" />
                   </div>
                 </ActionPopover>
                 <!-- Insert record -->
