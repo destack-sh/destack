@@ -273,3 +273,11 @@ register(StatementType.Dataset, {
   extraControls: [DATASET_SEARCH],
   elements: [TEXT, DATASET],
 });
+register(StatementType.Tag, {
+  primaryPart: "declaration",
+  foldable: "list-all",
+  needsDeclaration: true,
+  hasTags: true,
+  hasBases: true,
+  elements: [TEXT],
+});
