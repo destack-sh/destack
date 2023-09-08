@@ -701,14 +701,16 @@ def create_global_project_s3_bucket(ignore_exists: bool):
     Creates a public S3 bucket for all projects.
     """
     s3_client = get_s3_client()
-    response = s3_client.create_bucket(
-        Bucket=GLOBAL_PROJECT_BUCKET_NAME,
-        CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
-    )
+    try:
+        response = s3_client.create_bucket(
+            Bucket=GLOBAL_PROJECT_BUCKET_NAME,
+            CreateBucketConfiguration={"LocationConstraint": os.environ["AWS_REGION"]},
+        )
+    except s3_client.exceptions.BucketAlreadyOwnedByYou:
+        if ignore_exists:
+            return
+        raise
     code = response["ResponseMetadata"]["HTTPStatusCode"]
-    if code == 409 and ignore_exists:
-        logger.info("global project bucket already exists")
-        return
     if code != 200:
         raise RuntimeError(f"failed to create s3 bucket: {response}")
     if not LOCAL:
