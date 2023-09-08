@@ -41,10 +41,13 @@ const nav = useNavigation();
 const module = useCurrentModule();
 const sessions = useCurrentSessions();
 const runUuid = getUUIDFromGlobalID(panel.value.runId);
-const { run, loading } = useRun(
+const { run: remoteRun, loading: remoteLoading } = useRun(
   computed(() => panel.value.runId),
   { live: true }
 );
+const localRun = computed(() => sessions.activeRuns.value.find((r) => r.id == panel.value.runId));
+const run = computed(() => (remoteRun.value != null ? remoteRun.value : localRun.value));
+const loading = computed(() => localRun.value == null && remoteLoading.value);
 const statement = computed(() => (run.value?.runnableCk != null ? module.statementOf(run.value.runnableCk) : null));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
