@@ -262,7 +262,7 @@ register(StatementType.Variable, {
   foldable: "list-all",
   needsDeclaration: true,
   hasTags: true,
-  elements: [{ ...VARIABLE, showIfEmpty: true }, TEXT],
+  elements: [TEXT, { ...VARIABLE, showIfEmpty: true }],
 });
 register(StatementType.Dataset, {
   primaryPart: "dataset",

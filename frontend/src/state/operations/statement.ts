@@ -405,10 +405,11 @@ export function useStatementOps() {
         $name: String
         $tag: TypeTag
         $flags: Int
+        $key: String
         $headingLevel: Int
       ) {
         morphStatement(
-          input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags, headingLevel: $headingLevel }
+          input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags, key: $key, headingLevel: $headingLevel }
         ) {
           ... on Statement {
             id
@@ -417,6 +418,7 @@ export function useStatementOps() {
             name
             tag
             flags
+            key
             headingLevel
           }
           ...OperationInfoContent
@@ -430,6 +432,7 @@ export function useStatementOps() {
         name?: string;
         tag?: TypeTag;
         flags?: number;
+        key?: string;
         headingLevel?: number;
       }) =>
         ({
@@ -441,6 +444,7 @@ export function useStatementOps() {
             name: vars.name ?? null,
             tag: vars.tag ?? null,
             flags: vars.flags ?? null,
+            key: vars.key ?? null,
             headingLevel: vars.headingLevel ?? null,
           },
         } as MorphStatementMutation),
@@ -455,6 +459,7 @@ export function useStatementOps() {
       name?: string | null;
       tag?: TypeTag | null;
       flags?: number | null;
+      key?: string | null;
       headingLevel?: number | null;
     },
     newStatement: {
@@ -462,6 +467,7 @@ export function useStatementOps() {
       name?: string | null;
       tag?: TypeTag | null;
       flags?: number | null;
+      key?: string | null;
       headingLevel?: number | null;
     }
   ) {
@@ -471,6 +477,7 @@ export function useStatementOps() {
       name: oldStatement.name ?? undefined,
       tag: oldStatement.tag ?? undefined,
       flags: oldStatement.flags ?? undefined,
+      key: oldStatement.key ?? undefined,
       headingLevel: oldStatement.headingLevel ?? undefined,
     };
     await ops.perform({
@@ -483,6 +490,7 @@ export function useStatementOps() {
           name: newStatement.name ?? undefined,
           tag: newStatement.tag ?? undefined,
           flags: newStatement.flags ?? undefined,
+          key: newStatement.key ?? undefined,
           headingLevel: newStatement.headingLevel ?? undefined,
         });
       },

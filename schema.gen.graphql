@@ -1659,6 +1659,7 @@ input StatementMorphInput {
   name: String = null
   tag: TypeTag = null
   flags: Int = null
+  key: String = null
   headingLevel: Int = null
 }
 
