@@ -82,6 +82,7 @@ class LazyRun:
 
 @reflect_struct("RunMetadata", "Default metadata of a run", return_type=True)
 class RunMetadata:
+    name: Optional[str]
     test: Optional[bool]
     queue_position: Optional[int]
     cached_at: Optional[datetime]

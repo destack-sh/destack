@@ -18,6 +18,7 @@ import { StopIcon } from "@heroicons/vue/24/outline";
 import { useTiling } from "@/state/screen";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
+import RunControls from "@/components/tiles/RunControlsTile.vue";
 
 const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -119,10 +120,6 @@ function subscribeUntilTermination(run: Run) {
 async function run() {
   if (statement.value == null) return;
   subscribedToCurrentRun.value = false;
-  panel.value.lastRunId = newRunId();
-  panel.value.lastSessionId = newSessionId();
-  panel.value.lastOutput = undefined;
-  panel.value.lastError = undefined;
   const { run, result: runTask } = await sessions.run(
     { id: statement.value.id, ck: statement.value.ck },
     {
@@ -133,6 +130,7 @@ async function run() {
     }
   );
   const result = await runTask;
+  onRun(run);
 
   if (TERMINAL_RUN_STATUSES.includes(result?.run.status)) {
     panel.value.lastRunTerminatedAt = result?.run.terminatedAt;
@@ -148,8 +146,18 @@ async function cancel() {
   await sessions.cancel(currentRun.value);
 }
 
+async function onRun(newRun: Run) {
+  panel.value.inputs = newRun.inputs;
+  panel.value.lastRunId = newRun.id;
+  panel.value.lastSessionId = newRun.session?.id;
+  panel.value.lastRunTerminatedAt = undefined;
+  panel.value.lastOutput = undefined;
+  panel.value.lastError = undefined;
+  subscribeUntilTermination(newRun);
+}
+
 const runsTileRef = ref<InstanceType<typeof RunsTile> | null>(null);
-const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(props.panel);
+const { gridStepY, baseTilePositionX } = useTiling(props.panel);
 
 // navigation
 
@@ -195,24 +203,7 @@ defineExpose({
         <!-- Title & source -->
         <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "(unnamed)" }}&nbsp;</h1>
         <!-- Run controls -->
-        <div
-          class=""
-          :style="{
-            height: gridStepY * 2 + 'px',
-            width: getTileWidth(gridStepX * 3) + 'px',
-          }"
-        >
-          <button
-            class="flex h-full w-full flex-row items-center justify-center gap-1 rounded-sm bg-orange-500 text-white hover:bg-orange-400 focus:bg-orange-400"
-            @click="isCurrentRunActive ? cancel() : run()"
-            @keydown.enter.exact.prevent="run"
-          >
-            Run
-            <FadeTransition>
-              <PlayIcon v-if="!isCurrentRunActive" class="h-4 w-4" />
-            </FadeTransition>
-          </button>
-        </div>
+        <RunControls :run="currentRun" :runnable="statement" :inputs="panel.inputs" @rerun="onRun" @run="onRun" />
       </div>
       <!-- Body -->
       <div v-if="module.loading.value" class="flex w-full flex-1 flex-col items-center justify-center">

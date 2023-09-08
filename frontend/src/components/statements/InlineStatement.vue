@@ -879,7 +879,7 @@ defineExpose({
         }"
       >
         <button
-          class="flex rounded-sm p-0.5 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
+          class="flex rounded-sm p-1 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
           :class="[hasIssues ? 'opacity-100' : 'opacity-0']"
           @click="bench.openActiveView('issues')"
         >

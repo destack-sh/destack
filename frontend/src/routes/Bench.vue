@@ -65,7 +65,7 @@ import {
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
-import { WORKER_STATUS_COLOR, useCurrentSessions } from "@/state/session";
+import { WORKER_STATUS_COLOR, WORKER_STATUS_TITLE, useCurrentSessions } from "@/state/session";
 import SharingPopover from "@/components/bench/SharingPopover.vue";
 import type { Project } from "@/gql/graphql";
 
@@ -536,7 +536,12 @@ onBeforeUnmount(() => {
               v-if="!workerSetHealthy"
             >
               <CubeIconSolid class="h-5 w-5" />
-              <span v-if="!workerSetHealthy" class="ml-1">Environment is {{ workerSet.status.toLowerCase() }}</span>
+              <span v-if="!workerSetHealthy" class="ml-1">{{ WORKER_STATUS_TITLE[workerSet.status] }}</span>
+              <span
+                class="pointer-events-none absolute -left-4 top-7 z-30 w-fit whitespace-nowrap rounded-sm bg-white px-1.5 text-xs opacity-0 ring-1 ring-orange-900 ring-opacity-[25%] transition duration-75 group-hover:opacity-100"
+              >
+                Environment is {{ WORKER_STATUS_TITLE[workerSet.status].toLowerCase() }}
+              </span>
             </span>
           </FadeTransition>
         </div>

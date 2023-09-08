@@ -99,7 +99,6 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         <!-- ID (to copy) -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
           <button class="flex flex-row items-center hover:underline" @click="bench.openViewRun(run, { focus: true })">
-            <PlayIcon class="mr-1 h-4 w-4 text-gray-400" />
             <span class="font-mono underline-offset-2">#{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}</span>
           </button>
         </td>
@@ -120,7 +119,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         </td>
         <!-- Status -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
-          <span class="inline-flex flex-row items-center gap-1" :class="[getRunStatusColor(run.status)]">
+          <div class="flex flex-row items-center gap-1" :class="[getRunStatusColor(run.status)]">
             <component
               :is="getRunStatusIconSolid(run.status)"
               class="h-4 w-4"
@@ -137,7 +136,7 @@ defineExpose({ runs, loading, totalCount, pageInfo });
               }}
             </span>
             <RunCacheInfo :run="(run as Run)" class="" />
-          </span>
+          </div>
         </td>
         <!-- Trigger -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
