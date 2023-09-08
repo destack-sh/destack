@@ -485,6 +485,13 @@ export function useStatementMorph(
     };
   }
 
+  const ops = useOperations();
+  function doMorph(statement: { id: string; ck: string } & MorphIdentity, identity: MorphIdentity & { name?: string }) {
+    const needsKey = [StatementType.Type, StatementType.Tag].includes(identity.type);
+    const key = needsKey ? newFieldKey(statement.ck) : undefined;
+    ops.statement.morph(null, statement.id, statement, { ...identity, key });
+  }
+
   const commands = computed(() => {
     const commands: MorphCommand[] = [
       // basic statements
@@ -547,5 +554,5 @@ export function useStatementMorph(
       .sort((a, b) => b.score - a.score);
   });
 
-  return { commands, filteredCommands };
+  return { commands, filteredCommands, doMorph };
 }

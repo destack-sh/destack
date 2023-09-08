@@ -177,6 +177,7 @@ class StatementMorphInput(strawberry_django.NodeInput):
     name: Optional[str] = None
     tag: Optional[TypeTag] = None
     flags: Optional[int] = None
+    key: Optional[str] = None
     heading_level: Optional[int] = None
 
 
@@ -299,6 +300,7 @@ class StatementMutation:
         statement.name = input.name
         statement.tag = input.tag
         statement.flags = input.flags
+        statement.key = input.key
         statement.heading_level = input.heading_level
         return statement
 

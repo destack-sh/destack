@@ -76,11 +76,11 @@ function stopCommanding() {
 function selectCommand(command: MorphCommand) {
   commanding.value = false;
   query.value = "";
-  ops.statement.morph(null, props.statement.id, props.statement, { ...command.identity, name: props.statement.name });
+  doMorph(props.statement, { ...command.identity, name: props.statement.name });
   command.action?.();
 }
 
-const { filteredCommands } = useStatementMorph(toRef(props, "statement"), { query: commandQuery });
+const { filteredCommands, doMorph } = useStatementMorph(toRef(props, "statement"), { query: commandQuery });
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {

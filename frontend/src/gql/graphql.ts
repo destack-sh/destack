@@ -2121,6 +2121,7 @@ export type StatementMorphInput = {
   flags?: InputMaybe<Scalars["Int"]>;
   headingLevel?: InputMaybe<Scalars["Int"]>;
   id: Scalars["GlobalID"];
+  key?: InputMaybe<Scalars["String"]>;
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<TypeTag>;
   type: StatementType;
@@ -4417,6 +4418,7 @@ export type MorphStatementMutationVariables = Exact<{
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<TypeTag>;
   flags?: InputMaybe<Scalars["Int"]>;
+  key?: InputMaybe<Scalars["String"]>;
   headingLevel?: InputMaybe<Scalars["Int"]>;
 }>;
 
@@ -4434,6 +4436,7 @@ export type MorphStatementMutation = {
         name?: string | null;
         tag?: TypeTag | null;
         flags?: number | null;
+        key?: string | null;
         headingLevel?: number | null;
       };
 };
@@ -12136,6 +12139,11 @@ export const MorphStatementDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "key" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
@@ -12180,6 +12188,11 @@ export const MorphStatementDocument = {
                     },
                     {
                       kind: "ObjectField",
+                      name: { kind: "Name", value: "key" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "key" } },
+                    },
+                    {
+                      kind: "ObjectField",
                       name: { kind: "Name", value: "headingLevel" },
                       value: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
                     },
@@ -12202,6 +12215,7 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "name" } },
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
+                      { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
                     ],
                   },

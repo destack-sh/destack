@@ -153,7 +153,7 @@ const activeElementParts = computed(() => elementParts.value.filter((p) => p.act
 
 const partsRefs: Ref<Record<string, StatementPartComponent>> = ref({});
 
-function handleStatementPartEvents(kind: "control" | "element", partId: string): StatementEmitDict {
+function handleStatementPartEvents(kind: "control" | "element", partId: StatementPartId): StatementEmitDict {
   const addTextOrInsertBelow = () => {
     // if part is control, has text or can have text navigate to text
     //  (i.e. jump from declaration to text on enter)
@@ -170,7 +170,13 @@ function handleStatementPartEvents(kind: "control" | "element", partId: string):
     navigateDown: () => navigate("down", partId),
     navigateLeft: () => navigate("left", partId),
     navigateRight: () => navigate("right", partId),
-    enterLeft: () => magic.insertAbove(),
+    enterLeft: () => {
+      if (kind == "element") {
+        magic.insertBelow(true);
+      } else {
+        magic.insertAbove();
+      }
+    },
     enter: addTextOrInsertBelow,
     enterRight: addTextOrInsertBelow,
     paste: () => nav.value?.paste(),
@@ -548,6 +554,8 @@ const actions: Ref<StatementAction[]> = computed(() => {
   for (const part of partsInOrder.reverse()) {
     const partComponent = partsRefs.value[part.id];
     if (partComponent?.actions == null) continue;
+
+    // wrap the underlying action
     partComponent.actions.forEach((a: StatementAction) => {
       actions.push({
         ...a,

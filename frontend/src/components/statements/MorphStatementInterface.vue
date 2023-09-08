@@ -1,6 +1,5 @@
 <script lang="ts" setup>
 import type { Statement } from "@/state/module";
-import { useOperations } from "@/state/operations";
 import { useStatementMorph, type MorphCommand, getMorphIdentity } from "@/state/statement";
 import { Combobox, ComboboxOption, ComboboxOptions } from "@headlessui/vue";
 import { computed, ref, toRef } from "vue";
@@ -11,12 +10,11 @@ const emit = defineEmits<{
 }>();
 
 const morphIdentity = computed(() => getMorphIdentity(props.statement));
-const { filteredCommands: commands } = useStatementMorph(toRef(props, "statement"));
+const { filteredCommands: commands, doMorph } = useStatementMorph(toRef(props, "statement"));
 const commandOptionsRef = ref<InstanceType<typeof ComboboxOptions> | null>(null);
-const ops = useOperations();
 
 function selectCommand(command: MorphCommand) {
-  ops.statement.morph(null, props.statement.id, props.statement, { ...command.identity, name: props.statement.name });
+  doMorph(props.statement, { ...command.identity, name: props.statement.name });
   command.action?.();
   emit("close");
 }
