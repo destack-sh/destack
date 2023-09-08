@@ -38,6 +38,10 @@ nc_init = asyncio.Event()
 nc_closed = asyncio.Event()
 
 
+class MessagingError(Exception):
+    pass
+
+
 async def nats_error_cb(e: Exception) -> None:
     log.error("nats.error", exc_info=e, sentry=sentry_capture_if_enabled(e))
 
@@ -225,6 +229,7 @@ async def request(
     serialized = _serialize_message(message)
     log.debug("request", topic=payload.topic, message=message, bytes=len(serialized))
 
+    num_retries = retry
     while retry >= 0:
         try:
             reply = await nc.request(payload.topic, serialized, timeout=timeout)
@@ -239,7 +244,9 @@ async def request(
             )
             retry -= 1
             if retry < 0:
-                raise
+                raise MessagingError(
+                    f"request {type.name} failed (retries={num_retries}, timeout={timeout})"
+                ) from e
             await asyncio.sleep(retry_delay)
 
     reply_msg = _parse_message(reply.data)
