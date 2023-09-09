@@ -190,16 +190,12 @@ defineExpose({
 });
 </script>
 <template>
-  <!-- mousetrap class to enable keyboard shortcuts while editing -->
-  <!-- except (undo redo which we want to keep native) -->
-  <!-- https://craig.is/killing/mice#api.trigger -->
-  <!-- nocheckin prevent bold and stuff -->
   <span
     tabindex="-1"
     spellcheck="false"
     ref="spanRef"
     class="mousetrap whitespace-pre-wrap outline-none"
-    :contenteditable="!readonly"
+    :contenteditable="(readonly ? 'false' : 'plaintext-only' as any)"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
     @keydown.exact.left="navigateLeftIfAtStart"
