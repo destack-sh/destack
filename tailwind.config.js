@@ -29,6 +29,11 @@ module.exports = {
           },
         },
       }),
+      transitionDelay: {
+        "in-500": "0ms, 500ms",
+        "in-1000": "0ms, 1000ms",
+        "in-1500": "0ms, 1500ms",
+      },
       animation: {
         ["fadein-500"]: "fadein-75 0.5s forwards",
         ["fadein-1000"]: "fadein-75 1.0s forwards",

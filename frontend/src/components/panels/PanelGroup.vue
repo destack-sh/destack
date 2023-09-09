@@ -4,12 +4,23 @@ import PanelInterface from "@/components/panels/PanelInterface.vue";
 import BlankPanel from "@/components/panels/BlankPanel.vue";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type Panel, type PanelGroup, PANEL_ICONS_SOLID, getPanelActions } from "@/state/bench";
+import {
+  useBenchState,
+  type Panel,
+  type PanelGroup,
+  PANEL_ICONS_SOLID,
+  getPanelActions,
+  getPanelGroupActions,
+  type FileHeader,
+} from "@/state/bench";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/vue";
 import { PlusIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { useElementSize } from "@vueuse/core";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import { useActiveScroll } from "@/composables/useScroll";
+import { EllipsisVerticalIcon } from "@heroicons/vue/24/solid";
+import { newNodeIdentity, type NodeBase } from "@/state/module";
+import { useOperations } from "@/state/operations";
 const props = defineProps<{ group: PanelGroup }>();
 
 const bench = useBenchState();
@@ -21,12 +32,18 @@ const containerSize = useElementSize(containerRef);
 const panelRefs = useElementRefs<InstanceType<typeof TabPanel>>();
 const tabListRef: Ref<InstanceType<typeof TabList> | null> = ref(null);
 const contextMenuPanel: Ref<Panel | null> = ref(null);
+const contextMenuOpen = ref(false);
 const contextMenuPosition: Ref<{ x: number; y: number } | null> = ref(null);
-const contextMenuActions = computed(() =>
-  contextMenuPanel.value == null ? [] : getPanelActions(contextMenuPanel.value, bench)
-);
+const contextMenuAnchor = ref("left" as "right" | "left");
+const contextMenuActions = computed(() => {
+  if (!contextMenuOpen.value) return [];
+  return contextMenuPanel.value != null
+    ? getPanelActions(contextMenuPanel.value, bench)
+    : getPanelGroupActions(props.group, bench);
+});
 
 function closeContextMenu() {
+  contextMenuOpen.value = false;
   contextMenuPanel.value = null;
   contextMenuPosition.value = null;
 }
@@ -65,9 +82,13 @@ function focus(e: Panel) {
   bench.blur();
 }
 
+const ops = useOperations();
 const actions = useActions();
 async function createFileInPanelGroup() {
-  await actions.file.create.value.apply();
+  const identity = newNodeIdentity(bench.projectVersionId as string, "File");
+  const create = ops.file.create(null, identity.id, identity.ck, bench.projectVersionId as string, "", null);
+  const optimisticFile = { __typename: "File", id: identity.id, ck: identity.ck, name };
+  const filePanel = bench.focusFile(optimisticFile as NodeBase, props.group);
 }
 </script>
 <template>
@@ -95,8 +116,10 @@ async function createFileInPanelGroup() {
             @click.left.prevent="focus(p)"
             @contextmenu.prevent="
               (e) => {
+                contextMenuOpen = true;
                 contextMenuPanel = p;
                 contextMenuPosition = { x: e.clientX, y: e.clientY };
+                contextMenuAnchor = 'left';
               }
             "
           >
@@ -123,15 +146,31 @@ async function createFileInPanelGroup() {
         >
           <PlusIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
         </button>
+        <!-- Right-hand side context menu for group -->
+        <button
+          class="group absolute right-0 z-10 bg-gray-50 px-2 py-1 pb-1.5 outline-none ring-0 hover:bg-orange-100"
+          @click.prevent="
+            (e) => {
+              contextMenuOpen = true;
+              contextMenuPosition = { x: e.clientX, y: e.clientY };
+              contextMenuAnchor = 'right';
+            }
+          "
+        >
+          <EllipsisVerticalIcon class="h-4 w-4 text-gray-400 group-hover:text-gray-700" aria-hidden="true" />
+        </button>
       </TabList>
       <!-- Tab context menu -->
-      <div v-if="contextMenuPanel != null && contextMenuPosition != null">
+      <div v-if="contextMenuOpen && contextMenuPosition != null">
         <!-- Invisible fixed overlay to prevent scrolling and capture clicks -->
         <div class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="closeContextMenu" />
         <!-- Tab context menu popover (similar to action popover) -->
         <div
           class="fixed z-50 flex w-40 flex-col rounded-sm bg-white p-1 text-xs shadow-md ring-1 ring-orange-900 ring-opacity-40"
-          :style="{ left: contextMenuPosition.x + 'px', top: contextMenuPosition.y + 'px' }"
+          :style="{
+            left: (contextMenuAnchor == 'left' ? contextMenuPosition.x : contextMenuPosition.x - 4 * 40) + 'px',
+            top: contextMenuPosition.y + 'px',
+          }"
         >
           <div
             v-for="(action, i) in contextMenuActions"
@@ -142,7 +181,7 @@ async function createFileInPanelGroup() {
                 ? 'mt-0.5 border-t border-orange-900 border-opacity-[12%] pt-0.5'
                 : '',
             ]"
-            @click.prevent.stop="action.action(contextMenuPanel), closeContextMenu()"
+            @click.prevent.stop="action.action((contextMenuPanel ?? group) as any), closeContextMenu()"
           >
             <button
               class="flex w-full flex-row items-center gap-2 rounded-sm px-1 py-1 hover:bg-orange-100 focus:outline-none"
