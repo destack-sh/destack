@@ -38,7 +38,7 @@ const INTERFACES: Record<string, any> = {
 };
 
 const props = defineProps<{
-  modelValue: any;
+  modelValue: unknown;
   type: Field;
   readonly: boolean;
   active: boolean;
@@ -87,7 +87,7 @@ const valueInterface = computed(() => {
 
 // debounce writes for selected interfaces (then flush on close/enter)
 const debounce = computed(() => !props.readonly && props.debounced && valueInterface.value?.debounceMs != null);
-const value: Ref<any> = ref<any>(props.modelValue);
+const value: Ref<unknown> = ref<unknown>(props.modelValue);
 const readValue = computed(() => {
   if (valueInterface.value?.read != null) {
     return valueInterface.value.read(props.type, value.value);
@@ -107,7 +107,10 @@ function writeValue(newValue: any) {
 }
 // debounced sync
 const sync = syncProperty({
-  read: () => (value.value = props.modelValue),
+  readDeps: () => [props.modelValue],
+  read: () => {
+    value.value = props.modelValue;
+  },
   write: () => emit("update:modelValue", value.value),
   debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,
   enabled: debounce,

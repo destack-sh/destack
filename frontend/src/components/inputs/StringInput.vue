@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import type { Field } from "@/gql/graphql";
-import { onMounted, ref, type Ref } from "vue";
+import { onMounted, ref, watch, type Ref } from "vue";
 
 const props = defineProps<{
   type: Field;
