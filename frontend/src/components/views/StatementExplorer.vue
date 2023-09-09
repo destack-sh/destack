@@ -68,6 +68,17 @@ function blur() {
   statementsGrid.blur();
 }
 
+const HEADING_TEXT_SIZE: Record<number, string> = {
+  1: "text-xl",
+  2: "text-lg",
+  3: "text-base",
+};
+const HEADING_MARGIN_TOP: Record<number, string> = {
+  1: "mt-1.5",
+  2: "mt-1",
+  3: "mt-0.5",
+};
+
 defineExpose({
   count: computed(() => orderedStatements.value?.length),
   focus,
@@ -77,18 +88,16 @@ defineExpose({
 <template>
   <ul v-if="orderedStatements != null" role="list" class="flex flex-col text-sm">
     <li
-      v-for="o in orderedStatements"
+      v-for="(o, i) in orderedStatements"
       :key="o.id"
       :ref="(ref) => statementsGrid.registerColumnRef(o.id, 'name', ref as HTMLElement)"
       tabindex="-1"
       class="flex max-w-full flex-row border border-transparent px-3 py-0.5 text-gray-700 outline-none hover:cursor-pointer hover:bg-orange-100 focus:border-orange-600"
-      :class="{
-        'text-orange-600': o.ck == bench?.focusedStatementCk,
-        'text-gray-700 hover:bg-orange-100': o.ck != bench?.focusedStatementCk,
-        '-mb-0.5 mt-1 text-xl font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 1,
-        'mt-0.5 text-lg font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 2,
-        'text-md font-semibold': o.statement.type == StatementType.Text && o.statement.headingLevel == 3,
-      }"
+      :class="[
+        o.ck == bench.focusedStatementCk ? 'text-orange-600' : 'text-gray-700 hover:bg-orange-100',
+        o.statement.headingLevel != null ? HEADING_TEXT_SIZE[o.statement.headingLevel] + ' -mb-0.5 font-semibold' : '',
+        o.statement.headingLevel != null && i > 0 ? HEADING_MARGIN_TOP[o.statement.headingLevel] : '',
+      ]"
       :style="{
         marginLeft: o.depth * 8 + 'px',
       }"
@@ -104,7 +113,7 @@ defineExpose({
           !(o.statement.type == StatementType.Text && o.statement.headingLevel != null) &&
           o.statement.type != StatementType.Blank
         "
-        class="text mr-1.5 rounded-sm font-mono"
+        class="mr-1.5 rounded-sm font-mono"
       >
         <component
           :is="getStatementIconSolid(o.statement.type, o.statement.tag)"
@@ -121,7 +130,7 @@ defineExpose({
           o.statement.text != null &&
           !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0)
         "
-        class="truncate"
+        class="truncate text-sm"
         :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
       >
         {{ o.statement.text }}
