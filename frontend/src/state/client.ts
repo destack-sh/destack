@@ -272,7 +272,7 @@ export function useConnectedClients(
         if (!subscriptionData.data) return prev;
         const client = useFragment(ClientContentType, subscriptionData.data.clientsChanged);
         return {
-          clients: getUpdatedConnectionQuery(client, prev.clients as Connection<any>),
+          clients: getUpdatedConnectionQuery(client, prev.clients as Connection<any>) as any,
         };
       },
     });

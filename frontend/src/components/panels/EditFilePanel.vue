@@ -160,18 +160,25 @@ function registerStatementRef(id: string, component: InstanceType<typeof Stateme
   }
 }
 
-// auto-focus name once loaded and if contents are empty
+// auto-focus on load
 watch(
-  () => [name.value, props.focused],
+  () => [statements.value, props.focused],
   () => {
-    if (name.value == null) {
-      return;
+    if (!props.focused || statements.value == null) return;
+
+    // reset active statement if it's no longer visible
+    if (panel.value.activeStatementCk != null && !statements.value.some((s) => s.ck == panel.value.activeStatementCk)) {
+      panel.value.blurElement();
     }
-    if (props.focused && statements.value.length == 0 && name.value == "") {
-      titleRef.value?.focus();
-      nextTick(() => titleRef.value?.focus()); // required to focus if just loaded
+
+    if (statements.value.length == 0) {
+      titleRef.value?.focus("last");
+      nextTick(() => titleRef.value?.focus("last")); // required to focus if just loaded
+    } else {
+      panel.value.focusElement(statements.value[0]);
     }
-  }
+  },
+  { immediate: true }
 );
 
 function restore() {

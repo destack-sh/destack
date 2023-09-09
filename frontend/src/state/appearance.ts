@@ -107,7 +107,6 @@ function _useAppearance() {
     if (state) {
       try {
         appearance.$state = JSON.parse(state);
-        console.log("restored appearance");
       } catch (e) {
         console.error(`failed to restore appearance`, e);
       }
