@@ -844,6 +844,45 @@ export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchS
   return actions;
 }
 
+export function getPanelGroupActions(group: PanelGroup, bench: ReturnType<typeof useBenchState>) {
+  const actions: PanelGroupAction[] = [];
+
+  // close
+  actions.push({
+    groupId: "close",
+    label: "Close All",
+    icon: XCircleIcon,
+    action: () => bench.closePanelGroup(group),
+  });
+  actions.push({
+    groupId: "close",
+    label: "Reopen Closed",
+    icon: ArrowUturnLeftIcon,
+    disabled: bench.recentlyClosedPanels.length == 0,
+    action: () => bench.reopenLastClosedPanel({ focus: true }),
+  });
+
+  // 'move' (merge) actions
+  if (bench.groups.filter((g) => g.panels.length > 0).length > 1) {
+    if (group.id == bench.left.id) {
+      actions.push({
+        groupId: "move",
+        label: "Merge Right",
+        icon: ArrowRightIcon,
+        action: () => group.panels.forEach((e) => bench.movePanel(e, bench.right)),
+      });
+    } else {
+      actions.push({
+        groupId: "move",
+        label: "Merge Left",
+        icon: ArrowLeftIcon,
+        action: () => group.panels.forEach((e) => bench.movePanel(e, bench.left)),
+      });
+    }
+  }
+  return actions;
+}
+
 export function providePanelContext<T extends Panel>(
   panel: Ref<T>,
   component: Ref<any>,
@@ -907,6 +946,7 @@ export type StatementAction = Action<StatementHeader>;
 export type TypeAction = Action<Field>;
 export type RecordAction = Action<BRecord>;
 export type PanelAction = Action<Panel>;
+export type PanelGroupAction = Action<PanelGroup>;
 
 // specific panels
 

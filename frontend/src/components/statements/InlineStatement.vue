@@ -689,7 +689,7 @@ defineExpose({
                 <EllipsisVerticalIcon class="h-4 w-4" />
                 <!-- Label -->
                 <span
-                  class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+                  class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
                 >
                   <strong>Click</strong> for actions
                   <br />
@@ -707,7 +707,7 @@ defineExpose({
               <PlusIcon class="h-4 w-4" />
               <!-- Label -->
               <span
-                class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
               >
                 <strong>Click</strong> to insert below
                 <br />
@@ -806,7 +806,7 @@ defineExpose({
               <!-- Label popover -->
               <span
                 v-if="!action.active"
-                class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                class="pointer-events-none absolute -left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
               >
                 {{ action.label }}
               </span>
@@ -823,7 +823,7 @@ defineExpose({
               <div class="group p-0.5 text-gray-400 hover:text-gray-700">
                 <EllipsisVerticalIcon class="h-4 w-4" />
                 <span
-                  class="pointer-events-none absolute -right-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+                  class="pointer-events-none absolute -right-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100"
                 >
                   More actions
                 </span>
