@@ -1,18 +1,20 @@
 import { useDebounceFn } from "@vueuse/core";
-import { ref, watch, watchEffect, type Ref, onBeforeUnmount } from "vue";
+import { ref, watchEffect, type Ref, onBeforeUnmount } from "vue";
 
 const DEFAULT_DEBOUNCE_MS = 400;
 const DEFAULT_DEBOUNCE_MAX_WAIT = 2000;
 
-export function syncProperty<T>(property: {
-  value: Ref<T>;
-  editing: Ref<boolean | undefined>;
+export function syncProperty(property: {
   read: () => void;
   write: () => void;
   debounceMs?: number;
   debounceMaxWait?: number;
   enabled?: Ref<boolean>;
 }) {
+  /* 
+  Syncs a property (or set of properties) given a reactive read() function.
+  Use onLocalWrite to trigger a write from this user session. 
+  */
   const pendingSave = ref(false);
   const destroyed = ref(false);
 
@@ -33,17 +35,15 @@ export function syncProperty<T>(property: {
     _savePropertyDebounced();
   }
 
-  // write property while editing
-  watch(
-    property.value,
-    () => !property.editing.value || destroyed.value || property.enabled?.value === false || saveProperty(),
-    {
-      deep: true,
-    }
-  );
-  // sync property when not editing
+  // trigger writes manually
+  function onLocalWrite() {
+    if (destroyed.value || property.enabled?.value === false) return;
+    saveProperty();
+  }
+
+  // sync property in whenever possible
   watchEffect(() => {
-    if (!property.editing.value && !pendingSave.value) {
+    if (!pendingSave.value) {
       property.read();
     }
   });
@@ -56,5 +56,6 @@ export function syncProperty<T>(property: {
         _saveProperty();
       }
     },
+    onLocalWrite,
   };
 }

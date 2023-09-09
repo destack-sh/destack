@@ -16,8 +16,6 @@ const ops = useOperations();
 const textRef: Ref<InstanceType<typeof AnnotatedText> | null> = ref(null);
 const text: Ref<string> = ref(props.statement.text ?? "");
 const textSync = syncProperty({
-  value: text,
-  editing: computed(() => textRef.value?.focused),
   read: () => (text.value = props.statement.text ?? ""),
   write: () => ops.symbol.updateStatementText(null, props.statement.id, props.statement.text ?? "", text.value),
   debounceMs: 500,
@@ -25,11 +23,7 @@ const textSync = syncProperty({
 });
 
 function focus(position: "first" | "last" = "first") {
-  // focus the end of the content if we just updated it, which puts it in pending state
-  // (likely due to a morph to blank where we want to keep editing smoothly)
-  const focusEnd = props.statement.revision < 0 || position == "last";
-  // not sure why we need both, but acquiring focus doesn't always succeed otherwise
-  textRef.value?.focus(focusEnd ? "last" : "first"); // maybe we should always focus last here?
+  textRef.value?.focus("last"); // we always want to focus the end of the text
 }
 
 function blur() {
@@ -37,23 +31,25 @@ function blur() {
   quickActionsRefs.refs.value.forEach((ref) => ref?.blur());
 }
 
-// if text statement: morph to blank if empty
-watch(
-  () => [text.value, props.readonly],
-  () => {
-    if (!props.readonly && props.statement.type == StatementType.Text && (props.statement.headingLevel ?? 0) == 0) {
-      if (text.value == "") {
-        // should ideally be done in one tx, but we don't have that yet
-        textSync.flushNow();
-        ops.statement.morph(null, props.statement.id, props.statement, {
-          type: StatementType.Blank,
-          headingLevel: null,
-        });
-      }
-    }
-  },
-  { immediate: true }
-);
+function onInput() {
+  textSync.onLocalWrite();
+  // if text statement: morph to blank if empty
+  // (only if we are the ones who caused the change)
+  if (
+    props.focused &&
+    !props.readonly &&
+    props.statement.type == StatementType.Text &&
+    (props.statement.headingLevel ?? 0) == 0 &&
+    text.value == ""
+  ) {
+    // should ideally be done in one tx, but we don't have that yet
+    textSync.flushNow();
+    ops.statement.morph(null, props.statement.id, props.statement, {
+      type: StatementType.Blank,
+      headingLevel: null,
+    });
+  }
+}
 
 // quick inline actions
 type QuickAction = {
@@ -126,7 +122,7 @@ defineExpose({
     <AnnotatedText
       ref="textRef"
       :model-value="text || ''"
-      @update:model-value="text = $event"
+      @update:model-value="(text = $event), onInput()"
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"

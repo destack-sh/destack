@@ -1,4 +1,6 @@
 <script lang="ts" setup>
+import { useOperations, useOperationsStore } from "@/state/operations";
+import { cyrb53a } from "@/utils/functools";
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
 import type * as monaco from "monaco-editor";
@@ -41,6 +43,7 @@ function onResize() {
   }
 }
 
+const opsStore = useOperationsStore();
 const editorContainer: Ref<HTMLElement | null> = ref(null);
 const { width: editorContainerWidth } = useElementSize(editorContainer);
 // resize editor when container width changes
@@ -140,14 +143,6 @@ function initMonaco(monaco: Monaco) {
     contextmenu: false,
   });
 
-  editor.value.onDidChangeModelContent(() => {
-    const value = editor.value?.getValue();
-    if (value != null && editorContainer.value != null) {
-      updateEditorHeight(editorContainer.value, value);
-      emit("update:modelValue", value);
-    }
-  });
-
   function hasInnerWindowOpen() {
     const widgetClasses = [".monaco-menu-container", ".monaco-dropdown", ".monaco-editor-hover", ".editor-widget"];
     const openWidget = widgetClasses.find((c) => {
@@ -196,6 +191,9 @@ function initMonaco(monaco: Monaco) {
         }
       }
     });
+    // overwrite undo/redo to use our own undo/redo
+    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => opsStore.undo());
+    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => opsStore.redo());
   }
 
   // update focused when editor is focused/defocused
@@ -207,17 +205,58 @@ function initMonaco(monaco: Monaco) {
   editor.value.onDidBlurEditorWidget(() => {
     focused.value = false;
   });
+
+  // sync model content change from editor
+  editor.value.onDidChangeModelContent(() => {
+    if (justSynced.value) {
+      justSynced.value = false;
+      return;
+    }
+    const value = editor.value?.getValue();
+    if (value != null && editorContainer.value != null) {
+      updateEditorHeight(editorContainer.value, value);
+      emit("update:modelValue", value);
+    }
+  });
 }
 
 // sync modelValue into editor
+const justSynced = ref(false);
 watch(
   () => props.modelValue,
   (value) => {
     if (editor.value && value !== editor.value.getValue()) {
+      // retain previous cursor position if value is in editor history
+      justSynced.value = true;
       editor.value.setValue(value);
+      restorePosition(value);
     }
   }
 );
+
+// remember view history for each 'significant' model value
+// (we don't debounce or such in here, so the owner of this component calls mark whenever a write happens so we can restore the view later)
+const viewHistory: Record<number, monaco.Position | null> = {};
+function markPosition() {
+  // store current view with model value hash
+  if (editor.value == null) return;
+  const stateKey = cyrb53a(props.modelValue);
+  viewHistory[stateKey] = editor.value.getPosition();
+}
+function restorePosition(value: string) {
+  // restore view if model value is in history
+  if (editor.value == null) return;
+  const stateKey = cyrb53a(value);
+  const pos = viewHistory[stateKey];
+  if (pos != null) {
+    editor.value.setPosition(pos);
+  } else {
+    editor.value?.setPosition({
+      lineNumber: editor.value?.getModel()?.getLineCount() ?? 1,
+      column: editor.value?.getModel()?.getLineMaxColumn(editor.value?.getModel()?.getLineCount() ?? 1) ?? 0,
+    });
+  }
+}
 
 // close monaco editor on unmount
 onBeforeUnmount(() => {
@@ -227,20 +266,22 @@ onBeforeUnmount(() => {
   }
 });
 
-function focus(end?: boolean) {
+function focus(f: "first" | "last" = "first") {
   editor.value?.focus();
-  if (end) {
+  if (f == "last") {
     editor.value?.setPosition({
       lineNumber: editor.value?.getModel()?.getLineCount() ?? 1,
       column: editor.value?.getModel()?.getLineMaxColumn(editor.value?.getModel()?.getLineCount() ?? 1) ?? 0,
     });
+  } else {
+    editor.value?.setPosition({ lineNumber: 1, column: 1 });
   }
 }
 function blur() {
   // no op?
 }
 
-defineExpose({ focus, blur, focused });
+defineExpose({ focus, blur, focused, markPosition });
 </script>
 
 <template>

@@ -100,14 +100,13 @@ function writeValue(newValue: any) {
     newValue = valueInterface.value.write(props.type, newValue);
   }
   value.value = newValue;
+  sync.onLocalWrite();
   if (!debounce.value) {
     emit("update:modelValue", newValue);
   }
 }
 // debounced sync
 const sync = syncProperty({
-  value,
-  editing,
   read: () => (value.value = props.modelValue),
   write: () => emit("update:modelValue", value.value),
   debounceMs: props.debounced ? valueInterface.value?.debounceMs : 100,

@@ -20,9 +20,7 @@ const emit = defineEmits<StatementEmit>();
 const ops = useOperations();
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const name: Ref<string> = ref(props.statement.name ?? "");
-syncProperty({
-  value: name,
-  editing: computed(() => nameRef.value?.focused),
+const nameSync = syncProperty({
   read: () => (name.value = props.statement.name ?? ""),
   write: () => ops.statement.rename(null, props.statement.id, props.statement.name ?? "", name.value),
   debounceMs: 500,
@@ -45,7 +43,7 @@ function openInEditor() {
 }
 
 function focus(position: "first" | "last" = "first") {
-  nameRef.value?.focus(position);
+  nameRef.value?.focus("last"); // we always want the cursor at the end
 }
 
 defineExpose({
@@ -90,6 +88,7 @@ defineExpose({
       ]"
       regex="name"
       v-model="name"
+      @update:model-value="nameSync.onLocalWrite"
       :readonly="readonly"
       @click="altKey && canOpenInStandaloneEditor && openInEditor()"
       @navigate-up="emit('navigateUp')"

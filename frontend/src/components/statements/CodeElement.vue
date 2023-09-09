@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import MonacoEditor from "@/components/basic/MonacoEditor.vue";
-import { computed, ref, type Ref } from "vue";
+import { ref, type Ref } from "vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
@@ -13,17 +13,18 @@ const ops = useOperations();
 const code: Ref<string> = ref(props.statement.code ?? "");
 const monacoRef: Ref<InstanceType<typeof MonacoEditor> | null> = ref(null);
 const codeSync = syncProperty({
-  value: code,
-  editing: computed(() => monacoRef.value?.focused),
   read: () => (code.value = props.statement.code ?? ""),
-  write: () => ops.symbol.updateSymbolCode(null, props.statement.id, props.statement.code ?? "", code.value),
+  write: () => {
+    monacoRef.value?.markPosition();
+    ops.symbol.updateSymbolCode(null, props.statement.id, props.statement.code ?? "", code.value);
+  },
   debounceMs: 500,
   debounceMaxWait: 5000,
 });
 
 defineExpose({
   focus: (position: "first" | "last" = "first") => {
-    monacoRef.value?.focus(position == "last");
+    monacoRef.value?.focus(position);
   },
   blur: () => {
     monacoRef.value?.blur();
@@ -35,11 +36,11 @@ defineExpose({
 </script>
 <template>
   <!-- Code -->
-  <!-- TODO @UX: figure out nicer styling for code -->
   <MonacoEditor
     ref="monacoRef"
     :hide-line-numbers="false"
     v-model="code"
+    @update:model-value="codeSync.onLocalWrite"
     @navigate-up="emit('navigateUp')"
     @navigate-down="emit('navigateDown')"
     @navigate-left="emit('navigateLeft')"

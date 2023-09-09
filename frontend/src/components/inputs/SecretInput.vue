@@ -30,9 +30,7 @@ const hidden = ref(true);
 const pending = ref(false);
 
 // auto reset secret value (reset on change)
-syncProperty({
-  value: secretValue,
-  editing: ref(!props.preview),
+const secretSync = syncProperty({
   read: () => {
     props.modelValue; // trigger reactivity
     secretValue.value = null;
@@ -56,7 +54,7 @@ async function writeSecretValue() {
 }
 
 function focus() {
-  doReveal(); // pre-reveal
+  doReveal(); // auto 'pre-reveal'
   nextTick(() => inputRef.value?.focus());
 }
 
@@ -138,6 +136,7 @@ defineExpose({
       v-if="!preview || modelValue != null"
       ref="inputRef"
       v-model="secretValue"
+      @input="secretSync.onLocalWrite"
       class="w-full rounded-none border-none bg-transparent p-0 text-gray-900 outline-none ring-0 placeholder:text-gray-300 focus:ring-0"
       :type="hidden ? 'password' : 'text'"
       :placeholder="hidden ? '••••••••••••••••••••••••••••' : '123456789-123456789'"

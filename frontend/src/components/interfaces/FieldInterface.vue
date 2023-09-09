@@ -80,27 +80,13 @@ const popoverPin = pinAbsoluteElement(editablePopoverRef, { pos: true, keepInVie
 const typeEditablePopoverRef = ref<HTMLDivElement | null>(null);
 const typePopoverPin = pinAbsoluteElement(typeEditablePopoverRef, { pos: true, keepInView: true });
 
-// sync name
-syncProperty({
-  value: name,
-  editing: computed(() => nameRef.value?.focused),
-  read: () => (name.value = value.value.name ?? ""),
-  write: () => {
-    value.value = {
-      ...value.value,
-      name: name.value,
-    };
-    emit("update:modelValue", value.value);
-  },
-});
-// sync text
-syncProperty({
-  value: text,
-  editing: computed(() => textRef.value?.focused),
+// sync name/text
+const nameSync = syncProperty({
   read: () => (text.value = value.value.text ?? ""),
   write: () => {
     value.value = {
       ...value.value,
+      name: name.value,
       text: text.value,
     };
     emit("update:modelValue", value.value);
@@ -339,6 +325,7 @@ defineExpose({
             ref="nameRef"
             regex="name"
             v-model="name"
+            @update:model-value="nameSync.onLocalWrite"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
             @navigate-right="typeButtonRef?.focus()"
@@ -409,6 +396,7 @@ defineExpose({
             ref="textRef"
             regex="description"
             v-model="text"
+            @update:model-value="nameSync.onLocalWrite"
             :readonly="readonly"
             class="w-full max-w-full scroll-m-0 overflow-x-hidden whitespace-normal"
             @navigate-up="nameRef?.focus()"

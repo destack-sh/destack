@@ -1,12 +1,11 @@
 <script lang="ts" setup>
 import { VALID_DESCRIPTION_REGEXP, VALID_NAME_REGEXP } from "@/utils/validation";
 import { useFocus } from "@vueuse/core";
-import { computed, ref } from "vue";
+import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps<{
   modelValue: string;
   readonly: boolean;
-  suppressAllShortcuts?: boolean;
   regex?: string | RegExp | "name" | "description";
 }>();
 
@@ -66,6 +65,19 @@ function navigateRightIfAtEnd(event: any) {
 }
 
 const spanRef = ref<HTMLElement | null>(null);
+const { focused } = useFocus(spanRef);
+
+// (try to) retain cursor position when model value changes
+// TODO @UX: retain cursor position more intelligently on update
+watch(
+  () => props.modelValue,
+  () => {
+    if (!focused.value) return;
+    if (props.modelValue != fromNbsp(spanRef.value?.innerText ?? "")) {
+      nextTick(() => focus("last"));
+    }
+  }
+);
 
 function focus(pos: "first" | "last" = "first") {
   spanRef.value?.focus();
@@ -129,8 +141,6 @@ function selectStart() {
   }
 }
 
-const { focused } = useFocus(spanRef);
-
 function onInput(e: InputEvent) {
   const value = (e.target as HTMLElement).innerText;
   if (regexp.value != null && !regexp.value.test(value)) {
@@ -183,12 +193,12 @@ defineExpose({
   <!-- mousetrap class to enable keyboard shortcuts while editing -->
   <!-- except (undo redo which we want to keep native) -->
   <!-- https://craig.is/killing/mice#api.trigger -->
+  <!-- nocheckin prevent bold and stuff -->
   <span
     tabindex="-1"
     spellcheck="false"
     ref="spanRef"
-    class="whitespace-pre-wrap outline-none"
-    :class="suppressAllShortcuts ? '' : 'mousetrap mousetrap-no-do'"
+    class="mousetrap whitespace-pre-wrap outline-none"
     :contenteditable="!readonly"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"

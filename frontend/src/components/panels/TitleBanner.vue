@@ -33,7 +33,6 @@ defineExpose({
           ref="nameRef"
           class="text-3xl font-bold text-gray-900"
           :class="appearance.baseClassUnsized"
-          suppress-shortcuts
           :readonly="readonly"
           regex="name"
           :model-value="modelValue"
