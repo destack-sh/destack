@@ -322,26 +322,36 @@ const statementAddAreaEndRef = ref<InstanceType<typeof StatementAddArea> | null>
 const { x: mouseX, y: mouseY } = useMouse();
 const dragSelectStart = ref<{ x: number; y: number } | null>(null);
 
+function isOutsideStatementComponents(e: MouseEvent): boolean {
+  if (e.target == mainContentRef.value || e.target == statementAddAreaEndRef.value?.$el) return true;
+
+  // find next element with 'group/statement' class up (if exists)
+  let el = e.target as HTMLElement;
+  const path = [el];
+  while (el != null && !el.classList.contains("group/statement")) {
+    el = el.parentElement as HTMLElement;
+    path.push(el);
+  }
+  if (el == null) return true;
+
+  // only start drag select if not within statement content (i.e. inside left/right margins)
+  const outsideContent =
+    e.clientX < el.getBoundingClientRect().left + appearance.contentMarginX ||
+    e.clientX > el.getBoundingClientRect().right - appearance.contentMarginX;
+  return outsideContent || path.some((el) => el.classList.contains("absolute"));
+}
+
 function startDragSelectMaybe(e: MouseEvent) {
   if (e.button != 0 || e.altKey || e.shiftKey) return;
-  // must be clicking on or in statement components margin
-  if (e.target != mainContentRef.value && e.target != statementAddAreaEndRef.value?.$el) {
-    // find next element with 'group/statement' class up (if exists)
-    let el = e.target as HTMLElement;
-    const path = [el];
-    while (el != null && !el.classList.contains("group/statement")) {
-      el = el.parentElement as HTMLElement;
-      path.push(el);
-    }
-    if (el == null) return;
-    // only start drag select if not within statement content (i.e. inside left/right margins)
-    const outsideContent =
-      e.clientX < el.getBoundingClientRect().left + appearance.contentMarginX ||
-      e.clientX > el.getBoundingClientRect().right - appearance.contentMarginX;
-    if (!outsideContent || path.some((el) => el.classList.contains("absolute"))) return;
+  // must be clicking outside statement components or in their margin
+  if (!isOutsideStatementComponents(e)) return;
+  // clear selection on first click, blur active statement on second
+  if (panel.value.hasSelection) {
+    panel.value.clearSelection();
+    panel.value.stopEditingElement();
+  } else {
+    panel.value.blurElement();
   }
-  panel.value.clearSelection();
-  panel.value.stopEditingElement();
   dragSelectStart.value = { x: e.clientX + scroll.value.x, y: e.clientY + scroll.value.y };
   e.stopPropagation();
 }
