@@ -71,9 +71,7 @@ const effectiveReadonly = computed(() => bench.readonly || isDeleted.value || is
 const name: Ref<string> = ref(fileHeader.value?.name ?? "");
 const titleRef: Ref<InstanceType<typeof TitleBanner> | null> = ref(null);
 
-syncProperty({
-  value: name,
-  editing: computed(() => titleRef.value?.editing),
+const nameSync = syncProperty({
   read: () => (name.value = fileHeader.value?.name ?? ""),
   write: () => {
     ops.file.rename(null, fileHeader.value?.id, fileHeader.value?.name ?? "", name.value ?? "");
@@ -161,22 +159,27 @@ function registerStatementRef(id: string, component: InstanceType<typeof Stateme
 }
 
 // auto-focus on load
+const hasFocused = ref(false);
 watch(
   () => [statements.value, props.focused],
   () => {
-    if (!props.focused || statements.value == null) return;
-
+    if (!props.focused || file.value == null) {
+      hasFocused.value = false;
+      return;
+    }
+    if (hasFocused.value) return;
     // reset active statement if it's no longer visible
     if (panel.value.activeStatementCk != null && !statements.value.some((s) => s.ck == panel.value.activeStatementCk)) {
       panel.value.blurElement();
     }
-
+    // focus title or first statement
     if (statements.value.length == 0) {
       titleRef.value?.focus("last");
       nextTick(() => titleRef.value?.focus("last")); // required to focus if just loaded
     } else {
       panel.value.focusElement(statements.value[0]);
     }
+    hasFocused.value = true;
   },
   { immediate: true }
 );
@@ -505,6 +508,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
           paddingRight: `${panel.contentMarginX + 8}px`,
         }"
         v-model="name"
+        @update:model-value="nameSync.onLocalWrite"
         @enter="goToContent"
         @navigate-down="insertOrFocusStatementStart"
         :readonly="bench.readonly || isDeleted || isOtherVersion"

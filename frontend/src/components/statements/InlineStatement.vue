@@ -144,7 +144,7 @@ const elementParts = computed(() => {
     part: p,
     active:
       !isContentFolded.value &&
-      (p.showIfEmpty ||
+      (p.showIfNotExists ||
         partsForceShown.value.includes(p.id) ||
         p.exists(iface.value as StatementInterface, props.statement)),
   }));

@@ -62,7 +62,7 @@ export type StatementControl = StatementPart & {
 
 export type StatementElement = StatementPart & {
   id: StatementElementId;
-  showIfEmpty?: boolean;
+  showIfNotExists?: boolean;
 };
 
 export type StatementProps = {
@@ -177,7 +177,8 @@ const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: 
 const TEXT: StatementElement = {
   id: "text",
   component: TextElement,
-  exists: (iface, statement) => (statement.text ?? "").length > 0,
+  exists: (iface, statement) =>
+    (statement.text ?? "").length > 0 || (statement.type == StatementType.Text && (statement.headingLevel ?? 0) == 0),
 };
 const FUNCTION_TYPE: StatementElement = {
   id: "type.function",
@@ -220,7 +221,7 @@ function register(type: StatementType, value: Omit<StatementInterface, "type">) 
 }
 
 register(StatementType.Blank, { primaryPart: "blank", elements: [BLANK] });
-register(StatementType.Text, { primaryPart: "text", hasTags: true, elements: [{ ...TEXT, showIfEmpty: false }] });
+register(StatementType.Text, { primaryPart: "text", hasTags: true, elements: [TEXT] });
 register(StatementType.Code, {
   primaryPart: "code",
   foldable: "function-self",
@@ -229,7 +230,7 @@ register(StatementType.Code, {
   hasTags: true,
   hasTriggers: true,
   extraControls: [RUN_META],
-  elements: [TEXT, FUNCTION_TYPE, { ...CODE, showIfEmpty: true }, RUN],
+  elements: [TEXT, FUNCTION_TYPE, { ...CODE, showIfNotExists: true }, RUN],
 });
 register(StatementType.Type, {
   primaryPart: "type",
@@ -237,7 +238,7 @@ register(StatementType.Type, {
   needsDeclaration: true,
   hasBases: true,
   hasTags: true,
-  elements: [TEXT, { ...LIST_TYPE, showIfEmpty: true }],
+  elements: [TEXT, { ...LIST_TYPE, showIfNotExists: true }],
 });
 register(StatementType.Task, {
   primaryPart: "declaration",
@@ -247,7 +248,7 @@ register(StatementType.Task, {
   hasBases: true,
   hasTriggers: true,
   extraControls: [RUN_META],
-  elements: [TEXT, { ...FUNCTION_TYPE, showIfEmpty: true }, RUN],
+  elements: [TEXT, { ...FUNCTION_TYPE, showIfNotExists: true }, RUN],
 });
 register(StatementType.Reference, {
   primaryPart: "reference",
@@ -262,7 +263,7 @@ register(StatementType.Variable, {
   foldable: "list-all",
   needsDeclaration: true,
   hasTags: true,
-  elements: [TEXT, { ...VARIABLE, showIfEmpty: true }],
+  elements: [TEXT, { ...VARIABLE, showIfNotExists: true }],
 });
 register(StatementType.Dataset, {
   primaryPart: "dataset",
