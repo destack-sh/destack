@@ -182,9 +182,20 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
     paste: () => nav.value?.paste(),
     run,
     deleteLeft: () => {
-      const above = nav?.value?.getAbove(statement.value);
-      ops.statement.softDelete(null, statement.value.id);
-      nextTick(() => nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last"));
+      if (
+        partId == "text" &&
+        canHaveText.value &&
+        (statement.value.type != StatementType.Text || (statement.value.headingLevel ?? 0) != 0)
+      ) {
+        // if part has text and can do without, remove the text
+        partsForceShown.value = partsForceShown.value.filter((p) => p != "text");
+        nextTick(() => focus("declaration"));
+      } else {
+        // otherwise delete proper
+        const above = nav?.value?.getAbove(statement.value);
+        ops.statement.softDelete(null, statement.value.id);
+        nextTick(() => nav?.value?.statementsComponents[above?.id ?? ""]?.focus("last"));
+      }
     },
     deleteSelf: () => {
       ops.statement.softDelete(null, statement.value.id);
@@ -763,8 +774,6 @@ defineExpose({
               v-on="handleStatementPartEvents('control', control.id)"
               :class="[active ? 'mr-1.5' : '']"
             />
-            <!-- TODO @UX: statement inline instant actions? -->
-            <!-- :InlineButtonPillStyle -->
           </div>
           <!-- Actions -->
           <div

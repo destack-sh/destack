@@ -46,6 +46,7 @@ defineExpose({
     @enter-left="emit('enterLeft')"
     @enter="emit('enter')"
     @enter-right="emit('enterRight')"
+    @delete-left="emit('deleteLeft')"
     @escape="emit('escape')"
     @illegal="emit('illegal', $event)"
   />
