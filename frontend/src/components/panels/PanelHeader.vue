@@ -110,14 +110,20 @@ const auth = useAuth();
       <button
         v-for="action in actions.filter((a) => !a.hideInline && !a.disabled)"
         :key="action.label"
-        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        class="group/action relative rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
         @click="action.action(thing)"
       >
         <component :is="action.icon" class="h-4 w-4" />
+        <span
+          v-if="!action.active"
+          class="pointer-events-none absolute -left-1/2 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover/action:opacity-100"
+        >
+          {{ action.label }}
+        </span>
       </button>
       <button
         v-if="!hideWideToggle"
-        class="rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        class="group/actoin relative rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
         @click.stop="panelAppearance.wide = !panel.panel.value.effectiveWide"
       >
         <component

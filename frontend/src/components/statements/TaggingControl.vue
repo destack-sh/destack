@@ -63,6 +63,7 @@ function createTagging(tag: Pick<Statement, "ck" | "key" | "name">) {
     referenceCk: tag.ck,
     metadata: null,
   });
+  nextTick(() => taggingRefs.focus(identity.id));
 }
 
 function deleteTagging(tagging: Pick<Tagging, "id">) {
@@ -102,7 +103,7 @@ defineExpose({
       v-for="(tagging, i) in tags"
       :ref="(ref: any) => taggingRefs.registerRef(tagging.id, ref)"
       :key="tagging.id"
-      class="flex h-fit max-h-fit flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200 focus:bg-yellow-200 focus:outline-none"
+      class="flex h-fit max-h-fit flex-row rounded-xl bg-yellow-100 px-1.5 text-orange-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200 focus:bg-yellow-200 focus:outline-none focus:ring-yellow-600/80"
       @click="deleteTagging(tagging)"
       @keydown.delete.exact="deleteTagging(tagging)"
       @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : taggingRefs.focus(tags[i - 1]?.id)"
@@ -121,7 +122,7 @@ defineExpose({
         class="z-50 flex w-72 flex-col rounded-sm bg-white p-2 shadow-md ring-1 ring-orange-900 ring-opacity-40"
         :class="[popoverPin.pinned.value ? '' : 'absolute -top-4']"
       >
-        <Combobox as="div" @update:model-value="(t) => (createTagging(t), close())">
+        <Combobox as="div" @update:model-value="(t) => (close(), createTagging(t))">
           <!-- Input -->
           <ComboboxInput
             as="input"

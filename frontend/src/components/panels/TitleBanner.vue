@@ -23,7 +23,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="group/meta relative flex w-full flex-row items-center justify-between">
+  <div class="group/meta relative flex flex-row items-center justify-between">
     <!-- Name & actions -->
     <span class="flex flex-row items-center">
       <!-- Name -->
@@ -58,7 +58,7 @@ defineExpose({
         <button
           v-for="action in actions"
           :key="action.label"
-          class="rounded-sm p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
+          class="group relative rounded-sm p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
           :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"
           @click="action.action(thing)"
           :disabled="action.disabled"
@@ -68,6 +68,13 @@ defineExpose({
             class="h-5 w-5"
             :class="action.active ? 'animate-spin' : ''"
           />
+          <!-- Label popover -->
+          <span
+            v-if="!action.active"
+            class="pointer-events-none absolute -left-3 top-7 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover:opacity-100"
+          >
+            {{ action.label }}
+          </span>
         </button>
       </span>
     </span>

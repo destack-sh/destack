@@ -402,7 +402,9 @@ defineExpose({
             @navigate-up="nameRef?.focus()"
             @navigate-right="typeButtonRef?.focus()"
             @navigate-down="actionRefs.focus(actions[0].label)"
+            @enter-left="close(false), emit('enter')"
             @enter="close(false), emit('enter')"
+            @enter-right="close(false), emit('enter')"
           />
           <!-- Text placeholder -->
           <span v-if="!hasText" class="text-gray-400" @click="textRef?.focus">Add {{ tupleName }} text</span>

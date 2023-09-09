@@ -19,7 +19,7 @@ from bench.language.session import Run, RunError, RunErrorKind
 from bench.language.tag import HasTags
 from bench.language.type import HasType, instantiate_value
 from bench.language.utils import Runnable
-from bench.utils.utils import DotList
+from bench.utils.utils import DotDict, DotList
 
 
 class TaskErrorType(enum.StrEnum):
@@ -218,7 +218,7 @@ async def run_task(
                 output = instantiate_value(
                     step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
                 )
-                return output
+                return DotDict(output)
 
             # runnable to call
             inputs = instantiate_value(step.result_raw, step.runnable, is_output=False)

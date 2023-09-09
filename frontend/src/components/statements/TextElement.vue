@@ -54,6 +54,7 @@ function onInput() {
 // quick inline actions
 type QuickAction = {
   id: string;
+  label: string;
   icon: Component;
   action: () => void;
 };
@@ -67,14 +68,10 @@ const quickActions = computed(() => {
   )
     return [];
   const actions: QuickAction[] = [];
-  actions.push({
-    id: "task",
-    icon: getStatementIconSolid(StatementType.Task),
-    action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
-  });
   if (props.statement.name == null) {
     actions.push({
       id: "name",
+      label: "Add name",
       icon: AtSymbolIcon,
       action: () => {
         ops.statement.rename(null, props.statement.id, null, "");
@@ -83,7 +80,14 @@ const quickActions = computed(() => {
     });
   }
   actions.push({
+    id: "task",
+    label: "Turn into task",
+    icon: getStatementIconSolid(StatementType.Task),
+    action: () => ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Task }),
+  });
+  actions.push({
     id: "code",
+    label: "Turn into code",
     icon: getStatementIconSolid(StatementType.Code),
     action: () => {
       ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Code });
@@ -92,6 +96,7 @@ const quickActions = computed(() => {
   });
   actions.push({
     id: "data",
+    label: "Turn into dataset",
     icon: getStatementIconSolid(StatementType.Dataset),
     action: () => {
       ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Dataset });
@@ -148,47 +153,32 @@ defineExpose({
     </button>
     <!-- Quick inline actions (positioned as not to disturb the flow) -->
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
-    <!-- :InlineButtonPillStyle -->
     <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
       <div
-        class="absolute -top-4 z-20 ml-3 flex animate-fadeInSlow flex-row gap-2 whitespace-nowrap transition-opacity"
+        class="absolute -top-[15px] z-20 ml-3 flex animate-fadein-1500 flex-row gap-1.5 whitespace-nowrap transition-opacity"
       >
         <button
           v-for="action in quickActions"
           :key="action.id"
           :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
-          class="group flex h-fit max-h-fit flex-row items-center rounded-sm bg-orange-100 bg-opacity-10 px-1.5 text-gray-400 shadow-sm ring-1 ring-inset ring-yellow-600/20 transition-colors duration-150 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 focus:text-gray-700 focus:outline-none"
+          class="group relative flex h-fit max-h-fit flex-row items-center rounded-sm px-1 py-0.5 transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
           @click="action.action"
           @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
           @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"
         >
           <component
             :is="action.icon"
-            class="mr-0.5 mt-0.5 h-4 w-4 text-gray-300 transition-colors duration-150 group-hover:text-gray-500 group-focus:text-gray-500"
+            class="h-4 w-4 text-gray-300 transition-colors duration-150 group-hover:text-gray-500 group-focus:text-gray-500"
           />
-          <span>{{ action.id }}</span>
+          <!-- <span class="ml-2">{{ action.id }}</span> -->
+          <!-- Label popover -->
+          <span
+            class="pointer-events-none absolute -left-1/2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
+          >
+            {{ action.label }}
+          </span>
         </button>
       </div>
     </div>
   </div>
 </template>
-<style>
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
-
-.fade-in-slow {
-  animation: fadeIn 500ms forwards;
-  animation-delay: 1s;
-}
-
-.fade-out-fast:hover {
-  opacity: 0;
-  transition: opacity 150ms;
-}
-</style>

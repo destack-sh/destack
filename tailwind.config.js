@@ -30,10 +30,13 @@ module.exports = {
         },
       }),
       animation: {
-        fadeInSlow: "fadeInSlow 1.5s forwards",
+        ["fadein-500"]: "fadein-75 0.5s forwards",
+        ["fadein-1000"]: "fadein-75 1.0s forwards",
+        ["fadein-1500"]: "fadein-75 1.5s forwards",
+        ["fadein-2000"]: "fadein-75 2.0s forwards",
       },
       keyframes: {
-        fadeInSlow: {
+        ["fadein-75"]: {
           "0%": {
             opacity: 0,
           },
