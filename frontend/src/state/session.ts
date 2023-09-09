@@ -687,7 +687,11 @@ export function useRuns(
         },
         (prev) => {
           return {
-            searchRuns: getUpdatedConnectionQuery(run, prev?.searchRuns as Connection<Run> | undefined, options?.limit),
+            searchRuns: getUpdatedConnectionQuery(
+              run,
+              prev?.searchRuns as Connection<Run> | undefined,
+              options?.limit
+            ) as any,
           };
         }
       );

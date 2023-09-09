@@ -16,7 +16,7 @@ const appearance = useAppearance();
 const nameRef = ref<InstanceType<typeof EditableSpan> | null>(null);
 
 defineExpose({
-  focus: () => nameRef.value?.focus(),
+  focus: (f: "first" | "last" = "first") => nameRef.value?.focus(f),
   selectAll: () => nameRef.value?.selectAll(),
   blur: () => nameRef.value?.blur(),
   editing: computed(() => nameRef.value?.focused ?? false),
