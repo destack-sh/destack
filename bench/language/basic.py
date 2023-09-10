@@ -59,7 +59,20 @@ class HasText(HasIssues):
         self._text_spans = parse_text_html(self.text)
 
         # resolve references
-        # nocheckin
+        for span in self._text_spans:
+            if not isinstance(span, TextMention):
+                continue
+            if isinstance(span.reference, ModuleNode):
+                continue
+            resolved = None
+            if span.reference is not None:
+                resolved = scope.lookup(span.reference.ref, node_t=span.reference.type)
+            if resolved is None:
+                self._on_issue(
+                    type=IssueType.MISSING_REFERENCE, subject=self, path=span.reference_path
+                )
+                continue
+            span.reference = resolved  # success
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         if self._text_spans is None:
@@ -91,10 +104,10 @@ class TextSpan:
 
 
 TEXT_MENTION_REGEX = re.compile(
-    r"<span data-ref-ck=\"(?P<ck>[a-f0-9-]+)\" data-ref-mnt=\"(?P<mnt>[a-zA-Z]+)\" data-ref-path=\"(?P<path>[^\"]*)\"></span>"
+    r"<span data-ref-ck=\"(?P<ck>[a-f0-9-]+)\" data-ref-type=\"(?P<type>[a-zA-Z]+)\" data-ref-path=\"(?P<path>[^\"]*)\"></span>"
 )
 TEXT_MENTION_TEMPLATE = (
-    '<span data-ref-ck="{ck}" data-ref-mnt="{mnt}" data-ref-path="{path}"></span>'
+    '<span data-ref-ck="{ck}" data-ref-type="{type}" data-ref-path="{path}"></span>'
 )
 
 
@@ -127,7 +140,7 @@ class TextMention(TextSpan):
     def from_reference(reference: TypedNodeReference, path: Optional[str] = None) -> "TextMention":
         return TextMention(
             text=TEXT_MENTION_TEMPLATE.format(
-                mnt=reference.type,
+                type=reference.type,
                 ck=reference.ref,
                 path=path or "",
             ),
@@ -141,8 +154,9 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
     Parse our subset of raw HTML with references as spans into TextSpans.
     User non-HTML characters are escaped (as in contenteditable).
     Spans are represented as span with data-reference attributes.
+    :TextFormat
 
-    e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-mnt="Statement" data-reference-path="a.b.c"></span>!"
+    e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-type="Statement" data-reference-path="a.b.c"></span>!"
      -> [text("Hello "), mMention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Statement", "a.b.c"), TextSpan("!")]
     """
     spans = []
@@ -155,10 +169,10 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
         # mention
         text = match.group(0)
         ck = UUID(match.group("ck"))
-        mnt = ModuleNodeType(match.group("mnt"))
+        type = ModuleNodeType(match.group("type"))
         path = match.group("path") or None
         spans.append(
-            TextMention(text=text, reference=TypedNodeReference(mnt, ck), reference_path=path)
+            TextMention(text=text, reference=TypedNodeReference(type, ck), reference_path=path)
         )
 
         last_end = match.end()
@@ -173,6 +187,7 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
     """
     Render text spans back into HTML-style raw text with references.
     See above for details.
+    :TextFormat
     """
     return "".join(s.text_raw for s in text_spans)
 

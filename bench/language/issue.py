@@ -95,14 +95,14 @@ class Issue:
     def __init__(
         self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
     ):
-        from bench.language.core import File, NodePath, Statement, statement_path_as_str
+        from bench.language.core import File, NodePath, Statement, node_path_as_str
 
         # auto convert kwargs
         for key, value in kwargs.items():
             if isinstance(value, (Statement, Statement, File)):
                 kwargs[key] = value.name
             if isinstance(value, NodePath):
-                kwargs[key] = statement_path_as_str(value)
+                kwargs[key] = node_path_as_str(value)
 
         self.type = type
         self.subject = subject

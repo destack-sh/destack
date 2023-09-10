@@ -169,8 +169,6 @@ function onEnter(e: KeyboardEvent) {
   } else {
     emit("enter", props.modelValue);
   }
-  e.preventDefault();
-  e.stopPropagation();
 }
 
 function toNbsp(s: string) {
@@ -191,9 +189,9 @@ defineExpose({
 </script>
 <template>
   <span
+    ref="spanRef"
     tabindex="-1"
     spellcheck="false"
-    ref="spanRef"
     class="mousetrap whitespace-pre-wrap outline-none"
     :contenteditable="(readonly ? 'false' : 'plaintext-only' as any)"
     @keydown.up.exact.prevent="emit('navigateUp')"

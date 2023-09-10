@@ -302,7 +302,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
-        for statement in lib._statements_by_id.values():
+        for statement in lib._nodes_by_id.values():
             if isinstance(statement, Runnable):
                 for field in statement.inputs:
                     inputs_mappings[field.typed_key] = map_to_os_field(field)
@@ -323,7 +323,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             metadata_mappings[field.typed_key] = map_to_os_field(field)
 
     # add dynamic user mappings
-    for statement in module._statements_by_id.values():
+    for statement in module._nodes_by_id.values():
         if not isinstance(statement, lang.HasType) or statement.self_errors:
             continue  # ignore symbols with issues
         elif isinstance(statement, lang.Dataset):

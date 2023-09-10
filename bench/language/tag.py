@@ -92,7 +92,7 @@ class HasTags(StatementBase):
         for tagging in self.tags:
             if tagging.reference_ck is None:
                 continue
-            tagging.reference = scope._root_scope._statements_by_id.get(tagging.reference_ck)
+            tagging.reference = scope._root_scope._nodes_by_id.get(tagging.reference_ck)
             if tagging.reference is None:
                 # is that an error? not sure
                 continue

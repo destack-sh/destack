@@ -17,13 +17,7 @@ from bench.language import Dataset, HasText, Run, Runnable, Tag, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
-from bench.language.core import (
-    LookupBy,
-    Module,
-    Statement,
-    get_node_id,
-    parse_absolute_statement_reference,
-)
+from bench.language.core import Module, Statement, get_node_id
 from bench.language.model import Model
 from bench.language.reflect import (
     _derive_constant_key,
@@ -806,20 +800,12 @@ for name, module in DEFAULT_MODULES.items():
         module_reloaded.interp()
 
         # check that all HasType things have fields
-        for statement in module_reloaded._statements_by_id.values():
+        for statement in module_reloaded._nodes_by_id.values():
             if isinstance(statement, (Type, Code, Task, Model)) and not statement.fields:
                 raise RuntimeError(f"statement {statement} has no fields")
 
         if module_reloaded.issues:
             raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")
-
-
-def lookup(path: str, by: LookupBy = LookupBy.Name) -> Optional[Statement]:
-    module_name, local_path = parse_absolute_statement_reference(path)
-    module = DEFAULT_MODULES.get(module_name)
-    if module is None:
-        return None
-    return module.lookup(local_path, by=by)
 
 
 def lookup_model_impl(path: str) -> Optional[typing.Callable]:
