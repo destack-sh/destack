@@ -22,6 +22,7 @@ NAME_FIELD = os.Field(
     },
 )
 HTML_FIELD = os.Field(os.FieldType.TEXT, analyzer=os.Analyzer.HTML)
+TEXT_FIELD = HTML_FIELD
 
 ModelT = TypeVar("ModelT", bound=Model)
 MirrorT = TypeVar("MirrorT", bound=os.Document)
@@ -298,7 +299,7 @@ class Statement(CrudThing, Revisioned, os.Document):
     file_id: UUID = os.field(os.FT.KEYWORD)
     type: StatementType = os.field(os.FT.KEYWORD)
     name: Optional[str] = NAME_FIELD
-    text: Optional[str] = os.field(os.FT.TEXT)
+    text: Optional[str] = TEXT_FIELD
     code: Optional[str] = os.field(os.FT.TEXT)
     # can't index value as it would explode our mappings (module index is global)
 
@@ -327,6 +328,7 @@ class Field(CrudThing, Revisioned, os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: UUID = os.field(os.FT.KEYWORD)
     name: Optional[str] = NAME_FIELD
+    text: Optional[str] = TEXT_FIELD
     type_tag: str = os.field(os.FT.KEYWORD)
     type_hint: Optional[str] = os.field(os.FT.TEXT)
 

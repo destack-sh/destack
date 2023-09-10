@@ -1,15 +1,20 @@
 import enum
 import itertools
-from typing import Optional
+import re
+from dataclasses import dataclass
+from typing import Optional, Union
 from uuid import UUID
 
 from bench.language.core import (
+    HasIssues,
+    ModuleNode,
+    ModuleNodeType,
     ModuleVisitor,
-    NodeReference,
     Scope,
     Statement,
     StatementReference,
     StatementType,
+    TypedNodeReference,
     node,
 )
 from bench.language.issue import IssueType
@@ -29,24 +34,147 @@ class Blank(Statement):
 
 
 @node
-class HasText:
+class HasText(HasIssues):
     """Some instruction text with optional references."""
 
     text: str | None = None
-    _text_references: list[NodeReference] = None  # not parsed out yet, see :BE-301
+    _text_spans: list["TextSpan"] | None = None
 
     @property
     def text_plain(self) -> Optional[str]:
         return self.text  # the same because there are no annotations yet
 
+    @property
+    def text_spans(self) -> list["TextSpan"]:
+        if self._text_spans is None:
+            raise ValueError(f"{self} is not interpreted")
+        return self._text_spans
+
     def _clear(self) -> None:
-        pass
+        self._text_spans = None
 
     def _interp(self, scope: Scope) -> None:
-        pass
+        if self.text is None:
+            return
+        self._text_spans = parse_text_html(self.text)
+
+        # resolve references
+        # nocheckin
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
+        if self._text_spans is None:
+            return
+        for span in self._text_spans:
+            if isinstance(span, TextMention) and isinstance(span.reference, ModuleNode):
+                visitor.visit_reference(span.reference)
+
+
+@dataclass
+class TextSpan:
+    """A decoded non-overlapping span of a HasText text property."""
+
+    text: str
+
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return f"<TextSpan {self}>"
+
+    @property
+    def text_plain(self) -> Optional[str]:
+        return self.text
+
+    @property
+    def text_raw(self):
+        return self.text
+
+
+TEXT_MENTION_REGEX = re.compile(
+    r"<span data-ref-ck=\"(?P<ck>[a-f0-9-]+)\" data-ref-mnt=\"(?P<mnt>[a-zA-Z]+)\" data-ref-path=\"(?P<path>[^\"]*)\"></span>"
+)
+TEXT_MENTION_TEMPLATE = (
+    '<span data-ref-ck="{ck}" data-ref-mnt="{mnt}" data-ref-path="{path}"></span>'
+)
+
+
+@dataclass
+class TextMention(TextSpan):
+    reference: Union[TypedNodeReference, ModuleNode]
+    reference_path: Optional[str]
+
+    def __str__(self):
+        if isinstance(self.reference, ModuleNode):
+            return f"@{self.reference or '???'}"
+        else:
+            return self.text
+
+    def __repr__(self):
+        return f"<TextMention {self}>"
+
+    @property
+    def reference_ck(self) -> UUID:
+        if isinstance(self.reference, ModuleNode):
+            return self.reference.ck
+        else:
+            return self.reference.ref
+
+    @property
+    def text_plain(self) -> Optional[str]:
+        return None
+
+    @staticmethod
+    def from_reference(reference: TypedNodeReference, path: Optional[str] = None) -> "TextMention":
+        return TextMention(
+            text=TEXT_MENTION_TEMPLATE.format(
+                mnt=reference.type,
+                ck=reference.ref,
+                path=path or "",
+            ),
+            reference=reference,
+            reference_path=path,
+        )
+
+
+def parse_text_html(text_raw: str) -> list[TextSpan]:
+    """
+    Parse our subset of raw HTML with references as spans into TextSpans.
+    User non-HTML characters are escaped (as in contenteditable).
+    Spans are represented as span with data-reference attributes.
+
+    e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-mnt="Statement" data-reference-path="a.b.c"></span>!"
+     -> [text("Hello "), mMention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Statement", "a.b.c"), TextSpan("!")]
+    """
+    spans = []
+    last_end = 0
+
+    for match in TEXT_MENTION_REGEX.finditer(text_raw):
+        if match.start() > last_end:  # previous
+            spans.append(TextSpan(text=text_raw[last_end : match.start()]))
+
+        # mention
+        text = match.group(0)
+        ck = UUID(match.group("ck"))
+        mnt = ModuleNodeType(match.group("mnt"))
+        path = match.group("path") or None
+        spans.append(
+            TextMention(text=text, reference=TypedNodeReference(mnt, ck), reference_path=path)
+        )
+
+        last_end = match.end()
+
+    if last_end < len(text_raw):  # remainder
+        spans.append(TextSpan(text=text_raw[last_end:]))
+
+    return spans
+
+
+def render_text_html(text_spans: list[TextSpan]) -> str:
+    """
+    Render text spans back into HTML-style raw text with references.
+    See above for details.
+    """
+    return "".join(s.text_raw for s in text_spans)
 
 
 class TextHeadingLevel(enum.IntEnum):
@@ -72,6 +200,7 @@ class Text(HasText, Statement):
     def _visit(self, visitor: ModuleVisitor) -> None:
         for child in self.children:
             visitor.visit_child(child)
+        HasText._visit(self, visitor)
 
 
 # avoid circular import because Reference IsFlowNode
@@ -85,7 +214,6 @@ class Reference(Statement, HasTags, HasText, IsFlowNode):
 
     type: StatementType = StatementType.REFERENCE
     reference: Statement | StatementReference = None
-    text: str | None = None
 
     def _clear(self) -> None:
         HasTags._clear(self)
@@ -107,6 +235,7 @@ class Reference(Statement, HasTags, HasText, IsFlowNode):
             visitor.visit_child(n)
         if isinstance(self.reference, Statement):
             visitor.visit_reference(self.reference)
+        HasText._visit(self, visitor)
 
     @property
     def reference_ck(self) -> Optional[UUID]:

@@ -83,6 +83,11 @@ class Randomize:
     pass
 
 
+@x_tag("test", "A test case", file=_symbolx_builtins)
+class Test:
+    pass
+
+
 @x_struct("EmbeddingOutput", "Embedding output", file=_symbolx_builtins)
 class EmbeddingOutput:
     vector: typing.Union[Vector, list[Vector]]
@@ -318,25 +323,25 @@ class OpenAIChatCompletion:
 @x_model(
     "gpt3",
     "OpenAI's instruct-tuned 4k context GPT3.5 based chat model",
-    external_name="gpt-3.5-turbo",
+    external_name="gpt-3.5-turbo-0613",
     file=_openai_chat,
 )
 @x_model(
     "gpt3-16k",
     "OpenAI's instruct-tuned 16k context GPT3.5 based chat model",
-    external_name="gpt-3.5-turbo-16k",
+    external_name="gpt-3.5-turbo-16k-0613",
     file=_openai_chat,
 )
 @x_model(
     "gpt4",
     "OpenAI's latest and largest 8k context GPT4 based chat model",
-    external_name="gpt-4",
+    external_name="gpt-4-0613",
     file=_openai_chat,
 )
 @x_model(
     "gpt4-32k",
     "OpenAI's latest and largest 32k context GPT4 based chat model",
-    external_name="gpt-4-32k",
+    external_name="gpt-4-32k-0613",
     file=_openai_chat,
 )
 class OpenAIChatCompletionModel(Model):

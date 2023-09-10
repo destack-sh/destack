@@ -170,11 +170,13 @@ class Dataset(HasType, HasTags, HasText, Search["RecordData", Record], Statement
     views: Optional[list[DatasetView]] = None
 
     def _clear(self) -> None:
+        Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
-        Statement._clear(self)
 
     def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
 
@@ -454,17 +456,20 @@ class Variable(HasType, HasTags, HasText, Statement):
 
     def _clear(self) -> None:
         Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
         self._deactivate()
 
     def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
+        HasText._visit(self, visitor)
 
     def _onread(self, key: str) -> None:
         pass

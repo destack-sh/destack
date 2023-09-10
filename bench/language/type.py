@@ -395,6 +395,8 @@ class HasType(TypeBase, StatementBase):
     def _clear(self) -> None:
         self.resolved_fields = None
         self._fields_by_ident = None
+        for f in self.fields:
+            f._clear()
 
     def _interp(self, scope: Scope) -> None:
         # sort fields by order key
@@ -410,7 +412,11 @@ class HasType(TypeBase, StatementBase):
                 continue
             self._fields_by_ident[field_.py_ident] = field_
 
-        # resolve references
+        # TODO @Cleanup: interp fields should really go into Field
+        # interp fields
+        for f in self.fields:
+            HasText._interp(f, scope)
+        # resolve fields references
         for f in self.walk_type():
             # TODO @Cleanup @Architecture: move field reference resolution into Field._interp
             #  we'll also need text reference resolution and tagging resolution there
@@ -418,7 +424,7 @@ class HasType(TypeBase, StatementBase):
                 continue  # nothing to resolve
             statement = None
             if f.reference is not None:
-                statement = scope.lookup(f.reference, statement_t=Type)
+                statement = scope.lookup(f.reference, node_t=Type)
             if not isinstance(statement, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
@@ -580,8 +586,7 @@ from bench.language.tag import HasTags  # noqa
 
 
 @node
-class Type(HasType, HasTags, Statement):
-    text: Optional[str] = None
+class Type(HasType, HasText, HasTags, Statement):
     tag: TypeTag = required_field()
     flags: TypeFlag = TypeFlag(0)
     # not directly configurable for types
@@ -590,14 +595,17 @@ class Type(HasType, HasTags, Statement):
 
     def _clear(self) -> None:
         Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
 
     def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
+        HasText._visit(self, visitor)
 
     def __call__(self, *args, **kwargs):
         combined_kwargs = {**kwargs}

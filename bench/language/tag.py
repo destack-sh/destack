@@ -3,6 +3,7 @@ import typing
 from dataclasses import field
 from uuid import UUID
 
+from bench.language.basic import HasText
 from bench.language.const import TypeTag
 from bench.language.core import (
     HasCrud,
@@ -102,12 +103,9 @@ from bench.language.type import HasType, new_field_key  # noqa: E402
 
 
 @node(tracked=["name"])
-class Tag(HasType, HasTags, Statement):
+class Tag(HasType, HasTags, HasText, Statement):
     """A tag statement."""
 
-    name: str = None
-    text: str = None
-    key: str = None
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT
 
@@ -117,14 +115,17 @@ class Tag(HasType, HasTags, Statement):
 
     def _clear(self):
         Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
 
     def _interp(self, scope: Scope) -> None:
         Statement._interp(self, scope)
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
 
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.children, self.fields, self.tags):
             visitor.visit_child(n)
+        HasText._visit(self, visitor)

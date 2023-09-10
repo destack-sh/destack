@@ -132,6 +132,8 @@ defineExpose({
       @keydown.right.exact.prevent="
         i == triggers.length - 1 ? emit('navigateRight') : triggerRefs.focus(triggers[i + 1]?.id)
       "
+      @keydown.up.exact.prevent="emit('navigateUp')"
+      @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <span class="mr-1 inline-flex flex-row">
         <component :is="TRIGGER_ICONS_SOLID[TriggerType.Time]" class="h-4 w-4" />

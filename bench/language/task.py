@@ -87,12 +87,9 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     _root_models: list[Model] = None
     _randomized: bool = False
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
-            visitor.visit_child(n)
-
     def _clear(self) -> None:
         Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
         IsFlowNode._clear(self)
@@ -100,6 +97,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     def _interp(self, scope: Scope) -> None:
         from bench.language.builtin import symbolx_lib
 
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
@@ -111,6 +109,11 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
+            visitor.visit_child(n)
+        HasText._visit(self, visitor)
 
     async def __call__(
         self,
