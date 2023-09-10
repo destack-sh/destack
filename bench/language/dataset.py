@@ -339,7 +339,7 @@ class RecordSearch(Search["RecordData", Record]):
     def _unpack_element_data(self, record_data: "RecordData") -> ElementT:
         from bench.language import wire
 
-        parent = self.module._statements_by_id.get(record_data.parent_id)
+        parent = self.module._nodes_by_id.get(record_data.parent_id)
         if parent is None:
             raise RuntimeError(
                 f"parent statement {record_data.parent_id} of{record_data.id} not found"

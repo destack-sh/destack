@@ -27,7 +27,7 @@ from bench.language import (
     wire,
 )
 from bench.language.cache import CacheAsync
-from bench.language.core import MNT, Module, ModuleReference, parse_absolute_statement_reference
+from bench.language.core import MNT, Module, ModuleReference, parse_absolute_node_reference
 from bench.language.flow import IsFlowNode, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
@@ -474,7 +474,7 @@ class RuntimeServer(Monitored):
 
     @message_handler
     async def run_inference(self, msg: NMessage[ReqRunInferencePayload]) -> None:
-        module_name, localized_path = parse_absolute_statement_reference(msg.p.model_path)
+        module_name, localized_path = parse_absolute_node_reference(msg.p.model_path)
         log = logger.bind(model=msg.p.model_path, msg=msg)
         log.debug("inference.run")
         try:
@@ -807,7 +807,7 @@ class RuntimeWorker:
 
         # collect new (i.e. current) module's triggers
         new_active_triggers = {}
-        for statement in self.module._statements_by_id.values():
+        for statement in self.module._nodes_by_id.values():
             if isinstance(statement, IsFlowNode) and not statement.errors:
                 for trigger in statement.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
@@ -881,8 +881,8 @@ class RuntimeWorker:
         interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
         if old_module is None:
             interp_mut.truncate(new_source.module, MNT.ResolvedField)
-        for statement in self.module._statements_by_id.values():
-            old_statement = old_module._statements_by_id.get(statement.id) if old_module else None
+        for statement in self.module._nodes_by_id.values():
+            old_statement = old_module._nodes_by_id.get(statement.id) if old_module else None
             if not isinstance(statement, HasType):
                 continue
             if (

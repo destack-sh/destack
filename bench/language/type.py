@@ -390,7 +390,6 @@ class HasType(TypeBase, StatementBase):
     resolved_fields: list[Field | ResolvedField] | None = None
     key: str = None
     reference = None
-    _fields_by_ident: dict[str, Field] | None = None
 
     def _clear(self) -> None:
         self.resolved_fields = None
@@ -398,19 +397,15 @@ class HasType(TypeBase, StatementBase):
         for f in self.fields:
             f._clear()
 
+    def _index(self):
+        # TODO @Cleanup: automatically register _clear/_index/_interp for statement elements
+        Statement._index(self)
+        for f in self.fields:
+            self._add_child_node(f, by_name=True)
+
     def _interp(self, scope: Scope) -> None:
         # sort fields by order key
         self.fields.sort(key=lambda f: f.order_key)
-
-        # index fields
-        self._fields_by_ident = {}
-        for field_ in self.fields:
-            if field_.py_ident in self._fields_by_ident:
-                self._on_issue(
-                    type=IssueType.AMBIGUOUS_DEFINITION, subject=self, path=field_.py_ident
-                )
-                continue
-            self._fields_by_ident[field_.py_ident] = field_
 
         # TODO @Cleanup: interp fields should really go into Field
         # interp fields
@@ -505,8 +500,8 @@ class HasType(TypeBase, StatementBase):
         field_ = self.get_field(item)
         if field_ is not None:
             return field_
-        if item in self._names_by_py_ident:
-            item = self._names_by_py_ident.get(item)
+        if item in self._names_by_ident:
+            item = self._names_by_ident.get(item)
         statement = self._scopes_by_name.get(item)
         if statement is not None:
             return statement
@@ -621,8 +616,8 @@ class Type(HasType, HasText, HasTags, Statement):
         return f"<Type {self}>"
 
     def __getattr__(self, item):
-        if self._fields_by_ident is not None and item in self._fields_by_ident:
-            return self._fields_by_ident[item]
+        if self._names_by_ident is not None and item in self._names_by_ident:
+            return self._names_by_ident[item]
         else:
             return super().__getattr__(item)
 

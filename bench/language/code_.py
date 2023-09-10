@@ -110,13 +110,13 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
         from bench.language.libs import symbolx_lib
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", statement_t=Tag))
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", node_t=Tag))
 
     @cached_property
     def exported(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", statement_t=Tag))
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", node_t=Tag))
 
     @cached_property
     def _code_hash(self) -> str:

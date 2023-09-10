@@ -1551,7 +1551,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
 
     def unpack(self, data: RunData, module: Module) -> lang.Run:
         # we leave relational references that aren't in the module as None?
-        runnable = module._statements_by_ck.get(data.runnable_ck) or MissingStatement(
+        runnable = module._nodes_by_ck.get(data.runnable_ck) or MissingStatement(
             data.runnable_id, data.runnable_type
         )
         if data.error:
@@ -1620,9 +1620,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
         )
 
     def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
-        runnable = module._statements_by_id.get(data.runnable_id) or MissingStatement(
-            data.runnable_id
-        )
+        runnable = module._nodes_by_id.get(data.runnable_id) or MissingStatement(data.runnable_id)
         run = LazyRun(data.run_id) if data.run_id else None
         return lang.LogEntry(
             id=data.id,

@@ -344,6 +344,7 @@ class FieldPacker(CrudThingPacker, Packer[models.Field, Field, wire.FieldData]):
             project_id=project_v.project_id,
             statement_id=node.statement_id,
             name=node.name,
+            text=node.text,
             type_tag=node.tag,
             type_hint=node.hint,
         )

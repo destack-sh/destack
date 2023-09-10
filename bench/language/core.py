@@ -72,22 +72,22 @@ NODE_REFERENCE_REGEX = re.compile(
 )
 
 
-def parse_absolute_statement_reference(path: str) -> tuple[str, str]:
+def parse_absolute_node_reference(path: str) -> tuple[str, str]:
     match = NODE_REFERENCE_REGEX.match(path)
     if not match:
-        raise ValueError(f"invalid absolute statement reference: {path}")
+        raise ValueError(f"invalid absolute node reference: {path}")
     module_name = match.group("module_owner") + "." + match.group("module_name")
     localized_path = "." + match.group("path")
     return module_name, localized_path
 
 
-def parse_statement_path(statement_path: str) -> "NodePath":
-    path, name = statement_path.rsplit(".", 1)
+def parse_node_path(node_path: str) -> "NodePath":
+    path, name = node_path.rsplit(".", 1)
     return NodePath(path, name)
 
 
-def statement_path_as_str(statement_path: "NodePath") -> str:
-    return f"{statement_path.path}:{statement_path.name}"
+def node_path_as_str(node_path: "NodePath") -> str:
+    return f"{node_path.path}:{node_path.name}"
 
 
 class LookupBy(enum.StrEnum):
@@ -345,17 +345,19 @@ class HasIssues(abc.ABC):
             self.parent._on_issue(issue)
 
 
-StatementT = typing.TypeVar("StatementT", bound="Statement")
 NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
+
+
+# StatementT = typing.TypeVar("StatementT", bound="Statement")
 
 
 @node
 class Scope:
     parent: Optional["Scope"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
-    _statements_by_id: dict[UUID, "Statement"] = field(default_factory=dict)
-    _statements_by_ck: dict[UUID, "Statement"] = field(default_factory=dict)
-    _names_by_py_ident: dict[str, str] = field(default_factory=dict)
+    _nodes_by_id: dict[UUID, "ModuleNode"] = field(default_factory=dict)
+    _nodes_by_ck: dict[UUID, "Statement"] = field(default_factory=dict)
+    _names_by_ident: dict[str, str] = field(default_factory=dict)
 
     @cached_property
     def _root_scope(self) -> "Scope":
@@ -377,8 +379,8 @@ class Scope:
         if by == LookupBy.Name:
             return self._scopes_by_name.get(name)
         elif by == LookupBy.PyIdent:
-            if name in self._names_by_py_ident:
-                name = self._names_by_py_ident[name]
+            if name in self._names_by_ident:
+                name = self._names_by_ident[name]
                 return self._scopes_by_name.get(name)
         else:
             raise ValueError(f"unexpected lookup type: {by}")
@@ -392,33 +394,31 @@ class Scope:
             return self.parent._find_scope(name, by=by)
         return None
 
-    def _find_statement(self, name: str, by: LookupBy = LookupBy.Name) -> StatementT | None:
-        """Find the statement recursively in this scope and its parents."""
+    def _find_node(self, name: str, by: LookupBy = LookupBy.Name) -> NodeT | None:
+        """Find the node recursively in this scope and its parents."""
         scope = self._find_scope(name, by)
         if scope is not None and not isinstance(scope, Statement):
             return None
-        return typing.cast(StatementT, scope)
+        return typing.cast(NodeT, scope)
 
     def lookup(
         self,
         path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        node_t: StatementType | typing.Type[StatementT] | None = None,
-    ) -> StatementT | None:
+        node_t: MNT | StatementType | typing.Type[NodeT] | None = None,
+    ) -> NodeT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
         it can be a name (lookup upwards) or a full relative/absolute path.
         """
         if isinstance(path, UUID):
-            return self._root_scope._statements_by_id.get(
-                path
-            ) or self._root_scope._statements_by_ck.get(path)
+            return self._root_scope.lookup(path, by=by, node_t=node_t)
         elif isinstance(path, str):
             if "." not in path:
-                return self._find_statement(path, by=by)
-            path = parse_statement_path(path)
+                return self._find_node(path, by=by)
+            path = parse_node_path(path)
         if path.path == ".":
-            return self._find_statement(path.name, by=by)
+            return self._find_node(path.name, by=by)
         # strip leading . in path
         if path.path.startswith("."):
             path = NodePath(path.path[1:], path.name)
@@ -432,38 +432,27 @@ class Scope:
             return None
         return scope.lookup(inner_part, node_t=node_t, by=by)
 
-    def _add_statement(self, statement: "Statement", by_name: bool) -> None:
-        if statement.name is not None and by_name:
-            if statement.name in self._scopes_by_name:
-                self._on_issue(
-                    type=IssueType.AMBIGUOUS_DEFINITION, subject=statement, path=statement.path
-                )
-            else:
-                self._scopes_by_name[statement.name] = statement
-                self._names_by_py_ident[statement.py_ident] = statement.name
+    def _add_child_scope(self, scope: "Scope", by_name: bool) -> None:
+        self._add_child_node(scope, by_name)
+        self._nodes_by_id.update(scope._nodes_by_id)
+        self._nodes_by_ck.update(scope._nodes_by_ck)
 
-        self._statements_by_id.update(statement._statements_by_id)
-        self._statements_by_ck.update(statement._statements_by_ck)
-        if isinstance(statement, Statement):
-            self._statements_by_id[statement.id] = statement
-            self._statements_by_ck[statement.ck] = statement
-
-    def _add_file(self, file: "File", by_name: bool) -> None:
-        if file.name is not None and by_name:
-            if file.name in self._scopes_by_name:
-                self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=file, path=file.path)
+    def _add_child_node(self, node: ModuleNode, by_name: bool) -> None:
+        if node.name is not None and by_name:
+            if node.name in self._scopes_by_name or node.py_ident in self._names_by_ident:
+                self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=node, path=node.path)
             else:
-                self._scopes_by_name[file.name] = file
-                self._names_by_py_ident[file.py_ident] = file.name
-        self._statements_by_id.update(file._statements_by_id)
-        self._statements_by_ck.update(file._statements_by_ck)
+                self._scopes_by_name[node.name] = node
+                self._names_by_ident[node.py_ident] = node.name
+        self._nodes_by_id[node.id] = node
+        self._nodes_by_ck[node.ck] = node
 
     def _clear(self):
         """Resets this scope and all child scopes."""
         self._scopes_by_name = {}
-        self._statements_by_id = {}
-        self._statements_by_ck = {}
-        self._names_by_py_ident = {}
+        self._nodes_by_id = {}
+        self._nodes_by_ck = {}
+        self._names_by_ident = {}
         for scope in self._scopes_by_name.values():
             scope._clear()
 
@@ -525,14 +514,14 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self,
         path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        node_t: StatementType | typing.Type[StatementT] | None = None,
-    ) -> StatementT | None:
+        node_t: MNT | typing.Type[NodeT] | None = None,
+    ) -> NodeT | None:
         if isinstance(path, UUID):
-            return self._statements_by_id.get(path) or self._statements_by_ck.get(path)
+            return self._nodes_by_id.get(path) or self._nodes_by_ck.get(path)
         elif isinstance(path, str) and path.startswith("."):
-            return super().lookup(path, node_t=node_t, by=by)
+            return Scope.lookup(self, path, node_t=node_t, by=by)
         else:
-            module_name, localized_path = parse_absolute_statement_reference(path)
+            module_name, localized_path = parse_absolute_node_reference(path)
             if module_name == self.name:
                 dependency = self
             else:
@@ -545,9 +534,9 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self,
         path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        statement_t: typing.Type[StatementT] | None = None,
-    ) -> StatementT:
-        result = self.lookup(path, by=by, node_t=statement_t)
+        node_t: typing.Type[NodeT] | None = None,
+    ) -> NodeT:
+        result = self.lookup(path, by=by, node_t=node_t)
         if result is None:
             raise LookupError(f"{path} not found in {self}")
         return result
@@ -617,15 +606,15 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self._expect_status(ModuleStatus.Raw)
         for builtin in self.builtins:
             for statement in builtin.statements:
-                self._add_statement(statement, by_name=True)
+                self._add_child_scope(statement, by_name=True)
         for dependency in self.dependencies.values():
-            self._statements_by_id.update(dependency._statements_by_id)
-            self._statements_by_ck.update(dependency._statements_by_ck)
+            self._nodes_by_id.update(dependency._nodes_by_id)
+            self._nodes_by_ck.update(dependency._nodes_by_ck)
         self._files_by_parent_id = defaultdict(list)
         for file in self.files:
             self._files_by_parent_id[file.parent_id].append(file)
             file._index()
-            self._add_file(file, by_name=True)
+            self._add_child_scope(file, by_name=True)
         self.status = ModuleStatus.Index
 
     def interp(self):
@@ -774,7 +763,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
         for statement in self.statements:
             statement._index()
-            self._add_statement(statement, by_name=statement.parent == self)
+            self._add_child_scope(statement, by_name=statement.parent == self)
 
     def _interp(self):
         for statement in self.statements:
@@ -903,7 +892,7 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
-            self._add_statement(child, by_name=True)
+            self._add_child_scope(child, by_name=True)
 
     def _clear(self) -> None:
         """Clears any derived/interpreted values on this statement."""
@@ -933,9 +922,12 @@ class StatementBase(abc.ABC):
     parent: Statement | File
     session: "Session"
     _scopes_by_name: dict[str, Scope] | None
-    _names_by_py_ident: dict[str, str] | None
+    _names_by_ident: dict[str, str] | None
 
     def _clear(self) -> None:
+        raise NotImplementedError
+
+    def _index(self) -> None:
         raise NotImplementedError
 
     def _interp(self, scope: Scope) -> None:
@@ -1099,8 +1091,8 @@ class Session:
                     self.tracer.statement_create(obj)
                     if isinstance(obj, Statement):
                         # it feels like this should be done in some tracer? also (re?)-index?
-                        self.module._statements_by_id[obj.id] = obj
-                        self.module._statements_by_ck[obj.ck] = obj
+                        self.module._nodes_by_id[obj.id] = obj
+                        self.module._nodes_by_ck[obj.ck] = obj
         for obj in objs:
             self.instances_by_id[obj.id] = obj
 
