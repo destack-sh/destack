@@ -25,10 +25,17 @@ const emit = defineEmits<{
 
 const spanRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 
+function focus(pos: "first" | "last" = "first") {
+  spanRef.value?.focus(pos);
+}
+
+function blur() {
+  spanRef.value?.blur();
+}
+
 defineExpose({
-  focus: (pos: "first" | "last" = "first") => spanRef.value?.focus(pos),
-  blur: () => spanRef.value?.blur(),
-  selectAll: () => spanRef.value?.selectAll(),
+  focus,
+  blur,
   focused: computed(() => spanRef.value?.focused),
 });
 </script>

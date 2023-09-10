@@ -109,7 +109,7 @@ export type StatementHeader = Pick<
   | "parent"
 >;
 
-export type ViewId = "explorer" | "search" | "history" | "issues" | "environment";
+export type ViewId = "explorer" | "search" | "history" | "issues" | "environment" | "tests" | "comments";
 
 export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
 

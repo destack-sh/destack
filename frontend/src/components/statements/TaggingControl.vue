@@ -108,6 +108,8 @@ defineExpose({
       @keydown.delete.exact="deleteTagging(tagging)"
       @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : taggingRefs.focus(tags[i - 1]?.id)"
       @keydown.right.exact.prevent="i == tags.length - 1 ? emit('navigateRight') : taggingRefs.focus(tags[i + 1]?.id)"
+      @keydown.up.exact.prevent="emit('navigateUp')"
+      @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <TagIconSolid class="mt-0.5 h-4 w-4" />
       <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>

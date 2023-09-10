@@ -171,7 +171,7 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
     navigateLeft: () => navigate("left", partId),
     navigateRight: () => navigate("right", partId),
     enterLeft: () => {
-      if (kind == "element") {
+      if (kind == "element" && !(partId == "text" && getPartsInOrder().partsInOrder.length == 1)) {
         magic.insertBelow(true);
       } else {
         magic.insertAbove();

@@ -63,6 +63,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
     def _clear(self) -> None:
         Statement._clear(self)
+        HasText._clear(self)
         HasType._clear(self)
         HasTags._clear(self)
         IsFlowNode._clear(self)
@@ -74,6 +75,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         self._cached_exports = None
 
     def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasTags._interp(self, scope)
         IsFlowNode._interp(self, scope)
@@ -95,6 +97,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
             visitor.visit_child(n)
+        HasText._visit(self, visitor)
 
     def __call__(self, *args, **kwargs):
         if self._is_async:

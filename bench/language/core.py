@@ -65,7 +65,7 @@ ModuleReference = typing.NamedTuple(
 NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
 StatementReference = typing.Union["Statement", NodePath, UUID]
 NodeReference = typing.Union["ModuleNode", NodePath, UUID]
-TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("reference", NodeReference)])
+TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("ref", UUID)])
 
 NODE_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
@@ -346,6 +346,7 @@ class HasIssues(abc.ABC):
 
 
 StatementT = typing.TypeVar("StatementT", bound="Statement")
+NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
 @node
@@ -402,7 +403,7 @@ class Scope:
         self,
         path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        statement_t: StatementType | typing.Type[StatementT] | None = None,
+        node_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
         """
         Lookup the symbol either by path or id. If path is a string, it can be
@@ -429,7 +430,7 @@ class Scope:
         scope = self._find_scope(first_part, by=by)
         if scope is None:
             return None
-        return scope.lookup(inner_part, statement_t=statement_t, by=by)
+        return scope.lookup(inner_part, node_t=node_t, by=by)
 
     def _add_statement(self, statement: "Statement", by_name: bool) -> None:
         if statement.name is not None and by_name:
@@ -524,12 +525,12 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         self,
         path: Union["NodePath", UUID, str],
         by: LookupBy = LookupBy.Name,
-        statement_t: StatementType | typing.Type[StatementT] | None = None,
+        node_t: StatementType | typing.Type[StatementT] | None = None,
     ) -> StatementT | None:
         if isinstance(path, UUID):
             return self._statements_by_id.get(path) or self._statements_by_ck.get(path)
         elif isinstance(path, str) and path.startswith("."):
-            return super().lookup(path, statement_t=statement_t, by=by)
+            return super().lookup(path, node_t=node_t, by=by)
         else:
             module_name, localized_path = parse_absolute_statement_reference(path)
             if module_name == self.name:
@@ -538,7 +539,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
                 dependency = self.dependencies.get(module_name)
             if dependency is None:
                 return None
-            return dependency.lookup(localized_path, statement_t=statement_t, by=by)
+            return dependency.lookup(localized_path, node_t=node_t, by=by)
 
     def lookup_or_error(
         self,
@@ -546,7 +547,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         by: LookupBy = LookupBy.Name,
         statement_t: typing.Type[StatementT] | None = None,
     ) -> StatementT:
-        result = self.lookup(path, by=by, statement_t=statement_t)
+        result = self.lookup(path, by=by, node_t=statement_t)
         if result is None:
             raise LookupError(f"{path} not found in {self}")
         return result
@@ -658,9 +659,9 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     ) -> "Module":
         from bench.language import libs, wire
 
-        # copy default dependencies
         logger.debug("module.interp", module=maybe_module)
-        dependencies = {name: dep.copy() for name, dep in libs.DEFAULT_MODULES.items()}
+        # no need to copy these since worker processes are isolated?
+        dependencies = {name: dep for name, dep in libs.DEFAULT_MODULES.items()}
 
         if isinstance(maybe_module, wire.ModuleTreeData):
             logger.debug("module.interp.unpack", module=maybe_module)

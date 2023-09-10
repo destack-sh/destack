@@ -117,12 +117,14 @@ class Flow(HasType, HasFlow, HasTags, HasText, Statement):
     _is_async: bool = False
 
     def _clear(self) -> None:
+        HasText._clear(self)
         HasType._clear(self)
         HasFlow._clear(self)
         HasTags._clear(self)
         Statement._clear(self)
 
     def _interp(self, scope: Scope) -> None:
+        HasText._interp(self, scope)
         HasType._interp(self, scope)
         HasFlow._interp(self, scope)
         HasTags._interp(self, scope)
@@ -131,6 +133,7 @@ class Flow(HasType, HasFlow, HasTags, HasText, Statement):
     def _visit(self, visitor: "ModuleVisitor") -> None:
         for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
             visitor.visit_child(n)
+        HasText._visit(self, visitor)
 
     def to_sync(self) -> "Flow":
         if not self._is_async:
