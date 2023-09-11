@@ -300,18 +300,24 @@ watch(
   () => {
     if (module.idx.value != null && !consideredUrl.value && ready.value) {
       const hash = router.currentRoute.value.hash.slice(1);
-      const matchingEditor = Object.values(PANEL_INSTANCE_TYPES)
+      const panel = Object.values(PANEL_INSTANCE_TYPES)
         .map((panelType) => panelType.parsePath(hash, module.idx.value as ModuleIndex))
         .find((e) => e != null);
-      if (matchingEditor != null) {
-        matchingEditor.onInstantiated(bench);
-        console.log(`open ${matchingEditor.path} (${matchingEditor.type}) from url`);
+      if (panel != null) {
+        panel.onInstantiated(bench);
+        if (!bench.panels.some((p) => p.path == panel.path)) {
+          // open from url if not already open
+          bench.openPanel(panel);
+          bench.focusPanel(panel);
+          console.log(`open ${panel.path} (${panel.type}) from url`);
+        }
       } else {
         console.log(`no matching editor for ${hash}`);
       }
       consideredUrl.value = true;
     }
-  }
+  },
+  { immediate: true }
 );
 
 // change url if focused editor changes
