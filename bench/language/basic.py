@@ -120,7 +120,7 @@ class TextMention(TextSpan):
 
     def __str__(self):
         if isinstance(self.reference, ModuleNode):
-            return f"@{self.reference or '???'}"
+            return f"@{self.reference}"
         else:
             return self.text
 

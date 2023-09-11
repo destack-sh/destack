@@ -151,7 +151,7 @@ function openRun(run: Run) {
 </script>
 <template>
   <div ref="canvasRef" class="relative w-full">
-    <div v-if="loading" class="w-full text-center">
+    <div v-if="loading" class="flex w-full flex-row justify-center text-center">
       <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-400" />
     </div>
     <div v-else-if="orderedNodes.length == 0" class="w-full text-center">

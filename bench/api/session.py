@@ -474,22 +474,26 @@ class SessionQuery:
             index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
         )
 
-        logger.debug("runs.search.db", project_id=project_id, hits=len(os_results["hits"]["hits"]))
+        hits = os_results["hits"]["hits"]
+        logger.debug("runs.search.db", project_id=project_id, hits=len(hits))
         edges = []
-        run_ids = [r["_id"] for r in os_results["hits"]["hits"]]
-        runs = models.Run.objects.filter(id__in=run_ids).prefetch_related(
+        os_runs_ids = [r["_id"] for r in hits]
+        db_runs = models.Run.objects.filter(id__in=os_runs_ids).prefetch_related(
             "trigger", "trigger_user", "trigger_access_token"
         )
-        if len(runs) != len(run_ids):
-            logger.warning("runs.search.db.missing", project_id=project_id, runs=run_ids)
+        if len(db_runs) != len(os_runs_ids):
+            logger.warning("runs.search.db.missing", project_id=project_id, runs=os_runs_ids)
             # some runs have been deleted, we need to filter them out
-            runs = [r for r in runs if r.id in run_ids]
-        logger.debug("runs.search.resolve", project_id=project_id, hits=len(runs))
-        for i, r in enumerate(os_results["hits"]["hits"][0:effective_limit]):
+            db_runs_ids = {str(r.id) for r in db_runs}
+            hits = [r for r in hits if r["_id"] in db_runs_ids]
+        del os_runs_ids
+
+        logger.debug("runs.search.resolve", project_id=project_id, hits=len(db_runs))
+        for i, r in enumerate(hits[0:effective_limit]):
             cursor = encode_cursor(r, after, i)
-            edges.append(relay.Edge(node=runs[i], cursor=cursor))
+            run = db_runs[i]
+            edges.append(relay.Edge(node=run, cursor=cursor))
             # pres-set related fields where we know we only need the id
-            run = runs[i]
             run.project_version = models.ProjectVersion(id=run.project_version_id)
             run.session = models.Session(id=run.session_id) if run.session_id else None
             run.runnable = models.Statement(id=run.runnable_id)
@@ -499,7 +503,7 @@ class SessionQuery:
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(os_results["hits"]["hits"]) > effective_limit,
+            has_next_page=len(hits) > effective_limit,
             has_previous_page=False,
         )
         total_count = os_results["hits"]["total"]["value"] if count else None
@@ -557,8 +561,9 @@ class SessionQuery:
             index=IndexType.BENCH.get_index_name(project_id=project.id), body=search
         )
 
+        hits = results["hits"]["hits"]
         edges = []
-        for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
+        for i, r in enumerate(hits[0:effective_limit]):
             doc = mirror.LogEntry.from_dict(r["_source"], r["_id"], r["_version"])
             node = LogEntry.from_os(doc)
             cursor = encode_cursor(r, after, i)
@@ -567,7 +572,7 @@ class SessionQuery:
         page_info = relay.PageInfo(
             start_cursor=edges[0].cursor if edges else None,
             end_cursor=edges[-1].cursor if edges else None,
-            has_next_page=len(results["hits"]["hits"]) > effective_limit,
+            has_next_page=len(hits) > effective_limit,
             has_previous_page=False,
         )
         total_count = results["hits"]["total"]["value"] if count else None
