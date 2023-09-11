@@ -122,7 +122,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative w-full text-gray-900" @click="textRef?.focus">
+  <div class="relative w-full text-gray-900" @click="textRef?.focusIfUnfocused">
     <!-- Actual text -->
     <AnnotatedText
       ref="textRef"

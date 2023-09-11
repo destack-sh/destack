@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useBenchState, type ViewId } from "@/state/bench";
@@ -124,17 +125,19 @@ defineExpose({
       <!-- 'Name' -->
       <span v-if="o.statement.type == StatementType.Blank" class="text-gray-400">(Blank)</span>
       <!-- Show text for unnamed statements -->
-      <span
+      <!-- nocheckin show truncated properly -->
+      <AnnotatedText
         v-else-if="
           (o.statement.name ?? '').length == 0 &&
           o.statement.text != null &&
           !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0)
         "
-        class="truncate text-sm"
+        :model-value="o.statement.text"
+        readonly
+        class="max-w-full truncate text-sm"
+        minimal-mentions
         :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
-      >
-        {{ o.statement.text }}
-      </span>
+      />
       <!-- Default to proper name -->
       <span class="truncate" v-else>{{ getStatementName(o.statement) ?? "(Unnamed)" }}</span>
     </li>

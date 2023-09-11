@@ -35,6 +35,7 @@ module.exports = {
         "in-1500": "0ms, 1500ms",
       },
       animation: {
+        ["fadein-150"]: "fadein-75 0.15s forwards",
         ["fadein-500"]: "fadein-75 0.5s forwards",
         ["fadein-1000"]: "fadein-75 1.0s forwards",
         ["fadein-1500"]: "fadein-75 1.5s forwards",
