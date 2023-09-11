@@ -42,7 +42,8 @@ const insertingPopoverOptionRefs: Ref<Record<string, HTMLElement>> = ref({});
 const insertingMentionAt = ref<{
   span: TextPlain;
   idx: number;
-  char: number;
+  startChar: number;
+  endChar: number;
   above: boolean;
   pos: { left: number; top: number };
 } | null>(null);
@@ -78,7 +79,7 @@ function openMentionPopup(span: TextPlain, index: number, char: number) {
   const pos = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
   if (pos == null) throw new Error("cannot get cursor position?");
   const isNearBottomScreenEdge = pos.top > window.innerHeight - 350; // popover height = 300px
-  insertingMentionAt.value = { span, idx: index, char, pos, above: isNearBottomScreenEdge };
+  insertingMentionAt.value = { span, idx: index, startChar: char, endChar: char, pos, above: isNearBottomScreenEdge };
   mentionQuery.value = "";
   activeMentionId.value = filteredMentions.value[0]?.node.id ?? null;
 }
@@ -153,7 +154,8 @@ function onInput(span: TextSpan, index: number, e: InputEvent) {
   if (span.type != "text") throw new Error(`cannot edit span ${span} directly`);
 
   if (insertingMentionAt.value != null) {
-    mentionQuery.value = text.substring(insertingMentionAt.value.char);
+    insertingMentionAt.value.endChar = window.getSelection()?.anchorOffset ?? 0;
+    mentionQuery.value = text.substring(insertingMentionAt.value.startChar, insertingMentionAt.value.endChar);
     // update active mention idx (if we were filtered out)
     const activeMentionIdx = filteredMentions.value.findIndex((m) => m.node.id == activeMentionId.value);
     if (activeMentionIdx == -1) {
@@ -193,7 +195,7 @@ function onInput(span: TextSpan, index: number, e: InputEvent) {
 
 function onDelete(span: TextSpan, index: number, e: KeyboardEvent) {
   const selection = window.getSelection();
-  if (insertingMentionAt.value != null && selection?.anchorOffset == insertingMentionAt.value.char) {
+  if (insertingMentionAt.value != null && selection?.anchorOffset == insertingMentionAt.value.startChar) {
     closeMentionPopup();
     e.preventDefault();
     e.stopPropagation();
@@ -248,7 +250,7 @@ function onEnter(span: TextSpan, index: number, e: KeyboardEvent) {
 function insertMention(node: MentionableNode) {
   /* Inserts mention at the current insert pos */
   if (insertingMentionAt.value == null) return;
-  const { span, idx, char } = insertingMentionAt.value;
+  const { span, idx, startChar: char } = insertingMentionAt.value;
   const mentionSpan: TextMention = {
     type: "mention",
     id: uuidv4(),
@@ -395,8 +397,8 @@ defineExpose({
         class="mousetrap outline-none"
         @keydown.up.exact.prevent="onNavigateUp(span, i)"
         @keydown.down.exact.prevent="onNavigateDown(span, i)"
-        @keydown.left.exact="onNavigateLeft(span, i, $event)"
-        @keydown.right.exact="onNavigateRight(span, i, $event)"
+        @keydown.left="onNavigateLeft(span, i, $event)"
+        @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="insertingMentionAt == null ? closeMentionPopup() : emit('escape')"
         @keydown.enter.prevent="onEnter(span, i, $event as KeyboardEvent)"
         @keydown.backspace.exact="onDelete(span, i, $event as KeyboardEvent)"
@@ -427,9 +429,9 @@ defineExpose({
         <component
           v-if="!minimalMentions && resolvedMentions[i] != null"
           :is="resolvedMentions[i]?.icon"
-          class="absolute left-0.5 top-0.5 h-4 w-4 text-orange-600"
+          class="absolute left-[1px] top-0.5 h-4 w-4 text-orange-600"
         />
-        <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
+        <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-5' : '']">
           {{ resolvedMentions[i]?.name ?? "???" }}
         </span>
       </div>
