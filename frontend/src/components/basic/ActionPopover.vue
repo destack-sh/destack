@@ -53,11 +53,15 @@ const uf = new uFuzzy({ intraMode: 0 });
 const filteredActions = computed(() => {
   const actions = props.actions.filter((a) => !a.hideInMenu);
   if (query.value.trim() == "") return actions;
-  const [idxs] = uf.search(
+  const [idxs, info, order] = uf.search(
     actions.map((a) => a.label),
-    query.value
+    query.value,
+    true
   );
-  return idxs?.map((idx) => actions[idx]) ?? [];
+  if (idxs && order) {
+    return order.map((i) => actions[idxs[i]]);
+  }
+  return actions;
 });
 const closed = ref(false);
 const nestedComponent = shallowRef<{ component: InstanceType<any> | null; props: any } | null>(null);

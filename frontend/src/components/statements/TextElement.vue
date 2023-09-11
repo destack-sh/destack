@@ -64,7 +64,8 @@ const quickActions = computed(() => {
     props.statement.type != StatementType.Text ||
     (props.statement.headingLevel ?? 0) != 0 ||
     props.statement.name != null ||
-    props.readonly
+    props.readonly ||
+    textRef.value?.open
   )
     return [];
   const actions: QuickAction[] = [];
@@ -140,6 +141,7 @@ defineExpose({
       @paste="emit('paste')"
       :focused="focused"
       :readonly="readonly"
+      :statement="statement"
     />
     <!-- Placeholder if empty -->
     <template v-if="text.length == 0">&nbsp;</template>

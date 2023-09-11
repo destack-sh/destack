@@ -38,11 +38,14 @@ const uf = new uFuzzy({ intraMode: 0 });
 const filteredTags = computed(() => {
   const unassigned = module.tags.value.filter((t) => !tags.value.some((t2) => t2.key == t.key));
   if (query.value.trim() == "") return unassigned;
-  const [idxs] = uf.search(
+  const [idxs, info, order] = uf.search(
     unassigned.map((t) => t.name ?? ""),
     query.value
   );
-  return idxs?.map((idx) => unassigned[idx]) ?? [];
+  if (idxs && order) {
+    return order.map((i) => unassigned[idxs[i]]);
+  }
+  return unassigned;
 });
 
 function open() {

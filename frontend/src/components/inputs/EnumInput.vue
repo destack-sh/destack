@@ -36,11 +36,15 @@ const uf = new uFuzzy({ intraMode: 0 });
 const filteredMembers = computed(() => {
   const baseMembers = isArray.value ? missingMembers.value : members.value;
   if (query.value.trim() == "") return baseMembers;
-  const [idxs] = uf.search(
+  const [idxs, info, order] = uf.search(
     baseMembers.map((m) => m.name ?? ""),
-    query.value
+    query.value,
+    true
   );
-  return idxs?.map((idx) => baseMembers[idx]) ?? [];
+  if (idxs && order) {
+    return order.map((i) => baseMembers[idxs[i]]);
+  }
+  return baseMembers;
 });
 
 const queryRef: Ref<InstanceType<typeof ComboboxInput> | null> = ref(null);

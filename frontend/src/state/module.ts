@@ -270,7 +270,14 @@ function _useModule(projectVersionId: Ref<string | null>) {
 
   function fileOf(idOrCk: string) {
     const id = idx.value?.idByCk[idOrCk] ?? idOrCk;
-    return idx.value?.filesById[idx.value?.statementsById[id]?.file?.id];
+    let statement = idx.value?.statementsById[id];
+    if (statement == null) {
+      const field = idx.value?.fieldsById[id];
+      if (field == null) return undefined;
+      statement = idx.value?.statementsById[field.parent?.id];
+    }
+    if (statement == null) return undefined;
+    return idx.value?.filesById[statement.file?.id];
   }
 
   function pathOf(idOrCk: string, options?: { loffset?: number; roffset?: number }): string | undefined {
@@ -297,6 +304,12 @@ function _useModule(projectVersionId: Ref<string | null>) {
       const parentPath = nodePathOf(file.parent?.id);
       return [...(parentPath ?? []), file as NodeBase];
     }
+    const field = idx.value?.fieldsById[id];
+    if (field != null) {
+      const parentPath = nodePathOf(field.parent?.id);
+      if (parentPath == null) return undefined;
+      return [...parentPath, field as NodeBase];
+    }
     return undefined;
   }
 
@@ -306,6 +319,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     if (statement != null) return statement as NodeBase;
     const file = idx.value?.filesById[id];
     if (file != null) return file as NodeBase;
+    const field = idx.value?.fieldsById[id];
+    if (field != null) return field as NodeBase;
     return undefined;
   }
 

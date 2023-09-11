@@ -57,11 +57,14 @@ const uf = new uFuzzy({ intraMode: 0 });
 const filteredReferences = computed(() => {
   const candidates = Object.values(module.idx.value?.statementsById ?? {}).filter((s) => (s.name ?? "").trim() != "");
   if (query.value.trim() == "") return candidates;
-  const [idxs] = uf.search(
+  const [idxs, info, order] = uf.search(
     candidates.map((s) => s.name ?? ""),
     query.value
   );
-  return idxs?.map((idx) => candidates[idx]) ?? [];
+  if (idxs && order) {
+    return order.map((i) => candidates[idxs[i]]);
+  }
+  return candidates;
 });
 
 function setReference(statement: Pick<Statement, "id" | "ck">) {

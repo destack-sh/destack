@@ -192,7 +192,7 @@ defineExpose({
     ref="spanRef"
     tabindex="-1"
     spellcheck="false"
-    class="mousetrap whitespace-pre-wrap outline-none"
+    class="mousetrap outline-none"
     :contenteditable="(readonly ? 'false' : 'plaintext-only' as any)"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"
