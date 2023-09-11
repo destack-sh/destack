@@ -422,7 +422,7 @@ class HasType(TypeBase, StatementBase):
                 statement = scope.lookup(f.reference, node_t=Type)
             if not isinstance(statement, TypeBase):
                 self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
+                    type=IssueType.MISSING_REFERENCE, subject=self.parent, path=f.name or "<root>"
                 )
                 continue
             f.reference = statement

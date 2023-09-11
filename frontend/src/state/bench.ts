@@ -298,7 +298,7 @@ export const useBenchState = defineStore("bench", {
       showPanelExplorer: false,
       showBenchHeader: true,
       showViewSelection: true,
-      showViewContent: false,
+      showViewContent: true,
       zenMode: false,
     };
   },
