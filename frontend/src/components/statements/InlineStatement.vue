@@ -45,7 +45,7 @@ import {
   Square2StackIcon,
   TrashIcon,
 } from "@heroicons/vue/24/outline";
-import { ExclamationTriangleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
+import { ExclamationTriangleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { onClickOutside, useElementBounding, useFocusWithin, useKeyModifier, whenever } from "@vueuse/core";
 import { computed, nextTick, ref, toRef, watch, type Ref } from "vue";
 
@@ -612,6 +612,7 @@ function run() {
 const issues = module.issuesOfRef(statement);
 const hasIssues = computed(() => (issues.value?.length ?? 0) > 0);
 const hasErrors = computed(() => issues.value?.find((i) => i.kind == IssueKind.Error));
+const hasWarnings = computed(() => issues.value?.find((i) => i.kind == IssueKind.Warning));
 
 defineExpose({
   focus,
@@ -905,7 +906,8 @@ defineExpose({
           @click="bench.openActiveView('issues')"
         >
           <XCircleIcon v-if="hasErrors" class="h-4 w-4 text-red-600" />
-          <ExclamationTriangleIcon v-else class="h-4 w-4 text-yellow-600" />
+          <ExclamationTriangleIcon v-else-if="hasWarnings" class="h-4 w-4 text-yellow-600" />
+          <InformationCircleIcon v-else class="h-4 w-4 text-cyan-600" />
         </button>
         <!-- Preview on hover -->
         <div
@@ -918,6 +920,7 @@ defineExpose({
             :class="{
               'text-red-600': issue.kind == IssueKind.Error,
               'text-yellow-600': issue.kind == IssueKind.Warning,
+              'text-cyan-600': issue.kind == IssueKind.Notice,
             }"
           >
             {{ issue.message }}

@@ -12,7 +12,7 @@ if TYPE_CHECKING:
 class IssueKind(enum.StrEnum):
     Error = "Error"
     Warning = "Warning"
-    Suggestion = "Suggestion"
+    Notice = "Notice"
 
 
 class IssueType(enum.StrEnum):
@@ -30,6 +30,8 @@ class IssueType(enum.StrEnum):
     CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
     TASK_MISSING_IO = "TASK_MEANINGLESS"
     TASK_IMPOSSIBLE = "TASK_IMPOSSIBLE"
+    # notices
+    TEXT_HAS_NO_EFFECT = "TEXT_HAS_NO_EFFECT"
 
     @property
     def text(self):
@@ -48,9 +50,10 @@ _ISSUE_MESSAGES = {
     IssueType.CODE_NOT_EXPORTABLE.value: "code {subject} is not exportable",
     IssueType.CODE_REFERENCE_NOT_EXPORTED.value: "code {path} is not exported",
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
-    # notices
     IssueType.TASK_MISSING_IO.value: "task has no inputs or outputs",
     IssueType.TASK_IMPOSSIBLE.value: "task is impossible in current scope: {reason}",
+    # notices
+    IssueType.TEXT_HAS_NO_EFFECT.value: "text has no effect here: {help}",
 }
 
 ERRORS = [
@@ -69,11 +72,13 @@ WARNINGS = [
     IssueType.TASK_MISSING_IO,
     IssueType.TASK_IMPOSSIBLE,
 ]
-_missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS)
+NOTICES = [IssueType.TEXT_HAS_NO_EFFECT]
+_missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS) - set(NOTICES)
 assert not _missing_issue_types, f"missing issue types: {_missing_issue_types}"
 _ISSUE_KIND_BY_TYPE = {
     **{error: IssueKind.Error for error in ERRORS},
     **{warning: IssueKind.Warning for warning in WARNINGS},
+    **{notice: IssueKind.Notice for notice in NOTICES},
 }
 
 

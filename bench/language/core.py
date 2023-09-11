@@ -672,7 +672,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
     module: Optional[Module] = None
     parent: Union["File", Module] = None
-    children: list["File"] = field(default_factory=list)
+    children: list[Union["File", "Statement"]] = field(default_factory=list)
     statements: list["Statement"] = field(default_factory=list)
     # index
     _statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
@@ -760,6 +760,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         if len(sorted_statements) != len(self.statements):
             raise RuntimeError(f"invalid order: {len(sorted_statements)} != {len(self.statements)}")
         self.statements = sorted_statements
+        self.children = [s for s in self.statements if s.parent == self]
 
         for statement in self.statements:
             statement._index()

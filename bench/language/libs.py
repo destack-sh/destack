@@ -14,6 +14,7 @@ import anthropic
 import openai
 
 from bench.language import Dataset, HasText, Run, Runnable, Tag, Variable
+from bench.language.basic import TextMention
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
@@ -172,7 +173,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.array,
-            text=type.text,
+            text=type.text_plain,
             items=element_type,
         )
     elif type.flags & TypeFlag.IsArrayable:
@@ -181,7 +182,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=None,
             type=JsonSchemaElementType.object,
-            text=type.text,
+            text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
@@ -191,7 +192,7 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.object,
-            text=type.text,
+            text=type.text_plain,
             properties=[_type_to_json_schema(field) for field in fields],
             required=[
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
@@ -201,14 +202,14 @@ def _type_to_json_schema(
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.string,
-            text=type.text,
+            text=type.text_plain,
             enum=[value.name for value in fields],
         )
     elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
         return JsonSchemaElement(
             name=type.py_ident,
             type=_PARAM_TYPE_BY_TAG[type.effective_tag],
-            text=type.text,
+            text=type.text_plain,
         )
     else:
         raise IncapableError(f"unsupported type {type}")
@@ -423,10 +424,15 @@ class OpenAIChatCompiler(TaskCompiler):
         else:
             return strip_value_flat(value, type, *args, **kwargs)
 
+    def _render_text(self, text: HasText) -> str:
+        if text.text is None:
+            return "<no text>"
+        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text.text_spans)
+
     def _render_statement_header(self, statement: Statement) -> str:
         """Model-friendly rendering of instantiated statement."""
         if isinstance(statement, HasText):
-            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {statement.text_plain or '<no text>'}"
+            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {self._render_text(statement)}"
         else:
             return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}"
 
@@ -454,7 +460,7 @@ class OpenAIChatCompiler(TaskCompiler):
     def _compile_function(self, tool: Runnable, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
             name=prefix + tool.py_ident,
-            text=tool.text,
+            text=f"{tool.type.name.lower()} {self._render_text(tool)}",
             parameters=_type_to_json_schema(tool, is_output=False),
         )
 
@@ -509,7 +515,8 @@ class OpenAIChatCompiler(TaskCompiler):
         context_messages = [
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Additional user instructions for task '{task.name}':\n {context_str}\mFollow the above well.",
+                content=f"Additional user instructions for task '{task.name}':\n {context_str}"
+                f"\nFollow the above very carefully.",
             )
         ]
 
