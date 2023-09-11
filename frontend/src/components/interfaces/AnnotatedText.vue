@@ -8,8 +8,8 @@ import {
   type TextMention,
 } from "@/state/text";
 import { useElementRefs } from "@/composables/useGrid";
-import { getCurrentInstance, nextTick, ref, watch, type Ref, toRef, computed } from "vue";
-import { type ModuleObjectTypename, type Statement } from "@/state/module";
+import { nextTick, ref, watch, type Ref, toRef, computed } from "vue";
+import { type ModuleObjectTypename } from "@/state/module";
 import { VALID_TEXT_REGEXP } from "@/utils/validation";
 import type { TextPlain } from "@/state/text";
 import { v4 as uuidv4 } from "uuid";
@@ -53,7 +53,11 @@ const {
   resolvedMentions,
   filteredMentions,
   focus: focusMention,
-} = useTextMentions(spans, mentionQuery, toRef(props, "statement"));
+} = useTextMentions(spans, {
+  query: mentionQuery,
+  searching: computed(() => !props.readonly && insertingMentionAt.value != null),
+  statement: toRef(props, "statement"),
+});
 
 // sync modelValue into spans
 watch(
