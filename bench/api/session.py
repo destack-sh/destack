@@ -35,7 +35,7 @@ from bench.language import Q, Query, Sort, SortOrder, wire
 from bench.language.const import RUNNABLE_STATEMENT_TYPES
 from bench.language.session import PENDING_RUN_STATUSES
 from bench.models import ProjectAccessLevel, packer
-from bench.msg.core import NMessage, request, subscribe, subscribe_many
+from bench.msg.core import MessagingError, NMessage, request, subscribe, subscribe_many
 from bench.msg.messages import (
     LogsChangedPayload,
     NMessageType,
@@ -402,7 +402,7 @@ class SessionQuery:
                 reply_t=RepGetEnvironmentPayload,
             )
             environment_data = rep.p.environment
-        except (TimeoutError, RuntimeError, NoRespondersError) as e:
+        except (TimeoutError, RuntimeError, MessagingError, NoRespondersError) as e:
             # worker unavailable, return default environment
             logger.debug("environment.failed", project_id=project_id, exc_info=e)
             from bench.worker.environment import WORKER_ENVIRONMENT_DATA
@@ -661,14 +661,13 @@ class SessionMutation:
             )
             success = rep.p.error is None
             error = rep.p.error
-        except TimeoutError:
+        except MessagingError as e:
             rep = None
             success = False
-            error = ModuleRunErrorType.TIMEOUT
-        except NoRespondersError:
-            rep = None
-            success = False
-            error = ModuleRunErrorType.UNAVAILABLE
+            if isinstance(e.__cause__, TimeoutError):
+                error = StartRunErrorType.TIMEOUT
+            else:
+                error = StartRunErrorType.UNAVAILABLE
         run = packer.unpack_data(rep.p.run) if rep and rep.p.run else None
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
@@ -684,7 +683,7 @@ class SessionMutation:
     async def kill_run(self, info: Info, input: KillRunInput) -> KillRunPayload | OperationInfo:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
-        await sync_to_async(check_project_access())(info, project_version, ProjectAccessLevel.Use)
+        await sync_to_async(check_project_access)(info, project_version, ProjectAccessLevel.Use)
         kill = ReqKillRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
@@ -696,7 +695,7 @@ class SessionMutation:
             )
             run = await models.Run.objects.filter(id=kill.run_id).afirst()
             success = rep.p.success
-        except (NoRespondersError, TimeoutError):
+        except (NoRespondersError, TimeoutError, MessagingError):
             run = None
             success = False
         return KillRunPayload(success=success, run=run)
