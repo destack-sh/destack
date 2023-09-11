@@ -731,7 +731,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
             parent_statement_id = None
             parent_file_id = None
         else:
-            raise ValueError(f"unexpected parent type: {parent}")
+            raise ValueError(f"unexpected parent type: {parent} ({parent.id})")
         return models.Issue(
             id=data.id,
             ck=data.ck,

@@ -199,7 +199,7 @@ function onDelete(span: TextSpan, index: number, e: KeyboardEvent) {
     closeMentionPopup();
     e.preventDefault();
     e.stopPropagation();
-  } else if (span.type == "text" && selection?.anchorOffset == 0) {
+  } else if (span.type == "text" && selection?.anchorOffset == 0 && selection.focusOffset == 0) {
     if (index == 0) {
       emit("deleteLeft");
     } else {
@@ -400,7 +400,7 @@ defineExpose({
         @keydown.left="onNavigateLeft(span, i, $event)"
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="insertingMentionAt == null ? closeMentionPopup() : emit('escape')"
-        @keydown.enter.prevent="onEnter(span, i, $event as KeyboardEvent)"
+        @keydown.enter.exact.prevent="onEnter(span, i, $event as KeyboardEvent)"
         @keydown.backspace.exact="onDelete(span, i, $event as KeyboardEvent)"
         @input="onInput(span, i, $event as InputEvent)"
       >
@@ -457,7 +457,7 @@ defineExpose({
     <!-- Adding mention popover -->
     <div
       v-if="insertingMentionAt != null"
-      class="fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
+      class="scroll-hidden fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
       :style="{
         left: insertingMentionAt.pos.left - 12 + 'px',
         top: insertingMentionAt.pos.top + (insertingMentionAt.above ? -300 : +18) + 'px',
@@ -471,7 +471,7 @@ defineExpose({
           :ref="(ref: any) => insertingPopoverOptionRefs[mention.node.id] = ref"
           :key="mention.node.id"
           @click.stop.prevent="insertMention(mention.node)"
-          class="flex cursor-pointer flex-row items-center justify-between rounded-sm px-2 py-0.5 hover:bg-orange-100"
+          class="flex cursor-pointer flex-row items-center justify-between gap-2.5 rounded-sm px-2 py-0.5 hover:bg-orange-100"
           :class="{ 'bg-orange-100': mention.node.id == activeMentionId }"
         >
           <span class="flex flex-shrink-0 flex-row items-center">

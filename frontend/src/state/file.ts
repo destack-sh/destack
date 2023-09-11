@@ -15,7 +15,7 @@ import { closeTransaction, openTransaction, useOperations, type Transaction } fr
 import { newFieldKey } from "@/state/operations/statement";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
-import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref } from "vue";
+import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref, nextTick } from "vue";
 
 export const FILE_CONTEXT = "__fileContext__" as const;
 
@@ -803,6 +803,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     ops.statement.create(null, newStatement.id, newStatement.ck, below.fileId, below.parentId, below.orderKey);
     if (focus) {
       nav?.value?.panel.editElement(newStatement as StatementHeader);
+      nextTick(() => nav?.value?.statementsComponents[newStatement.id]?.focus("first"));
     }
   }
 
@@ -813,6 +814,7 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     ops.statement.create(null, newStatement.id, newStatement.ck, above.fileId, above.parentId, above.orderKey);
     if (focus) {
       nav?.value?.panel.editElement(newStatement as StatementHeader);
+      nextTick(() => nav?.value?.statementsComponents[newStatement.id]?.focus("first"));
     }
   }
 
