@@ -335,6 +335,7 @@ watchEffect(() => {
 });
 
 // suppress control+s (suggest snapshot instead)
+// TODO @UX: show snapshot popover instead (see :BE-312)
 Mousetrap.bind(["ctrl+s", "meta+s"], () => {
   notifications.showIf(
     {
