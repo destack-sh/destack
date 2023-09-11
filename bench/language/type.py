@@ -617,7 +617,8 @@ class Type(HasType, HasText, HasTags, Statement):
 
     def __getattr__(self, item):
         if self._names_by_ident is not None and item in self._names_by_ident:
-            return self._names_by_ident[item]
+            item = self._names_by_ident.get(item)
+            return self._scopes_by_name.get(item)
         else:
             return super().__getattr__(item)
 
