@@ -37,6 +37,8 @@ class Blank(Statement):
 class HasText(HasIssues):
     """Some instruction text with optional references."""
 
+    # nocheckin: render HasText properly in task
+
     text: str | None = None
     _text_spans: list["TextSpan"] | None = None
 

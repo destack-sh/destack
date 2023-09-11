@@ -22,6 +22,7 @@ import { SortOrder, TypeTag } from "@/gql/graphql";
 import { canSort } from "@/state/type";
 import type { Field } from "@/state/module";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
+import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 
 const props = defineProps<{
   modelValue?: Field;
@@ -301,9 +302,13 @@ defineExpose({
           >
           <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />
         </div>
-        <span v-if="text && !hideText" class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400">
-          {{ text }}
-        </span>
+        <AnnotatedText
+          v-if="text && !hideText"
+          :model-value="text"
+          readonly
+          minimal-mentions
+          class="ml-2 flex-shrink flex-grow-0 truncate text-gray-400"
+        />
       </div>
     </button>
     <!-- Prevent scroll and capture click outside -->
@@ -392,7 +397,7 @@ defineExpose({
         <span
           class="max-w-fullrounded-sm relative mt-1 w-full p-1 text-gray-700 focus-within:bg-orange-100 hover:bg-orange-100"
         >
-          <EditableSpan
+          <AnnotatedText
             ref="textRef"
             regex="description"
             v-model="text"

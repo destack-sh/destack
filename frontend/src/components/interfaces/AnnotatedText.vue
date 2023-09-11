@@ -8,8 +8,8 @@ import {
   type TextMention,
 } from "@/state/text";
 import { useElementRefs } from "@/composables/useGrid";
-import { getCurrentInstance, nextTick, ref, watch } from "vue";
-import { type ModuleObjectTypename } from "@/state/module";
+import { getCurrentInstance, nextTick, ref, watch, type Ref, toRef, computed } from "vue";
+import { type ModuleObjectTypename, type Statement } from "@/state/module";
 import { VALID_TEXT_REGEXP } from "@/utils/validation";
 import type { TextPlain } from "@/state/text";
 import { v4 as uuidv4 } from "uuid";
@@ -19,6 +19,7 @@ const props = defineProps<{
   readonly: boolean;
   supportedAnnotations?: ModuleObjectTypename[];
   minimalMentions?: boolean;
+  statement?: { ck: string };
 }>();
 
 const emit = defineEmits<{
@@ -37,15 +38,21 @@ const emit = defineEmits<{
 
 const spans = ref(parseTextHtml(props.modelValue));
 const spanRefs = useElementRefs<HTMLSpanElement>(spans);
+const insertingPopoverOptionRefs: Ref<Record<string, HTMLElement>> = ref({});
 const insertingMentionAt = ref<{
   span: TextPlain;
   idx: number;
   char: number;
+  above: boolean;
   pos: { left: number; top: number };
 } | null>(null);
 const mentionQuery = ref("");
 const activeMentionId = ref<string | null>(null);
-const { resolvedMentions, filteredMentions } = useTextMentions(spans, mentionQuery);
+const {
+  resolvedMentions,
+  filteredMentions,
+  focus: focusMention,
+} = useTextMentions(spans, mentionQuery, toRef(props, "statement"));
 
 // sync modelValue into spans
 watch(
@@ -67,6 +74,15 @@ function closeMentionPopup() {
   activeMentionId.value = null;
 }
 
+function openMentionPopup(span: TextPlain, index: number, char: number) {
+  const pos = window.getSelection()?.getRangeAt(0).getBoundingClientRect();
+  if (pos == null) throw new Error("cannot get cursor position?");
+  const isNearBottomScreenEdge = pos.top > window.innerHeight - 350; // popover height = 300px
+  insertingMentionAt.value = { span, idx: index, char, pos, above: isNearBottomScreenEdge };
+  mentionQuery.value = "";
+  activeMentionId.value = filteredMentions.value[0]?.node.id ?? null;
+}
+
 function navigateMention(dir: "up" | "down") {
   const activeMentionIdx = filteredMentions.value.findIndex((m) => m.node.id == activeMentionId.value);
   if (activeMentionIdx == -1) {
@@ -77,6 +93,11 @@ function navigateMention(dir: "up" | "down") {
     } else if (dir == "down" && activeMentionIdx < filteredMentions.value.length - 1) {
       activeMentionId.value = filteredMentions.value[activeMentionIdx + 1].node.id;
     }
+  }
+  // ensure active mention is visible
+  const activeMentionRef = insertingPopoverOptionRefs.value[activeMentionId.value as string];
+  if (activeMentionRef != null) {
+    activeMentionRef.scrollIntoView({ block: "nearest" });
   }
 }
 
@@ -143,13 +164,9 @@ function onInput(span: TextSpan, index: number, e: InputEvent) {
 
   // check if char at current position is an @ to initiate mention
   // (this is not necessarily the end of the span)
-  const selection = window.getSelection();
-  const char = selection?.anchorOffset ?? 0;
-  if (char != null && text[char - 1] == "@") {
-    const pos = selection?.getRangeAt(0).getBoundingClientRect();
-    insertingMentionAt.value = { span, idx: index, char, pos: { left: pos?.left ?? 0, top: pos?.top ?? 0 } };
-    mentionQuery.value = "";
-    activeMentionId.value = filteredMentions.value[0]?.node.id ?? null;
+  const char = window.getSelection()?.anchorOffset ?? 0;
+  if (text[char - 1] == "@") {
+    openMentionPopup(span, index, char);
     return;
   }
 
@@ -229,9 +246,9 @@ function onEnter(span: TextSpan, index: number, e: KeyboardEvent) {
 }
 
 function insertMention(node: MentionableNode) {
+  /* Inserts mention at the current insert pos */
   if (insertingMentionAt.value == null) return;
   const { span, idx, char } = insertingMentionAt.value;
-
   const mentionSpan: TextMention = {
     type: "mention",
     id: uuidv4(),
@@ -251,33 +268,44 @@ function insertMention(node: MentionableNode) {
   } else {
     newSpans.splice(idx, 1, { ...span, id: uuidv4(), text: span.text.substring(0, char - 1) }, mentionSpan);
   }
-  // ensure there's a text span at end/start
+  // ensure there's a text span at end & start of entire text
   if (newSpans[0].type != "text") {
     newSpans.splice(0, 0, { id: uuidv4(), type: "text", text: "" });
   }
   if (newSpans[newSpans.length - 1].type != "text") {
     newSpans.push({ id: uuidv4(), type: "text", text: "" });
   }
+  // add space to the start of the next span if it's a text span
+  if (newSpans[idx + 2]?.type == "text") {
+    newSpans[idx + 2] = { ...newSpans[idx + 2], text: " " + newSpans[idx + 2].text };
+  }
 
   spans.value = newSpans;
   closeMentionPopup();
   onLocalWrite();
-  nextTick(() => focus(idx + 2, "first"));
+  nextTick(() => focus(idx + 2, 1));
 }
 
-function focus(index: number, pos: "first" | "last" = "first") {
+function focus(index: number, pos: "first" | "last" | number = "first") {
+  const wasFocused = isFocused();
   const span = spans.value[index];
   if (span == null) {
     console.warn("cannot focus span", index, pos, spans.value);
     return;
   }
+
   const spanRef = spanRefs.getRef(span.id);
   spanRef?.focus();
-
   // move caret to start/end if it's a text span
   const selection = window.getSelection();
   if (span.type == "text" && selection != null && spanRef != null) {
-    if (pos == "first") {
+    if (typeof pos == "number") {
+      // put caret at pos
+      if (spanRef.childNodes.length > 0) {
+        selection.selectAllChildren(spanRef.childNodes[0]);
+        selection.setBaseAndExtent(spanRef.childNodes[0], pos, spanRef.childNodes[0], pos);
+      }
+    } else if (pos == "first") {
       // select start of text
       if (spanRef.childNodes.length > 0) {
         selection.selectAllChildren(spanRef.childNodes[0]);
@@ -306,13 +334,22 @@ function focus(index: number, pos: "first" | "last" = "first") {
       }
     }
   }
+
+  // check if caret is at @, if so insta open mention popup
+  if (!wasFocused && span.type == "text") {
+    const selection = window.getSelection();
+    if (selection?.anchorOffset == 1 && selection.anchorNode?.textContent?.[selection.anchorOffset - 1] == "@") {
+      openMentionPopup(span, index, selection.anchorOffset);
+    }
+  }
+}
+
+function isFocused(): boolean {
+  return spans.value.some((span) => spanRefs.getRef(span.id)?.contains(document.activeElement));
 }
 
 function focusIfUnfocused() {
-  // check if any span is focused
-  const focusedSpan = spans.value.find((span) => spanRefs.getRef(span.id)?.contains(document.activeElement));
-  if (focusedSpan == null) {
-    // no span is focused, focus end
+  if (!isFocused()) {
     focus(spans.value.length - 1, "last");
   }
 }
@@ -339,12 +376,13 @@ defineExpose({
     }
   },
   focusIfUnfocused,
+  open: computed(() => insertingMentionAt.value != null),
   blur,
 });
 </script>
 <template>
   <!-- TODO @UX: make entire annotated text div contenteditable? -->
-  <div tabindex="-1" spellcheck="false" class="inline-block outline-none">
+  <div tabindex="-1" spellcheck="false" class="inline outline-none">
     <!-- Actual spans -->
     <template v-for="(span, i) in spans" :key="span.id">
       <!-- Normal text -->
@@ -354,13 +392,13 @@ defineExpose({
         :contenteditable="((readonly ? 'false' : 'plaintext-only') as any)"
         tabindex="-1"
         spellcheck="false"
-        class="mousetrap whitespace-pre-wrap outline-none"
+        class="mousetrap outline-none"
         @keydown.up.exact.prevent="onNavigateUp(span, i)"
         @keydown.down.exact.prevent="onNavigateDown(span, i)"
         @keydown.left.exact="onNavigateLeft(span, i, $event)"
         @keydown.right.exact="onNavigateRight(span, i, $event)"
-        @keydown.escape.exact.prevent="insertingMentionAt == null ? closeMentionPopup() : emit('escape')"
-        @keydown.enter.exact.prevent="onEnter(span, i, $event as KeyboardEvent)"
+        @keydown.escape.prevent="insertingMentionAt == null ? closeMentionPopup() : emit('escape')"
+        @keydown.enter.prevent="onEnter(span, i, $event as KeyboardEvent)"
         @keydown.backspace.exact="onDelete(span, i, $event as KeyboardEvent)"
         @input="onInput(span, i, $event as InputEvent)"
       >
@@ -375,12 +413,13 @@ defineExpose({
         :contenteditable="false"
         @keydown.up.exact.prevent="emit('navigateUp')"
         @keydown.down.exact.prevent="emit('navigateDown')"
-        @keydown.left.exact="onNavigateLeft(span, i, $event)"
-        @keydown.right.exact="onNavigateRight(span, i, $event)"
-        @keydown.escape.exact.prevent="emit('escape')"
-        @keydown.backspace.exact.prevent="onDelete(span, i, $event as KeyboardEvent)"
-        class="relative -my-0.5 mx-[1px] inline rounded-sm px-[1px] py-0.5 underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-400 focus:ring-1 focus:ring-orange-600/10"
-        :class="[minimalMentions ? '' : '  hover:decoration-orange-400']"
+        @keydown.left="onNavigateLeft(span, i, $event)"
+        @keydown.right="onNavigateRight(span, i, $event)"
+        @keydown.escape.prevent="emit('escape')"
+        @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
+        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:cursor-pointer hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
+        :class="[minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  hover:decoration-orange-600']"
+        @click="() => resolvedMentions[i] == null || focusMention(resolvedMentions[i].node)"
       >
         <component
           v-if="!minimalMentions && resolvedMentions[i] != null"
@@ -398,28 +437,40 @@ defineExpose({
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
       @click.stop="insertingMentionAt = null"
     />
-    <!-- Adding mention -->
+    <!-- Adding mention background info -->
+    <div
+      v-if="insertingMentionAt != null && mentionQuery == ''"
+      class="fixed -mx-0.5 rounded-sm bg-orange-100 px-0.5 text-gray-400"
+      :style="{
+        left: insertingMentionAt.pos.left + 2 + 'px',
+        top: insertingMentionAt.pos.top - 2 + 'px',
+      }"
+    >
+      Mention a statement, field, ...
+    </div>
+    <!-- Adding mention popover -->
     <div
       v-if="insertingMentionAt != null"
       class="fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
-      :style="{ left: insertingMentionAt.pos.left + 'px', top: insertingMentionAt.pos.top + 18 + 'px' }"
+      :style="{
+        left: insertingMentionAt.pos.left - 12 + 'px',
+        top: insertingMentionAt.pos.top + (insertingMentionAt.above ? -300 : +18) + 'px',
+      }"
     >
       <ul class="flex flex-col">
+        <!-- Mention candidate -->
+        <!-- Keyboard events are handled in active text span, not here (we don't actually focus these) -->
         <li
           v-for="mention in filteredMentions"
+          :ref="(ref: any) => insertingPopoverOptionRefs[mention.node.id] = ref"
           :key="mention.node.id"
           @click.stop.prevent="insertMention(mention.node)"
-          @keydown.enter.stop.prevent="insertMention(mention.node)"
-          @keydown.up.stop.prevent="navigateMention('up')"
-          @keydown.down.stop.prevent="navigateMention('down')"
           class="flex cursor-pointer flex-row items-center justify-between rounded-sm px-2 py-0.5 hover:bg-orange-100"
           :class="{ 'bg-orange-100': mention.node.id == activeMentionId }"
         >
           <span class="flex flex-shrink-0 flex-row items-center">
             <component :is="mention.icon" class="mr-2 h-4 w-4 text-orange-600" />
-            <span>
-              {{ mention.name }}
-            </span>
+            <span class="text-gray-900">{{ mention.name }}</span>
           </span>
           <span class="truncate text-gray-400">{{ mention.path ?? "(builtin)" }}</span>
         </li>

@@ -1,4 +1,11 @@
-import { useCurrentModule, type ModuleObjectTypename, type Statement, type File, type Field } from "@/state/module";
+import {
+  useCurrentModule,
+  type ModuleObjectTypename,
+  type Statement,
+  type File,
+  type Field,
+  type NodeBase,
+} from "@/state/module";
 import { computed, type Ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import { v4 as uuidv4 } from "uuid";
@@ -6,6 +13,7 @@ import { getStatementIconOutline, getStatementIconSolid } from "@/state/statemen
 import { CodeBracketIcon as CodeBracketIconOutline } from "@heroicons/vue/24/outline";
 import { CodeBracketIcon as CodeBracketIconSolid } from "@heroicons/vue/24/solid";
 import { StatementType, TypeTag } from "@/gql/graphql";
+import { EditFilePanel, useBenchState, type NavElement } from "@/state/bench";
 
 export type TextMention = {
   type: "mention";
@@ -87,8 +95,13 @@ export type Mentionable = {
   path?: string;
 };
 
-export function useTextMentions(spans: Ref<TextSpan[]>, query?: Ref<string>, statement?: Ref<{ ck: string }>) {
+export function useTextMentions(
+  spans: Ref<TextSpan[]>,
+  query?: Ref<string>,
+  statement?: Ref<{ ck: string } | undefined>
+) {
   const module = useCurrentModule();
+  const bench = useBenchState();
 
   const resolvedMentions: Ref<Record<number, Mentionable>> = computed(() => {
     const mentions: Record<number, Mentionable> = {};
@@ -116,20 +129,45 @@ export function useTextMentions(spans: Ref<TextSpan[]>, query?: Ref<string>, sta
       .filter((f) => (f.name ?? "").length > 0)
       .map((f) => f as File);
 
-    // nocheckin: limit fields to type fields and fields of ancestor nodes
-    const ancestorNodes = module.nodePathOf(statement?.value?.ck ?? "");
-    const availableFields: Field[] = Object.values(module.idx.value?.fieldsById ?? {});
+    const ancestorNodes = module.nodePathOf(statement?.value?.ck ?? "") ?? [];
+    const availableFields: Field[] = [];
+    // ancestor fields (all of them)
+    for (const node of ancestorNodes) {
+      const statement = module.statementOf(node.ck);
+      if (statement == null) continue;
+      availableFields.push(...statement.fields.filter((f) => f.deletedAt == null && (f.name ?? "").length > 0));
+    }
+    // all other enum and struct fields
+    for (const statement of availableStatements) {
+      if (statement.tag != TypeTag.Enum && statement.tag != TypeTag.Struct) continue;
+      availableFields.push(...statement.fields.filter((f) => f.deletedAt == null && (f.name ?? "").length > 0));
+    }
 
-    // nocheckin: sort/rank available nodes for text mention better
     const availableNodes: MentionableNode[] = [...availableStatements, ...availableFiles, ...availableFields];
     let filteredNodes: MentionableNode[] = availableNodes;
     if (query.value.length != 0) {
-      const [idxs] = uf.search(
+      const [idxs, info, order] = uf.search(
         availableNodes.map((a) => a.name as string),
-        query.value
+        query.value,
+        true
       );
-      filteredNodes = idxs?.map((idx) => availableNodes[idx]) ?? [];
+      if (idxs && order) {
+        filteredNodes = order.map((i) => availableNodes[idxs[i]]);
+      }
+    } else if (statement?.value != null) {
+      // rank nodes in same file higher
+      const file = module.fileOf(statement.value.ck);
+      if (file != null) {
+        filteredNodes = filteredNodes.sort((a, b) => {
+          const aIsInFile = module.fileOf(a.ck)?.id == file.id;
+          const bIsInFile = module.fileOf(b.ck)?.id == file.id;
+          if (aIsInFile && !bIsInFile) return -1;
+          if (!aIsInFile && bIsInFile) return 1;
+          return 0;
+        });
+      }
     }
+
     const filteredMentions: Mentionable[] = filteredNodes.map((n) => ({
       node: n,
       icon: getIconSolid(n),
@@ -175,10 +213,30 @@ export function useTextMentions(spans: Ref<TextSpan[]>, query?: Ref<string>, sta
     }
   }
 
+  function focus(node: MentionableNode) {
+    if (node.__typename == "File") {
+      bench.focusFile(node as NodeBase);
+    } else if (node.__typename == "Statement") {
+      const file = module.fileOf(node.ck);
+      if (file != null) {
+        const panel = bench.focusFile(file as NodeBase) as EditFilePanel;
+        panel.editElement(node);
+      }
+    } else if (node.__typename == "Field") {
+      const statement = module.statementOf(node.parent.id);
+      const file = module.fileOf(statement?.ck);
+      if (file != null) {
+        const panel = bench.focusFile(file as NodeBase) as EditFilePanel;
+        panel.editElement(statement as NavElement);
+      }
+    }
+  }
+
   return {
     resolvedMentions,
     filteredMentions,
     getIconOutline,
     getIconSolid,
+    focus,
   };
 }

@@ -125,7 +125,6 @@ defineExpose({
       <!-- 'Name' -->
       <span v-if="o.statement.type == StatementType.Blank" class="text-gray-400">(Blank)</span>
       <!-- Show text for unnamed statements -->
-      <!-- nocheckin show truncated properly -->
       <AnnotatedText
         v-else-if="
           (o.statement.name ?? '').length == 0 &&
