@@ -97,8 +97,11 @@ export type Mentionable = {
 
 export function useTextMentions(
   spans: Ref<TextSpan[]>,
-  query?: Ref<string>,
-  statement?: Ref<{ ck: string } | undefined>
+  options?: {
+    query?: Ref<string | null>;
+    searching?: Ref<boolean>;
+    statement?: Ref<{ ck: string } | undefined>;
+  }
 ) {
   const module = useCurrentModule();
   const bench = useBenchState();
@@ -121,7 +124,7 @@ export function useTextMentions(
 
   const uf = new uFuzzy({ intraMode: 0 });
   const filteredMentions: Ref<Mentionable[]> = computed(() => {
-    if (query == null) return [];
+    if (options?.query?.value == null || options?.searching?.value === false) return [];
     const availableStatements = Object.values(module.idx.value?.statementsById ?? {})
       .filter((s) => (s.name ?? "").length > 0)
       .map((s) => s as Statement);
@@ -129,7 +132,7 @@ export function useTextMentions(
       .filter((f) => (f.name ?? "").length > 0)
       .map((f) => f as File);
 
-    const ancestorNodes = module.nodePathOf(statement?.value?.ck ?? "") ?? [];
+    const ancestorNodes = module.nodePathOf(options?.statement?.value?.ck ?? "") ?? [];
     const availableFields: Field[] = [];
     // ancestor fields (all of them)
     for (const node of ancestorNodes) {
@@ -145,18 +148,18 @@ export function useTextMentions(
 
     const availableNodes: MentionableNode[] = [...availableStatements, ...availableFiles, ...availableFields];
     let filteredNodes: MentionableNode[] = availableNodes;
-    if (query.value.length != 0) {
+    if (options?.query.value.length != 0) {
       const [idxs, info, order] = uf.search(
         availableNodes.map((a) => a.name as string),
-        query.value,
+        options.query.value,
         true
       );
       if (idxs && order) {
         filteredNodes = order.map((i) => availableNodes[idxs[i]]);
       }
-    } else if (statement?.value != null) {
+    } else if (options?.statement?.value != null) {
       // rank nodes in same file higher
-      const file = module.fileOf(statement.value.ck);
+      const file = module.fileOf(options.statement.value.ck);
       if (file != null) {
         filteredNodes = filteredNodes.sort((a, b) => {
           const aIsInFile = module.fileOf(a.ck)?.id == file.id;
