@@ -71,6 +71,7 @@ import {
   ArrowRightIcon,
   HomeIcon as HomeIconSolid,
   CubeIcon as CubeIconSolid,
+  InformationCircleIcon,
 } from "@heroicons/vue/24/solid";
 import ViewEnvironment from "@/components/views/ViewEnvironment.vue";
 import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
@@ -499,6 +500,15 @@ onBeforeUnmount(() => {
         <!-- Comments, issues -->
         <div class="ml-1.5 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
           <FadeTransition appear>
+            <!-- Notices -->
+            <button
+              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+              v-if="module.notices.value?.length || 0 > 0"
+              @click="toggleActiveView('issues', true)"
+            >
+              <InformationCircleIcon class="h-5 w-5 text-cyan-600" />
+              <span class="text-sm font-semibold text-gray-700">{{ module.notices.value?.length }}</span>
+            </button>
             <!-- Warnings -->
             <button
               class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"

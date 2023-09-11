@@ -417,9 +417,12 @@ defineExpose({
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="emit('escape')"
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
-        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:cursor-pointer hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
-        :class="[minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  hover:decoration-orange-600']"
-        @click="() => resolvedMentions[i] == null || focusMention(resolvedMentions[i].node)"
+        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
+        :class="[
+          minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  hover:decoration-orange-600',
+          minimalMentions ? '' : 'hover:cursor-pointer',
+        ]"
+        @click="() => resolvedMentions[i] == null || minimalMentions || focusMention(resolvedMentions[i].node)"
       >
         <component
           v-if="!minimalMentions && resolvedMentions[i] != null"
@@ -437,7 +440,8 @@ defineExpose({
       class="fixed left-0 top-0 z-40 h-full w-full overscroll-none"
       @click.stop="insertingMentionAt = null"
     />
-    <!-- Adding mention background info -->
+    <!-- Adding mention background info
+       (only if mention query is empty since this is 'above' the query due to different stacking contexts) -->
     <div
       v-if="insertingMentionAt != null && mentionQuery == ''"
       class="fixed -mx-0.5 rounded-sm bg-orange-100 px-0.5 text-gray-400"

@@ -37,14 +37,14 @@ class Blank(Statement):
 class HasText(HasIssues):
     """Some instruction text with optional references."""
 
-    # nocheckin: render HasText properly in task
-
     text: str | None = None
     _text_spans: list["TextSpan"] | None = None
 
     @property
     def text_plain(self) -> Optional[str]:
-        return self.text  # the same because there are no annotations yet
+        if self._text_spans is None:
+            return None
+        return "".join(str(s) for s in self._text_spans)
 
     @property
     def text_spans(self) -> list["TextSpan"]:
