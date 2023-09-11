@@ -332,7 +332,7 @@ class HasIssues(abc.ABC):
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Statement", "Statement", "File", None] = None,
+        subject: Union["Statement", "File", None] = None,
         type: IssueType = None,
         **kwargs,
     ):
@@ -369,7 +369,7 @@ class Scope:
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Statement", "Statement", "File", None] = None,
+        subject: Union["Statement", "File", None] = None,
         type: IssueType = None,
         **kwargs,
     ):

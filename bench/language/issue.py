@@ -95,12 +95,13 @@ class Issue:
     kind: IssueKind
     type: IssueType
     message: str
-    subject: Union["Statement", "Statement", "File", None] = None
+    subject: Union["Statement", "File", None] = None
 
-    def __init__(
-        self, type: IssueType, subject: Union["Statement", "Statement", "File", None], **kwargs
-    ):
+    def __init__(self, type: IssueType, subject: Union["Statement", "File", None], **kwargs):
         from bench.language.core import File, NodePath, Statement, node_path_as_str
+
+        if subject and not isinstance(subject, (Statement, File)):
+            raise ValueError(f"unexpected subject for issue {type}: {subject!r}")
 
         # auto convert kwargs
         for key, value in kwargs.items():
@@ -150,7 +151,7 @@ class IssueHandler(abc.ABC):
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Statement", "Statement", "File", None],
+        subject: Union["Statement", "File", None],
         type: IssueType,
         **kwargs,
     ):
