@@ -2,6 +2,7 @@
 import ActionPopover from "@/components/basic/ActionPopover.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
+import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import {
   BASIC_CONTROL_PARTS,
   STANDALONE_ENABLED,
@@ -846,6 +847,10 @@ defineExpose({
             >
               {{ field.name }}
             </span>
+            <template v-if="canHaveText && statement.text != null && statement.text.length > 0">
+              <span class="text-gray-400">•</span>
+              <AnnotatedText :model-value="statement.text" minimal-mentions readonly class="truncate text-gray-400" />
+            </template>
             <EllipsisHorizontalIcon class="h-4 w-4 self-center text-gray-400" />
           </button>
         </template>
