@@ -1,11 +1,16 @@
 import { useCurrentModule, type ModuleObjectTypename, type Statement, type File, type Field } from "@/state/module";
 import { computed, type Ref } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
+import { v4 as uuidv4 } from "uuid";
+import { getStatementIconOutline, getStatementIconSolid } from "@/state/statement";
+import { CodeBracketIcon as CodeBracketIconOutline } from "@heroicons/vue/24/outline";
+import { CodeBracketIcon as CodeBracketIconSolid } from "@heroicons/vue/24/solid";
+import { StatementType, TypeTag } from "@/gql/graphql";
 
 export type TextMention = {
   type: "mention";
   id: string;
-  text: string;
+  text?: string;
   referenceCk: string;
   referenceType: ModuleObjectTypename;
   referencePath?: string;
@@ -22,7 +27,6 @@ export type TextSpan = TextMention | TextPlain;
 // :TextFormat
 export const TEXT_MENTION_REGEX =
   /<span data-ref-ck="(?<ck>[a-f0-9-]+)" data-ref-type="(?<type>[a-zA-Z]+)" data-ref-path="(?<path>[^"]*)"><\/span>/g;
-export const TEXT_MENTION_TEMPLATE = '<span data-ref-ck="{ck}" data-ref-type="{type}" data-ref-path="{path}"></span>';
 
 export function parseTextHtml(textRaw: string): TextSpan[] {
   const spans: TextSpan[] = [];
@@ -31,7 +35,7 @@ export function parseTextHtml(textRaw: string): TextSpan[] {
   let match: RegExpExecArray | null;
   while ((match = TEXT_MENTION_REGEX.exec(textRaw)) !== null) {
     if (match.index > lastEnd) {
-      spans.push({ type: "text", id: spans.length.toString(), text: textRaw.slice(lastEnd, match.index) });
+      spans.push({ type: "text", id: uuidv4(), text: textRaw.slice(lastEnd, match.index) });
     }
 
     // mention
@@ -42,6 +46,7 @@ export function parseTextHtml(textRaw: string): TextSpan[] {
     const path = match.groups?.path;
     spans.push({
       type: "mention",
+      id: uuidv4(),
       text: textRaw.slice(match.index, match.index + text.length),
       referenceCk: ck,
       referenceType: type,
@@ -51,31 +56,58 @@ export function parseTextHtml(textRaw: string): TextSpan[] {
     lastEnd = match.index + text.length;
   }
 
-  if (lastEnd < textRaw.length) {
-    spans.push({ type: "text", id: spans.length.toString(), text: textRaw.slice(lastEnd) });
+  // ensure there's always a trailing text span
+  spans.push({ type: "text", id: uuidv4(), text: textRaw.slice(lastEnd) });
+  // and a leading one
+  if (spans.length > 0 && spans[0].type != "text") {
+    spans.unshift({ type: "text", id: uuidv4(), text: "" });
   }
 
   return spans;
 }
 
+export function renderTextHtml(spans: TextSpan[]): string {
+  return spans
+    .map((span) =>
+      span.type == "text"
+        ? span.text
+        : `<span data-ref-ck="${span.referenceCk}" data-ref-type="${span.referenceType}" data-ref-path="${
+            span.referencePath ?? ""
+          }"></span>`
+    )
+    .join("");
+}
+
 export type MentionableNode = Statement | File | Field;
+
+export type Mentionable = {
+  node: MentionableNode;
+  icon: any;
+  name?: string;
+  path?: string;
+};
 
 export function useTextMentions(spans: Ref<TextSpan[]>, query?: Ref<string>, statement?: Ref<{ ck: string }>) {
   const module = useCurrentModule();
 
-  const resolvedMentions: Ref<Record<number, MentionableNode>> = computed(() => {
-    const mentions: Record<number, MentionableNode> = {};
-    for (const span of spans.value) {
+  const resolvedMentions: Ref<Record<number, Mentionable>> = computed(() => {
+    const mentions: Record<number, Mentionable> = {};
+    for (const [i, span] of spans.value.entries()) {
       if (span.type != "mention") continue;
-      const reference = module.nodeOf(span.referenceCk);
+      const reference = module.nodeOf(span.referenceCk) as MentionableNode | undefined;
       if (reference == null) continue;
-      mentions[parseInt(span.id)] = reference;
+      mentions[i] = {
+        node: reference,
+        icon: getIconSolid(reference),
+        name: reference.name ?? undefined,
+        path: getPath(reference),
+      };
     }
     return mentions;
   });
 
   const uf = new uFuzzy({ intraMode: 0 });
-  const filteredMentions: Ref<MentionableNode[]> = computed(() => {
+  const filteredMentions: Ref<Mentionable[]> = computed(() => {
     if (query == null) return [];
     const availableStatements = Object.values(module.idx.value?.statementsById ?? {})
       .filter((s) => (s.name ?? "").length > 0)
@@ -84,22 +116,69 @@ export function useTextMentions(spans: Ref<TextSpan[]>, query?: Ref<string>, sta
       .filter((f) => (f.name ?? "").length > 0)
       .map((f) => f as File);
 
-    // nocheckin: and all fields of ancestor nodes
+    // nocheckin: limit fields to type fields and fields of ancestor nodes
     const ancestorNodes = module.nodePathOf(statement?.value?.ck ?? "");
-    const availableFields: Field[] = [];
+    const availableFields: Field[] = Object.values(module.idx.value?.fieldsById ?? {});
 
+    // nocheckin: sort/rank available nodes for text mention better
     const availableNodes: MentionableNode[] = [...availableStatements, ...availableFiles, ...availableFields];
-    if (query.value.length == 0) return availableNodes;
-
-    const [idxs] = uf.search(
-      availableNodes.map((a) => a.name as string),
-      query.value
-    );
-    return idxs?.map((idx) => availableNodes[idx]) ?? [];
+    let filteredNodes: MentionableNode[] = availableNodes;
+    if (query.value.length != 0) {
+      const [idxs] = uf.search(
+        availableNodes.map((a) => a.name as string),
+        query.value
+      );
+      filteredNodes = idxs?.map((idx) => availableNodes[idx]) ?? [];
+    }
+    const filteredMentions: Mentionable[] = filteredNodes.map((n) => ({
+      node: n,
+      icon: getIconSolid(n),
+      name: n.name ?? undefined,
+      path: getPath(n) ?? undefined,
+    }));
+    return filteredMentions;
   });
+
+  function getPath(node: MentionableNode): string | undefined {
+    return module
+      .nodePathOf(node.ck)
+      ?.slice(0, -1)
+      ?.map((n) => n.name)
+      .join(".");
+  }
+
+  function getIconOutline(node: MentionableNode) {
+    if (node.__typename == "Statement") {
+      return getStatementIconOutline(node.type, node.tag);
+    } else if (node.__typename == "File") {
+      return CodeBracketIconOutline;
+    } else if (node.__typename == "Field") {
+      if (node.tag == TypeTag.Literal) {
+        return getStatementIconOutline(StatementType.Type, TypeTag.Enum);
+      } else {
+        return getStatementIconOutline(StatementType.Type, TypeTag.Struct);
+      }
+    }
+  }
+
+  function getIconSolid(node: MentionableNode) {
+    if (node.__typename == "Statement") {
+      return getStatementIconSolid(node.type, node.tag);
+    } else if (node.__typename == "File") {
+      return CodeBracketIconSolid;
+    } else if (node.__typename == "Field") {
+      if (node.tag == TypeTag.Literal) {
+        return getStatementIconSolid(StatementType.Type, TypeTag.Enum);
+      } else {
+        return getStatementIconSolid(StatementType.Type, TypeTag.Struct);
+      }
+    }
+  }
 
   return {
     resolvedMentions,
     filteredMentions,
+    getIconOutline,
+    getIconSolid,
   };
 }
