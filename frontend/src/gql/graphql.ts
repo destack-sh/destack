@@ -370,6 +370,7 @@ export enum IssueType {
   MissingReference = "MISSING_REFERENCE",
   TaskImpossible = "TASK_IMPOSSIBLE",
   TaskMissingIo = "TASK_MISSING_IO",
+  TextHasNoEffect = "TEXT_HAS_NO_EFFECT",
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",
 }
 

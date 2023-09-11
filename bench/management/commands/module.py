@@ -24,6 +24,10 @@ class Command(BaseCommand):
         parser.add_argument("--after", type=str, help="After tag")
         # optional force flag
         parser.add_argument("--force", action="store_true", help="Force")
+        # optional alias string
+        parser.add_argument("--alias", type=str, help="Alias")
+        # optional create flag
+        parser.add_argument("--create", action="store_true", help="Create")
 
     @transaction.atomic
     def handle(
@@ -33,12 +37,26 @@ class Command(BaseCommand):
         path: str = None,
         after: str = None,
         force: bool = None,
+        alias: str = None,
+        create: bool = None,
         **options,
     ):
         owner_slug, project_slug = module.split("/")
-        project = models.Project.objects.get_by_slug(owner_slug, project_slug)
+        try:
+            project = models.Project.objects.get_by_slug(owner_slug, project_slug)
+        except models.Project.DoesNotExist:
+            if create:
+                owner = models.OwnerSlug.objects.get(slug=owner_slug).owner
+                project = models.Project.objects.create_project(
+                    owner=owner,
+                    name=project_slug,
+                    slug=project_slug,
+                    visibility=models.ProjectVisibility.PRIVATE,
+                )
+            else:
+                raise
         if path is None:
-            path = "/tmp/bench/" + project.path
+            path = "/tmp/bench/" + (alias or project.path)
 
         logger.info(action, project=project, path=path)
 
