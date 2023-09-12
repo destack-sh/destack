@@ -56,7 +56,7 @@ defineExpose({
         class="ml-4 flex flex-row gap-1 opacity-0 transition group-focus-within/meta:opacity-100 group-hover/meta:opacity-100"
       >
         <button
-          v-for="action in actions"
+          v-for="action in actions.filter((a) => !a.disabled)"
           :key="action.label"
           class="group relative rounded-sm p-1 text-gray-300 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/meta:text-gray-500 group-hover/meta:text-gray-500"
           :class="[!action.disabled ? '' : 'opacity-50 hover:cursor-not-allowed']"

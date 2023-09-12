@@ -75,7 +75,7 @@ defineExpose({
     <div ref="outputRef" class="mt-1">
       <!-- Output views -->
       <TraceTile
-        v-if="activeView == 'flamegraph'"
+        v-if="activeView == 'flamegraph' || activeView == 'trace'"
         :session-id="run.session?.id"
         :root-id="run.id"
         :layout="activeView == 'flamegraph' ? 'bars' : 'list'"

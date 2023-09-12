@@ -58,6 +58,7 @@ import {
   type Component,
   type ComputedRef,
   type Ref,
+  nextTick,
 } from "vue";
 import { useRouter } from "vue-router";
 import { getUUIDFromGlobalID } from "@/utils/functools";
@@ -78,6 +79,7 @@ import CurrentRunsPopover from "@/components/bench/CurrentRunsPopover.vue";
 import { WORKER_STATUS_COLOR, WORKER_STATUS_TITLE, useCurrentSessions } from "@/state/session";
 import SharingPopover from "@/components/bench/SharingPopover.vue";
 import type { Project } from "@/gql/graphql";
+import { useElementRefs } from "@/composables/useGrid";
 
 const props = defineProps<{
   owner: string;
@@ -108,19 +110,19 @@ type View = {
   view: Component;
   enabled: boolean;
 };
-const allViews: Ref<View[]> = computed(() => [
+const views: Ref<View[]> = computed(() => [
   { id: "explorer", label: "Explorer", icon: DocumentDuplicateIcon, view: ViewExplorer, enabled: true },
   { id: "history", label: "History", icon: ClockIconOutline, view: ViewHistory, enabled: true },
   { id: "issues", label: "Issues", icon: ExclamationTriangleIconOutline, view: ViewIssues, enabled: true },
   { id: "environment", label: "Environment", icon: CubeIcon, view: ViewEnvironment, enabled: true },
 ]);
-const availableViews = computed(() => allViews.value.filter((v) => v.enabled));
+const viewsRefs = useElementRefs<InstanceType<typeof ViewExplorer> | null>(views);
 const activeView: ComputedRef<View> = computed(() => {
-  const view = availableViews.value.find((v) => v.id == bench.activeViewId);
+  const view = views.value.find((v) => v.id == bench.activeViewId);
   if (!view) {
     console.error("invalid view id: " + bench.activeViewId);
-    bench.setActiveView(availableViews.value[0].id);
-    return availableViews.value[0];
+    bench.setActiveView(views.value[0].id);
+    return views.value[0];
   }
   return view;
 });
@@ -133,11 +135,11 @@ function toggleActiveView(viewId: ViewId, ignoreFocus: boolean) {
     bench.focusView(viewId);
   }
 }
-for (const view of allViews.value) {
+for (const view of views.value) {
   provideAction({
     id: `bench.view.open${view.id}`,
     label: `View ${view.label}`,
-    shortcuts: [`alt+${allViews.value.indexOf(view) + 1}`],
+    shortcuts: [`alt+${views.value.indexOf(view) + 1}`],
     apply: () => toggleActiveView(view.id, false),
   });
 }
@@ -334,20 +336,15 @@ watchEffect(() => {
   }
 });
 
-// suppress control+s (suggest snapshot instead)
-// TODO @UX: show snapshot popover instead (see :BE-312)
+// snapshot on ctrl+s (open history view & focus snapshot modal)
+// maybe directly show global snapshot modal instead
 Mousetrap.bind(["ctrl+s", "meta+s"], () => {
-  notifications.showIf(
-    {
-      type: "editor.suppressSave",
-      kind: "notice",
-      message: "Saving is automatic",
-      description: "Everything is synchronized.",
-      actionText: "Snapshot",
-      action: () => actions.apply("version.snapshot"),
-    },
-    { lastActiveMs: 60000 }
-  );
+  if (bench.activeViewId != "history" || !bench.showViewContent) {
+    bench.focusView("history");
+    nextTick(() => (viewsRefs.getRef("history") as InstanceType<typeof ViewHistory>).open?.());
+  } else {
+    (viewsRefs.getRef("history") as InstanceType<typeof ViewHistory>).open?.();
+  }
   return false;
 });
 
@@ -605,14 +602,14 @@ onBeforeUnmount(() => {
           <!-- Top of sidebar: view selection -->
           <div class="flex flex-1 flex-col">
             <button
+              v-for="view in views"
+              :key="view.id"
               class="group relative border-l-2 border-gray-50 px-2 py-2.5 text-gray-600 hover:bg-orange-100"
               :class="
                 view.id == activeView.id && bench.showViewContent
                   ? 'border-orange-600 text-orange-600'
                   : 'hover:border-orange-100'
               "
-              v-for="view in availableViews"
-              :key="view.id"
               @click="toggleActiveView(view.id, true)"
             >
               <span class="sr-only">{{ view.label }}</span>
@@ -655,6 +652,7 @@ onBeforeUnmount(() => {
         >
           <component
             :is="activeView.view"
+            :ref="(ref: any) => viewsRefs.registerRef(activeView.id, ref)"
             @show="bench.focusView(activeView.id)"
             @blur="bench.blurView(activeView.id)"
             :active="bench.activeViewId == activeView.id"
