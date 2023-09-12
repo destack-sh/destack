@@ -124,6 +124,9 @@ const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 const iface = computed(() => STATEMENT_INTERFACES[statement.value.type]);
 const actionPopoverRef = ref<InstanceType<typeof ActionPopover>>();
+const foldedFields = computed(() =>
+  iface.value?.foldable?.includes("all") ? fields.allFields.value : fields.selfFields.value
+);
 
 const partsForceShown: Ref<StatementPartId[]> = ref([]);
 const enabledControlParts = computed(() => {
@@ -844,15 +847,11 @@ defineExpose({
             class="flex min-h-[20px] max-w-full flex-row gap-1.5 truncate rounded-sm hover:bg-gray-100"
             @click="toggleContentFold()"
           >
-            <span
-              v-for="field in iface.foldable.includes('all') ? fields.allFields.value : fields.selfFields.value"
-              class="text-gray-400"
-              :key="field.id"
-            >
+            <span v-for="field in foldedFields" class="text-gray-400" :key="field.id">
               {{ field.name }}
             </span>
             <template v-if="canHaveText && statement.text != null && statement.text.length > 0">
-              <span class="text-gray-400">•</span>
+              <span class="text-gray-400" v-if="foldedFields.length > 0">•</span>
               <AnnotatedText :model-value="statement.text" minimal-mentions readonly class="truncate text-gray-400" />
             </template>
             <EllipsisHorizontalIcon class="h-4 w-4 self-center text-gray-400" />
