@@ -320,7 +320,7 @@ function onResponse(operation: Operation<unknown>, ret: unknown) {
 }
 
 function onError(operation: Operation<unknown>, error: unknown) {
-  console.trace(`operation ${operation.type} ${operation.id} failed`, error);
+  console.debug(`operation ${operation.type} ${operation.id} failed`, error);
   errorListeners.forEach((listener) => listener(operation, error));
   // capture with sentry
   captureException(error);

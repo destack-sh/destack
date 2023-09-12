@@ -176,7 +176,7 @@ watch(
     if (statements.value.length == 0) {
       titleRef.value?.focus("last");
       nextTick(() => titleRef.value?.focus("last")); // required to focus if just loaded
-    } else {
+    } else if (panel.value.activeStatementCk == null) {
       panel.value.focusElement(statements.value[0]);
     }
     hasFocused.value = true;
