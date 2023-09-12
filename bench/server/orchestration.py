@@ -37,7 +37,7 @@ from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
 
-WORKER_SET_IDLE_SLEEP_TIME = 10 * 60  # 10 minutes
+WORKER_SET_IDLE_SLEEP_TIME = 30 * 60  # 30 minutes
 WORKER_SET_GENTLE_RESTART_TIMEOUT = 5  # 5 seconds until force restart
 
 

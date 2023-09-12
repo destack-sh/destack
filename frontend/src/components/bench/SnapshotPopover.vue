@@ -6,7 +6,7 @@ import { graphql } from "@/gql";
 import type { ProjectVersion } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { bumpSemVer, FIRST_SEMVER, parseSemVer, renderSemVer, type SemVer } from "@/utils/semver";
-import { VALID_NAME_REGEX } from "@/utils/validation";
+import { VALID_NAME_CHAR_REGEX, VALID_NAME_CHAR_REGEXP, VALID_NAME_REGEX } from "@/utils/validation";
 import { Popover, PopoverPanel } from "@headlessui/vue";
 import { TagIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
@@ -33,6 +33,7 @@ const panelRefPin = pinAbsoluteElement(
   computed(() => panelRef.value?.$el),
   { pos: true }
 );
+const nameRef = ref<HTMLInputElement | null>(null);
 
 const committed = computed(() => props.version != null && props.version.committed);
 
@@ -99,6 +100,12 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
     updateVersionDebounced();
   }
 });
+
+defineExpose({
+  focus: () => {
+    nameRef.value?.focus();
+  },
+});
 </script>
 
 <template>
@@ -115,7 +122,9 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
         <!-- Header -->
         <div class="" ref="panelHeaderRef">
           <h2 class="font-bold text-gray-900">{{ committed ? "Update snapshot" : "Create a snapshot" }}</h2>
-          <p v-if="!committed" class="mt-1 text-sm text-gray-700">Snapshots are named versions of your Bench.</p>
+          <p v-if="!committed" class="mt-1 text-sm text-gray-700">
+            Snapshots are named versions of your Bench. You can restore everything or specific parts at any time.
+          </p>
         </div>
 
         <!-- Commit name & tag -->
@@ -131,7 +140,7 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
               maxlength="128"
               :placeholder="suggestedName"
               v-model="name"
-              :pattern="VALID_NAME_REGEX"
+              :pattern="VALID_NAME_CHAR_REGEX"
               class="flex-1 rounded-l-sm border-0 py-1 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
               spellcheck="false"
             />
@@ -146,7 +155,7 @@ watch([name, description, tag, availableTag, tagLoading, () => props.isHead], ()
                 minlength="3"
                 maxlength="32"
                 :placeholder="suggestedTag"
-                :pattern="VALID_NAME_REGEX"
+                :pattern="VALID_NAME_CHAR_REGEX"
                 v-model="tag"
                 class="w-28 rounded-r-sm border-0 py-1 pl-8 text-sm placeholder:text-gray-400 focus:bg-orange-100 focus:outline-none focus:ring-0"
                 :class="{ 'text-yellow-600': !validTag, 'text-red-600': !availableTag }"

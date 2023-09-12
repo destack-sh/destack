@@ -95,8 +95,17 @@ const router = useRouter();
 const notifications = useNotifications();
 const ops = useOperations();
 const canEdit = computed(() => projectAccessGt(props.project.accessLevel, ProjectAccessLevel.Edit));
+
 const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
+const snapshotPopoverRef: Ref<InstanceType<typeof SnapshotPopover> | null> = ref(null);
 const snapshotting = ref(false);
+const canSnapshot = computed(
+  () =>
+    canEdit.value &&
+    bench.projectVersionId != null &&
+    !ops.state.hasInflightLike({ types: ["version.snapshot"] }) &&
+    !snapshotting.value
+);
 
 const lastSemVerTag = computed(() => {
   // note that this may fail when we paginate versions (and there are many untagged versions)
@@ -106,24 +115,6 @@ const lastSemVerTag = computed(() => {
     return parseSemVer(tag);
   }
   return tag;
-});
-
-const snapshot = provideGlobalAction({
-  id: "version.snapshot",
-  label: "Snapshot...",
-  shortcuts: ["ctrl+k", "meta+k"],
-  enabled: computed(
-    () =>
-      canEdit.value &&
-      bench.projectVersionId != null &&
-      !ops.state.hasInflightLike({ types: ["version.snapshot"] }) &&
-      !snapshotting.value
-  ),
-  apply: () => {
-    // just open snapshot history view (view must be visible for popover to render)
-    emit("show");
-    snapshotButtonRef.value?.$el.click();
-  },
 });
 
 async function doSnapshot(c: {
@@ -145,22 +136,6 @@ async function doSnapshot(c: {
   }
   snapshotting.value = false;
 }
-
-// instant snapshot (aka manual autosave)
-provideGlobalAction({
-  id: "version.snapshotInstant",
-  label: "Snapshot (auto)",
-  shortcuts: ["ctrl+shift+k", "meta+shift+k"],
-  enabled: computed(
-    () =>
-      projectAccessGt(props.project.accessLevel, ProjectAccessLevel.Edit) &&
-      bench.projectVersionId != null &&
-      !ops.state.hasInflightLike({ types: ["version.snapshot"] })
-  ),
-  apply: async () => {
-    await doSnapshot({ projectVersionId: bench.projectVersionId as string });
-  },
-});
 
 function goToVersion(version: { id: string }) {
   const versionIdx = versions.value.findIndex((x) => x.id == version.id);
@@ -203,6 +178,16 @@ watch(
 
 defineExpose({
   count: computed(() => versionsQuery.value?.project?.versions.totalCount),
+  open: () => {
+    // Waiting extra ticks like this is awful...
+    // (we need to wait for the popover to be available and sized to position it correctly?)
+    // This is used by the global ctrl+s snapshot shortcut, so
+    //  will be made unnecessary when we move to a global snapshot popover instead.
+    nextTick(() => {
+      snapshotButtonRef.value?.$el.click();
+      nextTick(() => nextTick(() => snapshotPopoverRef.value?.focus()));
+    });
+  },
 });
 </script>
 <template>
@@ -224,6 +209,7 @@ defineExpose({
       <!-- This is because it's easier to open the right popover in the right place that way -->
       <SnapshotPopover
         v-else-if="head != null && isCurrent(head)"
+        ref="snapshotPopoverRef"
         :version="(head as ProjectVersion)"
         :projectId="props.project.id"
         :prev-sem-ver-tag="lastSemVerTag ?? undefined"
@@ -233,11 +219,11 @@ defineExpose({
       >
         <PopoverButton
           ref="snapshotButtonRef"
-          :disabled="!snapshot.enabled || snapshotting || loading"
+          :disabled="!canSnapshot || snapshotting || loading"
           class="inline-flex flex-row rounded-sm p-0.5 outline-none"
           :class="{
-            'text-gray-300': !snapshot.enabled && !snapshotting && !loading,
-            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': snapshot.enabled || snapshotting || loading,
+            'text-gray-300': !canSnapshot && !loading,
+            'text-gray-400 hover:bg-orange-100 hover:text-gray-700': canSnapshot || loading,
             'bg-orange-100': open,
             'animate-spin': snapshotting,
           }"
