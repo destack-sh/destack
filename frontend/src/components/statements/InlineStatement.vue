@@ -933,7 +933,7 @@ defineExpose({
       </div>
     </div>
     <!-- Debug info -->
-    <div v-if="bench.debug" class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-sm">
+    <div v-if="bench.debug" class="absolute right-2 top-2 z-20 rounded-sm bg-red-200 bg-opacity-50 font-sans text-xs">
       <span class="mr-0.5"
         >x:{{ Math.round(containerBounding.x.value) }} y:{{ Math.round(containerBounding.y.value) }}</span
       >

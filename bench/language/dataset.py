@@ -476,7 +476,7 @@ class Variable(HasType, HasTags, HasText, Statement):
         pass
 
     def _onwrite(self, key: str) -> None:
-        self.session.tracer.value_update(self, key)
+        self.session.tracer.variable_update(self, key)
 
     def _activate_in(self, session: "Session") -> None:
         if self._instantiated:

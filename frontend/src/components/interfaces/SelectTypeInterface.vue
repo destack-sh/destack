@@ -211,18 +211,14 @@ const LISTABLE_HINTS = [
   TypeHint.Image,
   TypeHint.Video,
 ];
-const SECRETABLE_TAGS = [TypeTag.String, TypeTag.Number];
 function isFlagSupported(type: Field, flag: TypeFlag) {
   if (flag == TypeFlag.IsOptional) {
-    return !isFlagSet(TypeFlag.IsArray) && !NONNULL_TAGS.includes(type.tag);
+    return !NONNULL_TAGS.includes(type.tag);
   } else if (flag == TypeFlag.IsArray) {
     return (
-      isFlagSet(TypeFlag.IsOptional) &&
       !isFlagSet(TypeFlag.IsSecret) &&
       ((type.hint != null && LISTABLE_HINTS.includes(type.hint)) || LISTABLE_TAGS.includes(type.tag))
     );
-  } else if (flag == TypeFlag.IsSecret) {
-    return !isFlagSet(TypeFlag.IsArray) && SECRETABLE_TAGS.includes(type.tag);
   } else {
     return true;
   }
@@ -287,9 +283,6 @@ defineExpose({
         :class="[
           isFlagSet(flagButton.flag) !== flagButton.invert ? 'font-bold text-orange-600' : '',
           isFlagSupported(value, flagButton.flag) ? 'text-gray-600' : 'cursor-not-allowed text-gray-400',
-          isFlagSet(flagButton.flag) !== flagButton.invert && flagButton.flag == TypeFlag.IsOptional
-            ? 'underline underline-offset-4'
-            : '',
         ]"
         @click="toggleFlag(flagButton.flag)"
       >

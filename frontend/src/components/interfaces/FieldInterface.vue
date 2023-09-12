@@ -439,7 +439,7 @@ defineExpose({
             @keydown.up.exact.stop.prevent="i == 0 ? textRef?.focus() : actionRefs.focus(actions[i - 1].label)"
             @keydown.down.exact.stop.prevent="i == actions.length - 1 ? null : actionRefs.focus(actions[i + 1].label)"
           >
-            <component :is="action.icon" class="h-4 w-4 text-gray-500" />
+            <component :is="action.icon" class="h-4 w-4 text-gray-700" />
             <span class="text-gray-700">{{ action.label }}</span>
           </button>
         </div>

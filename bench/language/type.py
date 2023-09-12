@@ -527,7 +527,7 @@ def _resolve_unions(type: "HasType", path: list[TypeBase]) -> None:
         type._on_issue(
             type=IssueType.CIRCULAR_UNION,
             subject=type,
-            path="->".join(str(n) for n in path + [type]),
+            path="->".join(n.name for n in path + [type]),
         )
         return  # circular
     if type.resolved_fields is not None:

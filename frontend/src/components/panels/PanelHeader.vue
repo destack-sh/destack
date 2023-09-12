@@ -11,6 +11,7 @@ import {
   type Action,
   PANEL_ICONS_SOLID,
   PANEL_ICONS_OUTLINE,
+  NavigablePanel,
 } from "@/state/bench";
 import type { NodeBase } from "@/state/module";
 import {
@@ -95,6 +96,9 @@ const auth = useAuth();
       <span v-if="bench.debug" class="ml-2 bg-red-200 bg-opacity-50 text-gray-900">
         {{ editing ? "(editing)" : "" }}
         {{ bench.focusedPanelId == panel.panel.value.id ? "(focused)" : "" }}
+        <template v-if="(panel.panel.value as NavigablePanel).activeStatementCk">
+          (active:{{ (panel.panel.value as NavigablePanel).activeStatementCk }})
+        </template>
       </span>
     </div>
     <!-- Right side secondary info / controls -->

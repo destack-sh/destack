@@ -423,7 +423,7 @@ defineExpose({
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="emit('escape')"
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
-        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
+        class="relative inline whitespace-nowrap rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
         :class="[
           minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  hover:decoration-orange-600',
           minimalMentions ? '' : 'hover:cursor-pointer',
