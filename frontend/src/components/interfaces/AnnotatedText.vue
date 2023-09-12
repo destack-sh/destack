@@ -464,7 +464,8 @@ defineExpose({
       class="scroll-hidden fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
       :style="{
         left: insertingMentionAt.pos.left - 12 + 'px',
-        top: insertingMentionAt.pos.top + (insertingMentionAt.above ? -300 : +18) + 'px',
+        top: insertingMentionAt.above ? 'auto' : insertingMentionAt.pos.top + 18 + 'px',
+        bottom: insertingMentionAt.above ? 'calc(100vh - ' + insertingMentionAt.pos.top + 'px)' : 'auto',
       }"
     >
       <ul class="flex flex-col">
