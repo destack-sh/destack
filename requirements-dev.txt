@@ -62,6 +62,10 @@ backoff==2.2.1
     # via
     #   -c requirements.txt
     #   posthog
+betterproto==1.2.5
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 black==23.7.0
     # via -r requirements-dev.in
 boto3==1.26.125
@@ -281,6 +285,10 @@ graphql-core==3.2.3
     # via
     #   -c requirements.txt
     #   strawberry-graphql
+grpclib==0.4.5
+    # via
+    #   -c requirements.txt
+    #   betterproto
 gunicorn==21.2.0
     # via
     #   -c requirements.txt
@@ -290,10 +298,18 @@ h11==0.14.0
     #   -c requirements.txt
     #   httpcore
     #   uvicorn
+h2==4.1.0
+    # via
+    #   -c requirements.txt
+    #   grpclib
 hiredis==2.2.3
     # via
     #   -c requirements.txt
     #   redis
+hpack==4.0.0
+    # via
+    #   -c requirements.txt
+    #   h2
 httpcore==0.17.3
     # via
     #   -c requirements.txt
@@ -302,6 +318,10 @@ httpx==0.24.1
     # via
     #   -c requirements.txt
     #   anthropic
+hyperframe==6.0.1
+    # via
+    #   -c requirements.txt
+    #   h2
 hyperlink==21.0.0
     # via
     #   -c requirements.txt
@@ -406,6 +426,7 @@ multidict==6.0.4
     # via
     #   -c requirements.txt
     #   aiohttp
+    #   grpclib
     #   yarl
 mypy==1.5.1
     # via
@@ -490,6 +511,10 @@ prometheus-client==0.17.1
     # via
     #   -c requirements.txt
     #   django-prometheus
+protobuf==4.24.3
+    # via
+    #   -c requirements.txt
+    #   -r requirements.in
 psycopg2==2.9.5
     # via
     #   -c requirements.txt
@@ -673,6 +698,10 @@ strawberry-graphql-django==0.16.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
+stringcase==1.2.0
+    # via
+    #   -c requirements.txt
+    #   betterproto
 structlog==23.1.0
     # via
     #   -c requirements.txt

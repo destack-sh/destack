@@ -45,6 +45,8 @@ automat==22.10.0
     # via twisted
 backoff==2.2.1
     # via posthog
+betterproto==1.2.5
+    # via -r requirements.in
 boto3==1.26.125
     # via -r requirements.in
 botocore==1.29.125
@@ -174,18 +176,26 @@ google-auth==2.22.0
     # via kubernetes
 graphql-core==3.2.3
     # via strawberry-graphql
+grpclib==0.4.5
+    # via betterproto
 gunicorn==21.2.0
     # via -r requirements.in
 h11==0.14.0
     # via
     #   httpcore
     #   uvicorn
+h2==4.1.0
+    # via grpclib
 hiredis==2.2.3
     # via redis
+hpack==4.0.0
+    # via h2
 httpcore==0.17.3
     # via httpx
 httpx==0.24.1
     # via anthropic
+hyperframe==6.0.1
+    # via h2
 hyperlink==21.0.0
     # via
     #   autobahn
@@ -243,6 +253,7 @@ msgpack==1.0.5
 multidict==6.0.4
     # via
     #   aiohttp
+    #   grpclib
     #   yarl
 mypy==1.5.1
     # via django-stubs
@@ -281,6 +292,8 @@ posthog==3.0.1
     # via -r requirements.in
 prometheus-client==0.17.1
     # via django-prometheus
+protobuf==4.24.3
+    # via -r requirements.in
 psycopg2==2.9.5
     # via -r requirements.in
 pyasn1==0.5.0
@@ -390,6 +403,8 @@ strawberry-graphql[channels,debug-server,opentelemetry]==0.204.0
     #   strawberry-graphql-django
 strawberry-graphql-django==0.16.0
     # via -r requirements.in
+stringcase==1.2.0
+    # via betterproto
 structlog==23.1.0
     # via django-structlog
 tokenizers==0.13.3
