@@ -906,7 +906,7 @@ class RuntimeWorker:
         for issue in new_issues.values():
             if issue.id not in old_issues:
                 if old_module and issue.subject_id not in old_tree:
-                    interp_mut.truncate(issue.subject, MNT.Issue)  # clear in case of restore
+                    interp_mut.truncate(issue.parent, MNT.Issue)  # clear in case of restore
                 interp_mut.create(issue)
 
         # update triggers

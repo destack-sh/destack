@@ -95,13 +95,13 @@ class Issue:
     kind: IssueKind
     type: IssueType
     message: str
-    subject: Union["Statement", "File", None] = None
+    parent: Union["Statement", "File", None] = None
 
-    def __init__(self, type: IssueType, subject: Union["Statement", "File", None], **kwargs):
+    def __init__(self, type: IssueType, parent: Union["Statement", "File", None], **kwargs):
         from bench.language.core import File, NodePath, Statement, node_path_as_str
 
-        if subject and not isinstance(subject, (Statement, File)):
-            raise ValueError(f"unexpected subject for issue {type}: {subject!r}")
+        if parent and not isinstance(parent, (Statement, File)):
+            raise ValueError(f"unexpected parent for issue {type}: {parent!r}")
 
         # auto convert kwargs
         for key, value in kwargs.items():
@@ -111,36 +111,36 @@ class Issue:
                 kwargs[key] = node_path_as_str(value)
 
         self.type = type
-        self.subject = subject
-        if isinstance(subject, File):
-            self.subject = subject
-        elif isinstance(subject, (Statement, Statement)):
-            self.subject = subject
+        self.parent = parent
+        if isinstance(parent, File):
+            self.parent = parent
+        elif isinstance(parent, (Statement, Statement)):
+            self.parent = parent
 
         if "subject" in type.text:
-            kwargs["subject"] = self.subject
+            kwargs["subject"] = self.parent
         self.message = type.text.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[type]
         # generate id if not provided
         if "id" not in kwargs:
-            self.id = uuid.uuid5(subject.id, type.value + self.message)
+            self.id = uuid.uuid5(parent.id, type.value + self.message)
         else:
             self.id = kwargs.pop("id")
         self.ck = self.id
 
     def __str__(self):
-        return f"{self.subject} {self.kind}: {self.type} {self.message}"
+        return f"{self.parent} {self.kind}: {self.type} {self.message}"
 
     def __repr__(self):
         return f"<Issue {self}>"
 
     @property
     def parent_id(self) -> UUID | None:
-        return self.subject.id if self.subject is not None else None
+        return self.parent.id if self.parent is not None else None
 
     @property
     def subject_id(self) -> UUID | None:
-        return self.subject.id if self.subject is not None else None
+        return self.parent.id if self.parent is not None else None
 
     def to_error(self) -> BenchError:
         return BenchError(self)

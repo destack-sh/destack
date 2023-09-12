@@ -109,7 +109,7 @@ const quickActions = computed(() => {
 });
 const quickActionsRefs = useElementRefs<HTMLButtonElement>(quickActions, {
   navigateLeft: () => textRef.value?.focus("last"),
-  navigateRight: () => focusAction(0),
+  navigateRight: () => emit("navigateRight"), // unsure whether we should loop or not
 });
 
 function focusAction(id: string | number) {

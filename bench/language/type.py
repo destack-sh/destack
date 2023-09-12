@@ -24,6 +24,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.core import (
+    MNT,
     HasCrud,
     HasSession,
     ModuleNode,
@@ -286,7 +287,7 @@ def new_field_key(ck: UUID) -> str:
     return key
 
 
-@node(tracked=["name", "tag", "hint", "flags", "metadata"])
+@node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "metadata"])
 class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
     parent: Statement | None = None
     name: Optional[str] = None
@@ -351,7 +352,7 @@ class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
     fields = resolved_fields  # the same by default
 
 
-@node
+@node(mnt=MNT.ResolvedField)
 class ResolvedField(Field):
     parent: Statement = required_field()
     field: Field = required_field()

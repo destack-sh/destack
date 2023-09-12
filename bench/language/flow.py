@@ -11,6 +11,7 @@ from croniter import croniter
 
 from bench.language.const import ScheduleType, StatementType, TriggerType, TypeTag
 from bench.language.core import (
+    MNT,
     HasCrud,
     HasSession,
     ModuleNode,
@@ -25,7 +26,7 @@ from bench.language.utils import Runnable
 from bench.utils.utils import required_field
 
 
-@node
+@node(mnt=MNT.Trigger)
 class Trigger(ModuleNode, HasCrud, HasSession):
     """A trigger for a runnable, possibly inside a flow."""
 
