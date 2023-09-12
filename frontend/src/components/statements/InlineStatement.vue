@@ -603,7 +603,11 @@ function run() {
     console.warn(`can't run ${statement.value} with access level ${bench.projectAccessLevel}`);
     return;
   }
+  // force sync
+  Object.values(partsRefs.value).forEach((p) => p.syncNow?.());
+  // actually run
   sessions.run(props.statement);
+  // show run element
   if (!partsForceShown.value.includes("run")) {
     partsForceShown.value.push("run");
   }
