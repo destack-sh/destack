@@ -3,8 +3,10 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { useTimeFromNow } from "@/composables/useNow";
+import { RunStatus, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState, usePanelContext } from "@/state/bench";
-import { getRunStatusColor, useCurrentSessions } from "@/state/session";
+import { WORKER_STATUS_TITLE, getRunStatusColor, useCurrentSessions } from "@/state/session";
+import { computed } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -15,6 +17,13 @@ const bench = useBenchState();
 const panel = usePanelContext();
 
 const { currentRun, currentRunActive } = sessions.currentRunOf(props.statement);
+const preparingWorkers = computed(
+  () =>
+    currentRun.value != null &&
+    !currentRunActive.value &&
+    !sessions.workerSetReady.value &&
+    sessions.workerSet.value != null
+);
 </script>
 <template>
   <div
@@ -26,12 +35,17 @@ const { currentRun, currentRunActive } = sessions.currentRunOf(props.statement);
       class="rounded-sm underline-offset-2 hover:cursor-pointer"
       @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
     >
+      <!-- Worker status if not active -->
+      <span v-if="preparingWorkers" class="text-gray-400">
+        {{ WORKER_STATUS_TITLE[sessions.workerSet.value?.status as WorkerSetStatus] }}
+      </span>
       <!-- Duration -->
-      <span v-if="currentRun != null" :class="[getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]">
+      <span v-else-if="currentRun != null" :class="[getRunStatusColor(currentRun.status, { gray: 'text-gray-400' })]">
         {{ sessions.getDurationFormatted(currentRun) }}
       </span>
       <!-- Age -->
       <span
+        v-if="!preparingWorkers"
         class="ml-1"
         :class="[
           getRunStatusColor(currentRun?.status, { gray: 'text-gray-400' }),

@@ -124,7 +124,6 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
     triggers: list[Trigger] = strawberry_django.field(filters=TriggerFilter)
     fields: list[Field] = strawberry_django.field(filters=FieldFilter)
-    # interp
     issues: Optional[list[Issue]] = strawberry_django.field()
     resolved_fields: Optional[list[ResolvedField]] = strawberry_django.field()
 

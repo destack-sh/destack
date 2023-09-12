@@ -324,7 +324,7 @@ export function _useSessions(
   const notifications = useNotifications();
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
-  const isWorkerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
+  const workerSetReady = computed(() => workerSet.value?.status === WorkerSetStatus.Healthy);
   const ready = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
   const waking = ref(false);
   const restarting = ref(false);
@@ -364,13 +364,13 @@ export function _useSessions(
   }
 
   function withWorkers<T>(fn: () => Promise<T>, options?: { timeout?: number }): Promise<T> {
-    if (!isWorkerSetReady.value) {
+    if (!workerSetReady.value) {
       return wakeWorkerSet().then((success) => {
         if (!success) {
           return Promise.reject(new Error("wake workers failed"));
         }
         // if workers are ready now, just run function
-        if (isWorkerSetReady.value) {
+        if (workerSetReady.value) {
           return fn();
         } else {
           // otherwise wait until they're ready
@@ -544,6 +544,7 @@ export function _useSessions(
     wakeWorkerSet,
     restartWorkerSet,
     workerSet,
+    workerSetReady,
     currentRuns,
     currentRoots,
     localRunsIds,
