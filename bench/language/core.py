@@ -27,7 +27,7 @@ from bench.utils.utils import IdentifierType, required_field, to_all_caps, to_py
 if typing.TYPE_CHECKING:
     from bench.language.mutate import ModuleMutation, ModuleMutator
     from bench.language.session import LogEntry, Run
-    from bench.language.tag import Tag, Tagging
+    from bench.language.type import Field
     from bench.language.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -95,7 +95,7 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
+def node(cls: Optional[typing.Type] = None, mnt: MNT = None, tracked: list[str] | None = None):
     """
     Decorator alias for module node.
     Only tracked properties may be mutated during a session (by the 'user'/run).
@@ -103,6 +103,8 @@ def node(cls: Optional[typing.Type] = None, tracked: list[str] | None = None):
 
     def decorate(cls):
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
+        if mnt:
+            cls.mnt = mnt
         cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]  # type: ignore
         # add @property methods to _PROPERTIES
         for name, attr in cls.__dict__.items():
@@ -184,6 +186,7 @@ class ModuleNode(abc.ABC):
     ck: UUID = field(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = None
     revision: int = 0
+    mnt: typing.ClassVar[MNT]  # set in @node decorator
 
     def _assign_id(self, module_id: UUID):
         if module_id is None:
@@ -326,18 +329,22 @@ class HasIssues(abc.ABC):
 
     @property
     def self_errors(self):
-        return [i for i in self.errors if i.subject == self]
+        return [i for i in self.errors if i.parent == self]
 
     def _on_issue(
         self,
         issue: "Issue" = None,
         *,
-        subject: Union["Statement", "File", None] = None,
+        subject: Union["Statement", "File", "Field", None] = None,
         type: IssueType = None,
         **kwargs,
     ):
+        from bench.language.type import Field
+
+        if isinstance(subject, Field):
+            subject = subject.parent  # fields don't have issues (yet)
         if issue is None:
-            issue = Issue(type=type, subject=subject, **kwargs)
+            issue = Issue(type=type, parent=subject, **kwargs)
         if self.issues is None:
             self.issues = []
         self.issues.append(issue)
@@ -464,7 +471,7 @@ class ModuleStatus(enum.IntEnum):
     Instance = 3
 
 
-@node
+@node(mnt=MNT.Module)
 class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
     files: list["File"] = field(default_factory=list)
@@ -667,7 +674,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         return module
 
 
-@node(tracked=["name"])
+@node(mnt=MNT.File, tracked=["name"])
 class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     name: str = required_field()
     module: Optional[Module] = None
@@ -771,23 +778,7 @@ class File(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             statement._interp(statement)
 
 
-@dataclass
-class ResolvedStatement:
-    statement: "Statement"
-    tags: tuple["Tagging"] | None = None
-
-    def has_tag(self, tag: Union[str, "Tagging", "Tag"]) -> bool:
-        from bench.language import HasTags
-
-        if not isinstance(self.statement, HasTags):
-            return False
-        tag = HasTags._to_tag_key(tag)
-        return any(t.key == tag for t in self.tags or []) or any(
-            t.key == tag for t in self.statement.tags or []
-        )
-
-
-@node(tracked=["name"])
+@node(mnt=MNT.File, tracked=["name"])
 class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     """A Bench statement."""
 

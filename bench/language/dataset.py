@@ -12,6 +12,7 @@ from more_itertools import first
 from bench.language.basic import HasText
 from bench.language.const import DatasetViewLayout, StatementType, TypeFlag, TypeTag
 from bench.language.core import (
+    MNT,
     HasCrud,
     HasSession,
     Module,
@@ -36,7 +37,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(tracked=["order_key", "value"])
+@node(mnt=MNT.Record, tracked=["order_key", "value"])
 class Record(ModuleNode, HasSession, HasCrud):
     id: UUID = field(default_factory=uuid.uuid4)
     parent: "Dataset" = required_field()
@@ -134,7 +135,7 @@ DEFAULT_QUERY = None
 DEFAULT_SORT = None
 
 
-@node(tracked=["name", "layout", "query", "sort", "order_key"])
+@node(mnt=MNT.DatasetView, tracked=["name", "layout", "query", "sort", "order_key"])
 class DatasetView(ModuleNode, HasSession, HasCrud):
     parent: "Dataset" = required_field()
     name: str = None
@@ -155,8 +156,8 @@ class DatasetView(ModuleNode, HasSession, HasCrud):
         return f"{self.parent.path}.{self.name}"
 
 
-@node
-class DatasetViewField(ModuleNode):
+@node(mnt=MNT.DatasetViewField, tracked=["order_key"])
+class DatasetViewField(ModuleNode, HasSession, HasCrud):
     field: UUID | Field = required_field()
     order_key: Optional[str] = None
 

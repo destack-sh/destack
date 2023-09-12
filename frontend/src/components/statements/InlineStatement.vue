@@ -899,7 +899,7 @@ defineExpose({
       <!-- Issues in right gutter -->
       <div
         v-if="hasIssues"
-        class="group/issues absolute left-full top-1 flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
+        class="group/issues absolute left-full top-[3px] flex origin-top-right select-none flex-row gap-2 px-1 not-italic"
         :class="{
           'text-md': !bench.textSmall,
           'text-sm': bench.textSmall,
@@ -907,7 +907,6 @@ defineExpose({
       >
         <button
           class="flex rounded-sm p-1 font-bold underline-offset-4 transition duration-75 hover:bg-orange-100"
-          :class="[hasIssues ? 'opacity-100' : 'opacity-0']"
           @click="bench.openActiveView('issues')"
         >
           <XCircleIcon v-if="hasErrors" class="h-4 w-4 text-red-600" />

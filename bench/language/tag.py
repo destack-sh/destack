@@ -6,6 +6,7 @@ from uuid import UUID
 from bench.language.basic import HasText
 from bench.language.const import TypeTag
 from bench.language.core import (
+    MNT,
     HasCrud,
     HasSession,
     ModuleNode,
@@ -22,7 +23,7 @@ from bench.utils.utils import required_field
 TAG_KEY_LENGTH = 8
 
 
-@node(tracked=[])
+@node(mnt=MNT.Tagging, tracked=[])
 class Tagging(HasCrud, HasSession, ModuleNode):
     """An association between a tag and a statement (with optional metadata)."""
 
