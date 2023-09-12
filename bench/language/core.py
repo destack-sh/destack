@@ -669,6 +669,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             module.add_dependency(dependency)
         logger.debug("module.interp.index", module=module)
         module.index()
+        logger.debug("module.interp.interp", module=module)
         module.interp()
         logger.debug("module.interp.done", module=module)
         return module

@@ -42,10 +42,9 @@ defineExpose({
 </script>
 <template>
   <!-- Base types -->
-  <!-- TODO @UX: clean up base types control 
-    (also not sure why the -mt-0.5 is needed to align this vertically properly with the other controls?)-->
+  <!-- TODO @UX: clean up base types control, fix vertical alignment -->
   <div class="inline-flex flex-row" v-if="baseTypes.length > 0">
-    <CubeTransparentIcon class="mr-0.5 mt-0.5 h-4 w-4 text-orange-600" />
+    <CubeTransparentIcon class="mt-0.5 h-4 w-4 text-orange-600" />
     <TypeInterface
       v-for="(field, i) of baseTypes"
       :key="field.id"
@@ -70,7 +69,7 @@ defineExpose({
       ref-only
       :ref-types="[TypeTag.Struct, TypeTag.Function]"
       hide-flags
-      class="-mt-0.5 inline-block rounded-sm border border-transparent border-opacity-[15%] text-orange-600 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100 focus:bg-orange-100"
+      class="inline-block rounded-sm border border-transparent border-opacity-[15%] text-orange-600 focus-within:border-solid focus-within:border-orange-900 focus-within:bg-orange-100 hover:bg-orange-100 focus:bg-orange-100"
       :class="[i < baseTypes.length - 1 ? 'mr-1' : '']"
     />
   </div>

@@ -99,7 +99,7 @@ defineExpose({
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
       @keydown.delete.exact="editing || emit('deleteSelf')"
-      class="h-full w-full text-left outline-none"
+      class="w-full text-left outline-none"
       @click="open"
       @keydown.enter.exact.prevent="open"
     >
@@ -111,7 +111,7 @@ defineExpose({
     <div
       v-if="editing"
       ref="editablePopoverRef"
-      class="absolute -left-2 z-50 flex w-72 flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
+      class="-left-2 z-50 flex w-72 flex-col gap-2 rounded-sm bg-white p-1 shadow-md ring-1 ring-orange-900 ring-opacity-40"
       :class="[hideFlags ? '-top-2' : '-top-10', popoverPin.pinned.value ? '' : 'absolute -left-2 -top-2']"
       @keydown.escape.exact.prevent.stop="close"
     >
