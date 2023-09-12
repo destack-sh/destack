@@ -85,7 +85,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     type: StatementType = StatementType.TASK
     _is_async: bool = True
     _root_models: list[Model] = None
-    _randomized: bool = False
+    _randomize: bool = False
 
     def _clear(self) -> None:
         Statement._clear(self)
@@ -103,7 +103,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         IsFlowNode._interp(self, scope)
 
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
-        self._randomized = self.has_tag(randomize_tag)
+        self._randomize = self.has_tag(randomize_tag)
 
         if not self.inputs or not self.outputs:
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
@@ -118,18 +118,20 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     async def __call__(
         self,
         *args,
-        retries: int = None,
-        cache: bool = None,
-        timeout: float = None,
-        batch: list[dict] = None,
+        _retries: int = None,
+        _cache: bool = None,
+        _timeout: float = None,
+        _batch: list[dict] = None,
+        _randomize: bool = None,
+        _nonce: str = None,
         **kwargs,
     ):
         # map/batch inputs
         inputs = self._inputs_from_args(args, kwargs)
-        is_batched = batch is not None
-        if is_batched and not isinstance(batch, DotList):
-            inputs = DotList(batch)
-            del batch
+        is_batched = _batch is not None
+        if is_batched and not isinstance(_batch, DotList):
+            inputs = DotList(_batch)
+            del _batch
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
@@ -141,6 +143,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             mono_model = None
 
         # do task
+        _randomize = _randomize if _randomize is not None else self._randomize
         view = ModuleView(self.module, self)
         view.collect()
         try:
@@ -151,8 +154,8 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             if mono_model:
                 output = await mono_model()
             else:
-                nonce = str(random.randint(0, 2**16)) if self._randomized else None
-                output = await run_task(self, root_models, view, inputs, nonce)
+                _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
+                output = await run_task(self, root_models, view, inputs, _nonce)
             self.session.tracer.run_exit(self, output)
             return output
         except Exception as e:

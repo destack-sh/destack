@@ -100,7 +100,7 @@ class Issue:
     def __init__(self, type: IssueType, parent: Union["Statement", "File", None], **kwargs):
         from bench.language.core import File, NodePath, Statement, node_path_as_str
 
-        if parent and not isinstance(parent, (Statement, File)):
+        if parent is not None and not isinstance(parent, (Statement, File)):
             raise ValueError(f"unexpected parent for issue {type}: {parent!r}")
 
         # auto convert kwargs
