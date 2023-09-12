@@ -435,7 +435,7 @@ defineExpose({
           :is="resolvedMentions[i]?.icon"
           class="absolute left-[1px] top-0.5 h-4 w-4 text-orange-600"
         />
-        <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-5' : '']">
+        <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
           {{ resolvedMentions[i]?.name ?? "???" }}
         </span>
       </div>

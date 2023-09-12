@@ -1,4 +1,5 @@
 <script lang="ts" setup>
+import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import type { Run } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { ACTIVE_RUN_STATUSES, useCurrentSessions } from "@/state/session";
@@ -25,6 +26,7 @@ type Action = {
   id: ActionId;
   label: string;
   icon: any;
+  active?: boolean;
   disabled: boolean;
   action: () => void;
 };
@@ -34,6 +36,7 @@ const actions: Ref<Action[]> = computed(() => [
     id: "run",
     label: "Run",
     icon: PlayIcon,
+    active: runActive.value,
     disabled: !bench.canUse || runActive.value || props.runnable == null,
     action: () => {
       if (props.runnable == null) throw new Error("runnable not set");
@@ -79,7 +82,9 @@ const actions: Ref<Action[]> = computed(() => [
       :disabled="action.disabled"
       @click="action.action"
     >
+      <BusySpinnerIcon v-if="action.active" class="mr-1 h-5 w-5 animate-spin" />
       <component
+        v-else
         :is="action.icon"
         class="mr-1 h-5 w-5"
         :class="[action.disabled ? 'text-gray-300' : 'text-gray-500']"
