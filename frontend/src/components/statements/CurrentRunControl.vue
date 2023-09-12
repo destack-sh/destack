@@ -19,8 +19,8 @@ const panel = usePanelContext();
 const { currentRun, currentRunActive } = sessions.currentRunOf(props.statement);
 const preparingWorkers = computed(
   () =>
-    currentRun.value != null &&
-    !currentRunActive.value &&
+    currentRunActive.value &&
+    currentRun.value.startedAt == null &&
     !sessions.workerSetReady.value &&
     sessions.workerSet.value != null
 );
