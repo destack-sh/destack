@@ -140,9 +140,15 @@ export function useTextMentions(
       if (statement == null) continue;
       availableFields.push(...statement.fields.filter((f) => f.deletedAt == null && (f.name ?? "").length > 0));
     }
-    // all other enum and struct fields
+    // all other enum, struct, variable fields
     for (const statement of availableStatements) {
-      if (statement.tag != TypeTag.Enum && statement.tag != TypeTag.Struct) continue;
+      if (
+        statement.tag != TypeTag.Enum &&
+        statement.tag != TypeTag.Struct &&
+        statement.type != StatementType.Variable &&
+        statement.type != StatementType.Dataset
+      )
+        continue;
       availableFields.push(...statement.fields.filter((f) => f.deletedAt == null && (f.name ?? "").length > 0));
     }
 

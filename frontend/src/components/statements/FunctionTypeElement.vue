@@ -84,14 +84,14 @@ function insertBelow(
   });
 }
 
-function moveField(node: Field, position: "before" | "after", other: Field) {
+function moveField(field: Field, position: "before" | "after", other: Field) {
   const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
   if (position == "before") {
     const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    ops.symbol.moveField(null, props.statement.id, node.orderKey, orderKey);
+    fieldsX.moveField(field, orderKey);
   } else {
     const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    ops.symbol.moveField(null, props.statement.id, node.orderKey, orderKey);
+    fieldsX.moveField(field, orderKey);
   }
 }
 
