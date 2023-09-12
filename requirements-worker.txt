@@ -101,6 +101,8 @@ etils[epath,epy]==1.4.1
     # via jax
 exceptiongroup==1.1.3
     # via trio-websocket
+feedparser==6.0.10
+    # via -r requirements-worker.in
 filelock==3.12.3
     # via huggingface-hub
 flake8==5.0.4
@@ -436,6 +438,8 @@ semver==2.13.0
     # via -r requirements-worker.in
 sentry-sdk==1.18.0
     # via -r requirements-worker.in
+sgmllib3k==1.0.0
+    # via feedparser
 six==1.16.0
     # via
     #   dropbox
