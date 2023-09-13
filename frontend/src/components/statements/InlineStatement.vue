@@ -619,7 +619,7 @@ function run() {
     return;
   }
   // force sync
-  Object.values(partsRefs.value).forEach((p) => p.syncNow?.());
+  Object.values(partsRefs.value).forEach((p) => p?.syncNow?.());
 
   // actually run / launch
   if (statement.value.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput))) {

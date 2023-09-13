@@ -369,6 +369,7 @@ export enum IssueType {
   MismatchedUnion = "MISMATCHED_UNION",
   MissingReference = "MISSING_REFERENCE",
   TaskImpossible = "TASK_IMPOSSIBLE",
+  TaskIsStatic = "TASK_IS_STATIC",
   TaskMissingIo = "TASK_MISSING_IO",
   TextHasNoEffect = "TEXT_HAS_NO_EFFECT",
   UnknownImportSource = "UNKNOWN_IMPORT_SOURCE",

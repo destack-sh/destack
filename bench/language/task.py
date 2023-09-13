@@ -19,7 +19,7 @@ from bench.language.session import Run, RunError, RunErrorKind
 from bench.language.tag import HasTags
 from bench.language.type import HasType, instantiate_value
 from bench.language.utils import Runnable
-from bench.utils.utils import DotDict, DotList
+from bench.utils.utils import DotDict
 
 
 class TaskErrorType(enum.StrEnum):
@@ -121,17 +121,11 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         _retries: int = None,
         _cache: bool = None,
         _timeout: float = None,
-        _batch: list[dict] = None,
         _randomize: bool = None,
         _nonce: str = None,
         **kwargs,
     ):
-        # map/batch inputs
         inputs = self._inputs_from_args(args, kwargs)
-        is_batched = _batch is not None
-        if is_batched and not isinstance(_batch, DotList):
-            inputs = DotList(_batch)
-            del _batch
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
@@ -148,11 +142,13 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         view.collect()
         try:
             self.session.tracer.run_enter(self, inputs)
-            if inputs and is_batched:
-                raise ValueError("cannot specify both inputs and batch")
-
             if mono_model:
-                output = await mono_model()
+                output = await mono_model(**inputs)
+                # trim output to own outputs
+                if isinstance(output, dict):
+                    output = {k: v for k, v in output.items() if self.has_field(k)}
+                if not isinstance(output, DotDict):
+                    output = DotDict(output)
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
                 output = await run_task(self, root_models, view, inputs, _nonce)

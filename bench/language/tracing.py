@@ -12,19 +12,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import TriggerType
+from bench.language.const import TriggerType, TypeFlag, TypeTag
 from bench.language.core import MNT, ModuleOp, Session, Statement
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
 from bench.language.session import LogEntry, Run, RunError
-from bench.language.type import (
-    TypeBase,
-    TypeTag,
-    check_type,
-    map_value,
-    strip_value,
-    strip_value_flat,
-)
+from bench.language.type import TypeBase, check_type, map_value, strip_value, strip_value_flat
 from bench.language.utils import Runnable
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
@@ -344,29 +337,29 @@ class SessionTracer(Tracer):
 _active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
 
 
-def is_run_value_truncated(value: Any, type: TypeBase) -> bool:
-    return type.tag == TypeTag.VECTOR
-
-
-def _strip_and_truncate_py_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
-    stripped = strip_value_flat(value, type, *args, **kwargs)
-    if is_run_value_truncated(stripped, type):
-        return None  # can't use OMITTED_SENTINEL because of type mismatch... hmm
-    return stripped
-
-
-def _strip_and_truncate_py_value(
+def _strip_and_truncate_run_value(
     value: Any,
     type: TypeBase,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,
 ) -> Any:
+    def _is_type_truncated(type: TypeBase) -> bool:
+        return type.tag in (TypeTag.VECTOR,)
+
+    def _truncate_value(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+        if _is_type_truncated(type):
+            if type.flags & TypeFlag.IsArrayable or type.flags & TypeFlag.IsArray:
+                return []
+            return None
+        return value
+
     return map_value(
         value=value,
         type=type,
         map_k=lambda f: (f.py_ident, f.typed_key),
-        map_v=_strip_and_truncate_py_value_flat,
+        map_v=strip_value_flat,
+        premap_v=_truncate_value,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
@@ -472,7 +465,7 @@ class RunTracer(Tracer):
     def run_exit(self, statement: Runnable, outputs):
         frame = self.pop_stacktrace()
         frame.terminated_at = utcnow_with_tz()
-        frame.outputs = _strip_and_truncate_py_value(outputs, statement, is_output=True)
+        frame.outputs = _strip_and_truncate_run_value(outputs, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         if _active_run.get() is frame:
@@ -503,8 +496,8 @@ class RunTracer(Tracer):
         frame.cached_at = generated_at
         frame.cached_in = generated_in
         frame.cached_duration = duration
-        frame.inputs = _strip_and_truncate_py_value(inputs, statement, is_output=False)
-        frame.outputs = _strip_and_truncate_py_value(outputs, statement, is_output=True)
+        frame.inputs = _strip_and_truncate_run_value(inputs, statement, is_output=False)
+        frame.outputs = _strip_and_truncate_run_value(outputs, statement, is_output=True)
         frame._update_status()
         self.track(frame)
         self._update_cached_info()

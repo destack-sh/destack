@@ -663,6 +663,7 @@ def map_value(
     type: TypeBase,
     map_v: Callable[[Any, Field, bool], Any] = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
+    premap_v: Callable[[Any, Field, bool], Any] = None,
     is_output: bool = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
@@ -671,14 +672,17 @@ def map_value(
     map_v = map_v or _map_v_noop
     map_k = map_k or _map_k_noop
 
+    if premap_v:
+        value = premap_v(value, type, ignore_array)
+
     if type.flags & TypeFlag.IsArray and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             return value  # type error, ignore here
-        return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+        return [map_value(item, type, map_v, map_k, premap_v, ignore_array=True) for item in value]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
         if _is_arrayable_not_an_array(type, value):
             return map_value(value, type, map_v, map_k, ignore_array=True)
-        return [map_value(item, type, map_v, map_k, ignore_array=True) for item in value]
+        return [map_value(item, type, map_v, map_k, premap_v, ignore_array=True) for item in value]
     elif type.effective_tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)
     elif type.effective_tag == TypeTag.ENUM:
@@ -703,7 +707,7 @@ def map_value(
         if source_k not in value:
             target_value = None
         else:
-            target_value = map_value(value[source_k], subtype, map_v, map_k)
+            target_value = map_value(value[source_k], subtype, map_v, map_k, premap_v)
         mapped[target_k] = target_value
     if not ignore_outer_map:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
