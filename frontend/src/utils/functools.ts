@@ -114,6 +114,10 @@ export function getUUIDFromGlobalID(globalId: string): string {
   return atob(globalId).split(":")[1];
 }
 
+export function toGlobalId(type: string, id: string): string {
+  return btoa(`${type}:${id}`);
+}
+
 export function getFieldNameFromTypeName(name: string): string | undefined {
   // turn something like MyType123 into my type 123, ignorning non alphanum characters
   return name
