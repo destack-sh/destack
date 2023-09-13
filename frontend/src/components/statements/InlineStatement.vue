@@ -93,6 +93,13 @@ function toggleContentFold(descendants?: boolean) {
       module.getDescendantsOf(statement.value.id),
       !isContentFolded.value
     );
+  } else if ((panel.panel.value as EditFilePanel).hasSelection) {
+    (panel.panel.value as EditFilePanel).setStatementContentsFolded(
+      nav?.value?.panel.selectedElementIds
+        ?.map((id) => nav.value?.statementsById[id] as { ck: string })
+        .filter((s) => s != null) ?? [],
+      !isContentFolded.value
+    );
   } else {
     (panel.panel.value as EditFilePanel).toggleStatementContentFolded(statement.value);
   }

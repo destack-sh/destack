@@ -23,7 +23,7 @@ import {
 } from "@/state/appearance";
 import { getNodeIdFromCkMaybe, type ModuleIndex, type NodeBase } from "@/state/module";
 import type { LogsQuery, RunsQuery } from "@/state/session";
-import { getUUIDFromGlobalID, randomHexString } from "@/utils/functools";
+import { getUUIDFromGlobalID, randomHexString, toGlobalId } from "@/utils/functools";
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
@@ -45,6 +45,7 @@ import {
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref } from "vue";
+import { validate as isValidUUID } from "uuid";
 
 export const PROJECT_ACCESS_LEVELS = [
   ModuleAccessLevel.Zero,
@@ -1204,6 +1205,7 @@ export class ViewRunsPanel extends Panel {
   resetId(): void {
     this.id = "runs-" + randomHexString();
   }
+
   static parsePath(path: string, module: ModuleIndex): Panel | null {
     return null;
   }
@@ -1232,7 +1234,9 @@ export class ViewRunPanel extends Panel {
   }
 
   static parsePath(path: string, module: ModuleIndex): Panel | null {
-    return null;
+    const [kind, runId] = path.split(":");
+    if (kind != "run" || !isValidUUID(runId)) return null;
+    return new ViewRunPanel({ id: toGlobalId("Run", runId) });
   }
 
   get hasWhiteBackground() {
