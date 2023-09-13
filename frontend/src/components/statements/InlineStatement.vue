@@ -162,6 +162,9 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
     // if part is control, has text or can have text navigate to text
     //  (i.e. jump from declaration to text on enter)
     if (kind == "control" && canHaveText.value) {
+      if (isContentFolded.value) {
+        toggleContentFold(false);
+      }
       partsForceShown.value.push("text");
       nextTick(() => focus("text"));
     } else {
@@ -245,6 +248,7 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
     } else {
       const above = nav?.value?.getAbove(statement.value);
       if (above != null) nav?.value?.statementsComponents[above.id]?.focus("last");
+      else nav?.value?.navigateUp();
     }
   } else if (direction == "down") {
     if (y < partsInOrderRowwise.length - 1) {
@@ -516,6 +520,7 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
       hideInline: false,
       disabled: props.readonly,
       action: () => {
+        if (isContentFolded.value) toggleContentFold(false);
         partsForceShown.value.push("text");
         nextTick(() => focus("text"));
       },
