@@ -28,7 +28,7 @@ import {
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
-import { useCurrentModule, type Statement } from "@/state/module";
+import { useCurrentModule, type Statement, TypeFlag } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useCurrentSessions } from "@/state/session";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
@@ -620,11 +620,16 @@ function run() {
   }
   // force sync
   Object.values(partsRefs.value).forEach((p) => p.syncNow?.());
-  // actually run
-  sessions.run(props.statement);
-  // show run element
-  if (!partsForceShown.value.includes("run")) {
-    partsForceShown.value.push("run");
+
+  // actually run / launch
+  if (statement.value.fields.some((f) => f.deletedAt == null && !(f.flags & TypeFlag.IsOutput))) {
+    bench.openLaunchRun(statement.value, { group: panel.panel.value.group, focus: true, opposite: true });
+  } else {
+    sessions.run(props.statement);
+    // show run element
+    if (!partsForceShown.value.includes("run")) {
+      partsForceShown.value.push("run");
+    }
   }
 }
 

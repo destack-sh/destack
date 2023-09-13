@@ -135,11 +135,11 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            mono_model: Model | None = self.module.lookup_or_error("openai.lib.text.ada")
+            mono_model: Model | None = self.session.module.lookup_or_error("openai.lib.text.ada")
         elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
-            root_models = [self.module.lookup_or_error("openai.lib.chat.gpt4")]
+            root_models = [self.session.module.lookup_or_error("openai.lib.chat.gpt4")]
             mono_model = None
 
         # do task

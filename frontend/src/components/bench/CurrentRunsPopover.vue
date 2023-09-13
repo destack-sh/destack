@@ -8,9 +8,11 @@ import { getRunStatusIconSolid, getRunStatusColor, useCurrentSessions } from "@/
 import { getStatementIconSolid } from "@/state/statement";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/vue";
-import { PlayIcon as PlayIconOutline, StopIcon, WindowIcon } from "@heroicons/vue/24/outline";
-import { PlayIcon as PlayIconSolid } from "@heroicons/vue/24/solid";
-import { useKeyModifier } from "@vueuse/core";
+import {
+  PlayIcon as PlayIconSolid,
+  WindowIcon as WindowIconSolid,
+  StopIcon as StopIconSolid,
+} from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 
 const bench = useBenchState();
@@ -50,6 +52,14 @@ function run(statement: InterpStatement) {
 
 function launch(statement: InterpStatement) {
   bench.openLaunchRun(statement, { focus: true });
+}
+
+function runOrLaunch(statement: InterpStatement) {
+  if (!hasInputs(statement) && bench.canUse) {
+    run(statement);
+  } else {
+    launch(statement);
+  }
 }
 </script>
 <template>
@@ -116,7 +126,7 @@ function launch(statement: InterpStatement) {
               class="p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
               @click="sessions.cancel(run)"
             >
-              <StopIcon class="h-4 w-4 text-gray-900" />
+              <StopIconSolid class="h-4 w-4 text-gray-900" />
             </button>
           </div>
         </div>
@@ -129,15 +139,13 @@ function launch(statement: InterpStatement) {
           <div
             v-for="statement in suggestedRunnables.slice(0, suggestedPreviewLength)"
             :key="statement.id"
-            class="flex flex-row justify-between gap-1 py-0.5"
+            class="group flex flex-row justify-between gap-1 rounded-sm py-0.5 transition duration-150 hover:cursor-pointer hover:bg-orange-100"
+            @click="() => runOrLaunch(statement)"
           >
             <!-- Statement -->
             <div class="flex flex-row items-center gap-1">
               <component :is="getStatementIconSolid(statement.type)" class="h-4 w-4 text-gray-500" />
-              <a
-                class="cursor-pointer text-gray-900 underline-offset-2 hover:underline"
-                @click="nav.focusStatement(statement)"
-              >
+              <a class="cursor-pointer text-gray-900" @click="nav.focusStatement(statement)">
                 {{ statement.name ?? "(unnamed)" }}
               </a>
             </div>
@@ -145,16 +153,17 @@ function launch(statement: InterpStatement) {
             <div class="flex flex-row">
               <button
                 v-if="!hasInputs(statement) && bench.canUse"
-                class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+                class="p-0.5 text-orange-600 hover:text-orange-500 group-hover:text-orange-500"
                 @click="() => run(statement)"
               >
-                <PlayIconOutline class="h-4 w-4" />
+                <PlayIconSolid class="h-4 w-4" />
               </button>
               <button
-                class="p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+                class="p-0.5 text-orange-600 hover:text-orange-500"
+                :class="[hasInputs(statement) ? 'group-hover:text-orange-500' : '']"
                 @click="() => launch(statement)"
               >
-                <WindowIcon class="h-4 w-4" />
+                <WindowIconSolid class="h-4 w-4" />
               </button>
             </div>
           </div>
