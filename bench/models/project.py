@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import collections
 import os
 import uuid
 from datetime import datetime
@@ -19,6 +20,7 @@ from bench.models.statement import Statement, duplicate_versioned_datasets
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.utils import DEBUG
 from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH, MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
@@ -401,7 +403,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         )
 
         # map all ids to new ids
-        for node in packed.nodes.values():
+        for node in packed.nodes_by_id.values():
             if (node.id in target_ids) != (node.ck in target_cks):
                 raise ValueError(
                     f"node id and ck must be set together: {node}"
@@ -419,14 +421,25 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             if not copy_revisions:
                 node.revision = 0
 
-        # patch parent ids & reference cks
-        for node in packed.nodes.values():
+        # patch parents & references
+        for node in packed.nodes_by_id.values():
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
             wire.patch_node_flat(node, target_cks)
 
+        # sanity check target cks
+        if DEBUG or LOCAL:
+            nodes_by_ck = collections.defaultdict(list)
+            for node in packed.nodes_by_id.values():
+                nodes_by_ck[node.ck].append(node)
+            if len(nodes_by_ck) != len(packed.nodes_by_id):
+                duplicates = {ck: nodes for ck, nodes in nodes_by_ck.items() if len(nodes) > 1}
+                raise ValueError(
+                    f"target cks are not unique: {len(packed.nodes_by_id)} != {len(nodes_by_ck)}: {duplicates}"
+                )
+
         return packer._PackedCopy(
             roots=packed.roots,
-            nodes=packed.nodes,
+            nodes_by_id=packed.nodes_by_id,
             target_ids=target_ids,
             target_ids_reversed=target_ids_reversed,
             target_cks=target_cks,
@@ -692,8 +705,14 @@ class File(CrudNode):
 
     class Meta:
         ordering = ["name"]
-        # path doesn't have to be unique
-        constraints = []
+        constraints = [
+            # ck is unique per project version
+            models.UniqueConstraint(
+                fields=["project_version", "ck"],
+                name="bench_file_project_version_ck",
+                condition=models.Q(deleted_at__isnull=True),
+            ),
+        ]
 
 
 def create_global_project_s3_bucket(ignore_exists: bool):

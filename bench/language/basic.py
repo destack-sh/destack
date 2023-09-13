@@ -142,9 +142,7 @@ class TextMention(TextSpan):
     def from_reference(reference: TypedNodeReference, path: Optional[str] = None) -> "TextMention":
         return TextMention(
             text=TEXT_MENTION_TEMPLATE.format(
-                type=reference.type,
-                ck=reference.ref,
-                path=path or "",
+                type=reference.type, ck=reference.ref, path=path or ""
             ),
             reference=reference,
             reference_path=path,
@@ -192,6 +190,21 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
     :TextFormat
     """
     return "".join(s.text_raw for s in text_spans)
+
+
+def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str | None:
+    """
+    Replaces references in text with new references.
+    """
+    if text_raw is None:
+        return None
+    spans = parse_text_html(text_raw)
+    for span in spans:
+        if isinstance(span, TextMention) and span.reference_ck in target_cks:
+            span.reference = TypedNodeReference(
+                type=span.reference.type, ref=target_cks[span.reference_ck]
+            )
+    return render_text_html(spans)
 
 
 class TextHeadingLevel(enum.IntEnum):

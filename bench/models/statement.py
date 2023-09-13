@@ -199,7 +199,7 @@ def duplicate_versioned_datasets(
 
     duplicate_target_ids = {}
     duplicate_target_cks = {}
-    for statement in copy.nodes.values():
+    for statement in copy.nodes_by_id.values():
         if not isinstance(statement, wire.DatasetData) or not statement.versioned:
             continue
         source_id = copy.target_ids_reversed[statement.id]
@@ -250,7 +250,7 @@ class StatementManager(models.Manager["Statement"]):
             target_cks=target_cks,
             copy_revisions=copy_revisions,
         )
-        for node in copy.nodes.values():  # patch parent and order keys
+        for node in copy.nodes_by_id.values():  # patch parent and order keys
             if node.id in target_parent_ids:
                 node.parent_id = target_parent_ids[node.id]
             elif node.parent_id in target_ids:
@@ -369,6 +369,12 @@ class Statement(CrudNode):
         ordering = ["order_key"]
         default_manager_name = "objects"
         constraints = [
+            # ck is unique per project version
+            models.UniqueConstraint(
+                fields=["project_version", "ck"],
+                name="bench_statement_project_version_ck_ak",
+                condition=models.Q(deleted_at__isnull=True),
+            ),
             # check that order key is unique within parent/file (if not "deleted")
             models.UniqueConstraint(
                 fields=["file", "order_key"],

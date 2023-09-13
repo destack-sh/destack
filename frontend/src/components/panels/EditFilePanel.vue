@@ -1,15 +1,22 @@
 <script lang="ts" setup>
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
-import StatementComponent from "@/components/statements/InlineStatement.vue";
+import InlineStatement from "@/components/statements/InlineStatement.vue";
 import StatementAddArea from "@/components/panels/StatementAddArea.vue";
 import TitleBanner from "@/components/panels/TitleBanner.vue";
 import { graphql, useFragment } from "@/gql";
 import { StatementType } from "@/gql/graphql";
 import { useActions } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
-import { EditFilePanel, useBenchState, type PanelContext, type FileAction, type NavElement } from "@/state/bench";
-import { provideFileState, type FileState } from "@/state/file";
+import {
+  EditFilePanel,
+  useBenchState,
+  type PanelContext,
+  type FileAction,
+  type NavElement,
+  type StatementHeader,
+} from "@/state/bench";
+import { provideFileState, type FileState, type NavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
 import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity, getNodeIdFromCk } from "@/state/module";
 import { useOperations } from "@/state/operations";
@@ -21,6 +28,7 @@ import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect 
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
+import { useNotifications } from "@/state/notifications";
 
 const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -95,7 +103,7 @@ const statements = computed(() => {
       .filter((statement) => statement.deletedAt == null) || []
   );
 }, {});
-const statementsComponents = ref<Record<string, InstanceType<typeof StatementComponent>>>({});
+const statementsComponents = ref<Record<string, InstanceType<typeof InlineStatement>>>({});
 const fileState: Ref<FileState | null> = computed(() => {
   if (fileHeader.value == null) {
     return null;
@@ -111,7 +119,7 @@ const fileState: Ref<FileState | null> = computed(() => {
     navigateDown: () => ({}), // no-op?
   } as FileState;
 });
-const context = provideFileState(fileState);
+const context: Ref<NavigationContext | null> = provideFileState(fileState);
 
 const WAIT_FOR_COMPLETE_LOAD = false;
 const statementsLoaded = ref(false); // first time that all statements are loaded (subsequent loads are ignored)
@@ -150,7 +158,7 @@ function focusTitle() {
   panel.value.activeStatementCk = undefined;
 }
 
-function registerStatementRef(id: string, component: InstanceType<typeof StatementComponent> | undefined) {
+function registerStatementRef(id: string, component: InstanceType<typeof InlineStatement> | undefined) {
   if (component == null) {
     delete statementsComponents.value[id];
   } else if (statementsComponents.value[id] !== component) {
@@ -231,6 +239,7 @@ function goToContent() {
 }
 
 // actions
+const notifications = useNotifications();
 const duplicating = ref(false);
 const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() => [
   {
@@ -272,6 +281,23 @@ const fileActions: Ref<FileAction[] & { hideInline?: boolean }> = computed(() =>
       } finally {
         duplicating.value = false;
       }
+    },
+  },
+  // we don't have a proper 'duplicate to' action yet (if you're read-only, or just generally)
+  // so we provide a generic copy for now that you can paste yourself
+  {
+    label: "Copy",
+    icon: DocumentDuplicateIcon,
+    disabled: !effectiveReadonly.value,
+    action: async () => {
+      if (fileHeader.value == null) return;
+      notifications.show({
+        kind: "success",
+        type: "file.copied",
+        message: "Copied file to clipboard",
+        description: "Paste it anywhere into your own file.",
+      });
+      context.value?.copy(fileState.value?.statementsUnordered as StatementHeader[]);
     },
   },
   {
@@ -332,8 +358,8 @@ const statementAddAreaEndRef = ref<InstanceType<typeof StatementAddArea> | null>
 const { x: mouseX, y: mouseY } = useMouse();
 const dragSelectStart = ref<{ x: number; y: number } | null>(null);
 
-function isOutsideStatementComponents(e: MouseEvent): boolean {
-  if (e.target == mainContentRef.value || e.target == statementAddAreaEndRef.value?.$el) return true;
+function isMouseInsideStatements(e: MouseEvent): boolean {
+  if (e.target == mainContentRef.value || e.target == statementAddAreaEndRef.value?.$el) return false;
 
   // find next element with 'group/statement' class up (if exists)
   let el = e.target as HTMLElement;
@@ -342,19 +368,19 @@ function isOutsideStatementComponents(e: MouseEvent): boolean {
     el = el.parentElement as HTMLElement;
     path.push(el);
   }
-  if (el == null) return true;
+  if (el == null) return false;
 
   // only start drag select if not within statement content (i.e. inside left/right margins)
-  const outsideContent =
-    e.clientX < el.getBoundingClientRect().left + appearance.contentMarginX ||
-    e.clientX > el.getBoundingClientRect().right - appearance.contentMarginX;
-  return outsideContent || path.some((el) => el.classList.contains("absolute"));
+  const insideContent =
+    e.clientX > el.getBoundingClientRect().left + appearance.contentMarginX &&
+    e.clientX < el.getBoundingClientRect().right - appearance.contentMarginX;
+  return insideContent || path.some((el) => el.classList.contains("absolute") || el.classList.contains("fixed"));
 }
 
 function startDragSelectMaybe(e: MouseEvent) {
   if (e.button != 0 || e.altKey || e.shiftKey) return;
   // must be clicking outside statement components or in their margin
-  if (!isOutsideStatementComponents(e)) return;
+  if (isMouseInsideStatements(e)) return;
   // clear selection on first click, blur active statement on second
   if (panel.value.hasSelection) {
     panel.value.clearSelection();
@@ -514,6 +540,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
         :readonly="bench.readonly || isDeleted || isOtherVersion"
         :actions="fileActions.filter((f) => !f.hideInline)"
         :thing="fileHeader"
+        :fatActions="effectiveReadonly"
       />
       <!-- Add statement to start -->
       <StatementAddArea
@@ -530,7 +557,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
         class="mx-auto w-full"
         :style="{ 'max-width': panel.contentWidth + panel.contentMarginX * 2 + 'px' }"
       >
-        <StatementComponent
+        <InlineStatement
           :ref="(el: any) => registerStatementRef(positioned.statement.id, el)"
           :file="(fileHeader as any)"
           :statement="(positioned.statement as any)"
