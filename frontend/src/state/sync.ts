@@ -304,7 +304,7 @@ function useSyncedOps() {
               {
                 __typename: "ResolvedField",
                 statement: { __ref: `Statement:${mutation.statementId}` },
-                field: { __ref: `Field:${(mutation.data as ResolvedField).fieldCk}` },
+                fieldCk: (mutation.data as ResolvedField).fieldCk,
               },
             ];
           },

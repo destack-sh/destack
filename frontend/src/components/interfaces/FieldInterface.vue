@@ -64,7 +64,7 @@ const name: Ref<string> = ref(props.modelValue?.name ?? "");
 const text: Ref<string> = ref(props.modelValue?.text ?? "");
 const editing = ref(false);
 const editingType = ref(false);
-const hasText = computed(() => text.value.trim().length > 0);
+const hasText = computed(() => text.value.length > 0);
 
 const containerRef: Ref<HTMLDivElement | null> = ref(null);
 const buttonRef: Ref<HTMLButtonElement | null> = ref(null);
