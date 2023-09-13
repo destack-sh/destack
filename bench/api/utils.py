@@ -140,7 +140,7 @@ def wrap_exceptions(func):
             return func(*args, **kwargs)
         except Exception as e:
             # extend strawberry_django's Django error mapping
-            if isinstance(e, IntegrityError):
+            if isinstance(e, (IntegrityError, ValueError, TypeError)):
                 e = ValidationError(e.args[0])
             if DEBUG or LOCAL:
                 logger.debug("mutation.error", exc_info=e, func=func)

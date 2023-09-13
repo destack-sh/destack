@@ -394,6 +394,11 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         """Packs a copy of the module tree starting at the given nodes."""
         from bench.models import packer
 
+        if target_ids and len(set(target_ids.values())) != len(target_ids):
+            raise ValueError(f"target ids must be unique: {target_ids}")
+        if target_cks and len(set(target_cks.values())) != len(target_cks):
+            raise ValueError(f"target cks must be unique: {target_cks}")
+
         target_ids = {**(target_ids or {}), source.id: target.id}
         target_ids_reversed = {target.id: source.id}
         target_cks = {**(target_cks or {}), source.ck: target.ck}
@@ -434,7 +439,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             if len(nodes_by_ck) != len(packed.nodes_by_id):
                 duplicates = {ck: nodes for ck, nodes in nodes_by_ck.items() if len(nodes) > 1}
                 raise ValueError(
-                    f"target cks are not unique: {len(packed.nodes_by_id)} != {len(nodes_by_ck)}: {duplicates}"
+                    f"target cks are not unique: {len(packed.nodes_by_id)} != {len(nodes_by_ck)}:\n{duplicates}"
                 )
 
         return packer._PackedCopy(

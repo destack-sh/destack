@@ -85,7 +85,7 @@ class HasText(HasIssues):
 
 
 @dataclass
-class TextSpan:
+class TextPlain:
     """A decoded non-overlapping span of a HasText text property."""
 
     text: str
@@ -94,14 +94,10 @@ class TextSpan:
         return self.text
 
     def __repr__(self):
-        return f"<TextSpan {self}>"
+        return f"<TextPlain {self}>"
 
     @property
     def text_plain(self) -> Optional[str]:
-        return self.text
-
-    @property
-    def text_raw(self):
         return self.text
 
 
@@ -114,15 +110,12 @@ TEXT_MENTION_TEMPLATE = (
 
 
 @dataclass
-class TextMention(TextSpan):
+class TextMention:
     reference: Union[TypedNodeReference, ModuleNode]
     reference_path: Optional[str]
 
     def __str__(self):
-        if isinstance(self.reference, ModuleNode):
-            return f"@{self.reference}"
-        else:
-            return self.text
+        return f"@{self.reference}"
 
     def __repr__(self):
         return f"<TextMention {self}>"
@@ -140,13 +133,10 @@ class TextMention(TextSpan):
 
     @staticmethod
     def from_reference(reference: TypedNodeReference, path: Optional[str] = None) -> "TextMention":
-        return TextMention(
-            text=TEXT_MENTION_TEMPLATE.format(
-                type=reference.type, ck=reference.ref, path=path or ""
-            ),
-            reference=reference,
-            reference_path=path,
-        )
+        return TextMention(reference=reference, reference_path=path)
+
+
+TextSpan = Union[TextPlain, TextMention]
 
 
 def parse_text_html(text_raw: str) -> list[TextSpan]:
@@ -164,21 +154,18 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
 
     for match in TEXT_MENTION_REGEX.finditer(text_raw):
         if match.start() > last_end:  # previous
-            spans.append(TextSpan(text=text_raw[last_end : match.start()]))
+            spans.append(TextPlain(text=text_raw[last_end : match.start()]))
 
         # mention
-        text = match.group(0)
         ck = UUID(match.group("ck"))
         type = ModuleNodeType(match.group("type"))
         path = match.group("path") or None
-        spans.append(
-            TextMention(text=text, reference=TypedNodeReference(type, ck), reference_path=path)
-        )
+        spans.append(TextMention(reference=TypedNodeReference(type, ck), reference_path=path))
 
         last_end = match.end()
 
     if last_end < len(text_raw):  # remainder
-        spans.append(TextSpan(text=text_raw[last_end:]))
+        spans.append(TextPlain(text=text_raw[last_end:]))
 
     return spans
 
@@ -189,7 +176,17 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
     See above for details.
     :TextFormat
     """
-    return "".join(s.text_raw for s in text_spans)
+    spans_str = []
+    for span in text_spans:
+        if isinstance(span, TextMention):
+            spans_str.append(
+                TEXT_MENTION_TEMPLATE.format(
+                    type=span.reference.type, ck=span.reference.ref, path=span.reference_path or ""
+                )
+            )
+        else:
+            spans_str.append(span.text)
+    return "".join(spans_str)
 
 
 def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str | None:
