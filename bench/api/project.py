@@ -12,7 +12,7 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_project_access, has_project_access, is_owner_or_member
+from bench.api.auth import check_module_access, has_module_access, is_owner_or_member
 from bench.api.utils import (
     HasCrud,
     ModuleNode,
@@ -112,7 +112,7 @@ def get_project_usage(info: Info) -> ProjectUsage:
     )
 
 
-ProjectAccessLevel = strawberry.enum(models.ProjectAccessLevel)
+ModuleAccessLevel = strawberry.enum(models.ModuleAccessLevel)
 
 
 @strawberry_django.type(models.Project)
@@ -128,7 +128,7 @@ class Project(relay.Node):
     owner: Union[Annotated["User", lazy(".user")], Annotated["Organization", lazy(".organization")]]
     sharing_enabled: bool
     sharing_token: Optional[UUID]
-    sharing_level: ProjectAccessLevel
+    sharing_level: ModuleAccessLevel
 
     head: "ProjectVersion"
     versions: strawberry_django.relay.ListConnectionWithTotalCount[
@@ -140,16 +140,16 @@ class Project(relay.Node):
     usage: ProjectUsage = strawberry_django.field(resolver=get_project_usage)
 
     @strawberry_django.field
-    def access_level(self, info: OperationInfo) -> ProjectAccessLevel:
-        access = has_project_access(info, self, models.ProjectAccessLevel.Read)
-        return access.level if access else models.ProjectAccessLevel.Zero
+    def access_level(self, info: OperationInfo) -> ModuleAccessLevel:
+        access = has_module_access(info, self, models.ModuleAccessLevel.Read)
+        return access.level if access else models.ModuleAccessLevel.Zero
 
 
 @strawberry_django.type(models.ProjectMembership)
 class ProjectMembership(relay.Node):
     project: Project
     user: Annotated["User", lazy(".user")]
-    level: ProjectAccessLevel
+    level: ModuleAccessLevel
     created_at: auto
     updated_at: auto
 
@@ -159,7 +159,7 @@ class ProjectInvite(relay.Node):
     project: Project
     user: Optional[Annotated["User", lazy(".user")]]
     email: auto
-    level: ProjectAccessLevel
+    level: ModuleAccessLevel
     created_at: auto
     updated_at: auto
     email_sent_at: auto
@@ -196,7 +196,7 @@ class ProjectUpdateVisibilityInput(strawberry_django.NodeInput):
 class ProjectUpdateSharingInput(strawberry_django.NodeInput):
     sharing_enabled: bool
     sharing_token: UUID
-    sharing_level: ProjectAccessLevel
+    sharing_level: ModuleAccessLevel
 
 
 @strawberry.input
@@ -207,14 +207,14 @@ class ProjectUpdateNameInput(strawberry_django.NodeInput):
 @strawberry.input
 class ProjectInviteInput(strawberry_django.NodeInput):
     emails: list[str]
-    level: ProjectAccessLevel
+    level: ModuleAccessLevel
     message: Optional[str] = None
 
 
 @strawberry.input
 class ProjectUpdateMembershipInput(strawberry_django.NodeInput):
     user_id: GlobalID
-    level: ProjectAccessLevel
+    level: ModuleAccessLevel
 
 
 @strawberry.input
@@ -245,7 +245,7 @@ class ProjectMutation:
         self, info: Info, input: "ProjectUpdateVisibilityInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Manage)
+        check_module_access(info, project, ModuleAccessLevel.Manage)
         project.visibility = input.visibility
         project.save()
         return project
@@ -255,7 +255,7 @@ class ProjectMutation:
         self, info: Info, input: "ProjectUpdateSharingInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Manage)
+        check_module_access(info, project, ModuleAccessLevel.Manage)
         project.sharing_enabled = input.sharing_enabled
         project.sharing_token = input.sharing_token
         project.sharing_level = input.sharing_level
@@ -267,7 +267,7 @@ class ProjectMutation:
         self, info: Info, input: "ProjectUpdateNameInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Manage)
+        check_module_access(info, project, ModuleAccessLevel.Manage)
         project.name = input.name
         project.save()
         return project
@@ -276,7 +276,7 @@ class ProjectMutation:
     def create_project_invites(self, info, input: ProjectInviteInput) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
         user = get_user_from_info(info)
-        check_project_access(info, project, ProjectAccessLevel.Manage)
+        check_module_access(info, project, ModuleAccessLevel.Manage)
         for email in input.emails:
             invite = project.create_invite(
                 email=email, level=input.level, message=input.message, created_by=user
@@ -287,7 +287,7 @@ class ProjectMutation:
     @safe_mutation
     def cancel_project_invite(self, info: Info, id: GlobalID) -> Project | OperationInfo:
         invite = models.ProjectInvite.objects.get(id=id.node_id)
-        check_project_access(info, invite.project, ProjectAccessLevel.Manage)
+        check_module_access(info, invite.project, ModuleAccessLevel.Manage)
         invite.delete()
         return invite.project
 
@@ -296,7 +296,7 @@ class ProjectMutation:
         self, info: Info, input: "ProjectRemoveMembershipInput"
     ) -> Project | OperationInfo:
         project = models.Project.objects.get(id=input.id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Manage)
+        check_module_access(info, project, ModuleAccessLevel.Manage)
         project.memberships.filter(user_id=input.user_id.node_id).delete()
         return project
 
@@ -334,7 +334,7 @@ class ProjectVersionMutation:
         self, info, input: "UpdateProjectVersion"
     ) -> ProjectVersion | OperationInfo:
         project_v = models.ProjectVersion.objects.select_related("project").get(id=input.id.node_id)
-        check_project_access(info, project_v.project, ProjectAccessLevel.Edit)
+        check_module_access(info, project_v.project, ModuleAccessLevel.Edit)
         project_v.name = input.name
         project_v.description = input.description
         project_v.tag = input.tag
@@ -349,7 +349,7 @@ class ProjectVersionMutation:
         project = head.project
         if head.id != project.head_id:
             raise ValueError("cannot commit version that's not the head")
-        check_project_access(info, project, ProjectAccessLevel.Edit)
+        check_module_access(info, project, ModuleAccessLevel.Edit)
 
         # insert new head between parents and head
         snapshot = models.ProjectVersion.objects.create(

@@ -594,7 +594,9 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       // insert at bottom of current selection or file (like in insertBelow, below bottom and its next sibling)
       const bottom = below ?? getSelectionBottom();
       const nextSibling = bottom != null ? getNextSibling(bottom) : undefined;
-      // project source ids and locations to target at insert point (with new ids)
+
+      // project source ids and locations to target at insert point (with new ids/cks)
+      // (pre-generate these identities so we know them ahead of time)
       const sourceIds = sourceStatements.map((s) => s.id);
       const sourceCks = sourceStatements.map((s) => s.ck);
       const targetIds: Record<string, string> = {};
@@ -607,16 +609,18 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       const targetParentIds = sourceStatements.map((s) =>
         s.parentInCopy && s.parentId != null ? targetIds[s.parentId] : bottom?.parent?.id
       );
-      // order keys for root are between bottom and next sibling, all other orders are reset
+
+      // group children by parents
       const sourceStatementsByParentId: Record<string, string[]> = {};
       sourceStatements.forEach((s) => {
-        // group children by parents
         const parentId = s.parentInCopy && s.parentId != null ? s.parentId : "";
         if (sourceStatementsByParentId[parentId] == null) {
           sourceStatementsByParentId[parentId] = [];
         }
         sourceStatementsByParentId[parentId].push(s.id);
       });
+
+      // order keys for root are between bottom and next sibling, all other orders are reset
       const orderKeysByParentId: Record<string, string[]> = {}; // assign order keys by parent
       Object.entries(sourceStatementsByParentId).forEach(([parentId, childIds]) => {
         if (parentId == "") {
@@ -636,6 +640,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
         return orderKeys[childIndex];
       });
 
+      // do the paste
       await ops.statement.batchPaste(
         sourceIds,
         sourceIds.map((id) => targetIds[id]),
@@ -645,6 +650,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
         targetOrderKeys
       );
       console.log("pasted " + sourceStatements.length + " statements");
+
       // select the pasted stuff
       if (bench.focusedStatementId != null && sourceIds.includes(bench.focusedStatementId)) {
         file.value?.panel.focusElement({

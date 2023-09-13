@@ -1,6 +1,6 @@
 <script lang="ts" setup>
 import FadeTransition from "@/components/basic/FadeTransition.vue";
-import { ProjectAccessLevel } from "@/gql/graphql";
+import { ModuleAccessLevel } from "@/gql/graphql";
 import { encodeSharingToken } from "@/state/auth";
 import { type ProjectHeader } from "@/state/bench";
 import { useNotifications } from "@/state/notifications";
@@ -89,7 +89,7 @@ function copy(text: string) {
                     class="absolute right-1 top-6 z-30 w-52 origin-top-right rounded-sm bg-white px-2 py-1.5 shadow-md ring-1 ring-orange-900 ring-opacity-40"
                   >
                     <ListboxOption
-                      v-for="level in [ProjectAccessLevel.Read, ProjectAccessLevel.Use, ProjectAccessLevel.Edit]"
+                      v-for="level in [ModuleAccessLevel.Read, ModuleAccessLevel.Use, ModuleAccessLevel.Edit]"
                       :key="level"
                       as="div"
                       class="flex flex-col p-1 hover:bg-orange-100 focus:bg-orange-100"
@@ -98,12 +98,12 @@ function copy(text: string) {
                       <span> Can {{ level.toLocaleLowerCase() }} </span>
                       <span class="text-xs text-gray-400">{{
                         {
-                          [ProjectAccessLevel.Zero]: "Do and see nothing.",
-                          [ProjectAccessLevel.Read]: "View and comment, but not run.",
-                          [ProjectAccessLevel.Use]: "Use and view, but not edit.",
-                          [ProjectAccessLevel.Edit]: "Edit and use, but not manage.",
-                          [ProjectAccessLevel.Manage]: "Manage members, but not destruct.",
-                          [ProjectAccessLevel.Admin]: "Do everything.",
+                          [ModuleAccessLevel.Zero]: "Do and see nothing.",
+                          [ModuleAccessLevel.Read]: "View and comment, but not run.",
+                          [ModuleAccessLevel.Use]: "Use and view, but not edit.",
+                          [ModuleAccessLevel.Edit]: "Edit and use, but not manage.",
+                          [ModuleAccessLevel.Manage]: "Manage members, but not destruct.",
+                          [ModuleAccessLevel.Admin]: "Do everything.",
                         }[level]
                       }}</span>
                     </ListboxOption>

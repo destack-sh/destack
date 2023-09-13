@@ -87,7 +87,7 @@ class ProjectManager(models.Manager["Project"]):
 RefDict = TypedDict("RefDict", {"source": str, "target": str, "type": str})
 
 
-class ProjectAccessLevel(models.IntegerChoices):
+class ModuleAccessLevel(models.IntegerChoices):
     Zero = 0  # no access
     Read = 1  # can view and comment
     Use = 4  # can run
@@ -113,7 +113,7 @@ class Project(UUIDModel, CrudModel):
     )
     sharing_enabled = models.BooleanField(default=True)
     sharing_token = models.UUIDField(default=uuid4)
-    sharing_level = models.IntegerField(default=ProjectAccessLevel.Read)
+    sharing_level = models.IntegerField(default=ModuleAccessLevel.Read)
     organization: models.ForeignKey = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="projects", null=True
     )
@@ -178,7 +178,7 @@ class Project(UUIDModel, CrudModel):
 
     @transaction.atomic(savepoint=False)
     def create_invite(
-        self, email: str, level: "ProjectAccessLevel", message: str = None, created_by: User = None
+        self, email: str, level: "ModuleAccessLevel", message: str = None, created_by: User = None
     ) -> "ProjectInvite":
         from bench.models.notification import Notification, NotificationType
         from bench.models.user import User
@@ -213,7 +213,7 @@ class Project(UUIDModel, CrudModel):
         invite.project.add_member(invite.user, invite.level)
         invite.delete()
 
-    def add_member(self, user: User, level: "ProjectAccessLevel") -> None:
+    def add_member(self, user: User, level: "ModuleAccessLevel") -> None:
         if self.members.filter(id=user.id).exists():
             raise ValueError("user already a member of project")
         ProjectMembership.objects.create(project=self, user=user, level=level)
@@ -253,7 +253,7 @@ class ProjectMembership(UUIDModel):
     user: models.ForeignKey = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="project_memberships"
     )
-    level = models.IntegerField(choices=ProjectAccessLevel.choices)
+    level = models.IntegerField(choices=ModuleAccessLevel.choices)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -281,7 +281,7 @@ class ProjectInvite(UUIDModel):
     user = models.ForeignKey(
         "User", on_delete=models.CASCADE, related_name="project_invites", null=True
     )
-    level = models.IntegerField(choices=ProjectAccessLevel.choices)
+    level = models.IntegerField(choices=ModuleAccessLevel.choices)
     message = models.TextField(blank=True, null=True)
     email_sent_at = models.DateTimeField(blank=True, null=True)
 

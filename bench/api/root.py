@@ -13,7 +13,7 @@ from strawberry.types import ExecutionContext, Info
 from strawberry_django.optimizer import DjangoOptimizerExtension
 
 from bench import models
-from bench.api.auth import HasProjectAccess
+from bench.api.auth import HasModuleAccess
 from bench.api.dataset import DatasetMutation, RecordQuery
 from bench.api.file import File, FileMutation
 from bench.api.module import read_module_node_by_id
@@ -35,7 +35,7 @@ from bench.api.statement import StatementMutation, SymbolMutation
 from bench.api.token import AccessTokenMutation
 from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, UserMutation
 from bench.api.utils import HasCrud, get_user_from_info
-from bench.models import OwnerSlug, ProjectAccessLevel
+from bench.models import ModuleAccessLevel, OwnerSlug
 from bench.settings import DEBUG, TEST
 from bench.utils.utils import sentry_capture_if_enabled
 
@@ -132,16 +132,16 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
     )
 
     # project
-    project: Optional[Project] = strawberry_django.node(extensions=[HasProjectAccess()])
+    project: Optional[Project] = strawberry_django.node(extensions=[HasModuleAccess()])
     project_by_slug: Optional[Project] = strawberry_django.field(
-        resolver=get_project_by_slug, extensions=[HasProjectAccess()]
+        resolver=get_project_by_slug, extensions=[HasModuleAccess()]
     )
     project_version: Optional[ProjectVersion] = strawberry_django.node()
     project_version_by_slug: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_slug, extensions=[HasProjectAccess()]
+        resolver=get_project_version_by_slug, extensions=[HasModuleAccess()]
     )
     project_version_by_tag: Optional[ProjectVersion] = strawberry_django.field(
-        resolver=get_project_version_by_tag, extensions=[HasProjectAccess()]
+        resolver=get_project_version_by_tag, extensions=[HasModuleAccess()]
     )
     featured_projects: strawberry_django.relay.ListConnectionWithTotalCount[
         Project
@@ -154,10 +154,10 @@ class Query(SessionQuery, ClientQuery, RecordQuery):
         resolver=read_module_node_by_id
     )
     remote_object: Optional[RemoteObject] = strawberry_django.node(
-        extensions=[HasProjectAccess(map=lambda obj: obj.project)]
+        extensions=[HasModuleAccess(map=lambda obj: obj.project)]
     )
     secret: Optional[Secret] = strawberry_django.node(
-        extensions=[HasProjectAccess(map=lambda obj: obj.project, level=ProjectAccessLevel.Edit)]
+        extensions=[HasModuleAccess(map=lambda obj: obj.project, level=ModuleAccessLevel.Edit)]
     )
 
 

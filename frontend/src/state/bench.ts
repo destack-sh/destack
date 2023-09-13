@@ -9,7 +9,7 @@ import {
   type Scalars,
   type Statement,
   type SearchSort,
-  ProjectAccessLevel,
+  ModuleAccessLevel,
   type RunError,
 } from "@/gql/graphql";
 import {
@@ -47,28 +47,28 @@ import { defineStore } from "pinia";
 import { computed, inject, onBeforeUnmount, provide, watch, type Ref } from "vue";
 
 export const PROJECT_ACCESS_LEVELS = [
-  ProjectAccessLevel.Zero,
-  ProjectAccessLevel.Read,
-  ProjectAccessLevel.Use,
-  ProjectAccessLevel.Edit,
-  ProjectAccessLevel.Manage,
-  ProjectAccessLevel.Admin,
+  ModuleAccessLevel.Zero,
+  ModuleAccessLevel.Read,
+  ModuleAccessLevel.Use,
+  ModuleAccessLevel.Edit,
+  ModuleAccessLevel.Manage,
+  ModuleAccessLevel.Admin,
 ];
 
-export const PROJECT_ACCESS_LEVEL_NAME: Record<ProjectAccessLevel, string> = {
-  [ProjectAccessLevel.Zero]: "None",
-  [ProjectAccessLevel.Read]: "Read",
-  [ProjectAccessLevel.Use]: "Use",
-  [ProjectAccessLevel.Edit]: "Edit",
-  [ProjectAccessLevel.Manage]: "Manage",
-  [ProjectAccessLevel.Admin]: "Admin",
+export const PROJECT_ACCESS_LEVEL_NAME: Record<ModuleAccessLevel, string> = {
+  [ModuleAccessLevel.Zero]: "None",
+  [ModuleAccessLevel.Read]: "Read",
+  [ModuleAccessLevel.Use]: "Use",
+  [ModuleAccessLevel.Edit]: "Edit",
+  [ModuleAccessLevel.Manage]: "Manage",
+  [ModuleAccessLevel.Admin]: "Admin",
 };
 
-export function projectAccessGt(a: ProjectAccessLevel, b: ProjectAccessLevel): boolean {
+export function projectAccessGt(a: ModuleAccessLevel, b: ModuleAccessLevel): boolean {
   return PROJECT_ACCESS_LEVELS.indexOf(a) > PROJECT_ACCESS_LEVELS.indexOf(b);
 }
 
-export function projectAccessLt(a: ProjectAccessLevel, b: ProjectAccessLevel): boolean {
+export function projectAccessLt(a: ModuleAccessLevel, b: ModuleAccessLevel): boolean {
   return PROJECT_ACCESS_LEVELS.indexOf(a) < PROJECT_ACCESS_LEVELS.indexOf(b);
 }
 
@@ -281,7 +281,7 @@ export const useBenchState = defineStore("bench", {
       // bench
       projectId: null as string | null,
       projectVersionId: null as string | null,
-      projectAccessLevel: null as ProjectAccessLevel | null,
+      ModuleAccessLevel: null as ModuleAccessLevel | null,
       readonly: false,
       // views
       activeViewId: "explorer" as ViewId,
@@ -305,16 +305,16 @@ export const useBenchState = defineStore("bench", {
   getters: {
     // access
     canRead(): boolean {
-      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Read);
+      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Read);
     },
     canUse(): boolean {
-      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Use);
+      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Use);
     },
     canEdit(): boolean {
-      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Edit);
+      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Edit);
     },
     canManage(): boolean {
-      return projectAccessGt(this.projectAccessLevel ?? ProjectAccessLevel.Zero, ProjectAccessLevel.Manage);
+      return projectAccessGt(this.ModuleAccessLevel ?? ModuleAccessLevel.Zero, ModuleAccessLevel.Manage);
     },
     // bench
     groups(state) {

@@ -42,6 +42,22 @@ function openInEditor() {
   panel.panel.value.bench.openEditStatement(props.statement as StatementHeader, { focus: true });
 }
 
+function onDeleteLeft() {
+  if ((props.statement.headingLevel ?? 0) > 0) {
+    // remove heading level
+    ops.statement.morph(null, props.statement.id, props.statement, {
+      type: (props.statement.text ?? "").length > 0 ? StatementType.Text : StatementType.Blank,
+      headingLevel: null,
+    });
+  } else if (props.statement.type == StatementType.Text) {
+    // remove name from text
+    ops.statement.rename(null, props.statement.id, props.statement.name ?? "", null);
+  } else {
+    // actually delete
+    emit("deleteLeft");
+  }
+}
+
 function focus(position: "first" | "last" = "first") {
   nameRef.value?.focus("last"); // we always want the cursor at the end
 }
@@ -98,23 +114,7 @@ defineExpose({
       @enter-left="emit('enterLeft')"
       @enter-right="emit('enterRight')"
       @enter="emit('enter')"
-      @delete-left="
-        () => {
-          if (headingLevel > 0) {
-            // remove heading level
-            ops.statement.morph(null, props.statement.id, props.statement, {
-              type: (props.statement.text ?? '').length > 0 ? StatementType.Text : StatementType.Blank,
-              headingLevel: null,
-            });
-          } else if (props.statement.type == StatementType.Text) {
-            // remove name from text
-            ops.statement.rename(null, props.statement.id, props.statement.name ?? '', null);
-          } else {
-            // actually delete
-            emit('deleteLeft');
-          }
-        }
-      "
+      @delete-left="onDeleteLeft"
       @illegal="emit('illegal', $event)"
     />
     <!-- Anonymous placeholder if unnamed (as a button) -->
@@ -122,7 +122,8 @@ defineExpose({
       tabindex="-1"
       v-if="!hasName"
       @click="nameRef?.focus()"
-      class="-ml-0.5 w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      class="w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
+      :class="[headingLevel == 0 ? '-ml-0.5' : '']"
     >
       unnamed
     </button>

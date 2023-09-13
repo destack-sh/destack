@@ -24,7 +24,7 @@ from bench.api.utils import (
     to_global_id,
 )
 from bench.language import Q, Query, QueryOp
-from bench.models import ProjectAccessLevel
+from bench.models import ModuleAccessLevel
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -130,7 +130,7 @@ def _prep_write_dataset(
     info: Info, input: RecordInput
 ) -> tuple[datetime, models.ProjectVersion, models.Statement]:
     statement = models.Statement.objects.get(id=input.statement_id.node_id)
-    check_module_node_access(info, statement, ProjectAccessLevel.Edit)
+    check_module_node_access(info, statement, ModuleAccessLevel.Edit)
     return utcnow_with_tz(), statement.project_version, statement
 
 
@@ -280,7 +280,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         count: Optional[bool] = None,
     ) -> ListConnectionWithTotalCount[Record]:
         statement = models.Statement.objects.get(id=statement_id.node_id)
-        check_module_node_access(info, statement, ProjectAccessLevel.Read)
+        check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
         query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_id", statement.id), query)

@@ -11,12 +11,12 @@ from strawberry.types import Info
 
 from bench import models
 from bench.api import sync
-from bench.api.auth import check_project_access
+from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
 from bench.language import mutate, wire
-from bench.models import ProjectAccessLevel, packer
+from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
 
@@ -104,8 +104,8 @@ class MultiplayerSubscription:
     ) -> AsyncGenerator[ProjectChange, None]:
         project_id = UUID(project_id.node_id)
         try:
-            access = await sync_to_async(check_project_access)(
-                info, project_id, ProjectAccessLevel.Read
+            access = await sync_to_async(check_module_access)(
+                info, project_id, ModuleAccessLevel.Read
             )
         except PermissionDenied:
             logger.warning("project_changed.subscribe_denied", exc_info=True)
@@ -143,8 +143,8 @@ class MultiplayerSubscription:
         project_id = UUID(project_id.node_id)
         project_version_id = UUID(project_version_id.node_id)
         try:
-            access = await sync_to_async(check_project_access)(
-                info, project_id, ProjectAccessLevel.Read
+            access = await sync_to_async(check_module_access)(
+                info, project_id, ModuleAccessLevel.Read
             )
         except PermissionDenied:
             logger.warning("module_changed.subscribe_denied", exc_info=True)
