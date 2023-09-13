@@ -114,7 +114,7 @@ def map_mutation_from_api(
         stripped_internal_mutations = [
             m
             for m in internal.mutations
-            if not isinstance(packed.nodes[m.data.id], INTERP_MODEL_TYPES)
+            if not isinstance(packed.nodes_by_id[m.data.id], INTERP_MODEL_TYPES)
         ]
         return stripped_internal_mutations, api_mutations
     else:

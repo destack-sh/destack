@@ -162,31 +162,30 @@ class _VisitedTree(typing.NamedTuple):
 
 class _Packed(typing.NamedTuple):
     roots: list[NodeDataT]
-    nodes: dict[UUID, NodeDataT]
-    visited: dict[UUID, NodeT]
+    nodes_by_id: dict[UUID, NodeDataT]
     visited_by_parent: dict[Optional[UUID], list[NodeT]]
 
     def nodes_list(self):
-        return list(self.nodes.values())
+        return list(self.nodes_by_id.values())
 
 
 class _PackedCopy(typing.NamedTuple):
     roots: list[NodeDataT]
-    nodes: dict[UUID, NodeDataT]
+    nodes_by_id: dict[UUID, NodeDataT]
     target_ids: dict[UUID, UUID]
     target_cks: dict[UUID, UUID]
     target_ids_reversed: dict[UUID, UUID]
     target_cks_reversed: dict[UUID, UUID]
 
     def nodes_list(self):
-        return list(self.nodes.values())
+        return list(self.nodes_by_id.values())
 
 
 def collect_node(
     *roots: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
 ) -> _VisitedTree:
     """Collect a node and its descendants"""
-    visited: dict[UUID, NodeT] = {}
+    visited_by_id: dict[UUID, NodeT] = {}
     visited_by_node_t: dict[typing.Type[NodeT], list[UUID]] = defaultdict(list)
     visited_by_parent: dict[UUID, list[NodeT]] = defaultdict(list)
     ctx = PackContext()
@@ -216,7 +215,7 @@ def collect_node(
                 elif existing_qs.query != qs.query:
                     querysets[qs.model] = querysets[qs.model].union(qs)
             for node in nodes:
-                visited[node.id] = node
+                visited_by_id[node.id] = node
                 visited_by_node_t[type(node)].append(node.id)
                 visited_by_parent[node.parent_id].append(node)
 
@@ -225,8 +224,8 @@ def collect_node(
         for qs in querysets.values():
             to_pack.extend(qs)
 
-    roots = [visited[node.id] for node in roots]
-    return _VisitedTree(roots, visited, visited_by_parent)
+    roots = [visited_by_id[node.id] for node in roots]
+    return _VisitedTree(roots, visited_by_id, visited_by_parent)
 
 
 def pack_node(
@@ -237,7 +236,7 @@ def pack_node(
     nodes = {node.id: pack_node_flat(node) for node in visited.visited.values()}
     roots = [nodes[node.id] for node in visited.roots]
 
-    return _Packed(roots, nodes, visited.visited, visited.visited_by_parent)
+    return _Packed(roots, nodes, visited.visited_by_parent)
 
 
 def unpack_nodes_tree(

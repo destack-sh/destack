@@ -12,7 +12,7 @@ from uuid import UUID
 import msgpack
 
 from bench import language as lang
-from bench.language.basic import TextHeadingLevel
+from bench.language.basic import TextHeadingLevel, patch_text_html
 from bench.language.const import (
     RemoteObjectStatus,
     ScheduleType,
@@ -667,6 +667,10 @@ class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
         statement = super().unpack(symbol, parent, session)
         return lang.Text(**statement.__dict__, text=symbol.text, heading_level=symbol.heading_level)
 
+    def patch(self, symbol: TextData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class ReferenceData(StatementData):
@@ -696,6 +700,11 @@ class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]
     def recover(self, statement: lang.Reference, tree: ModuleTree):
         statement.tags = tree.get_descendants(statement.id, lang.Tag)
         statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
+
+    def patch(self, symbol: ReferenceData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+        symbol.reference_ck = target_cks.get(symbol.reference_ck, symbol.reference_ck)
 
 
 @dataclass
@@ -739,6 +748,10 @@ class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
 
+    def patch(self, symbol: TypeData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class TagData(StatementData):
@@ -775,6 +788,10 @@ class TagPacker(StatementPacker, NodePacker[TagData, lang.Tag]):
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
 
+    def patch(self, symbol: TagData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class TaskData(StatementData):
@@ -809,6 +826,10 @@ class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
         symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
 
+    def patch(self, symbol: TaskData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class CodeData(StatementData):
@@ -842,6 +863,10 @@ class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
         symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
 
+    def patch(self, symbol: CodeData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class FlowData(StatementData):
@@ -867,6 +892,10 @@ class FlowPacker(StatementPacker, NodePacker[FlowData, lang.Flow]):
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
         symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
+
+    def patch(self, symbol: FlowData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
 
 
 @dataclass
@@ -902,6 +931,10 @@ class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
 
+    def patch(self, symbol: ModelData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
+
 
 @dataclass
 class VariableData(StatementData):
@@ -932,6 +965,10 @@ class VariablePacker(StatementPacker, NodePacker[VariableData, lang.Variable]):
         super().recover(symbol, tree)
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
+
+    def patch(self, symbol: VariableData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
 
 
 @dataclass
@@ -964,6 +1001,10 @@ class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
         super().recover(symbol, tree)
         symbol.fields = tree.get_descendants(symbol.id, lang.Field)
         symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
+
+    def patch(self, symbol: DatasetData, target_cks: dict[UUID, UUID]) -> None:
+        super().patch(symbol, target_cks)
+        symbol.text = patch_text_html(symbol.text, target_cks)
 
 
 STATEMENT_DATA_CLASS_BY_TYPE: dict[StatementType, NodeData] = {
@@ -1055,6 +1096,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
     def patch(self, node: FieldData, target_cks: dict[UUID, UUID]) -> None:
         node.reference_ck = target_cks.get(node.reference_ck, node.reference_ck)
+        node.text = patch_text_html(node.text, target_cks)
 
 
 @dataclass

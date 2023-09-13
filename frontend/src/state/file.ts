@@ -673,8 +673,18 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   const selectionActions: Action<void>[] = [
     {
+      label: "Copy",
+      icon: DocumentDuplicateIcon,
+      hideInline: true,
+      hideInMenu: !bench.readonly,
+      action: () => {
+        copy(getSelectedRoots());
+      },
+    },
+    {
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
+      hideInMenu: bench.readonly,
       disabled: bench.readonly,
       action: () => {
         copy(getSelectedRoots());
@@ -684,6 +694,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
     {
       label: "Delete",
       icon: TrashIcon,
+      hideInMenu: bench.readonly,
       disabled: bench.readonly,
       action: () => {
         if (file.value?.panel.selectedElementIds == null) return;
