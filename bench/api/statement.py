@@ -424,7 +424,7 @@ class StatementMutation:
         if len(source_project_v_ids) > 1:
             raise ValidationError("statements must be from the same project version")
         if source_project_v != target_file.project_version:
-            check_module_access(info, source_project_v.project, models.ModuleAccessLevel.Read)
+            check_module_access(info, source_project_v.project, ModuleAccessLevel.Read)
         check_module_access(info, target_file.project_version.project, ModuleAccessLevel.Edit)
 
         # do the copy paste

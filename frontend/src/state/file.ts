@@ -565,6 +565,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       (s) =>
         ({
           id: s.id,
+          ck: s.ck,
           parentId: s.parent?.id,
           parentInCopy: s.parent == null ? undefined : copiedStatementsIds.has(s.parent?.id ?? ""),
           orderKey: s.orderKey,
