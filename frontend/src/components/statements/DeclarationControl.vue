@@ -3,20 +3,23 @@ import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { getStatementDescription, getStatementIconSolid, getStatementLabel } from "@/state/statement";
 import { computed, ref, type Ref } from "vue";
 import { useKeyModifier } from "@vueuse/core";
-import { usePanelContext, type StatementHeader } from "@/state/bench";
+import { usePanelContext, type StatementHeader, useBenchState } from "@/state/bench";
 import {
   STANDALONE_ENABLED,
   STATEMENT_INTERFACES,
+  STATEMENT_RUNNABLE_TYPES,
   type StatementEmit,
   type StatementProps,
 } from "@/components/statements";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { StatementType } from "@/gql/graphql";
+import { PlayIcon } from "@heroicons/vue/24/outline";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
+const bench = useBenchState();
 const ops = useOperations();
 const nameRef: Ref<InstanceType<typeof EditableSpan> | null> = ref(null);
 const name: Ref<string> = ref(props.statement.name ?? "");
@@ -31,6 +34,7 @@ const icon = computed(() => getStatementIconSolid(props.statement.type, props.st
 const headingLevel = computed(() =>
   props.statement.type != StatementType.Text ? 0 : props.statement.headingLevel ?? 0
 );
+const runButtonRef = ref<HTMLButtonElement | null>(null);
 
 const canOpenInStandaloneEditor = computed(
   () => (STANDALONE_ENABLED && STATEMENT_INTERFACES[props.statement.type]?.foldable) ?? false
@@ -110,7 +114,7 @@ defineExpose({
       @navigate-up="emit('navigateUp')"
       @navigate-down="emit('navigateDown')"
       @navigate-left="emit('navigateLeft')"
-      @navigate-right="emit('navigateRight')"
+      @navigate-right="runButtonRef != null ? runButtonRef.focus() : emit('navigateRight')"
       @enter-left="emit('enterLeft')"
       @enter-right="emit('enterRight')"
       @enter="emit('enter')"
@@ -126,6 +130,19 @@ defineExpose({
       :class="[headingLevel == 0 ? '-ml-0.5' : '']"
     >
       unnamed
+    </button>
+    <!-- Instant run/launch button -->
+    <!-- not totally happy with this position or styling but need to make it more obvious -->
+    <button
+      v-if="bench.canUse && STATEMENT_RUNNABLE_TYPES.includes(statement.type)"
+      ref="runButtonRef"
+      class="ml-0.5 rounded-sm p-[1px] text-orange-600 hover:bg-orange-100"
+      @click="emit('run')"
+      @keydown.enter.prevent="emit('run')"
+      @keydown.left.prevent="nameRef?.focus('last')"
+      @keydown.right.prevent="emit('navigateRight')"
+    >
+      <component :is="PlayIcon" class="h-4 w-4" />
     </button>
   </div>
 </template>

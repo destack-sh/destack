@@ -18,6 +18,7 @@ import type { StatementAction } from "@/state/bench";
 import { TypeFlag, type Statement } from "@/state/module";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 
+export const STATEMENT_RUNNABLE_TYPES: StatementType[] = [StatementType.Code, StatementType.Task, StatementType.Flow];
 export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
 export const STANDALONE_ENABLED = false; // needs proper support
 

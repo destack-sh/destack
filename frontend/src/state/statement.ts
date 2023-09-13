@@ -39,6 +39,10 @@ import {
 } from "@heroicons/vue/24/solid";
 import { computed, type Ref } from "vue";
 
+function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
+  return computed(() => (enabled?.value !== false ? func() : []));
+}
+
 export function useTags(statement: Ref<Statement>) {
   const module = useCurrentModule();
   const ops = useOperations();
@@ -59,10 +63,6 @@ export function useTriggers(statement: Ref<Statement>) {
   return {
     triggers,
   };
-}
-
-function _computedEmptyIfDisabled<T>(func: () => T, enabled?: Ref<boolean>) {
-  return computed(() => (enabled?.value !== false ? func() : []));
 }
 
 export function useFieldsState(statement: Ref<Statement>, enabled?: Ref<boolean>) {
