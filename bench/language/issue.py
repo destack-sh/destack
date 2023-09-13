@@ -31,6 +31,7 @@ class IssueType(enum.StrEnum):
     TASK_MISSING_IO = "TASK_MEANINGLESS"
     TASK_IMPOSSIBLE = "TASK_IMPOSSIBLE"
     # notices
+    TASK_IS_STATIC = "TASK_IS_STATIC"
     TEXT_HAS_NO_EFFECT = "TEXT_HAS_NO_EFFECT"
 
     @property
@@ -53,6 +54,7 @@ _ISSUE_MESSAGES = {
     IssueType.TASK_MISSING_IO.value: "task has no inputs or outputs",
     IssueType.TASK_IMPOSSIBLE.value: "task is impossible in current scope: {reason}",
     # notices
+    IssueType.TASK_IS_STATIC.value: "task has no inputs and is not randomized",
     IssueType.TEXT_HAS_NO_EFFECT.value: "text has no effect here: {help}",
 }
 
@@ -72,7 +74,7 @@ WARNINGS = [
     IssueType.TASK_MISSING_IO,
     IssueType.TASK_IMPOSSIBLE,
 ]
-NOTICES = [IssueType.TEXT_HAS_NO_EFFECT]
+NOTICES = [IssueType.TASK_IS_STATIC, IssueType.TEXT_HAS_NO_EFFECT]
 _missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS) - set(NOTICES)
 assert not _missing_issue_types, f"missing issue types: {_missing_issue_types}"
 _ISSUE_KIND_BY_TYPE = {
