@@ -603,7 +603,7 @@ function showActionsPopover() {
 const sessions = useCurrentSessions();
 function run() {
   if (!bench.canUse) {
-    console.warn(`can't run ${statement.value} with access level ${bench.projectAccessLevel}`);
+    console.warn(`can't run ${statement.value} with access level ${bench.ModuleAccessLevel}`);
     return;
   }
   // force sync

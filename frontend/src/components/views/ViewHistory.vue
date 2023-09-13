@@ -6,7 +6,7 @@ import SnapshotPopover from "@/components/bench/SnapshotPopover.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useTimeFromNow } from "@/composables/useNow";
 import { graphql, useFragment, type FragmentType } from "@/gql";
-import { ProjectAccessLevel, type ProjectVersion } from "@/gql/graphql";
+import { ModuleAccessLevel, type ProjectVersion } from "@/gql/graphql";
 import { provideGlobalAction } from "@/state/actions";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type ProjectHeader, projectAccessGt } from "@/state/bench";
@@ -94,7 +94,7 @@ function isHead(version: { id: string }): boolean {
 const router = useRouter();
 const notifications = useNotifications();
 const ops = useOperations();
-const canEdit = computed(() => projectAccessGt(props.project.accessLevel, ProjectAccessLevel.Edit));
+const canEdit = computed(() => projectAccessGt(props.project.accessLevel, ModuleAccessLevel.Edit));
 
 const snapshotButtonRef: Ref<InstanceType<typeof PopoverButton> | null> = ref(null);
 const snapshotPopoverRef: Ref<InstanceType<typeof SnapshotPopover> | null> = ref(null);

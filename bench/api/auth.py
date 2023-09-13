@@ -21,9 +21,9 @@ from strawberry_django.fields.types import OperationInfo, OperationMessage
 from bench import models
 from bench.api.utils import get_param_from_info, get_user_from_info
 from bench.models import (
+    ModuleAccessLevel,
     Organization,
     OrganizationRole,
-    ProjectAccessLevel,
     ProjectMembership,
     User,
     UserStatus,
@@ -34,43 +34,43 @@ from bench.models.owner import OwnerSlug, slugify
 logger = structlog.get_logger(__name__)
 
 # default access level for new projects
-DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE: dict[OrganizationRole, ProjectAccessLevel] = {
-    OrganizationRole.Owner: ProjectAccessLevel.Admin,
-    OrganizationRole.Manager: ProjectAccessLevel.Manage,
-    OrganizationRole.Member: ProjectAccessLevel.Edit,
-    OrganizationRole.Guest: ProjectAccessLevel.Read,
+DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE: dict[OrganizationRole, ModuleAccessLevel] = {
+    OrganizationRole.Owner: ModuleAccessLevel.Admin,
+    OrganizationRole.Manager: ModuleAccessLevel.Manage,
+    OrganizationRole.Member: ModuleAccessLevel.Edit,
+    OrganizationRole.Guest: ModuleAccessLevel.Read,
 }
 
 
 @dataclass
-class ProjectAccessInfo:
+class ModuleAccessInfo:
     user: Optional[models.User]
     project: models.Project
     project_version: Optional[models.ProjectVersion]
-    level: models.ProjectAccessLevel
+    level: models.ModuleAccessLevel
 
     @staticmethod
-    def zero(project: models.Project) -> "ProjectAccessInfo":
-        return ProjectAccessInfo(
-            user=None, project=project, project_version=None, level=models.ProjectAccessLevel.Zero
+    def zero(project: models.Project) -> "ModuleAccessInfo":
+        return ModuleAccessInfo(
+            user=None, project=project, project_version=None, level=models.ModuleAccessLevel.Zero
         )
 
 
-def check_project_access(
+def check_module_access(
     info: Info,
     project: UUID | models.Project | models.ProjectVersion,
-    level: models.ProjectAccessLevel,
-) -> ProjectAccessInfo:
+    level: models.ModuleAccessLevel,
+) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
-    access = has_project_access(info, project, level)
+    access = has_module_access(info, project, level)
     if not access:
         raise PermissionDenied("User cannot do this.")
     return access
 
 
 def check_module_node_access(
-    info: Info, module_node: models.ModuleNode, level: models.ProjectAccessLevel
-) -> ProjectAccessInfo:
+    info: Info, module_node: models.ModuleNode, level: models.ModuleAccessLevel
+) -> ModuleAccessInfo:
     """Raises a PermissionDenied error if the user cannot view the given object."""
     access = has_module_node_access(info, module_node, level)
     if not access:
@@ -78,11 +78,11 @@ def check_module_node_access(
     return access
 
 
-def has_project_access(
+def has_module_access(
     info: Info,
     project: UUID | models.Project | models.ProjectVersion,
-    level: models.ProjectAccessLevel,
-) -> Optional[ProjectAccessInfo]:
+    level: models.ModuleAccessLevel,
+) -> Optional[ModuleAccessInfo]:
     """Get project-level access info for the given user."""
     project_version = None
     if isinstance(project, UUID):
@@ -99,7 +99,7 @@ def has_project_access(
         get_user_access(info, project),
         get_sharing_token_access(info, project),
         get_default_project_access(project),
-        ProjectAccessInfo.zero(project),
+        ModuleAccessInfo.zero(project),
     )
     # return the more permissive access level >= level if any
     access = max((a for a in granted_accesses if a is not None), key=lambda a: a.level)
@@ -109,21 +109,21 @@ def has_project_access(
     return access
 
 
-def get_user_access(info: Info, project: models.Project) -> Optional[ProjectAccessInfo]:
+def get_user_access(info: Info, project: models.Project) -> Optional[ModuleAccessInfo]:
     user = get_user_from_info(info)
     if not user.is_authenticated:
         return None
     if user.is_staff:
-        return ProjectAccessInfo(user, project, None, models.ProjectAccessLevel.Admin)
+        return ModuleAccessInfo(user, project, None, models.ModuleAccessLevel.Admin)
 
     # check if user is owner
     if project.user_id == user.id:
-        return ProjectAccessInfo(user, project, None, models.ProjectAccessLevel.Admin)
+        return ModuleAccessInfo(user, project, None, models.ModuleAccessLevel.Admin)
 
     # check if user is a member of the project
     project_membership: ProjectMembership = project.memberships.filter(user_id=user.id).first()
     if project_membership:
-        return ProjectAccessInfo(user, project, None, project_membership.level)
+        return ModuleAccessInfo(user, project, None, project_membership.level)
 
     # if project belongs to an organization, check if user is a member of the organization
     if project.organization_id:
@@ -132,12 +132,12 @@ def get_user_access(info: Info, project: models.Project) -> Optional[ProjectAcce
         ).first()
         if org_membership:
             level = DEFAULT_PROJECT_ACCESS_LEVEL_BY_ORGANIZATION_ROLE[org_membership.level]
-            return ProjectAccessInfo(user, project, None, level)
+            return ModuleAccessInfo(user, project, None, level)
 
     return None
 
 
-def get_sharing_token_access(info: Info, project: models.Project) -> Optional[ProjectAccessInfo]:
+def get_sharing_token_access(info: Info, project: models.Project) -> Optional[ModuleAccessInfo]:
     if not project.sharing_enabled:
         return None
     sharing_token = get_param_from_info(info, "x-sharing-token")
@@ -149,18 +149,18 @@ def get_sharing_token_access(info: Info, project: models.Project) -> Optional[Pr
         return None
     if project.sharing_token != sharing_token:
         return None
-    return ProjectAccessInfo(None, project, None, project.sharing_level)
+    return ModuleAccessInfo(None, project, None, project.sharing_level)
 
 
-def get_default_project_access(project: models.Project) -> Optional[ProjectAccessInfo]:
+def get_default_project_access(project: models.Project) -> Optional[ModuleAccessInfo]:
     if project.visibility == models.ProjectVisibility.PUBLIC:
-        return ProjectAccessInfo(None, project, None, models.ProjectAccessLevel.Read)
+        return ModuleAccessInfo(None, project, None, models.ModuleAccessLevel.Read)
     return None
 
 
 def has_module_node_access(
-    info: Info, node: models.ModuleNode, level: models.ProjectAccessLevel
-) -> Optional[ProjectAccessInfo]:
+    info: Info, node: models.ModuleNode, level: models.ModuleAccessLevel
+) -> Optional[ModuleAccessInfo]:
     """
     Get node-level access info for the given user.
     Right now this is the same as project-level access.
@@ -170,7 +170,7 @@ def has_module_node_access(
         root = root.parent
     if not isinstance(root, models.ProjectVersion):
         raise ValueError(f"expected project root for {node}, got {root}")
-    return has_project_access(info, root, level)
+    return has_module_access(info, root, level)
 
 
 def is_owner_or_member(
@@ -381,19 +381,19 @@ _OtherT = TypeVar("_OtherT", bound=django.db.models.Model)
 
 
 # noinspection PyPep8Naming
-def HasProjectAccess(
-    level: ProjectAccessLevel = ProjectAccessLevel.Read,
+def HasModuleAccess(
+    level: ModuleAccessLevel = ModuleAccessLevel.Read,
     target: CheckTarget = CheckTarget.RETVAL,
     map: Optional[Callable[[_OtherT], models.Project]] = None,
 ):
     if map is None:
         return SimplePermissionExtension(
-            check=lambda info, project: check_project_access(info, project, level) is not None,
+            check=lambda info, project: check_module_access(info, project, level) is not None,
             target=target,
         )
     else:
         return SimplePermissionExtension(
-            check=lambda info, other: check_project_access(info, map(other), level) is not None,
+            check=lambda info, other: check_module_access(info, map(other), level) is not None,
             target=target,
         )
 

@@ -17,7 +17,7 @@ from bench.api.type import MMT, PMT
 from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
 from bench.language import Statement
 from bench.language.mutate import ModuleMutation, ModuleMutationKind
-from bench.models import ProjectAccessLevel, ProjectVersion
+from bench.models import ModuleAccessLevel, ProjectVersion
 from bench.msg.core import publish_soon
 from bench.msg.messages import (
     ClientOrigin,
@@ -81,7 +81,7 @@ def tracked_db_mutation(
                 things = [thing]
 
             # validate (ignoring constraints; 'revision' field which may be an F expression)
-            access = has_module_node_access(info, thing, ProjectAccessLevel.Edit)
+            access = has_module_node_access(info, thing, ModuleAccessLevel.Edit)
             if access and access.project_version.committed or not skip_auth_check and not access:
                 raise PermissionDenied("User cannot do this.")
             thing.full_clean(

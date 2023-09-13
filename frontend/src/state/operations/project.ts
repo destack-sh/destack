@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import type {
-  ProjectAccessLevel,
+  ModuleAccessLevel,
   ProjectVisibility,
   UpdateProjectNameMutation,
   UpdateProjectVisibilityMutation,
@@ -77,7 +77,7 @@ export function useProjectOps() {
         $id: GlobalID!
         $sharingEnabled: Boolean!
         $sharingToken: UUID!
-        $sharingLevel: ProjectAccessLevel!
+        $sharingLevel: ModuleAccessLevel!
       ) {
         updateProjectSharing(
           input: { id: $id, sharingEnabled: $sharingEnabled, sharingToken: $sharingToken, sharingLevel: $sharingLevel }
@@ -97,7 +97,7 @@ export function useProjectOps() {
         id: string;
         sharingEnabled: boolean;
         sharingToken: string;
-        sharingLevel: ProjectAccessLevel;
+        sharingLevel: ModuleAccessLevel;
       }) =>
         ({
           __typename: "Mutation",
@@ -116,7 +116,7 @@ export function useProjectOps() {
     id: string,
     sharingEnabled: boolean,
     sharingToken: string,
-    sharingLevel: ProjectAccessLevel
+    sharingLevel: ModuleAccessLevel
   ) {
     return await ops.perform({
       type: "project.updateSharing",

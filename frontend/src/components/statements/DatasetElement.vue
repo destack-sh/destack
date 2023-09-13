@@ -577,7 +577,7 @@ defineExpose({
             left: isHeaderRowFloating
               ? -gridScrollOffsetX + 4 + panel.pos.value.left + gridOffsetX + 'px'
               : -gridScrollOffsetX + 4 + 'px',
-            top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 2 + 'px' : undefined,
+            top: isHeaderRowFloating ? panel.pos.value.top + appearance.panelHeaderHeight - 4 + 'px' : undefined,
             /* clip to editor bounds (different stacking context so need to 're-clip' into editor) */
             clipPath: isHeaderRowFloating ? `inset(0px ${gridOverhangRight}px 0px ${gridOverhangLeft}px)` : undefined,
           }"

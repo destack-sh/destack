@@ -10,10 +10,10 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import check_project_access
+from bench.api.auth import check_module_access
 from bench.api.utils import safe_mutation
 from bench.language.remote import REMOTE_OBJECT_MAX_SIZE
-from bench.models import ProjectAccessLevel
+from bench.models import ModuleAccessLevel
 from bench.models.object import is_allowed_content_type
 
 logger = structlog.get_logger(__name__)
@@ -58,7 +58,7 @@ class ObjectMutation:
         self, info: Info, input: RequestUploadObjectInput
     ) -> RemoteObject | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Read)
+        check_module_access(info, project, ModuleAccessLevel.Read)
         if input.content_length >= REMOTE_OBJECT_MAX_SIZE:
             raise ValidationError(
                 f"object too large: {input.content_length} >= {REMOTE_OBJECT_MAX_SIZE}"
@@ -89,7 +89,7 @@ class ObjectMutation:
         self, info: Info, input: NotifyUploadedObjectInput
     ) -> RemoteObject | OperationInfo:
         object = models.RemoteObject.objects.get(id=input.id.node_id)
-        check_project_access(info, object.project_id, ProjectAccessLevel.Read)
+        check_module_access(info, object.project_id, ModuleAccessLevel.Read)
         # check that object exists in s3
         object.mark_available_if_exists_in_s3()
         object.save()
@@ -98,6 +98,6 @@ class ObjectMutation:
     @safe_mutation
     def delete_object(self, info: Info, input: DeleteObjectInput) -> RemoteObject | OperationInfo:
         object = models.RemoteObject.objects.get(input.id)
-        check_project_access(info, object.project_id, ProjectAccessLevel.Edit)
+        check_module_access(info, object.project_id, ModuleAccessLevel.Edit)
         object.delete()
         return object

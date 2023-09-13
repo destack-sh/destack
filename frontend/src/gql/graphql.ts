@@ -427,6 +427,15 @@ export type LogEntryEdge = {
   node: LogEntry;
 };
 
+export enum ModuleAccessLevel {
+  Admin = "Admin",
+  Edit = "Edit",
+  Manage = "Manage",
+  Read = "Read",
+  Use = "Use",
+  Zero = "Zero",
+}
+
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
@@ -1277,7 +1286,7 @@ export type PageInfo = {
 
 export type Project = Node & {
   __typename?: "Project";
-  accessLevel: ProjectAccessLevel;
+  accessLevel: ModuleAccessLevel;
   createdAt: Scalars["DateTime"];
   description?: Maybe<Scalars["String"]>;
   head: ProjectVersion;
@@ -1287,7 +1296,7 @@ export type Project = Node & {
   owner: UserOrganization;
   path: Scalars["String"];
   sharingEnabled: Scalars["Boolean"];
-  sharingLevel: ProjectAccessLevel;
+  sharingLevel: ModuleAccessLevel;
   sharingToken?: Maybe<Scalars["UUID"]>;
   slug: Scalars["String"];
   updatedAt: Scalars["DateTime"];
@@ -1305,15 +1314,6 @@ export type ProjectVersionsArgs = {
   first?: InputMaybe<Scalars["Int"]>;
   last?: InputMaybe<Scalars["Int"]>;
 };
-
-export enum ProjectAccessLevel {
-  Admin = "Admin",
-  Edit = "Edit",
-  Manage = "Manage",
-  Read = "Read",
-  Use = "Use",
-  Zero = "Zero",
-}
 
 export type ProjectChange = Change & {
   __typename?: "ProjectChange";
@@ -1355,7 +1355,7 @@ export type ProjectInvite = Node & {
   emailSentAt?: Maybe<Scalars["DateTime"]>;
   /** The Globally Unique ID of this object */
   id: Scalars["GlobalID"];
-  level: ProjectAccessLevel;
+  level: ModuleAccessLevel;
   project: Project;
   updatedAt: Scalars["DateTime"];
   user?: Maybe<User>;
@@ -1364,7 +1364,7 @@ export type ProjectInvite = Node & {
 export type ProjectInviteInput = {
   emails: Array<Scalars["String"]>;
   id: Scalars["GlobalID"];
-  level: ProjectAccessLevel;
+  level: ModuleAccessLevel;
   message?: InputMaybe<Scalars["String"]>;
 };
 
@@ -1383,7 +1383,7 @@ export type ProjectUpdateNameInput = {
 export type ProjectUpdateSharingInput = {
   id: Scalars["GlobalID"];
   sharingEnabled: Scalars["Boolean"];
-  sharingLevel: ProjectAccessLevel;
+  sharingLevel: ModuleAccessLevel;
   sharingToken: Scalars["UUID"];
 };
 
@@ -2662,7 +2662,7 @@ export type NotificationsQuery = {
           projectInvite: {
             __typename?: "ProjectInvite";
             id: any;
-            level: ProjectAccessLevel;
+            level: ModuleAccessLevel;
             project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
@@ -3489,10 +3489,10 @@ export type ProjectHeaderFragment = {
   name: string;
   slug: string;
   visibility: ProjectVisibility;
-  accessLevel: ProjectAccessLevel;
+  accessLevel: ModuleAccessLevel;
   sharingEnabled: boolean;
   sharingToken?: any | null;
-  sharingLevel: ProjectAccessLevel;
+  sharingLevel: ModuleAccessLevel;
   head: { __typename?: "ProjectVersion" } & {
     " $fragmentRefs"?: { ProjectVersionHeaderFragment: ProjectVersionHeaderFragment };
   };
@@ -3795,7 +3795,7 @@ export type NewNotificationsQuery = {
           projectInvite: {
             __typename?: "ProjectInvite";
             id: any;
-            level: ProjectAccessLevel;
+            level: ModuleAccessLevel;
             project: { __typename?: "Project"; id: any; slug: string; name: string };
           };
         };
@@ -4145,7 +4145,7 @@ export type UpdateProjectSharingMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   sharingEnabled: Scalars["Boolean"];
   sharingToken: Scalars["UUID"];
-  sharingLevel: ProjectAccessLevel;
+  sharingLevel: ModuleAccessLevel;
 }>;
 
 export type UpdateProjectSharingMutation = {
@@ -4159,7 +4159,7 @@ export type UpdateProjectSharingMutation = {
         id: any;
         sharingEnabled: boolean;
         sharingToken?: any | null;
-        sharingLevel: ProjectAccessLevel;
+        sharingLevel: ModuleAccessLevel;
       };
 };
 
@@ -10869,7 +10869,7 @@ export const UpdateProjectSharingDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "sharingLevel" } },
           type: {
             kind: "NonNullType",
-            type: { kind: "NamedType", name: { kind: "Name", value: "ProjectAccessLevel" } },
+            type: { kind: "NamedType", name: { kind: "Name", value: "ModuleAccessLevel" } },
           },
         },
       ],

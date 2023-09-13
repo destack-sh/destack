@@ -11,9 +11,9 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import models
-from bench.api.auth import CheckTarget, HasProjectAccess, check_project_access
+from bench.api.auth import CheckTarget, HasModuleAccess, check_module_access
 from bench.api.utils import safe_mutation
-from bench.models import ProjectAccessLevel
+from bench.models import ModuleAccessLevel
 
 if TYPE_CHECKING:
     from bench.api.project import Project
@@ -34,8 +34,8 @@ class Secret(relay.Node):
         resolver=reveal_secret_value,
         extensions=[
             # note that this doesn't seem to be working so the entire secret is >=Edit level
-            HasProjectAccess(
-                level=ProjectAccessLevel.Edit, target=CheckTarget.ROOT, map=lambda s: s.project
+            HasModuleAccess(
+                level=ModuleAccessLevel.Edit, target=CheckTarget.ROOT, map=lambda s: s.project
             )
         ],
     )
@@ -64,7 +64,7 @@ class SecretMutation:
     @safe_mutation
     def create_secret(self, info: Info, input: SecretCreateInput) -> Secret | OperationInfo:
         project = models.Project.objects.get(id=input.project_id.node_id)
-        check_project_access(info, project, ProjectAccessLevel.Edit)
+        check_module_access(info, project, ModuleAccessLevel.Edit)
         value_str = json.dumps(input.value, indent=0)  # :SecretJson
         sha512 = hashlib.sha512(value_str.encode("utf-8")).hexdigest()
         secret = models.Secret.objects.create(
@@ -75,7 +75,7 @@ class SecretMutation:
     @safe_mutation
     def update_secret(self, info: Info, input: SecretUpdateInput) -> Secret | OperationInfo:
         secret = models.Secret.objects.get(id=input.id.node_id)
-        check_project_access(info, secret.project_id, ProjectAccessLevel.Edit)
+        check_module_access(info, secret.project_id, ModuleAccessLevel.Edit)
         secret.name = input.name
         secret.value = json.dumps(input.value, indent=0)
         secret.sha512 = hashlib.sha512(secret.value.encode("utf-8")).hexdigest()
@@ -85,6 +85,6 @@ class SecretMutation:
     @safe_mutation
     def delete_secret(self, info: Info, input: SecretDeleteInput) -> None | OperationInfo:
         secret = models.Secret.objects.get(id=input.id.node_id)
-        check_project_access(info, secret.project_id, ProjectAccessLevel.Edit)
+        check_module_access(info, secret.project_id, ModuleAccessLevel.Edit)
         secret.delete()
         return None

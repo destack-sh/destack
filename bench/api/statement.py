@@ -13,12 +13,12 @@ from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
 from bench import language, models
-from bench.api.auth import check_project_access
+from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
-from bench.models import ProjectAccessLevel
+from bench.models import ModuleAccessLevel
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
@@ -424,8 +424,8 @@ class StatementMutation:
         if len(source_project_v_ids) > 1:
             raise ValidationError("statements must be from the same project version")
         if source_project_v != target_file.project_version:
-            check_project_access(info, source_project_v.project, models.ProjectAccessLevel.Read)
-        check_project_access(info, target_file.project_version.project, ProjectAccessLevel.Edit)
+            check_module_access(info, source_project_v.project, models.ModuleAccessLevel.Read)
+        check_module_access(info, target_file.project_version.project, ModuleAccessLevel.Edit)
 
         # do the copy paste
         target_ids = [UUID(i.node_id) for i in input.target_ids]

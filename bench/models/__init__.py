@@ -8,8 +8,8 @@ from .organization import Organization, OrganizationInvite, OrganizationMembersh
 from .owner import OwnerSlug
 from .project import (
     File,
+    ModuleAccessLevel,
     Project,
-    ProjectAccessLevel,
     ProjectInvite,
     ProjectMembership,
     ProjectVersion,
@@ -46,7 +46,7 @@ __all__ = [
     "OrganizationRole",
     "OwnerSlug",
     "Project",
-    "ProjectAccessLevel",
+    "ModuleAccessLevel",
     "ProjectInvite",
     "ProjectMembership",
     "ProjectVersion",
