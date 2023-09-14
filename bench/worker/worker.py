@@ -526,7 +526,7 @@ class ModuleWorkerProcess(ModuleWriter):
         # run session
         try:
             await runnable(**inputs)
-        except Exception as e:
+        except BaseException as e:
             raise RunError(
                 kind=RunErrorKind.Runtime, type=type(e).__name__, message=str(e), runnable=runnable
             ) from e

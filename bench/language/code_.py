@@ -17,7 +17,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.basic import HasText
-from bench.language.const import StatementType, TypeTag
+from bench.language.const import TypeTag
 from bench.language.core import IssueType, LookupBy, ModuleVisitor, NodePath, Scope, Statement, node
 from bench.language.flow import IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
@@ -217,7 +217,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
     def _prep_func_body(self) -> tuple[str, int, int]:
         """Prepares the function body of this code with all modifications."""
-        func_body_lines = (self.code or "pass").splitlines()
+        func_body_lines = ((self.code.strip() if self.code else None) or "pass").splitlines()
         # replace real python x imports with _ximport
         # e.g. replace `from .utils import a, b` with `a, b = _ximport(".utils", "a", "b")`
         await_str = "await " if self._parse.is_async else ""
@@ -337,7 +337,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             result = await self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
             return _to_result_dict(result)
-        except Exception as exception:
+        except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
 
@@ -349,7 +349,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             result = self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
             return _to_result_dict(result)
-        except Exception as exception:
+        except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
 
@@ -468,14 +468,8 @@ def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
     if not ALLOW_UNTRUSTED_CODE:
         raise RuntimeError("untrusted code execution is disabled")
     globals_local = {**globals}
-    globals_local_keys_initial = {*globals_local.keys()}
     exec(code, globals_local)
-    new_globals = {
-        k: v
-        for k, v in globals_local.items()
-        if k not in globals_local_keys_initial and k not in ("__builtins__", "__annotations__")
-    }
-    return new_globals
+    return globals_local
 
 
 def _parse_code(code: str | None) -> "CodeParse":

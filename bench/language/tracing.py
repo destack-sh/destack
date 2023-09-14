@@ -317,7 +317,7 @@ class SessionTracer(Tracer):
         for tracer in reversed(self.tracers):
             try:
                 tracer.run_exception(statement, exception)
-            except Exception:
+            except BaseException:
                 # internal error in tracer, very not good
                 logger.exception("trace.run.exception", exc_info=True, tracer=tracer)
 
