@@ -12,7 +12,6 @@ from bench.language.core import (
     ModuleVisitor,
     Scope,
     Statement,
-    StatementReference,
     StatementType,
     TypedNodeReference,
     node,
@@ -37,7 +36,6 @@ class Blank(Statement):
 class HasText(HasIssues):
     """Some instruction text with optional references."""
 
-    text: str | None = None
     _text_spans: list["TextSpan"] | None = None
 
     @property
@@ -244,7 +242,6 @@ class Reference(Statement, HasTags, HasText, IsFlowNode):
     """A reference to another statement."""
 
     type: StatementType = StatementType.REFERENCE
-    reference: Statement | StatementReference = None
 
     def _clear(self) -> None:
         HasTags._clear(self)
@@ -267,15 +264,6 @@ class Reference(Statement, HasTags, HasText, IsFlowNode):
         if isinstance(self.reference, Statement):
             visitor.visit_reference(self.reference)
         HasText._visit(self, visitor)
-
-    @property
-    def reference_ck(self) -> Optional[UUID]:
-        if isinstance(self.reference, Statement):
-            return self.reference.ck
-        elif isinstance(self.reference, UUID):
-            return self.reference
-        else:
-            return None
 
 
 # hard-coded, do not change ever :BenchUuidNamespace

@@ -18,7 +18,7 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import RemoteObjectStatus, TriggerType, TypeFlag
+from bench.language.const import RemoteObjectStatus, TriggerType
 from bench.language.core import INTERP_NODE_TYPES, ModuleNodeType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle
@@ -99,17 +99,12 @@ DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
 # registered packers
 # some node models correspond to multiple actual module node / node data types
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
-_node_packers_by_node: dict[tuple[typing.Type[NodeT], Optional[str]], NodePacker] = {}
+_node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
 BASE_MODEL_CLASS_BY_MNT: dict[MNT, typing.Type[Model]] = {}
 MNT_BY_BASE_MODEL_CLASS: dict[typing.Type[Model], MNT] = {}
 
 
-def node_packer(
-    t: MNT,
-    data_t: typing.Type[NodeDataT],
-    node_t: typing.Type[NodeT],
-    subtype: Optional[str] = None,
-):
+def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT]):
     """Decorator to register a node packer for a given type"""
 
     def decorator(cls: "NodePacker"):
@@ -117,13 +112,13 @@ def node_packer(
             raise ValueError(
                 f"packer for {data_t} already registered: {_node_packers_by_data[data_t]}"
             )
-        if (node_t, subtype) in _node_packers_by_node:
+        if node_t in _node_packers_by_node:
             raise ValueError(
-                f"packer for {(node_t, subtype)} already registered: {_node_packers_by_node[(node_t, subtype)]}"
+                f"packer for {node_t} already registered: {_node_packers_by_node[node_t]}"
             )
         packer = cls()
         _node_packers_by_data[data_t] = packer
-        _node_packers_by_node[(node_t, subtype)] = packer
+        _node_packers_by_node[node_t] = packer
         if t not in BASE_MODEL_CLASS_BY_MNT:
             BASE_MODEL_CLASS_BY_MNT[t] = node_t
             MNT_BY_BASE_MODEL_CLASS[node_t] = t
@@ -136,9 +131,9 @@ def node_packer(
 
 def get_node_packer(node: NodeT) -> NodePacker:
     if isinstance(node, models.Statement):
-        return _node_packers_by_node[(models.Statement, node.type)]
+        return _node_packers_by_node[models.Statement]
     else:
-        return _node_packers_by_node[(type(node), None)]
+        return _node_packers_by_node[type(node)]
 
 
 def pack_module(
@@ -382,6 +377,15 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             order_key=statement.order_key,
             type=StatementType(statement.type),
             name=statement.name,
+            heading_level=statement.heading_level,
+            text=statement.text,
+            flags=statement.flags,
+            tag=statement.tag,
+            key=statement.key,
+            code=statement.code,
+            value=statement.value,
+            versioned=False,  # not stored yet
+            reference_ck=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
@@ -402,193 +406,19 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             order_key=data.order_key,
             type=data.type.value,
             name=data.name,
+            heading_level=data.heading_level,
+            text=data.text,
+            flags=data.flags,
+            tag=data.tag,
+            key=data.key,
+            code=data.code,
+            value=data.value,
+            reference_ck=data.reference_ck,
             created_at=data.created_at,
             updated_at=data.updated_at,
             last_edited_at=data.last_edited_at,
             last_changed_at=data.last_changed_at,
         )
-
-
-@node_packer(MNT.Statement, wire.BlankData, models.Statement, StatementType.BLANK)
-class BlankPacker(StatementPacker, NodePacker[wire.BlankData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.BlankData:
-        statement_data = super().pack(statement)
-        return wire.BlankData(**statement_data.__dict__)
-
-    def unpack(
-        self, data: wire.BlankData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        return super().unpack(data, parent)
-
-
-@node_packer(MNT.Statement, wire.TextData, models.Statement, StatementType.TEXT)
-class TextPacker(StatementPacker, NodePacker[wire.TextData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.TextData:
-        statement_data = super().pack(statement)
-        return wire.TextData(
-            **statement_data.__dict__, text=statement.text, heading_level=statement.heading_level
-        )
-
-    def unpack(
-        self, data: wire.TextData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        statement.heading_level = data.heading_level
-        return statement
-
-
-@node_packer(MNT.Statement, wire.ReferenceData, models.Statement, StatementType.REFERENCE)
-class ReferencePacker(StatementPacker, NodePacker[wire.ReferenceData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.ReferenceData:
-        statement_data = super().pack(statement)
-        return wire.ReferenceData(
-            **statement_data.__dict__, text=statement.text, reference_ck=statement.reference_ck
-        )
-
-    def unpack(
-        self, data: wire.FieldData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.reference_ck = data.reference_ck
-        statement.text = data.text
-        return statement
-
-
-@node_packer(MNT.Statement, wire.TypeData, models.Statement, StatementType.TYPE)
-class TypePacker(StatementPacker, NodePacker[wire.TypeData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.TypeData:
-        statement_data = super().pack(statement)
-        return wire.TypeData(
-            **statement_data.__dict__,
-            key=statement.key,
-            text=statement.text,
-            tag=TypeTag(statement.tag),
-            flags=TypeFlag(statement.flags or 0),
-        )
-
-    def unpack(
-        self, data: wire.TypeData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.key = data.key
-        statement.text = data.text
-        statement.tag = data.tag.value
-        statement.flags = data.flags
-        return statement
-
-
-@node_packer(MNT.Statement, wire.TagData, models.Statement, StatementType.TAG)
-class TagPacker(StatementPacker, NodePacker[wire.TagData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.TagData:
-        statement_data = super().pack(statement)
-        return wire.TagData(**statement_data.__dict__, text=statement.text, key=statement.key)
-
-    def unpack(
-        self, data: wire.TagData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        statement.key = data.key
-        return statement
-
-
-@node_packer(MNT.Statement, wire.TaskData, models.Statement, StatementType.TASK)
-class TaskPacker(StatementPacker, NodePacker[wire.TaskData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.TaskData:
-        statement_data = super().pack(statement)
-        return wire.TaskData(**statement_data.__dict__, text=statement.text)
-
-    def unpack(
-        self, data: wire.TaskData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        return statement
-
-
-@node_packer(MNT.Statement, wire.FlowData, models.Statement, StatementType.FLOW)
-class FlowPacker(StatementPacker, NodePacker[wire.FlowData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.FlowData:
-        statement_data = super().pack(statement)
-        return wire.FlowData(
-            **statement_data.__dict__,
-            text=statement.text,
-        )
-
-    def unpack(
-        self, data: wire.FlowData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        return statement
-
-
-@node_packer(MNT.Statement, wire.CodeData, models.Statement, StatementType.CODE)
-class CodePacker(StatementPacker, NodePacker[wire.CodeData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.CodeData:
-        statement_data = super().pack(statement)
-        return wire.CodeData(**statement_data.__dict__, text=statement.text, code=statement.code)
-
-    def unpack(
-        self, data: wire.CodeData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        statement.code = data.code
-        return statement
-
-
-@node_packer(MNT.Statement, wire.ModelData, models.Statement, StatementType.MODEL)
-class ModelPacker(StatementPacker, NodePacker[wire.ModelData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.ModelData:
-        statement_data = super().pack(statement)
-        return wire.ModelData(
-            **statement_data.__dict__, external_name=statement.external_name, text=statement.text
-        )
-
-    def unpack(
-        self, data: wire.ModelData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.external_name = data.external_name
-        statement.text = data.text
-        return statement
-
-
-@node_packer(MNT.Statement, wire.VariableData, models.Statement, StatementType.VARIABLE)
-class VariablePacker(StatementPacker, NodePacker[wire.VariableData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.VariableData:
-        statement_data = super().pack(statement)
-        return wire.VariableData(
-            **statement_data.__dict__, text=statement.text, value=statement.value or {}
-        )
-
-    def unpack(
-        self, data: wire.VariableData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        statement.value = data.value
-        return statement
-
-
-@node_packer(MNT.Statement, wire.DatasetData, models.Statement, StatementType.DATASET)
-class DatasetPacker(StatementPacker, NodePacker[wire.DatasetData, models.Statement]):
-    def pack(self, statement: models.Statement) -> wire.DatasetData:
-        statement_data = super().pack(statement)
-        return wire.DatasetData(
-            **statement_data.__dict__,
-            text=statement.text,
-            versioned=True,  # :VersionedDatasets
-        )
-
-    def unpack(
-        self, data: wire.DatasetData, parent: models.File | models.Statement
-    ) -> models.Statement:
-        statement = super().unpack(data, parent)
-        statement.text = data.text
-        return statement
 
 
 @node_packer(MNT.Field, wire.FieldData, models.Field)
@@ -765,7 +595,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
         )
 
 
-# not module data
+# non/detached module data
 
 
 class DataPacker(typing.Generic[DataT, NodeT]):

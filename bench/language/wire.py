@@ -292,12 +292,17 @@ class PackContext(ModuleVisitor):
 _node_packers_by_data: dict[typing.Type[NodeDataT], NodePacker] = {}
 _node_packers_by_node: dict[typing.Type[NodeT], NodePacker] = {}
 MNT_BY_DATA_CLASS: dict[typing.Type[NodeDataT], MNT] = {}
-BASE_DATA_CLASS_BY_MNT: dict[MNT, typing.Type[NodeDataT]] = {}
+DATA_CLASS_BY_MNT: dict[MNT, typing.Type[NodeDataT]] = {}
 
 _DATA_CLASS_BY_NAME: dict[str, typing.Type[NodeDataT]] = {}
 
 
-def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[NodeT] | None):
+def node_packer(
+    mnt: MNT,
+    data_t: typing.Type[NodeDataT],
+    node_t: typing.Type[NodeT] | None,
+    extra_classes: typing.Collection[typing.Type[NodeT]] = None,
+):
     """Decorator to register a node packer for a given type"""
 
     # unrelated, add data class to data class by name for :WireFormat serialization hack
@@ -312,16 +317,14 @@ def node_packer(t: MNT, data_t: typing.Type[NodeDataT], node_t: typing.Type[Node
             raise ValueError(
                 f"packer for {data_t} already registered: {_node_packers_by_data[data_t]}"
             )
+        if mnt in DATA_CLASS_BY_MNT:
+            raise ValueError(f"packer for {mnt} already registered: {DATA_CLASS_BY_MNT[mnt]}")
         packer = cls()
-        _node_packers_by_node[node_t] = packer
+        for nt in [node_t] + list(extra_classes or []):
+            _node_packers_by_node[nt] = packer
         _node_packers_by_data[data_t] = packer
-        MNT_BY_DATA_CLASS[data_t] = t
-        if t not in BASE_DATA_CLASS_BY_MNT:
-            BASE_DATA_CLASS_BY_MNT[t] = data_t
-        elif not issubclass(data_t, BASE_DATA_CLASS_BY_MNT[t]):  # noqa
-            raise ValueError(
-                f"cannot register {data_t} as {t}, it is not a subclass of {BASE_DATA_CLASS_BY_MNT[t]}"
-            )
+        MNT_BY_DATA_CLASS[data_t] = mnt
+        DATA_CLASS_BY_MNT[mnt] = data_t
         return cls
 
     return decorator
@@ -571,6 +574,15 @@ class FilePacker(NodePacker[FileData, lang.File]):
 class StatementData(NodeData, HasOrder, HasCrud):
     type: StatementType
     name: Optional[str]
+    heading_level: Optional[TextHeadingLevel]
+    text: Optional[str]
+    tag: Optional[TypeTag]
+    key: Optional[str]
+    flags: Optional[TypeFlag]
+    code: Optional[str]
+    value: Optional[typing.Any]
+    versioned: Optional[bool]
+    reference_ck: Optional[UUID]
 
     def __str__(self):
         return f"{self.type.name} {self.name}"
@@ -579,7 +591,26 @@ class StatementData(NodeData, HasOrder, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MNT.Statement, StatementData, lang.Statement)
+STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[lang.Statement]] = {
+    StatementType.BLANK: lang.Blank,
+    StatementType.TEXT: lang.Text,
+    StatementType.TASK: lang.Task,
+    StatementType.TYPE: lang.Type,
+    StatementType.TAG: lang.Tag,
+    StatementType.CODE: lang.Code,
+    StatementType.DATASET: lang.Dataset,
+    StatementType.VARIABLE: lang.Variable,
+    StatementType.FLOW: lang.Flow,
+    StatementType.MODEL: lang.Model,
+    StatementType.REFERENCE: lang.Reference,
+}
+_missing_statement_types = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
+assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
+
+
+@node_packer(
+    MNT.Statement, StatementData, lang.Statement, extra_classes=STATEMENT_CLASS_BY_TYPE.values()
+)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
 
@@ -591,6 +622,15 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             order_key=statement.order_key,
             type=statement.type,
             name=statement.name,
+            heading_level=statement.heading_level,
+            text=statement.text,
+            tag=statement.tag,
+            key=statement.key,
+            flags=statement.flags,
+            code=statement.code,
+            value=statement.value,
+            versioned=statement.versioned,
+            reference_ck=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
@@ -604,7 +644,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         parent: lang.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
-        cls = lang.Blank if statement.type == StatementType.BLANK else lang.Statement
+        cls = STATEMENT_CLASS_BY_TYPE[statement.type]
         return cls(
             id=statement.id,
             ck=statement.ck,
@@ -614,6 +654,15 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             order_key=statement.order_key,
             type=statement.type,
             name=statement.name,
+            heading_level=statement.heading_level,
+            text=statement.text,
+            tag=statement.tag or cls.tag,
+            key=statement.key,
+            flags=statement.flags or cls.flags,
+            code=statement.code,
+            value=statement.value,
+            versioned=statement.versioned,
+            reference=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
             updated_at=statement.updated_at,
@@ -624,406 +673,16 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
 
     def recover(self, statement: lang.Statement, tree: ModuleTree):
         statement.children = tree.get_descendants(statement.id, lang.Statement)
-
-
-class BlankData(StatementData):
-    pass  # it's blank
-
-
-@node_packer(MNT.Statement, BlankData, lang.Blank)
-class BlankPacker(StatementPacker, NodePacker[BlankData, lang.Blank]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Blank) -> "BlankData":
-        statement_data = super().pack(symbol)
-        return BlankData(**statement_data.__dict__)
-
-    def unpack(
-        self, statement: BlankData, parent: lang.Statement | lang.File, session: Optional[Session]
-    ) -> lang.Blank:
-        statement = super().unpack(statement, parent, session)
-        return lang.Blank(**statement.__dict__)
-
-
-@dataclass
-class TextData(StatementData):
-    heading_level: Optional[TextHeadingLevel]
-    text: str
-
-
-@node_packer(MNT.Statement, TextData, lang.Text)
-class TextPacker(StatementPacker, NodePacker[TextData, lang.Text]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Text) -> "TextData":
-        statement_data = super().pack(symbol)
-        return TextData(
-            **statement_data.__dict__, text=symbol.text, heading_level=symbol.heading_level
-        )
-
-    def unpack(
-        self, symbol: TextData, parent: lang.Statement | lang.File, session: Optional[Session]
-    ) -> lang.Text:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Text(**statement.__dict__, text=symbol.text, heading_level=symbol.heading_level)
-
-    def patch(self, symbol: TextData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class ReferenceData(StatementData):
-    text: Optional[str]
-    reference_ck: Optional[UUID]
-
-
-@node_packer(MNT.Statement, ReferenceData, lang.Reference)
-class ReferencePacker(StatementPacker, NodePacker[ReferenceData, lang.Reference]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Reference) -> "ReferenceData":
-        statement_data = super().pack(symbol)
-        return ReferenceData(
-            **statement_data.__dict__, text=symbol.text, reference_ck=symbol.reference_ck
-        )
-
-    def unpack(
-        self,
-        symbol: ReferenceData,
-        parent: lang.Statement | lang.File,
-        session: Optional[Session],
-    ) -> lang.Reference:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Reference(**statement.__dict__, text=symbol.text, reference=symbol.reference_ck)
-
-    def recover(self, statement: lang.Reference, tree: ModuleTree):
-        statement.tags = tree.get_descendants(statement.id, lang.Tag)
-        statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
-
-    def patch(self, symbol: ReferenceData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-        symbol.reference_ck = target_cks.get(symbol.reference_ck, symbol.reference_ck)
-
-
-@dataclass
-class TypeData(StatementData):
-    tag: Optional[TypeTag]
-    key: Optional[str]
-    flags: Optional[TypeFlag]
-    text: Optional[str]
-
-
-@node_packer(MNT.Statement, TypeData, lang.Type)
-class TypePacker(StatementPacker, NodePacker[TypeData, lang.Type]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Type) -> "TypeData":
-        statement_data = super().pack(symbol)
-        return TypeData(
-            **statement_data.__dict__,
-            key=symbol.key,
-            text=symbol.text,
-            tag=symbol.tag,
-            flags=symbol.flags,
-        )
-
-    def unpack(
-        self, symbol: TypeData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Type:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Type(
-            **statement.__dict__,
-            key=symbol.key,
-            text=symbol.text,
-            tag=symbol.tag,
-            flags=symbol.flags,
-            fields=[],
-            tags=[],
-        )
-
-    def recover(self, symbol: lang.Type, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-
-    def patch(self, symbol: TypeData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class TagData(StatementData):
-    text: Optional[str]
-    key: str
-
-
-@node_packer(MNT.Statement, TagData, lang.Tag)
-class TagPacker(StatementPacker, NodePacker[TagData, lang.Tag]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Tag) -> "TagData":
-        statement_data = super().pack(symbol)
-        return TagData(
-            **statement_data.__dict__,
-            text=symbol.text,
-            key=symbol.key,
-        )
-
-    def unpack(
-        self, symbol: TagData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Tag:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Tag(
-            **statement.__dict__,
-            text=symbol.text,
-            key=symbol.key,
-            fields=[],
-            tags=[],
-        )
-
-    def recover(self, symbol: lang.Tag, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-
-    def patch(self, symbol: TagData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class TaskData(StatementData):
-    text: Optional[str]
-
-
-@node_packer(MNT.Statement, TaskData, lang.Task)
-class TaskPacker(StatementPacker, NodePacker[TaskData, lang.Task]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Task) -> "TaskData":
-        statement_data = super().pack(symbol)
-        return TaskData(
-            **statement_data.__dict__,
-            text=symbol.text,
-        )
-
-    def unpack(
-        self, symbol: TaskData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Task:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Task(
-            **statement.__dict__,
-            text=symbol.text,
-            fields=[],
-            tags=[],
-        )
-
-    def recover(self, symbol: lang.Task, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
-
-    def patch(self, symbol: TaskData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class CodeData(StatementData):
-    text: Optional[str]
-    code: Optional[str]
-
-
-@node_packer(MNT.Statement, CodeData, lang.Code)
-class CodePacker(StatementPacker, NodePacker[CodeData, lang.Code]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Code) -> "CodeData":
-        statement_data = super().pack(symbol)
-        return CodeData(**statement_data.__dict__, text=symbol.text, code=symbol.code)
-
-    def unpack(
-        self, symbol: CodeData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Code:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Code(
-            **statement.__dict__,
-            fields=[],
-            tags=[],
-            text=symbol.text,
-            code=symbol.code,
-        )
-
-    def recover(self, symbol: lang.Code, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
-
-    def patch(self, symbol: CodeData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class FlowData(StatementData):
-    text: Optional[str]
-
-
-@node_packer(MNT.Statement, FlowData, lang.Flow)
-class FlowPacker(StatementPacker, NodePacker[FlowData, lang.Flow]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Flow) -> "FlowData":
-        statement_data = super().pack(symbol)
-        return FlowData(**statement_data.__dict__, text=symbol.text)
-
-    def unpack(
-        self, symbol: FlowData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Flow:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Flow(**statement.__dict__, text=symbol.text, fields=[], tags=[])
-
-    def recover(self, symbol: lang.Flow, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-        symbol.triggers = tree.get_descendants(symbol.id, lang.Trigger)
-
-    def patch(self, symbol: FlowData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class ModelData(StatementData):
-    external_name: Optional[str]
-    text: Optional[str]
-
-
-@node_packer(MNT.Statement, ModelData, lang.Model)
-class ModelPacker(StatementPacker, NodePacker[ModelData, lang.Model]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Model) -> "ModelData":
-        statement_data = super().pack(symbol)
-        return ModelData(
-            **statement_data.__dict__, external_name=symbol.external_name, text=symbol.text
-        )
-
-    def unpack(
-        self, symbol: ModelData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Model:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Model(
-            **statement.__dict__,
-            external_name=symbol.external_name,
-            text=symbol.text,
-            fields=[],
-            tags=[],
-        )
-
-    def recover(self, symbol: lang.Variable, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-
-    def patch(self, symbol: ModelData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class VariableData(StatementData):
-    text: Optional[str]
-    value: Optional[typing.Any]
-
-
-@node_packer(MNT.Statement, VariableData, lang.Variable)
-class VariablePacker(StatementPacker, NodePacker[VariableData, lang.Variable]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Variable) -> "VariableData":
-        statement_data = super().pack(symbol)
-        return VariableData(**statement_data.__dict__, text=symbol.text, value=symbol._raw_value())
-
-    def unpack(
-        self, symbol: VariableData, parent: lang.File | lang.Statement, session: Optional[Session]
-    ) -> lang.Variable:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Variable(
-            **statement.__dict__,
-            text=symbol.text,
-            value=symbol.value,
-            _instantiated=False,
-        )
-
-    def recover(self, symbol: lang.Variable, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-
-    def patch(self, symbol: VariableData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-@dataclass
-class DatasetData(StatementData):
-    text: Optional[str]
-    versioned: bool
-
-
-@node_packer(MNT.Statement, DatasetData, lang.Dataset)
-class DatasetPacker(StatementPacker, NodePacker[DatasetData, lang.Dataset]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
-
-    def pack(self, symbol: lang.Dataset) -> "DatasetData":
-        statement_data = super().pack(symbol)
-        return DatasetData(**statement_data.__dict__, text=symbol.text, versioned=symbol.versioned)
-
-    def unpack(
-        self, symbol: DatasetData, parent: lang.Statement, session: Optional[Session]
-    ) -> lang.Dataset:
-        statement = super().unpack(symbol, parent, session)
-        return lang.Dataset(
-            **statement.__dict__,
-            text=symbol.text,
-            versioned=symbol.versioned,
-            fields=[],
-            tags=[],
-        )
-
-    def recover(self, symbol: lang.Dataset, tree: ModuleTree):
-        super().recover(symbol, tree)
-        symbol.fields = tree.get_descendants(symbol.id, lang.Field)
-        symbol.tags = tree.get_descendants(symbol.id, lang.Tagging)
-
-    def patch(self, symbol: DatasetData, target_cks: dict[UUID, UUID]) -> None:
-        super().patch(symbol, target_cks)
-        symbol.text = patch_text_html(symbol.text, target_cks)
-
-
-STATEMENT_DATA_CLASS_BY_TYPE: dict[StatementType, NodeData] = {
-    StatementType.BLANK: BlankData,
-    StatementType.TEXT: TextData,
-    StatementType.TAG: TagData,
-    StatementType.TYPE: TypeData,
-    StatementType.FLOW: FlowData,
-    StatementType.TASK: TaskData,
-    StatementType.CODE: CodeData,
-    StatementType.MODEL: ModelData,
-    StatementType.DATASET: DatasetData,
-    StatementType.VARIABLE: VariableData,
-    StatementType.REFERENCE: ReferenceData,
-}
-STATEMENT_TYPE_BY_DATA_CLASS = {v: k for k, v in STATEMENT_DATA_CLASS_BY_TYPE.items()}
-# assert that all statement types are covered
-_missing_statement_types = set(StatementType) - set(STATEMENT_DATA_CLASS_BY_TYPE.keys())
-assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
+        if isinstance(statement, lang.HasTags):
+            statement.tags = tree.get_descendants(statement.id, lang.Tagging)
+        if isinstance(statement, lang.IsFlowNode):
+            statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
+        if isinstance(statement, lang.HasType):
+            statement.fields = tree.get_descendants(statement.id, lang.Field)
+
+    def patch(self, statement: StatementData, target_cks: dict[UUID, UUID]) -> None:
+        statement.reference_ck = target_cks.get(statement.reference_ck, statement.reference_ck)
+        statement.text = patch_text_html(statement.text, target_cks)
 
 
 @dataclass
