@@ -217,10 +217,10 @@ async def run_task(
             step = await root_model.compiler.run(root_model, compiled)
             if step.runnable is None:
                 # done, terminate
-                check_type(step.result_raw, task, is_output=True)
                 output = unpack_value(
                     step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
                 )
+                check_type(output, task, is_output=True)
                 return DotDict(output)
 
             # runnable to call

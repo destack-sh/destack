@@ -906,6 +906,7 @@ class StaticPyTypeMapper(TypeMapper):
     py_type: type
     py_type_raw: type = field(init=False)
     tag: TypeTag
+    alt_py_types: list[type] = field(default_factory=list)
     hint: Optional[TypeHint] = None
 
     def __post_init__(self):
@@ -913,15 +914,18 @@ class StaticPyTypeMapper(TypeMapper):
         # strip newtype
         if hasattr(self.py_type, "__supertype__"):
             self.py_type_raw = self.py_type.__supertype__
+        self._all_py_types = (self.py_type_raw,) + tuple(self.alt_py_types or [])
 
     def is_instance_type(self, py_type: type) -> bool:
-        return py_type == self.py_type
+        return py_type == self.py_type or (
+            self.alt_py_types is not None and py_type in self.alt_py_types
+        )
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(name=None, tag=self.tag, hint=self.hint)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, self.py_type_raw)
+        return isinstance(value, self._all_py_types)
 
     def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
@@ -1267,8 +1271,10 @@ def pack_value(
 
 # type tags
 register_mapper(StaticPyTypeMapper(str, TypeTag.STRING), tags=[TypeTag.STRING])
-register_mapper(StaticPyTypeMapper(Key, TypeTag.STRING, TypeHint.KEY), hints=[TypeHint.KEY])
-register_mapper(StaticPyTypeMapper(float, TypeTag.NUMBER), tags=[TypeTag.NUMBER])
+register_mapper(StaticPyTypeMapper(Key, TypeTag.STRING, hint=TypeHint.KEY), hints=[TypeHint.KEY])
+register_mapper(
+    StaticPyTypeMapper(float, TypeTag.NUMBER, alt_py_types=[int]), tags=[TypeTag.NUMBER]
+)
 register_mapper(StaticPyTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
@@ -1278,10 +1284,14 @@ register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])
 register_mapper(JsonTypeMapper(), tags=[TypeTag.JSON])
 # type hints
-register_mapper(StringifyTypeMapping(UUID, TypeTag.STRING, TypeHint.UUID), hints=[TypeHint.UUID])
+register_mapper(
+    StringifyTypeMapping(UUID, TypeTag.STRING, hint=TypeHint.UUID), hints=[TypeHint.UUID]
+)
 register_mapper(IsoDtTypeMapping(date, TypeTag.STRING), hints=[TypeHint.DATE])
 register_mapper(IsoDtTypeMapping(datetime, TypeTag.STRING), hints=[TypeHint.DATETIME])
 register_mapper(IsoDtTypeMapping(time, TypeTag.STRING), hints=[TypeHint.TIME])
-register_mapper(StaticPyTypeMapper(int, TypeTag.NUMBER, TypeHint.INTEGER), hints=[TypeHint.INTEGER])
+register_mapper(
+    StaticPyTypeMapper(int, TypeTag.NUMBER, hint=TypeHint.INTEGER), hints=[TypeHint.INTEGER]
+)
 # other
 register_mapper(SecretTypeMapper(), tags=[TypeTag.STRING, TypeTag.NUMBER], flags=TypeFlag.IsSecret)
