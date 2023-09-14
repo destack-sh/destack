@@ -17,7 +17,7 @@ from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.session import Run, RunError, RunErrorKind
 from bench.language.tag import HasTags
-from bench.language.type import HasType, instantiate_value
+from bench.language.type import HasType, check_type, instantiate_value
 from bench.language.utils import Runnable
 from bench.utils.utils import DotDict
 
@@ -105,7 +105,7 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
         self._randomize = self.has_tag(randomize_tag)
 
-        if not self.inputs or not self.outputs:
+        if not self.outputs:
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
@@ -205,7 +205,7 @@ async def run_task(
     task: Task, root_models: list[Model], view: ModuleView, inputs: dict, nonce: Optional[str]
 ) -> dict:
     num_retries_total = 0
-    root_model = root_models[0]  # TODO @Broken @Tass: select between multiple root models
+    root_model = root_models[0]  # TODO @Broken @Tass: auto-select between multiple root models
 
     previous_results = []
     while num_retries_total < 5:
@@ -217,6 +217,7 @@ async def run_task(
             step = await root_model.compiler.run(root_model, compiled)
             if step.runnable is None:
                 # done, terminate
+                check_type(step.result_raw, task, is_output=True)
                 output = instantiate_value(
                     step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
                 )

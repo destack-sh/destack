@@ -185,6 +185,7 @@ class ModuleNode(abc.ABC):
     id: UUID = field(default=None)
     ck: UUID = field(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = None
+    # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
     revision: int = 0
     mnt: typing.ClassVar[MNT]  # set in @node decorator
 

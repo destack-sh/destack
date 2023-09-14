@@ -1044,10 +1044,7 @@ class SecretTypeMapper(TypeMapper):
         return isinstance(value, Secret)
 
     def to_instance_value(self, type: TypeBase, value: Any) -> Any:
-        return Secret(
-            id=UUID(value["id"]),
-            sha512=value["sha512"],
-        )
+        return Secret(id=UUID(value["id"]), sha512=value["sha512"])
 
     def to_flat_value(self, type: TypeBase, value: Any) -> Any:
         return {

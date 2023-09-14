@@ -213,6 +213,7 @@ async function insertStatementStart() {
   const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
   const orderKey = generateKeyBetween(null, firstRootOk);
   ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
+  nextTick(() => context.value?.statementsComponents[newStatement.id]?.focus());
 }
 
 async function insertStatementEnd() {
@@ -225,6 +226,7 @@ async function insertStatementEnd() {
   const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
   const orderKey = generateKeyBetween(lastRootOk, null);
   ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
+  nextTick(() => context.value?.statementsComponents[newStatement.id]?.focus());
 }
 
 async function insertOrFocusStatementStart() {

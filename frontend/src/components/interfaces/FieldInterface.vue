@@ -412,7 +412,7 @@ defineExpose({
             @enter-right="close(false), emit('enter')"
           />
           <!-- Text placeholder -->
-          <span v-if="!hasText" class="text-gray-400" @click="textRef?.focus">Add {{ tupleName }} text</span>
+          <span v-if="!hasText" class="text-gray-400" @click="textRef?.focus">Describe {{ tupleName }} with text</span>
         </span>
         <!-- Actions -->
         <div class="mt-0.5 flex flex-col" v-if="actions.length > 0">

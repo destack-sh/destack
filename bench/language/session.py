@@ -201,6 +201,14 @@ class Run:
     def cached_in(self, value: Optional[UUID]):
         self.set_metadata(RunMetadata.cached_in, value)
 
+    @property
+    def test(self) -> Optional[bool]:
+        return self.get_metadata(RunMetadata.test)
+
+    @test.setter
+    def test(self, value: Optional[bool]):
+        self.set_metadata(RunMetadata.test, value)
+
 
 _IGNORED_PACKAGE_PREFIXES = [
     "bench.runtime",

@@ -48,7 +48,6 @@ from bench.language.type import (
     Type,
     TypeBase,
     Vector,
-    check_type,
     map_value,
     new_field_key,
     strip_value_flat,
@@ -559,7 +558,9 @@ class OpenAIChatCompiler(TaskCompiler):
         ]
 
         # relevant functions
-        available_functions = [f for f in view.nodes if isinstance(f, Code)]
+        available_functions = [
+            f for f in view.nodes if isinstance(f, Code) and f.inputs and f.outputs
+        ]
         user_function_prefix = "_"
         user_functions_by_name: dict[str, Runnable] = {
             user_function_prefix + f.py_ident: f for f in available_functions
@@ -621,11 +622,7 @@ class OpenAIChatCompiler(TaskCompiler):
         if rep.function_call.name == "panic":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
         elif rep.function_call.name == "complete":
-            try:
-                check_type(arguments, input.task, is_output=True)
-                return TaskOutput(result_raw=arguments)
-            except (ValueError, TypeError) as e:
-                raise TaskError.from_exception(e, model)
+            return TaskOutput(result_raw=arguments)
 
         # handle other function calls
         if rep.function_call.name not in input.runnables_by_name:

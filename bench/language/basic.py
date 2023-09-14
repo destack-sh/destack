@@ -52,6 +52,10 @@ class HasText(HasIssues):
             raise ValueError(f"{self} is not interpreted")
         return self._text_spans
 
+    @property
+    def mentions(self) -> list["TextMention"]:
+        return [span for span in self.text_spans if isinstance(span, TextMention)]
+
     def _clear(self) -> None:
         self._text_spans = None
 
