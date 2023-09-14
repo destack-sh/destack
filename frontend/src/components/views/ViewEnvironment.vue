@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import ViewSection from "@/components/views/ViewSection.vue";
+import ViewSectionGroup from "@/components/views/ViewSectionGroup.vue";
 import { humanizeNumber, useTimeFromNow } from "@/composables/useNow";
 import { useActiveScroll } from "@/composables/useScroll";
 import { graphql } from "@/gql";
@@ -121,119 +123,113 @@ const statusIconSolid = computed(() =>
 );
 </script>
 <template>
-  <div class="flex flex-col">
-    <!-- View header -->
-    <div
-      class="flex h-[31px] flex-row items-center justify-between px-3 py-2"
-      :style="{
-        height: appearance.panelHeaderHeight + 'px',
-      }"
-    >
-      <span class="text-xs font-semibold tracking-wide text-gray-500">Environment</span>
-      <div v-if="loading">
-        <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
-      </div>
-    </div>
+  <ViewSectionGroup :focused="props.focused" @show="emit('show')" @blur="emit('blur')">
     <!-- Environment -->
-    <div
-      class="mt-0.5 flex flex-col gap-y-1.5 pl-3 pr-5 text-sm"
-      v-if="environment != null && resourcesInfo != null && workerSet != null && projectUsage != null"
+    <ViewSection
+      title="Enviroment"
+      :index="0"
+      :loading="environment == null || resourcesInfo == null || workerSet == null || projectUsage == null"
     >
-      <!-- Status/actions -->
-      <div class="flex flex-row items-center justify-between">
-        <!-- Status -->
-        <div class="flex flex-row items-center">
-          <component
-            :is="statusIconSolid"
-            class="mr-1.5 h-4 w-4"
-            :class="[
-              WORKER_STATUS_COLOR[workerSet.status].includes('gray')
-                ? 'text-gray-400'
-                : WORKER_STATUS_COLOR[workerSet.status],
-              statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '',
-            ]"
-          />
-          <span
-            class="mr-1.5 whitespace-nowrap font-semibold"
-            :class="
-              WORKER_STATUS_COLOR[workerSet.status].includes('gray')
-                ? 'text-gray-900'
-                : WORKER_STATUS_COLOR[workerSet.status]
-            "
-          >
-            {{
-              WORKER_STATUS_TITLE[
-                session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
-              ]
-            }}
-          </span>
-        </div>
-        <!-- Idle / actions -->
-        <div class="flex flex-row items-center whitespace-nowrap">
-          <button
-            v-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
-            class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
-            @click="session.restartWorkerSet()"
-            :class="[
-              session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700',
-              !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
-            ]"
-            :disabled="session.restarting.value || !bench.canUse"
-          >
-            <PowerIcon class="mr-1 h-4 w-4" />
-            {{ session.restarting.value ? "Restarting..." : "Restart" }}
-          </button>
-          <button
-            v-else-if="workerSet.status == WorkerSetStatus.Sleeping"
-            class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
-            @click="session.wakeWorkerSet()"
-            :class="[
-              session.waking.value ? 'animate-pulse' : 'hover:bg-orange-100 hover:text-gray-700',
-              !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
-            ]"
-            :disabled="session.waking.value || !bench.canUse"
-          >
-            <PowerIcon class="mr-1 h-4 w-4" />
-            {{ session.waking.value ? "Waking..." : "Wake" }}
-          </button>
-        </div>
-      </div>
-      <!-- Profile -->
-      <div class="flex flex-row items-center justify-between">
-        <div class="flex flex-row items-center">
-          <ServerStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
-          <span class="whitespace-nowrap font-semibold text-gray-900">
-            <span>{{ workerSet.desiredReplicas }}x {{ resourcesInfo.name }}</span>
-          </span>
-          <ChevronDownIcon class="ml-1 h-4 w-4 text-gray-400" />
-        </div>
-        <div class="ml-1.5 inline font-normal text-gray-500">
-          {{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB
-        </div>
-      </div>
-      <!-- Records / files -->
-      <div class="flex flex-row items-center justify-between">
-        <div class="flex flex-row items-center">
-          <CircleStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
-          <span class="whitespace-nowrap font-semibold text-gray-900">
-            <span>{{ humanizeNumber(maxRecordsActive) }}</span>
-            <span class="ml-1 font-normal text-gray-500"
-              >{{ getNicePercentage(projectUsage.recordsActive, maxRecordsActive) }}%</span
+      <div
+        class="flex flex-col gap-y-1.5 pl-3 pr-5 text-sm"
+        v-if="environment != null && resourcesInfo != null && workerSet != null && projectUsage != null"
+      >
+        <!-- Status/actions -->
+        <div class="flex flex-row items-center justify-between">
+          <!-- Status -->
+          <div class="flex flex-row items-center">
+            <component
+              :is="statusIconSolid"
+              class="mr-1.5 h-4 w-4"
+              :class="[
+                WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                  ? 'text-gray-400'
+                  : WORKER_STATUS_COLOR[workerSet.status],
+                statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '',
+              ]"
+            />
+            <span
+              class="mr-1.5 whitespace-nowrap font-semibold"
+              :class="
+                WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                  ? 'text-gray-900'
+                  : WORKER_STATUS_COLOR[workerSet.status]
+              "
             >
-          </span>
-        </div>
-        <div class="flex flex-row items-center">
-          <DocumentIcon class="mr-1.5 h-4 w-4 text-gray-400" />
-          <span class="whitespace-nowrap font-semibold text-gray-900">
-            <span>{{ humanizeBytes(maxObjectsBytesTotal) }}</span>
-            <span class="ml-1 font-normal text-gray-500"
-              >{{ getNicePercentage(projectUsage.objectsBytesTotal, maxObjectsBytesTotal) }}%</span
+              {{
+                WORKER_STATUS_TITLE[
+                  session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
+                ]
+              }}
+            </span>
+          </div>
+          <!-- Idle / actions -->
+          <div class="flex flex-row items-center whitespace-nowrap">
+            <button
+              v-if="workerSet.status == WorkerSetStatus.Healthy || workerSet.status == WorkerSetStatus.Unhealthy"
+              class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
+              @click="session.restartWorkerSet()"
+              :class="[
+                session.restarting.value ? 'animate-pulse' : ' hover:bg-orange-100 hover:text-gray-700',
+                !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
+              ]"
+              :disabled="session.restarting.value || !bench.canUse"
             >
-          </span>
+              <PowerIcon class="mr-1 h-4 w-4" />
+              {{ session.restarting.value ? "Restarting..." : "Restart" }}
+            </button>
+            <button
+              v-else-if="workerSet.status == WorkerSetStatus.Sleeping"
+              class="flex flex-row items-center rounded-sm px-0.5 text-gray-500"
+              @click="session.wakeWorkerSet()"
+              :class="[
+                session.waking.value ? 'animate-pulse' : 'hover:bg-orange-100 hover:text-gray-700',
+                !bench.canUse ? 'cursor-not-allowed opacity-50' : '',
+              ]"
+              :disabled="session.waking.value || !bench.canUse"
+            >
+              <PowerIcon class="mr-1 h-4 w-4" />
+              {{ session.waking.value ? "Waking..." : "Wake" }}
+            </button>
+          </div>
         </div>
-      </div>
-      <!-- Retention / cache -->
-      <div class="flex flex-row items-center justify-between">
+        <!-- Profile -->
+        <div class="flex flex-row items-center justify-between">
+          <div class="flex flex-row items-center">
+            <ServerStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+            <span class="whitespace-nowrap font-semibold text-gray-900">
+              <span>{{ workerSet.desiredReplicas }}x {{ resourcesInfo.name }}</span>
+            </span>
+            <ChevronDownIcon class="ml-1 h-4 w-4 text-gray-400" />
+          </div>
+          <div class="ml-1.5 inline font-normal text-gray-500">
+            {{ resourcesInfo.cpu }}vCPU + {{ resourcesInfo.mem }}GB
+          </div>
+        </div>
+        <!-- Records / files -->
+        <div class="flex flex-row items-center justify-between">
+          <div class="flex flex-row items-center">
+            <CircleStackIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+            <span class="whitespace-nowrap font-semibold text-gray-900">
+              <span>{{ humanizeNumber(maxRecordsActive) }}</span>
+              <span class="ml-1 font-normal text-gray-500"
+                >{{ getNicePercentage(projectUsage.recordsActive, maxRecordsActive) }}%</span
+              >
+            </span>
+          </div>
+          <div class="flex flex-row items-center">
+            <DocumentIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+            <span class="whitespace-nowrap font-semibold text-gray-900">
+              <span>{{ humanizeBytes(maxObjectsBytesTotal) }}</span>
+              <span class="ml-1 font-normal text-gray-500"
+                >{{ getNicePercentage(projectUsage.objectsBytesTotal, maxObjectsBytesTotal) }}%</span
+              >
+            </span>
+          </div>
+        </div>
+        <!-- Retention / cache -->
+        <!-- (too much info for now) -->
+        <!-- <div class="flex flex-row items-center justify-between">
         <div class="flex flex-row items-center">
           <BoltIcon class="mr-1.5 h-4 w-4 text-gray-400" />
           <span class="whitespace-nowrap font-semibold text-gray-900">
@@ -249,38 +245,27 @@ const statusIconSolid = computed(() =>
             <span>15d</span>
           </span>
         </div>
+      </div> -->
+        <!-- Runtime -->
+        <div class="flex max-w-full flex-row items-center justify-between">
+          <span class="flex flex-shrink-0 flex-row items-center">
+            <CodeBracketSquareIcon class="mr-1.5 h-4 w-4 text-gray-400" />
+            <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
+          </span>
+          <span class="ml-2 max-w-full truncate whitespace-nowrap text-gray-500">{{ environment.platform }}</span>
+        </div>
+        <!-- TODO @UX: view actual nodes, latency and resource usage here -->
+        <!-- maybe also show object storage usage, total records, etc.? -->
       </div>
-      <!-- Runtime -->
-      <div class="flex max-w-full flex-row items-center justify-between">
-        <span class="flex flex-shrink-0 flex-row items-center">
-          <CodeBracketSquareIcon class="mr-1.5 h-4 w-4 text-gray-400" />
-          <span class="whitespace-nowrap font-semibold text-gray-900">Python {{ environment.version }}</span>
-        </span>
-        <span class="ml-2 max-w-full truncate whitespace-nowrap text-gray-500">{{ environment.platform }}</span>
-      </div>
-      <!-- TODO @UX: view actual nodes, latency and resource usage here -->
-      <!-- maybe also show object storage usage, total records, etc.? -->
-    </div>
+    </ViewSection>
     <!-- Packages -->
-    <div class="relative mt-4 w-full flex-1 text-sm" v-if="environment != null">
-      <span class="px-3 text-xs font-semibold tracking-wide text-gray-500">Packages</span>
-      <!-- Hacky way to make packages list fit the remaining space -->
-      <div
-        class="relative mt-1 w-full"
-        :style="{
-          // max height - header height
-          height: 'calc(100% - ' + appearance.panelHeaderHeight + 'px)',
-        }"
-      >
-        <div class="absolute left-0 top-0 h-full w-full overflow-y-scroll" ref="packagesTableRef">
-          <div class="flex max-w-full flex-col gap-y-1 px-3">
-            <div v-for="pkg in environment.packages" :key="pkg.name" class="flex flex-row justify-between">
-              <span class="max-w-full truncate whitespace-nowrap text-gray-900 hover:min-w-fit">{{ pkg.name }}</span>
-              <span class="flex-shrink-0 text-right text-gray-500">{{ pkg.version }}</span>
-            </div>
-          </div>
+    <ViewSection title="Packages" :index="1" :loading="environment == null">
+      <div class="flex max-w-full flex-col gap-y-1 px-3 text-sm">
+        <div v-for="pkg in environment?.packages" :key="pkg.name" class="flex flex-row justify-between">
+          <span class="max-w-full truncate whitespace-nowrap text-gray-900 hover:min-w-fit">{{ pkg.name }}</span>
+          <span class="flex-shrink-0 text-right text-gray-500">{{ pkg.version }}</span>
         </div>
       </div>
-    </div>
-  </div>
+    </ViewSection>
+  </ViewSectionGroup>
 </template>
