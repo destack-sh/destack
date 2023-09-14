@@ -39,6 +39,10 @@ class Runnable(abc.ABC):
         else:
             return CacheSync(self.module, subkey=self.ck.hex)
 
+    @property
+    def current_run(self):
+        return self.module.session.current_run
+
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
 

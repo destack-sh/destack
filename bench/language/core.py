@@ -1077,7 +1077,7 @@ class Session:
 
     @property
     def current_run(self) -> "Run":
-        return self.tracer.run.current_frame
+        return self.tracer.run.current_run
 
     @property
     def is_open(self) -> bool:
