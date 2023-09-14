@@ -130,6 +130,8 @@ export function useFields(statement: Ref<Statement>) {
   });
   const inputs = computed(() => allFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
   const outputs = computed(() => allFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
+  const selfInputs = computed(() => selfFields.value.filter((n) => !(n.flags & TypeFlag.IsOutput)));
+  const selfOutputs = computed(() => selfFields.value.filter((n) => n.flags & TypeFlag.IsOutput));
 
   function _createField(field: Field) {
     ops.symbol.createField(null, statement.value.id, {
@@ -258,6 +260,8 @@ export function useFields(statement: Ref<Statement>) {
     inheritedFields,
     inputs,
     outputs,
+    selfInputs,
+    selfOutputs,
     baseTypes,
     createNewField,
     createUnionField,

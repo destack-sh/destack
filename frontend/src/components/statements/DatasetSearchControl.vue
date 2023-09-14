@@ -55,7 +55,7 @@ defineExpose({
   <div class="inline-flex flex-row">
     <button
       tabindex="-1"
-      class="mb-0.5 rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+      class="rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
       @click="() => toggleInlineSearch()"
     >
       <MagnifyingGlassIcon class="h-4 w-4" />
