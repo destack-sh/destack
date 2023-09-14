@@ -119,6 +119,12 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", node_t=Tag))
 
     @cached_property
+    def _is_test(self) -> bool:
+        from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
+
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.test", node_t=Tag))
+
+    @cached_property
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 
@@ -194,6 +200,10 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             "ximport": self._import_sync if not self._parse.is_async else self._import_async,
         }
         locals = {**STATIC_BUILTINS, **dynamic_context}
+        if self._is_test:  # very crude initial test support
+            import pytest
+
+            locals["pytest"] = pytest
         return locals
 
     def _prep_func_body(self) -> tuple[str, int, int]:

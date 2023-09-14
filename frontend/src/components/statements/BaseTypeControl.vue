@@ -91,7 +91,7 @@ defineExpose({
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
-      <CubeTransparentIcon class="mr-0.5 mt-0.5 h-4 w-4 text-orange-600" />
+      <CubeTransparentIcon class="mr-1 mt-0.5 h-4 w-4 text-fuchsia-900" />
       <span>{{ resolvedBaseTypes[i]?.name ?? "???" }}</span>
     </button>
     <!-- Create/edit popup right next to bases -->
