@@ -25,7 +25,7 @@ const emit = defineEmits<StatementEmit>();
 const ops = useOperations();
 
 const fieldsX = useFields(toRef(props, "statement"));
-const { inputs, outputs, fields, selfFields, inheritedFields } = fieldsX;
+const { selfInputs: inputs, selfOutputs: outputs, fields, selfFields, inheritedFields } = fieldsX;
 
 type ColumnType = "type";
 const columnsInOrder: Ref<ColumnType[]> = ref(["type"] as ColumnType[]);

@@ -136,7 +136,7 @@ defineExpose({
     <button
       v-if="bench.canUse && STATEMENT_RUNNABLE_TYPES.includes(statement.type)"
       ref="runButtonRef"
-      class="ml-0.5 rounded-sm p-[1px] text-orange-600 hover:bg-orange-100"
+      class="ml-0.5 rounded-sm p-[1px] text-orange-600 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
       @click="emit('run')"
       @keydown.enter.prevent="emit('run')"
       @keydown.left.prevent="nameRef?.focus('last')"
