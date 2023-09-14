@@ -101,7 +101,7 @@ async function completeSignup() {
         <h3 class="font-mono text-2xl font-bold">Bench</h3>
       </div>
       <h1 class="mt-4 text-5xl font-bold">Welcome</h1>
-      <p class="mt-4 text-lg text-orange-700">Build an amazing bot.</p>
+      <p class="mt-4 text-lg text-orange-700">Build that awesome bot.</p>
 
       <!-- Fields to complete -->
       <div class="mt-10 flex flex-col gap-4">

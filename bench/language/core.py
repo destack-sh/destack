@@ -2,6 +2,7 @@ import abc
 import asyncio
 import contextvars
 import enum
+import itertools
 import re
 import typing
 import uuid
@@ -504,6 +505,10 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     def py_ident(self) -> str:
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
+    @property
+    def all_statements(self):
+        return itertools.chain.from_iterable(file.statements for file in self.files)
+
     def _visit(self, visitor: ModuleVisitor) -> None:
         for file in self._files_by_parent_id.get(self.id, []):
             visitor.visit_child(file)
@@ -555,6 +560,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         file = File(name=name, parent=self, module=self)
         file._assign_id(self.id)
         self.files.append(file)
+        self.files.sort(key=lambda f: f.name)
         file._index()
         return file
 
@@ -567,6 +573,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
         file.parent = self
         file._index()
         self.files.append(file)
+        self.files.sort(key=lambda f: f.name)
         self._on_added(file)
 
     def get_file(self, name: str) -> "File":
@@ -619,6 +626,7 @@ class Module(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
             self._nodes_by_id.update(dependency._nodes_by_id)
             self._nodes_by_ck.update(dependency._nodes_by_ck)
         self._files_by_parent_id = defaultdict(list)
+        self.files.sort(key=lambda f: f.name)
         for file in self.files:
             self._files_by_parent_id[file.parent_id].append(file)
             file._index()

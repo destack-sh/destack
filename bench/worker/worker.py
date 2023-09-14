@@ -19,7 +19,7 @@ from bench.language.core import (
 )
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import Run, RunError, RunErrorKind, RunStatus
-from bench.language.type import instantiate_value_flat, map_value
+from bench.language.type import map_value, unpack_value_flat
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (
@@ -470,7 +470,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 job.run_data.inputs,
                 runnable,
                 map_k=lambda f: (f.typed_key, f.py_ident),
-                map_v=instantiate_value_flat,
+                map_v=unpack_value_flat,
                 is_output=False,
             )
 

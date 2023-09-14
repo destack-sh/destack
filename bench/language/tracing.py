@@ -17,7 +17,7 @@ from bench.language.core import MNT, ModuleOp, Session, Statement
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
 from bench.language.session import LogEntry, Run, RunError
-from bench.language.type import TypeBase, check_type, map_value, strip_value, strip_value_flat
+from bench.language.type import TypeBase, check_type, map_value, pack_value, pack_value_flat
 from bench.language.utils import Runnable
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
@@ -163,7 +163,7 @@ class LogCollector:
         self.module_id = session.module.id
 
     def _track(self, message: str) -> None:
-        active_run = _active_run.get()
+        active_run = _active_run_by_root.get()
         if active_run:
             runnable = active_run.runnable
             run = active_run
@@ -334,10 +334,36 @@ class SessionTracer(Tracer):
             tracer.run_cached(statement, inputs, outputs, generated_at, generated_in, duration)
 
 
-_active_run: ContextVar[Run | None] = ContextVar("_active_run", default=None)
+# We track the active root in a contextvar but not children
+#  because they may be in different contexts, and we cannot reset across contexts.
+# This will need to be expanded when we get to parallel runs.
+_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
+_active_run_by_root: dict[UUID, Run] = {}
 
 
-def _strip_and_truncate_run_value(
+def _get_active_run() -> Run | None:
+    root = _active_root_run.get()
+    if root is not None:
+        return _active_run_by_root[root.id]
+    return None
+
+
+def _clear_active_run(run: Run):
+    root = run.root or run
+    if root.id in _active_run_by_root:
+        del _active_run_by_root[root.id]
+    if _active_root_run.get() == root:
+        _active_root_run.set(None)
+
+
+def _set_active_run(run: Run):
+    root = run.root or run
+    _active_run_by_root[root.id] = run
+    if _active_root_run.get() is None:
+        _active_root_run.set(root)
+
+
+def _pack_and_truncate_value(
     value: Any,
     type: TypeBase,
     ignore_array: bool = False,
@@ -358,7 +384,7 @@ def _strip_and_truncate_run_value(
         value=value,
         type=type,
         map_k=lambda f: (f.py_ident, f.typed_key),
-        map_v=strip_value_flat,
+        map_v=pack_value_flat,
         premap_v=_truncate_value,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
@@ -376,7 +402,6 @@ class RunTracer(Tracer):
         self.stacktrace = []
         self._track = track
         self.runs = {}
-        self._cvar_tokens: dict[UUID, Any] = {}
 
     def __str__(self):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
@@ -385,30 +410,30 @@ class RunTracer(Tracer):
         return f"<RunTracer {self}>"
 
     @property
-    def current_frame(self) -> Optional[Run]:
+    def current_run(self) -> Optional[Run]:
         if self.stacktrace:
             return self.stacktrace[-1]
         return None
 
-    def track(self, frame: Run):
-        self.runs[frame.id] = frame
-        self._track(frame)
+    def track(self, run: Run):
+        self.runs[run.id] = run
+        self._track(run)
 
     def pop_stacktrace(self) -> Run:
-        frame = self.stacktrace.pop()
+        run = self.stacktrace.pop()
         # update cached info in parent(s)
-        if frame.cached_at is not None:
+        if run.cached_at is not None:
             self._update_cached_info()
-        return frame
+        return run
 
     def _update_cached_info(self):
-        for frame in self.stacktrace:
-            frame.cached_at = min(f.cached_at for f in frame.walk_descendants() if f.cached_at)
-            frame.cached_duration = sum(
-                f.cached_duration for f in frame.walk_descendants() if f.cached_duration
+        for run in self.stacktrace:
+            run.cached_at = min(f.cached_at for f in run.walk_descendants() if f.cached_at)
+            run.cached_duration = sum(
+                f.cached_duration for f in run.walk_descendants() if f.cached_duration
             )
 
-    def _create_frame(
+    def _create_run(
         self,
         runnable: Optional[Code | Task | Model] = None,
         inputs: dict[str, Any] | None = None,
@@ -417,9 +442,10 @@ class RunTracer(Tracer):
         trigger_type: TriggerType | None = None,
         trigger: Trigger | UUID | None = None,
     ):
-        if trace and _active_run.get() is not None:
-            root = _active_run.get().root or _active_run.get()
-            parent = _active_run.get()
+        active_run = _get_active_run()
+        if trace and active_run is not None:
+            root = active_run.root or active_run
+            parent = active_run
         else:
             root = None
             parent = None
@@ -430,7 +456,7 @@ class RunTracer(Tracer):
             # (this will be wrong once we process other triggers within a session)
             trigger_type = self.session.ctx.trigger_type
             trigger = self.session.ctx.trigger_id
-        frame = Run(
+        run = Run(
             id=self.session.ctx.first_run_id if root is None else UUIDT(),
             module=self.session.module,
             runnable=runnable,
@@ -448,39 +474,37 @@ class RunTracer(Tracer):
             metadata=None,
         )
         if queue_position is not None:
-            frame.queue_position = queue_position
+            run.queue_position = queue_position
         if parent is not None:
-            parent.children.append(frame)
-        return frame
+            parent.children.append(run)
+        return run
 
     def run_enter(self, statement: Runnable, inputs):
-        frame = self._create_frame(
-            runnable=statement, inputs=strip_value(inputs, statement, is_output=False)
+        run = self._create_run(
+            runnable=statement, inputs=pack_value(inputs, statement, is_output=False)
         )
-        self.stacktrace.append(frame)
-        self._cvar_tokens[frame.id] = _active_run.set(frame)
-        self.track(frame)  # tracker may mutate/do other things, so log after it's run
-        logger.debug("trace.run.enter", frame=frame, stackdepth=len(self.stacktrace))
+        self.stacktrace.append(run)
+        _set_active_run(run)
+        self.track(run)  # tracker may mutate/do other things, so log after it's run
+        logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
 
     def run_exit(self, statement: Runnable, outputs):
-        frame = self.pop_stacktrace()
-        frame.terminated_at = utcnow_with_tz()
-        frame.outputs = _strip_and_truncate_run_value(outputs, statement, is_output=True)
-        frame._update_status()
-        self.track(frame)
-        if _active_run.get() is frame:
-            _active_run.reset(self._cvar_tokens.pop(frame.id))
-        logger.debug("trace.run.exit", frame=frame, stackdepth=len(self.stacktrace))
+        run = self.pop_stacktrace()
+        run.terminated_at = utcnow_with_tz()
+        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run._update_status()
+        self.track(run)
+        _clear_active_run(run)
+        logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
     def run_exception(self, statement: Runnable, exception: Exception):
-        frame = self.pop_stacktrace()
-        frame.terminated_at = utcnow_with_tz()
-        frame.error = RunError.from_exception(exception, statement)
-        frame._update_status()
-        self.track(frame)
-        if _active_run.get() is frame:
-            _active_run.reset(self._cvar_tokens.pop(frame.id))
-        logger.debug("trace.run.exception", frame=frame, stackdepth=len(self.stacktrace))
+        run = self.pop_stacktrace()
+        run.terminated_at = utcnow_with_tz()
+        run.error = RunError.from_exception(exception, statement)
+        run._update_status()
+        self.track(run)
+        _clear_active_run(run)
+        logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
 
     def run_cached(
         self,
@@ -491,17 +515,17 @@ class RunTracer(Tracer):
         generated_in: UUID,
         duration: float,
     ):
-        frame = self._create_frame(runnable=statement, trace=True)
-        frame.terminated_at = utcnow_with_tz()
-        frame.cached_at = generated_at
-        frame.cached_in = generated_in
-        frame.cached_duration = duration
-        frame.inputs = _strip_and_truncate_run_value(inputs, statement, is_output=False)
-        frame.outputs = _strip_and_truncate_run_value(outputs, statement, is_output=True)
-        frame._update_status()
-        self.track(frame)
+        run = self._create_run(runnable=statement, trace=True)
+        run.terminated_at = utcnow_with_tz()
+        run.cached_at = generated_at
+        run.cached_in = generated_in
+        run.cached_duration = duration
+        run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
+        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run._update_status()
+        self.track(run)
         self._update_cached_info()
-        logger.debug("trace.run.cached", frame=frame, stackdepth=len(self.stacktrace))
+        logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     @contextlib.contextmanager
     def capture(self) -> list[Run]:
