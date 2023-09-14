@@ -17,7 +17,7 @@ from bench.language.model import Model
 from bench.language.reflect import reflect_struct
 from bench.language.session import Run, RunError, RunErrorKind
 from bench.language.tag import HasTags
-from bench.language.type import HasType, check_type, instantiate_value
+from bench.language.type import HasType, check_type, unpack_value
 from bench.language.utils import Runnable
 from bench.utils.utils import DotDict
 
@@ -71,8 +71,8 @@ class LimitExceededError(TaskError):
         super().__init__(TaskErrorType.ExceededLimit, message, path)
 
 
-@reflect_struct("TaskMetadata", "Default metadata of a task", return_type=True)
-class TaskMetadata:
+@reflect_struct("TaskRunMetadata", "Default metadata of a task run", return_type=True)
+class TaskRunMetadata:
     retries: Optional[int]
     retry: Optional[int]
     batch_size: Optional[int]
@@ -218,13 +218,13 @@ async def run_task(
             if step.runnable is None:
                 # done, terminate
                 check_type(step.result_raw, task, is_output=True)
-                output = instantiate_value(
+                output = unpack_value(
                     step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
                 )
                 return DotDict(output)
 
             # runnable to call
-            inputs = instantiate_value(step.result_raw, step.runnable, is_output=False)
+            inputs = unpack_value(step.result_raw, step.runnable, is_output=False)
         except Exception as e:
             previous_results.append(TaskError.from_exception(e))
             continue

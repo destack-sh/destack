@@ -50,7 +50,7 @@ from bench.language.type import (
     Vector,
     map_value,
     new_field_key,
-    strip_value_flat,
+    pack_value_flat,
 )
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
@@ -421,7 +421,7 @@ class OpenAIChatCompiler(TaskCompiler):
         if type.effective_tag == TypeTag.ENUM:
             return type.get_field(value).name
         else:
-            return strip_value_flat(value, type, *args, **kwargs)
+            return pack_value_flat(value, type, *args, **kwargs)
 
     def _render_text(self, text: HasText) -> str:
         if text.text is None:

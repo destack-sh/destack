@@ -17,13 +17,13 @@ import structlog
 from more_itertools import first, last
 
 from bench.language.basic import HasText
-from bench.language.const import TypeTag
+from bench.language.const import StatementType, TypeTag
 from bench.language.core import IssueType, LookupBy, ModuleVisitor, NodePath, Scope, Statement, node
 from bench.language.flow import IsFlowNode
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.tag import HasTags, Tag
-from bench.language.type import HasType, check_type, instantiate_value, strip_value
+from bench.language.type import HasType, check_type, pack_value, unpack_value
 from bench.language.utils import Runnable, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
@@ -119,7 +119,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", node_t=Tag))
 
     @cached_property
-    def _is_test(self) -> bool:
+    def is_test(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
         return self.has_tag(symbolx_lib.lookup_or_error(".builtins.test", node_t=Tag))
@@ -131,7 +131,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
     def _get_cached_output(self, inputs: dict, cached_run: bytes) -> Optional[dict]:
         try:
             run = CachedRun.from_json_bytes(cached_run)
-            outputs = instantiate_value(run.outputs, self, ignore_outer_map=True, is_output=True)
+            outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
             check_type(outputs, self, is_output=True)
             self.session.tracer.run_cached(self, inputs, outputs, run.generated_at, run.duration)
             return DotDict(outputs)
@@ -199,11 +199,20 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             "self": self,
             "ximport": self._import_sync if not self._parse.is_async else self._import_async,
         }
-        locals = {**STATIC_BUILTINS, **dynamic_context}
-        if self._is_test:  # very crude initial test support
+
+        import bench.language
+
+        imports = {
+            # everything from bench.language
+            **{k: v for k, v in bench.language.__dict__.items() if not k.startswith("_")},
+        }
+
+        if self.is_test:  # very crude initial test support
             import pytest
 
-            locals["pytest"] = pytest
+            imports["pytest"] = pytest
+
+        locals = {**imports, **STATIC_BUILTINS, **dynamic_context}
         return locals
 
     def _prep_func_body(self) -> tuple[str, int, int]:
@@ -274,7 +283,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         def _wrapped_sync(*args, **kwargs):
             inputs = self._inputs_from_args(args, kwargs)
-            inputs_raw = strip_value(inputs, self, is_output=False)
+            inputs_raw = pack_value(inputs, self, is_output=False)
             cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
@@ -282,14 +291,14 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
                 return cached_output
             started_at = utcnow_with_tz()
             result = callable(*args, **kwargs)
-            outputs_raw = strip_value(result, self, is_output=True)
+            outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             self.cache.set(cache_subkey, run_bytes)
 
         async def _wrapped_async(*args, **kwargs):
             # yes this is annoyingly duplicated...
             inputs = self._inputs_from_args(args, kwargs)
-            inputs_raw = strip_value(inputs, self, is_output=False)
+            inputs_raw = pack_value(inputs, self, is_output=False)
             cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = await self.cache.get(cache_subkey)
             cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
@@ -297,7 +306,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
                 return cached_output
             started_at = utcnow_with_tz()
             result = await callable(*args, **kwargs)
-            outputs_raw = strip_value(result, self, is_output=True)
+            outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             await self.cache.set(cache_subkey, run_bytes)
 

@@ -7,7 +7,7 @@ from bench.language.basic import BENCH_UUID_NAMESPACE
 from bench.language.builtin import symbolx_lib
 from bench.language.const import TypeTag
 from bench.language.core import File
-from bench.language.type import instantiate_value, strip_value, type_from_instance_type
+from bench.language.type import pack_value, type_from_instance_type, unpack_value
 
 
 def _derive_constant_key(path: str) -> UUID:
@@ -51,8 +51,8 @@ def x_struct(
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
         cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
         cls.__contains__ = lambda self, key: hasattr(self, key) and getattr(self, key) is not None
-        cls.instantiate_from = lambda value: instantiate_value(value, bench_type)
-        cls.strip = lambda self: strip_value(self, bench_type)
+        cls.instantiate_from = lambda value: unpack_value(value, bench_type)
+        cls.strip = lambda self: pack_value(self, bench_type)
 
         if return_type:
             return bench_type

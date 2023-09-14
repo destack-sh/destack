@@ -61,7 +61,9 @@ class TypeError(TypeError):
         max_value_str_len = 400
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
-        super().__init__(f"{message or 'type mismatch'}: expected {expected}, got {value_str}")
+        super().__init__(
+            f"{message or 'type mismatch'}: expected {expected}, got {value_str} ({type(value)})"
+        )
         self.value = value
         self.expected = expected
         self.message = message
@@ -465,7 +467,7 @@ class HasType(TypeBase, StatementBase):
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
         for input_t, input in zip(self.inputs, args):
-            inputs[input_t.name] = input
+            inputs[input_t.py_ident] = input
         return inputs
 
     def _take_fields_from(self, other: "HasType", reset_id: bool) -> list[Field]:
@@ -805,12 +807,12 @@ class TypeMapper:
         """
         raise NotImplementedError
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
-        """Converts a value of the given flat type into an instance value."""
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+        """Converts and coerces a raw flat value of the type into an instance value."""
         return value
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
-        """Converts a value of the given flat type into a flat value."""
+    def pack_value(self, type: TypeBase, value: Any) -> Any:
+        """Converts a value of the given instance type back into a flat value."""
         return value
 
 
@@ -921,7 +923,7 @@ class StaticPyTypeMapper(TypeMapper):
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return isinstance(value, self.py_type_raw)
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
 
@@ -940,10 +942,10 @@ class StringifyTypeMapping(StaticPyTypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return self.py_type == py_type
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return self.py_type(value)
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> str:
+    def pack_value(self, type: TypeBase, value: Any) -> str:
         return str(value)
 
 
@@ -959,13 +961,15 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
             issubclass(py_type, t) for t in self.HINT_BY_PY_TYPE
         )
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
-        return self.py_type.fromisoformat(value)
-
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
         return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> str:
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+        if isinstance(value, self.py_type):
+            return value
+        return self.py_type.fromisoformat(value)
+
+    def pack_value(self, type: TypeBase, value: Any) -> str:
         return value.isoformat()
 
 
@@ -986,17 +990,13 @@ class EnumMapper(TypeMapper):
         return type
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        if isinstance(value, str):
-            # allow string values for built-in enums
-            # (that also function as regular enums in code)
-            return type.has_field(value)
         return isinstance(value, Field) and type.has_field(value.key)
 
-    def to_instance_value(self, type: Type, value: Any) -> Any:
+    def unpack_value(self, type: Type, value: Any) -> Any:
         field_ = type.get_field(value)
         return field_.name if field_ else value
 
-    def to_flat_value(self, type: Type, value: Any) -> Any:
+    def pack_value(self, type: Type, value: Any) -> Any:
         field_ = type.get_field(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
@@ -1011,7 +1011,7 @@ class FileMapper(TypeMapper):
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return isinstance(value, RemoteObject)
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return RemoteObject(
             id=UUID(value["id"]),
             name=value["name"],
@@ -1021,7 +1021,7 @@ class FileMapper(TypeMapper):
             status=RemoteObjectStatus[value["status"]],
         )
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
             "id": str(value.id),
@@ -1043,10 +1043,10 @@ class SecretTypeMapper(TypeMapper):
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return isinstance(value, Secret)
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return Secret(id=UUID(value["id"]), sha512=value["sha512"])
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: TypeBase, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: SECRET_TYPENAME,
             "id": str(value.id),
@@ -1079,10 +1079,10 @@ class StructTypeMapper(TypeMapper):
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return isinstance(value, dict) or dataclasses.is_dataclass(value)
 
-    def to_instance_value(self, type: TypeBase, value: Any) -> Any:
-        return DotDict(value)
+    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+        return DotDict(value) if not isinstance(value, DotDict) else value
 
-    def to_flat_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: TypeBase, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
 
 
@@ -1183,7 +1183,7 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
         return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
-def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
+def unpack_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
     """Maps to the proper Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
@@ -1192,25 +1192,25 @@ def instantiate_value_flat(value: Any, type: TypeBase, ignore_array: bool = Fals
     try:
         if type.flags & TypeFlag.IsArrayable:  # keep as is
             if not isinstance(value, list):
-                return mapping.to_instance_value(type, value)
+                return mapping.unpack_value(type, value)
             else:
-                return [mapping.to_instance_value(type, v) for v in value]
+                return [mapping.unpack_value(type, v) for v in value]
         elif type.flags & TypeFlag.IsArray and not ignore_array:  # promote to array
             if not isinstance(value, list):
                 value = [value]
             else:
-                return [mapping.to_instance_value(type, v) for v in value]
+                return [mapping.unpack_value(type, v) for v in value]
         else:  # trim to element
             if isinstance(value, list):
                 value = value[0]
             else:
-                return mapping.to_instance_value(type, value)
+                return mapping.unpack_value(type, value)
     except (KeyError, ValueError, TypeError):
         logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
         return value  # type checking is done elsewhere
 
 
-def strip_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+def pack_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
     """Maps back to the raw value from the Python representation."""
     # we don't auto-coerce here since that's only needed for external data
     if value is None:
@@ -1218,10 +1218,10 @@ def strip_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
     mapping = get_type_mapper_by_type(type)
     if not mapping.is_instance_value(type, value):
         return None  # type-checking is done elsewhere
-    return mapping.to_flat_value(type, value)
+    return mapping.pack_value(type, value)
 
 
-def instantiate_value(
+def unpack_value(
     value: Any,
     type: HasType,
     ignore_array: bool = False,
@@ -1229,18 +1229,19 @@ def instantiate_value(
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
+    """Unpacks/deserializes the given value into a Python/Bench representation."""
     return map_value(
         value=value,
         type=type,
         map_k=map_k or (lambda f: (f.typed_key, f.py_ident)),
-        map_v=instantiate_value_flat,
+        map_v=unpack_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
     )
 
 
-def strip_value(
+def pack_value(
     value: Any,
     type: HasType,
     ignore_array: bool = False,
@@ -1248,11 +1249,12 @@ def strip_value(
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
+    """Packs/serializes the given value into a JSON-able representation."""
     return map_value(
         value=value,
         type=type,
         map_k=map_k or (lambda f: (f.py_ident, f.typed_key)),
-        map_v=strip_value_flat,
+        map_v=pack_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
