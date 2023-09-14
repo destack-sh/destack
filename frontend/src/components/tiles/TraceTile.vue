@@ -219,7 +219,7 @@ function openRun(run: Run) {
           :is="getRunStatusIconSolid(node.run.status)"
           class="h-4 w-4 flex-shrink-0"
           :class="[
-            node.run.status == RunStatus.Running || node.run.status == RunStatus.Queued ? 'animate-spin' : '',
+            getRunStatusIconSolid(node.run.status) == BusySpinnerIcon ? 'animate-spin' : '',
             getRunStatusColor(node.run.status),
           ]"
         />

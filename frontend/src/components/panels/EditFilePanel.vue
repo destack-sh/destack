@@ -18,7 +18,14 @@ import {
 } from "@/state/bench";
 import { provideFileState, type FileState, type NavigationContext } from "@/state/file";
 import { FileHeaderType, StatementContentType } from "@/state/fragments";
-import { useCurrentModule, type Statement, mergeNodePaths, newNodeIdentity, getNodeIdFromCk } from "@/state/module";
+import {
+  useCurrentModule,
+  type Statement,
+  mergeNodePaths,
+  newNodeIdentity,
+  getNodeIdFromCk,
+  orderStatements,
+} from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
@@ -29,6 +36,7 @@ import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 import { useNotifications } from "@/state/notifications";
+import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 
 const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -201,7 +209,22 @@ function restore() {
 async function insertStatementStart() {
   if (fileHeader.value == null) return;
   bench.focusFile(fileHeader.value);
-  actions.apply("statement.insertStart");
+  const firstRootOk = context.value?.statementsByParentId[fileState.value?.file.id][0]?.orderKey ?? INTEGER_ZERO;
+  const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
+  const orderKey = generateKeyBetween(null, firstRootOk);
+  ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
+}
+
+async function insertStatementEnd() {
+  if (fileHeader.value == null) return;
+  bench.focusFile(fileHeader.value);
+  const lastRootOk =
+    context.value?.statementsByParentId[fileState.value?.file.id][
+      context.value?.statementsByParentId[fileState.value?.file.id].length - 1
+    ]?.orderKey ?? INTEGER_ZERO;
+  const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
+  const orderKey = generateKeyBetween(lastRootOk, null);
+  ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
 }
 
 async function insertOrFocusStatementStart() {
@@ -223,7 +246,7 @@ async function insertOrFocusStatementEnd() {
     panel.value.editElement(lastStatement.statement as NavElement);
     return;
   } else {
-    actions.apply("statement.insertEnd");
+    insertStatementEnd();
   }
 }
 
