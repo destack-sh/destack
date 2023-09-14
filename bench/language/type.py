@@ -990,6 +990,10 @@ class EnumMapper(TypeMapper):
         return type
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+        if isinstance(value, str):
+            # allow string values for built-in enums
+            # (that also function as regular enums in code)
+            return type.has_field(value)
         return isinstance(value, Field) and type.has_field(value.key)
 
     def unpack_value(self, type: Type, value: Any) -> Any:

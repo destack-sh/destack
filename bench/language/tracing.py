@@ -163,7 +163,7 @@ class LogCollector:
         self.module_id = session.module.id
 
     def _track(self, message: str) -> None:
-        active_run = _active_run_by_root.get()
+        active_run = _get_active_run()
         if active_run:
             runnable = active_run.runnable
             run = active_run
@@ -334,35 +334,6 @@ class SessionTracer(Tracer):
             tracer.run_cached(statement, inputs, outputs, generated_at, generated_in, duration)
 
 
-# We track the active root in a contextvar but not children
-#  because they may be in different contexts, and we cannot reset across contexts.
-# This will need to be expanded when we get to parallel runs.
-_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
-_active_run_by_root: dict[UUID, Run] = {}
-
-
-def _get_active_run() -> Run | None:
-    root = _active_root_run.get()
-    if root is not None:
-        return _active_run_by_root[root.id]
-    return None
-
-
-def _clear_active_run(run: Run):
-    root = run.root or run
-    if root.id in _active_run_by_root:
-        del _active_run_by_root[root.id]
-    if _active_root_run.get() == root:
-        _active_root_run.set(None)
-
-
-def _set_active_run(run: Run):
-    root = run.root or run
-    _active_run_by_root[root.id] = run
-    if _active_root_run.get() is None:
-        _active_root_run.set(root)
-
-
 def _pack_and_truncate_value(
     value: Any,
     type: TypeBase,
@@ -390,6 +361,38 @@ def _pack_and_truncate_value(
         ignore_outer_map=ignore_outer_map,
         is_output=is_output,
     )
+
+
+# We track the active root in a contextvar but not children
+#  because they may be in different contexts, and we cannot reset across contexts.
+# This will need to be expanded when we get to parallel runs.
+_active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
+_active_run_by_root: dict[UUID, Run] = {}
+
+
+def _get_active_run() -> Run | None:
+    root = _active_root_run.get()
+    if root is not None:
+        return _active_run_by_root[root.id]
+    return None
+
+
+def _clear_active_run(run: Run):
+    root = run.root or run
+    if root.id in _active_run_by_root:
+        if run.parent is None:
+            del _active_run_by_root[root.id]
+        else:
+            _active_run_by_root[root.id] = run.parent
+    if _active_root_run.get() == run:
+        _active_root_run.set(None)
+
+
+def _set_active_run(run: Run):
+    root = run.root or run
+    _active_run_by_root[root.id] = run
+    if _active_root_run.get() is None:
+        _active_root_run.set(root)
 
 
 class RunTracer(Tracer):
