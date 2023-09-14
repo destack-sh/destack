@@ -200,7 +200,7 @@ def duplicate_versioned_datasets(
     duplicate_target_ids = {}
     duplicate_target_cks = {}
     for statement in copy.nodes_by_id.values():
-        if not isinstance(statement, wire.DatasetData) or not statement.versioned:
+        if statement.type != StatementType.DATASET or not statement.versioned:
             continue
         source_id = copy.target_ids_reversed[statement.id]
         duplicate_target_ids[source_id] = statement.id

@@ -26,9 +26,10 @@ from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_all_caps, to_pyidentifier
 
 if typing.TYPE_CHECKING:
+    from bench.language.basic import TextHeadingLevel
     from bench.language.mutate import ModuleMutation, ModuleMutator
     from bench.language.session import LogEntry, Run
-    from bench.language.type import Field
+    from bench.language.type import Field, TypeFlag, TypeTag
     from bench.language.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
@@ -799,6 +800,16 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
     type: StatementType = required_field()  # set by subclasses
     name: Optional[str] = None
     issues: list[Issue] | None = None
+    # content
+    reference: Union["Statement", StatementReference, None] = None
+    heading_level: Optional["TextHeadingLevel"] = None
+    text: str | None = None
+    key: str | None = None
+    tag: Optional["TypeTag"] = None
+    flags: Optional["TypeFlag"] = 0
+    code: str | None = None
+    value: typing.Any | None = None
+    versioned: bool | None = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -812,6 +823,15 @@ class Statement(ModuleNode, HasCrud, HasSession, HasIssues, Scope):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self}>"
+
+    @property
+    def reference_ck(self) -> Optional[UUID]:
+        if isinstance(self.reference, Statement):
+            return self.reference.ck
+        elif isinstance(self.reference, UUID):
+            return self.reference
+        else:
+            return None
 
     @property
     def module(self) -> Optional[Module]:

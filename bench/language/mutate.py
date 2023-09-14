@@ -9,7 +9,6 @@ from functools import cached_property
 from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
-from bench.language.const import StatementType
 from bench.language.core import Module, ModuleNode, ModuleNodeType
 from bench.language.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
@@ -290,7 +289,6 @@ class ModuleMutation:
     # really annoyingly manual until we get a proper :WireFormat
 
     _data__mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
-    _data_statement__type: Optional[StatementType] = None  # discriminator for 'union'
     _data: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
@@ -303,9 +301,7 @@ class ModuleMutation:
 
         _data = data.get("_data")
         if _data is not None:
-            _data_cls = wire.BASE_DATA_CLASS_BY_MNT[data["_data__mnt"]]
-            if data.get("_data_statement__type") is not None:
-                _data_cls = wire.STATEMENT_DATA_CLASS_BY_TYPE[data["_data_statement__type"]]
+            _data_cls = wire.DATA_CLASS_BY_MNT[data["_data__mnt"]]
             _data = from_dict(_data_cls, _data)
         return {"_data": _data}
 
@@ -318,10 +314,6 @@ class ModuleMutation:
         from bench.language import wire
 
         self._data__mnt = wire.MNT_BY_DATA_CLASS[type(value)]
-        if type(value) in wire.STATEMENT_TYPE_BY_DATA_CLASS:
-            # map to _symbol_<type>
-            statement_type = wire.STATEMENT_TYPE_BY_DATA_CLASS[type(value)]
-            self._data_statement__type = statement_type
         self._data = value
 
     @property
@@ -451,7 +443,7 @@ class ModuleMutator:
         return self
 
     def apply(self, mut: ModuleMutation):
-        from bench.language.wire import BASE_DATA_CLASS_BY_MNT
+        from bench.language.wire import DATA_CLASS_BY_MNT
 
         if mut.type.kind == MMK.CREATE:
             self.tree.add(mut.data)
@@ -460,7 +452,7 @@ class ModuleMutator:
         elif mut.type.kind == MMK.DELETE:
             self.tree.remove(mut.data)
         elif mut.type.kind == MMK.TRUNCATE:
-            self.tree.truncate(mut.data, BASE_DATA_CLASS_BY_MNT[mut.mnt])
+            self.tree.truncate(mut.data, DATA_CLASS_BY_MNT[mut.mnt])
         else:
             raise ValueError(f"unexpected mutation kind {mut}")
 

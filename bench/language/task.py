@@ -217,6 +217,7 @@ async def run_task(
             step = await root_model.compiler.run(root_model, compiled)
             if step.runnable is None:
                 # done, terminate
+                # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
                 output = unpack_value(
                     step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
                 )

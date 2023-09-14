@@ -114,7 +114,7 @@ class Flow(HasType, HasFlow, HasTags, HasText, Statement):
     """An orchestrated flow of triggered runs."""
 
     tag: TypeTag = TypeTag.FUNCTION
-    type: StatementType = StatementType.CODE
+    type: StatementType = StatementType.FLOW
     _is_async: bool = False
 
     def _clear(self) -> None:

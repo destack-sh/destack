@@ -3,7 +3,7 @@ from .code_ import Code
 from .const import DatasetViewLayout, ScheduleType, StatementType, TriggerType, TypeHint, TypeTag
 from .core import File, Module, Scope, Session, Statement
 from .dataset import Dataset, DatasetView, Record, Variable
-from .flow import Flow, HasFlow, Trigger
+from .flow import Flow, HasFlow, IsFlowNode, Trigger
 from .issue import Issue, IssueType
 from .model import Model
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
@@ -25,6 +25,7 @@ __all__ = [
     "File",
     "Flow",
     "HasFlow",
+    "IsFlowNode",
     "HasTags",
     "HasType",
     "HasText",

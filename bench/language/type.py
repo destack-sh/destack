@@ -296,6 +296,7 @@ class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
     tag: TypeTag = required_field()
     hint: Optional[TypeHint] = None
     order_key: str = INTEGER_ZERO
+    text: Optional[str] = None
     key: str = field(default=None)
     flags: TypeFlag = TypeFlag(0)
     metadata: dict[str, Any] = None
@@ -396,7 +397,6 @@ class HasType(TypeBase, StatementBase):
 
     def _clear(self) -> None:
         self.resolved_fields = None
-        self._fields_by_ident = None
         for f in self.fields:
             f._clear()
 
@@ -586,8 +586,8 @@ from bench.language.tag import HasTags  # noqa
 @node
 class Type(HasType, HasText, HasTags, Statement):
     tag: TypeTag = required_field()
-    flags: TypeFlag = TypeFlag(0)
-    # not directly configurable for types
+    flags: TypeFlag = TypeFlag.Zero
+    # not directly configurable for type statements
     hint = None
     reference = None
 

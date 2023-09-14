@@ -451,7 +451,7 @@ class Variable(HasType, HasTags, HasText, Statement):
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
     value: Any = field(default_factory=dict)
-    _instantiated: bool = True
+    _instantiated: bool = False  # when should we set this?
 
     def _clear(self) -> None:
         Statement._clear(self)
@@ -531,6 +531,7 @@ class Variable(HasType, HasTags, HasText, Statement):
         if key in self._PROPERTIES:
             super().__setattr__(key, value)
         else:
+            assert self.value is not None, f"cannot set {key} on {self} without value"
             self.value[key] = value
 
     def __getitem__(self, item):
