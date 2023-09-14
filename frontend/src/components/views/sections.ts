@@ -54,14 +54,12 @@ export function provideViewSectionGroup(containerRef: Ref<HTMLDivElement | null>
 
       // init
       let spareBodyHeight = 0;
-      let totalBodyHeight = 0;
       Object.keys(sections).forEach((k) => {
         const idx = parseInt(k);
         const section = sections[idx];
         targetBodyHeights[idx] = availableHeight / numSections; // no grow/shrink for now
         actualBodyHeights[idx] = section.sectionBodySize.value?.height ?? 0;
         newBodyHeights[idx] = Math.max(section.minHeight ?? 0, targetBodyHeights[idx]); // init with max(minHeight, targetHeight)
-        totalBodyHeight += actualBodyHeights[idx];
         if (actualBodyHeights[idx] < targetBodyHeights[idx]) {
           spareBodyHeight += targetBodyHeights[idx] - actualBodyHeights[idx];
         }
