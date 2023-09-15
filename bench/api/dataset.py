@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
@@ -12,7 +11,7 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_node_access
-from bench.api.sync import BatchMutationInput, tracked_os_mutation
+from bench.api.sync import BatchMutationInput, tracked_db_mutation
 from bench.api.type import MMT
 from bench.api.utils import (
     HasCrud,
@@ -28,16 +27,14 @@ from bench.models import ModuleAccessLevel
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
-from bench.opensearch.index import batch_update_records, create_record, delete_record, update_record
 from bench.opensearch.query import encode_cursor, prepare_search
 from bench.utils.dt import utcnow_with_tz
 
 
-@strawberry.type
+@strawberry_django.type(models.Record)
 class Record(HasCrud, Revisioned):
     id: GlobalID
     ck: UUID
-    order_key: Optional[str]
     value: JSON
 
     @staticmethod
@@ -45,7 +42,6 @@ class Record(HasCrud, Revisioned):
         return Record(
             id=to_global_id("Record", record.id),
             ck=record.ck,
-            order_key=record.order_key,
             value=record.value,
             revision=record.revision,
             created_at=record.created_at,
@@ -81,7 +77,7 @@ class RecordInput:
 class RecordCreateInput(RecordInput, strawberry_django.NodeInput):
     ck: UUID
     value: JSON
-    order_key: Optional[str] = None
+    statement_ck: UUID
 
 
 @strawberry.input
@@ -93,11 +89,6 @@ class RecordUpdateInput(RecordInput, strawberry_django.NodeInput):
 class RecordUpdatePathInput(RecordInput, strawberry_django.NodeInput):
     path: str
     value: Optional[JSON] = None
-
-
-@strawberry.input
-class RecordMoveInput(RecordInput, strawberry_django.NodeInput):
-    order_key: Optional[str] = None
 
 
 @strawberry.input
@@ -126,141 +117,60 @@ class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
         return [RecordRestoreInput(statement_id=self.statement_id, id=i) for i in self.ids]
 
 
-def _prep_write_dataset(
-    info: Info, input: RecordInput
-) -> tuple[datetime, models.ProjectVersion, models.Statement]:
-    statement = models.Statement.objects.get(id=input.statement_id.node_id)
-    check_module_node_access(info, statement, ModuleAccessLevel.Edit)
-    return utcnow_with_tz(), statement.project_version, statement
-
-
 @strawberry.type
 class DatasetMutation:
-    @tracked_os_mutation(MMT.CREATE_RECORD)
-    def create_record(self, info: Info, input: RecordCreateInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        record = mirror.Record(
+    @tracked_db_mutation(MMT.CREATE_RECORD)
+    def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
+        record = models.Record(
             id=UUID(input.id.node_id),
             ck=input.ck,
-            project_version_id=project_v.id,
-            statement_id=statement.id,
-            statement_ck=statement.ck,
-            created_at=now,
-            created_by_id=None,  # not handled yet
-            updated_at=now,
-            deleted_at=None,
-            last_edited_at=now,
-            last_edited_by_id=None,  # not handled yet
-            order_key=input.order_key,
+            statement_id=UUID(input.statement_id.node_id),
+            statement_ck=input.statement_ck,
             value=input.value,
-            revision=None,  # not set yet
         )
-        record = create_record(project_v, record)
-        return project_v, statement, record  # noqa (will be unwrapped)
+        return record
 
-    @tracked_os_mutation(MMT.UPDATE_RECORD)
-    def update_record(self, info: Info, input: RecordUpdateInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        record = mirror.Record.Partial(
-            id=UUID(input.id.node_id),
-            project_version_id=project_v.id,
-            statement_id=statement.id,
-            statement_ck=statement.ck,
-            value=input.value,
-            updated_at=now,
-            last_edited_at=now,
-        )
-        record = update_record(project_v, record)
-        return project_v, statement, record  # noqa
+    @tracked_db_mutation(MMT.UPDATE_RECORD)
+    def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=UUID(input.id.node_id))
+        record.value = input.value
+        return record
 
-    @tracked_os_mutation(MMT.MOVE_RECORD)
-    def move_record(self, info: Info, input: RecordMoveInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        record = mirror.Record.Partial(
-            id=UUID(input.id.node_id),
-            project_version_id=project_v.id,
-            statement_id=statement.id,
-            statement_ck=statement.ck,
-            order_key=input.order_key,
-            updated_at=now,
-            last_edited_at=now,
-        )
-        record = update_record(project_v, record)
-        return project_v, statement, record  # noqa
+    @tracked_db_mutation(MMT.SOFT_DELETE_RECORD)
+    def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=UUID(input.id.node_id))
+        record.soft_delete()
+        return record
 
-    @tracked_os_mutation(MMT.SOFT_DELETE_RECORD)
-    def soft_delete_record(self, info: Info, input: RecordDeleteInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        record = mirror.Record.Partial(
-            id=UUID(input.id.node_id),
-            project_version_id=project_v.id,
-            statement_id=statement.id,
-            statement_ck=statement.ck,
-            deleted_at=now,
-            updated_at=now,
-        )
-        record = update_record(project_v, record)
-        return project_v, statement, record  # noqa
+    @tracked_db_mutation(MMT.RESTORE_RECORD)
+    def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
+        record = models.Record._base_manager.get(id=UUID(input.id.node_id))
+        record.restore()
+        return record
 
-    @tracked_os_mutation(MMT.RESTORE_RECORD)
-    def restore_record(self, info: Info, input: RecordRestoreInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        record = mirror.Record.Partial(
-            id=UUID(input.id.node_id),
-            project_version_id=project_v.id,
-            statement_id=statement.id,
-            statement_ck=statement.ck,
-            deleted_at="-",  # invalid value to set to null
-            updated_at=now,
-        )
-        record = update_record(project_v, record)
-        return project_v, statement, record  # noqa
+    @tracked_db_mutation(MMT.DELETE_RECORD)
+    def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
+        record = models.Record.objects.get(id=UUID(input.id.node_id))
+        record.delete()
+        return record
 
-    @tracked_os_mutation(MMT.DELETE_RECORD)
-    def delete_record(self, info: Info, input: RecordDeleteInput) -> Record | OperationInfo:
-        now, project_v, statement = _prep_write_dataset(info, input)
-        delete_record(project_v, UUID(input.id.node_id))
-        return project_v, statement, None  # noqa
-
-    @tracked_os_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
+    @tracked_db_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
     def batch_soft_delete_record(
-        self, info: Info, input: RecordBatchSoftDeleteInput
+        self, input: RecordBatchSoftDeleteInput
     ) -> RecordBatch | OperationInfo:
         # imitate soft_delete_record but for a batch
-        now, project_v, statement = _prep_write_dataset(info, input)
-        records = [
-            mirror.Record.Partial(
-                id=UUID(i.node_id),
-                project_version_id=project_v.id,
-                statement_id=statement.id,
-                statement_ck=statement.ck,
-                deleted_at=now,
-                updated_at=now,
-            )
-            for i in input.unbatch()
-        ]
-        records = batch_update_records(project_v, records)
-        return project_v, statement, records  # noqa
+        record_ids = [UUID(i.node_id) for i in input.ids]
+        deleted_at = utcnow_with_tz()
+        models.Record.objects.filter(id__in=record_ids).update(deleted_at=deleted_at)
+        records = models.Record._base_manager.filter(id__in=record_ids)
+        return RecordBatch(records=list(records))
 
-    @tracked_os_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
-    def batch_restore_record(
-        self, info: Info, input: RecordBatchRestoreInput
-    ) -> RecordBatch | OperationInfo:
-        # imitate restore_record but for a batch
-        now, project_v, statement = _prep_write_dataset(info, input)
-        records = [
-            mirror.Record.Partial(
-                id=UUID(i.node_id),
-                project_version_id=project_v.id,
-                statement_id=statement.id,
-                statement_ck=statement.ck,
-                deleted_at="-",  # invalid value to set to null
-                updated_at=now,
-            )
-            for i in input.unbatch()
-        ]
-        records = batch_update_records(project_v, records)
-        return project_v, statement, records  # noqa
+    @tracked_db_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
+    def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
+        record_ids = [UUID(i.node_id) for i in input.ids]
+        models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)
+        records = models.Record._base_manager.filter(id__in=record_ids)
+        return RecordBatch(records=list(records))
 
 
 RECORDS_LIMIT = 100
@@ -293,7 +203,6 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
             after=after,
             sort=[s.to_dsl() for s in sort] if sort else None,
             query=query,
-            version=True,
         )
 
         results = os_client.search(
@@ -303,7 +212,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
 
         edges = []
         for i, r in enumerate(results["hits"]["hits"][0:effective_limit]):
-            doc = mirror.Record.from_dict(r["_source"], r["_id"], r["_version"])
+            doc = mirror.Record.from_dict(r["_source"], r["_id"])
             node = Record.from_os(doc)
             cursor = encode_cursor(r, after, i)
             edge = relay.Edge(node=node, cursor=cursor)

@@ -163,12 +163,7 @@ def write_mutations_to_os(
     """
     global_index = IndexType.GLOBAL.get_index_name()
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
-    dataset_statements_by_id: dict[UUID, models.Statement] = {
-        statement.id: statement
-        for statement in models.Statement.objects.filter(
-            id__in={m.statement_id for m in mutations if m.mnt == MNT.Record}
-        )
-    }
+
     # mut state
     ops: list[dict] = []
     field_mappings_dirty: list[bool] = [False]  # for closure
@@ -197,34 +192,26 @@ def write_mutations_to_os(
         if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
             field_mappings_dirty[0] = True
 
-        # OS is the primary store for records
-        if m.mnt == MNT.Record:
-            if field_mappings_dirty[0]:
-                _flush()  # records may require previous field mappings to be updated
-            statement = dataset_statements_by_id[m.statement_id]
-            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
-                mirrored = mirror.unpack_node_flat(project_v, m.data, statement)
-                ops.append({"index": {"_index": bench_index, "_id": str(m.data.id)}})
-                ops.append(mirrored.to_dict())
-            elif m.type.kind == MMK.DELETE:
-                ops.append({"delete": {"_index": bench_index, "_id": str(m.data.id)}})
-            elif m.type.kind == MMK.TRUNCATE:
+        if not mirror.has_mirror(m.thing):
+            continue  # ignore
+        if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
+            mirrored = mirror.mirror_node(project_v, m.thing)
+            mirrored_data = mirrored.to_dict()
+            if m.properties is not None:  # limit to relevant properties if specified
+                mirrored_data = {k: v for k, v in mirrored_data.items() if k in m.properties}
+            ops.append({"index": {"_index": global_index, "_id": str(m.thing.id)}})
+            ops.append(mirrored_data)
+        elif m.type.kind == MMK.DELETE:
+            ops.append({"delete": {"_index": global_index, "_id": str(m.thing.id)}})
+        elif m.type.kind == MMK.TRUNCATE:
+            if m.type.mnt == MNT.Record:
                 _flush()  # unfortunately can't be batched with the other operations
                 os_client.delete_by_query(
-                    index=bench_index, body={"query": {"term": {"statement_id": m.statement_id}}}
+                    index=bench_index,
+                    body={"query": {"term": {"statement_id": m.statement_id}}},
                 )
-
-        # secondary mirror for search
-        elif mirror.has_mirror(m.thing):
-            if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
-                mirrored = mirror.mirror_node(project_v, m.thing)
-                mirrored_data = mirrored.to_dict()
-                if m.properties is not None:  # limit to relevant properties if specified
-                    mirrored_data = {k: v for k, v in mirrored_data.items() if k in m.properties}
-                ops.append({"index": {"_index": global_index, "_id": str(m.thing.id)}})
-                ops.append(mirrored_data)
-            elif m.type.kind == MMK.DELETE:
-                ops.append({"delete": {"_index": global_index, "_id": str(m.thing.id)}})
+            else:
+                raise NotImplementedError(f"truncate not implemented for {m.type.mnt}")
 
     _flush()  # flush any remaining mutations
 

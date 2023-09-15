@@ -477,7 +477,6 @@ export enum ModuleMutationType {
   MorphStatement = "MORPH_STATEMENT",
   MoveField = "MOVE_FIELD",
   MoveFile = "MOVE_FILE",
-  MoveRecord = "MOVE_RECORD",
   MoveStatement = "MOVE_STATEMENT",
   MoveTagging = "MOVE_TAGGING",
   PasteFile = "PASTE_FILE",
@@ -572,7 +571,6 @@ export type Mutation = {
   morphStatement: StatementOperationInfo;
   moveField: FieldOperationInfo;
   moveFile: FileOperationInfo;
-  moveRecord: RecordOperationInfo;
   moveStatement: StatementOperationInfo;
   notifyUploadedObject: RemoteObjectOperationInfo;
   pasteFile: FileOperationInfo;
@@ -769,10 +767,6 @@ export type MutationMoveFieldArgs = {
 
 export type MutationMoveFileArgs = {
   input: FileMoveInput;
-};
-
-export type MutationMoveRecordArgs = {
-  input: RecordMoveInput;
 };
 
 export type MutationMoveStatementArgs = {
@@ -1662,7 +1656,6 @@ export type Record = HasCrud & {
   id: Scalars["GlobalID"];
   lastEditedAt?: Maybe<Scalars["DateTime"]>;
   lastEditedBy?: Maybe<User>;
-  orderKey?: Maybe<Scalars["String"]>;
   revision: Scalars["Int"];
   updatedAt: Scalars["DateTime"];
   value: Scalars["JSON"];
@@ -1698,7 +1691,7 @@ export type RecordConnection = {
 export type RecordCreateInput = {
   ck: Scalars["UUID"];
   id: Scalars["GlobalID"];
-  orderKey?: InputMaybe<Scalars["String"]>;
+  statementCk: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   value: Scalars["JSON"];
 };
@@ -1715,12 +1708,6 @@ export type RecordEdge = {
   cursor: Scalars["String"];
   /** The item at the end of the edge */
   node: Record;
-};
-
-export type RecordMoveInput = {
-  id: Scalars["GlobalID"];
-  orderKey?: InputMaybe<Scalars["String"]>;
-  statementId: Scalars["GlobalID"];
 };
 
 export type RecordOperationInfo = OperationInfo | Record;
@@ -3352,7 +3339,6 @@ export type SearchRecordsQuery = {
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
-        orderKey?: string | null;
         value: any;
       };
     }>;
@@ -4681,7 +4667,7 @@ export type CreateRecordMutationVariables = Exact<{
   id: Scalars["GlobalID"];
   ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
-  orderKey?: InputMaybe<Scalars["String"]>;
+  statementCk: Scalars["UUID"];
   value: Scalars["JSON"];
 }>;
 
@@ -4699,7 +4685,6 @@ export type CreateRecordMutation = {
         updatedAt: any;
         deletedAt?: any | null;
         revision: number;
-        orderKey?: string | null;
         value: any;
       };
 };
@@ -9067,7 +9052,6 @@ export const SearchRecordsDocument = {
                             { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                             { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                             { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
-                            { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                             { kind: "Field", name: { kind: "Name", value: "value" } },
                           ],
                         },
@@ -13385,8 +13369,8 @@ export const CreateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
         },
         {
           kind: "VariableDefinition",
@@ -13424,8 +13408,8 @@ export const CreateRecordDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "orderKey" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "orderKey" } },
+                      name: { kind: "Name", value: "statementCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -13451,7 +13435,6 @@ export const CreateRecordDocument = {
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "orderKey" } },
                       { kind: "Field", name: { kind: "Name", value: "value" } },
                     ],
                   },

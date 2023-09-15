@@ -864,108 +864,6 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     nav?.value?.panel.focusElement(below);
   }
 
-  async function insertFilesAsRecords(key: string, orderKeys: string[], files: File[], as?: string) {
-    /** Insert files as records into this statement */
-    if (!as && statement.value?.type != StatementType.Dataset) {
-      throw new Error("can only insert records into datasets");
-    }
-    const newRecordIdentities = files.map(() => newNodeIdentity(bench.projectVersionId as string, "Record"));
-    const tx = openTransaction({
-      name: "insertFilesAsRecords",
-      blockPartialUndo: true,
-      undo: async () => {
-        await ops.symbol.batchSoftDeleteRecord(
-          statement.value?.id,
-          newRecordIdentities.map((r) => r.id)
-        );
-      },
-      redo: async () => {
-        await ops.symbol.batchRestoreRecord(
-          statement.value?.id,
-          newRecordIdentities.map((r) => r.id)
-        );
-      },
-    });
-    const uploads = [];
-    for (let i = 0; i < files.length; i++) {
-      const newRecordIdentity = newRecordIdentities[i];
-      const file = files[i];
-      const orderKey = orderKeys[i];
-      const remoteObject = await ops.object.prepareUpload(bench.projectId as string, file);
-      const data = { [key]: remoteObject };
-      ops.symbol.createRecord(
-        tx,
-        newRecordIdentity.id,
-        newRecordIdentity.ck,
-        as ?? statement.value?.id,
-        orderKey,
-        data
-      );
-      uploads.push(
-        objects.upload(bench.projectId as string, file, (updatedObject) => {
-          const newData = { ...data, [key]: updatedObject };
-          ops.symbol.updateRecord(tx, statement.value?.id, newRecordIdentity.id, data, newData);
-        })
-      );
-    }
-    await Promise.all(uploads);
-    closeTransaction(tx);
-  }
-
-  async function insertFilesAsDataset(location: "above" | "below" | StatementLocation, files: File[]) {
-    /** Insert files as a new dataset above/below this statement */
-    if (nav == null) throw new Error("nav context not provided");
-    // get location above/below
-    if (location == "above" || location == "below") {
-      if (statement.value == null) {
-        throw new Error(`statement must be set if using relative location`);
-      }
-      location =
-        location == "above"
-          ? nav?.value?.getLocationRightAbove(statement.value)
-          : nav?.value?.getLocationRightBelow(statement.value);
-    }
-    const datasetIdentity = newNodeIdentity(bench.projectVersionId as string, "Statement");
-    const dataset = {
-      ...datasetIdentity,
-      type: StatementType.Dataset,
-      parentId: location.parentId,
-      orderKey: location.orderKey,
-      fileId: nav?.value?.file.id,
-      tag: TypeTag.Struct,
-      flags: TypeFlag.IsArray,
-      name: getRandomAdjective() + " documents",
-    };
-    const tx = openTransaction({
-      name: "insertFilesAsDataset",
-      blockPartialUndo: true,
-      undo: async () => {
-        await ops.statement.softDelete(null, dataset.id);
-      },
-      redo: async () => {
-        await ops.statement.restore(null, dataset.id);
-      },
-    });
-    // create new dataset
-    // TODO @UX: insert files tx should be reduced to soft delete/restore statement for undo/redo
-    ops.statement.createDefinition(tx, dataset);
-    // create 'file' column with file type
-    const fieldIdentity = newNodeIdentity(bench.projectVersionId as string, "Field");
-    const fieldKey = newFieldKey(fieldIdentity.ck);
-    ops.symbol.createField(tx, dataset.id, {
-      ...fieldIdentity,
-      key: fieldKey,
-      name: "file",
-      tag: TypeTag.File,
-      orderKey: INTEGER_ZERO,
-    } as Field);
-    closeTransaction(tx);
-
-    // insert files into dataset
-    const orderKeys = generateNKeysBetween(null, null, files.length);
-    await insertFilesAsRecords(fieldKey, orderKeys, files, dataset.id);
-  }
-
   return {
     insertBelow,
     insertAbove,
@@ -973,7 +871,5 @@ export function useMagicActions(statement: Ref<StatementHeader | null>) {
     delete: delete_,
     moveFocusUp,
     moveFocusDown,
-    insertFilesAsDataset,
-    insertFilesAsRecords,
   };
 }

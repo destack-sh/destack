@@ -373,7 +373,14 @@ function insertRecordAtEnd() {
 
 function insertRecord(options?: { belowRecordId?: string; value?: any }) {
   const identity = newNodeIdentity(module.id.value, "Record");
-  ops.symbol.createRecord(null, identity.id, identity.ck, props.statement.id, null, options?.value ?? ({} as any));
+  ops.symbol.createRecord(
+    null,
+    identity.id,
+    identity.ck,
+    props.statement.id,
+    props.statement.ck,
+    options?.value ?? ({} as any)
+  );
   // add record to search results optimistically (regardless of filter)
   const recordRef = client.client.cache.identify({ __typename: "Record", id: identity.id });
   const optimisticRecord: Record = {
@@ -384,7 +391,6 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     deletedAt: null,
-    orderKey: null,
     value: options?.value ?? ({} as any),
   };
   client.client.cache.updateQuery(
@@ -431,21 +437,6 @@ function deleteRecord(recordId: string) {
 }
 
 // drag & drop
-const magic = useMagicActions(toRef(props, "statement"));
-async function onDropFiles(recordId: string, column: string, position: "above" | "below", files: File[]) {
-  console.log("drop insert files into dataset", recordId, column, position, files);
-  const recordIdx = recordsInView.value.findIndex((r) => r.id === recordId);
-  const record = recordsInView.value[recordIdx];
-  const above = recordsInView.value[recordIdx - 1];
-  const below = recordsInView.value[recordIdx + 1];
-  let orderKeys;
-  if (position == "above") {
-    orderKeys = generateNKeysBetween(above?.orderKey ?? null, record.orderKey ?? null, files.length);
-  } else {
-    orderKeys = generateNKeysBetween(record.orderKey ?? null, below?.orderKey ?? null, files.length);
-  }
-  await magic.insertFilesAsRecords(column, orderKeys, files);
-}
 const position = useMouseInElement(gridRef);
 
 // actions
@@ -709,7 +700,6 @@ defineExpose({
               :wrap="Boolean(properties.wrapColumns)"
               debounced
               :supports-drop="!readonly"
-              @drop-files="(p, v) => onDropFiles(record.id, field.key as string, p, v)"
               @navigate-left="grid.navigateLeft(record.id, field.key as string)"
               @navigate-right="grid.navigateRight(record.id, field.key as string)"
               @navigate-up="grid.navigateUp(record.id, field.key as string)"
@@ -745,7 +735,7 @@ defineExpose({
           @click.stop="refetch()"
         >
           <XCircleIconSolid class="h-4 w-4" /> <span class="whitespace-nowrap font-bold">Failed to load:</span>
-          <span class="max-w-full truncate">{{ recordsError.message }}</span>
+          <span class="max-w-full truncate">{{ IS_DEBUG ? recordsError.message : "Internal error" }}</span>
         </button>
         <!-- Load more/loading -->
         <button

@@ -931,13 +931,13 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
 
 
 @dataclass
-class RecordData(NodeData, HasOrder, HasCrud):
+class RecordData(NodeData, HasCrud):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     value: Optional[typing.Any] = None
 
     def __str__(self):
-        return f"{self.parent_id}:{self.order_key} {describe_type(self.value)}"
+        return f"{self.parent_id} {describe_type(self.value)}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
@@ -952,7 +952,6 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             id=record.id,
             ck=record.ck,
             parent_id=record.parent_id,
-            order_key=record.order_key,
             value=record._raw_value(),
             revision=record.revision,
             created_at=record.created_at,
@@ -969,7 +968,6 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             ck=record.ck,
             parent=parent,
             value=record.value,
-            order_key=record.order_key,
             revision=record.revision,
             created_at=record.created_at,
             updated_at=record.updated_at,

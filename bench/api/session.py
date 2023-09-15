@@ -554,7 +554,6 @@ class SessionQuery:
             after=after,
             sort=sort,
             query=query,
-            version=True,
         )
 
         results = os_client.search(
@@ -564,7 +563,7 @@ class SessionQuery:
         hits = results["hits"]["hits"]
         edges = []
         for i, r in enumerate(hits[0:effective_limit]):
-            doc = mirror.LogEntry.from_dict(r["_source"], r["_id"], r["_version"])
+            doc = mirror.LogEntry.from_dict(r["_source"], r["_id"])
             node = LogEntry.from_os(doc)
             cursor = encode_cursor(r, after, i)
             edge = relay.Edge(node=node, cursor=cursor)

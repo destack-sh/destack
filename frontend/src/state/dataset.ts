@@ -32,7 +32,6 @@ export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
           createdAt
           updatedAt
           deletedAt
-          orderKey
           value
         }
       }

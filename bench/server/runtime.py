@@ -139,17 +139,17 @@ log_packer = mirror.get_node_packer(mirror.LogEntry)
 
 
 def _unpack_record(record: mirror.Record):
-    doc = mirror.Record.from_dict(record["_source"], record["_id"], record["_version"])
+    doc = mirror.Record.from_dict(record["_source"], record["_id"])
     return record_packer.pack(doc)
 
 
 def _unpack_run(run: mirror.Run):
-    doc = mirror.Run.from_dict(run["_source"], run["_id"], run["_version"])
+    doc = mirror.Run.from_dict(run["_source"], run["_id"])
     return run_packer.pack(doc)
 
 
 def _unpack_log(log: mirror.LogEntry):
-    doc = mirror.LogEntry.from_dict(log["_source"], log["_id"], log["_version"])
+    doc = mirror.LogEntry.from_dict(log["_source"], log["_id"])
     return log_packer.pack(doc)
 
 
@@ -298,7 +298,6 @@ class RuntimeServer(Monitored):
                 after=req.after,
                 sort=req.sort,
                 query=Query.and_if_set(req.query, extra_query),
-                version=True,
             )
             results = os_client.search(
                 index=IndexType.BENCH.get_index_name(project_id=project_v.project_id),
