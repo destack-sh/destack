@@ -1,4 +1,5 @@
 import hashlib
+import io
 import mimetypes
 import typing
 import uuid
@@ -101,14 +102,13 @@ class RemoteObject(HasSession):
     def readlines(self) -> list[str]:
         return self.read().decode().splitlines()
 
-    # imitate file interface
+    def io(self) -> typing.BinaryIO:
+        """Get a file-like object for the object."""
+        return io.BytesIO(self.read())
 
-    def __enter__(self):
-        self.read()
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback):
-        self._cached_bytes = None
+    async def aio(self) -> typing.BinaryIO:
+        """Get a file-like object for the object."""
+        return io.BytesIO(await self.aread())
 
     async def _prep_upload(self) -> Optional[str]:
         """
