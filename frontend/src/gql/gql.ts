@@ -199,7 +199,7 @@ const documents = {
     types.UpdateRecordDocument,
   "\n      mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        deleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.DeleteRecordDocument,
-  "\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+  "\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.SoftDeleteRecordDocument,
   "\n      mutation restoreRecord($id: GlobalID!, $statementId: GlobalID!) {\n        restoreRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RestoreRecordDocument,
@@ -853,8 +853,8 @@ export function graphql(
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(
-  source: "\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
-): typeof documents["\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+  source: "\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {\n        softDeleteRecord(input: { id: $id, statementId: $statementId }) {\n          ... on Record {\n            id\n            deletedAt\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

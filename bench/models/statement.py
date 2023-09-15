@@ -18,7 +18,6 @@ from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion
-    from bench.models.packer import _PackedCopy
 
 logger = structlog.get_logger(__name__)
 
@@ -184,41 +183,6 @@ class Tile(CrudNode):
     children: models.QuerySet[Tile]  # noqa via Tile.parent
 
 
-def duplicate_versioned_datasets(
-    *,
-    source: ProjectVersion,
-    target: ProjectVersion,
-    copy: _PackedCopy,
-    keep_cks: bool,
-) -> None:
-    """
-    Duplicates the *versioned* datasets amongst the old statements.
-    If we're keeping cks, we only replace the ids. Otherwise, both ids and cks are replaced.
-    nocheckin update/remove this with in-DB records
-    nocheckin ensure copy mutations are written to OS
-    """
-    from bench.opensearch.index import batch_duplicate_records
-
-    duplicate_target_ids = {}
-    duplicate_target_cks = {}
-    for statement in copy.nodes_by_id.values():
-        if statement.type != StatementType.DATASET or not statement.versioned:
-            continue
-        source_id = copy.target_ids_reversed[statement.id]
-        duplicate_target_ids[source_id] = statement.id
-        source_ck = copy.target_cks_reversed[statement.ck]
-        duplicate_target_cks[source_ck] = statement.ck
-
-    if duplicate_target_ids or duplicate_target_cks:
-        batch_duplicate_records(
-            source_project_v=source,
-            target_project_v=target,
-            new_statement_ids=duplicate_target_ids,
-            new_statement_cks=duplicate_target_cks,
-            keep_cks=keep_cks,
-        )
-
-
 class StatementManager(models.Manager["Statement"]):
     def get_queryset(self) -> models.QuerySet[Statement]:
         # soft-deleted statements are not returned by default
@@ -240,6 +204,7 @@ class StatementManager(models.Manager["Statement"]):
         """Copies the given source statements into the target version in given new files"""
 
         from bench.models import File, ProjectVersion, packer
+        from bench.opensearch.index import write_module_to_os
 
         # pack relevant nodes
         copy = ProjectVersion.objects.pack_copy(
@@ -272,7 +237,7 @@ class StatementManager(models.Manager["Statement"]):
             pre_unpacked={target.id: target, **{p.id: p for p in target_parents}},
         )
         create_models_bfs(unpacked.walk_bfs_batched())
-        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
+        write_module_to_os(target, unpacked, wipe=False)
 
     def get_descendants(
         self, statement_ids: list[UUID], deleted_at: Optional[datetime] = None

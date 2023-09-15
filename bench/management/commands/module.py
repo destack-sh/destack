@@ -8,6 +8,7 @@ from bench import models
 from bench.language import wire
 from bench.models import packer
 from bench.models.utils import create_models_bfs
+from bench.opensearch.index import write_module_to_os
 
 logger = structlog.get_logger(__name__)
 
@@ -91,10 +92,9 @@ class Command(BaseCommand):
             Path(path).mkdir(parents=True, exist_ok=True)
 
             # dump filtered versions
-            # nocheckin: also dump records
             versions = project.versions.order_by("-tag").filter(tag__gte=after or "0")
             for version in list(versions) + [project.head]:
-                module_data = packer.pack_module(version, excluded=None)
+                module_data = packer.pack_module(version, excluded=[])
                 module_bytes = wire.serialize_module(module_data)
                 tag_clean = version.tag.replace(".", "-") if version.tag else "head"
                 module_path = path + "/" + tag_clean + ".bench"
@@ -145,8 +145,8 @@ class Command(BaseCommand):
                 unpacked = packer.unpack_nodes_tree(
                     module_data.nodes, pre_unpacked={project_v.id: project_v}
                 )
-                # nocheckin: also write to OS
                 create_models_bfs(unpacked.walk_bfs_batched(), exclude=[project_v.id])
+                write_module_to_os(project_v, unpacked, wipe=True)
 
             # set parents to previous version
             for version in project.versions.exclude(tag=None).order_by("-tag"):

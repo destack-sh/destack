@@ -16,7 +16,7 @@ from strawberry_django.descriptors import model_property
 
 from bench.language import wire
 from bench.models.object import get_s3_client
-from bench.models.statement import Statement, duplicate_versioned_datasets
+from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
 from bench.settings import GLOBAL_PROJECT_BUCKET_NAME, LOCAL
 from bench.utils.dt import utcnow_with_tz
@@ -464,6 +464,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         """Copies the given files from a source version to a target version (by default everything)"""
 
         from bench.models import packer
+        from bench.opensearch.index import write_module_to_os
 
         # pack relevant nodes
         filter = packer.DEFAULT_PACK_FILTER.extend()
@@ -486,7 +487,7 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched(), exclude={target.id})
-        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
+        write_module_to_os(target, unpacked, wipe=True)
 
 
 class ProjectVersion(CrudNode):
@@ -605,6 +606,7 @@ class FileManager(models.Manager):
     ) -> "File":
         """Copies a file from one module to another (may be the same)."""
         from bench.models import packer
+        from bench.opensearch.index import write_module_to_os
 
         target_id = target_id or uuid.uuid4()
         # pack relevant nodes
@@ -624,7 +626,7 @@ class FileManager(models.Manager):
         # unpack and save
         unpacked = packer.unpack_nodes_tree(copy.nodes_list(), pre_unpacked={target.id: target})
         create_models_bfs(unpacked.walk_bfs_batched())
-        duplicate_versioned_datasets(source=source, target=target, copy=copy, keep_cks=keep_cks)
+        write_module_to_os(target, unpacked, wipe=False)
 
         target_file = unpacked.nodes[target_id]
         return target_file

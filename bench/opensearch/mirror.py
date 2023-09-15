@@ -384,11 +384,11 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
             value=node.value,
             revision=node.revision,
             created_at=node.created_at,
-            created_by_id=None,
+            created_by_id=node.created_by_id,
             updated_at=node.updated_at,
-            deleted_at=None,
+            deleted_at=node.deleted_at if node.deleted_at else "-",  # reset with invalid date
             last_edited_at=node.last_edited_at,
-            last_edited_by_id=None,
+            last_edited_by_id=node.last_edited_by_id,
         )
 
     def pack(self, node: models.Record) -> wire.RecordData:

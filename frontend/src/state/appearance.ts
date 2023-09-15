@@ -10,8 +10,8 @@ export type PanelAppearance = {
 
 export const CONTENT_WIDTH_NARROW = 880;
 export const CONTENT_WIDTH_WIDE = 3200;
-export const CONTENT_MARGIN_X_NARROW = 48;
-export const CONTENT_MARGIN_X_WIDE = 48;
+export const CONTENT_MARGIN_X_NARROW = 52;
+export const CONTENT_MARGIN_X_WIDE = 52;
 
 export type Font = "sans" | "serif" | "mono";
 

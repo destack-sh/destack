@@ -1218,7 +1218,8 @@ enum QueryOp {
   NEAR
 }
 
-type Record implements HasCrud {
+type Record implements HasCrud & Node {
+  """The Globally Unique ID of this object"""
   id: GlobalID!
   createdAt: DateTime!
   updatedAt: DateTime!

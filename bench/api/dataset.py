@@ -20,7 +20,6 @@ from bench.api.utils import (
     SearchQuery,
     SearchSort,
     ThingBatch,
-    to_global_id,
 )
 from bench.language import Q, Query, QueryOp
 from bench.models import ModuleAccessLevel
@@ -32,17 +31,18 @@ from bench.utils.dt import utcnow_with_tz
 
 
 @strawberry_django.type(models.Record)
-class Record(HasCrud, Revisioned):
-    id: GlobalID
+class Record(HasCrud, Revisioned, relay.Node):
     ck: UUID
     value: JSON
 
     @staticmethod
-    def from_os(record: mirror.Record) -> "Record":
-        return Record(
-            id=to_global_id("Record", record.id),
+    def from_os(record: mirror.Record) -> models.Record:
+        return models.Record(
+            id=record.id,
             ck=record.ck,
             value=record.value,
+            statement_id=record.statement_id,
+            statement_ck=record.statement_ck,
             revision=record.revision,
             created_at=record.created_at,
             created_by=None,
