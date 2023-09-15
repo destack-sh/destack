@@ -282,15 +282,13 @@ class Document:
         return d
 
     @classmethod
-    def from_dict(cls, d: dict[str, Any], id: str, version: str) -> "Document":
+    def from_dict(cls, d: dict[str, Any], id: str) -> "Document":
         """
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
         d = {**d, "id": UUID(id)}
         if TYPE_DISCRIMINATOR_KEY in d:
             d.pop(TYPE_DISCRIMINATOR_KEY)
-        if "revision" in cls.__fields__:
-            d["revision"] = version
         for name, field in cls.__fields__.items():
             if not field.can_set_directly:
                 continue
@@ -307,7 +305,6 @@ class Document:
             elif field.type == FT.TEXT:
                 value = value
             d[name] = value
-        # add id and revision ("version") from meta
         return cls(**d)
 
 

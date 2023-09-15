@@ -487,7 +487,6 @@ enum ModuleMutationType {
   CREATE_RECORD
   UPDATE_RECORD
   DELETE_RECORD
-  MOVE_RECORD
   SOFT_DELETE_RECORD
   RESTORE_RECORD
   TRUNCATE_ISSUES
@@ -570,7 +569,6 @@ type Mutation {
   restoreTrigger(input: TriggerRestoreInput!): TriggerOperationInfo!
   createRecord(input: RecordCreateInput!): RecordOperationInfo!
   updateRecord(input: RecordUpdateInput!): RecordOperationInfo!
-  moveRecord(input: RecordMoveInput!): RecordOperationInfo!
   softDeleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
   restoreRecord(input: RecordRestoreInput!): RecordOperationInfo!
   deleteRecord(input: RecordDeleteInput!): RecordOperationInfo!
@@ -1230,7 +1228,6 @@ type Record implements HasCrud {
   lastEditedBy: User
   revision: Int!
   ck: UUID!
-  orderKey: String
   value: JSON!
 }
 
@@ -1265,7 +1262,7 @@ input RecordCreateInput {
   id: GlobalID!
   ck: UUID!
   value: JSON!
-  orderKey: String = null
+  statementCk: UUID!
 }
 
 input RecordDeleteInput {
@@ -1280,12 +1277,6 @@ type RecordEdge {
 
   """The item at the end of the edge"""
   node: Record!
-}
-
-input RecordMoveInput {
-  statementId: GlobalID!
-  id: GlobalID!
-  orderKey: String = null
 }
 
 union RecordOperationInfo = Record | OperationInfo

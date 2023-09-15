@@ -60,7 +60,7 @@ class DetachedModuleNode(ModuleNode):
     """A cross-Bench node that doesn't belong to a single module (version)."""
 
     initial_project_version = models.ForeignKey(
-        "ProjectVersion", null=True, on_delete=models.CASCADE
+        "ProjectVersion", null=True, blank=True, on_delete=models.CASCADE
     )
 
     class Meta:

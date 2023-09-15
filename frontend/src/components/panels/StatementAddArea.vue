@@ -1,22 +1,12 @@
 <script lang="ts" setup>
 import { useBenchState } from "@/state/bench";
-import { useMagicActions, useNavigationContext } from "@/state/file";
 import { useRelativeDropZone } from "@/utils/drop";
 import { ref } from "vue";
 
 const props = defineProps<{ position: "start" | "end" }>();
 const buttonRef = ref(null);
-const { isOverDropZone } = useRelativeDropZone(buttonRef, ["BrowserFile"], onDrop);
-const magic = useMagicActions(ref(null));
-const nav = useNavigationContext();
+const { isOverDropZone } = useRelativeDropZone(buttonRef, ["BrowserFile"]);
 const bench = useBenchState();
-
-function onDrop(files: File[] | any) {
-  if (Array.isArray(files)) {
-    const location = props.position == "start" ? nav?.value?.getLocationStart() : nav?.value?.getLocationEnd();
-    magic.insertFilesAsDataset(location ?? "below", files);
-  }
-}
 </script>
 <template>
   <button ref="buttonRef" class="group relative flex cursor-default py-1 outline-none transition duration-150">

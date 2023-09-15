@@ -442,7 +442,7 @@ async function onDrop(thing: any[] | { type: string; id: string } | null) {
   if (thing == null || nav == null || nav.value == null) return;
   if (Array.isArray(thing)) {
     console.log("drop insert files into new statement", thing);
-    await magic.insertFilesAsDataset(dragInTopHalf.value ? "above" : "below", thing);
+    // not supported right now until we get transactions
   } else if (thing?.type == "Statement") {
     if (nav?.value?.panel.hasSelection && nav?.value.panel.selectedElementIds.length > 1) {
       // batch move

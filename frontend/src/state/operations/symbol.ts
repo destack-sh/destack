@@ -210,8 +210,8 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
-      mutation createRecord($id: GlobalID!, $ck: UUID!, $statementId: GlobalID!, $orderKey: String, $value: JSON!) {
-        createRecord(input: { id: $id, ck: $ck, statementId: $statementId, orderKey: $orderKey, value: $value }) {
+      mutation createRecord($id: GlobalID!, $ck: UUID!, $statementId: GlobalID!, $statementCk: UUID!, $value: JSON!) {
+        createRecord(input: { id: $id, ck: $ck, statementId: $statementId, statementCk: $statementCk, value: $value }) {
           ... on Record {
             id
             ck
@@ -219,7 +219,6 @@ export function useSymbolContentOps() {
             updatedAt
             deletedAt
             revision
-            orderKey
             value
           }
           ...OperationInfoContent
@@ -227,13 +226,7 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: {
-        id: string;
-        ck: string;
-        statementId: string;
-        orderKey: string | null;
-        value: any;
-      }) =>
+      optimisticResponse: (vars: { id: string; ck: string; statementId: string; statementCk: string; value: any }) =>
         ({
           __typename: "Mutation",
           createRecord: {
@@ -244,7 +237,6 @@ export function useSymbolContentOps() {
             updatedAt: new Date().toISOString(),
             deletedAt: null,
             revision: PENDING_REVISION,
-            orderKey: vars.orderKey,
             value: vars.value,
           },
         } as CreateRecordMutation),
@@ -426,7 +418,7 @@ export function useSymbolContentOps() {
     id: string,
     ck: string,
     statementId: string,
-    orderKey: string | null,
+    statementCk: string,
     value: Scalars["JSON"]
   ) {
     await ops.perform({
@@ -437,7 +429,7 @@ export function useSymbolContentOps() {
           id: id,
           ck: ck,
           statementId: statementId,
-          orderKey: orderKey,
+          statementCk: statementCk,
           value: value,
         });
       },

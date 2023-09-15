@@ -529,6 +529,35 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
         )
 
 
+@node_packer(MNT.Record, wire.RecordData, models.Record)
+class RecordPacker(NodePacker[wire.RecordData, models.Record]):
+    def pack(self, record: models.Record) -> wire.RecordData:
+        return wire.RecordData(
+            id=record.id,
+            ck=record.ck,
+            parent_id=record.statement_id,
+            value=record.value,
+            revision=record.revision,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+            last_edited_at=record.last_edited_at,
+            last_changed_at=record.last_edited_at,
+        )
+
+    def unpack(self, data: wire.RecordData, parent: models.Statement) -> models.Record:
+        return models.Record(
+            id=data.id,
+            ck=data.ck,
+            statement_id=parent.id,
+            statement_ck=parent.ck,
+            value=data.value,
+            revision=data.revision,
+            created_at=data.created_at,
+            updated_at=data.updated_at,
+            last_edited_at=data.last_edited_at,
+        )
+
+
 # interp module data
 
 
@@ -595,7 +624,7 @@ class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedFiel
         )
 
 
-# non/detached module data
+# detached module data
 
 
 class DataPacker(typing.Generic[DataT, NodeT]):
@@ -849,9 +878,7 @@ def write_mutations(
     module_data = pack_node_flat(project_v)
 
     for mmt, batch in mut.batched_apply(module, module_data):
-        if mmt.mnt == MNT.Record:
-            continue  # stored in OpenSearch only (for now) (see below) :DbRecord
-        elif mmt.kind == MMK.TRUNCATE:
+        if mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
             file_ids = [m.file_id for m in batch if m.file_id is not None]

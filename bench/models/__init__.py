@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from .dataset import Record, RecordRelation
+from .dataset import Record
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
@@ -53,7 +53,6 @@ __all__ = [
     "ProjectVisibility",
     "Q",
     "Record",
-    "RecordRelation",
     "RemoteObject",
     "RemoteObjectStatus",
     "ResolvedField",

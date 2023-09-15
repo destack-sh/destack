@@ -1046,7 +1046,7 @@ class Session:
         id: UUID = None,
         ctx: SessionContext | None = None,
         cache_inferences: bool = True,
-        inference_timeout: int = 120,
+        inference_timeout: int = 300,
         inference_retries: int = 5,
         mode: SessionMode = SessionMode.READ_ONLY,
         executor: Executor = None,

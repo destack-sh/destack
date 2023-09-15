@@ -37,12 +37,11 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(mnt=MNT.Record, tracked=["order_key", "value"])
+@node(mnt=MNT.Record, tracked=["value"])
 class Record(ModuleNode, HasSession, HasCrud):
     id: UUID = field(default_factory=uuid.uuid4)
     parent: "Dataset" = required_field()
     value: typing.Any = field(default_factory=dict)
-    order_key: str = None
     _instantiated: bool = True
 
     def __str__(self):

@@ -1,6 +1,5 @@
 import functools
 import inspect
-import typing
 from inspect import Signature
 from typing import Any, Optional, Sequence
 
@@ -127,54 +126,6 @@ def tracked_db_mutation(
     return make_resolver
 
 
-def tracked_os_mutation(
-    type: MMT,
-    *,
-    batch: bool = False,
-    register: bool = True,
-):
-    """
-    A module out-of-DB mutations that uses OpenSearch as the source of truth.
-    Does NOT handle auth, revision bumping or mutation pub. To be used as a decorator.
-    Currently only used for Record mutations, will need to consolidate/remove this
-    when we put records into the DB (again) for :DbRecord
-    """
-
-    def make_resolver(func):
-        needs_info = "info" in func.__annotations__
-        if register:
-            _register_mutation(type, func)
-
-        return_type = func.__annotations__["return"]
-        return_type_args = typing.get_args(return_type)
-        return_type = return_type_args[0]
-
-        @functools.wraps(func)
-        def wrapped_mutation(self, info: Info, *args, **kwargs):
-            if needs_info:
-                kwargs["info"] = info
-            project_v, statement, ret = func(self, *args, **kwargs)
-            if batch:
-                # assumes things property on any returned batches (see ThingBatch)
-                things = ret.things
-            else:
-                things = [ret]
-
-            # dual write, publish and track mutation
-            origin = get_client_origin_from_info(info)
-            publish_tracked_mutation(
-                project_v, origin, type, kwargs.get("input"), things, batch, statement=statement
-            )
-            track_mutation_for_analytics(type, project_v, things, batch, info)
-
-            ret = return_type.from_os(ret)
-            return ret
-
-        return strawberry_django.mutation(wrap_exceptions(wrapped_mutation))
-
-    return make_resolver
-
-
 def _register_mutation(type, func):
     if type in INPUT_CLASS_BY_TYPE:
         raise RuntimeError(f"type {type} is registered to {INPUT_CLASS_BY_TYPE[type]}")
@@ -266,7 +217,7 @@ def track_mutation_for_analytics(
             "order_key": things[0].order_key,
         }
     elif "RECORD" in type.value:
-        properties = {"record_id": things[0].id, "order_key": things[0].order_key}
+        properties = {"record_id": things[0].id}
     else:
         return  # just ignore for now
 

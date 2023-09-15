@@ -194,6 +194,8 @@ def duplicate_versioned_datasets(
     """
     Duplicates the *versioned* datasets amongst the old statements.
     If we're keeping cks, we only replace the ids. Otherwise, both ids and cks are replaced.
+    nocheckin update/remove this with in-DB records
+    nocheckin ensure copy mutations are written to OS
     """
     from bench.opensearch.index import batch_duplicate_records
 

@@ -6,17 +6,16 @@ from typing import TYPE_CHECKING, Optional
 from django.db import models
 
 from bench.language.const import DatasetViewLayout
-from bench.models.utils import (
-    CrudModel,
-    CrudNode,
-    DetachedModuleNode,
-    Revisioned,
-    UUIDModel,
-    get_choices,
-)
+from bench.models.utils import CrudModel, CrudNode, DetachedModuleNode, Revisioned, get_choices
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.models.statement import Statement
+
+
+class DatasetViewManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
 
 
 class DatasetView(CrudNode):
@@ -36,6 +35,13 @@ class DatasetView(CrudNode):
     def parent(self) -> Optional["Statement"]:
         return self.statement
 
+    objects = DatasetViewManager()
+
+
+class DatasetViewFieldManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
 
 class DatasetViewField(CrudNode):
     view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, related_name="fields")
@@ -51,10 +57,17 @@ class DatasetViewField(CrudNode):
     def parent(self) -> Optional["DatasetView"]:
         return self.view
 
+    objects = DatasetViewFieldManager()
+
+
+class RecordManager(models.Manager):
+    def get_queryset(self):
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
 
 class Record(CrudModel, DetachedModuleNode, Revisioned):
     """
-    A record in a dataset (may be detached if the dataset is not versioned). Currently unused :DbRecord
+    A record in a dataset (may be detached if the dataset is not versioned).
     We may choose not to store the actual record value here later, but for now it's convenient.
     """
 
@@ -69,26 +82,13 @@ class Record(CrudModel, DetachedModuleNode, Revisioned):
         return self.statement_id
 
     @property
-    def parent(self) -> Optional["Statement"]:
+    def parent(self) -> Statement:
         return self.statement
 
+    def soft_delete(self):
+        self.deleted_at = utcnow_with_tz()
 
-class RecordRelation(UUIDModel):
-    """
-    Relation between a Record and something (another Record, a Statement, a Run, etc.).
-    (Not actually used yet, this is just me thinking out loud.)
-    """
+    def restore(self):
+        self.deleted_at = None
 
-    # relation 'parent'
-    project_version = models.ForeignKey(
-        "ProjectVersion", on_delete=models.CASCADE, related_name="+"
-    )
-    parent = models.ForeignKey("Record", on_delete=models.CASCADE, related_name="+")
-    type = models.CharField(max_length=64)
-    path = models.CharField(max_length=128, null=True, blank=True)
-    # relation 'child'
-    record_ck = models.UUIDField(null=True)
-    statement_ck = models.UUIDField(null=True)
-    run = models.ForeignKey("Run", on_delete=models.CASCADE, null=True, related_name="+")
-    remote_object = models.ForeignKey("RemoteObject", on_delete=models.CASCADE, null=True)
-    secret = models.ForeignKey("Secret", on_delete=models.CASCADE, null=True)
+    objects = RecordManager()
