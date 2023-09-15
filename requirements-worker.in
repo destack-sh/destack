@@ -4,9 +4,9 @@ aiohttp==3.8.5
 anthropic==0.2.9
 asgiref==3.7.2
 base58==2.1.1
-betterproto==1.2.5
 bcrypt==4.0.0
 beautifulsoup4==4.11.1
+betterproto==1.2.5
 black==22.10.0
 boto3==1.26.125
 botocore==1.29.125
@@ -34,6 +34,7 @@ janus==1.0.0
 jax==0.3.23
 jedi==0.17.2
 jinja2==3.1.2
+jq==1.6.0
 jsonschema==4.16.0
 langchain==0.0.236
 langcodes==3.3.0
@@ -63,6 +64,7 @@ pyarrow==10.0.1
 pydantic>=1.10.7,<2
 PyGithub==1.59.0
 pypandoc==1.11
+pypdf==3.16.0
 pytest==7.2.0
 python-dotenv==0.21.0
 pytz==2022.2.1
@@ -79,3 +81,6 @@ uvicorn==0.23.1
 watchdog==3.0.0
 wikipedia-api==0.6.0
 yarl==1.8.1
+openpyxl==3.1.2
+python-magic==0.4.27
+tabulate==0.9.0

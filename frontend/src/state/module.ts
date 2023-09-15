@@ -102,6 +102,8 @@ export enum TypeFlag { // :TypeFlags
   IsStoreOnly = 1 << 5,
   IsArrayable = 1 << 6,
   IsMetadata = 1 << 7,
+  IsConfig = 1 << 8,
+  IsHidden = 1 << 9,
 }
 
 type GRecord<K extends keyof any, V> = globalThis.Record<K, V>;

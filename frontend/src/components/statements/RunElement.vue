@@ -67,5 +67,7 @@ defineExpose({
     :key="currentRun?.id"
     :view="props.statement.type == StatementType.Code ? (currentRun.errorNice != null ? 'error' : 'logs') : 'trace'"
     show-controls
+    show-close
+    @close="emit('hide', 'run')"
   />
 </template>

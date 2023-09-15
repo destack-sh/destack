@@ -90,6 +90,7 @@ export type StatementEmit = {
   (e: "paste"): void;
   (e: "run", args?: Record<string, any>): void;
   (e: "focus", partId: StatementPartId): void;
+  (e: "hide", partId: StatementPartId): void;
   (e: "openActions"): void;
   (e: "illegal", char: string): void;
 };
@@ -109,6 +110,7 @@ export type StatementEmitDict = {
   paste: () => void;
   run: (args?: Record<string, any>) => void;
   focus: (partId: StatementPartId) => void;
+  hide: (partId: StatementPartId) => void;
   openActions: () => void;
   illegal: (char: string) => void;
 };

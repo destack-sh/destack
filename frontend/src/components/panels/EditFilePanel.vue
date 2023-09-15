@@ -503,7 +503,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
   <!-- Only files have a white background :FileBackground -->
   <div class="relative overflow-x-hidden bg-white">
     <PanelHeader
-      class="bg-white shadow-sm"
+      class="border-b border-orange-900 border-opacity-[12%] bg-white"
       :thing="file"
       :actions="fileActions"
       :editing="panel.editing"

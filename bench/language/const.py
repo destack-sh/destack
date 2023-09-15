@@ -105,6 +105,8 @@ class TypeFlag(enum.IntFlag):
     IsStoreOnly = 2**5
     IsArrayable = 2**6
     IsMetadata = 2**7
+    IsConfig = 2**8
+    IsHidden = 2**9
 
     @property
     def short_name(self) -> str:

@@ -691,7 +691,8 @@ export function useRuns(
             searchRuns: getUpdatedConnectionQuery(
               run,
               prev?.searchRuns as Connection<Run> | undefined,
-              options?.limit
+              options?.limit,
+              "start"
             ) as any,
           };
         }
