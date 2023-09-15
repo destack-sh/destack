@@ -3,7 +3,7 @@ import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import TraceTile from "@/components/tiles/TraceTile.vue";
 import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
-import { Bars3Icon, ChartBarIcon, FireIcon, QueueListIcon, XCircleIcon } from "@heroicons/vue/24/outline";
+import { Bars3Icon, ChartBarIcon, FireIcon, QueueListIcon, XCircleIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
 type View = "logs" | "flamegraph" | "error" | "trace";
@@ -14,8 +14,18 @@ const props = defineProps<{
   run: Run;
   view?: View;
   showControls?: boolean;
+  showClose?: boolean;
+}>();
+const emit = defineEmits<{
+  (e: "close"): void;
 }>();
 
+const VIEW_ICONS: Record<string, any> = {
+  logs: Bars3Icon,
+  flamegraph: FireIcon,
+  trace: QueueListIcon,
+  error: XCircleIcon,
+};
 const logsTileRef = ref<InstanceType<typeof LogsTile> | null>(null);
 
 const activeView = ref<View>(props.view ?? "logs");
@@ -51,22 +61,26 @@ defineExpose({
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
           @click="activeView = view as View"
         >
-          <component
-            :is="
-              {
-                logs: Bars3Icon,
-                flamegraph: FireIcon,
-                trace: QueueListIcon,
-                error: XCircleIcon,
-              }[view]
-            "
-            class="h-4 w-4"
-          />
+          <component :is="VIEW_ICONS[view]" class="h-4 w-4" />
           <!-- Label -->
           <span
             class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
           >
             Show {{ view }}
+          </span>
+        </button>
+        <!-- close -->
+        <button
+          v-if="showClose"
+          class="group/button relative cursor-pointer rounded-sm p-0.5 text-gray-400 hover:bg-orange-100 hover:text-gray-700"
+          @click="emit('close')"
+        >
+          <XMarkIcon class="h-4 w-4" />
+          <!-- Label -->
+          <span
+            class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover/button:opacity-100"
+          >
+            Close
           </span>
         </button>
       </div>

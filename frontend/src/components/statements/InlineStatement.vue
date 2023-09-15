@@ -215,6 +215,9 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
       ops.statement.softDelete(null, statement.value.id);
     },
     focus: (partId: StatementPartId) => focus(partId),
+    hide: () => {
+      partsForceShown.value = partsForceShown.value.filter((p) => p != partId);
+    },
     escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
     openActions: showActionsPopover,
     illegal: (char: string) => {
