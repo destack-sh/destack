@@ -278,6 +278,8 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             callable = self._wrap_exported(callable)
         elif self.cached:
             callable = self._wrap_cached(callable)
+        if self.is_test:
+            callable = self._wrap_test(callable)
         return callable
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
@@ -328,6 +330,10 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
             return result
 
         return _wrapped_async if self._parse.is_async else _wrapped_sync
+
+    def _wrap_test(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        # TODO @UX: instrument test callables with pytest for better assert reporting
+        return callable
 
     async def __call_async__(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)

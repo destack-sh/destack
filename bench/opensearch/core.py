@@ -204,6 +204,7 @@ class KnnMethodName(enum.StrEnum):
 class KnnEngine(enum.StrEnum):
     NMSLIB = "nmslib"
     FAISS = "faiss"
+    LUCENE = "lucene"
 
 
 class KnnSpaceType(enum.StrEnum):

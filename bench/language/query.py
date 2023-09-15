@@ -417,7 +417,8 @@ class FieldQueryOps:
 
     @_check_support(op=QueryOp.STARTS_WITH)
     def starts_with(self, value: str) -> Query:
-        return Q(QueryOp.STARTS_WITH, self.source_key, value)
+        # :StartsWithHack
+        return Q(QueryOp.STARTS_WITH, self.source_key, value.lower())
 
     @_check_support(op=QueryOp.STARTS_WITH)
     def like(self, value: str) -> Query:

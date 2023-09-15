@@ -77,7 +77,7 @@ export function useDatasetInlineSearch(
           ({
             op: QueryOp.StartsWith,
             key: "value." + module.getTypedKey(f) + "." + SubfieldType.starts_with,
-            value: query.value,
+            value: query.value?.toLowerCase(), // :StartsWithHack
           } as SearchQuery)
       ),
     ];
