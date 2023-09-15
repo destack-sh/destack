@@ -37,6 +37,8 @@ class RemoteObject(HasSession):
     name: str = required_field()
     status: RemoteObjectStatus = RemoteObjectStatus.PREPARED
 
+    _cached_bytes: Optional[bytes] = None
+
     def __str__(self):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"
 
@@ -76,23 +78,37 @@ class RemoteObject(HasSession):
                     raise ValueError(
                         f"unable to download {self}: {response.status} {response.reason}"
                     )
-                return await response.read()
+                content = await response.read()
+                self._cached_bytes = content
+                return content
 
     async def areadtext(self) -> str:
-        return (await self.aread()).decode()
+        content = self._cached_bytes or await self.aread()
+        return content.decode()
 
     async def areadlines(self) -> list[str]:
-        return (await self.aread()).decode().splitlines()
+        content = self._cached_bytes or await self.aread()
+        return content.decode().splitlines()
 
     def read(self, timeout: float = 1) -> bytes:
         """Read the object from the remote storage."""
-        return async_to_sync(self.aread)(timeout=timeout)
+        content = self._cached_bytes or async_to_sync(self.aread)(timeout=timeout)
+        return content
 
     def readtext(self) -> str:
         return self.read().decode()
 
     def readlines(self) -> list[str]:
         return self.read().decode().splitlines()
+
+    # imitate file interface
+
+    def __enter__(self):
+        self.read()
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self._cached_bytes = None
 
     async def _prep_upload(self) -> Optional[str]:
         """

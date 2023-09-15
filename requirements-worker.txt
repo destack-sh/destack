@@ -314,6 +314,7 @@ packaging==23.1
     #   argilla
     #   huggingface-hub
     #   marshmallow
+    #   pytesseract
     #   pytest
     #   unstructured-pytesseract
 pandas==1.5.3
@@ -332,6 +333,7 @@ pdfminer-six==20221105
 pillow==9.5.0
     # via
     #   pdf2image
+    #   pytesseract
     #   python-pptx
     #   unstructured
     #   unstructured-pytesseract
@@ -397,6 +399,8 @@ pyrsistent==0.19.3
     # via jsonschema
 pysocks==1.7.1
     # via urllib3
+pytesseract==0.3.10
+    # via -r requirements-worker.in
 pytest==7.2.0
     # via -r requirements-worker.in
 python-dateutil==2.8.2

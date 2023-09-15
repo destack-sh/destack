@@ -44,6 +44,8 @@ FROM base as bench-worker
 
 # Install extra requirements for the worker
 RUN apt-get install -y pandoc
+RUN apt-get install -y tesseract-ocr libtesseract-dev libleptonica-dev tesseract-ocr-deu
+RUN apt-get install -y libmagic1 libmagic-dev
 COPY requirements-worker.txt .
 RUN pip install --no-cache-dir -r requirements-worker.txt
 
