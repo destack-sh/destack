@@ -1,5 +1,4 @@
 # Run ./scripts/update-requirements.sh to update downstream requirements
-
 aiohttp==3.8.5
 anthropic==0.2.9
 asgiref==3.7.2
@@ -53,9 +52,11 @@ nltk==3.7
 notion-client==2.0.0
 numpy<2,>=1.20.0
 openai==0.27.2
+openpyxl==3.1.2
 opensearch-py[async]==2.2.0
 orjson==3.8.9
 pandas<2,>=1.0.0
+pdf2image==1.16.3
 playwright==1.35.0
 protobuf==4.24.3
 psutil==5.9.2
@@ -67,6 +68,7 @@ pypandoc==1.11
 pypdf==3.16.0
 pytest==7.2.0
 python-dotenv==0.21.0
+python-magic==0.4.27
 pytz==2022.2.1
 redis[hiredis]==4.5.4
 requests==2.31.0
@@ -75,12 +77,11 @@ semver==2.13.0
 sentry-sdk==1.18.0
 structlog==23.1.0
 tabulate==0.9.0
+tabulate==0.9.0
 tqdm==4.64.1
+unstructured.pytesseract==0.3.12
 unstructured==0.6.6
 uvicorn==0.23.1
 watchdog==3.0.0
 wikipedia-api==0.6.0
 yarl==1.8.1
-openpyxl==3.1.2
-python-magic==0.4.27
-tabulate==0.9.0

@@ -244,7 +244,10 @@ function getPartsInOrder(options?: { includeInactive?: boolean }) {
 function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
   const { partsInOrderRowwise } = getPartsInOrder();
   const y = partsInOrderRowwise.findIndex((row) => row.find((p) => p.id == partId));
-  if (y == null || y < 0) return;
+  if (y == null || y < 0) {
+    console.warn("statement part not found", partId, partsInOrderRowwise);
+    return;
+  }
   const x = partsInOrderRowwise[y].findIndex((p) => p.id == partId);
   if (x == null || x < 0) return;
 

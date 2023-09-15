@@ -27,14 +27,15 @@ const preparingWorkers = computed(
 </script>
 <template>
   <div
-    class="group/info flex flex-shrink-0 flex-row items-center gap-1 rounded-sm px-0.5 transition duration-150 hover:bg-orange-100 group-hover/statement:opacity-100"
-    :class="focused || currentRunActive ? '' : 'opacity-0'"
+    class="group/info flex flex-shrink-0 flex-row items-center gap-1 rounded-sm px-0.5 transition duration-150 group-hover/statement:opacity-100"
+    :class="[
+      focused || currentRunActive ? ' ' : 'opacity-0',
+      currentRun == null ? '' : 'hover:cursor-pointer hover:bg-orange-100',
+    ]"
+    @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
   >
     <BusySpinnerIcon v-if="currentRun != null && currentRun.startedAt == null" class="h-4 w-4 animate-spin" />
-    <span
-      class="rounded-sm underline-offset-2 hover:cursor-pointer"
-      @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
-    >
+    <span class="rounded-sm underline-offset-2">
       <!-- Worker status if not active -->
       <span v-if="preparingWorkers" class="text-gray-400">
         {{ WORKER_STATUS_TITLE[sessions.workerSet.value?.status as WorkerSetStatus] }}

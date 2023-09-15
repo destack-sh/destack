@@ -29,7 +29,7 @@ from bench.language.tag import HasTags
 from bench.language.type import Field, HasType, map_value, pack_value, unpack_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
-from bench.utils.utils import DotList, required_field
+from bench.utils.utils import DotDict, DotList, required_field
 
 if typing.TYPE_CHECKING:
     from bench.language.wire import RecordData
@@ -482,6 +482,7 @@ class Variable(HasType, HasTags, HasText, Statement):
         # proxy
         self.value = unpack_value(self.value, self, ignore_array=True, ignore_outer_map=True)
         self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
+        self.value = DotDict(self.value)
         self._instantiated = True
         super()._activate_in(session)
 
