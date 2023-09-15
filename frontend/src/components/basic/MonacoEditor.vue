@@ -230,6 +230,7 @@ watch(
       justSynced.value = true;
       editor.value.setValue(value);
       restorePosition(value);
+      updateEditorHeight(editorContainer.value!, value);
     }
   }
 );

@@ -154,12 +154,23 @@ OS_SEMANTIC_FIELD_MUTATIONS = {
 }
 
 
+def is_mnt_in_bench_index(mnt: MNT) -> bool:
+    return mnt in (MNT.Record,)
+
+
+def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
+    if is_mnt_in_bench_index(mnt):
+        return IndexType.BENCH.get_index_name(project_id)
+    else:
+        return IndexType.GLOBAL.get_index_name()
+
+
 def write_mutations_to_os(
     project_v: models.ProjectVersion, mutations: list[ModuleMutation], wait: bool
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
-    All regular DB mutations come this way (records values are stored in OS only).
+    All regular DB mutations come this way.
     """
     global_index = IndexType.GLOBAL.get_index_name()
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
@@ -192,26 +203,23 @@ def write_mutations_to_os(
         if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
             field_mappings_dirty[0] = True
 
-        if not mirror.has_mirror(m.thing):
+        index = bench_index if is_mnt_in_bench_index(m.type.mnt) else global_index
+        if m.type.kind == MMK.TRUNCATE and m.mnt == MNT.Record:
+            _flush()  # unfortunately can't be batched with the other operations
+            os_client.delete_by_query(
+                index=index, body={"query": {"term": {"statement_id": m.statement_id}}}
+            )
+        elif not mirror.has_mirror(m.thing):
             continue  # ignore
-        if m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
+        elif m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
             mirrored = mirror.mirror_node(project_v, m.thing)
             mirrored_data = mirrored.to_dict()
             if m.properties is not None:  # limit to relevant properties if specified
                 mirrored_data = {k: v for k, v in mirrored_data.items() if k in m.properties}
-            ops.append({"index": {"_index": global_index, "_id": str(m.thing.id)}})
+            ops.append({"index": {"_index": index, "_id": str(m.thing.id)}})
             ops.append(mirrored_data)
         elif m.type.kind == MMK.DELETE:
-            ops.append({"delete": {"_index": global_index, "_id": str(m.thing.id)}})
-        elif m.type.kind == MMK.TRUNCATE:
-            if m.type.mnt == MNT.Record:
-                _flush()  # unfortunately can't be batched with the other operations
-                os_client.delete_by_query(
-                    index=bench_index,
-                    body={"query": {"term": {"statement_id": m.statement_id}}},
-                )
-            else:
-                raise NotImplementedError(f"truncate not implemented for {m.type.mnt}")
+            ops.append({"delete": {"_index": index, "_id": str(m.thing.id)}})
 
     _flush()  # flush any remaining mutations
 

@@ -77,6 +77,7 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
         :label="runsTileRef?.totalCount == null ? `Runs` : `${humanizeNumber(runsTileRef.totalCount)} runs`"
         :style="{ ...baseTilePositionX }"
         sublabel-position="opposite"
+        class="overflow-x-hidden"
       >
         <!-- Pagination  -->
         <template v-slot:sublabel>
