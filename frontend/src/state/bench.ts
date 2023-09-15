@@ -266,7 +266,7 @@ function makePanelGroup(id: string, name: string): PanelGroup {
   };
 }
 
-export const RECENTLY_CLOSED_PANELS_LIMIT = 64;
+export const RECENTLY_CLOSED_PANELS_LIMIT = 128;
 
 export type PanelOpenOptions = {
   group?: PanelGroup;
@@ -515,6 +515,17 @@ export const useBenchState = defineStore("bench", {
     _openMaybeCreate(filter: (panel: Panel) => boolean, create: () => Panel, options?: PanelOpenOptions): Panel {
       let panel = this.panels.find(filter);
       const created = panel == null;
+
+      // try to recover panel state from recently closed
+      if (!panel && !options?.create) {
+        panel = this.recentlyClosedPanels.find(filter);
+        if (panel) {
+          console.log(`recover panel ${panel.path} from recently closed`);
+          this.recentlyClosedPanels = this.recentlyClosedPanels.filter((e) => e.id != panel?.id);
+          panel.groupId = null; // reset
+        }
+      }
+      // create panel if it doesn't exist or forced
       if (!panel || options?.create) {
         panel = create();
         console.log(`create new panel ${panel.path}`);
