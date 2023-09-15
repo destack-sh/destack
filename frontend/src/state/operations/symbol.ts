@@ -306,6 +306,7 @@ export function useSymbolContentOps() {
           ... on Record {
             id
             deletedAt
+            revision
           }
           ...OperationInfoContent
         }
@@ -319,6 +320,7 @@ export function useSymbolContentOps() {
             __typename: "Record",
             id: vars.id,
             deletedAt: new Date().toISOString(),
+            revision: PENDING_REVISION,
           },
         } as SoftDeleteRecordMutation),
     }

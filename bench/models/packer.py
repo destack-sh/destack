@@ -95,6 +95,7 @@ DEFAULT_PACK_FILTERS = [
     (models.Trigger, lambda qs: qs.filter(deleted_at__isnull=True)),
 ]
 DEFAULT_PACK_FILTER = PackMultiFilter(DEFAULT_PACK_FILTERS)
+DEFAULT_EXCLUDED = [models.Record]
 
 # registered packers
 # some node models correspond to multiple actual module node / node data types
@@ -139,7 +140,7 @@ def get_node_packer(node: NodeT) -> NodePacker:
 def pack_module(
     module: models.ProjectVersion,
     filter: PackFilter = DEFAULT_PACK_FILTER,
-    excluded: Collection[ModelT] = None,
+    excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> wire.ModuleTreeData:
     """Pack a module (convenience wrapper)"""
     packed = pack_node(module, filter=filter, excluded=excluded)
@@ -224,7 +225,9 @@ def collect_node(
 
 
 def pack_node(
-    *models: ModelT, filter: PackFilter = DEFAULT_PACK_FILTER, excluded: Collection[ModelT] = None
+    *models: ModelT,
+    filter: PackFilter = DEFAULT_PACK_FILTER,
+    excluded: Collection[type[ModelT]] = DEFAULT_EXCLUDED,
 ) -> _Packed:
     """Pack a node and its descendants"""
     visited = collect_node(*models, filter=filter, excluded=excluded)
@@ -367,6 +370,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
+            models.Record.objects.filter(statement__in=nodes),
         ]
 
     def pack(self, statement: models.Statement) -> wire.StatementData:
@@ -913,7 +917,7 @@ def write_mutations(
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
-    write_mutations_to_os(project_v, mut.mutations, wait_for_os)
+    write_mutations_to_os(project_v, mut.mutations, wait=wait_for_os)
 
 
 @transaction.atomic(savepoint=False)

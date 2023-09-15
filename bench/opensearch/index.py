@@ -1,5 +1,5 @@
 import typing
-from uuid import UUID, uuid4
+from uuid import UUID
 
 import structlog
 
@@ -7,8 +7,6 @@ import bench.opensearch.core as os
 from bench import language as lang
 from bench import models
 from bench.language import wire
-from bench.language.core import get_node_id
-from bench.language.dataset import MAX_VERSIONED_RECORDS_TOTAL
 from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
 from bench.language.utils import Runnable
 from bench.opensearch import mirror
@@ -153,20 +151,19 @@ OS_SEMANTIC_FIELD_MUTATIONS = {
     MMT.CREATE_RESOLVED_FIELD,
 }
 
-
-def is_mnt_in_bench_index(mnt: MNT) -> bool:
-    return mnt in (MNT.Record,)
+BENCH_INDEXED_MNTS = (MNT.Record,)
+BENCH_INDEXED_MODELS = (models.Record,)
 
 
 def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
-    if is_mnt_in_bench_index(mnt):
+    if mnt in BENCH_INDEXED_MNTS:
         return IndexType.BENCH.get_index_name(project_id)
     else:
         return IndexType.GLOBAL.get_index_name()
 
 
 def write_mutations_to_os(
-    project_v: models.ProjectVersion, mutations: list[ModuleMutation], wait: bool
+    project_v: models.ProjectVersion, mutations: list[ModuleMutation], *, wait: bool = False
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
@@ -203,7 +200,7 @@ def write_mutations_to_os(
         if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
             field_mappings_dirty[0] = True
 
-        index = bench_index if is_mnt_in_bench_index(m.type.mnt) else global_index
+        index = bench_index if m.type.mnt in BENCH_INDEXED_MNTS else global_index
         if m.type.kind == MMK.TRUNCATE and m.mnt == MNT.Record:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
@@ -222,6 +219,52 @@ def write_mutations_to_os(
             ops.append({"delete": {"_index": index, "_id": str(m.thing.id)}})
 
     _flush()  # flush any remaining mutations
+
+
+def write_module_to_os(
+    project_v: models.ProjectVersion, model_tree: wire.ModuleTree, *, wipe: bool, wait: bool = False
+):
+    """
+    Writes all nodes in the module to OpenSearch.
+    If wipe, first delete all module data for that version.
+    """
+    global_index = IndexType.GLOBAL.get_index_name()
+    bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
+
+    ops: list[dict] = []
+
+    if wipe:
+        logger.debug("os.wipe_module", project_version=project_v)
+        os_client.delete_by_query(
+            index=global_index, body={"query": {"term": {"project_version_id": project_v.id}}}
+        )
+        os_client.delete_by_query(
+            index=bench_index,
+            body={
+                "query": {
+                    "bool": {
+                        "must": [
+                            {"term": {"project_version_id": project_v.id}},
+                            {"term": {"_type": "record"}},
+                        ]
+                    }
+                }
+            },
+        )
+
+    for node in model_tree.walk_bfs():
+        if not mirror.has_mirror(node):
+            continue
+        index = bench_index if isinstance(node, BENCH_INDEXED_MODELS) else global_index
+        ops.append({"index": {"_index": index, "_id": str(node.id)}})
+        ops.append(mirror.mirror_node(project_v, node).to_dict())
+
+    logger.debug(
+        "os.write_module", project_version=project_v, index=bench_index, operations=len(ops)
+    )
+    ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
+    if ret.get("errors"):
+        raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
 
 
 def write_session_to_os(
@@ -281,7 +324,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     logger.info("os.update_mappings", project_version=project_v)
     source = packer.pack_module(
-        project_v, excluded=[models.Trigger, models.ResolvedField, models.Issue]
+        project_v, excluded=[models.Record, models.Trigger, models.ResolvedField, models.Issue]
     )
     module = wire.unpack_module(source, session=None)
     for dependency in libs.DEFAULT_MODULES.values():
@@ -391,88 +434,3 @@ def batch_update_records(
     for i, os_record in enumerate(os_records["items"]):
         records[i].revision = os_record["update"]["_version"]
     return records
-
-
-def batch_duplicate_records(
-    *,
-    source_project_v: models.ProjectVersion,
-    target_project_v: models.ProjectVersion,
-    new_statement_ids: dict[UUID, UUID],
-    new_statement_cks: dict[UUID, UUID],
-    keep_cks: bool,
-    batch_size: int = 512,
-):
-    """
-    Duplicates all documents in the given datasets with new target statement ids/cks.
-    Copies the AND of matches for statement_ids and statement_cks (if both are given).
-    Assigns new records ids on the way.
-    """
-    index_name = IndexType.BENCH.get_index_name(source_project_v.project_id)
-
-    must = [
-        {"bool": {"must_not": {"exists": {"field": "deleted_at"}}}},
-    ]
-    if new_statement_ids:
-        must.append({"terms": {"statement_id": [str(id) for id in new_statement_ids.keys()]}})
-    if new_statement_cks:
-        must.append({"terms": {"statement_ck": [str(ck) for ck in new_statement_cks.keys()]}})
-    if not new_statement_cks and not new_statement_ids:
-        raise ValueError("must specify at least one of new_statement_ids or new_statement_cks")
-    query = {"query": {"bool": {"must": must}}}
-
-    # count doesn't support PIT unfortunately
-    num_total_documents = os_client.count(index=index_name, body=query)["count"]
-
-    # create a PIT to read from
-    pit = os_client.create_point_in_time(index=index_name, keep_alive="2m")
-    query["pit"] = {"id": pit["pit_id"], "keep_alive": "2m"}
-
-    if num_total_documents > MAX_VERSIONED_RECORDS_TOTAL:
-        raise ValueError(
-            f"{source_project_v} has {num_total_documents} documents (limit={MAX_VERSIONED_RECORDS_TOTAL})"
-        )
-    if num_total_documents == 0:
-        logger.info(
-            "os.batch_duplicate_records.skip",
-            source=source_project_v,
-            num_total_documents=num_total_documents,
-        )
-        return
-
-    log = logger.bind(
-        source=source_project_v,
-        target=target_project_v,
-        batch_size=batch_size,
-        total_documents=num_total_documents,
-    )
-    log.info("os.batch_duplicate_records.start")
-
-    duplicated: list[UUID] = []
-    while True:
-        response = os_client.search(body=query, sort=["_doc"], size=batch_size)
-        hits = response["hits"]["hits"]
-        if not hits:
-            break
-
-        log.debug("os.batch_duplicate_records.batch", cumulative=len(duplicated), current=len(hits))
-        os_operations = []
-        for hit in hits:
-            document = hit["_source"]
-            statement_id = UUID(document["statement_id"])
-            statement_ck = UUID(document["statement_ck"])
-            if statement_id in new_statement_ids:
-                document["statement_id"] = str(new_statement_ids[statement_id])
-            if statement_ck in new_statement_cks:
-                document["statement_ck"] = str(new_statement_cks[statement_ck])
-            if not keep_cks:
-                document["ck"] = str(uuid4())
-            new_id = get_node_id(target_project_v.id, UUID(document["ck"]))
-            os_operations.append({"index": {"_index": index_name, "_id": new_id}})
-            os_operations.append(document)
-            duplicated.append(new_id)
-
-        query["search_after"] = hits[-1]["sort"]
-        os_client.bulk(os_operations)
-
-    # TODO @Cleanup: delete PIT after use (delete_point_in_time doesn't work?)
-    log.info("os.batch_duplicate_records.done")

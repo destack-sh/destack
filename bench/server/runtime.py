@@ -122,7 +122,7 @@ async def read_module(ref: ModuleReference | UUID) -> tuple[wire.ModuleTreeData,
         )
         project_version = project_version.head
     module = await sync_to_async(packer.pack_module)(
-        project_version, excluded=[models.ResolvedField, models.Issue]
+        project_version, excluded=[models.Record, models.ResolvedField, models.Issue]
     )
     if project_version.committed:
         _cached_modules[ref] = module, project_version.project

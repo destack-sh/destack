@@ -1647,19 +1647,21 @@ export enum QueryOp {
   Within = "WITHIN",
 }
 
-export type Record = HasCrud & {
-  __typename?: "Record";
-  ck: Scalars["UUID"];
-  createdAt: Scalars["DateTime"];
-  createdBy?: Maybe<User>;
-  deletedAt?: Maybe<Scalars["DateTime"]>;
-  id: Scalars["GlobalID"];
-  lastEditedAt?: Maybe<Scalars["DateTime"]>;
-  lastEditedBy?: Maybe<User>;
-  revision: Scalars["Int"];
-  updatedAt: Scalars["DateTime"];
-  value: Scalars["JSON"];
-};
+export type Record = HasCrud &
+  Node & {
+    __typename?: "Record";
+    ck: Scalars["UUID"];
+    createdAt: Scalars["DateTime"];
+    createdBy?: Maybe<User>;
+    deletedAt?: Maybe<Scalars["DateTime"]>;
+    /** The Globally Unique ID of this object */
+    id: Scalars["GlobalID"];
+    lastEditedAt?: Maybe<Scalars["DateTime"]>;
+    lastEditedBy?: Maybe<User>;
+    revision: Scalars["Int"];
+    updatedAt: Scalars["DateTime"];
+    value: Scalars["JSON"];
+  };
 
 export type RecordBatch = {
   __typename?: "RecordBatch";
@@ -4729,7 +4731,7 @@ export type SoftDeleteRecordMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Record"; id: any; deletedAt?: any | null };
+    | { __typename?: "Record"; id: any; deletedAt?: any | null; revision: number };
 };
 
 export type RestoreRecordMutationVariables = Exact<{
@@ -13658,6 +13660,7 @@ export const SoftDeleteRecordDocument = {
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
                     ],
                   },
                 },

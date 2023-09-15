@@ -50,7 +50,7 @@ defineExpose({ api });
       <div v-if="loading">
         <BusySpinnerIcon class="h-4 w-4 animate-spin text-gray-500" />
       </div>
-      <span class="inline-flex flex-row gap-1" v-else>
+      <span v-else class="inline-flex flex-row gap-1">
         <button
           v-for="action in (actions ?? []).filter((action) => !action.disabled)"
           :key="action.label"
