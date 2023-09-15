@@ -47,7 +47,7 @@ export function provideViewSectionGroup(containerRef: Ref<HTMLDivElement | null>
         return;
       }
       const headerHeight = appearance.panelHeaderHeight;
-      const availableHeight = containerSize.height.value - (headerHeight + gapY) * numSections;
+      const availableHeight = containerSize.height.value - (headerHeight + gapY) * numSections; // the 1 extra gap is a bottom margin
       const newBodyHeights: Record<number, number> = {};
       const actualBodyHeights: Record<number, number> = {};
       const targetBodyHeights: Record<number, number> = {};

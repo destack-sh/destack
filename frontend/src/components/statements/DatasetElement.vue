@@ -741,7 +741,8 @@ defineExpose({
         <button
           v-if="pageInfo?.hasNextPage"
           ref="loadMoreRef"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
           :style="{ height: minRowHeight + 'px' }"
           @click.stop="loadMore()"
           @keydown.enter.prevent="loadMore(), $nextTick(() => focusLastRecord())"

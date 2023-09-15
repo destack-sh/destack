@@ -294,10 +294,7 @@ defineExpose({
           </svg>
           <span
             class="mr-1.5 max-w-full truncate text-gray-900"
-            :class="[
-              inlined ? 'underline decoration-gray-400 decoration-dashed underline-offset-4' : '',
-              isEnum ? 'ml-4 ' : '',
-            ]"
+            :class="[inlined ? 'underline decoration-gray-300 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
             >{{ value.name }}</span
           >
           <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />

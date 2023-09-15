@@ -46,7 +46,7 @@ import {
   ExclamationTriangleIcon as ExclamationTriangleIconOutline,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useElementSize, useTitle } from "@vueuse/core";
+import { useElementSize, useTitle, useWindowFocus } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import {
   computed,
@@ -278,6 +278,19 @@ const hasStaleInflightOps = computed(() => operationsStore.hasInflightLike({ sta
 const hasInflightOps = computed(() => operationsStore.hasInflightLike({ stateless: false }));
 const connectionHealthy = computed(() => WS_CONNECTED.value && !hasStaleInflightOps.value);
 const workerSetHealthy = computed(() => workerSet.value?.status == WorkerSetStatus.Healthy);
+
+const windowFocus = useWindowFocus();
+// automatically wake workers on load and when focused (if not already awake)
+watch(
+  () => [bench.canUse, windowFocus.value, workerSet.value?.status],
+  () => {
+    if (bench.canUse && windowFocus.value && workerSet.value?.status == WorkerSetStatus.Sleeping) {
+      console.log("auto wake workers");
+      sessions.wakeWorkerSet();
+    }
+  },
+  { immediate: true }
+);
 
 // prevent close if there are inflight ops
 // TODO @UX @Robustness: prompt if unsaved changes doesn't always work
