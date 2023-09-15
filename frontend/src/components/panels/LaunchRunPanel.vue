@@ -287,6 +287,7 @@ defineExpose({
           "
           sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
+          class="overflow-x-hidden"
         >
           <template v-slot:sublabel>
             <button

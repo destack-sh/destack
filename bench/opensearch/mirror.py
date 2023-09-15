@@ -372,17 +372,30 @@ class Record(CrudThing, os.Document):
     revision: Optional[int] = os.field(os.FT.INTEGER)
 
 
-@packer(Record, Record, wire.RecordData)
-class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
+@packer(models.Record, Record, wire.RecordData)
+class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordData]):
     def mirror(self, project_v: models.ProjectVersion | None, node: Record) -> Record:
-        return node  # already
+        return Record(
+            id=node.id,
+            ck=node.ck,
+            project_version_id=project_v.id,
+            statement_id=node.statement_id,
+            statement_ck=node.statement_ck,
+            value=node.value,
+            revision=node.revision,
+            created_at=node.created_at,
+            created_by_id=None,
+            updated_at=node.updated_at,
+            deleted_at=None,
+            last_edited_at=node.last_edited_at,
+            last_edited_by_id=None,
+        )
 
-    def pack(self, node: Record) -> wire.RecordData:
+    def pack(self, node: models.Record) -> wire.RecordData:
         return wire.RecordData(
             id=node.id,
             ck=node.ck,
             parent_id=node.statement_id,
-            order_key=node.order_key,
             value=node.value,
             revision=node.revision,
             created_at=node.created_at,
@@ -400,7 +413,6 @@ class RecordPacker(CrudThingPacker, Packer[Record, Record, wire.RecordData]):
             project_version_id=project_v.id,
             statement_id=data.parent_id,
             statement_ck=parent.ck,
-            order_key=data.order_key,
             value=data.value,
             revision=data.revision,
             created_at=data.created_at,

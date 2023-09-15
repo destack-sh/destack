@@ -189,6 +189,8 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
             value = to_global_id("File", mutation.file_id)
         elif field.name == "statement_id":
             value = to_global_id("Statement", mutation.statement_id)
+        elif field.name == "statement_ck":
+            value = None  # nocheckin
         elif field.name in extra_fields:
             value = extra_fields[field.name]
         else:
@@ -232,8 +234,8 @@ def input_to_gql_jsonable(value: Any) -> Any:
 
 def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
     # map id to global id with appropriate type name
-    # we can't actually know whether parent id is a file or statement id
-    # so we check against the mutation file id.. this should be fine?
+    # we can't actually know whether parent id is a file or statement id,
+    # so we check against the mutation file id... this should be fine?
     from strawberry.relay import GlobalID
 
     if key == "parent_id" and mutation.type.mnt == MNT.Statement:
