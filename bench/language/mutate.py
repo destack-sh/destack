@@ -18,7 +18,6 @@ class ModuleMutationType(enum.StrEnum):
     """Fine-grained atomic mutations for multiplayer modules."""
 
     # Files
-    TRUNCATE_FILES = "TRUNCATE_FILES"
     BUMP_FILE = "BUMP_FILE"
     CREATE_FILE = "CREATE_FILE"
     UPDATE_FILE = "UPDATE_FILE"
@@ -30,7 +29,6 @@ class ModuleMutationType(enum.StrEnum):
     RENAME_FILE = "RENAME_FILE"
     MOVE_FILE = "MOVE_FILE"
     # Statements
-    TRUNCATE_STATEMENTS = "TRUNCATE_STATEMENTS"
     BUMP_STATEMENT = "BUMP_STATEMENT"
     CREATE_STATEMENT = "CREATE_STATEMENT"
     UPDATE_STATEMENT = "UPDATE_STATEMENT"
@@ -52,7 +50,6 @@ class ModuleMutationType(enum.StrEnum):
     UPDATE_SYMBOL_LANGUAGE = "UPDATE_SYMBOL_LANGUAGE"
     UPDATE_SYMBOL_VALUE = "UPDATE_SYMBOL_VALUE"
     # Tags
-    TRUNCATE_TAGGINGS = "TRUNCATE_TAGGINGS"
     CREATE_TAGGING = "CREATE_TAGGING"
     UPDATE_TAGGING = "UPDATE_TAGGING"
     DELETE_TAGGING = "DELETE_TAGGING"
@@ -62,7 +59,6 @@ class ModuleMutationType(enum.StrEnum):
     MOVE_TAGGING = "MOVE_TAGGING"
     UPDATE_TAGGING_METADATA = "UPDATE_TAGGING_METADATA"
     # Triggers
-    TRUNCATE_TRIGGERS = "TRUNCATE_TRIGGERS"
     CREATE_TRIGGER = "CREATE_TRIGGER"
     UPDATE_TRIGGER = "UPDATE_TRIGGER"
     DELETE_TRIGGER = "DELETE_TRIGGER"
@@ -70,7 +66,6 @@ class ModuleMutationType(enum.StrEnum):
     SOFT_DELETE_TRIGGER = "SOFT_DELETE_TRIGGER"
     RESTORE_TRIGGER = "RESTORE_TRIGGER"
     # Fields
-    TRUNCATE_FIELDS = "TRUNCATE_FIELDS"
     CREATE_FIELD = "CREATE_FIELD"
     UPDATE_FIELD = "UPDATE_FIELD"
     DELETE_FIELD = "DELETE_FIELD"
@@ -133,29 +128,24 @@ class ModuleMutationKind(enum.StrEnum):
 # Basic CUD mutations with full (flat) data for the model
 SIMPLE_MUTATIONS = {
     # File
-    ModuleMutationType.TRUNCATE_FILES,
     ModuleMutationType.BUMP_FILE,
     ModuleMutationType.CREATE_FILE,
     ModuleMutationType.UPDATE_FILE,
     ModuleMutationType.DELETE_FILE,
     # Statement
-    ModuleMutationType.TRUNCATE_STATEMENTS,
     ModuleMutationType.BUMP_STATEMENT,
     ModuleMutationType.CREATE_STATEMENT,
     ModuleMutationType.UPDATE_STATEMENT,
     ModuleMutationType.DELETE_STATEMENT,
     # Taggings
-    ModuleMutationType.TRUNCATE_TAGGINGS,
     ModuleMutationType.CREATE_TAGGING,
     ModuleMutationType.UPDATE_TAGGING,
     ModuleMutationType.DELETE_TAGGING,
     # Triggers
-    ModuleMutationType.TRUNCATE_TRIGGERS,
     ModuleMutationType.CREATE_TRIGGER,
     ModuleMutationType.UPDATE_TRIGGER,
     ModuleMutationType.DELETE_TRIGGER,
     # Fields
-    ModuleMutationType.TRUNCATE_FIELDS,
     ModuleMutationType.CREATE_FIELD,
     ModuleMutationType.UPDATE_FIELD,
     ModuleMutationType.DELETE_FIELD,
@@ -192,7 +182,6 @@ MNT = ModuleNodeType
 
 _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     # Files
-    MMT.TRUNCATE_FILES: (MMK.TRUNCATE, MNT.File),
     MMT.BUMP_FILE: (MMK.BUMP, MNT.File),
     MMT.PASTE_FILE: (MMK.CREATE, MNT.File),
     MMT.CREATE_FILE: (MMK.CREATE, MNT.File),
@@ -203,7 +192,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     MMT.UPDATE_FILE: (MMK.UPDATE, MNT.File),
     MMT.DELETE_FILE: (MMK.DELETE, MNT.File),
     # Statements
-    MMT.TRUNCATE_STATEMENTS: (MMK.TRUNCATE, MNT.Statement),
     MMT.BUMP_STATEMENT: (MMK.BUMP, MNT.Statement),
     MMT.PASTE_STATEMENT: (MMK.CREATE, MNT.Statement),
     MMT.CREATE_STATEMENT: (MMK.CREATE, MNT.Statement),
@@ -224,7 +212,6 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     MMT.UPDATE_SYMBOL_LANGUAGE: (MMK.UPDATE, MNT.Statement),
     MMT.UPDATE_SYMBOL_VALUE: (MMK.UPDATE, MNT.Statement),
     # Taggings
-    MMT.TRUNCATE_TAGGINGS: (MMK.TRUNCATE, MNT.Tagging),
     MMT.CREATE_TAGGING: (MMK.CREATE, MNT.Tagging),
     MMT.UPDATE_TAGGING: (MMK.UPDATE, MNT.Tagging),
     MMT.DELETE_TAGGING: (MMK.DELETE, MNT.Tagging),
@@ -233,14 +220,12 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     MMT.MOVE_TAGGING: (MMK.UPDATE, MNT.Tagging),
     MMT.UPDATE_TAGGING_METADATA: (MMK.UPDATE, MNT.Tagging),
     # Triggers
-    MMT.TRUNCATE_TRIGGERS: (MMK.TRUNCATE, MNT.Trigger),
     MMT.CREATE_TRIGGER: (MMK.CREATE, MNT.Trigger),
     MMT.UPDATE_TRIGGER: (MMK.UPDATE, MNT.Trigger),
     MMT.DELETE_TRIGGER: (MMK.DELETE, MNT.Trigger),
     MMT.SOFT_DELETE_TRIGGER: (MMK.DELETE, MNT.Trigger),
     MMT.RESTORE_TRIGGER: (MMK.CREATE, MNT.Trigger),
     # Fields
-    MMT.TRUNCATE_FIELDS: (MMK.TRUNCATE, MNT.Field),
     MMT.CREATE_FIELD: (MMK.CREATE, MNT.Field),
     MMT.UPDATE_FIELD: (MMK.UPDATE, MNT.Field),
     MMT.RENAME_FIELD: (MMK.UPDATE, MNT.Field),

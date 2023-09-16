@@ -73,6 +73,22 @@ NODE_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
 )
 
+NODE_CHILDREN_BY_MNT: dict[MNT, list[MNT]] = {
+    MNT.Module: [MNT.File, MNT.Issue],
+    MNT.File: [MNT.Statement, MNT.Tagging, MNT.Comment, MNT.Issue],
+    MNT.Statement: [
+        MNT.Field,
+        MNT.Tagging,
+        MNT.Trigger,
+        MNT.DatasetView,
+        MNT.Record,
+        MNT.Comment,
+        MNT.ResolvedField,
+        MNT.Issue,
+    ],
+    MNT.DatasetView: [MNT.DatasetViewField],
+}
+
 
 def parse_absolute_node_reference(path: str) -> tuple[str, str]:
     match = NODE_REFERENCE_REGEX.match(path)

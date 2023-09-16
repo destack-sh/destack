@@ -932,6 +932,16 @@ class StaticPyTypeMapper(TypeMapper):
 
 
 @dataclass
+class StringTypeMapper(StaticPyTypeMapper):
+    py_type: type = str
+    tag: TypeTag = TypeTag.STRING
+
+    def pack_value(self, type: TypeBase, value: Any) -> str:
+        # sanitize null character
+        return str(value).replace("\x00", "")
+
+
+@dataclass
 class VectorTypeMapper(StaticPyTypeMapper):
     py_type: type = Vector
     tag: TypeTag = TypeTag.VECTOR
@@ -1214,7 +1224,7 @@ def unpack_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) ->
             else:
                 return mapping.unpack_value(type, value)
     except (KeyError, ValueError, TypeError):
-        logger.warning("instantiate_failed", exc_info=True, value=value, type=type)
+        logger.warning("unpack_failed", exc_info=True, value=value, type=type)
         return value  # type checking is done elsewhere
 
 
@@ -1270,8 +1280,8 @@ def pack_value(
 
 
 # type tags
-register_mapper(StaticPyTypeMapper(str, TypeTag.STRING), tags=[TypeTag.STRING])
-register_mapper(StaticPyTypeMapper(Key, TypeTag.STRING, hint=TypeHint.KEY), hints=[TypeHint.KEY])
+register_mapper(StringTypeMapper(str, TypeTag.STRING), tags=[TypeTag.STRING])
+register_mapper(StringTypeMapper(Key, TypeTag.STRING, hint=TypeHint.KEY), hints=[TypeHint.KEY])
 register_mapper(
     StaticPyTypeMapper(float, TypeTag.NUMBER, alt_py_types=[int]), tags=[TypeTag.NUMBER]
 )
