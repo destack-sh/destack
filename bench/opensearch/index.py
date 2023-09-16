@@ -142,7 +142,6 @@ def create_bench_index(project_id: UUID, name: str = None, upsert: bool = False)
 
 
 OS_SEMANTIC_FIELD_MUTATIONS = {
-    MMT.TRUNCATE_FIELDS,
     MMT.CREATE_FIELD,
     MMT.UPDATE_FIELD,
     MMT.UPDATE_FIELD_TYPE,
