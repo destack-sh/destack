@@ -5,6 +5,7 @@ from uuid import UUID
 
 import structlog
 
+import bench.language.const
 from bench import models
 from bench.models import packer
 from bench.msg import NMessage
@@ -67,7 +68,7 @@ class WorkerObserver:
 
             # trigger 'until healthy' wait events
             if (
-                ws.status == models.WorkerSetStatus.HEALTHY
+                ws.status == bench.language.const.WorkerSetStatus.HEALTHY
                 and ws.project_id in self._until_healthy_waiters
             ):
                 self._until_healthy_waiters[ws.project_id].set()
@@ -75,7 +76,7 @@ class WorkerObserver:
     def is_healthy(self, project_id: UUID) -> bool:
         """Return whether the worker set is healthy."""
         worker_set = self._worker_sets_by_project_id.get(project_id)
-        return worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY
+        return worker_set and worker_set.status == bench.language.const.WorkerSetStatus.HEALTHY
 
     def get(self, project_id: UUID) -> Optional[models.WorkerSet]:
         """Return the worker set if it exists."""
@@ -86,7 +87,7 @@ class WorkerObserver:
         worker_set = self._worker_sets_by_project_id.get(project_id)
         log = logger.bind(project_id=project_id, worker_set=worker_set)
         log.info("worker_observer.wait_until_healthy")
-        if worker_set and worker_set.status == models.WorkerSetStatus.HEALTHY:
+        if worker_set and worker_set.status == bench.language.const.WorkerSetStatus.HEALTHY:
             return  # already good
 
         # create waiter

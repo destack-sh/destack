@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Any, Generic, Optional, TypeVar
 from uuid import UUID
 
+import bench.language.const
 import bench.opensearch.core as os
 from bench import models
 from bench.language import StatementType, wire
@@ -503,7 +504,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             scheduled_at=mirror.scheduled_at,
             started_at=mirror.started_at,
             terminated_at=mirror.terminated_at,
-            status=wire.RunStatus(mirror.status),
+            status=bench.language.const.RunStatus(mirror.status),
             inputs=mirror.inputs,
             outputs=mirror.outputs,
             error=None,

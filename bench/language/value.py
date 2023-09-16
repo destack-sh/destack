@@ -1,11 +1,16 @@
 from dataclasses import field
+from typing import TYPE_CHECKING
 
+from bench.language import HasFields
 from bench.language.module import ModuleNode, node
 from bench.utils.proxy import proxy_value
 
+if TYPE_CHECKING:
+    from bench.language.session import Session
+
 
 @node
-class HasValue(ModuleNode):
+class HasValue(HasFields, ModuleNode):
     value: dict | None = field(default_factory=dict)
 
     def _onwrite_value(self, key: str) -> None:
@@ -14,7 +19,6 @@ class HasValue(ModuleNode):
     def _activate_in(self, session: "Session") -> None:
         from bench.language.mapping import unpack_value
 
-        # nocheckin: handle statement type behavior (HasX)
         if self._unpacked:
             self.value = self._raw_value()
             self._unpacked = False

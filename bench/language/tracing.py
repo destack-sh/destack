@@ -18,7 +18,7 @@ from bench.language.field import TypeBase, check_type, map_value, pack_value, pa
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
 from bench.language.run import HasRun
-from bench.language.session import LogEntry, Run, RunError
+from bench.language.session import LogEntry
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
@@ -32,6 +32,8 @@ if TYPE_CHECKING:
         Model,
         Record,
         RemoteObject,
+        Run,
+        RunError,
         Secret,
         Tagging,
         Task,

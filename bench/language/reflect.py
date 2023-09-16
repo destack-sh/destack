@@ -3,9 +3,9 @@ import typing
 from dataclasses import dataclass
 from uuid import UUID, uuid5
 
-from bench.language import File
 from bench.language.builtin import symbolx_lib
 from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
+from bench.language.file import File
 from bench.language.mapping import pack_value, type_from_instance_type, unpack_value
 
 
@@ -66,7 +66,7 @@ def x_task(
     name: str, text: str, *, file: File
 ) -> typing.Callable[[typing.Callable], typing.Callable]:
     def decorator(fn):
-        from bench.language.task import Task
+        from bench.language.statement import Task
 
         task = Task(name=name, text=text)
         file.append_statement(task)
@@ -80,7 +80,7 @@ def x_task(
 @typing.dataclass_transform()
 def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
-        from bench.language.tagging import Tag
+        from bench.language.statement import Tag
 
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
@@ -102,7 +102,7 @@ def x_model(
     name: str, text: str, *, external_name: str, file: File
 ) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
-        from bench.language.model import Model
+        from bench.language.statement import Model
 
         model = Model(name=name, external_name=external_name, text=text)
         file.append_statement(model)

@@ -13,19 +13,26 @@ from uuid import UUID, uuid4
 
 import structlog
 
-from bench.language import File, Issue, IssueType, Session, Statement, StatementType
 from bench.language.const import (
     MNT,
+    IssueKind,
+    IssueType,
     ModuleReference,
     NodePath,
+    StatementType,
     parse_absolute_node_reference,
     parse_node_path,
 )
-from bench.language.wire import ModuleTreeData
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
+if typing.TYPE_CHECKING:
+    from bench.language import Field, File, Issue, Session, Statement
+    from bench.language.wire import ModuleTreeData
+
 logger = structlog.get_logger(__name__)
+
+SESSION_NOT_READY = object()
 
 
 class LookupBy(enum.StrEnum):
@@ -59,7 +66,7 @@ def node(cls: Optional[typing.Type] = None, mnt: MNT = None, tracked: list[str] 
                 cls._TRACKED.extend(base._TRACKED)  # type: ignore
         # can only track properties inside a session
         if cls._TRACKED and not issubclass(cls, ModuleNode):  # type: ignore
-            raise ValueError("cannot have tracked properties without ModuleNode")
+            raise ValueError(f"{cls} cannot have tracked properties without ModuleNode")
 
         return cls
 
@@ -135,7 +142,9 @@ class ModuleNode(abc.ABC):
     _tracked: bool = False
 
     def __post_init__(self):
-        if self._session is None:
+        if self._session is SESSION_NOT_READY:
+            pass
+        elif self._session is None:
             from bench.language.session import active_session
 
             self._session = active_session.get()
@@ -178,10 +187,10 @@ class ModuleNode(abc.ABC):
         return None
 
     def _clear(self) -> None:
-        pass  # nocheckin: ensure all nodes _clear?
+        pass
 
     def _interp(self, scope: "Scope") -> None:
-        pass  # nocheckin: ensure all nodes have _interp?
+        pass
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         """Visit any child nodes."""
@@ -253,34 +262,17 @@ class ModuleNode(abc.ABC):
         return self.session.logger
 
 
-CRUD_PROPERTIES = HasCrud._PROPERTIES  # type: ignore
-
 NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
 @node
 class Scope:
     parent: Optional["Scope"] = None
+    issues: list["Issue"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
     _nodes_by_id: dict[UUID, "ModuleNode"] = field(default_factory=dict)
     _nodes_by_ck: dict[UUID, "Statement"] = field(default_factory=dict)
     _names_by_ident: dict[str, str] = field(default_factory=dict)
-
-    @cached_property
-    def _root_scope(self) -> "Scope":
-        if self.parent is None:
-            return self
-        return self.parent._root_scope
-
-    def _on_issue(
-        self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Statement", "File", None] = None,
-        type: IssueType = None,
-        **kwargs,
-    ):
-        raise NotImplementedError
 
     def _get_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
         if by == LookupBy.Name:
@@ -290,7 +282,7 @@ class Scope:
                 name = self._names_by_ident[name]
                 return self._scopes_by_name.get(name)
         else:
-            raise ValueError(f"unexpected lookup type: {by}")
+            raise ValueError(f"{self} got unexpected lookup type: {by}")
         return None
 
     def _find_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
@@ -362,6 +354,43 @@ class Scope:
         self._names_by_ident = {}
         for scope in self._scopes_by_name.values():
             scope._clear()
+
+    @property
+    def errors(self) -> list["Issue"]:
+        if self.issues is None:
+            return []
+        return [i for i in self.issues if i.kind == IssueKind.Error]
+
+    @property
+    def self_errors(self):
+        return [i for i in self.errors if i.parent == self]
+
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Statement", "File", "Field", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        from bench.language.field import Field
+        from bench.language.issue import Issue
+
+        if isinstance(subject, Field):
+            subject = subject.parent  # fields don't have issues (yet)
+        if issue is None:
+            issue = Issue(type=type, parent=subject, **kwargs)
+        if self.issues is None:
+            self.issues = []
+        self.issues.append(issue)
+        if self.parent is not None:
+            self.parent._on_issue(issue)
+
+    @cached_property
+    def _root_scope(self) -> "Scope":
+        if self.parent is None:
+            return self
+        return self.parent._root_scope
 
 
 class ModuleStatus(enum.IntEnum):
@@ -453,6 +482,8 @@ class Module(ModuleNode, Scope):
         return result
 
     def create_file(self, name: str) -> "File":
+        from bench.language.file import File
+
         if name in self._scopes_by_name:
             raise ValueError(f"{name} already exists in {self}: {self._scopes_by_name[name]}")
         file = File(name=name, parent=self, module=self)
@@ -534,7 +565,7 @@ class Module(ModuleNode, Scope):
     def interp(self):
         self._expect_status(ModuleStatus.Index)
         for file in self.files:
-            file._interp()
+            file._interp(file)
         self.status = ModuleStatus.Interp
 
     def copy(self):

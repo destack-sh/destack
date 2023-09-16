@@ -2,7 +2,7 @@ import os
 from uuid import uuid5
 
 from bench.language.const import BENCH_UUID_NAMESPACE
-from bench.language.module import Module
+from bench.language.module import SESSION_NOT_READY, Module
 
 #
 # Common base for builtin libraries for reference outside libs.
@@ -14,7 +14,7 @@ def _make_builtin_lib_module(name: str) -> Module:
     # :BuiltinLibs
     ck = uuid5(BENCH_UUID_NAMESPACE, f"builtin:{name}")
     id = uuid5(ck, os.environ["VERSION"])
-    return Module(name=name, ck=ck, id=id)
+    return Module(name=name, ck=ck, id=id, _session=SESSION_NOT_READY)
 
 
 symbolx_lib = _make_builtin_lib_module("symbolx.lib")

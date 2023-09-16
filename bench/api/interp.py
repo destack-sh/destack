@@ -5,6 +5,7 @@ import strawberry_django
 import structlog
 from strawberry import auto, lazy, relay
 
+import bench.language.const
 from bench import language as language
 from bench import models
 from bench.api.utils import ModuleNode
@@ -15,7 +16,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 IssueKind = strawberry.enum(models.IssueKind)
-IssueType = strawberry.enum(language.IssueType)
+IssueType = strawberry.enum(bench.language.const.IssueType)
 
 
 @strawberry_django.type(models.Issue)

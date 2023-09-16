@@ -14,16 +14,19 @@ from typing import Any, Optional
 import structlog
 from more_itertools import first, last
 
-from bench.language.const import NodePath, TypeTag
-from bench.language.issue import IssueType
+from bench.language import IssueType
+from bench.language.const import NodePath
+from bench.language.field import HasFields
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import LookupBy, ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import LookupBy, ModuleNode, Scope, node
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.run import CachedRun, HasRun, get_run_cache_subkey
-from bench.language.text import HasText
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
+
+if typing.TYPE_CHECKING:
+    from bench.language.statement import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -45,7 +48,8 @@ class CodeParse:
 
 
 @node(tracked=["code"])
-class HasCode(ModuleNode):
+class HasCode(HasFields, HasRun, ModuleNode):
+    code: str | None = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
     _transform: Optional[CodeTransformation] = None
@@ -76,11 +80,6 @@ class HasCode(ModuleNode):
         if self.exported:
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
-            visitor.visit_child(n)
-        HasText._visit(self, visitor)
 
     def __call__(self, *args, **kwargs):
         if self._is_async:
