@@ -13,8 +13,10 @@ import requests
 import structlog
 from asgiref.sync import async_to_sync
 
+from bench.language import Module
 from bench.language.const import RemoteObjectStatus
-from bench.language.core import HasSession, Module, Session, node
+from bench.language.module import ModuleNode, node
+from bench.language.session import Session
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import required_field
 
@@ -25,7 +27,7 @@ REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
 @node
-class RemoteObject(HasSession):
+class RemoteObject(ModuleNode):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
     :RemoteObjectType
@@ -261,7 +263,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 
 
 @node
-class Secret(HasSession, typing.Generic[SecretValueT]):
+class Secret(ModuleNode, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
     id: UUID = field(default_factory=uuid.uuid4)

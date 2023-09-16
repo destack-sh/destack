@@ -1,8 +1,8 @@
 import os
 from uuid import uuid5
 
-from bench.language.basic import BENCH_UUID_NAMESPACE
-from bench.language.core import Module
+from bench.language.const import BENCH_UUID_NAMESPACE
+from bench.language.module import Module
 
 #
 # Common base for builtin libraries for reference outside libs.

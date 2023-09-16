@@ -8,8 +8,7 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import TriggerType
-from bench.language.core import ModuleReference
+from bench.language.const import ModuleReference, TriggerType
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
 from bench.language.session import WorkerProfile, WorkerRegion

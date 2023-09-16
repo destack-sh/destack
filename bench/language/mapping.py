@@ -1,637 +1,45 @@
-import abc
-import dataclasses
 import enum
 import inspect
-import itertools
-import typing
-import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields, is_dataclass
 from datetime import date, datetime, time
-from typing import Any, Callable, Collection, Optional, Self, Union
+from typing import (
+    TYPE_CHECKING,
+    Any,
+    Callable,
+    Collection,
+    ForwardRef,
+    Mapping,
+    NamedTuple,
+    Optional,
+    Union,
+    get_args,
+    get_origin,
+    get_type_hints,
+    is_typeddict,
+)
 from uuid import UUID
 
 import structlog
 from more_itertools import first
 
-from bench.language.basic import HasText
-from bench.language.const import (
-    FieldReferenceMask,
-    RemoteObjectStatus,
-    StatementType,
-    TypeFlag,
-    TypeHint,
-    TypeStorageFormat,
-    TypeTag,
+from bench.language.const import RemoteObjectStatus, TypeFlag, TypeHint, TypeTag
+from bench.language.field import (
+    PRIMITIVE_TYPES,
+    TYPE_TAG_BY_TYPE_HINT,
+    Field,
+    HasFields,
+    Json,
+    Key,
+    TypeBase,
+    Vector,
 )
-from bench.language.core import (
-    MNT,
-    HasCrud,
-    HasSession,
-    ModuleNode,
-    ModuleVisitor,
-    NodePath,
-    Scope,
-    Statement,
-    StatementBase,
-    StatementReference,
-    get_node_id,
-    node,
-)
-from bench.language.issue import IssueType
-from bench.language.query import FieldQueryOps
 from bench.language.remote import RemoteObject, Secret
-from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
-from bench.utils.func import cyrb53a, dict_minus, did_you_mean_str
-from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import DotDict, IdentifierType, to_pyidentifier
+
+if TYPE_CHECKING:
+    from bench.language import Type
 
 logger = structlog.get_logger(__name__)
-
-PyValueType = Union[int, float, bool, str, dict, list]
-
-
-class TypeError(TypeError):
-    def __init__(
-        self,
-        value: Any,
-        expected: "TypeBase",
-        message: str = None,
-        suberrors: list["TypeError"] = None,
-    ):
-        value_str = repr(value)
-        max_value_str_len = 400
-        if len(value_str) > max_value_str_len:
-            value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
-        super().__init__(
-            f"{message or 'type mismatch'}: expected {expected}, got {value_str} ({type(value)})"
-        )
-        self.value = value
-        self.expected = expected
-        self.message = message
-        self.suberrors = suberrors or []
-
-
-PRIMITIVE_TYPES = [
-    TypeTag.ANY,
-    TypeTag.NULL,
-    TypeTag.BOOLEAN,
-    TypeTag.NUMBER,
-    TypeTag.STRING,
-    TypeTag.FILE,
-    TypeTag.VECTOR,
-]
-FIELD_KEY_LENGTH = 8
-
-DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
-Vector = typing.NewType("Vector", list[float])
-Json = typing.NewType("Json", dict)
-Key = typing.NewType("Key", str)
-
-
-@dataclass
-class XYPoint:
-    """The value of an OpenSearch/GeoJSON-compatible geo_point field."""
-
-    x: float
-    y: float
-
-
-class XYShapeType(enum.StrEnum):
-    """The type in an OpenSearch-compatible geo_shape field."""
-
-    POINT = "point"
-    LINE_STRING = "line_string"
-    POLYGON = "polygon"
-    MULTI_POINT = "multi_point"
-    MULTI_LINE_STRING = "multi_line_string"
-    MULTI_POLYGON = "multi_polygon"
-    GEOMETRY_COLLECTION = "geometry_collection"
-    ENVELOPE = "envelope"
-
-
-@dataclass
-class XYShape:
-    """The value of an OpenSearch-compatible geo_shape field."""
-
-    type: XYShapeType
-    coordinates: typing.Union[list[float], list[list[float]]]
-
-
-TYPE_TAG_BY_TYPE_HINT = {
-    # string
-    TypeHint.NAME: TypeTag.STRING,
-    TypeHint.UUID: TypeTag.STRING,
-    TypeHint.DATE: TypeTag.STRING,
-    TypeHint.DATETIME: TypeTag.STRING,
-    TypeHint.TIME: TypeTag.STRING,
-    TypeHint.DURATION: TypeTag.STRING,
-    TypeHint.EMAIL: TypeTag.STRING,
-    TypeHint.URL: TypeTag.STRING,
-    TypeHint.MARKDOWN: TypeTag.STRING,
-    TypeHint.RICH_TEXT: TypeTag.STRING,
-    TypeHint.HTML: TypeTag.STRING,
-    TypeHint.CODE: TypeTag.STRING,
-    TypeHint.KEY: TypeTag.STRING,
-    TypeHint.PHONE: TypeTag.STRING,
-    TypeHint.SECRET: TypeTag.STRING,
-    # number
-    TypeHint.INTEGER: TypeTag.NUMBER,
-    TypeHint.FLOAT: TypeTag.NUMBER,
-    TypeHint.SLIDER: TypeTag.NUMBER,
-    TypeHint.RATING: TypeTag.NUMBER,
-    # boolean
-    TypeHint.TOGGLE: TypeTag.BOOLEAN,
-    TypeHint.CHECKBOX: TypeTag.BOOLEAN,
-    TypeHint.THUMBS: TypeTag.BOOLEAN,
-    # file
-    TypeHint.IMAGE: TypeTag.FILE,
-    TypeHint.VIDEO: TypeTag.FILE,
-    TypeHint.AUDIO: TypeTag.FILE,
-}
-
-STORAGE_FORMAT_BY_TYPE_TAG = {
-    TypeTag.STRING: TypeStorageFormat.STRING,
-    TypeTag.JSON: TypeStorageFormat.OBJECT,
-    TypeTag.NUMBER: TypeStorageFormat.DOUBLE,
-    TypeTag.BOOLEAN: TypeStorageFormat.BOOLEAN,
-    TypeTag.VECTOR: TypeStorageFormat.VECTOR,
-    TypeTag.FILE: TypeStorageFormat.OBJECT,
-    TypeTag.STRUCT: TypeStorageFormat.OBJECT,
-    TypeTag.ENUM: TypeStorageFormat.KEYWORD,
-    TypeTag.LITERAL: TypeStorageFormat.KEYWORD,
-}
-STORAGE_FORMAT_BY_TYPE_HINT = {
-    # for special types that are not the same as their type tag
-    TypeHint.UUID: TypeStorageFormat.KEYWORD,
-    TypeHint.DATE: TypeStorageFormat.DATE,
-    TypeHint.DATETIME: TypeStorageFormat.DATE,
-    TypeHint.TIME: TypeStorageFormat.LONG,
-    TypeHint.DURATION: TypeStorageFormat.DOUBLE,
-    TypeHint.KEY: TypeStorageFormat.KEYWORD,
-    TypeHint.INTEGER: TypeStorageFormat.LONG,
-    TypeHint.FLOAT: TypeStorageFormat.DOUBLE,
-}
-
-
-def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeStorageFormat:
-    # :TypeStorageFormat
-    if flags & TypeFlag.IsSecret:
-        return TypeStorageFormat.OBJECT  # stored as secret object
-    if hint in STORAGE_FORMAT_BY_TYPE_HINT:
-        return STORAGE_FORMAT_BY_TYPE_HINT[hint]
-    return STORAGE_FORMAT_BY_TYPE_TAG[tag]
-
-
-class TypeBase(abc.ABC):
-    id: UUID
-    name: Optional[str]
-    key: Optional[str]
-    tag: TypeTag
-    hint: Optional[TypeHint]
-    flags: TypeFlag
-    text: Optional[str]
-    text_plain: Optional[str]
-    fields: list["TypeBase"]
-    resolved_fields: list["TypeBase"]  # resolved fields with unions and such
-    reference: Union[None, StatementReference, "HasType"]
-    source: Optional[Statement]
-
-    @property
-    def storage_format(self) -> TypeStorageFormat:
-        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Type):
-            return self.reference.storage_format
-        return get_storage_format(self.tag, self.hint, self.flags)
-
-    @property
-    def py_ident(self) -> Optional[str]:
-        if self.name is None:
-            return None
-        elif self.tag == TypeTag.LITERAL:
-            return to_pyidentifier(self.name, IdentifierType.CONSTANT)
-        else:
-            return to_pyidentifier(self.name, IdentifierType.FIELD)
-
-    @property
-    def effective_type(self) -> Union["TypeBase", "HasType"]:
-        if isinstance(self.reference, HasType):
-            return self.reference
-        else:
-            return self
-
-    @property
-    def effective_tag(self) -> TypeTag:
-        return self.effective_type.tag
-
-    @property
-    def effective_hint(self) -> Optional[TypeHint]:
-        return self.effective_type.hint
-
-    @property
-    def bases(self):
-        return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
-
-    @property
-    def inputs(self) -> list["TypeBase"]:
-        if self.tag != TypeTag.FUNCTION:
-            return []
-        return [
-            child
-            for child in (self.resolved_fields or self.fields)
-            if not child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
-        ]
-
-    @property
-    def outputs(self) -> list["TypeBase"]:
-        if self.tag != TypeTag.FUNCTION:
-            return []
-        return [
-            child
-            for child in (self.resolved_fields or self.fields)
-            if child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
-        ]
-
-    def get_field(self, some_id: str) -> Optional["Field"]:
-        for field_ in self.resolved_fields or self.fields:
-            if field_.py_ident == some_id or field_.name == some_id or field_.key == some_id:
-                return field_
-        return None
-
-    def has_field(self, some_id: str) -> bool:
-        return self.get_field(some_id) is not None
-
-    def walk_type(self, path: list["UUID"] | None = None, include_references: bool = False):
-        if path is None:
-            path = [self.id]
-        else:
-            path = path + [self.id]
-        yield self
-        if include_references and self.reference:
-            yield from self.reference.walk_type(path, include_references=include_references)
-        if self.fields:
-            for child in self.fields:
-                if child.id in path:
-                    continue  # break cycles (allowed, but we don't want to traverse them)
-                yield from child.walk_type(path, include_references=include_references)
-
-
-def new_field_key(ck: UUID) -> str:
-    """
-    Gets a 'random' alphabetic key as a persistent key for a field.
-    (FIELD_KEY_LENGTH alphabetic characters) :FieldKeys
-    """
-    hash_value = cyrb53a(str(ck))
-    key = ""
-    while len(key) < FIELD_KEY_LENGTH:
-        hash_value, remainder = divmod(hash_value, 52)
-        if remainder < 26:
-            key += chr(ord("a") + remainder)
-        else:
-            key += chr(ord("A") + remainder - 26)
-    return key
-
-
-@node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "metadata"])
-class Field(ModuleNode, HasCrud, HasSession, HasText, TypeBase, FieldQueryOps):
-    parent: Statement | None = None
-    name: Optional[str] = None
-    tag: TypeTag = required_field()
-    hint: Optional[TypeHint] = None
-    order_key: str = INTEGER_ZERO
-    text: Optional[str] = None
-    key: str = field(default=None)
-    flags: TypeFlag = TypeFlag(0)
-    metadata: dict[str, Any] = None
-    reference: Union[None, NodePath, Statement, UUID, "Type"] = None
-    reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
-
-    def __post_init__(self):
-        self.key = self.key or new_field_key(self.ck)
-
-    def __str__(self):
-        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
-        flags_str = f" ({flag_str})" if flag_str else ""
-        name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
-        return f"{name_str}{self.tag}{flags_str}"
-
-    def __repr__(self):
-        return f"<Field {self}>"
-
-    def __eq__(self, other):
-        return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
-
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        if isinstance(self.reference, Statement):
-            visitor.visit_reference(self.reference)
-
-    @property
-    def path(self) -> str:
-        if self.parent is None:
-            return f"<detached>.{self.py_ident}"
-        else:
-            return f"{self.parent.path}.{self.py_ident}"
-
-    @property
-    def dimensions(self) -> int:
-        if self.tag != TypeTag.VECTOR:
-            raise ValueError(f"{self} does not have dimensions")
-        return (self.metadata or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
-
-    @property
-    def typed_key(self) -> str:
-        if self.storage_format == TypeStorageFormat.VECTOR:
-            return f"{self.key}-{self.storage_format.value}{self.dimensions}"
-        else:
-            return f"{self.key}-{self.storage_format.value}"
-
-    @property
-    def source_key(self) -> str:
-        return "value." + self.typed_key
-
-    @property
-    def resolved_fields(self) -> list["Field"]:
-        if isinstance(self.reference, Type):
-            return self.reference.resolved_fields
-        return []
-
-    fields = resolved_fields  # the same by default
-
-
-@node(mnt=MNT.ResolvedField)
-class ResolvedField(Field):
-    parent: Statement = required_field()
-    field: Field = required_field()
-
-    @property
-    def field_ck(self) -> UUID:
-        return self.field.ck
-
-
-@node
-class Mapping:
-    """Mapping fields between statements (or other keyed connections)."""
-
-    connections: Optional[list[tuple[str, str]]] = None
-
-
-class _FieldAccessor:
-    """Access the fields of a type as attributes."""
-
-    def __init__(self, type: "HasType"):
-        self.type = type
-
-    def __getattr__(self, item: str):
-        return self.type.get_field(item)
-
-
-@node
-class HasType(TypeBase, StatementBase):
-    """A symbol that has (but may not be) a type"""
-
-    type: StatementType = StatementType.TYPE
-    tag: TypeTag = required_field()
-    hint: Optional[TypeHint] = None
-    flags: TypeFlag = TypeFlag.Zero
-    fields: list[Field] = field(default_factory=list)
-    resolved_fields: list[Field | ResolvedField] | None = None
-    key: str = None
-    reference = None
-
-    def _clear(self) -> None:
-        self.resolved_fields = None
-        for f in self.fields:
-            f._clear()
-
-    def _index(self):
-        # TODO @Cleanup: automatically register _clear/_index/_interp for statement elements
-        Statement._index(self)
-        for f in self.fields:
-            self._add_child_node(f, by_name=True)
-
-    def _interp(self, scope: Scope) -> None:
-        # sort fields by order key
-        self.fields.sort(key=lambda f: f.order_key)
-
-        # TODO @Cleanup: interp fields should really go into Field
-        # interp fields
-        for f in self.fields:
-            HasText._interp(f, scope)
-        # resolve fields references
-        for f in self.walk_type():
-            # TODO @Cleanup @Architecture: move field reference resolution into Field._interp
-            #  we'll also need text reference resolution and tagging resolution there
-            if f.tag != TypeTag.TYPE_REFERENCE or isinstance(f.reference, Statement):
-                continue  # nothing to resolve
-            statement = None
-            if f.reference is not None:
-                statement = scope.lookup(f.reference, node_t=Type)
-            if not isinstance(statement, TypeBase):
-                self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
-                )
-                continue
-            f.reference = statement
-
-        # expand unions (recursively)
-        _resolve_unions(self, [])
-
-    def extend_type(self, *bases: "Type") -> "Self":
-        """Adds the fields of another type to this one"""
-        for base in bases:
-            field_ = Field(
-                parent=self.parent,
-                name=None,
-                tag=TypeTag.TYPE_REFERENCE,
-                reference=base,
-                flags=TypeFlag.IsUnionWith,
-            )
-            self.session.tracer.field_append(self, field_)
-            self.fields.append(field_)
-            self._notify_added(field_)
-        self._reinterp()
-        return self
-
-    def add_field(self, *fields_: Field) -> "Self":
-        """Adds a field to this type"""
-        last_ok = self.fields[-1].order_key if self.fields else None
-        oks = generate_n_keys_between(last_ok, None, len(fields_))
-        for ok, field_ in zip(oks, fields_):  # noqa shadows dataclass.field
-            self.session.tracer.field_append(self, field_)
-            if not field_.detached:
-                raise ValueError(f"{field_} is already attached to {field_.parent}")
-            field_.parent = self
-            field_.order_key = ok
-            self.fields.append(field_)
-            self._notify_added(field_)
-        self._reinterp()
-        return self
-
-    def _inputs_from_args(self, args, kwargs) -> dict:
-        inputs = {**kwargs}
-        for input_t, input in zip(self.inputs, args):
-            inputs[input_t.py_ident] = input
-        return inputs
-
-    def _take_fields_from(self, other: "HasType", reset_id: bool) -> list[Field]:
-        """Copies the fields of this type to another type"""
-        new_fields = []
-        for field_ in other.fields:
-            if not field_.id:
-                field_._assign_id(self.module.id)
-            field_copy = field_.copy()
-            field_copy.parent = self
-            field_copy.reference = field_.reference
-            if reset_id:
-                field_copy.id = None
-                field_copy.ck = uuid.uuid4()
-            self.fields.append(field_copy)
-            self._notify_added(field_copy)
-            new_fields.append(field_copy)
-        self._assign_oks()
-        return new_fields
-
-    def _assign_oks(self):
-        oks = generate_n_keys_between(None, None, len(self.fields))
-        for ok, field_ in zip(oks, self.fields):
-            if field_.parent is None:
-                field_.parent = self
-            elif field_.parent is not self:
-                raise ValueError(f"{field_} is already attached to {field_.parent}")
-            field_.order_key = ok
-
-    def __getattr__(self, item):
-        if item in self._PROPERTIES:  # defined for all module node classes
-            return super().__getattr__(item)
-        field_ = self.get_field(item)
-        if field_ is not None:
-            return field_
-        if item in self._names_by_ident:
-            item = self._names_by_ident.get(item)
-        statement = self._scopes_by_name.get(item)
-        if statement is not None:
-            return statement
-        candidates = {
-            **{s: s for s in self._PROPERTIES},
-            **{f.py_ident: f for f in self.fields},
-            **{s.py_ident: s for s in self._scopes_by_name.values()},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
-
-    @property
-    def t(self):
-        return _FieldAccessor(self)
-
-
-def _resolve_unions(type: "HasType", path: list[TypeBase]) -> None:
-    """
-    Resolves (and inlines) the union-ed fields of any union types in the type tree.
-    """
-    if any(n.id == type.id for n in path):
-        type._on_issue(
-            type=IssueType.CIRCULAR_UNION,
-            subject=type,
-            path="->".join(n.name for n in path + [type]),
-        )
-        return  # circular
-    if type.resolved_fields is not None:
-        return  # already resolved
-    if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
-        type.resolved_fields = type.fields
-        return  # skip, not a union
-    path = path + [type]
-
-    resolved_fields = []
-    for maybe_union in type.fields:
-        if not maybe_union.flags & TypeFlag.IsUnionWith:
-            resolved_fields.append(maybe_union)
-            continue
-        if not isinstance(maybe_union.reference, HasType):
-            continue  # ignore unresolved
-        _resolve_unions(maybe_union.reference, path)
-        if not maybe_union.reference.resolved_fields:
-            continue  # couldn't resolve *that* union
-        # inline child's type nodes
-        for child in maybe_union.reference.resolved_fields:
-            existing = first((n for n in resolved_fields if n.name == child.name), None)
-            # check if type is compatible if overlapping
-            if existing is not None and (
-                existing.tag != child.tag
-                or existing.flags != child.flags
-                or existing.hint != child.hint
-            ):
-                # TODO @Robustness: check union type compatibility properly/deeply
-                type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
-                continue
-
-            # point directly to the field (for transitive unions)
-            if isinstance(child, ResolvedField):
-                child = child.field
-
-            # derive ck/id
-            ck = uuid.uuid5(type.ck, child.ck.hex)
-            resolved = ResolvedField(
-                ck=ck,
-                id=get_node_id(type.module.id, ck),
-                parent=type,
-                field=child,
-                **dict_minus(child.__dict__, ("id", "ck", "field", "parent", "py_type")),
-            )
-            resolved_fields.append(resolved)
-    type.resolved_fields = resolved_fields
-
-
-# avoid circular import because Tag is HasType but Type is HasTags
-from bench.language.tag import HasTags  # noqa
-
-
-@node
-class Type(HasType, HasText, HasTags, Statement):
-    tag: TypeTag = required_field()
-    flags: TypeFlag = TypeFlag.Zero
-    # not directly configurable for type statements
-    hint = None
-    reference = None
-
-    def _clear(self) -> None:
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-
-    def _interp(self, scope: Scope) -> None:
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags):
-            visitor.visit_child(n)
-        HasText._visit(self, visitor)
-
-    def __call__(self, *args, **kwargs):
-        combined_kwargs = {**kwargs}
-        for i in range(len(args)):
-            combined_kwargs[self.fields[i].name] = args[i]
-        return DotDict(combined_kwargs)
-
-    def __str__(self):
-        path_str = f"{self.path} " if self.name else ""
-        return f"{path_str}{self.tag}"
-
-    def __repr__(self):
-        return f"<Type {self}>"
-
-    def __getattr__(self, item):
-        if self._names_by_ident is not None and item in self._names_by_ident:
-            item = self._names_by_ident.get(item)
-            return self._scopes_by_name.get(item)
-        else:
-            return super().__getattr__(item)
-
-    @property
-    def py_ident(self) -> str:
-        return to_pyidentifier(self.name, IdentifierType.TYPE)
-
-    @staticmethod
-    def from_py_type(py_type: Any):
-        return type_from_instance_type(py_type)
 
 
 def on_invalid_raise(
@@ -693,7 +101,7 @@ def map_value(
         return value  # nothing to do ?
     elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise RuntimeError(f"expected struct-like {type} at {value}")
-    if not isinstance(value, typing.Mapping) and not dataclasses.is_dataclass(value):
+    if not isinstance(value, Mapping) and not is_dataclass(value):
         return value  # type error, ignore here
 
     # map into a dict
@@ -720,9 +128,13 @@ TYPENAME_SENTINEL = "__typename"  # :TypeSentinel
 OMITTED_SENTINEL = "__omitted"  # :OmittedSentinel
 REMOTE_OBJECT_TYPENAME = "RemoteObject"
 SECRET_TYPENAME = "Secret"
-TypeSignature = typing.NamedTuple(
+TypeSignature = NamedTuple(
     "TypeSignature", [("tag", TypeTag), ("hint", Optional[TypeHint]), ("flags", TypeFlag)]
 )
+
+
+def is_dataclass(value):
+    pass
 
 
 def check_type(
@@ -771,12 +183,12 @@ def check_type(
     if type.effective_tag == TypeTag.STRUCT or type.effective_tag == TypeTag.FUNCTION:
         if type.tag == TypeTag.FUNCTION and is_output:
             value = value or {}  # None is allowed for empty outputs
-        is_dataclass = dataclasses.is_dataclass(value)
+        is_dc = is_dataclass(value)
         for f in type.resolved_fields or type.fields:
             if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                 continue
             k = get_k(f)
-            if is_dataclass:
+            if is_dc:
                 subvalue = getattr(value, k)
             else:
                 subvalue = value.get(k)
@@ -796,7 +208,7 @@ class TypeMapper:
         """Whether this mapper can represent the given Python instance type."""
         raise NotImplementedError
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
         """Converts a Python instance type into a Bench Type."""
         raise NotImplementedError
 
@@ -881,22 +293,22 @@ def get_type_mapper_by_instance_type(py_type: type) -> tuple[TypeMapper, type, T
 def _strip_py_type(py_type: type) -> tuple[type, TypeFlag]:
     flags = TypeFlag.Zero
     # strip optional
-    if typing.get_origin(py_type) is typing.Union:
-        args = typing.get_args(py_type)
+    if get_origin(py_type) is Union:
+        args = get_args(py_type)
         if len(args) == 2 and args[1] == type(None):  # noqa: E721
             py_type = args[0]
             flags |= TypeFlag.IsOptional
         # convert x | list[x] as isarrayable
-        elif len(args) == 2 and typing.get_origin(args[1]) is list:
-            if args[0] != typing.get_args(args[1])[0]:
+        elif len(args) == 2 and get_origin(args[1]) is list:
+            if args[0] != get_args(args[1])[0]:
                 raise ValueError(f"cannot map generic union types: {py_type}")
             py_type = args[0]
             flags |= TypeFlag.IsArrayable
         else:
             raise ValueError(f"cannot map generic union types: {py_type}")
     # strip list
-    if typing.get_origin(py_type) is list:
-        py_type = typing.get_args(py_type)[0]
+    if get_origin(py_type) is list:
+        py_type = get_args(py_type)[0]
         flags |= TypeFlag.IsArray
     return py_type, flags
 
@@ -921,7 +333,9 @@ class StaticPyTypeMapper(TypeMapper):
             self.alt_py_types is not None and py_type in self.alt_py_types
         )
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+        from bench.language.statement import Type
+
         return Type(name=None, tag=self.tag, hint=self.hint)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
@@ -975,7 +389,9 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
             issubclass(py_type, t) for t in self.HINT_BY_PY_TYPE
         )
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+        from bench.language.statement import Type
+
         return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
     def unpack_value(self, type: TypeBase, value: Any) -> Any:
@@ -992,6 +408,8 @@ class EnumMapper(TypeMapper):
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+        from bench.language.statement import Type
+
         assert issubclass(py_type, enum.StrEnum)
         if py_type in type_map:
             return type_map[py_type]
@@ -1010,11 +428,11 @@ class EnumMapper(TypeMapper):
             return type.has_field(value)
         return isinstance(value, Field) and type.has_field(value.key)
 
-    def unpack_value(self, type: Type, value: Any) -> Any:
+    def unpack_value(self, type: HasFields, value: Any) -> Any:
         field_ = type.get_field(value)
         return field_.name if field_ else value
 
-    def pack_value(self, type: Type, value: Any) -> Any:
+    def pack_value(self, type: HasFields, value: Any) -> Any:
         field_ = type.get_field(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
@@ -1024,6 +442,8 @@ class FileMapper(TypeMapper):
         return py_type is RemoteObject
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+        from bench.language.statement import Type
+
         return Type(name=None, tag=TypeTag.FILE)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
@@ -1056,6 +476,8 @@ class SecretTypeMapper(TypeMapper):
         return py_type is Secret
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+        from bench.language.statement import Type
+
         return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
@@ -1074,19 +496,21 @@ class SecretTypeMapper(TypeMapper):
 
 class StructTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
-        return dataclasses.is_dataclass(py_type) or typing.is_typeddict(py_type)
+        return is_dataclass(py_type) or is_typeddict(py_type)
 
-    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[str, Any]) -> "Type":
         if py_type in type_map:
             return type_map[py_type]
+        from bench.language.statement import Type
+
         type = Type(name=py_type.__name__, tag=TypeTag.STRUCT)
         type_map[py_type] = type
-        if dataclasses.is_dataclass(py_type):
-            for py_field in dataclasses.fields(py_type):
+        if is_dataclass(py_type):
+            for py_field in fields(py_type):
                 field_ = field_from_instance_type(py_field.type, py_field.name, type_map)
                 type.fields.append(field_)
-        elif typing.is_typeddict(py_type):
-            for py_field_name, py_field in typing.get_type_hints(py_type).items():
+        elif is_typeddict(py_type):
+            for py_field_name, py_field in get_type_hints(py_type).items():
                 field_ = field_from_instance_type(py_field, py_field_name, type_map)
                 type.fields.append(field_)
         else:
@@ -1095,7 +519,7 @@ class StructTypeMapper(TypeMapper):
         return type
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
-        return isinstance(value, dict) or dataclasses.is_dataclass(value)
+        return isinstance(value, Mapping) or is_dataclass(value)
 
     def unpack_value(self, type: TypeBase, value: Any) -> Any:
         return DotDict(value) if not isinstance(value, DotDict) else value
@@ -1106,12 +530,12 @@ class StructTypeMapper(TypeMapper):
 
 class JsonTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
-        return py_type is Json or py_type is dict or typing.get_origin(py_type) is dict
+        return py_type is Json or py_type is dict or get_origin(py_type) is dict
 
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return True  # not sure how to check this
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
         return Type(name=None, tag=TypeTag.JSON)
 
 
@@ -1122,9 +546,11 @@ class FunctionTypeMapper(TypeMapper):
     def is_instance_value(self, type: TypeBase, value: Any) -> bool:
         return value is None or isinstance(value, dict)
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> Type:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
         if py_type in type_map:
             return type_map[py_type]
+        from bench.language.statement import Type
+
         type = Type(name=py_type.__name__, tag=TypeTag.FUNCTION)
         type_map[py_type] = type
         signature = inspect.signature(py_type)
@@ -1150,7 +576,7 @@ class FunctionTypeMapper(TypeMapper):
         return type
 
 
-_TYPE_MAP: dict[Any, Type] = {}
+_TYPE_MAP: dict[Any, HasFields] = {}
 
 
 def type_from_instance_type(
@@ -1181,7 +607,7 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
         type = first((t for k, t in type_map.items() if k.__name__ == stripped), None)
         if type is None:
             raise ValueError(f"unknown type name: {stripped}")
-    elif isinstance(stripped, typing.ForwardRef):
+    elif isinstance(stripped, ForwardRef):
         # lookup by name in type_map
         type = first(
             (t for k, t in type_map.items() if k.__name__ == stripped.__forward_arg__), None
@@ -1241,7 +667,7 @@ def pack_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
 
 def unpack_value(
     value: Any,
-    type: HasType,
+    type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,
@@ -1261,7 +687,7 @@ def unpack_value(
 
 def pack_value(
     value: Any,
-    type: HasType,
+    type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,

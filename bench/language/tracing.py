@@ -12,13 +12,13 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import TriggerType, TypeFlag, TypeTag
-from bench.language.core import MNT, ModuleOp, Session, Statement
+from bench.language.const import MNT, TriggerType, TypeFlag, TypeTag
+from bench.language.core import ModuleOp, Session, Statement
+from bench.language.field import TypeBase, check_type, map_value, pack_value, pack_value_flat
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
+from bench.language.run import HasRun
 from bench.language.session import LogEntry, Run, RunError
-from bench.language.type import TypeBase, check_type, map_value, pack_value, pack_value_flat
-from bench.language.utils import Runnable
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
@@ -28,7 +28,7 @@ if TYPE_CHECKING:
         Dataset,
         Field,
         File,
-        HasType,
+        HasFields,
         Model,
         Record,
         RemoteObject,
@@ -55,10 +55,10 @@ class Tracer:
     def statement_create(self, statement: Statement):
         pass
 
-    def field_append(self, symbol: HasType, field: Field):
+    def field_append(self, symbol: HasFields, field: Field):
         pass
 
-    def variable_update(self, value: Variable, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         pass
 
     def dataset_clear(self, dataset: Dataset):
@@ -95,15 +95,15 @@ class Tracer:
 
     # execution
 
-    def run_enter(self, statement: Runnable, inputs: dict):
+    def run_enter(self, statement: HasRun, inputs: dict):
         pass
 
-    def run_exit(self, statement: Runnable, outputs: dict):
+    def run_exit(self, statement: HasRun, outputs: dict):
         pass
 
     def run_cached(
         self,
-        statement: Runnable,
+        statement: HasRun,
         inputs: dict,
         outputs: dict,
         generated_at: datetime,
@@ -112,7 +112,7 @@ class Tracer:
     ):
         pass
 
-    def run_exception(self, statement: Runnable, exception: Exception):
+    def run_exception(self, statement: HasRun, exception: Exception):
         pass
 
 
@@ -281,9 +281,9 @@ class SessionTracer(Tracer):
         self._flush_cancel.set()
         await self._flush(force=True)  # flush pending data
 
-    def variable_update(self, value: Variable, key: Optional[str] = None):
+    def value_update(self, value: Statement, key: Optional[str] = None):
         for tracer in self.tracers:
-            tracer.variable_update(value, key)
+            tracer.value_update(value, key)
 
     def dataset_clear(self, dataset: Dataset):
         for tracer in self.tracers:
@@ -305,15 +305,15 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.dataset_update(dataset, record, key)
 
-    def run_enter(self, statement: Runnable, inputs):
+    def run_enter(self, statement: HasRun, inputs):
         for tracer in self.tracers:
             tracer.run_enter(statement, inputs)
 
-    def run_exit(self, statement: Runnable, outputs):
+    def run_exit(self, statement: HasRun, outputs):
         for tracer in reversed(self.tracers):
             tracer.run_exit(statement, outputs)
 
-    def run_exception(self, statement: Runnable, exception: Exception):
+    def run_exception(self, statement: HasRun, exception: Exception):
         for tracer in reversed(self.tracers):
             try:
                 tracer.run_exception(statement, exception)
@@ -323,7 +323,7 @@ class SessionTracer(Tracer):
 
     def run_cached(
         self,
-        statement: Runnable,
+        statement: HasRun,
         inputs: dict,
         outputs: dict,
         generated_at: datetime,
@@ -482,7 +482,7 @@ class RunTracer(Tracer):
             parent.children.append(run)
         return run
 
-    def run_enter(self, statement: Runnable, inputs):
+    def run_enter(self, statement: HasRun, inputs):
         run = self._create_run(
             runnable=statement, inputs=pack_value(inputs, statement, is_output=False)
         )
@@ -491,7 +491,7 @@ class RunTracer(Tracer):
         self.track(run)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
 
-    def run_exit(self, statement: Runnable, outputs):
+    def run_exit(self, statement: HasRun, outputs):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
@@ -500,7 +500,7 @@ class RunTracer(Tracer):
         _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
-    def run_exception(self, statement: Runnable, exception: Exception):
+    def run_exception(self, statement: HasRun, exception: Exception):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         run.error = RunError.from_exception(exception, statement)
@@ -511,7 +511,7 @@ class RunTracer(Tracer):
 
     def run_cached(
         self,
-        statement: Runnable,
+        statement: HasRun,
         inputs,
         outputs,
         generated_at: datetime,
@@ -553,7 +553,7 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def variable_update(self, variable: Variable, key: Optional[str] = None):
+    def value_update(self, variable: Variable, key: Optional[str] = None):
         from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(variable), properties=["value"])
@@ -581,26 +581,32 @@ class MutationTracer(Tracer):
     ):
         from bench.language import wire
 
-        self.mutator.update(wire.pack_node_flat(record))
+        self.mutator.update(wire.pack_node_flat(record), properties=["value"])
 
 
 class TypeCheckingTracer(Tracer):
     """Validates types (except in inference, which is always checked in the task implementation)."""
 
-    def run_enter(self, statement: Runnable, inputs):
+    def run_enter(self, statement: HasRun, inputs):
         check_type(inputs, statement, is_output=False)
 
-    def run_exit(self, statement: Runnable, outputs):
+    def run_exit(self, statement: HasRun, outputs):
         check_type(outputs, statement, is_output=True)
 
-    def variable_update(self, value: Variable, key: Optional[str] = None):
-        check_type(value.value, value)
+    def value_update(self, value: Variable, key: Optional[str] = None):
+        if key:
+            field_ = value.get_field(key)
+            if field_ is None:
+                raise ValueError(f"{key} does not exist in {value} (available: {value.fields})")
+            check_type(value.value.get(key), field_)
+        else:
+            check_type(value.value, value)
 
     def dataset_append(self, dataset: Dataset, record: Record):
         check_type(record.value, dataset, ignore_array=True)
 
     def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
-        if key is not None and key != "":
+        if key:
             # validate only this key
             field_ = dataset.get_field(key)
             if field_ is None:
@@ -625,7 +631,7 @@ class PermissionCheckingTracer(Tracer):
     def symbol_create(self, symbol: Statement):
         self.session.check_can(ModuleOp.CREATE, symbol)
 
-    def variable_update(self, value: Variable, key: Optional[str] = None):
+    def value_update(self, value: Variable, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
     def dataset_clear(self, dataset: Dataset):

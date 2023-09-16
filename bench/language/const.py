@@ -1,10 +1,100 @@
 from __future__ import annotations
 
 import enum
+import re
+import typing
+from typing import NamedTuple
+from uuid import UUID
 
-#
-# Collection of enums for use without circular import hell.
-#
+from bench.utils.utils import to_all_caps
+
+# hard-coded, do not change ever :BenchUuidNamespace
+BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
+
+
+class ModuleNodeType(enum.StrEnum):
+    # source
+    Module = "Module"
+    File = "File"
+    Statement = "Statement"
+    Trigger = "Trigger"
+    Tagging = "Tagging"
+    Field = "Field"
+    Record = "Record"
+    DatasetView = "DatasetView"
+    DatasetViewField = "DatasetViewField"
+    # interp
+    Issue = "Issue"
+    ResolvedField = "ResolvedField"
+    # user
+    Comment = "Comment"
+
+    @property
+    def caps_name(self):
+        return MNT_CAPS_CASE[self]
+
+
+class ModuleOp(enum.StrEnum):
+    READ = "read"
+    CREATE = "create"
+    UPDATE = "update"
+    DELETE = "delete"
+    RUN = "run"
+
+
+class SessionMode(enum.StrEnum):
+    READ_ONLY = "ro"
+    WRITE = "w"
+
+
+MNT = ModuleNodeType
+MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
+INTERP_NODE_TYPES = {ModuleNodeType.Issue, ModuleNodeType.ResolvedField}
+
+ModuleReference = typing.NamedTuple(
+    "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
+)
+NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
+StatementReference = typing.Union["Statement", NodePath, UUID]
+NodeReference = typing.Union["ModuleNode", NodePath, UUID]
+TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("ref", UUID)])
+NODE_REFERENCE_REGEX = re.compile(
+    r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"
+)
+
+NODE_CHILDREN_BY_MNT: dict[MNT, list[MNT]] = {
+    MNT.Module: [MNT.File, MNT.Issue],
+    MNT.File: [MNT.Statement, MNT.Tagging, MNT.Comment, MNT.Issue],
+    MNT.Statement: [
+        MNT.Field,
+        MNT.Tagging,
+        MNT.Trigger,
+        MNT.DatasetView,
+        MNT.Record,
+        MNT.Comment,
+        MNT.ResolvedField,
+        MNT.Issue,
+    ],
+    MNT.DatasetView: [MNT.DatasetViewField],
+}
+
+
+def parse_absolute_node_reference(path: str) -> tuple[str, str]:
+    match = NODE_REFERENCE_REGEX.match(path)
+    if not match:
+        raise ValueError(f"invalid absolute node reference: {path}")
+    module_name = match.group("module_owner") + "." + match.group("module_name")
+    localized_path = "." + match.group("path")
+    return module_name, localized_path
+
+
+def parse_node_path(node_path: str) -> "NodePath":
+    path, name = node_path.rsplit(".", 1)
+    return NodePath(path, name)
+
+
+def node_path_as_str(node_path: "NodePath") -> str:
+    return f"{node_path.path}:{node_path.name}"
 
 
 class StatementType(enum.StrEnum):
@@ -29,6 +119,14 @@ RUNNABLE_STATEMENT_TYPES = {
     StatementType.TASK,
     StatementType.FLOW,
 }
+
+
+class TextHeadingLevel(enum.IntEnum):
+    """Classic headings big to small."""
+
+    H1 = 1
+    H2 = 2
+    H3 = 3
 
 
 class DatasetViewLayout(enum.StrEnum):

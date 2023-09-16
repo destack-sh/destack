@@ -1,5 +1,4 @@
 import inspect
-import itertools
 import typing
 import uuid
 from dataclasses import field
@@ -9,27 +8,16 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language.basic import HasText
-from bench.language.const import DatasetViewLayout, StatementType, TypeFlag, TypeTag
-from bench.language.core import (
-    MNT,
-    HasCrud,
-    HasSession,
-    Module,
-    ModuleNode,
-    ModuleVisitor,
-    Scope,
-    Session,
-    Statement,
-    node,
-)
+from bench.language import Module
+from bench.language.const import MNT, DatasetViewLayout, StatementType, TypeFlag, TypeTag
+from bench.language.field import Field
+from bench.language.mapping import map_value, pack_value, unpack_value
+from bench.language.module import ModuleNode, ModuleVisitor, node
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
-from bench.language.tag import HasTags
-from bench.language.type import Field, HasType, map_value, pack_value, unpack_value
 from bench.utils.func import describe_type, did_you_mean_str
 from bench.utils.proxy import proxy_value, unproxy_value
-from bench.utils.utils import DotDict, DotList, required_field
+from bench.utils.utils import DotList, required_field
 
 if typing.TYPE_CHECKING:
     from bench.language.wire import RecordData
@@ -38,9 +26,8 @@ logger = structlog.get_logger(__name__)
 
 
 @node(mnt=MNT.Record, tracked=["value"])
-class Record(ModuleNode, HasSession, HasCrud):
-    id: UUID = field(default_factory=uuid.uuid4)
-    parent: "Dataset" = required_field()
+class Record(ModuleNode):
+    parent: "HasDataset" = required_field()
     value: typing.Any = field(default_factory=dict)
     _instantiated: bool = True
 
@@ -128,13 +115,9 @@ class Record(ModuleNode, HasSession, HasCrud):
             self.value[key] = value
 
 
-DEFAULT_QUERY = None
-DEFAULT_SORT = None
-
-
 @node(mnt=MNT.DatasetView, tracked=["name", "layout", "query", "sort", "order_key"])
-class DatasetView(ModuleNode, HasSession, HasCrud):
-    parent: "Dataset" = required_field()
+class DatasetView(ModuleNode):
+    parent: "HasDataset" = required_field()
     name: str = None
     layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
     query: Optional[Query] = None
@@ -154,33 +137,18 @@ class DatasetView(ModuleNode, HasSession, HasCrud):
 
 
 @node(mnt=MNT.DatasetViewField, tracked=["order_key"])
-class DatasetViewField(ModuleNode, HasSession, HasCrud):
+class DatasetViewField(ModuleNode):
     field: UUID | Field = required_field()
     order_key: Optional[str] = None
 
 
-@node(tracked=["text", "versioned"])
-class Dataset(HasType, HasTags, HasText, Search["RecordData", Record], Statement):
+@node(tracked=["versioned"])
+class HasDataset(Search["RecordData", Record]):
     type: StatementType = StatementType.DATASET
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
     views: Optional[list[DatasetView]] = None
-
-    def _clear(self) -> None:
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
-
-    def _interp(self, scope: Scope) -> None:
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags):
-            visitor.visit_child(n)
 
     def view_by_name(self, name: str) -> DatasetView:
         view = first((view for view in self.views if view.name == name), None)
@@ -282,7 +250,7 @@ class RecordSearch(Search["RecordData", Record]):
     def __init__(
         self,
         module: Module,
-        datasets: list[Dataset],
+        datasets: list[HasDataset],
         query: Query,
         sort: list[Sort],
         limit: Optional[int],
@@ -441,116 +409,3 @@ class RecordSearch(Search["RecordData", Record]):
                     record[key] = value[i]
         else:
             raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
-
-
-@node(tracked=["text", "value"])
-class Variable(HasType, HasTags, HasText, Statement):
-    type: StatementType = StatementType.VARIABLE
-    text: Optional[str] = None
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.Zero
-    value: Any = field(default_factory=dict)
-    _instantiated: bool = False  # when should we set this?
-
-    def _clear(self) -> None:
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
-        self._deactivate()
-
-    def _interp(self, scope: Scope) -> None:
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags):
-            visitor.visit_child(n)
-        HasText._visit(self, visitor)
-
-    def _onread(self, key: str) -> None:
-        pass
-
-    def _onwrite(self, key: str) -> None:
-        self.session.tracer.variable_update(self, key)
-
-    def _activate_in(self, session: "Session") -> None:
-        if self._instantiated:
-            self.value = self._raw_value()
-            self._instantiated = False
-        # proxy
-        self.value = unpack_value(self.value, self, ignore_array=True, ignore_outer_map=True)
-        self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
-        self.value = DotDict(self.value)
-        self._instantiated = True
-        super()._activate_in(session)
-
-    def _deactivate(self) -> None:
-        super()._deactivate()
-        if self._instantiated:
-            self.value = self._raw_value()
-            self._instantiated = False
-
-    def _raw_value(self) -> dict:
-        """The raw/stripped value with field keys."""
-        if not self._instantiated:
-            return self.value
-        else:
-            return pack_value(self.value, self, ignore_array=True, ignore_outer_map=True)
-
-    def _raw_named_value(self):
-        """The raw/stripped value with field names."""
-        return map_value(
-            self._raw_value(),
-            self,
-            ignore_array=True,
-            ignore_outer_map=True,
-            map_k=lambda f: (f.typed_key, f.py_ident),
-        )
-
-    def __getattr__(self, item):
-        if item in self._PROPERTIES:
-            return self.__dict__[item]
-        elif item in self.value:
-            return self.value[item]
-        elif self.has_field(item):
-            return None
-        elif not isinstance(item, str):
-            raise TypeError(f"cannot index {self} with {type(item)}")
-        else:
-            candidates = {
-                **{f: f for f in self._PROPERTIES},
-                **{f.py_ident: f for f in self.fields},
-            }
-            raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-            )
-
-    def __setattr__(self, key, value):
-        if key in self._PROPERTIES:
-            super().__setattr__(key, value)
-        else:
-            assert self.value is not None, f"cannot set {key} on {self} without value"
-            self.value[key] = value
-
-    def __getitem__(self, item):
-        if item in self.value:
-            return self.value[item]
-        elif self.has_field(item):
-            return None
-        elif not isinstance(item, str):
-            raise TypeError(f"cannot index {self} with {type(item)}")
-        else:
-            candidates = {f.py_ident: f for f in self.fields}
-            raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-            )
-
-    def __iter__(self):
-        return iter(self.value)
-
-
-DATASET_BACKEND_KEY_LENGTH = 16
-MAX_VERSIONED_RECORDS_TOTAL = 64_000
-MAX_VERSIONED_RECORDS_PER_DATASET = 8_000

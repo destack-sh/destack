@@ -8,7 +8,7 @@ from bench import language as lang
 from bench import models
 from bench.language import wire
 from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
-from bench.language.utils import Runnable
+from bench.language.run import HasRun
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
@@ -340,7 +340,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
         for statement in lib._nodes_by_id.values():
-            if isinstance(statement, Runnable):
+            if isinstance(statement, HasRun):
                 for field in statement.inputs:
                     inputs_mappings[field.typed_key] = map_to_os_field(field)
                 for field in statement.outputs:
@@ -361,13 +361,13 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     # add dynamic user mappings
     for statement in module._nodes_by_id.values():
-        if not isinstance(statement, lang.HasType) or statement.self_errors:
+        if not isinstance(statement, lang.HasFields) or statement.self_errors:
             continue  # ignore symbols with issues
         elif isinstance(statement, lang.Dataset):
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in statement.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field)
-        elif isinstance(statement, lang.Runnable):
+        elif isinstance(statement, lang.HasRun):
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in statement.inputs:
                 inputs_mappings[field.typed_key] = map_to_os_field(field)

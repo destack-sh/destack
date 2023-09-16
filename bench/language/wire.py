@@ -11,9 +11,14 @@ from uuid import UUID
 
 import msgpack
 
+import bench.language.file
+import bench.language.module
 from bench import language as lang
+from bench.language import Module
 from bench.language.basic import TextHeadingLevel, patch_text_html
 from bench.language.const import (
+    MNT,
+    ModuleNodeType,
     RemoteObjectStatus,
     ScheduleType,
     StatementType,
@@ -22,16 +27,9 @@ from bench.language.const import (
     TypeHint,
     TypeTag,
 )
-from bench.language.core import (
-    CRUD_PROPERTIES,
-    MNT,
-    Module,
-    ModuleNode,
-    ModuleNodeType,
-    ModuleVisitor,
-    Session,
-)
+from bench.language.core import Session
 from bench.language.issue import IssueKind, IssueType
+from bench.language.module import CRUD_PROPERTIES, ModuleNode, ModuleVisitor
 from bench.language.query import Query, Sort
 from bench.language.session import (
     LazyRun,
@@ -330,13 +328,15 @@ def node_packer(
     return decorator
 
 
-def pack_module(module: lang.Module) -> "ModuleTreeData":
+def pack_module(module: bench.language.module.Module) -> "ModuleTreeData":
     module_data, nodes = pack_node(module)
     module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
     return module_tree
 
 
-def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> lang.Module:
+def unpack_module(
+    module: ModuleTreeData, session: Optional[Session]
+) -> bench.language.module.Module:
     module = unpack_node(module.nodes, parent=None, session=session)
     return module
 
@@ -483,11 +483,11 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
-@node_packer(MNT.Module, ModuleData, lang.Module)
-class ModulePacker(NodePacker[ModuleData, lang.Module]):
+@node_packer(MNT.Module, ModuleData, bench.language.module.Module)
+class ModulePacker(NodePacker[ModuleData, bench.language.module.Module]):
     PARENTS: ClassVar[ParentsT] = set()
 
-    def pack(self, module: lang.Module) -> ModuleData:
+    def pack(self, module: bench.language.module.Module) -> ModuleData:
         return ModuleData(
             id=module.id,
             ck=module.ck,
@@ -502,9 +502,12 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
         )
 
     def unpack(
-        self, module: ModuleData, parent: Optional[lang.Module], session: Optional[Session]
-    ) -> lang.Module:
-        return lang.Module(
+        self,
+        module: ModuleData,
+        parent: Optional[bench.language.module.Module],
+        session: Optional[Session],
+    ) -> bench.language.module.Module:
+        return bench.language.module.Module(
             id=module.id,
             ck=module.ck,
             name=module.name,
@@ -517,8 +520,8 @@ class ModulePacker(NodePacker[ModuleData, lang.Module]):
             files=[],
         )
 
-    def recover(self, module: lang.Module, tree: ModuleTree):
-        module.files = tree.get_descendants(module.id, lang.File, recursive=True)
+    def recover(self, module: bench.language.module.Module, tree: ModuleTree):
+        module.files = tree.get_descendants(module.id, bench.language.file.File, recursive=True)
 
 
 @dataclass
@@ -532,11 +535,11 @@ class FileData(NodeData, HasCrud):
         return f"<File {str(self)}>"
 
 
-@node_packer(MNT.File, FileData, lang.File)
-class FilePacker(NodePacker[FileData, lang.File]):
+@node_packer(MNT.File, FileData, bench.language.file.File)
+class FilePacker(NodePacker[FileData, bench.language.file.File]):
     PARENTS: ClassVar[ParentsT] = {MNT.Module}
 
-    def pack(self, file: lang.File) -> "FileData":
+    def pack(self, file: bench.language.file.File) -> "FileData":
         return FileData(
             id=file.id,
             ck=file.ck,
@@ -549,8 +552,10 @@ class FilePacker(NodePacker[FileData, lang.File]):
             last_changed_at=file.last_changed_at,
         )
 
-    def unpack(self, file: FileData, parent: lang.Module, session: Optional[Session]) -> lang.File:
-        return lang.File(
+    def unpack(
+        self, file: FileData, parent: bench.language.module.Module, session: Optional[Session]
+    ) -> bench.language.file.File:
+        return bench.language.file.File(
             id=file.id,
             ck=file.ck,
             module=parent,
@@ -565,9 +570,9 @@ class FilePacker(NodePacker[FileData, lang.File]):
             _session=session,
         )
 
-    def recover(self, file: lang.File, tree: ModuleTree):
+    def recover(self, file: bench.language.file.File, tree: ModuleTree):
         file.statements = tree.get_descendants(file.id, lang.Statement, recursive=True)
-        file.children = tree.get_descendants(file.id, lang.File)
+        file.children = tree.get_descendants(file.id, bench.language.file.File)
 
 
 @dataclass
@@ -641,7 +646,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     def unpack(
         self,
         statement: StatementData,
-        parent: lang.File | lang.Statement,
+        parent: bench.language.file.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
         cls = STATEMENT_CLASS_BY_TYPE[statement.type]
@@ -649,7 +654,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             id=statement.id,
             ck=statement.ck,
             parent=parent,
-            file=parent if isinstance(parent, lang.File) else parent.file,
+            file=parent if isinstance(parent, bench.language.file.File) else parent.file,
             children=[],
             order_key=statement.order_key,
             type=statement.type,
@@ -675,9 +680,9 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         statement.children = tree.get_descendants(statement.id, lang.Statement)
         if isinstance(statement, lang.HasTags):
             statement.tags = tree.get_descendants(statement.id, lang.Tagging)
-        if isinstance(statement, lang.IsFlowNode):
+        if isinstance(statement, lang.HasTriggers):
             statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
-        if isinstance(statement, lang.HasType):
+        if isinstance(statement, lang.HasFields):
             statement.fields = tree.get_descendants(statement.id, lang.Field)
 
     def patch(self, statement: StatementData, target_cks: dict[UUID, UUID]) -> None:
