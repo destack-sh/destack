@@ -17,9 +17,14 @@ from django.db import transaction
 from django.db.models import Model, QuerySet
 
 from bench import models
-from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType, RemoteObjectStatus, TriggerType
-from bench.language.issue import IssueKind, IssueType
+from bench.language import IssueType, StatementType, TypeHint, TypeTag, wire
+from bench.language.const import (
+    INTERP_NODE_TYPES,
+    IssueKind,
+    ModuleNodeType,
+    RemoteObjectStatus,
+    TriggerType,
+)
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle
 from bench.language.wire import ModuleTree
 from bench.opensearch.index import write_session_to_os

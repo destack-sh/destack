@@ -6,7 +6,11 @@ import typing
 from typing import NamedTuple
 from uuid import UUID
 
+from bench.utils.func import cyrb53a
 from bench.utils.utils import to_all_caps
+
+if typing.TYPE_CHECKING:
+    from bench.language import ModuleNode, Statement
 
 # hard-coded, do not change ever :BenchUuidNamespace
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
@@ -32,6 +36,48 @@ class ModuleNodeType(enum.StrEnum):
     @property
     def caps_name(self):
         return MNT_CAPS_CASE[self]
+
+
+class StatementType(enum.StrEnum):
+    """The type of Bench statement."""
+
+    TAG = "tag"
+    TEXT = "text"
+    BLANK = "blank"
+    TYPE = "type"
+    TASK = "task"
+    CODE = "code"
+    FLOW = "flow"
+    MODEL = "model"
+    VARIABLE = "variable"
+    DATASET = "dataset"
+    REFERENCE = "reference"
+
+
+RUNNABLE_STATEMENT_TYPES = {
+    StatementType.CODE,
+    StatementType.MODEL,
+    StatementType.TASK,
+    StatementType.FLOW,
+}
+
+NODE_SHORT_KEY_LENGTH = 8
+
+
+def new_short_key_length(ck: UUID) -> str:
+    """
+    Gets a 'random' alphabetic key as a persistent key for a field.
+    (short key length alphabetic characters) :FieldKeys
+    """
+    hash_value = cyrb53a(str(ck))
+    key = ""
+    while len(key) < NODE_SHORT_KEY_LENGTH:
+        hash_value, remainder = divmod(hash_value, 52)
+        if remainder < 26:
+            key += chr(ord("a") + remainder)
+        else:
+            key += chr(ord("A") + remainder - 26)
+    return key
 
 
 class ModuleOp(enum.StrEnum):
@@ -95,30 +141,6 @@ def parse_node_path(node_path: str) -> "NodePath":
 
 def node_path_as_str(node_path: "NodePath") -> str:
     return f"{node_path.path}:{node_path.name}"
-
-
-class StatementType(enum.StrEnum):
-    """The type of Bench statement."""
-
-    TAG = "tag"
-    TEXT = "text"
-    BLANK = "blank"
-    TYPE = "type"
-    TASK = "task"
-    CODE = "code"
-    FLOW = "flow"
-    MODEL = "model"
-    VARIABLE = "variable"
-    DATASET = "dataset"
-    REFERENCE = "reference"
-
-
-RUNNABLE_STATEMENT_TYPES = {
-    StatementType.CODE,
-    StatementType.MODEL,
-    StatementType.TASK,
-    StatementType.FLOW,
-}
 
 
 class TextHeadingLevel(enum.IntEnum):
@@ -264,3 +286,75 @@ class ScheduleType(enum.StrEnum):
 
     INTERVAL = "interval"
     CRON = "cron"
+
+
+class IssueKind(enum.StrEnum):
+    Error = "Error"
+    Warning = "Warning"
+    Notice = "Notice"
+
+
+class IssueType(enum.StrEnum):
+    # errors
+    INTERNAL = "INTERNAL"
+    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE"
+    MISSING_REFERENCE = "MISSING_REFERENCE"
+    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY"
+    CIRCULAR_UNION = "CIRCULAR_UNION"
+    MISMATCHED_UNION = "MISMATCHED_UNION"
+    # warnings
+    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
+    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
+    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
+    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
+    TASK_MISSING_IO = "TASK_MEANINGLESS"
+    TASK_IMPOSSIBLE = "TASK_IMPOSSIBLE"
+    # notices
+    TASK_IS_STATIC = "TASK_IS_STATIC"
+    TEXT_HAS_NO_EFFECT = "TEXT_HAS_NO_EFFECT"
+
+
+class WorkerRegion(enum.StrEnum):
+    US_CENTRAL = "US_CENTRAL"
+    EU_CENTRAL = "EU_CENTRAL"
+
+
+class WorkerSetStatus(enum.StrEnum):
+    SLEEPING = "SLEEPING"
+    PENDING = "PENDING"
+    UPDATING = "UPDATING"
+    HEALTHY = "HEALTHY"
+    UNHEALTHY = "UNHEALTHY"
+    UNAVAILABLE = "UNAVAILABLE"
+    UNKNOWN = "UNKNOWN"
+
+
+class RunStatus(enum.StrEnum):
+    Scheduled = "Scheduled"
+    Queued = "Queued"
+    Running = "Running"
+    Suspended = "Suspended"
+    Aborting = "Aborting"
+    # terminal statuses
+    Cancelled = "Cancelled"
+    Aborted = "Aborted"
+    Failed = "Failed"
+    Completed = "Completed"
+
+
+TERMINAL_RUN_STATUSES = {
+    RunStatus.Cancelled,
+    RunStatus.Aborted,
+    RunStatus.Failed,
+    RunStatus.Completed,
+}
+PENDING_RUN_STATUSES = set(RunStatus) - TERMINAL_RUN_STATUSES
+
+
+class WorkerProfile(enum.StrEnum):
+    TINY = "TINY"
+    SMALL = "SMALL"
+    MEDIUM = "MEDIUM"
+    LARGE = "LARGE"
+    XLARGE_CPU = "XLARGE_CPU"
+    XLARGE_MEM = "XLARGE_MEM"

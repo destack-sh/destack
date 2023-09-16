@@ -1,18 +1,19 @@
 from collections import defaultdict
 from dataclasses import field
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language import Module, Scope, Statement
 from bench.language.const import MNT
-from bench.language.issue import HasIssues
-from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
+if TYPE_CHECKING:
+    from bench.language.statement import Statement
+
 
 @node(mnt=MNT.File, tracked=["name"])
-class File(ModuleNode, HasIssues, Scope):
+class File(ModuleNode, Scope):
     name: str = required_field()
     module: Optional[Module] = None
     parent: Union["File", Module] = None
@@ -90,7 +91,7 @@ class File(ModuleNode, HasIssues, Scope):
         for statement in self.statements:
             self._statements_by_parent_id[statement.parent_id].append(statement)
 
-        def walk_dfs(statement: Statement):
+        def walk_dfs(statement: "Statement"):
             sorted_statements.append(statement)
             children = self._statements_by_parent_id.get(statement.id)
             if children is not None:
@@ -110,6 +111,6 @@ class File(ModuleNode, HasIssues, Scope):
             statement._index()
             self._add_child_scope(statement, by_name=statement.parent == self)
 
-    def _interp(self):
+    def _interp(self, scope: "Scope"):
         for statement in self.statements:
             statement._interp(statement)

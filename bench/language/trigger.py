@@ -7,22 +7,22 @@ from uuid import UUID
 import pytz
 from croniter import croniter
 
+from bench.language import IssueType
 from bench.language.const import MNT, ScheduleType, TriggerType
-from bench.language.issue import IssueType
-from bench.language.module import HasCrud, ModuleNode, ModuleVisitor, node
+from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.language.run import HasRun
 from bench.utils.utils import required_field
 
 if TYPE_CHECKING:
-    from bench.language import HasFlow, Scope
+    pass
 
 
 @node(mnt=MNT.Trigger)
-class Trigger(ModuleNode, HasCrud, ModuleNode):
+class Trigger(ModuleNode):
     """A trigger for a runnable, possibly inside a flow."""
 
     type: TriggerType = required_field()
-    parent: Statement | None = None
+    parent: ModuleNode | None = None
     active: bool = True
     mapping: Optional[Mapping] = None
     schedule_type: Optional[ScheduleType] = None
@@ -30,7 +30,7 @@ class Trigger(ModuleNode, HasCrud, ModuleNode):
     interval: Optional[int] = None
     cron: Optional[str] = None
     runnable: Union[HasRun, UUID, None] = None
-    scope: Union["HasFlow", UUID, None] = None
+    scope: Union["ModuleNode", UUID, None] = None
 
     def __str__(self):
         if self.type == TriggerType.TIME:
@@ -52,7 +52,7 @@ class Trigger(ModuleNode, HasCrud, ModuleNode):
 
 
 @node
-class HasTriggers(HasRun, StatementBase):
+class HasTriggers(ModuleNode):
     """A symbol that can participate in a flow."""
 
     triggers: list[Trigger] = field(default_factory=list)
@@ -71,7 +71,7 @@ class HasTriggers(HasRun, StatementBase):
                 else:
                     trigger.runnable = resolved
             # resolve scope
-            if trigger.scope is not None and not isinstance(trigger.scope, HasFlow):
+            if trigger.scope is not None and not isinstance(trigger.scope, ModuleNode):
                 resolved = scope.lookup(trigger.scope)
                 if resolved is None:
                     self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")

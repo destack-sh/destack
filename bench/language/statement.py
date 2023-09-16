@@ -1,4 +1,3 @@
-import abc
 import typing
 from dataclasses import field
 from typing import TYPE_CHECKING, Any, Optional, Union
@@ -12,12 +11,10 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.field import HasFields
-from bench.language.issue import BenchError, HasIssues, Issue, IssueHandler
+from bench.language.issue import BenchError, Issue
 from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.proxy import proxy_value
 from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -25,11 +22,11 @@ if TYPE_CHECKING:
 
 
 @node(mnt=MNT.Statement, tracked=["name"])
-class Statement(ModuleNode, ModuleNode, HasIssues, Scope):
+class Statement(ModuleNode, Scope):
     """A Bench statement."""
 
-    file: File | None = None
-    parent: Union["Statement", File] = None
+    file: Optional["File"] = None
+    parent: Union["Statement", "File"] = None
     children: list["Statement"] | None = None
     order_key: str | None = None
     type: StatementType = required_field()  # set by subclasses
@@ -178,41 +175,42 @@ class Statement(ModuleNode, ModuleNode, HasIssues, Scope):
             raise BenchError(self.errors[0])
 
 
-class StatementBase(abc.ABC):  # nocheckin: remove/replace StatementBase?
-    """Base for statements for type-checking."""
-
-    parent: Statement | File
-    session: "Session"
-    _scopes_by_name: dict[str, Scope] | None
-    _names_by_ident: dict[str, str] | None
-
-    def _clear(self) -> None:
-        raise NotImplementedError
-
-    def _index(self) -> None:
-        raise NotImplementedError
-
-    def _interp(self, scope: Scope) -> None:
-        raise NotImplementedError
-
-    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
-        raise NotImplementedError
-
-    _on_issue: IssueHandler
-
-
 #
 # Concrete statements
 #
 
+from bench.language.code_ import HasCode  # noqa: E402
+from bench.language.dataset import HasDataset  # noqa: E402
+from bench.language.field import HasFields  # noqa: E402
+from bench.language.model import HasModel  # noqa: E402
+from bench.language.tagging import HasTags  # noqa: E402
+from bench.language.text import HasText  # noqa: E402
+from bench.language.trigger import HasTriggers  # noqa: E402
+from bench.language.value import HasValue  # noqa: E402
+
+
+@node(tracked=[])
+class Blank(Statement):
+    """A blank statement."""
+
+    type: StatementType = StatementType.BLANK
+
+
+@node(tracked=["text", "heading_level"])
+class Text(HasText, HasTags, HasFields, Statement):
+    heading_level: Optional[TextHeadingLevel] = None
+    type: StatementType = StatementType.TEXT
+
+
+@node(tracked=["reference"])
+class Reference(HasFields, HasTags, HasText, Statement):
+    type: StatementType = StatementType.REFERENCE
+
 
 @node
-class Type(HasFields, HasText, HasTags, Statement):
-    tag: TypeTag = required_field()
-    flags: TypeFlag = TypeFlag.Zero
-    # not directly configurable for type statements
-    hint = None
-    reference = None
+class Type(HasFields, HasTags, HasText, Statement):
+    type: StatementType = StatementType.TYPE
+    tag: TypeTag = TypeTag.STRUCT
 
     def __call__(self, *args, **kwargs):
         combined_kwargs = {**kwargs}
@@ -245,21 +243,47 @@ class Type(HasFields, HasText, HasTags, Statement):
         return type_from_instance_type(py_type)
 
 
-@node(tracked=[])
-class Blank(Statement):
-    """A blank statement."""
+@node
+class Tag(HasFields, HasTags, HasText, Statement):
+    type: StatementType = StatementType.TAG
+    tag: TypeTag = TypeTag.STRUCT
 
-    type: StatementType = StatementType.BLANK
+
+@node
+class Dataset(HasDataset, HasText, Statement):
+    type: StatementType = StatementType.DATASET
+    tag: TypeTag = TypeTag.STRUCT
 
 
-@node(tracked=["text", "heading_level"])
-class Text(HasText, HasTags, HasFields, Statement):
-    heading_level: Optional[TextHeadingLevel] = None
-    type: StatementType = StatementType.TEXT
+@node
+class Model(HasModel, Statement):
+    type: StatementType = StatementType.CODE
+    tag: TypeTag = TypeTag.FUNCTION
+    flags: TypeFlag = TypeFlag.Zero
+
+
+@node
+class Code(HasCode, HasTriggers, HasText, Statement):
+    type: StatementType = StatementType.CODE
+    tag: TypeTag = TypeTag.FUNCTION
+    flags: TypeFlag = TypeFlag.Zero
+
+
+@node
+class Task(HasFields, HasTags, HasText, Statement):
+    type: StatementType = StatementType.TASK
+    tag: TypeTag = TypeTag.FUNCTION
+    flags: TypeFlag = TypeFlag.Zero
+
+
+@node
+class Flow(HasFields, HasTags, HasText, Statement):
+    type: StatementType = StatementType.FLOW
+    tag: TypeTag = TypeTag.FUNCTION
 
 
 @node(tracked=["text", "value"])
-class Variable(HasFields, HasTags, HasText, Statement):
+class Variable(HasValue, HasTags, HasText, Statement):
     type: StatementType = StatementType.VARIABLE
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
@@ -305,30 +329,3 @@ class Variable(HasFields, HasTags, HasText, Statement):
 
     def __iter__(self):
         return iter(self.value)
-
-
-@node
-class Flow(HasFields, HasFlow, HasTags, HasText, Statement):
-    """An orchestrated flow of triggered runs."""
-
-    type: StatementType = StatementType.FLOW
-    tag: TypeTag = TypeTag.FUNCTION
-
-
-@node(tracked=["reference"])
-class Reference(Statement, HasTags, HasText, HasTriggers):
-    """A reference to another statement."""
-
-    type: StatementType = StatementType.REFERENCE
-
-
-@node(tracked=["name"])
-class Tag(HasFields, HasTags, HasText, Statement):
-    """A tag statement."""
-
-    type: StatementType = StatementType.TAG
-    tag: TypeTag = TypeTag.STRUCT
-
-    def __post_init__(self):
-        if self.key is None:
-            self.key = new_field_key(self.ck)

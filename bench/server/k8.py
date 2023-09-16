@@ -14,7 +14,7 @@ from kubernetes import config as sync_config
 from kubernetes_asyncio import client, config, watch
 
 from bench import models, settings
-from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
+from bench.language.const import WorkerProfile, WorkerRegion, WorkerSetStatus
 from bench.settings.k8 import (
     KUBERNETES_WORKER_ENV_VARS_STR,
     KUBERNETES_WORKER_IMAGE,

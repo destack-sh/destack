@@ -8,11 +8,10 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language import Module
 from bench.language.const import MNT, DatasetViewLayout, StatementType, TypeFlag, TypeTag
-from bench.language.field import Field
+from bench.language.field import Field, HasFields
 from bench.language.mapping import map_value, pack_value, unpack_value
-from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.module import Module, ModuleNode, ModuleVisitor, node
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.utils.func import describe_type, did_you_mean_str
@@ -20,6 +19,7 @@ from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
 
 if typing.TYPE_CHECKING:
+    from bench.language import Session
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
@@ -143,7 +143,7 @@ class DatasetViewField(ModuleNode):
 
 
 @node(tracked=["versioned"])
-class HasDataset(Search["RecordData", Record]):
+class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
     type: StatementType = StatementType.DATASET
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray

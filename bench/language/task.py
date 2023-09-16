@@ -2,19 +2,21 @@ import abc
 import enum
 import random
 from dataclasses import dataclass
-from typing import Optional, Self, Union
+from typing import TYPE_CHECKING, Optional, Self, Union
 
 from more_itertools import first
 
-from bench.language import Scope
-from bench.language.issue import IssueType
+from bench.language.field import HasFields
 from bench.language.mapping import check_type, unpack_value
-from bench.language.module import ModuleNode, node
+from bench.language.model import HasModel
+from bench.language.module import ModuleNode, Scope, node
 from bench.language.reference import ModuleView
 from bench.language.reflect import reflect_struct
-from bench.language.run import HasRun
-from bench.language.session import Run, RunError, RunErrorKind
+from bench.language.run import HasRun, RunError, RunErrorKind
 from bench.utils.utils import DotDict
+
+if TYPE_CHECKING:
+    from bench.language import IssueType, Model, Run, Statement
 
 
 class TaskErrorType(enum.StrEnum):
@@ -31,7 +33,7 @@ class TaskError(RunError):
     def __init__(
         self,
         type: TaskErrorType,
-        runnable: Union["Model", "Task"],
+        runnable: "Statement",
         message: str = None,
         path: str = None,
     ):
@@ -74,10 +76,10 @@ class TaskRunMetadata:
     nonce: Optional[str]
 
 
-@node(tracked=["text"])
-class Task(ModuleNode):
+@node
+class HasTask(HasFields, HasRun, ModuleNode):
     _is_async: bool = True
-    _root_models: list["Model"] = None
+    _root_models: list["HasModel"] = None
     _randomize: bool = False
 
     def _interp(self, scope: Scope) -> None:
@@ -141,7 +143,11 @@ class Task(ModuleNode):
 
 
 async def run_task(
-    task: Task, root_models: list["Model"], view: ModuleView, inputs: dict, nonce: Optional[str]
+    task: HasTask,
+    root_models: list["HasModel"],
+    view: ModuleView,
+    inputs: dict,
+    nonce: Optional[str],
 ) -> dict:
     num_retries_total = 0
     root_model = root_models[0]  # TODO @Broken @Tass: auto-select between multiple root models
@@ -183,7 +189,7 @@ async def run_task(
 
 @dataclass
 class CompiledInput(abc.ABC):
-    task: Task
+    task: HasTask
 
 
 @dataclass
@@ -199,13 +205,13 @@ class TaskOutput(abc.ABC):
 class TaskCompiler(abc.ABC):
     async def compile(
         self,
-        task: Task,
+        task: HasTask,
         view: ModuleView,
         inputs: dict,
-        previous_results: list[TaskError | Run],
+        previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> CompiledInput:
         raise NotImplementedError
 
-    async def run(self, model: Model, input: CompiledInput) -> TaskOutput:
+    async def run(self, model: "Model", input: CompiledInput) -> TaskOutput:
         raise NotImplementedError

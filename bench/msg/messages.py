@@ -8,10 +8,9 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import ModuleReference, TriggerType
+from bench.language.const import ModuleReference, TriggerType, WorkerProfile, WorkerRegion
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
-from bench.language.session import WorkerProfile, WorkerRegion
 from bench.language.wire import (
     EnvironmentData,
     LogEntryData,

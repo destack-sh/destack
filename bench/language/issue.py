@@ -1,46 +1,15 @@
 import abc
-import enum
 import uuid
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
-from bench.language.const import MNT
+from bench.language import IssueType
+from bench.language.const import MNT, IssueKind
 from bench.language.module import node
 
 if TYPE_CHECKING:
-    from bench.language import File
+    from bench.language.file import File
     from bench.language.statement import Statement
-
-
-class IssueKind(enum.StrEnum):
-    Error = "Error"
-    Warning = "Warning"
-    Notice = "Notice"
-
-
-class IssueType(enum.StrEnum):
-    # errors
-    INTERNAL = "INTERNAL"
-    UNKNOWN_IMPORT_SOURCE = "UNKNOWN_IMPORT_SOURCE"
-    MISSING_REFERENCE = "MISSING_REFERENCE"
-    CIRCULAR_ANCESTRY = "CIRCULAR_ANCESTRY"
-    CIRCULAR_UNION = "CIRCULAR_UNION"
-    MISMATCHED_UNION = "MISMATCHED_UNION"
-    # warnings
-    AMBIGUOUS_DEFINITION = "AMBIGUOUS_DEFINITION"
-    CODE_NOT_EXPORTABLE = "CODE_NOT_EXPORTABLE"
-    CODE_NOT_CACHEABLE = "CODE_NOT_CACHEABLE"
-    CODE_REFERENCE_NOT_EXPORTED = "CODE_REFERENCE_NOT_EXPORTED"
-    TASK_MISSING_IO = "TASK_MEANINGLESS"
-    TASK_IMPOSSIBLE = "TASK_IMPOSSIBLE"
-    # notices
-    TASK_IS_STATIC = "TASK_IS_STATIC"
-    TEXT_HAS_NO_EFFECT = "TEXT_HAS_NO_EFFECT"
-
-    @property
-    def text(self):
-        return _ISSUE_MESSAGES[self.value]
-
 
 # separate from enum so that it's a simple StrEnum
 _ISSUE_MESSAGES = {
@@ -93,7 +62,7 @@ class BenchError(ValueError):
         self.issue = issue
 
 
-@node(MNT.Issue)
+@node(mnt=MNT.Issue)
 class Issue:
     id: Optional[UUID]
     ck: UUID
@@ -123,9 +92,10 @@ class Issue:
         elif isinstance(parent, (Statement, Statement)):
             self.parent = parent
 
-        if "subject" in type.text:
+        message = _ISSUE_MESSAGES.get(type.value)
+        if "subject" in message:
             kwargs["subject"] = self.parent
-        self.message = type.text.format(**kwargs)
+        self.message = message.format(**kwargs)
         self.kind = _ISSUE_KIND_BY_TYPE[type]
         # generate id if not provided
         if "id" not in kwargs:
@@ -162,38 +132,3 @@ class IssueHandler(abc.ABC):
         **kwargs,
     ):
         pass
-
-
-@node
-class HasIssues(abc.ABC):
-    issues: list[Issue] = None
-
-    @property
-    def errors(self) -> list[Issue]:
-        if self.issues is None:
-            return []
-        return [i for i in self.issues if i.kind == IssueKind.Error]
-
-    @property
-    def self_errors(self):
-        return [i for i in self.errors if i.parent == self]
-
-    def _on_issue(
-        self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Statement", "File", "Field", None] = None,
-        type: IssueType = None,
-        **kwargs,
-    ):
-        from bench.language.field import Field
-
-        if isinstance(subject, Field):
-            subject = subject.parent  # fields don't have issues (yet)
-        if issue is None:
-            issue = Issue(type=type, parent=subject, **kwargs)
-        if self.issues is None:
-            self.issues = []
-        self.issues.append(issue)
-        if self.parent is not None:
-            self.parent._on_issue(issue)

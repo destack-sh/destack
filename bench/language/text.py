@@ -3,15 +3,13 @@ from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
 
-from bench.language import Scope
+from bench.language import IssueType
 from bench.language.const import ModuleNodeType, TypedNodeReference
-from bench.language.core import HasIssues
-from bench.language.issue import IssueType
-from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 
 
 @node
-class HasText(HasIssues):
+class HasText(ModuleNode):
     """Some instruction text with optional references."""
 
     _text_spans: list["TextSpan"] | None = None

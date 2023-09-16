@@ -1,6 +1,5 @@
 import asyncio
 import functools
-import itertools
 import os
 import typing
 from dataclasses import dataclass
@@ -12,13 +11,11 @@ from uuid import UUID
 import msgpack
 import structlog
 
-from bench.language import Scope
 from bench.language.cache import CacheAsync
-from bench.language.const import StatementType
-from bench.language.field import TypeTag
+from bench.language.field import HasFields, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import ModuleNode, ModuleVisitor, node
-from bench.language.run import get_run_cache_subkey
+from bench.language.module import ModuleNode, Scope, node
+from bench.language.run import HasRun, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -33,11 +30,8 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class HasModel(ModuleNode):
+class HasModel(HasFields, HasRun, ModuleNode):
     external_name: typing.Optional[str] = None
-    text: typing.Optional[str] = None
-    tag: TypeTag = TypeTag.FUNCTION
-    type: StatementType = StatementType.MODEL
     _is_async: bool = True
     _remote: bool = False
     _endpoint_impl: typing.Optional[typing.Callable] = None
@@ -64,10 +58,6 @@ class HasModel(ModuleNode):
             if t.tag == TypeTag.VECTOR:
                 self._has_vector_io = True
                 break
-
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
-            visitor.visit_child(n)
 
     @property
     def should_cache(self) -> bool:

@@ -16,6 +16,7 @@ from strawberry.scalars import JSON
 from strawberry.types import Info
 from strawberry_django.fields.types import OperationInfo
 
+import bench.language.const
 from bench import models
 from bench.api.auth import check_module_access
 from bench.api.statement import Statement
@@ -32,8 +33,7 @@ from bench.api.utils import (
     to_uuids,
 )
 from bench.language import Q, Query, Sort, SortOrder, wire
-from bench.language.const import RUNNABLE_STATEMENT_TYPES
-from bench.language.session import PENDING_RUN_STATUSES
+from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, request, subscribe, subscribe_many
 from bench.msg.messages import (
@@ -69,7 +69,7 @@ if TYPE_CHECKING:
 
 logger = structlog.get_logger(__name__)
 
-RunStatus = strawberry.enum(models.RunStatus)
+RunStatus = strawberry.enum(bench.language.const.RunStatus)
 TriggerType = strawberry.enum(models.TriggerType)
 
 
@@ -126,9 +126,9 @@ def get_error_nice(root: "Run") -> Optional[RunError]:
         return None
 
 
-WorkerProfile = strawberry.enum(models.WorkerProfile)
-WorkerRegion = strawberry.enum(models.WorkerRegion)
-WorkerSetStatus = strawberry.enum(models.WorkerSetStatus)
+WorkerProfile = strawberry.enum(bench.language.const.WorkerProfile)
+WorkerRegion = strawberry.enum(bench.language.const.WorkerRegion)
+WorkerSetStatus = strawberry.enum(bench.language.const.WorkerSetStatus)
 
 
 @strawberry_django.type(models.WorkerSet)

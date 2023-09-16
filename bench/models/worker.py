@@ -3,7 +3,7 @@ from __future__ import annotations
 from django.contrib.postgres.fields import ArrayField
 from django.db import models
 
-from bench.language.session import WorkerProfile, WorkerRegion, WorkerSetStatus
+from bench.language.const import WorkerProfile, WorkerRegion, WorkerSetStatus
 from bench.models.utils import UUIDModel, get_choices
 
 

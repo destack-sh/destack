@@ -7,7 +7,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench import models
-from bench.language.session import PENDING_RUN_STATUSES, RunStatus, WorkerSetStatus
+from bench.language.const import PENDING_RUN_STATUSES, RunStatus, WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init

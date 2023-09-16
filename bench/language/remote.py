@@ -13,12 +13,13 @@ import requests
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.language import Module
 from bench.language.const import RemoteObjectStatus
-from bench.language.module import ModuleNode, node
-from bench.language.session import Session
+from bench.language.module import Module, ModuleNode, node
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import required_field
+
+if typing.TYPE_CHECKING:
+    from bench.language.session import Session
 
 logger = structlog.get_logger(__name__)
 

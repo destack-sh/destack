@@ -8,12 +8,12 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import HasRun, LogEntry, Module, wire
-from bench.language.const import ModuleReference
-from bench.language.core import ModuleWriter, Session, SessionContext, SessionMode
-from bench.language.field import map_value, unpack_value_flat
+from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
+from bench.language.const import ModuleReference, RunStatus, SessionMode
+from bench.language.mapping import map_value, unpack_value_flat
 from bench.language.mutate import ModuleMutation, ModuleMutator
-from bench.language.session import Run, RunError, RunErrorKind, RunStatus
+from bench.language.run import RunErrorKind
+from bench.language.session import ModuleWriter, Session, SessionContext
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (

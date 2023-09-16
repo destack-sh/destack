@@ -1,15 +1,14 @@
-import itertools
 import typing
 from dataclasses import field
 from uuid import UUID
 
 from bench.language import Scope
-from bench.language.const import MNT, StatementReference, TypeTag
+from bench.language.const import MNT, StatementReference
 from bench.language.module import ModuleNode, ModuleVisitor, node
-from bench.language.text import HasText
 from bench.utils.utils import required_field
 
-TAG_KEY_LENGTH = 8
+if typing.TYPE_CHECKING:
+    from bench.language.statement import Tag
 
 
 @node(mnt=MNT.Tagging, tracked=[])

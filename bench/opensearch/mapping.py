@@ -5,7 +5,8 @@ import bench.language as lang
 import bench.opensearch.core as os
 from bench.language import TypeHint, TypeTag
 from bench.language.const import TypeFlag
-from bench.language.field import TYPE_TAG_BY_TYPE_HINT, TYPENAME_SENTINEL
+from bench.language.field import TYPE_TAG_BY_TYPE_HINT
+from bench.language.mapping import TYPENAME_SENTINEL
 from bench.language.query import SubfieldType
 from bench.opensearch import mirror
 
@@ -18,7 +19,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: lang.TypeBase, depth: int) -> os.Field:
+    def to_os_type(self, type: lang.Field | lang.Type, depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -49,7 +50,7 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint, flags)] = mapper
 
 
-def get_mapper(type: lang.TypeBase) -> FieldMapper:
+def get_mapper(type: lang.Field | lang.Type) -> FieldMapper:
     if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Type):
         return get_mapper(type.reference)  # skip the reference
     stripped_flags = type.flags & TypeFlag.IsSecret

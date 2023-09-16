@@ -1,18 +1,20 @@
 import itertools
-from typing import Collection
+from typing import TYPE_CHECKING, Collection, Union
 from uuid import UUID
 
-from bench.language import Module
-from bench.language.const import StatementType
-from bench.language.issue import IssueType
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language import IssueType
+from bench.language.const import StatementReference
+from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
+
+if TYPE_CHECKING:
+    from bench.language.statement import Statement
 
 
 @node(tracked=["reference"])
 class HasReference(ModuleNode):
     """A reference to another statement."""
 
-    type: StatementType = StatementType.REFERENCE
+    reference: Union["Statement", StatementReference, None] = None
 
     def _interp(self, scope: Scope) -> None:
         resolved = None
@@ -29,7 +31,7 @@ class HasReference(ModuleNode):
 
 
 class ModuleView:
-    def __init__(self, module: Module, origin: Statement):
+    def __init__(self, module: Module, origin: ModuleNode):
         super().__init__()
         self.module = module
         self.origin = origin

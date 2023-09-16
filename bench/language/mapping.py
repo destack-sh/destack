@@ -133,10 +133,6 @@ TypeSignature = NamedTuple(
 )
 
 
-def is_dataclass(value):
-    pass
-
-
 def check_type(
     value: Any,
     type: TypeBase,
@@ -536,6 +532,8 @@ class JsonTypeMapper(TypeMapper):
         return True  # not sure how to check this
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
+        from bench.language.statement import Type
+
         return Type(name=None, tag=TypeTag.JSON)
 
 
@@ -580,7 +578,7 @@ _TYPE_MAP: dict[Any, HasFields] = {}
 
 
 def type_from_instance_type(
-    py_type: type, name: Optional[str], type_map: dict[Any, Type] = None
+    py_type: type, name: Optional[str], type_map: dict[Any, "Type"] = None
 ) -> "Type":
     """
     Maps a python type to a Type (recursively).
@@ -596,7 +594,7 @@ def type_from_instance_type(
     return type
 
 
-def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any, Type]) -> Field:
+def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any, "Type"]) -> Field:
     name_nice = name.replace("_", " ")
     if to_pyidentifier(name_nice, IdentifierType.FIELD) != name:
         raise ValueError(f"inconsistent field name: {name} != {name_nice}")

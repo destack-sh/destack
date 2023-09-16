@@ -11,37 +11,31 @@ from uuid import UUID
 
 import msgpack
 
-import bench.language.file
-import bench.language.module
+import bench.language.run
 from bench import language as lang
-from bench.language import Module
-from bench.language.basic import TextHeadingLevel, patch_text_html
+from bench.language import File, IssueType, Module, RunError
 from bench.language.const import (
     MNT,
+    IssueKind,
     ModuleNodeType,
     RemoteObjectStatus,
+    RunStatus,
     ScheduleType,
     StatementType,
+    TextHeadingLevel,
     TriggerType,
     TypeFlag,
     TypeHint,
     TypeTag,
-)
-from bench.language.core import Session
-from bench.language.issue import IssueKind, IssueType
-from bench.language.module import CRUD_PROPERTIES, ModuleNode, ModuleVisitor
-from bench.language.query import Query, Sort
-from bench.language.session import (
-    LazyRun,
-    MissingStatement,
-    RunCodeFrame,
-    RunError,
-    RunErrorKind,
-    RunStatus,
     WorkerProfile,
     WorkerRegion,
     WorkerSetStatus,
 )
+from bench.language.module import ModuleNode, ModuleVisitor
+from bench.language.query import Query, Sort
+from bench.language.run import RunCodeFrame, RunErrorKind
+from bench.language.session import LazyRun, Session
+from bench.language.text import patch_text_html
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
 
@@ -328,15 +322,13 @@ def node_packer(
     return decorator
 
 
-def pack_module(module: bench.language.module.Module) -> "ModuleTreeData":
+def pack_module(module: Module) -> "ModuleTreeData":
     module_data, nodes = pack_node(module)
     module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
     return module_tree
 
 
-def unpack_module(
-    module: ModuleTreeData, session: Optional[Session]
-) -> bench.language.module.Module:
+def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> Module:
     module = unpack_node(module.nodes, parent=None, session=session)
     return module
 
@@ -438,6 +430,9 @@ class HasCrud:
     revision: int
 
 
+CRUD_PROPERTIES: set[str] = {f.name for f in dataclasses.fields(HasCrud)}
+
+
 @dataclass
 class HasOrder:
     order_key: str
@@ -483,11 +478,11 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
-@node_packer(MNT.Module, ModuleData, bench.language.module.Module)
-class ModulePacker(NodePacker[ModuleData, bench.language.module.Module]):
+@node_packer(MNT.Module, ModuleData, Module)
+class ModulePacker(NodePacker[ModuleData, Module]):
     PARENTS: ClassVar[ParentsT] = set()
 
-    def pack(self, module: bench.language.module.Module) -> ModuleData:
+    def pack(self, module: Module) -> ModuleData:
         return ModuleData(
             id=module.id,
             ck=module.ck,
@@ -504,10 +499,10 @@ class ModulePacker(NodePacker[ModuleData, bench.language.module.Module]):
     def unpack(
         self,
         module: ModuleData,
-        parent: Optional[bench.language.module.Module],
+        parent: Optional[Module],
         session: Optional[Session],
-    ) -> bench.language.module.Module:
-        return bench.language.module.Module(
+    ) -> Module:
+        return Module(
             id=module.id,
             ck=module.ck,
             name=module.name,
@@ -520,8 +515,8 @@ class ModulePacker(NodePacker[ModuleData, bench.language.module.Module]):
             files=[],
         )
 
-    def recover(self, module: bench.language.module.Module, tree: ModuleTree):
-        module.files = tree.get_descendants(module.id, bench.language.file.File, recursive=True)
+    def recover(self, module: Module, tree: ModuleTree):
+        module.files = tree.get_descendants(module.id, File, recursive=True)
 
 
 @dataclass
@@ -535,11 +530,11 @@ class FileData(NodeData, HasCrud):
         return f"<File {str(self)}>"
 
 
-@node_packer(MNT.File, FileData, bench.language.file.File)
-class FilePacker(NodePacker[FileData, bench.language.file.File]):
+@node_packer(MNT.File, FileData, File)
+class FilePacker(NodePacker[FileData, File]):
     PARENTS: ClassVar[ParentsT] = {MNT.Module}
 
-    def pack(self, file: bench.language.file.File) -> "FileData":
+    def pack(self, file: File) -> "FileData":
         return FileData(
             id=file.id,
             ck=file.ck,
@@ -552,10 +547,8 @@ class FilePacker(NodePacker[FileData, bench.language.file.File]):
             last_changed_at=file.last_changed_at,
         )
 
-    def unpack(
-        self, file: FileData, parent: bench.language.module.Module, session: Optional[Session]
-    ) -> bench.language.file.File:
-        return bench.language.file.File(
+    def unpack(self, file: FileData, parent: Module, session: Optional[Session]) -> File:
+        return File(
             id=file.id,
             ck=file.ck,
             module=parent,
@@ -570,9 +563,9 @@ class FilePacker(NodePacker[FileData, bench.language.file.File]):
             _session=session,
         )
 
-    def recover(self, file: bench.language.file.File, tree: ModuleTree):
+    def recover(self, file: File, tree: ModuleTree):
         file.statements = tree.get_descendants(file.id, lang.Statement, recursive=True)
-        file.children = tree.get_descendants(file.id, bench.language.file.File)
+        file.children = tree.get_descendants(file.id, File)
 
 
 @dataclass
@@ -646,7 +639,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     def unpack(
         self,
         statement: StatementData,
-        parent: bench.language.file.File | lang.Statement,
+        parent: File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
         cls = STATEMENT_CLASS_BY_TYPE[statement.type]
@@ -654,7 +647,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             id=statement.id,
             ck=statement.ck,
             parent=parent,
-            file=parent if isinstance(parent, bench.language.file.File) else parent.file,
+            file=parent if isinstance(parent, File) else parent.file,
             children=[],
             order_key=statement.order_key,
             type=statement.type,
@@ -1207,9 +1200,9 @@ class RunData:
     metadata: Optional[dict[str, Any]]
 
 
-@data_packer(RunData, lang.Run)
-class RunPacker(DataPacker[RunData, lang.Run]):
-    def pack(self, object: lang.Run) -> RunData:
+@data_packer(RunData, bench.language.run.Run)
+class RunPacker(DataPacker[RunData, bench.language.run.Run]):
+    def pack(self, object: bench.language.run.Run) -> RunData:
         if object.error:
             error = RunErrorData(
                 kind=object.error.kind,
@@ -1253,13 +1246,13 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             metadata=object.metadata,
         )
 
-    def unpack(self, data: RunData, module: Module) -> lang.Run:
+    def unpack(self, data: RunData, module: Module) -> bench.language.run.Run:
         # we leave relational references that aren't in the module as None?
         runnable = module._nodes_by_ck.get(data.runnable_ck) or MissingStatement(
             data.runnable_id, data.runnable_type
         )
         if data.error:
-            error = lang.RunError(
+            error = bench.language.run.RunError(
                 kind=data.error.kind,
                 type=data.error.type,
                 message=data.error.message,
@@ -1268,7 +1261,7 @@ class RunPacker(DataPacker[RunData, lang.Run]):
             )
         else:
             error = None
-        return lang.Run(
+        return bench.language.run.Run(
             id=data.id,
             module=module,
             session=None,
@@ -1376,3 +1369,20 @@ def deserialize_module(module_data: bytes) -> ModuleTreeData:
     module_data_dict = msgpack.unpackb(module_data, raw=False)
     module_data = from_dict(ModuleTreeData, module_data_dict)
     return module_data
+
+
+@dataclass
+class MissingStatement:
+    id: UUID
+    type: Optional[StatementType] = None
+
+    def __str__(self):
+        return str(self.id)
+
+    def __repr__(self):
+        return f"<MissingStatement {self.id} {self.type or '<unknown type>'}>"
+
+    def __getattr__(self, item):
+        if item == "id":
+            return self.id
+        raise AttributeError(f"statement {self.id} not found, so {item} cannot be accessed")

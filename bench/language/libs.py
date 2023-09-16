@@ -13,19 +13,20 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import Dataset, HasRun, HasText, Module, Run, Tag, Variable
-from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.const import TypeFlag, TypeTag
-from bench.language.field import (
-    Field,
-    Key,
-    Type,
-    TypeBase,
-    Vector,
-    map_value,
-    new_field_key,
-    pack_value_flat,
+from bench.language import (
+    Dataset,
+    HasRun,
+    HasText,
+    Module,
+    Run,
+    RunError,
+    Tag,
+    Variable,
 )
+from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
+from bench.language.const import RunStatus, TypeFlag, TypeTag
+from bench.language.field import Field, Key, Vector, new_short_key_length
+from bench.language.mapping import map_value, pack_value_flat
 from bench.language.module import get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
@@ -39,12 +40,10 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.session import RunError, RunStatus
-from bench.language.statement import Code, Model, Statement
+from bench.language.statement import Code, Model, Statement, Task, Type
 from bench.language.task import (
     CompiledInput,
     IncapableError,
-    Task,
     TaskCompiler,
     TaskError,
     TaskErrorType,
@@ -158,7 +157,7 @@ _PARAM_TYPE_BY_TAG = {
 
 
 def _type_to_json_schema(
-    type: TypeBase, ignore_array: bool = False, is_output: bool = None
+    type: Field | Type, ignore_array: bool = False, is_output: bool = None
 ) -> JsonSchemaElement:
     """Convert a Bench type to a JSON schema element."""
     if is_output is None:
@@ -415,7 +414,7 @@ class OpenAIChatCompiler(TaskCompiler):
         ),
     )
 
-    def _render_value_flat(self, value: Any, type: TypeBase, *args, **kwargs) -> Any:
+    def _render_value_flat(self, value: Any, type: Field | Type, *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type.effective_tag == TypeTag.ENUM:
             return type.get_field(value).name
@@ -781,7 +780,7 @@ for name, module in DEFAULT_MODULES.items():
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, Tag)):
-            node.key = new_field_key(node.ck)
+            node.key = new_short_key_length(node.ck)
     module.clear()  # ids changed
 
     # index

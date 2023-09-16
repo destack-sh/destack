@@ -19,14 +19,17 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
+    new_short_key_length,
 )
-from bench.language.issue import IssueType
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, get_node_id, node
 from bench.language.query import FieldQueryOps
 from bench.language.text import HasText
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
-from bench.utils.func import cyrb53a, dict_minus, did_you_mean_str
+from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+
+if typing.TYPE_CHECKING:
+    from bench.language import IssueType, Statement, Type
 
 logger = structlog.get_logger(__name__)
 
@@ -61,8 +64,6 @@ PRIMITIVE_TYPES = [
     TypeTag.FILE,
     TypeTag.VECTOR,
 ]
-FIELD_KEY_LENGTH = 8
-
 DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDimension
 Vector = typing.NewType("Vector", list[float])
 Json = typing.NewType("Json", dict)
@@ -179,7 +180,7 @@ class TypeBase(abc.ABC):
 
     @property
     def storage_format(self) -> TypeStorageFormat:
-        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Type):
+        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, ModuleNode):
             return self.reference.storage_format
         return get_storage_format(self.tag, self.hint, self.flags)
 
@@ -255,24 +256,8 @@ class TypeBase(abc.ABC):
                 yield from child.walk_type(path, include_references=include_references)
 
 
-def new_field_key(ck: UUID) -> str:
-    """
-    Gets a 'random' alphabetic key as a persistent key for a field.
-    (FIELD_KEY_LENGTH alphabetic characters) :FieldKeys
-    """
-    hash_value = cyrb53a(str(ck))
-    key = ""
-    while len(key) < FIELD_KEY_LENGTH:
-        hash_value, remainder = divmod(hash_value, 52)
-        if remainder < 26:
-            key += chr(ord("a") + remainder)
-        else:
-            key += chr(ord("A") + remainder - 26)
-    return key
-
-
 @node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "metadata"])
-class Field(ModuleNode, HasText, TypeBase, FieldQueryOps):
+class Field(HasText, TypeBase, FieldQueryOps):
     parent: Union["Statement", None] = None
     name: Optional[str] = None
     tag: TypeTag = required_field()
@@ -286,7 +271,7 @@ class Field(ModuleNode, HasText, TypeBase, FieldQueryOps):
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
     def __post_init__(self):
-        self.key = self.key or new_field_key(self.ck)
+        self.key = self.key or new_short_key_length(self.ck)
 
     def __str__(self):
         flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
@@ -301,7 +286,7 @@ class Field(ModuleNode, HasText, TypeBase, FieldQueryOps):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        if isinstance(self.reference, Statement):
+        if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
     @property
@@ -365,7 +350,7 @@ class _FieldAccessor:
 
 
 @node
-class HasFields(TypeBase, StatementBase):
+class HasFields(TypeBase):
     """A symbol that has fields"""
 
     type: StatementType = StatementType.TYPE
@@ -377,13 +362,16 @@ class HasFields(TypeBase, StatementBase):
     key: str = None
     reference = None
 
+    def __post_init__(self):
+        if self.key is None:
+            self.key = new_short_key_length(self.ck)
+
     def _clear(self) -> None:
         self.resolved_fields = None
         for f in self.fields:
             f._clear()
 
     def _index(self):
-        # nocheckin: automatically register _clear/_index/_interp for statement elements
         for f in self.fields:
             self._add_child_node(f, by_name=True)
 
@@ -391,7 +379,6 @@ class HasFields(TypeBase, StatementBase):
         # sort fields by order key
         self.fields.sort(key=lambda f: f.order_key)
 
-        # nocheckin: interp fields should really go into Field
         # interp fields
         for f in self.fields:
             HasText._interp(f, scope)
@@ -399,11 +386,11 @@ class HasFields(TypeBase, StatementBase):
         for f in self.walk_type():
             # TODO @Cleanup @Architecture: move field reference resolution into Field._interp
             #  we'll also need text reference resolution and tagging resolution there
-            if f.tag != TypeTag.TYPE_REFERENCE or isinstance(f.reference, Statement):
+            if f.tag != TypeTag.TYPE_REFERENCE or isinstance(f.reference, ModuleNode):
                 continue  # nothing to resolve
             statement = None
             if f.reference is not None:
-                statement = scope.lookup(f.reference, node_t=Type)
+                statement = scope.lookup(f.reference)
             if not isinstance(statement, TypeBase):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
@@ -453,10 +440,13 @@ class HasFields(TypeBase, StatementBase):
 
     def _take_fields_from(self, other: "HasFields", reset_id: bool) -> list[Field]:
         """Copies the fields of this type to another type"""
+        module = self.module or other.module
+        if module is None:
+            raise ValueError(f"{self} cannot take fields from {other} without a module")
         new_fields = []
         for field_ in other.fields:
             if not field_.id:
-                field_._assign_id(self.module.id)
+                field_._assign_id(module.id)
             field_copy = field_.copy()
             field_copy.parent = self
             field_copy.reference = field_.reference

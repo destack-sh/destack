@@ -8,8 +8,7 @@ from django.db.models import Model
 from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
-from bench.language.const import TriggerType
-from bench.language.session import RunStatus
+from bench.language.const import RunStatus, TriggerType
 from bench.models.utils import UUIDTModel, get_choices
 
 
