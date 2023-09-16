@@ -63,6 +63,7 @@ class File(ModuleNode, Scope):
             statement.order_key = ok
             statement.parent = self
             statement.file = self
+            self.module._on_added(statement)
             statement._index()
             for descendant in statement.walk_descendants():
                 descendant.file = self

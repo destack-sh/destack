@@ -350,7 +350,7 @@ class _FieldAccessor:
 
 
 @node
-class HasFields(TypeBase):
+class HasFields(TypeBase, ModuleNode):
     """A symbol that has fields"""
 
     type: StatementType = StatementType.TYPE
@@ -400,6 +400,10 @@ class HasFields(TypeBase):
 
         # expand unions (recursively)
         _resolve_unions(self, [])
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for field_ in self.fields:
+            visitor.visit_child(field_)
 
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""

@@ -137,6 +137,7 @@ class ModuleNode(abc.ABC):
     last_edited_at: datetime = field(default_factory=utcnow_with_tz)
     last_changed_at: datetime = field(default_factory=utcnow_with_tz)
     revision: int = 0
+    issues: list["Issue"] | None = None
 
     _session: Optional["Session"] = None
     _tracked: bool = False
@@ -154,7 +155,7 @@ class ModuleNode(abc.ABC):
             self._session.add(self, new=False)
 
     def __del__(self):
-        if self._session is not None:
+        if self._session is not None and self._tracked:
             self._session.remove(self)
 
     def _assign_id(self, module_id: UUID):
@@ -187,7 +188,13 @@ class ModuleNode(abc.ABC):
         return None
 
     def _clear(self) -> None:
-        pass
+        """Resets this scope and all child scopes."""
+        self._scopes_by_name = {}
+        self._nodes_by_id = {}
+        self._nodes_by_ck = {}
+        self._names_by_ident = {}
+        for scope in self._scopes_by_name.values():
+            scope._clear()
 
     def _interp(self, scope: "Scope") -> None:
         pass
@@ -231,6 +238,27 @@ class ModuleNode(abc.ABC):
 
         yield from visitor._descendant_by_ck.values()
 
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Statement", "File", "Field", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        from bench.language.field import Field
+        from bench.language.issue import Issue
+
+        if isinstance(subject, Field):
+            subject = subject.parent  # fields don't have issues (yet)
+        if issue is None:
+            issue = Issue(type=type, parent=subject, **kwargs)
+        if self.issues is None:
+            self.issues = []
+        self.issues.append(issue)
+        if self.parent is not None:
+            self.parent._on_issue(issue)
+
     def copy(self):
         from bench.language import wire
 
@@ -268,10 +296,9 @@ NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 @node
 class Scope:
     parent: Optional["Scope"] = None
-    issues: list["Issue"] = None
     _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
     _nodes_by_id: dict[UUID, "ModuleNode"] = field(default_factory=dict)
-    _nodes_by_ck: dict[UUID, "Statement"] = field(default_factory=dict)
+    _nodes_by_ck: dict[UUID, "ModuleNode"] = field(default_factory=dict)
     _names_by_ident: dict[str, str] = field(default_factory=dict)
 
     def _get_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
@@ -295,10 +322,7 @@ class Scope:
 
     def _find_node(self, name: str, by: LookupBy = LookupBy.Name) -> NodeT | None:
         """Find the node recursively in this scope and its parents."""
-        scope = self._find_scope(name, by)
-        if scope is not None and not isinstance(scope, Statement):
-            return None
-        return typing.cast(NodeT, scope)
+        return self._find_scope(name, by)
 
     def lookup(
         self,
@@ -337,6 +361,7 @@ class Scope:
         self._nodes_by_ck.update(scope._nodes_by_ck)
 
     def _add_child_node(self, node: ModuleNode, by_name: bool) -> None:
+        assert node.id is not None, f"cannot add node {node} without id"
         if node.name is not None and by_name:
             if node.name in self._scopes_by_name or node.py_ident in self._names_by_ident:
                 self._on_issue(type=IssueType.AMBIGUOUS_DEFINITION, subject=node, path=node.path)
@@ -359,32 +384,11 @@ class Scope:
     def errors(self) -> list["Issue"]:
         if self.issues is None:
             return []
-        return [i for i in self.issues if i.kind == IssueKind.Error]
+        return [i for i in self.issues or [] if i.kind == IssueKind.Error]
 
     @property
     def self_errors(self):
-        return [i for i in self.errors if i.parent == self]
-
-    def _on_issue(
-        self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Statement", "File", "Field", None] = None,
-        type: IssueType = None,
-        **kwargs,
-    ):
-        from bench.language.field import Field
-        from bench.language.issue import Issue
-
-        if isinstance(subject, Field):
-            subject = subject.parent  # fields don't have issues (yet)
-        if issue is None:
-            issue = Issue(type=type, parent=subject, **kwargs)
-        if self.issues is None:
-            self.issues = []
-        self.issues.append(issue)
-        if self.parent is not None:
-            self.parent._on_issue(issue)
+        return [i for i in self.errors or [] if i.parent == self]
 
     @cached_property
     def _root_scope(self) -> "Scope":
@@ -506,6 +510,8 @@ class Module(ModuleNode, Scope):
         self._on_added(file)
 
     def get_file(self, name: str) -> "File":
+        from bench.language.file import File
+
         scope = self._scopes_by_name.get(name)
         if not isinstance(scope, File):
             raise ValueError(f"expected file, got {type(scope)}")

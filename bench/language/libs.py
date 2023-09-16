@@ -773,6 +773,7 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
+    module.clear()
     module.index()  # need to index for walk
     for node in module._walk():
         if isinstance(node, Module):
