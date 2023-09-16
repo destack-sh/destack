@@ -3,11 +3,10 @@ import typing
 from dataclasses import dataclass
 from uuid import UUID, uuid5
 
-from bench.language.basic import BENCH_UUID_NAMESPACE
+from bench.language import File
 from bench.language.builtin import symbolx_lib
-from bench.language.const import TypeTag
-from bench.language.core import File
-from bench.language.type import pack_value, type_from_instance_type, unpack_value
+from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
+from bench.language.mapping import pack_value, type_from_instance_type, unpack_value
 
 
 def _derive_constant_key(path: str) -> UUID:
@@ -81,7 +80,7 @@ def x_task(
 @typing.dataclass_transform()
 def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type], typing.Type]:
     def decorator(cls):
-        from bench.language.tag import Tag
+        from bench.language.tagging import Tag
 
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)

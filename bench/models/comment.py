@@ -3,7 +3,7 @@ from typing import Optional
 
 from django.db import models
 
-from bench.language.core import ModuleNodeType
+from bench.language.const import ModuleNodeType
 from bench.models.utils import CrudModel, DetachedModuleNode, get_choices
 
 

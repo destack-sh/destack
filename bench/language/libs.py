@@ -13,13 +13,21 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import Dataset, HasText, Run, Runnable, Tag, Variable
-from bench.language.basic import TextMention
+from bench.language import Dataset, HasRun, HasText, Module, Run, Tag, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.code_ import Code
 from bench.language.const import TypeFlag, TypeTag
-from bench.language.core import Module, Statement, get_node_id
-from bench.language.model import Model
+from bench.language.field import (
+    Field,
+    Key,
+    Type,
+    TypeBase,
+    Vector,
+    map_value,
+    new_field_key,
+    pack_value_flat,
+)
+from bench.language.module import get_node_id
+from bench.language.reference import ModuleView
 from bench.language.reflect import (
     _derive_constant_key,
     _model_compilers,
@@ -32,26 +40,17 @@ from bench.language.reflect import (
 )
 from bench.language.remote import RemoteObject
 from bench.language.session import RunError, RunStatus
+from bench.language.statement import Code, Model, Statement
 from bench.language.task import (
     CompiledInput,
     IncapableError,
-    ModuleView,
     Task,
     TaskCompiler,
     TaskError,
     TaskErrorType,
     TaskOutput,
 )
-from bench.language.type import (
-    Field,
-    Key,
-    Type,
-    TypeBase,
-    Vector,
-    map_value,
-    new_field_key,
-    pack_value_flat,
-)
+from bench.language.text import TextMention
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
 #
@@ -386,7 +385,7 @@ class OpenAIChatInput(CompiledInput):
     settings: OpenAIChatSettings
     messages: list[OpenAIChatMessage]
     functions: list[OpenAIFunction]
-    runnables_by_name: dict[str, Runnable]
+    runnables_by_name: dict[str, HasRun]
 
 
 class OpenAIChatCompiler(TaskCompiler):
@@ -456,7 +455,7 @@ class OpenAIChatCompiler(TaskCompiler):
         else:
             return None
 
-    def _compile_function(self, tool: Runnable, prefix: str) -> OpenAIFunction:
+    def _compile_function(self, tool: HasRun, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
             name=prefix + tool.py_ident,
             text=f"{tool.type.name.lower()} {self._render_text(tool)}",
@@ -562,7 +561,7 @@ class OpenAIChatCompiler(TaskCompiler):
             f for f in view.nodes if isinstance(f, Code) and f.inputs and f.outputs
         ]
         user_function_prefix = "_"
-        user_functions_by_name: dict[str, Runnable] = {
+        user_functions_by_name: dict[str, HasRun] = {
             user_function_prefix + f.py_ident: f for f in available_functions
         }
         functions: list[OpenAIFunction] = [

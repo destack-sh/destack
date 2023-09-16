@@ -18,8 +18,7 @@ from django.db.models import Model, QuerySet
 
 from bench import models
 from bench.language import StatementType, TypeHint, TypeTag, wire
-from bench.language.const import RemoteObjectStatus, TriggerType
-from bench.language.core import INTERP_NODE_TYPES, ModuleNodeType
+from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType, RemoteObjectStatus, TriggerType
 from bench.language.issue import IssueKind, IssueType
 from bench.language.mutate import MMK, ModuleMutation, MutationBundle
 from bench.language.wire import ModuleTree

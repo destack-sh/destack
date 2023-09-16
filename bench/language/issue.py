@@ -1,12 +1,15 @@
 import abc
 import enum
 import uuid
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
+from bench.language.const import MNT
+from bench.language.module import node
+
 if TYPE_CHECKING:
-    from bench.language.core import File, Statement
+    from bench.language import File
+    from bench.language.statement import Statement
 
 
 class IssueKind(enum.StrEnum):
@@ -90,7 +93,7 @@ class BenchError(ValueError):
         self.issue = issue
 
 
-@dataclass
+@node(MNT.Issue)
 class Issue:
     id: Optional[UUID]
     ck: UUID
@@ -100,7 +103,8 @@ class Issue:
     parent: Union["Statement", "File", None] = None
 
     def __init__(self, type: IssueType, parent: Union["Statement", "File", None], **kwargs):
-        from bench.language.core import File, NodePath, Statement, node_path_as_str
+        from bench.language import File, Statement
+        from bench.language.const import NodePath, node_path_as_str
 
         if parent is not None and not isinstance(parent, (Statement, File)):
             raise ValueError(f"unexpected parent for issue {type}: {parent!r}")
@@ -158,3 +162,38 @@ class IssueHandler(abc.ABC):
         **kwargs,
     ):
         pass
+
+
+@node
+class HasIssues(abc.ABC):
+    issues: list[Issue] = None
+
+    @property
+    def errors(self) -> list[Issue]:
+        if self.issues is None:
+            return []
+        return [i for i in self.issues if i.kind == IssueKind.Error]
+
+    @property
+    def self_errors(self):
+        return [i for i in self.errors if i.parent == self]
+
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Statement", "File", "Field", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        from bench.language.field import Field
+
+        if isinstance(subject, Field):
+            subject = subject.parent  # fields don't have issues (yet)
+        if issue is None:
+            issue = Issue(type=type, parent=subject, **kwargs)
+        if self.issues is None:
+            self.issues = []
+        self.issues.append(issue)
+        if self.parent is not None:
+            self.parent._on_issue(issue)

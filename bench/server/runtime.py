@@ -16,8 +16,9 @@ from more_itertools import first
 
 from bench import models
 from bench.language import (
-    HasType,
+    HasFields,
     Issue,
+    Module,
     Q,
     Query,
     QueryOp,
@@ -27,13 +28,13 @@ from bench.language import (
     wire,
 )
 from bench.language.cache import CacheAsync
-from bench.language.core import MNT, Module, ModuleReference, parse_absolute_node_reference
-from bench.language.flow import IsFlowNode, TriggerScheduleIterator, is_time_trigger_equal
+from bench.language.const import MNT, ModuleReference, parse_absolute_node_reference
+from bench.language.field import pack_value, unpack_value
+from bench.language.flow import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.run import get_run_cache_subkey
 from bench.language.session import RunStatus
-from bench.language.type import pack_value, unpack_value
-from bench.language.utils import get_run_cache_subkey
 from bench.language.wire import ModuleTree
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
@@ -807,7 +808,7 @@ class RuntimeWorker:
         # collect new (i.e. current) module's triggers
         new_active_triggers = {}
         for statement in self.module._nodes_by_id.values():
-            if isinstance(statement, IsFlowNode) and not statement.errors:
+            if isinstance(statement, HasTriggers) and not statement.errors:
                 for trigger in statement.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
                         new_active_triggers[trigger.id] = trigger
@@ -882,10 +883,10 @@ class RuntimeWorker:
             interp_mut.truncate(new_source.module, MNT.ResolvedField)
         for statement in self.module._nodes_by_id.values():
             old_statement = old_module._nodes_by_id.get(statement.id) if old_module else None
-            if not isinstance(statement, HasType):
+            if not isinstance(statement, HasFields):
                 continue
             if (
-                not isinstance(old_statement, HasType)
+                not isinstance(old_statement, HasFields)
                 or old_statement.resolved_fields != statement.resolved_fields
             ):
                 if old_statement is not None:

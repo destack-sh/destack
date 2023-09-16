@@ -9,7 +9,9 @@ from functools import cached_property
 from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
-from bench.language.core import Module, ModuleNode, ModuleNodeType
+from bench.language import Module
+from bench.language.const import ModuleNodeType
+from bench.language.module import ModuleNode
 from bench.language.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
 

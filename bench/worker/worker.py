@@ -8,18 +8,12 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import LogEntry, Runnable, wire
-from bench.language.core import (
-    Module,
-    ModuleReference,
-    ModuleWriter,
-    Session,
-    SessionContext,
-    SessionMode,
-)
+from bench.language import HasRun, LogEntry, Module, wire
+from bench.language.const import ModuleReference
+from bench.language.core import ModuleWriter, Session, SessionContext, SessionMode
+from bench.language.field import map_value, unpack_value_flat
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.session import Run, RunError, RunErrorKind, RunStatus
-from bench.language.type import map_value, unpack_value_flat
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
 from bench.msg.messages import (
@@ -515,7 +509,7 @@ class ModuleWorkerProcess(ModuleWriter):
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 
-    async def _do_run_in_session(self, session: Session, runnable: Runnable, inputs: dict) -> None:
+    async def _do_run_in_session(self, session: Session, runnable: HasRun, inputs: dict) -> None:
         """Actually runs the runnable in the session"""
 
         # open session

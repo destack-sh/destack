@@ -337,7 +337,7 @@ class FieldQueryOps:
         return _BASE_QUERY_OPS | format_ops | hint_ops | tag_ops
 
     def _strip_value(self, value: Any) -> Any:
-        from bench.language.type import Field
+        from bench.language.field import Field
 
         if isinstance(value, Field):
             if value.effective_tag == TypeTag.LITERAL:  # for enum members
@@ -465,7 +465,7 @@ class FieldQueryOps:
     # TODO @Cleanup: wrap sub properties into accessor for disambiguation (like with FieldAccessor)
 
     def _subfield(self, name: str, tag: TypeTag, hint: Optional[TypeHint] = None) -> Subfield:
-        from bench.language.type import get_storage_format
+        from bench.language.field import get_storage_format
 
         storage_format = get_storage_format(tag, hint, TypeFlag.Zero)
         return Subfield(

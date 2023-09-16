@@ -5,26 +5,23 @@ import hashlib
 import itertools
 import textwrap
 import typing
-from dataclasses import dataclass, field
-from datetime import datetime
+from dataclasses import field
 from functools import cached_property
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
 
-import msgpack
 import structlog
 from more_itertools import first, last
 
-from bench.language.basic import HasText
-from bench.language.const import TypeTag
-from bench.language.core import IssueType, LookupBy, ModuleVisitor, NodePath, Scope, Statement, node
-from bench.language.flow import IsFlowNode
+from bench.language.const import NodePath, TypeTag
+from bench.language.issue import IssueType
+from bench.language.mapping import check_type, pack_value, unpack_value
+from bench.language.module import LookupBy, ModuleNode, ModuleVisitor, Scope, node
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
-from bench.language.tag import HasTags, Tag
-from bench.language.type import HasType, check_type, pack_value, unpack_value
-from bench.language.utils import Runnable, get_run_cache_subkey
+from bench.language.run import CachedRun, HasRun, get_run_cache_subkey
+from bench.language.text import HasText
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
@@ -47,26 +44,17 @@ class CodeParse:
     x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
-@node(tracked=["language", "code"])
-class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
-    language: str = "python"  # will probably merge into environment when we have it
-    tag: TypeTag = TypeTag.FUNCTION
-    text: Optional[str] = None
-    code: Optional[str] = None
+@node(tracked=["code"])
+class HasCode(ModuleNode):
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
     _transform: Optional[CodeTransformation] = None
-    _statement_references: dict[str, Statement] | None = None
+    _statement_references: dict[str, "Statement"] | None = None
     _callable_inner: AsyncCodeCallable | SyncCodeCallable | None = None
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = None
     _cached_exports: dict[str, Any] | None = None
 
     def _clear(self) -> None:
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
-        IsFlowNode._clear(self)
         self._parse = None
         self._transform = None
         self._statement_references = None
@@ -75,11 +63,6 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         self._cached_exports = None
 
     def _interp(self, scope: Scope) -> None:
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-        IsFlowNode._interp(self, scope)
-
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._statement_references = {}
@@ -110,19 +93,19 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
         from bench.language.libs import symbolx_lib
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache", node_t=Tag))
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache"))
 
     @cached_property
     def exported(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export", node_t=Tag))
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export"))
 
     @cached_property
     def is_test(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.test", node_t=Tag))
+        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.test"))
 
     @cached_property
     def _code_hash(self) -> str:
@@ -147,7 +130,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         if resolved is None:
             # fall back to code object import
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
-            if not isinstance(resolved, Code) or not resolved.exported:
+            if not isinstance(resolved, HasCode) or not resolved.exported:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = resolved.to_sync()()
             if name not in ret:
@@ -162,7 +145,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         if resolved is None:
             # fall back to code object import
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
-            if not isinstance(resolved, Code) or not resolved.exported:
+            if not isinstance(resolved, HasCode) or not resolved.exported:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = await resolved.to_async()()
             if name not in ret:
@@ -187,7 +170,7 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         if not self._parse.is_async:
             # replace any async functions with sync versions
             for key, symbol in context.items():
-                if isinstance(symbol, Runnable) and symbol._is_async:
+                if isinstance(symbol, HasRun) and symbol._is_async:
                     context[key] = symbol.to_sync()
         dynamic_context = {
             "session": self.session,
@@ -358,87 +341,6 @@ class Code(HasType, IsFlowNode, HasTags, HasText, Runnable, Statement):
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
-
-    def to_sync(self) -> "Code":
-        if not self._is_async:
-            return self
-        return CodeProxy.to_sync(self)
-
-    def to_async(self) -> "Code":
-        if self._is_async:
-            return self
-        return CodeProxy.to_async(self)
-
-
-class CodeProxy:  # :SyncProxy
-    """
-    A simple proxy for Code to enable to_sync/to_async while keeping the original Code object.
-    """
-
-    def __init__(self, code: Code, is_async: bool):
-        self._code = code
-        self._is_async = is_async
-
-    def __call__(self, *args, **kwargs):
-        if self._is_async:
-            return self.__call_async__(*args, **kwargs)
-        else:
-            return self.__call_sync__(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return getattr(self._code, item)
-
-    @classmethod
-    def to_sync(cls, code: Code) -> Code:
-        proxy = cls(code, is_async=False)
-        proxy.__call_sync__ = code.session.async_to_sync(code.__call_async__)
-        return typing.cast(Code, proxy)
-
-    @classmethod
-    def to_async(cls, code: Code) -> Code:
-        proxy = cls(code, is_async=True)
-        proxy.__call_async__ = code.session.sync_to_async(code.__call_sync__)
-        return typing.cast(Code, proxy)
-
-
-@dataclass(slots=True)
-class CachedRun:
-    """A cached run of a code statement."""
-
-    generated_at: datetime
-    duration: float
-    inputs: dict[str, Any]
-    outputs: dict[str, Any]
-
-    @staticmethod
-    def bytes_from_run(inputs: dict, outputs: dict, started_at: datetime):
-        now = utcnow_with_tz()
-        run = CachedRun(
-            generated_at=now,
-            duration=(now - started_at).total_seconds(),
-            inputs=inputs,
-            outputs=outputs,
-        )
-        return run.to_json_bytes()
-
-    def to_json_bytes(self) -> bytes:
-        run_json = {
-            "generated_at": self.generated_at.isoformat(),
-            "duration": self.duration,
-            "inputs": self.inputs,
-            "outputs": self.outputs,
-        }
-        return msgpack.packb(run_json, use_bin_type=True)
-
-    @staticmethod
-    def from_json_bytes(json_bytes: bytes) -> "CachedRun":
-        run_json = msgpack.unpackb(json_bytes, raw=False)
-        return CachedRun(
-            generated_at=datetime.fromisoformat(run_json["generated_at"]),
-            duration=run_json["duration"],
-            inputs=run_json["inputs"],
-            outputs=run_json["outputs"],
-        )
 
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]

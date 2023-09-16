@@ -1,24 +1,19 @@
 import abc
 import enum
-import itertools
 import random
 from dataclasses import dataclass
-from typing import Collection, Optional, Self, Union
-from uuid import UUID
+from typing import Optional, Self, Union
 
 from more_itertools import first
 
-from bench.language.basic import HasText
-from bench.language.const import StatementType, TypeTag
-from bench.language.core import Module, ModuleNode, ModuleVisitor, Scope, Statement, node
-from bench.language.flow import HasFlow, IsFlowNode
+from bench.language import Scope
 from bench.language.issue import IssueType
-from bench.language.model import Model
+from bench.language.mapping import check_type, unpack_value
+from bench.language.module import ModuleNode, node
+from bench.language.reference import ModuleView
 from bench.language.reflect import reflect_struct
+from bench.language.run import HasRun
 from bench.language.session import Run, RunError, RunErrorKind
-from bench.language.tag import HasTags
-from bench.language.type import HasType, check_type, unpack_value
-from bench.language.utils import Runnable
 from bench.utils.utils import DotDict
 
 
@@ -36,7 +31,7 @@ class TaskError(RunError):
     def __init__(
         self,
         type: TaskErrorType,
-        runnable: Union[Model, "Task"],
+        runnable: Union["Model", "Task"],
         message: str = None,
         path: str = None,
     ):
@@ -80,27 +75,13 @@ class TaskRunMetadata:
 
 
 @node(tracked=["text"])
-class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
-    tag: TypeTag = TypeTag.FUNCTION
-    type: StatementType = StatementType.TASK
+class Task(ModuleNode):
     _is_async: bool = True
-    _root_models: list[Model] = None
+    _root_models: list["Model"] = None
     _randomize: bool = False
-
-    def _clear(self) -> None:
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
-        IsFlowNode._clear(self)
 
     def _interp(self, scope: Scope) -> None:
         from bench.language.builtin import symbolx_lib
-
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-        IsFlowNode._interp(self, scope)
 
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
         self._randomize = self.has_tag(randomize_tag)
@@ -109,11 +90,6 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags, self.triggers):
-            visitor.visit_child(n)
-        HasText._visit(self, visitor)
 
     async def __call__(
         self,
@@ -129,7 +105,9 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            mono_model: Model | None = self.session.module.lookup_or_error("openai.lib.text.ada")
+            mono_model: Optional["Model"] = self.session.module.lookup_or_error(
+                "openai.lib.text.ada"
+            )
         elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
@@ -161,48 +139,9 @@ class Task(HasType, HasFlow, IsFlowNode, HasTags, HasText, Runnable, Statement):
     def to_async(self) -> "Self":
         return self
 
-    def to_sync(self) -> "Self":
-        if self._is_async:
-            return TaskProxy.to_sync(self)
-        return self
-
-
-class ModuleView:
-    def __init__(self, module: Module, origin: Statement):
-        super().__init__()
-        self.module = module
-        self.origin = origin
-        self._nodes_by_distance: list[list[ModuleNode]] = []
-
-    @property
-    def nodes(self) -> Collection[ModuleNode]:
-        return itertools.chain.from_iterable(self._nodes_by_distance)
-
-    @property
-    def nodes_by_distance(self) -> list[list[ModuleNode]]:
-        return self._nodes_by_distance
-
-    def collect(self) -> None:
-        self._nodes_by_distance = []
-
-        # TODO @Task: gather module view more intelligently (prevent reference jungle)
-        seen: dict[UUID, ModuleNode] = {}
-        child_visitor = ModuleVisitor()
-        to_visit = [self.origin]
-        while to_visit:
-            self._nodes_by_distance.append(to_visit)
-            for n in to_visit:
-                seen[n.ck] = n
-                n._visit(child_visitor)
-            to_visit = [
-                n
-                for n in itertools.chain(child_visitor.subtree, child_visitor.references)
-                if n.ck not in seen
-            ]
-
 
 async def run_task(
-    task: Task, root_models: list[Model], view: ModuleView, inputs: dict, nonce: Optional[str]
+    task: Task, root_models: list["Model"], view: ModuleView, inputs: dict, nonce: Optional[str]
 ) -> dict:
     num_retries_total = 0
     root_model = root_models[0]  # TODO @Broken @Tass: auto-select between multiple root models
@@ -254,7 +193,7 @@ class TaskOutput(abc.ABC):
     If runnable is given, it's a function call, otherwise it terminates."""
 
     result_raw: dict  # raw (i.e. not instantiated) result
-    runnable: Optional[Runnable] = None
+    runnable: Optional[HasRun] = None
 
 
 class TaskCompiler(abc.ABC):
@@ -270,30 +209,3 @@ class TaskCompiler(abc.ABC):
 
     async def run(self, model: Model, input: CompiledInput) -> TaskOutput:
         raise NotImplementedError
-
-
-class TaskProxy:  # :SyncProxy
-    """A simple proxy for Task to enable to_sync/to_async while keeping the original Task object."""
-
-    def __init__(self, task: Task, is_async: bool):
-        self._task = task
-        self._is_async = is_async
-        self._task_callable_sync = None
-
-    def __call__(self, *args, **kwargs):
-        if self._is_async:
-            return self._task(*args, **kwargs)
-        else:
-            if self._task_callable_sync is None:
-                self._task_callable_sync = self._task.session.async_to_sync(self._task.__call__)
-            return self._task_callable_sync(*args, **kwargs)
-
-    def __getattr__(self, name):
-        return getattr(self._task, name)
-
-    def to_async(self) -> Task:
-        return self.task
-
-    @classmethod
-    def to_sync(cls, task: Task) -> "TaskProxy":
-        return cls(task, is_async=False)

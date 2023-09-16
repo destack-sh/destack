@@ -3,33 +3,22 @@ import typing
 from dataclasses import field
 from uuid import UUID
 
-from bench.language.basic import HasText
-from bench.language.const import TypeTag
-from bench.language.core import (
-    MNT,
-    HasCrud,
-    HasSession,
-    ModuleNode,
-    ModuleVisitor,
-    Scope,
-    Statement,
-    StatementBase,
-    StatementReference,
-    StatementType,
-    node,
-)
+from bench.language import Scope
+from bench.language.const import MNT, StatementReference, TypeTag
+from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.text import HasText
 from bench.utils.utils import required_field
 
 TAG_KEY_LENGTH = 8
 
 
 @node(mnt=MNT.Tagging, tracked=[])
-class Tagging(HasCrud, HasSession, ModuleNode):
+class Tagging(ModuleNode):
     """An association between a tag and a statement (with optional metadata)."""
 
     reference: typing.Union["Tag", StatementReference] = required_field()
     key: str = required_field()
-    parent: Statement | None = None
+    parent: ModuleNode | None = None
     metadata: dict[str, typing.Any] | None = None
 
     def __str__(self):
@@ -53,7 +42,7 @@ class Tagging(HasCrud, HasSession, ModuleNode):
 
 
 @node
-class HasTags(StatementBase):
+class HasTags(ModuleNode):
     tags: list[Tagging] = field(default_factory=list)
 
     @staticmethod
@@ -97,36 +86,3 @@ class HasTags(StatementBase):
             if tagging.reference is None:
                 # is that an error? not sure
                 continue
-
-
-# avoid circular import because Tag is HasType but Type is HasTags
-from bench.language.type import HasType, new_field_key  # noqa: E402
-
-
-@node(tracked=["name"])
-class Tag(HasType, HasTags, HasText, Statement):
-    """A tag statement."""
-
-    type: StatementType = StatementType.TAG
-    tag: TypeTag = TypeTag.STRUCT
-
-    def __post_init__(self):
-        if self.key is None:
-            self.key = new_field_key(self.ck)
-
-    def _clear(self):
-        Statement._clear(self)
-        HasText._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
-
-    def _interp(self, scope: Scope) -> None:
-        Statement._interp(self, scope)
-        HasText._interp(self, scope)
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        for n in itertools.chain(self.children, self.fields, self.tags):
-            visitor.visit_child(n)
-        HasText._visit(self, visitor)

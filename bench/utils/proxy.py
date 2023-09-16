@@ -81,7 +81,10 @@ class ProxyDict(Mapping):
     def __setattr__(self, item, value):
         if item in ("_inner", "_onread", "_onwrite"):
             return super().__setattr__(item, value)
-        super().__setattr__(self._inner, item, value)
+        value = proxy_value(
+            value, _curry_path(self._onread, item), _curry_path(self._onwrite, item)
+        )
+        self._inner[item] = value
         self._onwrite(item)
 
 

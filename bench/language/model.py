@@ -12,13 +12,13 @@ from uuid import UUID
 import msgpack
 import structlog
 
+from bench.language import Scope
 from bench.language.cache import CacheAsync
 from bench.language.const import StatementType
-from bench.language.core import ModuleVisitor, Scope, Statement, node
-from bench.language.flow import IsFlowNode
-from bench.language.tag import HasTags
-from bench.language.type import HasType, TypeTag, check_type, pack_value, unpack_value
-from bench.language.utils import Runnable, get_run_cache_subkey
+from bench.language.field import TypeTag
+from bench.language.mapping import check_type, pack_value, unpack_value
+from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.run import get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -33,7 +33,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
+class HasModel(ModuleNode):
     external_name: typing.Optional[str] = None
     text: typing.Optional[str] = None
     tag: TypeTag = TypeTag.FUNCTION
@@ -46,9 +46,6 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
     _has_vector_io: bool = False  # we only cache models without vector inputs/outputs
 
     def _clear(self) -> None:
-        Scope._clear(self)
-        HasType._clear(self)
-        HasTags._clear(self)
         self._api_key = None
         self._remote = True
         self._endpoint_impl = None
@@ -56,9 +53,6 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
         self._has_vector_io = False
 
     def _interp(self, scope: Scope) -> None:
-        HasType._interp(self, scope)
-        HasTags._interp(self, scope)
-
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:
@@ -239,38 +233,6 @@ class Model(HasType, HasTags, IsFlowNode, Runnable, Statement):
 
     def to_async(self) -> "Self":
         return self
-
-    def to_sync(self) -> "Self":
-        if self._is_async:
-            return ModelProxy.to_sync(self)
-        return self
-
-
-class ModelProxy:  # :SyncProxy
-    """A simple proxy for Model to enable to_sync/to_async while keeping the original Model object."""
-
-    def __init__(self, model: Model, is_async: bool):
-        self._model = model
-        self._is_async = is_async
-        self._task_callable_sync = None
-
-    def __call__(self, *args, **kwargs):
-        if self._is_async:
-            return self._model(*args, **kwargs)
-        else:
-            if self._task_callable_sync is None:
-                self._task_callable_sync = self._model.session.async_to_sync(self._model.__call__)
-            return self._task_callable_sync(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return getattr(self._model, item)
-
-    def to_async(self):
-        return self._model
-
-    @classmethod
-    def to_sync(cls, model: Model):
-        return cls(model, is_async=False)
 
 
 @dataclass(slots=True)

@@ -12,7 +12,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
-from bench.language.core import MNT
+from bench.language.const import MNT
 from bench.models import ModuleAccessLevel, packer
 from bench.models.packer import MNT_BY_BASE_MODEL_CLASS
 
