@@ -159,6 +159,10 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
     def clear(self):
         self.session.tracer.dataset_clear(self)
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for view in self.views or []:
+            visitor.visit_child(view)
+
     def append(self, record: Record | dict = None, **value):
         """Appends a record to the dataset."""
         if record is not None:

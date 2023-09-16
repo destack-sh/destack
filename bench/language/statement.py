@@ -3,6 +3,7 @@ from dataclasses import field
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
+from bench.language.code_ import HasCode
 from bench.language.const import (
     MNT,
     StatementReference,
@@ -11,8 +12,16 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
+from bench.language.dataset import HasDataset
+from bench.language.field import HasFields
 from bench.language.issue import BenchError, Issue
+from bench.language.model import HasModel
 from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
+from bench.language.reference import HasReference
+from bench.language.tagging import HasTags
+from bench.language.text import HasText
+from bench.language.trigger import HasTriggers
+from bench.language.value import HasValue
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
@@ -142,6 +151,13 @@ class Statement(ModuleNode, Scope):
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
+    def _clear(self) -> None:
+        """Clears any derived/interpreted values on this statement."""
+        Scope._clear(self)
+        self.issues = None
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            cls._clear(self)
+
     def _index(self):
         self._clear()
         self.children = self.file._statements_by_parent_id.get(self.id, [])
@@ -150,21 +166,16 @@ class Statement(ModuleNode, Scope):
             # (unlike in file/module, statement nesting is only semantic, not structural)
             self._add_child_scope(child, by_name=True)
 
-    def _clear(self) -> None:
-        """Clears any derived/interpreted values on this statement."""
-        super()._clear()
-        self.issues = None
-        # nocheckin: clear all component classes
-
     def _interp(self, scope: Scope) -> None:
         """Updates, resolves and checks any derived/interpreted values on this statement."""
-        # nocheckin: interp all component classes
-        pass
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            cls._interp(self, scope)
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        # nocheckin: visit all component classes
         for child in self.children or []:
             visitor.visit_child(child)
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            cls._visit(self, visitor)
 
     def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
         """Clears and re-interprets this statement in scope."""
@@ -179,36 +190,44 @@ class Statement(ModuleNode, Scope):
 # Concrete statements
 #
 
-from bench.language.code_ import HasCode  # noqa: E402
-from bench.language.dataset import HasDataset  # noqa: E402
-from bench.language.field import HasFields  # noqa: E402
-from bench.language.model import HasModel  # noqa: E402
-from bench.language.tagging import HasTags  # noqa: E402
-from bench.language.text import HasText  # noqa: E402
-from bench.language.trigger import HasTriggers  # noqa: E402
-from bench.language.value import HasValue  # noqa: E402
+
+_COMPONENT_CLASSES: list[type[ModuleNode]] = [
+    HasCode,
+    HasDataset,
+    HasFields,
+    HasModel,
+    HasTags,
+    HasText,
+    HasTriggers,
+    HasValue,
+    HasReference,
+]
+for c in _COMPONENT_CLASSES:
+    # check that they implement _clear, _interp, _visit
+    for m in ["_clear", "_interp", "_visit"]:
+        assert hasattr(c, m), f"{c} does not implement {m}"
 
 
-@node(tracked=[])
+@node
 class Blank(Statement):
     """A blank statement."""
 
     type: StatementType = StatementType.BLANK
 
 
-@node(tracked=["text", "heading_level"])
-class Text(HasText, HasTags, HasFields, Statement):
+@node
+class Text(Statement, HasText, HasTags, HasFields):
     heading_level: Optional[TextHeadingLevel] = None
     type: StatementType = StatementType.TEXT
 
 
-@node(tracked=["reference"])
-class Reference(HasFields, HasTags, HasText, Statement):
+@node
+class Reference(Statement, HasFields, HasReference, HasTags, HasText):
     type: StatementType = StatementType.REFERENCE
 
 
 @node
-class Type(HasFields, HasTags, HasText, Statement):
+class Type(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TYPE
     tag: TypeTag = TypeTag.STRUCT
 
@@ -216,7 +235,7 @@ class Type(HasFields, HasTags, HasText, Statement):
         combined_kwargs = {**kwargs}
         for i in range(len(args)):
             combined_kwargs[self.fields[i].name] = args[i]
-        return DotDict(combined_kwargs)
+        return DotDict(combined_kwargs)  # this is not quite correct, should be a real type
 
     def __str__(self):
         path_str = f"{self.path} " if self.name else ""
@@ -244,46 +263,46 @@ class Type(HasFields, HasTags, HasText, Statement):
 
 
 @node
-class Tag(HasFields, HasTags, HasText, Statement):
+class Tag(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT
 
 
 @node
-class Dataset(HasDataset, HasText, Statement):
+class Dataset(Statement, HasDataset, HasTags, HasText):
     type: StatementType = StatementType.DATASET
     tag: TypeTag = TypeTag.STRUCT
 
 
 @node
-class Model(HasModel, Statement):
+class Model(Statement, HasModel):
+    type: StatementType = StatementType.MODEL
+    tag: TypeTag = TypeTag.FUNCTION
+    flags: TypeFlag = TypeFlag.Zero
+
+
+@node
+class Code(Statement, HasCode, HasTriggers, HasTags, HasText):
     type: StatementType = StatementType.CODE
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
 @node
-class Code(HasCode, HasTriggers, HasText, Statement):
-    type: StatementType = StatementType.CODE
-    tag: TypeTag = TypeTag.FUNCTION
-    flags: TypeFlag = TypeFlag.Zero
-
-
-@node
-class Task(HasFields, HasTags, HasText, Statement):
+class Task(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TASK
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
 @node
-class Flow(HasFields, HasTags, HasText, Statement):
+class Flow(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.FLOW
     tag: TypeTag = TypeTag.FUNCTION
 
 
-@node(tracked=["text", "value"])
-class Variable(HasValue, HasTags, HasText, Statement):
+@node
+class Variable(Statement, HasValue, HasTags, HasText):
     type: StatementType = StatementType.VARIABLE
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
@@ -329,3 +348,42 @@ class Variable(HasValue, HasTags, HasText, Statement):
 
     def __iter__(self):
         return iter(self.value)
+
+
+STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Statement]] = {
+    StatementType.BLANK: Blank,
+    StatementType.TEXT: Text,
+    StatementType.TASK: Task,
+    StatementType.TYPE: Type,
+    StatementType.TAG: Tag,
+    StatementType.CODE: Code,
+    StatementType.DATASET: Dataset,
+    StatementType.VARIABLE: Variable,
+    StatementType.FLOW: Flow,
+    StatementType.MODEL: Model,
+    StatementType.REFERENCE: Reference,
+}
+_missing_statement_types = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
+assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
+
+_STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {}
+for type, cls in STATEMENT_CLASS_BY_TYPE.items():
+    assert cls.type == type, f"{cls} has wrong type {cls.type} (expected: {type})"
+    # check that only Statement and Component classes are immediate parent of cls
+    parents = [c for c in cls.__bases__ if c != Statement]
+    illegal_parents = [c for c in parents if c not in _COMPONENT_CLASSES]
+    assert (
+        not illegal_parents
+    ), f"unexpected parents of {cls}: {illegal_parents} (allowed: {_COMPONENT_CLASSES})"
+    # check that Statement is first parent of cls (for MRO)
+    assert (
+        cls.__bases__[0] == Statement
+    ), f"unexpected first parent of {cls}: {parents[0]} (expected: Statement)"
+    _STATEMENT_COMPONENTS_BY_TYPE[type] = parents
+    # expand parents into their parent components
+    parents = parents[:]
+    while parents:
+        parent = parents.pop()
+        if parent not in _STATEMENT_COMPONENTS_BY_TYPE[type]:
+            _STATEMENT_COMPONENTS_BY_TYPE[type].append(parent)
+        parents.extend([c for c in parent.__bases__ if c in _COMPONENT_CLASSES])

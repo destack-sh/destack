@@ -78,6 +78,10 @@ class HasTriggers(ModuleNode):
                 else:
                     trigger.scope = resolved
 
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for trigger in self.triggers:
+            visitor.visit_child(trigger)
+
     def add_trigger(self, trigger: Trigger) -> None:
         raise NotImplementedError
 

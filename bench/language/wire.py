@@ -35,6 +35,7 @@ from bench.language.module import ModuleNode, ModuleVisitor
 from bench.language.query import Query, Sort
 from bench.language.run import RunCodeFrame, RunErrorKind
 from bench.language.session import LazyRun, Session
+from bench.language.statement import STATEMENT_CLASS_BY_TYPE
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
@@ -587,23 +588,6 @@ class StatementData(NodeData, HasOrder, HasCrud):
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
-
-
-STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[lang.Statement]] = {
-    StatementType.BLANK: lang.Blank,
-    StatementType.TEXT: lang.Text,
-    StatementType.TASK: lang.Task,
-    StatementType.TYPE: lang.Type,
-    StatementType.TAG: lang.Tag,
-    StatementType.CODE: lang.Code,
-    StatementType.DATASET: lang.Dataset,
-    StatementType.VARIABLE: lang.Variable,
-    StatementType.FLOW: lang.Flow,
-    StatementType.MODEL: lang.Model,
-    StatementType.REFERENCE: lang.Reference,
-}
-_missing_statement_types = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
-assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
 
 
 @node_packer(

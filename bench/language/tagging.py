@@ -21,7 +21,7 @@ class Tagging(ModuleNode):
     metadata: dict[str, typing.Any] | None = None
 
     def __str__(self):
-        if isinstance(self.reference, Tag):
+        if isinstance(self.reference, ModuleNode):
             return f"{self.reference.path}"
         else:
             return self.key
@@ -34,7 +34,7 @@ class Tagging(ModuleNode):
 
     @property
     def reference_ck(self) -> typing.Optional[UUID]:
-        if isinstance(self.reference, Tag):
+        if isinstance(self.reference, ModuleNode):
             return self.reference.ck
         else:
             return self.reference
@@ -46,9 +46,7 @@ class HasTags(ModuleNode):
 
     @staticmethod
     def _to_tag_key(key: typing.Union[str, "Tag", Tagging]) -> str:
-        if isinstance(key, Tagging):
-            key = key.key
-        elif isinstance(key, Tag):
+        if hasattr(key, "key"):
             key = key.key
         return key
 
@@ -85,3 +83,7 @@ class HasTags(ModuleNode):
             if tagging.reference is None:
                 # is that an error? not sure
                 continue
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        for tagging in self.tags:
+            visitor.visit_child(tagging)

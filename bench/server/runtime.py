@@ -894,7 +894,7 @@ class RuntimeWorker:
                     if isinstance(resolved, ResolvedField):
                         interp_mut.create(resolved)
         # issues
-        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues}
+        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues or []}
         old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
         if old_module is None:
             interp_mut.truncate(new_source.module, MNT.Issue)
