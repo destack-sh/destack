@@ -7,7 +7,6 @@ Server-side mapper to translate between language and database models.
 from __future__ import annotations
 
 import abc
-import dataclasses
 import typing
 from collections import defaultdict
 from typing import Collection, Optional, TypeVar
@@ -828,7 +827,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             inputs=data.inputs,
             outputs=data.outputs,
             metadata=data.metadata,
-            error=dataclasses.asdict(data.error) if data.error else None,
+            error=data.error.to_dict() if data.error else None,
         )
 
 

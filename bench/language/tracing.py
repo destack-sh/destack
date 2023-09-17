@@ -553,7 +553,7 @@ class MutationTracer(Tracer):
         self.mutator = mutator
         # publish not supported yet
 
-    def value_update(self, variable: Variable, key: Optional[str] = None):
+    def value_update(self, variable: Statement, key: Optional[str] = None):
         from bench.language import wire
 
         self.mutator.update(wire.pack_node_flat(variable), properties=["value"])

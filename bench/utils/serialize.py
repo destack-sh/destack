@@ -12,12 +12,15 @@ from uuid import UUID
 
 @cache
 def _prepare_dataclass_fields(cls: typing.Type) -> dict[str, dataclasses.Field]:
-    data_class_hints = get_type_hints(cls)
-    fields = {}
-    for f in dataclasses.fields(cls):  # noqa
-        field = copy.copy(f)
-        field.type = data_class_hints[field.name]
-        fields[field.name] = field
+    try:
+        data_class_hints = get_type_hints(cls)
+        fields = {}
+        for f in dataclasses.fields(cls):  # noqa
+            field = copy.copy(f)
+            field.type = data_class_hints[field.name]
+            fields[field.name] = field
+    except (ValueError, NameError, TypeError) as e:
+        raise TypeError(f"failed to prepare dataclass fields for {cls}") from e
 
     if "id" in fields:
         # ids must be UUID

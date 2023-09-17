@@ -592,20 +592,20 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
     old_tree = ModuleTree(old_module.nodes)
     new_tree = ModuleTree(new_module.nodes)
 
-    for node in new_tree.walk_bfs():
-        if node.mnt == ModuleNodeType.Module:
+    for new_node in new_tree.walk_bfs():
+        if new_node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
-        if node.id not in old_tree.nodes:
-            mutator.create(node)
+        if new_node.id not in old_tree.nodes:
+            mutator.create(new_node)
         else:
-            old_node = old_tree.nodes[node.id]
-            if not node.equals_ignoring_crud(old_node):
-                mutator.update(node)
-    for node in old_tree.walk_bfs():
-        if node.mnt == ModuleNodeType.Module:
+            old_node = old_tree.nodes[new_node.id]
+            if not new_node.equals_ignoring_crud(old_node):
+                mutator.update(new_node)
+    for old_node in old_tree.walk_bfs():
+        if old_node.mnt == ModuleNodeType.Module:
             continue
-        if node.id not in new_tree.nodes:
-            mutator.delete(node)
+        if old_node.id not in new_tree.nodes:
+            mutator.delete(old_node)
     # sort into delete -> create -> update
     mutations = [
         *(m for m in mutator.mutations if m.type.kind == MMK.DELETE),

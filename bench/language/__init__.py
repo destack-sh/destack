@@ -13,8 +13,9 @@ from .file import File
 from .issue import Issue
 from .module import Module, ModuleNode, ModuleVisitor, Scope
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
+from .reflect import RunMetadata, TaskRunMetadata
 from .remote import RemoteObject, Secret
-from .run import HasRun, Run, RunError, RunMetadata
+from .run import HasRun, Run, RunError
 from .session import LogEntry, Session
 from .statement import (
     Blank,
@@ -33,6 +34,7 @@ from .statement import (
 from .tagging import HasTags, Tagging
 from .text import HasText
 from .trigger import HasTriggers, Trigger
+from .value import HasValue
 
 __all__ = [
     "Aggregation",
@@ -49,6 +51,7 @@ __all__ = [
     "HasTags",
     "HasText",
     "HasTriggers",
+    "HasValue",
     "Issue",
     "IssueType",
     "LogEntry",
@@ -78,6 +81,7 @@ __all__ = [
     "Tag",
     "Tagging",
     "Task",
+    "TaskRunMetadata",
     "Text",
     "Trigger",
     "TriggerType",

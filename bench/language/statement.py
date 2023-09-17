@@ -19,6 +19,7 @@ from bench.language.model import HasModel
 from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
 from bench.language.reference import HasReference
 from bench.language.tagging import HasTags
+from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
 from bench.language.value import HasValue
@@ -28,6 +29,7 @@ from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyiden
 
 if TYPE_CHECKING:
     from bench.language.file import File
+    from bench.language.session import Session
 
 
 @node(mnt=MNT.Statement, tracked=["name"])
@@ -186,32 +188,24 @@ class Statement(ModuleNode, Scope):
         if raise_errors and self.errors:
             raise BenchError(self.errors[0])
 
+    def _activate_in(self, session: "Session") -> None:
+        """Activates this statement in the given session."""
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            if hasattr(cls, "_activate_in"):
+                cls._activate_in(self, session)
+        super()._activate_in(session)
+
+    def _deactivate(self) -> None:
+        """Deactivates this statement."""
+        super()._deactivate()
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            if hasattr(cls, "_deactivate"):
+                cls._deactivate(self)
+
 
 #
 # Concrete statements
 #
-
-
-_COMPONENT_CLASSES: list[type[ModuleNode]] = [
-    HasCode,
-    HasDataset,
-    HasFields,
-    HasModel,
-    HasTags,
-    HasText,
-    HasTriggers,
-    HasValue,
-    HasReference,
-]
-_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit"]
-_seen_methods: dict[object, type] = {getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS}
-for c in _COMPONENT_CLASSES:
-    # check that they implement _clear, _index, _interp, _visit (in their own class)
-    for m in _COMPONENT_METHODS:
-        assert hasattr(c, m), f"{c} does not implement {m}"
-        seen = _seen_methods.get(getattr(c, m))
-        assert seen is None, f"{c} doesn't override {m} from {seen}"
-        _seen_methods[getattr(c, m)] = c
 
 
 @node
@@ -280,22 +274,25 @@ class Dataset(Statement, HasDataset, HasTags, HasText):
     tag: TypeTag = TypeTag.STRUCT
 
 
+from bench.language.run import HasRun  # noqa: E402
+
+
 @node
-class Model(Statement, HasModel):
+class Model(Statement, HasModel, HasRun):
     type: StatementType = StatementType.MODEL
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
 @node
-class Code(Statement, HasCode, HasTriggers, HasTags, HasText):
+class Code(Statement, HasCode, HasRun, HasTriggers, HasTags, HasText):
     type: StatementType = StatementType.CODE
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
 @node
-class Task(Statement, HasFields, HasTags, HasText):
+class Task(Statement, HasTask, HasRun, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TASK
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
@@ -355,6 +352,31 @@ class Variable(Statement, HasValue, HasTags, HasText):
     def __iter__(self):
         return iter(self.value)
 
+
+_COMPONENT_CLASSES: list[type[ModuleNode]] = [
+    HasCode,
+    HasDataset,
+    HasFields,
+    HasModel,
+    HasRun,
+    HasTags,
+    HasText,
+    HasTask,
+    HasTriggers,
+    HasValue,
+    HasReference,
+]
+_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit", "_activate_in", "_deactivate"]
+_MUST_OVERRIDE_METHODS = ["_clear", "_index", "_interp", "_visit"]
+_seen_methods: dict[object, type] = {getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS}
+for c in _COMPONENT_CLASSES:
+    # check that they implement _clear, _index, _interp, _visit (in their own class)
+    for m in _COMPONENT_METHODS:
+        assert hasattr(c, m), f"{c} does not implement {m}"
+        seen = _seen_methods.get(getattr(c, m))
+        if m in _MUST_OVERRIDE_METHODS:
+            assert seen is None, f"{c} must override {m}"
+        _seen_methods[getattr(c, m)] = c
 
 STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Statement]] = {
     StatementType.BLANK: Blank,

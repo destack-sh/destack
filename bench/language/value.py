@@ -12,6 +12,7 @@ if TYPE_CHECKING:
 @node
 class HasValue(HasFields, ModuleNode):
     value: dict | None = field(default_factory=dict)
+    _value_unpacked: bool = False
 
     def _clear(self):
         pass
@@ -31,27 +32,24 @@ class HasValue(HasFields, ModuleNode):
     def _activate_in(self, session: "Session") -> None:
         from bench.language.mapping import unpack_value
 
-        if self._unpacked:
+        if self._value_unpacked:
             self.value = self._raw_value()
-            self._unpacked = False
+            self._value_unpacked = False
         # proxy
-        value = self.value or {}
-        value = unpack_value(value, self, ignore_array=True, ignore_outer_map=True)
+        value = unpack_value(self.value or {}, self, ignore_array=True, ignore_outer_map=True)
         self.value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
-        self._unpacked = True
-        super()._activate_in(session)
+        self._value_unpacked = True
 
     def _deactivate(self) -> None:
-        super()._deactivate()
-        if self._unpacked:
+        if self._value_unpacked:
             self.value = self._raw_value()
-            self._unpacked = False
+            self._value_unpacked = False
 
     def _raw_value(self) -> dict:
         """The raw/stripped value with field keys."""
         from bench.language.mapping import pack_value
 
-        if not self._unpacked:
+        if not self._value_unpacked:
             return self.value
         else:
             return pack_value(self.value, self, ignore_array=True, ignore_outer_map=True)

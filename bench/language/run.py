@@ -1,4 +1,3 @@
-import abc
 import enum
 import hashlib
 import sys
@@ -12,23 +11,32 @@ from uuid import UUID
 import msgpack
 
 from bench.language.const import RunStatus, TriggerType
-from bench.language.module import Module
-from bench.language.reflect import reflect_struct
+from bench.language.module import Module, ModuleNode, ModuleVisitor, node
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language import Code, Field, Model, Session, Statement, Task, Trigger
-    from bench.language.session import LogSearch, RunSearch
+    from bench.language.session import LogSearch, RunSearch, Scope
 
 
-class HasRun(abc.ABC):
+@node
+class HasRun(ModuleNode):
     """A runnable statement"""
 
-    id: UUID
-    ck: UUID
-    module: "Module"
-    _is_async: bool
+    _is_async: Optional[bool] = None
+
+    def _clear(self) -> None:
+        pass
+
+    def _index(self) -> None:
+        pass
+
+    def _interp(self, scope: "Scope") -> None:
+        pass
+
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
 
     @property
     def logs(self) -> "LogSearch":
@@ -56,6 +64,15 @@ class HasRun(abc.ABC):
         return self.module.session.current_run
 
     def __call__(self, *args, **kwargs):
+        if self._is_async:
+            return self.__call_async__(*args, **kwargs)
+        else:
+            return self.__call_sync__(*args, **kwargs)
+
+    def __call_sync__(self, *args, **kwargs):
+        raise NotImplementedError
+
+    async def __call_async__(self, *args, **kwargs):
         raise NotImplementedError
 
     def to_sync(self) -> "_RunnableProxy":
@@ -149,17 +166,6 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-@reflect_struct("RunMetadata", "Metadata for a run", return_type=True)
-class RunMetadata:
-    name: Optional[str]
-    test: Optional[bool]
-    queue_position: Optional[int]
-    cached_at: Optional[datetime]
-    cached_in: Optional[UUID]
-    cached_duration: Optional[float]
-    progress: Optional[float]
-
-
 @dataclass
 class Run:
     id: UUID
@@ -239,43 +245,63 @@ class Run:
 
     @property
     def cached_duration(self) -> Optional[float]:
+        from bench.language.reflect import RunMetadata
+
         return self.get_metadata(RunMetadata.cached_duration)
 
     @cached_duration.setter
     def cached_duration(self, value: Optional[float]):
+        from bench.language.reflect import RunMetadata
+
         self.set_metadata(RunMetadata.cached_duration, value)
 
     @property
     def queue_position(self) -> Optional[int]:
+        from bench.language.reflect import RunMetadata
+
         return self.get_metadata(RunMetadata.queue_position)
 
     @queue_position.setter
     def queue_position(self, value: Optional[int]):
+        from bench.language.reflect import RunMetadata
+
         self.set_metadata(RunMetadata.queue_position, value)
 
     @property
     def cached_at(self) -> Optional[datetime]:
+        from bench.language.reflect import RunMetadata
+
         cached_at = self.get_metadata(RunMetadata.cached_at)
         return datetime.fromisoformat(cached_at) if cached_at else None
 
     @cached_at.setter
     def cached_at(self, value: Optional[datetime]):
+        from bench.language.reflect import RunMetadata
+
         self.set_metadata(RunMetadata.cached_at, value.isoformat() if value else None)
 
     @property
     def cached_in(self) -> Optional[UUID]:
+        from bench.language.reflect import RunMetadata
+
         return self.get_metadata(RunMetadata.cached_in)
 
     @cached_in.setter
     def cached_in(self, value: Optional[UUID]):
+        from bench.language.reflect import RunMetadata
+
         self.set_metadata(RunMetadata.cached_in, value)
 
     @property
     def test(self) -> Optional[bool]:
+        from bench.language.reflect import RunMetadata
+
         return self.get_metadata(RunMetadata.test)
 
     @test.setter
     def test(self, value: Optional[bool]):
+        from bench.language.reflect import RunMetadata
+
         self.set_metadata(RunMetadata.test, value)
 
 
@@ -288,10 +314,7 @@ _IGNORED_PACKAGE_PREFIXES = [
 _IGNORED_PACKAGE_PATHS = [package.replace(".", "/") for package in _IGNORED_PACKAGE_PREFIXES]
 
 
-# RunError/LogEntry and many others should be reflect types as well, but missing Statement and such
-# @reflect_struct("RunError", "An error while running a statement")
-
-
+@dataclass
 class RunCodeFrame:
     filename: str
     lineno: int
@@ -326,10 +349,12 @@ class RunCodeFrame:
     def clean(
         stack: list["RunCodeFrame"], from_statement: "Statement", session: "Session"
     ) -> list["RunCodeFrame"]:
-        code_by_method: dict[str, Code] = {
+        from bench.language.code_ import HasCode
+
+        code_by_method: dict[str, HasCode] = {
             symbol._transform.method_name: symbol
             for symbol in session.instances_by_id.values()
-            if isinstance(symbol, Code) and symbol._transform is not None
+            if isinstance(symbol, HasCode) and symbol._transform is not None
         }
 
         found_start = False

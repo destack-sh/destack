@@ -6,81 +6,29 @@ from typing import TYPE_CHECKING, Optional, Self, Union
 
 from more_itertools import first
 
+from bench.language.const import IssueType
 from bench.language.field import HasFields
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
-from bench.language.module import ModuleNode, Scope, node
+from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.language.reference import ModuleView
-from bench.language.reflect import reflect_struct
-from bench.language.run import HasRun, RunError, RunErrorKind
 from bench.utils.utils import DotDict
 
 if TYPE_CHECKING:
-    from bench.language import IssueType, Model, Run, Statement
-
-
-class TaskErrorType(enum.StrEnum):
-    Incapable = "Incapable"
-    Timeout = "Timeout"
-    InvalidFormat = "InvalidFormat"
-    InvalidType = "InvalidType"
-    TooLarge = "TooLarge"
-    ExceededLimit = "ExceededLimit"
-    Unknown = "Unknown"
-
-
-class TaskError(RunError):
-    def __init__(
-        self,
-        type: TaskErrorType,
-        runnable: "Statement",
-        message: str = None,
-        path: str = None,
-    ):
-        super().__init__(
-            kind=RunErrorKind.Runtime,
-            type=type.name,
-            runnable=runnable,
-            message=f"{type.value}: {message}",
-        )
-        self.type = type
-        self.path = path
-
-    @staticmethod
-    def from_exception(e: Exception, path: str = None) -> "TaskError":
-        if isinstance(e, TaskError):
-            return e
-        elif isinstance(e, ValueError):
-            return TaskError(TaskErrorType.InvalidFormat, str(e), path)
-        elif isinstance(e, TypeError):
-            return TaskError(TaskErrorType.InvalidType, str(e), path)
-        else:
-            return TaskError(TaskErrorType.Unknown, str(e), path)
-
-
-class IncapableError(TaskError):
-    def __init__(self, message: str = None, path: str = None):
-        super().__init__(TaskErrorType.Incapable, message, path)
-
-
-class LimitExceededError(TaskError):
-    def __init__(self, message: str = None, path: str = None):
-        super().__init__(TaskErrorType.ExceededLimit, message, path)
-
-
-@reflect_struct("TaskRunMetadata", "Default metadata of a task run", return_type=True)
-class TaskRunMetadata:
-    retries: Optional[int]
-    retry: Optional[int]
-    batch_size: Optional[int]
-    nonce: Optional[str]
+    from bench.language import HasRun, Model, Run, Statement
 
 
 @node
-class HasTask(HasFields, HasRun, ModuleNode):
+class HasTask(HasFields, ModuleNode):
     _is_async: bool = True
     _root_models: list["HasModel"] = None
     _randomize: bool = False
+
+    def _clear(self) -> None:
+        pass
+
+    def _index(self) -> None:
+        pass
 
     def _interp(self, scope: Scope) -> None:
         from bench.language.builtin import symbolx_lib
@@ -93,7 +41,10 @@ class HasTask(HasFields, HasRun, ModuleNode):
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
 
-    async def __call__(
+    def _visit(self, visitor: ModuleVisitor) -> None:
+        pass
+
+    async def __call_async__(
         self,
         *args,
         _retries: int = None,
@@ -187,6 +138,58 @@ async def run_task(
     raise TaskError(TaskErrorType.ExceededLimit, task, f"max retries exceeded: {num_retries_total}")
 
 
+class TaskErrorType(enum.StrEnum):
+    Incapable = "Incapable"
+    Timeout = "Timeout"
+    InvalidFormat = "InvalidFormat"
+    InvalidType = "InvalidType"
+    TooLarge = "TooLarge"
+    ExceededLimit = "ExceededLimit"
+    Unknown = "Unknown"
+
+
+from .run import RunError, RunErrorKind  # noqa: E402
+
+
+class TaskError(RunError):
+    def __init__(
+        self,
+        type: TaskErrorType,
+        runnable: "Statement",
+        message: str = None,
+        path: str = None,
+    ):
+        super().__init__(
+            kind=RunErrorKind.Runtime,
+            type=type.name,
+            runnable=runnable,
+            message=f"{type.value}: {message}",
+        )
+        self.type = type
+        self.path = path
+
+    @staticmethod
+    def from_exception(e: Exception, path: str = None) -> "TaskError":
+        if isinstance(e, TaskError):
+            return e
+        elif isinstance(e, ValueError):
+            return TaskError(TaskErrorType.InvalidFormat, str(e), path)
+        elif isinstance(e, TypeError):
+            return TaskError(TaskErrorType.InvalidType, str(e), path)
+        else:
+            return TaskError(TaskErrorType.Unknown, str(e), path)
+
+
+class IncapableError(TaskError):
+    def __init__(self, message: str = None, path: str = None):
+        super().__init__(TaskErrorType.Incapable, message, path)
+
+
+class LimitExceededError(TaskError):
+    def __init__(self, message: str = None, path: str = None):
+        super().__init__(TaskErrorType.ExceededLimit, message, path)
+
+
 @dataclass
 class CompiledInput(abc.ABC):
     task: HasTask
@@ -199,7 +202,7 @@ class TaskOutput(abc.ABC):
     If runnable is given, it's a function call, otherwise it terminates."""
 
     result_raw: dict  # raw (i.e. not instantiated) result
-    runnable: Optional[HasRun] = None
+    runnable: Optional["HasRun"] = None
 
 
 class TaskCompiler(abc.ABC):

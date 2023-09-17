@@ -26,7 +26,7 @@ def unproxy_value(value: Any) -> Any:
 
 
 class ProxyDict(Mapping):
-    """Proxy a dict, calling onread/onwrite when a key is accessed."""
+    """Proxy a dict, behave as a type dict, calling onread/onwrite when a key is accessed."""
 
     def __init__(self, inner: dict, onread: Callable[[str], None], onwrite: Callable[[str], None]):
         self._inner = inner
@@ -76,7 +76,7 @@ class ProxyDict(Mapping):
         self._onread("")
         return iter(self._inner)
 
-    # for typed dicts
+    # dot dict
 
     def __setattr__(self, item, value):
         if item in ("_inner", "_onread", "_onwrite"):
@@ -86,6 +86,12 @@ class ProxyDict(Mapping):
         )
         self._inner[item] = value
         self._onwrite(item)
+
+    def __getattr__(self, name):
+        try:
+            return self[name]
+        except KeyError:
+            raise AttributeError(name)
 
 
 class ProxyList(Collection):
