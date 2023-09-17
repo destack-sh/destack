@@ -21,7 +21,6 @@ from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import LookupBy, ModuleNode, Scope, node
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
-from bench.language.run import CachedRun, HasRun, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
@@ -48,7 +47,7 @@ class CodeParse:
 
 
 @node(tracked=["code"])
-class HasCode(HasFields, HasRun, ModuleNode):
+class HasCode(HasFields, ModuleNode):
     code: str | None = None
     _is_async: Optional[bool] = None
     _parse: Optional[CodeParse] = None
@@ -87,12 +86,6 @@ class HasCode(HasFields, HasRun, ModuleNode):
     def _visit(self, visitor: "ModuleVisitor") -> None:
         pass  # should visit statement references?
 
-    def __call__(self, *args, **kwargs):
-        if self._is_async:
-            return self.__call_async__(*args, **kwargs)
-        else:
-            return self.__call_sync__(*args, **kwargs)
-
     @cached_property
     def cached(self) -> bool:
         # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
@@ -118,6 +111,8 @@ class HasCode(HasFields, HasRun, ModuleNode):
 
     def _get_cached_output(self, inputs: dict, cached_run: bytes) -> Optional[dict]:
         try:
+            from .run import CachedRun
+
             run = CachedRun.from_json_bytes(cached_run)
             outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
             check_type(outputs, self, is_output=True)
@@ -171,6 +166,8 @@ class HasCode(HasFields, HasRun, ModuleNode):
     def _prep_locals(self) -> dict[str, Any]:
         """Gets the locals required for the code to run."""
         # assemble context
+        from .run import HasRun
+
         context = {**self._statement_references}
         if not self._parse.is_async:
             # replace any async functions with sync versions
@@ -271,6 +268,8 @@ class HasCode(HasFields, HasRun, ModuleNode):
         return callable
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        from bench.language.run import CachedRun, get_run_cache_subkey
+
         def _wrapped_sync(*args, **kwargs):
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = pack_value(inputs, self, is_output=False)

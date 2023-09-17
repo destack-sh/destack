@@ -1,6 +1,8 @@
 import functools
 import typing
 from dataclasses import dataclass
+from datetime import datetime
+from typing import Optional
 from uuid import UUID, uuid5
 
 from bench.language.builtin import symbolx_lib
@@ -122,5 +124,25 @@ symbolx_lib.add_file(_symbolx_reflect)
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)
 reflect_struct = functools.partial(x_struct, file=_symbolx_reflect)
 reflect_struct = typing.dataclass_transform()(reflect_struct)
-reflect_task = functools.partial(x_task, file=_symbolx_reflect)
-reflect_model = functools.partial(x_model, file=_symbolx_reflect)
+
+
+# defined here to avoid import cycles
+
+
+@reflect_struct("RunMetadata", "Metadata for a run", return_type=True)
+class RunMetadata:
+    name: Optional[str]
+    test: Optional[bool]
+    queue_position: Optional[int]
+    cached_at: Optional[datetime]
+    cached_in: Optional[UUID]
+    cached_duration: Optional[float]
+    progress: Optional[float]
+
+
+@reflect_struct("TaskRunMetadata", "Default metadata of a task run", return_type=True)
+class TaskRunMetadata:
+    retries: Optional[int]
+    retry: Optional[int]
+    batch_size: Optional[int]
+    nonce: Optional[str]

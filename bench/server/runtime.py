@@ -895,11 +895,13 @@ class RuntimeWorker:
                         interp_mut.create(resolved)
         # issues
         new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues or []}
-        old_issues: set[UUID] = {issue.id for issue in old_module.issues} if old_module else {}
+        old_issues: set[UUID] = (
+            {issue.id for issue in old_module.issues or []} if old_module else {}
+        )
         if old_module is None:
             interp_mut.truncate(new_source.module, MNT.Issue)
         else:
-            for issue in old_module.issues:
+            for issue in old_module.issues or []:
                 if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
                     interp_mut.delete(issue, apply=False)  # only track, doesn't exist
         for issue in new_issues.values():

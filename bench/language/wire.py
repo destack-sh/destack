@@ -13,7 +13,7 @@ import msgpack
 
 import bench.language.run
 from bench import language as lang
-from bench.language import File, IssueType, Module, RunError
+from bench.language import File, IssueType, Module
 from bench.language.const import (
     MNT,
     IssueKind,
@@ -597,6 +597,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
+        value = statement._raw_value() if isinstance(statement, lang.HasValue) else statement.value
         return StatementData(
             id=statement.id,
             ck=statement.ck,
@@ -610,7 +611,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             key=statement.key,
             flags=statement.flags,
             code=statement.code,
-            value=statement.value,
+            value=value,
             versioned=statement.versioned,
             reference_ck=statement.reference_ck,
             revision=statement.revision,
@@ -1156,6 +1157,15 @@ class RunErrorData:
             traceback=[RunCodeFrame.from_dict(frame) for frame in data["traceback"]],
         )
 
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "kind": self.kind.value,
+            "type": self.type,
+            "message": self.message,
+            "runnable_id": str(self.runnable_id),
+            "traceback": [dataclasses.asdict(frame) for frame in self.traceback],
+        }
+
 
 @dataclass
 class RunData:
@@ -1180,7 +1190,7 @@ class RunData:
     status: RunStatus
     inputs: Optional[Any]
     outputs: Optional[Any]
-    error: Optional[RunError]
+    error: Optional[RunErrorData]
     metadata: Optional[dict[str, Any]]
 
 

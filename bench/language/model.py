@@ -15,7 +15,6 @@ from bench.language.cache import CacheAsync
 from bench.language.field import HasFields, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
-from bench.language.run import HasRun, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
@@ -30,7 +29,7 @@ ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool
 
 
 @node
-class HasModel(HasFields, HasRun, ModuleNode):
+class HasModel(HasFields, ModuleNode):
     external_name: typing.Optional[str] = None
     _is_async: bool = True
     _remote: bool = False
@@ -70,6 +69,8 @@ class HasModel(HasFields, HasRun, ModuleNode):
         return not self._has_vector_io
 
     async def __call__(self, timeout: int = None, cache: bool = None, **inputs):
+        from bench.language.run import get_run_cache_subkey
+
         if cache is None:
             cache = self.should_cache
         inputs_raw = pack_value(inputs, self, is_output=False, ignore_outer_map=True)

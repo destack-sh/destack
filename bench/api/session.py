@@ -105,9 +105,7 @@ class RunError:
     @staticmethod
     def from_dict(data: dict) -> "RunError":
         statement_id = (
-            to_global_id("Statement", data.get("statement_id"))
-            if data.get("statement_id")
-            else None
+            to_global_id("Statement", data.get("runnable_id")) if data.get("runnable_id") else None
         )
         traceback = [RunCodeFrame.from_dict(frame) for frame in data.get("traceback") or []] or None
         return RunError(
