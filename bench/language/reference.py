@@ -16,6 +16,12 @@ class HasReference(ModuleNode):
 
     reference: Union["Statement", StatementReference, None] = None
 
+    def _clear(self) -> None:
+        pass
+
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: Scope) -> None:
         resolved = None
         if not isinstance(self.reference, ModuleNode):

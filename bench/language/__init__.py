@@ -11,7 +11,7 @@ from .dataset import DatasetView, Record
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
 from .issue import Issue
-from .module import Module, ModuleNode, Scope
+from .module import Module, ModuleNode, ModuleVisitor, Scope
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .remote import RemoteObject, Secret
 from .run import HasRun, Run, RunError, RunMetadata
@@ -55,6 +55,7 @@ __all__ = [
     "Model",
     "Module",
     "ModuleNode",
+    "ModuleVisitor",
     "Q",
     "Query",
     "QueryOp",

@@ -196,6 +196,9 @@ class ModuleNode(abc.ABC):
         for scope in self._scopes_by_name.values():
             scope._clear()
 
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: "Scope") -> None:
         pass
 

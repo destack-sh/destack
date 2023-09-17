@@ -14,7 +14,7 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.field import HasFields, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import ModuleNode, Scope, node
+from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.language.run import HasRun, get_run_cache_subkey
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
@@ -46,6 +46,9 @@ class HasModel(HasFields, HasRun, ModuleNode):
         self._compiler_impl = None
         self._has_vector_io = False
 
+    def _index(self):
+        pass
+
     def _interp(self, scope: Scope) -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
@@ -58,6 +61,9 @@ class HasModel(HasFields, HasRun, ModuleNode):
             if t.tag == TypeTag.VECTOR:
                 self._has_vector_io = True
                 break
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        pass
 
     @property
     def should_cache(self) -> bool:

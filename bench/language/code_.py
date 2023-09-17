@@ -26,7 +26,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language.statement import Statement
+    from bench.language import ModuleVisitor, Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -66,6 +66,9 @@ class HasCode(HasFields, HasRun, ModuleNode):
         self._callable_wrapped = None
         self._cached_exports = None
 
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: Scope) -> None:
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
@@ -80,6 +83,9 @@ class HasCode(HasFields, HasRun, ModuleNode):
         if self.exported:
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        pass  # should visit statement references?
 
     def __call__(self, *args, **kwargs):
         if self._is_async:

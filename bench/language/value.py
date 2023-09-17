@@ -2,16 +2,28 @@ from dataclasses import field
 from typing import TYPE_CHECKING
 
 from bench.language import HasFields
-from bench.language.module import ModuleNode, node
+from bench.language.module import ModuleNode, ModuleVisitor, node
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
-    from bench.language.session import Session
+    from bench.language.session import Scope, Session
 
 
 @node
 class HasValue(HasFields, ModuleNode):
     value: dict | None = field(default_factory=dict)
+
+    def _clear(self):
+        pass
+
+    def _interp(self, scope: "Scope") -> None:
+        pass
+
+    def _index(self) -> None:
+        pass
+
+    def _visit(self, visitor: "ModuleVisitor") -> None:
+        pass
 
     def _onwrite_value(self, key: str) -> None:
         self.session.tracer.value_update(self, key)

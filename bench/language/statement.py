@@ -159,12 +159,13 @@ class Statement(ModuleNode, Scope):
             cls._clear(self)
 
     def _index(self):
-        self._clear()
         self.children = self.file._statements_by_parent_id.get(self.id, [])
         for child in self.children:
             # only index self, not children
             # (unlike in file/module, statement nesting is only semantic, not structural)
             self._add_child_scope(child, by_name=True)
+        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
+            cls._index(self)
 
     def _interp(self, scope: Scope) -> None:
         """Updates, resolves and checks any derived/interpreted values on this statement."""
@@ -202,10 +203,15 @@ _COMPONENT_CLASSES: list[type[ModuleNode]] = [
     HasValue,
     HasReference,
 ]
+_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit"]
+_seen_methods: dict[object, type] = {getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS}
 for c in _COMPONENT_CLASSES:
-    # check that they implement _clear, _interp, _visit
-    for m in ["_clear", "_interp", "_visit"]:
+    # check that they implement _clear, _index, _interp, _visit (in their own class)
+    for m in _COMPONENT_METHODS:
         assert hasattr(c, m), f"{c} does not implement {m}"
+        seen = _seen_methods.get(getattr(c, m))
+        assert seen is None, f"{c} doesn't override {m} from {seen}"
+        _seen_methods[getattr(c, m)] = c
 
 
 @node

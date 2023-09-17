@@ -33,6 +33,9 @@ class HasText(ModuleNode):
     def _clear(self) -> None:
         self._text_spans = None
 
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: Scope) -> None:
         if self.text is None:
             return

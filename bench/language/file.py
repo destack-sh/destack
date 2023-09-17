@@ -102,12 +102,10 @@ class File(ModuleNode, Scope):
         roots = self._statements_by_parent_id.get(self.id, [])
         for statement in sorted(roots, key=lambda s: s.order_key):
             walk_dfs(statement)
-
-        if len(sorted_statements) != len(self.statements):
-            raise RuntimeError(f"invalid order: {len(sorted_statements)} != {len(self.statements)}")
+        assert len(sorted_statements) == len(self.statements), f"invalid {self} statements"
         self.statements = sorted_statements
-        self.children = [s for s in self.statements if s.parent == self]
 
+        self.children = [s for s in self.statements if s.parent == self]
         for statement in self.statements:
             statement._index()
             self._add_child_scope(statement, by_name=statement.parent == self)
