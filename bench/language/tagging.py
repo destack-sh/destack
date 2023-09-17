@@ -75,6 +75,9 @@ class HasTags(ModuleNode):
         for tagging in self.tags:
             tagging._tag = None
 
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: Scope) -> None:
         for tagging in self.tags:
             if tagging.reference_ck is None:

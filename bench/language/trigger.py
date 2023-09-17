@@ -60,6 +60,9 @@ class HasTriggers(ModuleNode):
     def _clear(self) -> None:
         pass
 
+    def _index(self) -> None:
+        pass
+
     def _interp(self, scope: Scope) -> None:
         # resolve triggers
         for trigger in self.triggers:

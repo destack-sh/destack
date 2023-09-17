@@ -19,7 +19,7 @@ from bench.utils.proxy import proxy_value, unproxy_value
 from bench.utils.utils import DotList, required_field
 
 if typing.TYPE_CHECKING:
-    from bench.language import Session
+    from bench.language import Scope, Session
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
@@ -158,6 +158,15 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
 
     def clear(self):
         self.session.tracer.dataset_clear(self)
+
+    def _clear(self):
+        pass
+
+    def _interp(self, scope: "Scope") -> None:
+        pass
+
+    def _index(self) -> None:
+        pass
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         for view in self.views or []:

@@ -6,7 +6,7 @@ import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Optional, Self, Union, cast
+from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
 import msgpack
@@ -58,11 +58,15 @@ class HasRun(abc.ABC):
     def __call__(self, *args, **kwargs):
         raise NotImplementedError
 
-    def to_sync(self) -> "Self":
-        raise NotImplementedError
+    def to_sync(self) -> "_RunnableProxy":
+        if not self._is_async:
+            return self
+        return _RunnableProxy.to_sync(self)
 
-    def to_async(self) -> "Self":
-        raise NotImplementedError
+    def to_async(self) -> "_RunnableProxy":
+        if self._is_async:
+            return self
+        return _RunnableProxy.to_async(self)
 
 
 class _RunnableProxy:  # :SyncProxy
@@ -84,16 +88,16 @@ class _RunnableProxy:  # :SyncProxy
         return getattr(self._statement, item)
 
     @classmethod
-    def to_sync(cls, statement: "Statement") -> "Statement":
+    def to_sync(cls, statement: "Statement") -> "_RunnableProxy":
         proxy = cls(statement, is_async=False)
         proxy.__call_sync__ = statement.session.async_to_sync(statement.__call_async__)
-        return cast("Statement", proxy)
+        return proxy
 
     @classmethod
-    def to_async(cls, statement: "Statement") -> "Statement":
+    def to_async(cls, statement: "Statement") -> "_RunnableProxy":
         proxy = cls(statement, is_async=True)
         proxy.__call_async__ = statement.session.sync_to_async(statement.__call_sync__)
-        return cast("Statement", proxy)
+        return proxy
 
 
 @dataclass(slots=True)

@@ -12,13 +12,13 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import MNT, TriggerType, TypeFlag, TypeTag
-from bench.language.core import ModuleOp, Session, Statement
-from bench.language.field import TypeBase, check_type, map_value, pack_value, pack_value_flat
+from bench.language.const import MNT, ModuleOp, TriggerType, TypeFlag, TypeTag
+from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
-from bench.language.run import HasRun
-from bench.language.session import LogEntry
+from bench.language.run import HasRun, Run, RunError
+from bench.language.session import LogEntry, Session
+from bench.language.statement import Statement
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
@@ -32,8 +32,6 @@ if TYPE_CHECKING:
         Model,
         Record,
         RemoteObject,
-        Run,
-        RunError,
         Secret,
         Tagging,
         Task,
@@ -338,15 +336,15 @@ class SessionTracer(Tracer):
 
 def _pack_and_truncate_value(
     value: Any,
-    type: TypeBase,
+    type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     is_output: bool = None,
 ) -> Any:
-    def _is_type_truncated(type: TypeBase) -> bool:
+    def _is_type_truncated(type: HasFields) -> bool:
         return type.tag in (TypeTag.VECTOR,)
 
-    def _truncate_value(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+    def _truncate_value(value: Any, type: HasFields, *args, **kwargs) -> Any:
         if _is_type_truncated(type):
             if type.flags & TypeFlag.IsArrayable or type.flags & TypeFlag.IsArray:
                 return []
