@@ -163,7 +163,7 @@ defineExpose({
       @keydown.delete.exact="isEditing || deleteField(field.id)"
       @drop="(p, v) => dropField(v.id, p, field.id)"
       @enter="grid.navigateDown(field.id, 'type')"
-      class="-mx-1 self-start px-1 py-1 text-gray-400 focus-within:bg-orange-100 hover:bg-orange-100"
+      class="-mx-1 self-start px-1 py-1 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-100"
     />
     <div class="mb-1">
       <!-- Add a field -->

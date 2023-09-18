@@ -280,7 +280,7 @@ defineExpose({
         <div
           ref="previewRef"
           class="relative flex max-w-full flex-row items-center rounded-sm text-left"
-          :class="[isEnum || !hideOutline ? 'bg-amber-50 px-2 py-[1px] ring-1 ring-inset ring-amber-600/[15%]' : '']"
+          :class="[isEnum || !hideOutline ? 'bg-amber-100 px-2 py-[1px] ring-1 ring-inset ring-amber-600/[15%]' : '']"
         >
           <!-- :EnumStyle -->
           <svg

@@ -701,27 +701,27 @@ class AnthropicTextCompletion:
 
 
 @x_model(
-    "claude-1",
+    "claude-2",
     "Anthropic's latest 9k context Claude based text model",
-    external_name="claude-1",
+    external_name="claude-2.0",
     file=_anthropic_text,
 )
 @x_model(
-    "claude-1-100k",
+    "claude-2-100k",
     "Anthropic's latest 100k context Claude based text model",
-    external_name="claude-1-100k",
+    external_name="claude-2.0-100k",
     file=_anthropic_text,
 )
 @x_model(
-    "claude-instant-1",
+    "claude-instant-2.0",
     "Anthropic's faster 9k context Claude based text model",
-    external_name="claude-instant-1",
+    external_name="claude-instant-2.0",
     file=_anthropic_text,
 )
 @x_model(
-    "claude-instant-1-100k",
+    "claude-instant-2.0-100k",
     "Anthropic's faster 100k context Claude based text model",
-    external_name="claude-instant-1-100k",
+    external_name="claude-instant-2.0-100k",
     file=_anthropic_text,
 )
 class AnthropicTextCompletionModel(Model):
