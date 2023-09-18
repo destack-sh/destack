@@ -513,7 +513,7 @@ defineExpose({
       <span
         v-for="sort in properties.sorts ?? []"
         :key="sort.key"
-        class="flex w-fit flex-row items-center rounded-xl border border-amber-600/[15%] bg-amber-50 px-1.5 text-gray-900"
+        class="flex w-fit flex-row items-center rounded-xl border border-amber-600/[15%] bg-amber-100 px-1.5 text-gray-900"
       >
         <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
         <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
@@ -548,7 +548,7 @@ defineExpose({
         <!-- Header (with types) -->
         <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
         <div
-          class="z-[1] flex flex-row divide-amber-900/[12%] self-start border-b border-t border-amber-900 border-opacity-[12%] bg-amber-50"
+          class="z-[1] flex flex-row divide-amber-900/[12%] self-start border-b border-t border-amber-900 border-opacity-[12%] bg-amber-100"
           :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
           :style="{
             position: isHeaderRowFloating ? 'fixed' : 'absolute',
@@ -572,7 +572,7 @@ defineExpose({
                 is-view
                 hide-outline
                 orientation="horizontal"
-                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-100 hover:bg-amber-100"
+                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
                 :model-value="field"
                 @update:model-value="(node: any) => updateField(field.key, node)"
                 @navigate-left="grid.navigateLeft('', field.key as string)"

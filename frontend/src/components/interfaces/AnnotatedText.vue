@@ -423,10 +423,19 @@ defineExpose({
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="emit('escape')"
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
-        class="relative inline whitespace-nowrap rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:bg-orange-100 focus:decoration-orange-600 focus:ring-1 focus:ring-orange-600/10"
+        class="relative inline whitespace-nowrap rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
         :class="[
-          minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  hover:bg-orange-100 hover:decoration-orange-600',
+          minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  ',
           minimalMentions ? '' : 'hover:cursor-pointer',
+          !minimalMentions && resolvedMentions[i]?.node.__typename == 'Field'
+            ? 'hover:bg-amber-100 hover:decoration-amber-600'
+            : '',
+          !minimalMentions && resolvedMentions[i]?.node.__typename != 'Field'
+            ? 'hover:bg-orange-100 hover:decoration-orange-600'
+            : '',
+          resolvedMentions[i]?.node.__typename == 'Field'
+            ? 'focus:bg-amber-100 focus:decoration-amber-600 focus:ring-amber-600/10'
+            : 'focus:bg-orange-100 focus:decoration-orange-600 focus:ring-orange-600/10',
         ]"
         @click="() => resolvedMentions[i] == null || minimalMentions || focusMention(resolvedMentions[i].node)"
       >

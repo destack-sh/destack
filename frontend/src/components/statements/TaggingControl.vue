@@ -106,7 +106,7 @@ defineExpose({
       v-for="(tagging, i) in tags"
       :ref="(ref: any) => taggingRefs.registerRef(tagging.id, ref)"
       :key="tagging.id"
-      class="flex h-fit max-h-fit flex-row rounded-xl bg-emerald-50 px-1.5 text-emerald-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-yellow-200 focus:bg-yellow-200 focus:outline-none focus:ring-yellow-600/80"
+      class="flex h-fit max-h-fit flex-row rounded-xl bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-yellow-600/20 hover:bg-emerald-200 focus:bg-emerald-200 focus:outline-none focus:ring-emerald-600/80"
       @click="deleteTagging(tagging)"
       @keydown.delete.exact="deleteTagging(tagging)"
       @keydown.left.exact.prevent="i == 0 ? emit('navigateLeft') : taggingRefs.focus(tags[i - 1]?.id)"
