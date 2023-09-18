@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Update schema
+./scripts/update_gql.sh
+
 # Abort if repo is not clean and not --force
 if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
   echo "Repo is not clean. Aborting."

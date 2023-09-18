@@ -12,8 +12,8 @@ if [[ -n $(git status --porcelain) && "$1" != "--force" ]]; then
     exit 1
 fi
 
-# call build_push.sh
-./scripts/build_push.sh $1
+# build.sh
+./scripts/build.sh $1
 
 # deploy with pulumi
 pulumi --cwd infra up -y --skip-preview
