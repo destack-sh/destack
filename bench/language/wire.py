@@ -1162,7 +1162,7 @@ class RunErrorData:
             "type": self.type,
             "message": self.message,
             "runnable_id": str(self.runnable_id),
-            "traceback": [dataclasses.asdict(frame) for frame in self.traceback],
+            "traceback": [dataclasses.asdict(frame) for frame in self.traceback or []],
         }
 
 

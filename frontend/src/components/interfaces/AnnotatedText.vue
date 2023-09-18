@@ -434,7 +434,7 @@ defineExpose({
           v-if="!minimalMentions && resolvedMentions[i] != null"
           :is="resolvedMentions[i]?.icon"
           class="absolute left-[1px] top-0.5 h-4 w-4"
-          :class="[resolvedMentions[i].node.__typename == 'Field' ? 'text-yellow-600' : 'text-orange-600']"
+          :class="[resolvedMentions[i].node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
         />
         <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
           {{ resolvedMentions[i]?.name ?? "???" }}
@@ -484,7 +484,7 @@ defineExpose({
             <component
               :is="mention.icon"
               class="mr-2 h-4 w-4"
-              :class="[mention.node.__typename == 'Field' ? 'text-yellow-600' : 'text-orange-600']"
+              :class="[mention.node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
             />
             <span class="text-gray-900">{{ mention.name }}</span>
           </span>

@@ -123,7 +123,7 @@ async def run_task(
             # runnable to call
             inputs = unpack_value(step.result_raw, step.runnable, is_output=False)
         except Exception as e:
-            previous_results.append(TaskError.from_exception(e))
+            previous_results.append(TaskError.from_exception(task, e))
             continue
 
         # call runnable
@@ -169,15 +169,15 @@ class TaskError(RunError):
         self.path = path
 
     @staticmethod
-    def from_exception(e: Exception, path: str = None) -> "TaskError":
+    def from_exception(task: "Statement", e: Exception, path: str = None) -> "TaskError":
         if isinstance(e, TaskError):
             return e
         elif isinstance(e, ValueError):
-            return TaskError(TaskErrorType.InvalidFormat, str(e), path)
+            return TaskError(TaskErrorType.InvalidFormat, task, str(e), path)
         elif isinstance(e, TypeError):
-            return TaskError(TaskErrorType.InvalidType, str(e), path)
+            return TaskError(TaskErrorType.InvalidType, task, str(e), path)
         else:
-            return TaskError(TaskErrorType.Unknown, str(e), path)
+            return TaskError(TaskErrorType.Unknown, task, str(e), path)
 
 
 class IncapableError(TaskError):
