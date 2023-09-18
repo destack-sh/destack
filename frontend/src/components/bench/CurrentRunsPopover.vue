@@ -83,7 +83,7 @@ function runOrLaunch(statement: InterpStatement) {
 
     <FadeTransition>
       <PopoverPanel
-        class="absolute right-0 top-10 z-30 mt-0 flex w-96 flex-col rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
+        class="absolute right-0 top-10 z-30 mt-0 flex max-h-96 w-96 flex-col overflow-y-scroll rounded-sm bg-white px-4 pb-4 pt-2 text-sm shadow-md ring-1 ring-orange-900 ring-opacity-40"
       >
         <h2
           class="font-bold text-gray-900 underline-offset-4 hover:cursor-pointer hover:underline"

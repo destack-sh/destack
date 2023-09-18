@@ -38,8 +38,11 @@ import {
   ArrowsPointingOutIcon,
   AtSymbolIcon,
   Bars3BottomLeftIcon,
+  ChevronDoubleDownIcon,
+  ChevronDoubleUpIcon,
   ChevronDownIcon,
   ChevronRightIcon,
+  ChevronUpIcon,
   EllipsisHorizontalIcon,
   EllipsisVerticalIcon,
   PlusIcon,
@@ -565,6 +568,22 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   });
   actions.push({
     groupId: "edit-core",
+    label: "Insert above",
+    icon: ChevronDoubleUpIcon,
+    hideInline: true,
+    disabled: props.readonly,
+    action: () => magic.insertAbove(),
+  });
+  actions.push({
+    groupId: "edit-core",
+    label: "Insert below",
+    icon: ChevronDoubleDownIcon,
+    hideInline: true,
+    disabled: props.readonly,
+    action: () => magic.insertBelow(),
+  });
+  actions.push({
+    groupId: "edit-core",
     label: "Duplicate",
     icon: Square2StackIcon,
     disabled: props.readonly,
@@ -721,7 +740,7 @@ defineExpose({
                 <EllipsisVerticalIcon class="h-4 w-4" />
                 <!-- Label -->
                 <span
-                  class="pointer-events-none absolute -left-8 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
+                  class="pointer-events-none absolute left-0 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
                 >
                   <strong>Click</strong> for actions
                   <br />
@@ -729,23 +748,6 @@ defineExpose({
                 </span>
               </div>
             </ActionPopover>
-            <!-- Add statement below button -->
-            <button
-              v-if="!bench.readonly && !props.readonly"
-              class="group rounded-sm p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-hover/statement:opacity-100"
-              :class="isActive ? 'opacity-100' : 'opacity-0'"
-              @click="insertStatementOnClick"
-            >
-              <PlusIcon class="h-4 w-4" />
-              <!-- Label -->
-              <span
-                class="pointer-events-none absolute -left-2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 opacity-0 transition duration-150 group-hover:opacity-100 group-hover:delay-in-500"
-              >
-                <strong>Click</strong> to insert below
-                <br />
-                <strong>Option-click</strong> for above
-              </span>
-            </button>
           </div>
         </div>
       </div>

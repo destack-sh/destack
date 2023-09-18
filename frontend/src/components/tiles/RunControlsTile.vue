@@ -45,17 +45,6 @@ const actions: Ref<Action[]> = computed(() => [
     },
   },
   {
-    id: "stop",
-    label: "Stop",
-    icon: StopIcon,
-    disabled: !bench.canUse || !runActive.value,
-    action: () => {
-      if (props.run == null) throw new Error("run not set");
-      sessions.cancel(props.run);
-      emit("kill");
-    },
-  },
-  {
     id: "rerun",
     label: "Rerun",
     icon: ForwardIcon,
@@ -68,6 +57,17 @@ const actions: Ref<Action[]> = computed(() => [
       }
       const { run: newRun } = sessions.run(props.runnable, { inputs: props.run.inputs ?? {}, keyed: true });
       emit("rerun", newRun);
+    },
+  },
+  {
+    id: "stop",
+    label: "Stop",
+    icon: StopIcon,
+    disabled: !bench.canUse || !runActive.value,
+    action: () => {
+      if (props.run == null) throw new Error("run not set");
+      sessions.cancel(props.run);
+      emit("kill");
     },
   },
 ]);

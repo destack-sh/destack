@@ -40,12 +40,17 @@ if TYPE_CHECKING:
     from bench.language import Type
 
 logger = structlog.get_logger(__name__)
+MAX_VALUE_LENGTH = 256
 
 
 def on_invalid_raise(
     value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
 ):
-    raise TypeError(value, expected, message, suberrors)
+    value_str = str(value)
+    if len(value_str) > MAX_VALUE_LENGTH:
+        trailing = 96
+        value_str = f"{value_str[:MAX_VALUE_LENGTH - trailing - 3]}...{value_str[-trailing:]}"
+    raise TypeError(value_str, expected, message, suberrors)
 
 
 def _map_v_noop(value: Any, *args, **kwargs):

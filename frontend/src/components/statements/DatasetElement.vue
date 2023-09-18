@@ -1,26 +1,14 @@
 <script lang="ts" setup>
 import ActionPopover from "@/components/basic/ActionPopover.vue";
-import DragHandleIcon from "@/components/basic/DragHandleIcon.vue";
-import EditableSpan from "@/components/basic/EditableSpan.vue";
 import { getInterface } from "@/components/inputs";
 import CreateFieldInterface from "@/components/interfaces/CreateFieldInterface.vue";
 import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
-import { graphql } from "@/gql";
-import {
-  QueryOp,
-  SortOrder,
-  ModuleMutationType,
-  TypeHint,
-  type SearchSort,
-  type SearchQuery,
-  type SearchRecordsQueryVariables,
-} from "@/gql/graphql";
+import { SortOrder, ModuleMutationType, type SearchSort, type SearchRecordsQueryVariables } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
-import { useMagicActions } from "@/state/file";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useFields, type DatasetStatementProperties } from "@/state/statement";
@@ -30,7 +18,6 @@ import {
   ArrowDownIcon,
   ArrowPathIcon,
   EllipsisHorizontalIcon,
-  MagnifyingGlassIcon,
   PlusIcon,
   Square2StackIcon,
   TrashIcon,
@@ -187,7 +174,7 @@ const defaultGrowFactor = 0.1;
 const defaultMinWidth = 50;
 const growColumns = true;
 const showPropertiesColumn = true; // used to be only in write mode, but useful if no columns and for settings shortcut
-const propertiesColumnWidth = 40;
+const propertiesColumnWidth = 52;
 const columnWidths: Ref<number[]> = ref([]);
 const rowHeights: Ref<number[]> = ref([]);
 const gridOffsetX: Ref<number> = computed(() => {
@@ -526,7 +513,7 @@ defineExpose({
       <span
         v-for="sort in properties.sorts ?? []"
         :key="sort.key"
-        class="flex w-fit flex-row items-center rounded-xl border border-gray-300 px-1.5 text-gray-900"
+        class="flex w-fit flex-row items-center rounded-xl border border-amber-600/[15%] bg-amber-50 px-1.5 text-gray-900"
       >
         <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
         <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
@@ -540,7 +527,7 @@ defineExpose({
     <!-- Wrapper to contain any scrolling -->
     <div
       ref="gridRef"
-      class="overflow-x-auto"
+      class="mt-0.5 overflow-x-auto"
       :style="{
         'margin-left': -gridOffsetX + 'px',
         'margin-right': -gridOffsetX + 'px',
@@ -561,7 +548,7 @@ defineExpose({
         <!-- Header (with types) -->
         <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
         <div
-          class="z-[1] flex flex-row self-start border-b border-orange-900 border-opacity-[12%]"
+          class="z-[1] flex flex-row divide-amber-900/[12%] self-start border-b border-t border-amber-900 border-opacity-[12%] bg-amber-50"
           :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
           :style="{
             position: isHeaderRowFloating ? 'fixed' : 'absolute',
@@ -585,7 +572,7 @@ defineExpose({
                 is-view
                 hide-outline
                 orientation="horizontal"
-                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-100 hover:bg-amber-100"
                 :model-value="field"
                 @update:model-value="(node: any) => updateField(field.key, node)"
                 @navigate-left="grid.navigateLeft('', field.key as string)"
@@ -612,6 +599,7 @@ defineExpose({
           <!-- Properties column (add + settings) -->
           <div
             v-if="showPropertiesColumn"
+            class="overflow-x-hidden"
             :style="{
               width: columnWidths[columnWidths.length - 1] + 'px',
             }"
@@ -621,7 +609,7 @@ defineExpose({
               <button
                 v-if="!readonly"
                 tabindex="-1"
-                class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+                class="h-full rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-amber-100 hover:text-gray-700"
                 @click="createFieldRef?.show()"
               >
                 <PlusIcon class="h-4 w-4" />
@@ -629,7 +617,7 @@ defineExpose({
               <!-- Properties -->
               <button
                 tabindex="-1"
-                class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
+                class="h-full flex-1 rounded-sm p-1.5 text-gray-400 transition duration-150 hover:bg-amber-100 hover:text-gray-700"
                 @click="emit('openActions')"
               >
                 <EllipsisHorizontalIcon class="h-4 w-4" />
@@ -772,7 +760,7 @@ defineExpose({
           :disabled="loading"
         >
           <template v-if="readonly"> Nothing here </template>
-          <template v-else> <PlusIcon class="h-4 w-4" /> New </template>
+          <template v-else> <PlusIcon class="h-4 w-4" /> Record </template>
         </button>
       </div>
     </div>

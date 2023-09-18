@@ -82,7 +82,7 @@ class StaticPrefetchedQueryset:
 
 _MODEL_FIELD_NAME_BY_CAMEL: dict[str, str] = {}
 _CAMEL_FIELD_NAME_BY_MODEL: dict[str, str] = {}
-_BASE_MODEL_BY_CAMEL_FIELD: dict[str, type] = {}
+_BASE_MODEL_BY_FIELD_NAME: dict[str, type] = {}
 
 
 def _add_field_name(name: str):
@@ -108,7 +108,7 @@ def _collect_fields():
             if field.is_relation:
                 camel_name = to_camel_case(field.name).replace("+", "")
                 if camel_name:
-                    _BASE_MODEL_BY_CAMEL_FIELD[camel_name] = field.related_model
+                    _BASE_MODEL_BY_FIELD_NAME[camel_name] = field.related_model
         for field in model._meta.many_to_many:
             _add_field_name(field.name)
 
@@ -132,7 +132,11 @@ def _inline_fragments(
 
 
 ALLOWED_EXTERNAL_RELATIONS = {models.Project, models.User}
-FLATTENED_RELATIONS = {(models.ProjectVersion, models.File), (models.File, models.Statement)}
+FLATTENED_RELATIONS = {
+    (models.ProjectVersion, models.File),
+    (models.File, models.Statement),
+    (models.Statement, models.Tile),
+}
 
 
 def read_module_node_by_id(info: Info, id: GlobalID) -> Optional[ModuleNode] | OperationInfo:
@@ -163,7 +167,7 @@ def read_module_node(
     root_selections = _inline_fragments((root_fragment or info.selected_fields[0]).selections)
     included = {models.ProjectVersion, models.File, models.Statement}
     for field in _inline_fragments(root_selections, recursive=True):
-        base_model = _BASE_MODEL_BY_CAMEL_FIELD.get(field.name)
+        base_model = _BASE_MODEL_BY_FIELD_NAME.get(field.name)
         if base_model and base_model not in included:
             included.add(base_model)
     excluded = MNT_BY_BASE_MODEL_CLASS.keys() - included

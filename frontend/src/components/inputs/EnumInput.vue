@@ -67,7 +67,7 @@ defineExpose({
     <span
       v-for="member in selectedMembers"
       :key="member.key"
-      class="inline-flex items-center gap-x-1.5 rounded-sm bg-stone-100 px-2 text-gray-900 ring-1 ring-inset ring-stone-500/10"
+      class="inline-flex items-center gap-x-1.5 rounded-sm bg-amber-50 px-2 text-gray-900 ring-1 ring-inset ring-amber-600/[15%]"
     >
       <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
         <circle cx="3" cy="3" r="3" />
@@ -135,7 +135,7 @@ defineExpose({
             ]"
           >
             <li
-              class="mx-1 flex w-fit flex-row items-center gap-1.5 bg-stone-100 px-2 ring-1 ring-inset ring-stone-500/10"
+              class="mx-1 flex w-fit flex-row items-center gap-1.5 bg-amber-50 px-2 ring-1 ring-inset ring-amber-600/[15%]"
             >
               <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
                 <circle cx="3" cy="3" r="3" />

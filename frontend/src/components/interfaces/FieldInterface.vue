@@ -280,7 +280,7 @@ defineExpose({
         <div
           ref="previewRef"
           class="relative flex max-w-full flex-row items-center rounded-sm text-left"
-          :class="[isEnum || !hideOutline ? 'bg-stone-100 px-2 py-[1px] ring-1 ring-inset ring-stone-500/10' : '']"
+          :class="[isEnum || !hideOutline ? 'bg-amber-50 px-2 py-[1px] ring-1 ring-inset ring-amber-600/[15%]' : '']"
         >
           <!-- :EnumStyle -->
           <svg
@@ -294,7 +294,7 @@ defineExpose({
           </svg>
           <span
             class="mr-1.5 max-w-full truncate text-gray-900"
-            :class="[inlined ? 'underline decoration-gray-300 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
+            :class="[inlined ? 'underline decoration-violet-400 underline-offset-4' : '', isEnum ? 'ml-4 ' : '']"
             >{{ value.name }}</span
           >
           <TypePreview v-if="!isEnum && !hideType" :type="value" :hide-icon="value.referenceCk != null" />
