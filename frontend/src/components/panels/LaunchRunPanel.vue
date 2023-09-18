@@ -19,6 +19,7 @@ import { useTiling } from "@/state/screen";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import ErrorTraceback from "@/components/basic/ErrorTraceback.vue";
 import RunControlsTile from "@/components/tiles/RunControlsTile.vue";
+import LogsTile from "@/components/tiles/LogsTile.vue";
 
 const RUNS_HISTORY_LIMIT = 20;
 const props = defineProps<{ panel: PanelContext<LaunchRunPanel>; focused: boolean }>();
@@ -201,7 +202,7 @@ defineExpose({
       <!-- Header -->
       <div class="z-[1] flex flex-row items-baseline justify-between p-2" :style="baseTilePositionX">
         <!-- Title & source -->
-        <h1 class="text-3xl font-bold text-gray-900">{{ statement?.name ?? "(unnamed)" }}&nbsp;</h1>
+        <h1 class="text-3xl font-bold text-gray-900">Run: {{ statement?.name ?? "(unnamed)" }}&nbsp;</h1>
         <!-- Run controls -->
         <RunControlsTile
           :run="currentRun"
@@ -227,20 +228,6 @@ defineExpose({
             readonly-type
             :appearance="{ minimalFields: true, hideFieldType: true }"
           />
-        </ContainerTile>
-        <!-- Trace -->
-        <ContainerTile
-          v-if="panel.lastRunId"
-          label="Trace"
-          :sublabel="
-            panel.lastRunTerminatedAt != null
-              ? now.getTimeFromNowLongString(panel.lastRunTerminatedAt as string)
-              : undefined
-          "
-          sublabel-position="opposite"
-          :style="{ ...baseTilePositionX }"
-        >
-          <TraceTile :root-id="panel.lastRunId" layout="list" live />
         </ContainerTile>
         <!-- Output -->
         <ContainerTile
@@ -275,6 +262,20 @@ defineExpose({
           :style="{ ...baseTilePositionX }"
         >
           <ErrorTraceback :runnable-ck="panel.statementCk" :error-nice="panel.lastError" class="p-1" />
+        </ContainerTile>
+        <!-- Trace -->
+        <ContainerTile v-if="panel.lastRunId" label="Trace" :style="{ ...baseTilePositionX }">
+          <TraceTile :root-id="panel.lastRunId" layout="list" live />
+        </ContainerTile>
+        <!-- Logs -->
+        <ContainerTile v-if="panel.lastSessionId" label="Logs" :style="{ ...baseTilePositionX }">
+          <LogsTile
+            :project-id="(bench.projectId as string)"
+            :project-version-id="(bench.projectVersionId as string)"
+            :session-id="panel.lastSessionId"
+            live
+            class="px-1"
+          />
         </ContainerTile>
         <!-- Runs  -->
         <ContainerTile

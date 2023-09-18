@@ -813,6 +813,7 @@ export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchS
       groupId: "view",
       label: "Narrow",
       icon: ArrowsPointingInIcon,
+      hideInline: true,
       action: () => (panel.appearance.wide = false),
     });
   } else {
@@ -820,6 +821,7 @@ export function getPanelActions(panel: Panel, bench: ReturnType<typeof useBenchS
       groupId: "view",
       label: "Expand",
       icon: ArrowsPointingOutIcon,
+      hideInline: true,
       action: () => (panel.appearance.wide = true),
     });
   }

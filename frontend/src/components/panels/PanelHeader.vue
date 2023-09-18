@@ -118,6 +118,7 @@ const auth = useAuth();
         @click="action.action(thing)"
       >
         <component :is="action.icon" class="h-4 w-4" />
+        <!-- Label -->
         <span
           v-if="!action.active"
           class="pointer-events-none absolute -left-1/2 top-5 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-hover/action:opacity-100"

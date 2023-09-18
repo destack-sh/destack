@@ -231,8 +231,7 @@ defineExpose({
     <!-- Lil' arrow -->
     <component
       :is="isHorizontal ? ArrowLongRightIcon : ArrowLongDownIcon"
-      class="h-5 w-5 self-center text-gray-700"
-      :class="[fields.length > 0 && !readonly ? '-mt-7' : '']"
+      class="mt-2 h-4 w-4 self-start text-gray-700"
     />
     <!-- Outputs -->
     <!-- TODO @Cleanup: outputs are almost exactly like inputs, much duplication (but the UI is not great anyway) -->
