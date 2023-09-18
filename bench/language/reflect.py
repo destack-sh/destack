@@ -137,7 +137,7 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 # defined here to avoid import cycles
 
 
-@reflect_struct("RunMetadata", "Default metadata for any run", return_type=True)
+@reflect_struct("RunMetadata", "Default metadata for any run")
 class RunMetadata:
     name: Optional[str]
     test: Optional[bool]

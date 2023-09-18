@@ -12,6 +12,7 @@ from more_itertools import first
 from bench.language.const import (
     MNT,
     FieldReferenceMask,
+    IssueType,
     NodePath,
     StatementReference,
     StatementType,
@@ -29,7 +30,7 @@ from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language import IssueType, Statement, Type
+    from bench.language import Statement, Type
 
 logger = structlog.get_logger(__name__)
 
