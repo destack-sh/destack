@@ -7,7 +7,7 @@ if [ ! -f "manage.py" ]; then
 fi
 
 # update the generated graphql schema
-python manage.py exportschema > schema.gen.graphql
+python manage.py genschema > schema.gen.graphql
 
 # update the generated graphql types
 yarn graphql-codegen
