@@ -9,6 +9,7 @@ from bench.language import wire
 from bench.models import packer
 from bench.models.utils import create_models_bfs
 from bench.opensearch.index import update_dynamic_field_mappings, write_module_to_os
+from bench.utils.utils import DEBUG, LOCAL
 
 logger = structlog.get_logger(__name__)
 
@@ -163,5 +164,9 @@ class Command(BaseCommand):
             project.head = project.versions.filter(tag=None).get()
             project.head.parents.set([last_non_head] if last_non_head else [])
             project.save()
+
+            if DEBUG or LOCAL:
+                # touch file to restart any running process
+                Path("manage.py").touch()
         else:
             raise ValueError(f"unknown action: {action}")
