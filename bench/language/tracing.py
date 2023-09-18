@@ -425,15 +425,19 @@ class RunTracer(Tracer):
     def pop_stacktrace(self) -> Run:
         run = self.stacktrace.pop()
         # update cached info in parent(s)
-        if run.cached_at is not None:
+        if run.metadata.cached_at is not None:
             self._update_cached_info()
         return run
 
     def _update_cached_info(self):
         for run in self.stacktrace:
-            run.cached_at = min(f.cached_at for f in run.walk_descendants() if f.cached_at)
-            run.cached_duration = sum(
-                f.cached_duration for f in run.walk_descendants() if f.cached_duration
+            run.metadata.cached_at = min(
+                r.metadata.cached_at for r in run.walk_descendants() if r.metadata.cached_at
+            )
+            run.metadata.cached_duration = sum(
+                r.metadata.cached_duration
+                for r in run.walk_descendants()
+                if r.metadata.cached_duration
             )
 
     def _create_run(
@@ -474,10 +478,9 @@ class RunTracer(Tracer):
             inputs=inputs,
             outputs=None,
             error=None,
-            metadata=None,
+            metadata={},
         )
-        if queue_position is not None:
-            run.queue_position = queue_position
+        run._activate_in(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
         return run
@@ -520,11 +523,11 @@ class RunTracer(Tracer):
     ):
         run = self._create_run(runnable=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
-        run.cached_at = generated_at
-        run.cached_in = generated_in
-        run.cached_duration = duration
         run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
         run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run.metadata.cached_at = generated_at
+        run.metadata.cached_in = generated_in
+        run.metadata.cached_duration = duration
         run._update_status()
         self.track(run)
         self._update_cached_info()

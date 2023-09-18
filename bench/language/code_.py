@@ -109,20 +109,6 @@ class HasCode(HasFields, ModuleNode):
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 
-    def _get_cached_output(self, inputs: dict, cached_run: bytes) -> Optional[dict]:
-        try:
-            from .run import CachedRun
-
-            run = CachedRun.from_json_bytes(cached_run)
-            outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
-            check_type(outputs, self, is_output=True)
-            self.session.tracer.run_cached(self, inputs, outputs, run.generated_at, run.duration)
-            return DotDict(outputs)
-        except (ValueError, TypeError, JSONDecodeError) as e:
-            logger.exception("code.cache.error", e=e, excinfo=e)
-            # ignore, will be overwritten on success
-            return None
-
     def _do_import_sync(self, path: str, name: str) -> tuple[Any, ...]:
         """Import a statement or exported Python object at runtime."""
         reference = NodePath(path, name)
@@ -270,57 +256,85 @@ class HasCode(HasFields, ModuleNode):
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         from bench.language.run import CachedRun, get_run_cache_subkey
 
-        def _wrapped_sync(*args, **kwargs):
+        def _get_cached_output(inputs: dict, cached_run: bytes) -> Optional[dict]:
+            try:
+                from .run import CachedRun
+
+                run = CachedRun.from_json_bytes(cached_run)
+                outputs = unpack_value(run.outputs, self, ignore_outer_map=True, is_output=True)
+                check_type(outputs, self, is_output=True)
+                self.session.tracer.run_cached(
+                    self, inputs, outputs, run.generated_at, run.duration
+                )
+                return DotDict(outputs)
+            except (ValueError, TypeError, JSONDecodeError) as e:
+                logger.exception("code.cache.error", e=e, excinfo=e)
+                # ignore, will be overwritten on success
+                return None
+
+        def _cached_sync(*args, **kwargs):
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = pack_value(inputs, self, is_output=False)
+
             cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = self.cache.get(cache_subkey)
-            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
+            cached_output = _get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
             started_at = utcnow_with_tz()
+
             result = callable(*args, **kwargs)
             outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             self.cache.set(cache_subkey, run_bytes)
 
-        async def _wrapped_async(*args, **kwargs):
+        async def _cached_async(*args, **kwargs):
             # yes this is annoyingly duplicated...
             inputs = self._inputs_from_args(args, kwargs)
             inputs_raw = pack_value(inputs, self, is_output=False)
+
             cache_subkey = get_run_cache_subkey(inputs_raw=inputs_raw, content_id=self._code_hash)
             cached_run = await self.cache.get(cache_subkey)
-            cached_output = self._get_cached_output(inputs, cached_run) if cached_run else None
+            cached_output = _get_cached_output(inputs, cached_run) if cached_run else None
             if cached_output is not None:
                 return cached_output
             started_at = utcnow_with_tz()
+
             result = await callable(*args, **kwargs)
             outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             await self.cache.set(cache_subkey, run_bytes)
 
-        return _wrapped_async if self._parse.is_async else _wrapped_sync
+        return _cached_async if self._parse.is_async else _cached_sync
 
     def _wrap_exported(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
-        def _wrapped_sync(*args, **kwargs):
+        def _exported_sync(*args, **kwargs):
             if self._cached_exports is not None:
                 return self._cached_exports
             result = callable(*args, **kwargs)
             self._cached_exports = result
             return result
 
-        async def _wrapped_async(*args, **kwargs):
+        async def _exported_async(*args, **kwargs):
             if self._cached_exports is not None:
                 return self._cached_exports
             result = await callable(*args, **kwargs)
             self._cached_exports = result
             return result
 
-        return _wrapped_async if self._parse.is_async else _wrapped_sync
+        return _exported_async if self._parse.is_async else _exported_sync
 
     def _wrap_test(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         # TODO @UX: instrument test callables with pytest for better assert reporting
-        return callable
+        def _test_sync(*args, **kwargs):
+            self.current_run.metadata.test = True
+            return callable(*args, **kwargs)
+
+        async def _test_async(*args, **kwargs):
+            self.current_run.metadata.test = True
+            return await callable(*args, **kwargs)
+
+        return _test_async if self._parse.is_async else _test_sync
 
     async def __call_async__(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
