@@ -5,10 +5,15 @@ def _curry_path(onfn: Callable[[str], None], key: str) -> Callable[[str], Any]:
     return lambda path: onfn(f"{key}.{path}")
 
 
-def proxy_value(value: Any, onread: Callable[[str], None], onwrite: Callable[[str], None]) -> Any:
+def proxy_value(
+    value: Any,
+    onread: Callable[[str], None],
+    onwrite: Callable[[str], None],
+    default_none: bool = False,
+) -> Any:
     """Recursively proxy the given value, calling onread/onwrite when a key is accessed."""
     if isinstance(value, dict):
-        return ProxyDict(value, onread, onwrite)
+        return ProxyDict(value, onread, onwrite, default_none=default_none)
     elif isinstance(value, list):
         return ProxyList(value, onread, onwrite)
     else:
@@ -28,10 +33,17 @@ def unproxy_value(value: Any) -> Any:
 class ProxyDict(Mapping):
     """Proxy a dict, behave as a type dict, calling onread/onwrite when a key is accessed."""
 
-    def __init__(self, inner: dict, onread: Callable[[str], None], onwrite: Callable[[str], None]):
+    def __init__(
+        self,
+        inner: dict,
+        onread: Callable[[str], None],
+        onwrite: Callable[[str], None],
+        default_none: bool = False,
+    ):
         self._inner = inner
         self._onread = onread
         self._onwrite = onwrite
+        self._default_none = default_none
 
     def __str__(self):
         return str(self._inner)
@@ -79,7 +91,7 @@ class ProxyDict(Mapping):
     # dot dict
 
     def __setattr__(self, item, value):
-        if item in ("_inner", "_onread", "_onwrite"):
+        if item in ("_inner", "_onread", "_onwrite", "_default_none"):
             return super().__setattr__(item, value)
         value = proxy_value(
             value, _curry_path(self._onread, item), _curry_path(self._onwrite, item)
@@ -91,6 +103,8 @@ class ProxyDict(Mapping):
         try:
             return self[name]
         except KeyError:
+            if self._default_none:
+                return None
             raise AttributeError(name)
 
 

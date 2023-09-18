@@ -11,7 +11,6 @@ from uuid import UUID
 
 import msgpack
 
-import bench.language.run
 from bench import language as lang
 from bench.language import File, IssueType, Module
 from bench.language.const import (
@@ -33,7 +32,7 @@ from bench.language.const import (
 )
 from bench.language.module import ModuleNode, ModuleVisitor
 from bench.language.query import Query, Sort
-from bench.language.run import RunCodeFrame, RunErrorKind
+from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
 from bench.language.statement import STATEMENT_CLASS_BY_TYPE
 from bench.language.text import patch_text_html
@@ -1194,59 +1193,59 @@ class RunData:
     metadata: Optional[dict[str, Any]]
 
 
-@data_packer(RunData, bench.language.run.Run)
-class RunPacker(DataPacker[RunData, bench.language.run.Run]):
-    def pack(self, object: bench.language.run.Run) -> RunData:
-        if object.error:
+@data_packer(RunData, Run)
+class RunPacker(DataPacker[RunData, Run]):
+    def pack(self, run: Run) -> RunData:
+        if run.error:
             error = RunErrorData(
-                kind=object.error.kind,
-                type=object.error.type,
-                message=object.error.message,
-                runnable_id=object.runnable.id,
-                traceback=object.error.traceback,
+                kind=run.error.kind,
+                type=run.error.type,
+                message=run.error.message,
+                runnable_id=run.runnable.id,
+                traceback=run.error.traceback,
             )
         else:
             error = None
         trigger_id = (
-            object.trigger
-            if isinstance(object.trigger, UUID)
-            else object.trigger.id
-            if object.trigger
+            run.trigger
+            if isinstance(run.trigger, UUID)
+            else run.trigger.id
+            if run.trigger
             else None
         )
         return RunData(
-            id=object.id,
-            project_id=object.session.ctx.project_id,
-            module_id=object.session.module.id,
-            worker_node_id=object.session.ctx.worker_node_id,
-            worker_process_id=object.session.ctx.worker_process_id,
-            runnable_id=object.runnable.id,
-            runnable_ck=object.runnable.ck,
-            runnable_type=object.runnable.type,
-            session_id=object.session.id,
+            id=run.id,
+            project_id=run.session.ctx.project_id,
+            module_id=run.session.module.id,
+            worker_node_id=run.session.ctx.worker_node_id,
+            worker_process_id=run.session.ctx.worker_process_id,
+            runnable_id=run.runnable.id,
+            runnable_ck=run.runnable.ck,
+            runnable_type=run.runnable.type,
+            session_id=run.session.id,
             trigger_id=trigger_id,
-            trigger_type=object.trigger_type if object.trigger_type else None,
-            root_id=object.root.id if object.root else None,
-            parent_id=object.parent.id if object.parent else None,
-            created_at=object.created_at,
-            updated_at=object.updated_at,
-            scheduled_at=object.scheduled_at,
-            started_at=object.started_at,
-            terminated_at=object.terminated_at,
-            status=object.status,
-            inputs=object.inputs,
-            outputs=object.outputs,
+            trigger_type=run.trigger_type if run.trigger_type else None,
+            root_id=run.root.id if run.root else None,
+            parent_id=run.parent.id if run.parent else None,
+            created_at=run.created_at,
+            updated_at=run.updated_at,
+            scheduled_at=run.scheduled_at,
+            started_at=run.started_at,
+            terminated_at=run.terminated_at,
+            status=run.status,
+            inputs=run.inputs,
+            outputs=run.outputs,
             error=error,
-            metadata=object.metadata,
+            metadata=run._raw_metadata(),
         )
 
-    def unpack(self, data: RunData, module: Module) -> bench.language.run.Run:
+    def unpack(self, data: RunData, module: Module) -> Run:
         # we leave relational references that aren't in the module as None?
         runnable = module._nodes_by_ck.get(data.runnable_ck) or MissingStatement(
             data.runnable_id, data.runnable_type
         )
         if data.error:
-            error = bench.language.run.RunError(
+            error = RunError(
                 kind=data.error.kind,
                 type=data.error.type,
                 message=data.error.message,
@@ -1255,7 +1254,7 @@ class RunPacker(DataPacker[RunData, bench.language.run.Run]):
             )
         else:
             error = None
-        return bench.language.run.Run(
+        return Run(
             id=data.id,
             module=module,
             session=None,

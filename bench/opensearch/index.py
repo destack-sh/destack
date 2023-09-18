@@ -352,10 +352,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
                 f.index = False
 
     # and 'static' metadata mappings (hard-coded)
-    for metadata_type in (
-        libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),
-        libs.symbolx_lib.lookup_or_error(".reflect.TaskRunMetadata"),
-    ):
+    for metadata_type in (libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),):
         for field in metadata_type.resolved_fields:
             metadata_mappings[field.typed_key] = map_to_os_field(field)
 

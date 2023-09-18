@@ -13,10 +13,11 @@ import msgpack
 from bench.language.const import RunStatus, TriggerType
 from bench.language.module import Module, ModuleNode, ModuleVisitor, node
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Code, Field, Model, Session, Statement, Task, Trigger
+    from bench.language import Code, Model, Session, Statement, Task, Trigger
     from bench.language.session import LogSearch, RunSearch, Scope
 
 
@@ -166,6 +167,10 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
+# TODO @Architecture: sessions/runs are kind of like module nodes, but also kind of not
+#  (have parent run/session, no ck, activation, ..?)
+
+
 @dataclass
 class Run:
     id: UUID
@@ -183,10 +188,11 @@ class Run:
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
-    metadata: Optional[dict[str, Any]]
+    metadata: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=utcnow_with_tz)
     updated_at: datetime = field(default_factory=utcnow_with_tz)
     children: list["Run"] = field(default_factory=list)
+    _metadata_unpacked: bool = False
 
     def __post_init__(self):
         self._update_status()
@@ -204,10 +210,39 @@ class Run:
             self.status = RunStatus.Failed
         elif self.terminated_at:
             self.status = RunStatus.Completed
-        elif self.queue_position:
+        elif self._metadata_unpacked and self.metadata.queue_position:
             self.status = RunStatus.Queued
         else:
             self.status = RunStatus.Running
+
+    def _activate_in(self, session: "Session", **kwargs):
+        from bench.language.libs import symbolx_lib
+        from bench.language.mapping import check_type, unpack_value
+
+        metatype = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
+
+        def _onwrite_metadata(key: str):
+            check_type(self.metadata, metatype)
+
+        metadata = unpack_value(self.metadata, metatype, ignore_array=True, ignore_outer_map=True)
+        self.metadata = proxy_value(
+            metadata, onread=lambda *args: None, onwrite=_onwrite_metadata, default_none=True
+        )
+        self._metadata_unpacked = True
+
+        for key, value in kwargs.items():
+            self.metadata[key] = value
+
+    def _raw_metadata(self) -> dict:
+        from bench.language.libs import symbolx_lib
+        from bench.language.mapping import pack_value
+
+        run_metadata = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
+
+        if not self._metadata_unpacked:
+            return self.metadata
+        else:
+            return pack_value(self.metadata, run_metadata, ignore_array=True, ignore_outer_map=True)
 
     @property
     def duration(self) -> float:
@@ -215,94 +250,10 @@ class Run:
             return 0
         return (self.terminated_at - self.started_at).total_seconds()
 
-    @property
-    def duration_with_cache(self) -> float:
-        if self.terminated_at is None:
-            return 0
-        return self.duration + (self.cached_duration or 0)
-
     def walk_descendants(self):
         yield self
         for child in self.children:
             yield from child.walk_descendants()
-
-    def get_metadata(self, key: Union[str, "Field"], default: Any = None) -> Any:
-        if not isinstance(key, str):
-            key = key.typed_key
-        if self.metadata is None:
-            return default
-        return self.metadata.get(key, default)
-
-    def set_metadata(self, key: Union[str, "Field"], value: Any):
-        if not isinstance(key, str):
-            key = key.typed_key
-        if self.metadata is None:
-            self.metadata = {}
-        self.metadata[key] = value
-
-    # direct accessors for default metadata (not great but good enough for now)
-    # TODO @Cleanup: wrap all default run metadata and task metadata here
-
-    @property
-    def cached_duration(self) -> Optional[float]:
-        from bench.language.reflect import RunMetadata
-
-        return self.get_metadata(RunMetadata.cached_duration)
-
-    @cached_duration.setter
-    def cached_duration(self, value: Optional[float]):
-        from bench.language.reflect import RunMetadata
-
-        self.set_metadata(RunMetadata.cached_duration, value)
-
-    @property
-    def queue_position(self) -> Optional[int]:
-        from bench.language.reflect import RunMetadata
-
-        return self.get_metadata(RunMetadata.queue_position)
-
-    @queue_position.setter
-    def queue_position(self, value: Optional[int]):
-        from bench.language.reflect import RunMetadata
-
-        self.set_metadata(RunMetadata.queue_position, value)
-
-    @property
-    def cached_at(self) -> Optional[datetime]:
-        from bench.language.reflect import RunMetadata
-
-        cached_at = self.get_metadata(RunMetadata.cached_at)
-        return datetime.fromisoformat(cached_at) if cached_at else None
-
-    @cached_at.setter
-    def cached_at(self, value: Optional[datetime]):
-        from bench.language.reflect import RunMetadata
-
-        self.set_metadata(RunMetadata.cached_at, value.isoformat() if value else None)
-
-    @property
-    def cached_in(self) -> Optional[UUID]:
-        from bench.language.reflect import RunMetadata
-
-        return self.get_metadata(RunMetadata.cached_in)
-
-    @cached_in.setter
-    def cached_in(self, value: Optional[UUID]):
-        from bench.language.reflect import RunMetadata
-
-        self.set_metadata(RunMetadata.cached_in, value)
-
-    @property
-    def test(self) -> Optional[bool]:
-        from bench.language.reflect import RunMetadata
-
-        return self.get_metadata(RunMetadata.test)
-
-    @test.setter
-    def test(self, value: Optional[bool]):
-        from bench.language.reflect import RunMetadata
-
-        self.set_metadata(RunMetadata.test, value)
 
 
 _IGNORED_PACKAGE_PREFIXES = [

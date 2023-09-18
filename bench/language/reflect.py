@@ -46,7 +46,15 @@ def x_struct(
         bench_type = type_from_instance_type(cls, name=name)
         bench_type.text = text
         if bench_type.tag != TypeTag.STRUCT:
-            raise TypeError(f"Expected {TypeTag.STRUCT}, got {bench_type.tag}")
+            raise TypeError(f"expected {TypeTag.STRUCT} for {cls}, got {bench_type.tag}")
+        # add any parent classes as base types
+        for base in cls.__bases__:
+            if base is object:
+                continue
+            base_type = type_from_instance_type(base, name=None)
+            if base_type.tag != TypeTag.STRUCT:
+                raise TypeError(f"expected {TypeTag.STRUCT} for {base_type}, got {base_type.tag}")
+            bench_type.extend_type(base_type)
         file.append_statement(bench_type)
 
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
@@ -129,7 +137,7 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 # defined here to avoid import cycles
 
 
-@reflect_struct("RunMetadata", "Metadata for a run", return_type=True)
+@reflect_struct("RunMetadata", "Default metadata for any run", return_type=True)
 class RunMetadata:
     name: Optional[str]
     test: Optional[bool]
@@ -138,11 +146,8 @@ class RunMetadata:
     cached_in: Optional[UUID]
     cached_duration: Optional[float]
     progress: Optional[float]
-
-
-@reflect_struct("TaskRunMetadata", "Default metadata of a task run", return_type=True)
-class TaskRunMetadata:
     retries: Optional[int]
     retry: Optional[int]
     batch_size: Optional[int]
     nonce: Optional[str]
+    keys: Optional[list[str]]
