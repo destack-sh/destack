@@ -6,6 +6,7 @@
     Trying border-gray-200 vs border-orange-900 + border-opacity-[12%]
     (all across the codebase, with slightly different % opacity) 
   -->
+  <!-- 36 == :GlobalHeaderHeight -->
   <header
     class="static mx-auto flex w-full grid-cols-3 flex-row justify-between gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[12%] bg-white 2xl:grid"
   >
