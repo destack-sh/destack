@@ -12,7 +12,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import MNT, ModuleOp, TriggerType, TypeFlag, TypeTag
+from bench.language.const import MNT, ModuleOp, RunStatus, TriggerType, TypeFlag, TypeTag
 from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
 from bench.language.mutate import ModuleMutator
 from bench.language.query import Query, Sort
@@ -247,7 +247,7 @@ class SessionTracer(Tracer):
     def pending_logs(self) -> list[LogEntry]:
         return self._pending_logs
 
-    async def _flush(self, force: bool = False) -> None:
+    async def _flush(self, force: bool = False, kill_pending: bool = False) -> None:
         """Flushes session data."""
         if not force and not self._pending_logs and not self._pending_runs:
             return  # skip if nothing to flush
@@ -256,6 +256,19 @@ class SessionTracer(Tracer):
         runs = self._pending_runs[:]
         self._pending_logs.clear()
         self._pending_runs.clear()
+
+        if kill_pending:
+            # abort any remaining active runs
+            for run in runs:
+                if run.active:
+                    run.terminated_at = utcnow_with_tz()
+                    run.status = RunStatus.Aborted
+            for run in self.run.runs.values():
+                if run.active:
+                    run.terminated_at = utcnow_with_tz()
+                    run.status = RunStatus.Aborted
+                    runs.append(run)
+
         success = await self.session.writer.write_session(self.session, runs, logs)
         if not success:
             raise RuntimeError(f"failed to write session {self.session}")
@@ -279,7 +292,7 @@ class SessionTracer(Tracer):
         self.stderr_collector.stop()
 
         self._flush_cancel.set()
-        await self._flush(force=True)  # flush pending data
+        await self._flush(force=True, kill_pending=True)  # flush pending data
 
     def value_update(self, value: Statement, key: Optional[str] = None):
         for tracer in self.tracers:
@@ -443,7 +456,7 @@ class RunTracer(Tracer):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
-        run._update_status()
+        run.status = RunStatus.Completed
         self.track(run)
         _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
@@ -451,8 +464,11 @@ class RunTracer(Tracer):
     def run_exception(self, statement: HasRun, exception: Exception):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
-        run.error = RunError.from_exception(exception, statement)
-        run._update_status()
+        if isinstance(exception, asyncio.CancelledError):
+            run.status = RunStatus.Aborted
+        else:
+            run.status = RunStatus.Failed
+            run.error = RunError.from_exception(exception, statement)
         self.track(run)
         _clear_active_run(run)
         logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
@@ -470,13 +486,13 @@ class RunTracer(Tracer):
         run.terminated_at = utcnow_with_tz()
         run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
         run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run.status = RunStatus.Completed
         run.metadata.cached_at = generated_at
         run.metadata.cached_in = generated_in
         run.metadata.cached_duration = duration
         custom_metadata = _custom_metadata.get()
         for k, v in (custom_metadata or {}).items():
             run.metadata[k] = v
-        run._update_status()
         self.track(run)
         self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
@@ -530,6 +546,7 @@ class RunTracer(Tracer):
             inputs=inputs,
             outputs=None,
             error=None,
+            status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
             metadata={},
         )
         run._activate_in(self.session, queue_position=queue_position)

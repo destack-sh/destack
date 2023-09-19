@@ -105,7 +105,7 @@ class NMessageType(StrEnum):
     GET_ENVIRONMENT_REP = "worker_set.get_environment.rep"
     PING_WORKER_SET = "worker_set.ping"
     PING_WORKER_SET_REP = "worker_set.ping.rep"
-    # running (routed via project id, maybe later worker set id too)
+    # running (routed via project id, maybe later worker set/node/process as well)
     START_RUN = "run.start"
     START_RUN_REP = "run.start.rep"
     KILL_RUN = "run.kill"
@@ -279,6 +279,7 @@ class RepStartRunPayload(Payload):
 @payload(NMessageType.KILL_RUN)
 class ReqKillRunPayload(ModuleScoped, Payload):
     run_id: UUID
+    session_id: Optional[UUID]
 
 
 @payload(NMessageType.KILL_RUN_REP)

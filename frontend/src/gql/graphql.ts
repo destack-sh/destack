@@ -378,6 +378,7 @@ export enum IssueType {
 export type KillRunInput = {
   projectVersionId: Scalars["GlobalID"];
   runId: Scalars["GlobalID"];
+  sessionId?: InputMaybe<Scalars["GlobalID"]>;
 };
 
 export type KillRunPayload = {

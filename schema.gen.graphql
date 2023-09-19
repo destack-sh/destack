@@ -354,6 +354,7 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 input KillRunInput {
   projectVersionId: GlobalID!
   runId: GlobalID!
+  sessionId: GlobalID = null
 }
 
 type KillRunPayload {

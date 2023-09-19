@@ -35,7 +35,7 @@ from bench.api.utils import (
 from bench.language import Q, Query, Sort, SortOrder, wire
 from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
 from bench.models import ModuleAccessLevel, packer
-from bench.msg.core import MessagingError, NMessage, request, subscribe, subscribe_many
+from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
 from bench.msg.messages import (
     LogsChangedPayload,
     NMessageType,
@@ -59,7 +59,9 @@ from bench.msg.messages import (
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
+from bench.opensearch.index import write_runs_to_os
 from bench.opensearch.query import encode_cursor, prepare_search
+from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
@@ -321,6 +323,7 @@ class RunState:
 class KillRunInput:
     project_version_id: GlobalID
     run_id: GlobalID
+    session_id: Optional[GlobalID] = None
 
 
 @strawberry.type
@@ -686,21 +689,42 @@ class SessionMutation:
         project_version_id = UUID(input.project_version_id.node_id)
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_module_access)(info, project_version, ModuleAccessLevel.Use)
+        run_id = to_uuid(input.run_id)
+        session_id = to_uuid(input.session_id)
+
+        # try to kill properly in worker
         kill = ReqKillRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
-            run_id=to_uuid(input.run_id),
+            run_id=run_id,
+            session_id=session_id,
         )
         try:
             rep: NMessage[RepKillRunPayload] = await request(
-                NMessageType.KILL_RUN, kill, reply_t=RepKillRunPayload, retry=2
+                NMessageType.KILL_RUN, kill, reply_t=RepKillRunPayload, retry=2, timeout=2
             )
-            run = await models.Run.objects.filter(id=kill.run_id).afirst()
-            success = rep.p.success
+            if rep.p.success:
+                return KillRunPayload(success=True, run=None)
         except (NoRespondersError, TimeoutError, MessagingError):
-            run = None
-            success = False
-        return KillRunPayload(success=success, run=run)
+            pass
+
+        # mark as killed, probably stale
+        if session_id:
+            runs = models.Run.objects.filter(session_id=session_id)
+        else:
+            runs = models.Run.objects.get_descendants([run_id])
+        runs = runs.filter(status__in=PENDING_RUN_STATUSES)
+        now = utcnow_with_tz()
+        async for run in runs:
+            run.terminated_at = now
+            run.status = RunStatus.Aborted
+        if runs:
+            await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
+            runs_data = [packer.pack_data(r) for r in runs]
+            await sync_to_async(write_runs_to_os)(runs_data)
+            await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
+        run = await models.Run.objects.aget(id=run_id)
+        return KillRunPayload(success=True, run=run)
 
 
 @strawberry.type

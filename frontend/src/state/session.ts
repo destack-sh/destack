@@ -496,11 +496,12 @@ export function _useSessions(
     if (currentRuns.value[run.id] == null) {
       return Promise.resolve(false);
     }
-    // TODO @Robustness @UX: cancel should not restart the entire worker
-    //  Proper cancellation is annoying on the backend, we only have one concurrent run at a time right now,
-    //  so while this isn't great, it works until we have proper concurrency. :RunCancellation
-    return restartWorkerSet();
-    // return sessionOps.cancel(run.id).then((r) => r?.data?.cancelRun?.success ?? false);
+    // nocheckin: kill optimistically or show some sort of 'killing' state
+    // nocheckin: kill properly - fall back to restart if kill fails
+    // return restartWorkerSet();
+    return sessionOps
+      .kill(run.id)
+      .then((r) => r?.data?.killRun.__typename != "KillRunPayload" || (r?.data?.killRun?.success ?? false));
   }
 
   // utilities

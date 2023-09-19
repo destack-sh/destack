@@ -675,7 +675,7 @@ onBeforeUnmount(() => {
             :container-size="viewContainerSize"
             :project="project"
             class="scroll-hidden overflow-y-auto"
-            :style="{ width: '256px', height: windowHeight - 40 + 'px' }"
+            :style="{ width: '278px', height: windowHeight - 40 + 'px' }"
           />
         </div>
       </aside>
