@@ -47,7 +47,7 @@ from bench.utils.utils import get_from_env, sentry_capture_if_enabled
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
-WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 300, type_cast=int)
+WORKER_RUN_TIMEOUT = get_from_env("WORKER_RUN_TIMEOUT", 3000, type_cast=int)
 WORKER_ACTIVE_TIMEOUT = timedelta(seconds=30)
 WORKER_ACTIVE_PUBLISH_INTERVAL = 10
 WORKER_SCHEDULE_BLOCK_AHEAD = 0.5
@@ -59,7 +59,7 @@ class WorkerNode(Monitored):
     """
     A user worker to run user code, generally one worker process per project (Bench).
     For local development a node can host multiple Benches.
-    TODO @Architecture: merge WorkerNode/WorkerHost,  processes should be 1:1 with ModuleWorkerProcess
+    TODO @Architecture: merge WorkerNode/WorkerHost, processes should be 1:1 with ModuleWorkerProcess
      (see :BE-213)
     """
 
@@ -259,9 +259,12 @@ class WorkerNode(Monitored):
     @message_handler
     async def kill_run(self, msg: NMessage[ReqKillRunPayload]):
         logger.debug("run.kill", msg=msg)
-        worker = await self._prepare_worker(msg.p.module_id)
-        success = await worker.kill_run(msg.p.run_id)
-        await msg.reply(RepKillRunPayload(success=success))
+        if msg.p.module_id not in self.workers:
+            await msg.reply(RepKillRunPayload(success=False))
+        else:
+            worker = await self._prepare_worker(msg.p.module_id)
+            success = await worker.kill_run(msg.p.run_id)
+            await msg.reply(RepKillRunPayload(success=success))
 
     @message_handler
     async def get_environment(self, msg: NMessage[ReqGetEnvironmentPayload]):
@@ -535,9 +538,14 @@ class ModuleWorkerProcess(ModuleWriter):
             await session.aclose()
 
     async def kill_run(self, run_id: UUID) -> bool:
-        # TODO @Broken: implement kill (cancel/abort) properly (interupts don't work)
-        #  (currently we only do process restarts)
-        return False
+        run = self._active_runs.get(run_id)
+        if run is None or run.task is None:
+            logger.debug("worker.kill.not_found", run_id=run_id)
+            return False
+        else:
+            run.task.cancel()
+            logger.debug("worker.kill", run=run)
+            return True
 
     async def _flush_dirty_runs_forever(self, interval: float):
         while True:

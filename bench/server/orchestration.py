@@ -197,6 +197,8 @@ class OrchestrationServer(Monitored):
             run.status = RunStatus.Aborted
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_data(r) for r in dead_runs]
+        # nocheckin: sometimes run.project_id is null here, causing write_runs_to_os to fail?
+        #  (because it can't get the index name)
         await sync_to_async(write_runs_to_os)(dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 
@@ -379,6 +381,7 @@ class OrchestrationServer(Monitored):
                 success = True
 
         # mark all worker set nodes as deadish
+        # nocheckin: kill runs on worker node properly if restarting?
         if KUBERNETES_ENABLED:
             await self._mark_worker_nodes_as_deadish(active_replicas_ids)
         else:

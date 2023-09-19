@@ -10,7 +10,7 @@ from uuid import UUID
 
 import msgpack
 
-from bench.language.const import RunStatus, TriggerType
+from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, TriggerType
 from bench.language.module import Module, ModuleNode, ModuleVisitor, node
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
@@ -184,7 +184,7 @@ class Run:
     terminated_at: Optional[datetime]
     trigger_type: Optional[TriggerType]
     trigger: Union["Trigger", UUID]
-    status: RunStatus = field(init=False)
+    status: RunStatus
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
@@ -195,7 +195,6 @@ class Run:
     _metadata_unpacked: bool = False
 
     def __post_init__(self):
-        self._update_status()
         self.updated_at = utcnow_with_tz()
 
     def __str__(self):
@@ -204,16 +203,6 @@ class Run:
 
     def __repr__(self):
         return f"<Run {self}>"
-
-    def _update_status(self):
-        if self.error:
-            self.status = RunStatus.Failed
-        elif self.terminated_at:
-            self.status = RunStatus.Completed
-        elif self._metadata_unpacked and self.metadata.queue_position:
-            self.status = RunStatus.Queued
-        else:
-            self.status = RunStatus.Running
 
     def _activate_in(self, session: "Session", **kwargs):
         from bench.language.libs import symbolx_lib
@@ -243,6 +232,10 @@ class Run:
             return self.metadata
         else:
             return pack_value(self.metadata, run_metadata, ignore_array=True, ignore_outer_map=True)
+
+    @property
+    def active(self) -> bool:
+        return self.status not in TERMINAL_RUN_STATUSES
 
     @property
     def duration(self) -> float:

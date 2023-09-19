@@ -209,23 +209,21 @@ function restore() {
 async function insertStatementStart() {
   if (fileHeader.value == null) return;
   bench.focusFile(fileHeader.value);
-  const firstRootOk = context.value?.statementsByParentId[fileState.value?.file.id][0]?.orderKey ?? INTEGER_ZERO;
+  const firstRootOk = context.value?.statementsByParentId[fileHeader.value.id]?.[0]?.orderKey ?? INTEGER_ZERO;
   const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
   const orderKey = generateKeyBetween(null, firstRootOk);
-  ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
+  ops.statement.create(null, newStatement.id, newStatement.ck, fileHeader.value.id, null, orderKey);
   nextTick(() => context.value?.statementsComponents[newStatement.id]?.focus());
 }
 
 async function insertStatementEnd() {
   if (fileHeader.value == null) return;
   bench.focusFile(fileHeader.value);
-  const lastRootOk =
-    context.value?.statementsByParentId[fileState.value?.file.id][
-      context.value?.statementsByParentId[fileState.value?.file.id].length - 1
-    ]?.orderKey ?? INTEGER_ZERO;
+  const roots = context.value?.statementsByParentId[fileHeader.value.id];
+  const lastRootOk = roots?.[roots?.length - 1]?.orderKey ?? INTEGER_ZERO;
   const newStatement = { __typename: "Statement", ...newNodeIdentity(bench.projectVersionId as string, "Statement") };
   const orderKey = generateKeyBetween(lastRootOk, null);
-  ops.statement.create(null, newStatement.id, newStatement.ck, fileState.value?.file.id, null, orderKey);
+  ops.statement.create(null, newStatement.id, newStatement.ck, fileHeader.value.id, null, orderKey);
   nextTick(() => context.value?.statementsComponents[newStatement.id]?.focus());
 }
 
