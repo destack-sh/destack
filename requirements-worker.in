@@ -63,6 +63,8 @@ psutil==5.9.2
 psycopg2==2.9.3
 pyarrow==10.0.1
 pydantic>=1.10.7,<2
+pydub==0.25.1
+soundfile==0.12.1
 PyGithub==1.59.0
 pypandoc==1.11
 pypdf==3.16.0

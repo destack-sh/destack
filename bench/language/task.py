@@ -4,7 +4,7 @@ import random
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Optional, Self, Union
 
-from more_itertools import first
+import structlog
 
 from bench.language.const import IssueType
 from bench.language.field import HasFields
@@ -14,8 +14,12 @@ from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.language.reference import ModuleView
 from bench.utils.utils import DotDict
 
+from ..utils.func import describe_type
+
 if TYPE_CHECKING:
     from bench.language import HasRun, Model, Run, Statement
+
+logger = structlog.get_logger(__name__)
 
 
 @node
@@ -64,7 +68,6 @@ class HasTask(HasFields, ModuleNode):
         elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
-            root_models = [self.session.module.lookup_or_error("openai.lib.chat.gpt4")]
             mono_model = None
 
         # do task
@@ -82,7 +85,7 @@ class HasTask(HasFields, ModuleNode):
                     output = DotDict(output)
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
-                output = await run_task(self, root_models, view, inputs, _nonce)
+                output = await run_task(self, view, inputs, _nonce)
             self.session.tracer.run_exit(self, output)
             return output
         except Exception as e:
@@ -93,24 +96,47 @@ class HasTask(HasFields, ModuleNode):
         return self
 
 
+class TaskErrorType(enum.StrEnum):
+    Incapable = "Incapable"
+    Timeout = "Timeout"
+    InvalidFormat = "InvalidFormat"
+    InvalidType = "InvalidType"
+    ExceededLimit = "ExceededLimit"
+    Unavailable = "Unavailable"
+    Unknown = "Unknown"
+
+
+UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.ExceededLimit, TaskErrorType.Unknown}
+TASK_STEP_ATTEMPTS = 1  # nocheckin: reset to 5
+
+
 async def run_task(
     task: HasTask,
-    root_models: list["HasModel"],
     view: ModuleView,
     inputs: dict,
     nonce: Optional[str],
 ) -> dict:
-    num_retries_total = 0
-    root_model = root_models[0]  # TODO @Broken @Tass: auto-select between multiple root models
+    attempts = 0
+    models = [
+        task.module.lookup_or_error(m)
+        # for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
+        # nocheckin: re-enable gpt models
+        for m in ("anthropic.lib.text.claude-instant-1", "anthropic.lib.text.claude-2")
+    ]  # in priority order
+    model_idx = 0
+    log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
 
     previous_results = []
-    while num_retries_total < 5:
-        num_retries_total += 1
-        # TODO @UX @Task: track metadata in task/model runs
-        # get next thing to run or terminate
-        compiled = await root_model.compiler.compile(task, view, inputs, previous_results, nonce)
+    while attempts < TASK_STEP_ATTEMPTS:
+        attempts += 1
+        # TODO nocheckin: track metadata in task/model runs
+        # run task step
+        compiled = await models[model_idx].compiler.compile(
+            task, view, inputs, previous_results, nonce
+        )
         try:
-            step = await root_model.compiler.run(root_model, compiled)
+            log.debug("task.run", model=(models[model_idx]), compiled=compiled, attempt=attempts)
+            step = await models[model_idx].compiler.run(models[model_idx], compiled)
             if step.runnable is None:
                 # done, terminate
                 # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
@@ -123,31 +149,20 @@ async def run_task(
             # runnable to call
             inputs = unpack_value(step.result_raw, step.runnable, is_output=False)
         except Exception as e:
-            previous_results.append(TaskError.from_exception(task, e))
+            logger.debug("task.error", error=e)
+            if isinstance(e, TaskError) and e.type in UNRECOVERABLE_ERRORS:
+                model_idx = (model_idx + 1) % len(models)
+            else:
+                previous_results.append(TaskError.from_exception(task, e))
             continue
 
-        # call runnable
-        try:
-            with task.session.tracer.run.capture() as capture:
-                _ = await step.runnable(**inputs)
-            run = first((r for r in capture.runs if r.runnable == step.runnable), None)
-            assert run is not None, f"runnable run not found: {step.runnable}"
-        except Exception:  # noqa
-            pass  # nothing to do, already captured by tracer
+        # call runnable :TaskFunctions
+        raise NotImplementedError(":TaskFunctions")
 
-    raise TaskError(TaskErrorType.ExceededLimit, task, f"max retries exceeded: {num_retries_total}")
+    raise TaskError(TaskErrorType.ExceededLimit, task, f"max retries exceeded: {attempts}")
 
 
-class TaskErrorType(enum.StrEnum):
-    Incapable = "Incapable"
-    Timeout = "Timeout"
-    InvalidFormat = "InvalidFormat"
-    InvalidType = "InvalidType"
-    TooLarge = "TooLarge"
-    ExceededLimit = "ExceededLimit"
-    Unknown = "Unknown"
-
-
+# avoid circular import
 from .run import RunError, RunErrorKind  # noqa: E402
 
 

@@ -1,4 +1,5 @@
 import asyncio
+import enum
 import functools
 import os
 import typing
@@ -20,12 +21,21 @@ from bench.utils.func import describe_type
 from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
+    from bench.language import Statement
     from bench.language.task import TaskCompiler
 
 logger = structlog.get_logger(__name__)
 
 INFERENCE_CACHE_EXPIRY = get_from_env("INFERENCE_CACHE_EXPIRY", 60 * 60 * 24 * 30, type_cast=int)
 ALLOW_KEY_FROM_ENV = get_from_env("MODEL_API_KEY_FROM_ENV", True, type_cast=bool)
+
+
+class ModelErrorType(enum.StrEnum):
+    Timeout = "Timeout"
+    InvalidRequest = "InvalidRequest"
+    ExceededLimit = "ExceededLimit"
+    Unavailable = "Unavailable"
+    Unknown = "Unknown"
 
 
 @node
@@ -128,16 +138,19 @@ class HasModel(HasFields, ModuleNode):
                     RepRunInferencePayload,
                     timeout=timeout + 3,
                 )
-                if rep.p.outputs is None:
-                    raise RuntimeError(f"remote {self} failed")
+                if rep.p.error is not None:
+                    raise ModelError(rep.p.error, self, f"remote {self} failed")
                 outputs = unpack_value(rep.p.outputs, self, is_output=True)
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
                 return DotDict(outputs)
-            except (ValueError, RuntimeError, TypeError) as e:
+            except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
-                raise
+                if isinstance(e, ModelError):
+                    raise
+                else:
+                    raise ModelError(ModelErrorType.Unavailable, self, f"remote {self} failed")
         else:
             # otherwise run inference through endpoint :LibImplementation
             try:
@@ -161,7 +174,12 @@ class HasModel(HasFields, ModuleNode):
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.error", e=e, exc_info=e)
-                raise
+                if isinstance(e, ModelError):
+                    raise
+                elif isinstance(e, asyncio.TimeoutError):
+                    raise ModelError(ModelErrorType.Timeout, self, f"timeout {self} failed") from e
+                else:
+                    raise ModelError(ModelErrorType.Unavailable, self, f"{self} failed") from e
 
     async def _inference(
         self,
@@ -230,6 +248,28 @@ class HasModel(HasFields, ModuleNode):
 
     def to_async(self) -> "Self":
         return self
+
+
+# avoid circular import
+from .run import RunError, RunErrorKind  # noqa: E402
+
+
+class ModelError(RunError):
+    def __init__(
+        self,
+        type: ModelErrorType,
+        runnable: "Statement",
+        message: str = None,
+        path: str = None,
+    ):
+        super().__init__(
+            kind=RunErrorKind.Runtime,
+            type=type.name,
+            runnable=runnable,
+            message=f"{type.value}: {message}",
+        )
+        self.type = type
+        self.path = path
 
 
 @dataclass(slots=True)

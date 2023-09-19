@@ -31,6 +31,7 @@ from bench.language.cache import CacheAsync
 from bench.language.const import MNT, ModuleReference, RunStatus, parse_absolute_node_reference
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mapping import pack_value, unpack_value
+from bench.language.model import ModelError, ModelErrorType
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
@@ -481,12 +482,12 @@ class RuntimeServer(Monitored):
             # we call the underlying model implementation directly (the worker does the tracing)
             # :LibImplementation
             module = DEFAULT_MODULES[module_name]
-            model = module.lookup(localized_path)
+            model = module.lookup_or_error(localized_path)
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
             cache = CacheAsync(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
             inputs = unpack_value(msg.p.inputs, model, is_output=False)
-            output = await asyncio.wait_for(
+            outputs = await asyncio.wait_for(
                 asyncio.shield(
                     model._inference(
                         inputs=inputs,
@@ -498,16 +499,18 @@ class RuntimeServer(Monitored):
                 ),
                 msg.p.timeout,
             )
-            timeout = False
+            outputs = pack_value(outputs, model, is_output=True, ignore_outer_map=True)
+            error = None
         except Exception as e:
             log.error("inference.exception", exc_info=True, sentry=sentry_capture_if_enabled(e))
-            output = None
-            model = None
-            timeout = isinstance(e, asyncio.TimeoutError)
-        outputs = (
-            pack_value(output, model, is_output=True, ignore_outer_map=True) if output else None
-        )
-        await msg.reply(RepRunInferencePayload(outputs=outputs, timeout=timeout))
+            outputs = None
+            if isinstance(e, asyncio.TimeoutError):
+                error = ModelErrorType.Timeout
+            elif isinstance(e, ModelError):
+                error = e.type
+            else:
+                error = ModelErrorType.Unknown
+        await msg.reply(RepRunInferencePayload(outputs=outputs, error=error))
 
     @message_handler
     async def request_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):

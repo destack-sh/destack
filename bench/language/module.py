@@ -304,18 +304,16 @@ class Scope:
     _nodes_by_ck: dict[UUID, "ModuleNode"] = field(default_factory=dict)
     _names_by_ident: dict[str, str] = field(default_factory=dict)
 
-    def _get_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
-        if by == LookupBy.Name:
+    def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["Scope", None]:
+        if by is None and name in self._scopes_by_name or by == LookupBy.Name:
             return self._scopes_by_name.get(name)
-        elif by == LookupBy.PyIdent:
+        if by is None and name in self._names_by_ident or by == LookupBy.PyIdent:
             if name in self._names_by_ident:
                 name = self._names_by_ident[name]
                 return self._scopes_by_name.get(name)
-        else:
-            raise ValueError(f"{self} got unexpected lookup type: {by}")
         return None
 
-    def _find_scope(self, name: str, by: LookupBy) -> Union["Scope", None]:
+    def _find_scope(self, name: str, by: Optional[LookupBy]) -> Union["Scope", None]:
         scope = self._get_scope(name, by)
         if scope is not None:
             return scope
@@ -323,14 +321,14 @@ class Scope:
             return self.parent._find_scope(name, by=by)
         return None
 
-    def _find_node(self, name: str, by: LookupBy = LookupBy.Name) -> NodeT | None:
+    def _find_node(self, name: str, by: Optional[LookupBy] = None) -> NodeT | None:
         """Find the node recursively in this scope and its parents."""
         return self._find_scope(name, by)
 
     def lookup(
         self,
         path: Union["NodePath", UUID, str],
-        by: LookupBy = LookupBy.Name,
+        by: Optional[LookupBy] = None,
         node_t: MNT | StatementType | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
         """
@@ -460,7 +458,7 @@ class Module(ModuleNode, Scope):
     def lookup(
         self,
         path: Union["NodePath", UUID, str],
-        by: LookupBy = LookupBy.Name,
+        by: Optional[LookupBy] = None,
         node_t: MNT | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
         if isinstance(path, UUID):
@@ -480,7 +478,7 @@ class Module(ModuleNode, Scope):
     def lookup_or_error(
         self,
         path: Union["NodePath", UUID, str],
-        by: LookupBy = LookupBy.Name,
+        by: Optional[LookupBy] = None,
         node_t: typing.Type[NodeT] | None = None,
     ) -> NodeT:
         result = self.lookup(path, by=by, node_t=node_t)
