@@ -65,6 +65,12 @@ async def _run_host():
     await host.run_forever()
 
 
+async def _run_module(path: str, entrypoints: list[str]):
+    await init_nats(nats_name)
+    await test_redis_connection()
+    raise NotImplementedError("not yet supported")
+
+
 # run node if arg1 is 'worker', run host if arg1 is 'host'
 if __name__ == "__main__":
     if len(sys.argv) < 2:
@@ -73,5 +79,9 @@ if __name__ == "__main__":
         asyncio.run(_run_host())
     elif sys.argv[1] == "worker":
         asyncio.run(_run_node())
+    elif sys.argv[1] == "run":
+        if len(sys.argv) < 4:
+            raise RuntimeError("run <path> <entrypoint> [<entrypoint> ...]")
+        asyncio.run(_run_module(sys.argv[2], sys.argv[3:]))
     else:
         raise RuntimeError(f"invalid arguments: {sys.argv}")
