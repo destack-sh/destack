@@ -143,6 +143,8 @@ class Statement(ModuleNode, Scope):
         if item in self._PROPERTIES:
             return super().__getattribute__(item)
         else:
+            if item in self._names_by_ident:
+                item = self._names_by_ident.get(item)
             scope = self._scopes_by_name.get(item)
             if scope is not None:
                 return scope
@@ -320,14 +322,13 @@ class Variable(Statement, HasValue, HasTags, HasText):
             return None
         elif not isinstance(item, str):
             raise TypeError(f"cannot index {self} with {type(item)}")
-        else:
-            candidates = {
-                **{f: f for f in self._PROPERTIES},
-                **{f.py_ident: f for f in self.fields},
-            }
-            raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-            )
+        candidates = {
+            **{f: f for f in self._PROPERTIES},
+            **{f.py_ident: f for f in self.fields},
+        }
+        raise AttributeError(
+            f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
+        )
 
     def __setattr__(self, key, value):
         if key in self._PROPERTIES:
@@ -343,11 +344,10 @@ class Variable(Statement, HasValue, HasTags, HasText):
             return None
         elif not isinstance(item, str):
             raise TypeError(f"cannot index {self} with {type(item)}")
-        else:
-            candidates = {f.py_ident: f for f in self.fields}
-            raise AttributeError(
-                f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-            )
+        candidates = {f.py_ident: f for f in self.fields}
+        raise AttributeError(
+            f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
+        )
 
     def __iter__(self):
         return iter(self.value)

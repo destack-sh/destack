@@ -507,7 +507,7 @@ defineExpose({
     <!-- Sorts/filters -->
     <div
       v-if="(properties.sorts ?? []).length > 0 || properties.query != null"
-      class="-mx-0.5 mb-1 mt-1 flex flex-row flex-wrap gap-1.5"
+      class="-mx-0.5 mb-1 flex flex-row flex-wrap gap-1.5"
     >
       <!-- Sort pills -->
       <span
@@ -527,7 +527,7 @@ defineExpose({
     <!-- Wrapper to contain any scrolling -->
     <div
       ref="gridRef"
-      class="mt-0.5 overflow-x-auto"
+      class="overflow-x-auto"
       :style="{
         'margin-left': -gridOffsetX + 'px',
         'margin-right': -gridOffsetX + 'px',
