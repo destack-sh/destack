@@ -192,7 +192,6 @@ function openRun(run: Run) {
         <span class="ml-1 font-normal text-gray-400 underline-offset-4 group-hover/run:underline">
           #{{ getUUIDFromGlobalID(node.id).slice(-7, -1) }}
         </span>
-        <!-- nocheckin: show run metadata -->
       </div>
     </div>
     <div

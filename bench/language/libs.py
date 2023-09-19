@@ -292,7 +292,10 @@ class BaseTextTaskCompiler(TaskCompiler):
 
     def _render_error(self, error: RunError | TaskError) -> str:
         if isinstance(error, TaskError):
-            return error.message
+            if error.type in (TaskErrorType.InvalidType, TaskErrorType.InvalidFormat):
+                return f"{error.message} (follow the schema!)"
+            else:
+                return error.message
         else:
             return f"{error.type}: {error.message}"
 
@@ -880,7 +883,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             f"Now, complete the task '{task.name}' given the inputs according to the schema."
             f" Consider the instructions and context for every part carefully."
             f" Respond with one of {available_actions}, then a newline, then JSON arguments."
-            f" COMPLETE with a result for the task, PANIC with a text 'reason' if reasonable termination is impossible."
+            f" COMPLETE with a result for the task, PANIC with a 'reason' property if reasonable termination is impossible."
             f" (Strongly prefer COMPLETE with error information as feasible)."
             # f" CALL_FUNCTION <func_name> to run one of the given functions (if any).",
         )
@@ -932,9 +935,13 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             header_parts = header.split(" ", maxsplit=1)
             action = header_parts[0]
             function_name = header_parts[1] if len(header_parts) > 1 else None
-            arguments = json.loads(body or "{}")
-        except (ValueError, TypeError, JSONDecodeError) as e:
+        except (ValueError, TypeError) as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
+
+        try:
+            arguments = json.loads(body or "{}")
+        except JSONDecodeError as e:
+            raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}")
 
         if action == "COMPLETE":
             return TaskOutput(result_raw=arguments)
