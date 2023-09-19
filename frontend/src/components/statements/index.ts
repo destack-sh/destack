@@ -53,6 +53,7 @@ export type StatementPartId = StatementControlId | StatementElementId;
 export type StatementPart = {
   id: StatementPartId;
   component: StatementPartComponent;
+  notFocusable?: boolean;
   exists: (iface: StatementInterface, statement: Statement) => boolean;
 };
 
@@ -211,6 +212,7 @@ const DATASET: StatementElement = {
 const RUN: StatementElement = {
   id: "run",
   component: RunElement,
+  notFocusable: true,
   exists: (iface, statement) => false, // only shown manually,
 };
 
