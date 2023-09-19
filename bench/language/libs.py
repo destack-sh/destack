@@ -217,17 +217,21 @@ class BaseTextTaskCompiler(TaskCompiler):
             return "<no text>"
         return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text.text_spans)
 
-    def _render_statement_header(self, statement: Statement) -> str:
+    def _render_statement_header(self, statement: Statement, *, name: str = None) -> Optional[str]:
         """Model-friendly string describing statement header."""
-        if isinstance(statement, HasText):
-            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {self._render_text(statement)}"
+        name = name or statement.name  # allow overriding name
+        if name:
+            if statement.text:
+                return f"'{statement.type.name.lower()}' {name}: {self._render_text(statement)}"
+            else:
+                return f"'{statement.type.name.lower()}' {name}"
+        elif statement.text:
+            return f"'{statement.type.name.lower()}' {self._render_text(statement)}"
         else:
-            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}"
+            return None
 
     # TODO @Performance @Task: cache statement rendering (for datasets)
-    async def _render_statement_content(
-        self, statement: Statement
-    ) -> tuple[str, list[UUID]] | None:
+    async def _render_statement_body(self, statement: Statement) -> tuple[str | None, list[UUID]]:
         """Model-friendly string describing statement content (excl. header)."""
         if isinstance(statement, Variable):
             value_str = json.dumps(statement._raw_named_value(), indent=2)
@@ -238,13 +242,25 @@ class BaseTextTaskCompiler(TaskCompiler):
             return records_str, [r.id for r in records]
         elif isinstance(statement, Type):
             if statement.tag == TypeTag.ENUM:
-                options_str = ", ".join(f"{f.name} ({f.text_plain})" for f in statement.fields)
-                return f"options: {options_str}", [f.id for f in statement.fields]
+                options_str = "\n".join("  - " + self._render_field(f) for f in statement.fields)
+                return f"has options (one of):\n{options_str}", [f.id for f in statement.fields]
             elif statement.tag == TypeTag.STRUCT:
-                fields_str = ", ".join(f"{f.name}: {f} {f.text_plain}" for f in statement.fields)
-                return f"fields:\n{fields_str}", [f.id for f in statement.fields]
+                fields_str = "\n".join("  - " + self._render_field(f) for f in statement.fields)
+                return f"has fields (all of):\n{fields_str}", [f.id for f in statement.fields]
         else:
-            return None
+            return None, []
+
+    def _render_field(self, field: Field) -> str:
+        if field.tag == TypeTag.LITERAL:
+            if field.text:
+                return f"{field.name}: {self._render_text(field)}"
+            else:
+                return f"{field.name}"
+        else:
+            if field.text:
+                return f"{field.name}: {self._render_text(field)} ({field})"
+            else:
+                return f"{field.name} ({field})"
 
     async def _render_context(self, task: Task, view: ModuleView, *, exclude_output: bool) -> str:
         """Model-friendly string describing the entire task context."""
@@ -261,17 +277,24 @@ class BaseTextTaskCompiler(TaskCompiler):
                 if not isinstance(node, Statement) or node.id == task.id:
                     continue
                 node: Statement
-                head = self._render_statement_header(node)
-                content = await self._render_statement_content(node)
-                if content:
-                    content, covered_children = content
-                    for c in covered_children:
-                        seen_node_ids.add(c)
-                    context_strs.append(f"{head}\n{content}")
-                else:
-                    context_strs.append(head)
+                header = self._render_statement_header(node)
+                body, covered_children = await self._render_statement_body(node)
+                for c in covered_children:
+                    seen_node_ids.add(c)
+                if header and body:
+                    context_strs.append(header + body)
+                elif header:
+                    context_strs.append(header)
+                elif body:
+                    context_strs.append(body)
         context_str = "\n".join(context_strs)
         return context_str
+
+    def _render_error(self, error: RunError | TaskError) -> str:
+        if isinstance(error, TaskError):
+            return error.message
+        else:
+            return f"{error.type}: {error.message}"
 
 
 #
@@ -514,7 +537,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
     def _compile_error(self, error: RunError | TaskError) -> OpenAIChatMessage:
         return OpenAIChatMessage(
             role=OpenAIChatRole.system,
-            content=f"Avoid previous error: {error}",
+            content=f"Avoid previous error: {self._render_error(error)}",
         )
 
     async def compile(
@@ -560,7 +583,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             )
         )
 
-        # context from previous runs (function executions, failures)
+        # context from previous runs
         for result in previous_results:
             if isinstance(result, TaskError):
                 messages.append(self._compile_error(result))
@@ -573,24 +596,18 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
-                content=f"Now complete the task '{task.name}' given the inputs according to the schema."
+                content=f"Now, complete the task '{task.name}' given the inputs according to the schema."
                 f" Consider the instructions and context for every part carefully.",
             ),
         )
 
-        # task functions :TaskFunctions
-        available_functions = [
-            f for f in view.nodes if isinstance(f, Code) and f.inputs and f.outputs
-        ]
+        # task functions (not supported yet :TaskFunctions)
+        available_functions = []
         user_function_prefix = "_"
         user_functions_by_name: dict[str, HasRun] = {
             user_function_prefix + f.py_ident: f for f in available_functions
         }
         functions: list[OpenAIFunction] = [
-            # TODO @Task: select functions from view more intelligently
-            #  (and coerce? e.g. datasets)
-            *(self._compile_function(f, prefix=user_function_prefix) for f in available_functions),
-            # include function to terminate with a result for overall task
             OpenAIFunction(
                 name="complete",
                 text=f"Complete the task '{task.name}' with an answer (if any)."
@@ -621,51 +638,46 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             runnables_by_name=user_functions_by_name,
         )
 
-    async def run(
-        self,
-        model: OpenAIChatCompletionModel,
-        input: OpenAIChatInput,
-    ) -> TaskOutput:
-        # check if input fits in model context window
+    def can_run(self, model: "Model", input: OpenAIChatInput) -> bool:
         context_window: int = {
             "gpt3": 16 * 1024,
             "gpt4": 8 * 1024,
             "gpt4-32k": 32 * 1024,
         }[model.name]
-        if input.tokens > context_window:
-            raise TaskError(
-                TaskErrorType.Incapable,
-                input.task,
-                f"input exceeds context window of {context_window} tokens",
-            )
+        return input.tokens <= context_window
 
-        completion = await model(
+    async def run(
+        self,
+        model: OpenAIChatCompletionModel,
+        input: OpenAIChatInput,
+    ) -> TaskOutput:
+        rep = await model(
             messages=input.messages, functions=input.functions, settings=input.settings
         )
-        rep: OpenAIChatMessage = completion.message
-        if rep.function_call is None:  # missing function call
+        msg: OpenAIChatMessage = rep.message
+        if msg.function_call is None:  # missing function call
             raise TaskError(TaskErrorType.InvalidFormat, model, "no function call")
 
         # try to parse arguments (only json format check, no type check)
         try:
-            arguments = json.loads(rep.function_call.arguments)
+            arguments = json.loads(msg.function_call.arguments)
         except JSONDecodeError as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
 
         # handle standard panic/terminate
-        if rep.function_call.name == "panic":
+        if msg.function_call.name == "panic":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
-        elif rep.function_call.name == "complete":
+        elif msg.function_call.name == "complete":
             return TaskOutput(result_raw=arguments)
 
         # handle other function calls
-        if rep.function_call.name not in input.runnables_by_name:
+        if msg.function_call.name not in input.runnables_by_name:
             raise TaskError(
                 TaskErrorType.InvalidFormat,
                 model,
-                f"unknown function {rep.function_call.name}",
+                f"unknown function {msg.function_call.name}",
             )
-        function = input.runnables_by_name[rep.function_call.name]
+        function = input.runnables_by_name[msg.function_call.name]
         return TaskOutput(result_raw=arguments, function=function)
 
 
@@ -816,7 +828,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             return f"Previous result for '{run.runnable.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
 
     def _compile_error(self, error: RunError | TaskError) -> str:
-        return f"Avoid previous error: {error}"
+        return f"Avoid previous error: {self._render_error(error)}"
 
     async def compile(
         self,
@@ -848,9 +860,9 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             map_v=self._render_value_flat,
             is_output=False,
         )
-        nonce_str = f"nonce:{nonce}\n" if nonce else ""
+        nonce_str = f"(nonce:{nonce}\n)" if nonce else ""
         messages.append(
-            f"({nonce_str})The user's inputs for '{task.name}': \n{inputs}",
+            f"{nonce_str}The user's inputs for '{task.name}': \n{inputs}",
         )
 
         # output schema
@@ -862,15 +874,25 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         )
 
         # final CTA
+        # TODO @Task: anthropic task functions :TaskFunctions
+        available_actions = ["COMPLETE", "PANIC"]
         messages.append(
-            f"Now complete the task '{task.name}' given the inputs according to the schema."
+            f"Now, complete the task '{task.name}' given the inputs according to the schema."
             f" Consider the instructions and context for every part carefully."
-            f" Respond with either COMPLETE, PANIC or CALL_FUNCTION, then a newline, then JSON arguments."
-            f" COMPLETE with a result for the task, PANIC with a text 'reason' if no reasonable termination is possible."
-            f" CALL_FUNCTION <func_name> to run a provided function.",
+            f" Respond with one of {available_actions}, then a newline, then JSON arguments."
+            f" COMPLETE with a result for the task, PANIC with a text 'reason' if reasonable termination is impossible."
+            f" (Strongly prefer COMPLETE with error information as feasible)."
+            # f" CALL_FUNCTION <func_name> to run one of the given functions (if any).",
         )
 
-        # TODO @Task: anthropic task functions :TaskFunctions
+        # context from previous runs
+        for result in previous_results:
+            if isinstance(result, TaskError):
+                messages.append(self._compile_error(result))
+            elif isinstance(result, Run):
+                messages.append(self._compile_run(result))
+            else:
+                raise ValueError(f"unexpected result {result}")
 
         # compile final prompt
         prompt = "\n\n".join(messages)
@@ -887,25 +909,30 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
 
         return AnthropicTextInput(task=task, settings=settings, prompt=prompt)
 
-    async def run(self, model: "Model", input: AnthropicTextInput) -> TaskOutput:
+    def can_run(self, model: "Model", input: AnthropicTextInput) -> bool:
         context_window: int = {
             "claude-2": 100 * 1024,
             "claude-instant-1": 100 * 1024,
         }[model.name]
-        if input.tokens > context_window:
-            raise TaskError(
-                TaskErrorType.Incapable,
-                input.task,
-                f"input exceeds context window of {context_window} tokens",
-            )
+        return input.tokens <= context_window
 
+    async def run(self, model: "Model", input: AnthropicTextInput) -> TaskOutput:
         rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
 
         try:
             completion = rep.completion.strip()
-            header = completion.split("\n", maxsplit=1)[0].strip()
-            action = header.split(" ", maxsplit=1)[0].strip()
-            arguments = json.loads(completion[len(action) :])
+            # action is supposed to come first, but sometimes it's last
+            if completion.startswith("{"):
+                # model goofed, header is in last line
+                header = completion.split("\n")[-1]
+                body = completion[: -len(header)].strip()
+            else:
+                header = completion.split("\n", maxsplit=1)[0]
+                body = completion[len(header) :].strip()
+            header_parts = header.split(" ", maxsplit=1)
+            action = header_parts[0]
+            function_name = header_parts[1] if len(header_parts) > 1 else None
+            arguments = json.loads(body or "{}")
         except (ValueError, TypeError, JSONDecodeError) as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
 
