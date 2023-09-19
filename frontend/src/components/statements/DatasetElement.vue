@@ -513,7 +513,7 @@ defineExpose({
       <span
         v-for="sort in properties.sorts ?? []"
         :key="sort.key"
-        class="flex w-fit flex-row items-center rounded-xl border border-amber-600/[15%] bg-amber-100 px-1.5 text-gray-900"
+        class="flex w-fit flex-row items-center rounded-xl border border-amber-900/[15%] bg-amber-100 px-1.5 text-gray-900"
       >
         <span class="">{{ allFields.find((f) => sort.key.includes(f.key))?.name }}</span>
         <span class="ml-0.5 text-gray-700">{{ sort.order == SortOrder.Ascending ? "↑" : "↓" }}</span>
@@ -548,8 +548,8 @@ defineExpose({
         <!-- Header (with types) -->
         <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
         <div
-          class="z-[1] flex flex-row divide-amber-900/[12%] self-start border-b border-t border-amber-900 border-opacity-[12%] bg-amber-100"
-          :class="(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white'"
+          class="z-[1] flex flex-row self-start border-b border-t border-amber-900/[12%] bg-amber-100"
+          :class="[(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-amber-100']"
           :style="{
             position: isHeaderRowFloating ? 'fixed' : 'absolute',
             left: isHeaderRowFloating
@@ -561,7 +561,16 @@ defineExpose({
           }"
         >
           <div v-for="(field, x) in allFields" :key="field?.id" class="">
-            <div class="whitespace-nowrap focus-within:bg-orange-100">
+            <div
+              class="whitespace-nowrap focus-within:bg-orange-100"
+              :class="[
+                verticalBorders && x > 0 ? 'border-l border-amber-900/[12%]' : '',
+                x == allFields.length - 1 ? 'border-r' : '',
+              ]"
+              :style="{
+                width: columnWidths[x] + 'px',
+              }"
+            >
               <FieldInterface
                 :ref="(el: any) => grid.registerColumnRef('', field.key as string, el)"
                 :key="field?.id + '.header'"
@@ -584,9 +593,6 @@ defineExpose({
                 @drop="(p, v) => dropField(v.id, p, field.id)"
                 @sort="(order) => addSort(field, order)"
                 @enter="grid.navigateDown('', field.key as string)"
-                :style="{
-                  width: columnWidths[x] + 'px',
-                }"
               />
             </div>
           </div>
@@ -599,7 +605,7 @@ defineExpose({
           <!-- Properties column (add + settings) -->
           <div
             v-if="showPropertiesColumn"
-            class="overflow-x-hidden"
+            class="overflow-x-hidden bg-white"
             :style="{
               width: columnWidths[columnWidths.length - 1] + 'px',
             }"
@@ -670,7 +676,7 @@ defineExpose({
             v-for="(field, x) in allFields"
             :key="record.id + '.' + field?.id"
             class="h-full overflow-hidden"
-            :class="[verticalBorders && x > 0 ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
+            :class="[verticalBorders && x > 0 ? 'border-l border-orange-900/[12%]' : '']"
             :style="{
               minHeight: minRowHeight + 'px',
               width: columnWidths[x] + 'px',

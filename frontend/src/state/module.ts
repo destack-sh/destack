@@ -227,7 +227,7 @@ function _useModuleFlat(projectVersionId: Ref<string | null>, options?: { cache?
 }
 
 const BENCH_UUID_NAMESPACE = "d822dab7-41ad-4706-a9c8-4379e15b2ed0"; // :BenchUuidNamespace
-const DEFAULT_LIBRARIES = ["symbolx.lib", "openai.lib"];
+const DEFAULT_LIBRARIES = ["symbolx.lib", "openai.lib", "anthropic.lib"];
 
 function _useModule(projectVersionId: Ref<string | null>) {
   projectVersionId = toValueRef(projectVersionId);

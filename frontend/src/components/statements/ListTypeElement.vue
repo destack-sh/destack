@@ -171,7 +171,7 @@ defineExpose({
         v-show="!readonly"
         tabindex="-1"
         ref="addFieldRef"
-        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-amber-100 hover:text-gray-700 focus:bg-amber-100 group-focus-within/statement:text-gray-400"
         @click="isEnum ? createOption() : createFieldRef?.show()"
         @enter="isEnum ? createOption() : createFieldRef?.show()"
         @keydown.up.exact.prevent="focusLast"

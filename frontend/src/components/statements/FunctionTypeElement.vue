@@ -209,7 +209,7 @@ defineExpose({
           @delete-left="deleteField('input', field.id)"
           @delete-self="deleteField('input', field.id)"
           @drop="(p, v) => dropField(v.id, p, field.id)"
-          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-100"
+          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-50"
         />
       </template>
       <!-- Add a field -->
@@ -217,7 +217,7 @@ defineExpose({
         v-show="!readonly"
         tabindex="-1"
         ref="addInputRef"
-        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-amber-100 hover:text-gray-700 focus:bg-amber-100 group-focus-within/statement:text-gray-400"
         @click="createInputRef?.show()"
         @enter="createInputRef?.show()"
         @keydown.up.exact.prevent="inputs.length > 0 ? focus('last', 'input') : $emit('navigateUp')"
@@ -263,7 +263,7 @@ defineExpose({
         v-if="!readonly"
         tabindex="-1"
         ref="addOutputRef"
-        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+        class="mt-0.5 flex w-fit select-none flex-row items-center gap-0.5 rounded-sm px-0.5 text-gray-300 outline-none hover:bg-amber-100 hover:text-gray-700 focus:bg-amber-100 group-focus-within/statement:text-gray-400"
         @click="createOutputRef?.show()"
         @enter="createOutputRef?.show()"
         @keydown.up.exact.prevent="outputs.length > 0 ? focus('last', 'output') : $emit('navigateUp')"
