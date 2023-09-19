@@ -88,23 +88,25 @@ class OrchestrationServer(Monitored):
         # initial sync
         if KUBERNETES_ENABLED:
             # fetch from k8
-            deployments, k8_revision_mark = await k8.get_all_deployments()
-            deployments_to_delete = []
-            dead_worker_node_ids = []
-            for deployment in deployments:
-                worker_set = self.worker_sets_by_project_id.get(deployment.project_id)
-                if not worker_set:
-                    deployments_to_delete.append(deployment)
+            k8_deployments, k8_revision_mark = await k8.get_all_deployments()
+            k8_deployments_to_kill: list[k8.Deployment] = []
+            active_worker_node_ids: list[str] = []
+            dead_worker_node_ids: set[str] = set()
+            for k8_deployment in k8_deployments:
+                worker_set = self.worker_sets_by_project_id.get(k8_deployment.project_id)
+                if not worker_set:  # shouldn't exist anymore
+                    k8_deployments_to_kill.append(k8_deployment)
                     continue
-                for node_id in deployment.active_replicas_ids:
-                    if node_id not in worker_set.active_replicas_ids:
-                        dead_worker_node_ids.append(node_id)
-                worker_set.status = deployment.status
-                worker_set.ready_replicas = deployment.ready_replicas
-                worker_set.active_replicas_ids = deployment.active_replicas_ids
+                for node_id in worker_set.active_replicas_ids:
+                    if node_id not in k8_deployment.active_replicas_ids:
+                        dead_worker_node_ids.add(node_id)
+                worker_set.status = k8_deployment.status
+                worker_set.ready_replicas = k8_deployment.ready_replicas
+                worker_set.active_replicas_ids = k8_deployment.active_replicas_ids
+                active_worker_node_ids.extend(k8_deployment.active_replicas_ids)
 
-            if deployments_to_delete:
-                await k8.delete_deployments(deployments_to_delete)
+            if k8_deployments_to_kill:
+                await k8.delete_deployments(k8_deployments_to_kill)
 
             # and re-deploy as needed
             await self._update_last_active_from_redis()
@@ -112,7 +114,19 @@ class OrchestrationServer(Monitored):
             await self._save_and_notify_worker_sets(self.worker_sets)
             await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
-            dead_worker_node_ids = ["local"]
+            dead_worker_node_ids = {"local"}
+            active_worker_node_ids = []
+
+        # also extend dead nodes by any worker nodes that have an active run but aren't in k8
+        # (this can happen to any number of glitches in our run/worker tracking)
+        presumed_dead_worker_node_ids: set[str] = {
+            i
+            async for i in models.Run.objects.filter(
+                worker_node_id__isnull=False, status__in=PENDING_RUN_STATUSES
+            ).values_list("worker_node_id", flat=True)
+            if i not in active_worker_node_ids
+        }
+        dead_worker_node_ids = set(dead_worker_node_ids) | presumed_dead_worker_node_ids
         if dead_worker_node_ids:
             await self._mark_worker_nodes_as_deadish(dead_worker_node_ids)
 
@@ -164,7 +178,7 @@ class OrchestrationServer(Monitored):
             WorkersChangedPayload(project_id=project_id, worker_sets=worker_sets_data),
         )
 
-    async def _mark_worker_nodes_as_deadish(self, worker_node_ids: list[str]):
+    async def _mark_worker_nodes_as_deadish(self, worker_node_ids: Collection[str]):
         """Marks runs on worker nodes as aborted (node may be lost or just restarting)."""
         dead_runs = [
             r

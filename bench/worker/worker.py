@@ -360,21 +360,22 @@ class ModuleWorkerProcess(ModuleWriter):
         )
         return last_run_recent or not self.queue.empty()
 
-    async def run(self):
-        """Runs the module worker main processing loop"""
-
-        # first interp
-        self.log.info("worker.start")
+    async def start(self):
         self.source, self.project_id = await self.node.get_module(self.module_id)
         try:
             self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
         except Exception as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
-
         self.node.tasks.start(self._flush_dirty_runs_forever(interval=0.1))
-
         self.ready.set()
+
+    async def run(self):
+        """Runs the module worker main processing loop"""
+
+        # first interp
+        self.log.info("worker.start")
+        await self.start()
 
         # process run tasks ad infinitum
         await self._process_runs_forever()
