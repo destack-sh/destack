@@ -1,4 +1,5 @@
 import abc
+import asyncio
 import enum
 import random
 from dataclasses import dataclass
@@ -106,8 +107,8 @@ class TaskErrorType(enum.StrEnum):
     Unknown = "Unknown"
 
 
-UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.ExceededLimit, TaskErrorType.Unknown}
-TASK_STEP_ATTEMPTS = 1  # nocheckin: reset to 5
+UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.Unknown}
+TASK_STEP_ATTEMPTS = 5
 
 
 async def run_task(
@@ -119,47 +120,50 @@ async def run_task(
     attempts = 0
     models = [
         task.module.lookup_or_error(m)
-        # for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
-        # nocheckin: re-enable gpt models
-        for m in ("anthropic.lib.text.claude-instant-1", "anthropic.lib.text.claude-2")
+        for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
     ]  # in priority order
     model_idx = 0
     log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
 
     previous_results = []
-    while attempts < TASK_STEP_ATTEMPTS:
+    while attempts < TASK_STEP_ATTEMPTS and model_idx < len(models):
         attempts += 1
         # TODO nocheckin: track metadata in task/model runs
         # run task step
-        compiled = await models[model_idx].compiler.compile(
-            task, view, inputs, previous_results, nonce
-        )
+        model = models[model_idx]
+        compiled = await model.compiler.compile(task, view, inputs, previous_results, nonce)
+        if not model.compiler.can_run(model, compiled):
+            model_idx += 1
+            continue  # try next model, not an error, just not capable
         try:
-            log.debug("task.run", model=(models[model_idx]), compiled=compiled, attempt=attempts)
-            step = await models[model_idx].compiler.run(models[model_idx], compiled)
-            if step.runnable is None:
-                # done, terminate
-                # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
-                output = unpack_value(
-                    step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
-                )
-                check_type(output, task, is_output=True)
-                return DotDict(output)
+            log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
+            step = await model.compiler.run(model, compiled)
+            if step.runnable is not None:
+                raise NotImplementedError(":TaskFunctions")
 
-            # runnable to call
-            inputs = unpack_value(step.result_raw, step.runnable, is_output=False)
+            # done, terminate
+            # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
+            output = unpack_value(
+                step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
+            )
+            check_type(output, task, is_output=True)
+            return DotDict(output)
         except Exception as e:
+            e = TaskError.from_exception(task, e)
             logger.debug("task.error", error=e)
-            if isinstance(e, TaskError) and e.type in UNRECOVERABLE_ERRORS:
-                model_idx = (model_idx + 1) % len(models)
+            if e.type in UNRECOVERABLE_ERRORS:
+                model_idx += 1
+            elif e.type == TaskErrorType.ExceededLimit:
+                await asyncio.sleep(0.1)
             else:
                 previous_results.append(TaskError.from_exception(task, e))
             continue
 
-        # call runnable :TaskFunctions
-        raise NotImplementedError(":TaskFunctions")
-
-    raise TaskError(TaskErrorType.ExceededLimit, task, f"max retries exceeded: {attempts}")
+    raise TaskError(
+        TaskErrorType.ExceededLimit,
+        task,
+        f"max retries exceeded: {attempts} across {len(models)} models",
+    )
 
 
 # avoid circular import
@@ -229,6 +233,9 @@ class TaskCompiler(abc.ABC):
         previous_results: list[Union[TaskError, "Run"]],
         nonce: Optional[str],
     ) -> CompiledInput:
+        raise NotImplementedError
+
+    def can_run(self, model: "Model", input: CompiledInput) -> bool:
         raise NotImplementedError
 
     async def run(self, model: "Model", input: CompiledInput) -> TaskOutput:

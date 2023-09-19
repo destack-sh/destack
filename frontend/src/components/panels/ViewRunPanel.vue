@@ -219,6 +219,7 @@ defineExpose({
               {{ DateTime.fromISO(run.updatedAt).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS) }}
             </span>
           </div>
+          <!-- nocheckin: show run Metadata -->
         </div>
         <!-- Input -->
         <ContainerTile v-if="statement != null" label="Input" :style="{ ...baseTilePositionX }">
@@ -255,10 +256,10 @@ defineExpose({
         <ContainerTile label="Trace" :style="{ ...baseTilePositionX }">
           <TraceTile :root-id="panel.runId" layout="list" live />
         </ContainerTile>
-        <!-- Flamegraph -->
-        <ContainerTile label="Flamegraph" :style="{ ...baseTilePositionX }">
+        <!-- Flamegraph (hidden because it's not very useful right now) -->
+        <!-- <ContainerTile label="Flamegraph" :style="{ ...baseTilePositionX }">
           <TraceTile :root-id="panel.runId" layout="bars" live />
-        </ContainerTile>
+        </ContainerTile> -->
         <!-- Logs -->
         <ContainerTile v-if="statement?.type != StatementType.Model" label="Logs" :style="{ ...baseTilePositionX }">
           <LogsTile

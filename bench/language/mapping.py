@@ -31,6 +31,7 @@ from bench.language.field import (
     Json,
     Key,
     TypeBase,
+    TypeError,
     Vector,
 )
 from bench.language.remote import RemoteObject, Secret

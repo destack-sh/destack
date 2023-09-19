@@ -8,3 +8,6 @@ python manage.py libs upsert all
 # run module tests
 echo "test module"
 python manage.py module test flotothemoon/tests _shared.run_all_tests
+
+# run example entry points
+# TODO @Test: run Bench examples

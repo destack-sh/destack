@@ -13,7 +13,8 @@ if TYPE_CHECKING:
 
 #
 # Dataset access ORM *and* wireable data representation.
-# We abstract the database backend here to fit seamlessly with the language.
+# We abstract the database backend here to fit seamlessly with Bench,
+#  but obviously this is still somewhat tied to DB capabilities.
 #
 
 
