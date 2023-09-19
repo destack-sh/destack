@@ -12,7 +12,7 @@ import RunElement from "@/components/statements/RunElement.vue";
 import TaggingControl from "@/components/statements/TaggingControl.vue";
 import TextElement from "@/components/statements/TextElement.vue";
 import TriggerControl from "@/components/statements/TriggerControl.vue";
-import VariableElement from "@/components/statements/VariableElement.vue";
+import ValueElement from "@/components/statements/ValueElement.vue";
 import { StatementType } from "@/gql/graphql";
 import type { StatementAction } from "@/state/bench";
 import { TypeFlag, type Statement } from "@/state/module";
@@ -200,7 +200,7 @@ const CODE: StatementElement = {
 };
 const VARIABLE: StatementElement = {
   id: "variable",
-  component: VariableElement,
+  component: ValueElement,
   exists: (iface, statement) => statement.value != null,
 };
 const DATASET: StatementElement = {

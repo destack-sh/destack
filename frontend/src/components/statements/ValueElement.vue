@@ -117,7 +117,7 @@ defineExpose({
       v-if="!readonly"
       ref="addFieldRef"
       tabindex="-1"
-      class="-mx-1 flex w-full select-none flex-row items-center gap-0.5 border-b border-orange-900/[12%] px-0.5 py-1 text-gray-300 outline-none hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+      class="-mx-1 flex w-full select-none flex-row items-center gap-0.5 border-b border-amber-900/[12%] px-0.5 py-1 text-gray-300 outline-none hover:bg-amber-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
       @click="createFieldRef?.show()"
       @enter="createFieldRef?.show()"
       @keydown.up.exact.prevent="focusLastField"

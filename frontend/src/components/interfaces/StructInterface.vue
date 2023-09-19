@@ -119,13 +119,17 @@ defineExpose({
 <template>
   <table ref="gridRef" class="w-full table-fixed">
     <tr v-for="(field, y) in fields" :key="field.id">
-      <td class="w-1/3 self-start p-0" v-if="!appearance.minimalFields">
+      <td
+        class="w-1/3 self-start p-0"
+        v-if="!appearance.minimalFields"
+        :class="[appearance.verticalBorders && y > 0 ? 'border-t border-red-900/[12%]' : '']"
+      >
         <FieldInterface
           :ref="(el: any) => grid.registerColumnRef(field?.id, 'type', el)"
           :type="field"
           :readonly="(readonly ?? false) || (readonlyType ?? false)"
           orientation="vertical"
-          class="w-full self-start rounded-sm border-r border-amber-600 border-opacity-[15%] bg-amber-100 px-1.5 py-1 text-gray-400 focus-within:border-solid focus-within:bg-amber-200 hover:bg-amber-200"
+          class="w-full self-start border-r border-amber-900/[12%] bg-amber-100 px-1.5 py-1 text-gray-400 focus-within:border-solid focus-within:bg-amber-200 hover:bg-amber-200"
           :hide-outline="appearance.hideFieldOutline"
           hide-text
           :ref-types="[TypeTag.Enum, TypeTag.Struct]"
@@ -144,7 +148,10 @@ defineExpose({
           }"
         />
       </td>
-      <td class="w-full p-0">
+      <td
+        class="w-full p-0"
+        :class="[appearance.verticalBorders && y > 0 ? 'border-t border-orange-900 border-opacity-[12%]' : '']"
+      >
         <!-- should probably separate the 'minimal fields' out, but not sure what becomes of that yet -->
         <div class="w-full px-1" v-if="appearance.minimalFields">
           <span class="text-xs font-semibold text-gray-500">{{ field.name }}</span>
@@ -165,8 +172,7 @@ defineExpose({
           @navigate-down="grid.navigateDown(field.id, 'value')"
           @navigate-right="grid.navigateRight(field.id, 'value')"
           @navigate-left="grid.navigateLeft(field.id, 'value')"
-          class="scroll-hidden h-full w-full max-w-full self-start overflow-auto border border-opacity-0 p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
-          :class="[appearance.verticalBorders ? 'border-l border-orange-900 border-opacity-[12%]' : '']"
+          class="scroll-hidden h-full w-full max-w-full self-start overflow-auto border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
           :style="{ 'max-height': appearance.maxRowHeight + 'px' }"
         />
       </td>
