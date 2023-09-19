@@ -219,7 +219,6 @@ defineExpose({
               {{ DateTime.fromISO(run.updatedAt).toLocaleString(DateTime.DATETIME_MED_WITH_SECONDS) }}
             </span>
           </div>
-          <!-- nocheckin: show run Metadata -->
         </div>
         <!-- Input -->
         <ContainerTile v-if="statement != null" label="Input" :style="{ ...baseTilePositionX }">

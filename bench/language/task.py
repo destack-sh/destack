@@ -128,18 +128,20 @@ async def run_task(
     previous_results = []
     while attempts < TASK_STEP_ATTEMPTS and model_idx < len(models):
         attempts += 1
-        # TODO nocheckin: track metadata in task/model runs
+        task.current_run.metadata.retries = attempts
         # run task step
         model = models[model_idx]
         compiled = await model.compiler.compile(task, view, inputs, previous_results, nonce)
         if not model.compiler.can_run(model, compiled):
             model_idx += 1
+            attempts = 0
             continue  # try next model, not an error, just not capable
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
-            step = await model.compiler.run(model, compiled)
+            with task.session.tracer.run.metadata(retry=attempts, nonce=nonce):
+                step = await model.compiler.run(model, compiled)
             if step.runnable is not None:
-                raise NotImplementedError(":TaskFunctions")
+                raise NotImplementedError(":TaskFunctions not supported yet")
 
             # done, terminate
             # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
@@ -159,10 +161,11 @@ async def run_task(
                 previous_results.append(TaskError.from_exception(task, e))
             continue
 
+    latest_error = previous_results[-1] if previous_results else None
     raise TaskError(
         TaskErrorType.ExceededLimit,
         task,
-        f"max retries exceeded: {attempts} across {len(models)} models",
+        f"could not solve task in {attempts} attempts across {len(models)} models:\n{latest_error or '<no details>'}",
     )
 
 

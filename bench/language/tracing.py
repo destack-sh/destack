@@ -368,6 +368,7 @@ def _pack_and_truncate_value(
 # This will need to be expanded when we get to parallel runs.
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
 _active_run_by_root: dict[UUID, Run] = {}
+_custom_metadata: ContextVar[dict[str, Any] | None] = ContextVar("custom_metadata", default=None)
 
 
 def _get_active_run() -> Run | None:
@@ -429,6 +430,57 @@ class RunTracer(Tracer):
             self._update_cached_info()
         return run
 
+    def run_enter(self, statement: HasRun, inputs):
+        run = self._create_run(
+            runnable=statement, inputs=pack_value(inputs, statement, is_output=False)
+        )
+        self.stacktrace.append(run)
+        _set_active_run(run)
+        self.track(run)  # tracker may mutate/do other things, so log after it's run
+        logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
+
+    def run_exit(self, statement: HasRun, outputs):
+        run = self.pop_stacktrace()
+        run.terminated_at = utcnow_with_tz()
+        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run._update_status()
+        self.track(run)
+        _clear_active_run(run)
+        logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
+
+    def run_exception(self, statement: HasRun, exception: Exception):
+        run = self.pop_stacktrace()
+        run.terminated_at = utcnow_with_tz()
+        run.error = RunError.from_exception(exception, statement)
+        run._update_status()
+        self.track(run)
+        _clear_active_run(run)
+        logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
+
+    def run_cached(
+        self,
+        statement: HasRun,
+        inputs,
+        outputs,
+        generated_at: datetime,
+        generated_in: UUID,
+        duration: float,
+    ):
+        run = self._create_run(runnable=statement, trace=True)
+        run.terminated_at = utcnow_with_tz()
+        run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
+        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run.metadata.cached_at = generated_at
+        run.metadata.cached_in = generated_in
+        run.metadata.cached_duration = duration
+        custom_metadata = _custom_metadata.get()
+        for k, v in (custom_metadata or {}).items():
+            run.metadata[k] = v
+        run._update_status()
+        self.track(run)
+        self._update_cached_info()
+        logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
+
     def _update_cached_info(self):
         for run in self.stacktrace:
             run.metadata.cached_at = min(
@@ -483,55 +535,10 @@ class RunTracer(Tracer):
         run._activate_in(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
+        custom_metadata = _custom_metadata.get()
+        for k, v in (custom_metadata or {}).items():
+            run.metadata[k] = v
         return run
-
-    def run_enter(self, statement: HasRun, inputs):
-        run = self._create_run(
-            runnable=statement, inputs=pack_value(inputs, statement, is_output=False)
-        )
-        self.stacktrace.append(run)
-        _set_active_run(run)
-        self.track(run)  # tracker may mutate/do other things, so log after it's run
-        logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
-
-    def run_exit(self, statement: HasRun, outputs):
-        run = self.pop_stacktrace()
-        run.terminated_at = utcnow_with_tz()
-        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
-        run._update_status()
-        self.track(run)
-        _clear_active_run(run)
-        logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
-
-    def run_exception(self, statement: HasRun, exception: Exception):
-        run = self.pop_stacktrace()
-        run.terminated_at = utcnow_with_tz()
-        run.error = RunError.from_exception(exception, statement)
-        run._update_status()
-        self.track(run)
-        _clear_active_run(run)
-        logger.debug("trace.run.exception", run=run, stackdepth=len(self.stacktrace))
-
-    def run_cached(
-        self,
-        statement: HasRun,
-        inputs,
-        outputs,
-        generated_at: datetime,
-        generated_in: UUID,
-        duration: float,
-    ):
-        run = self._create_run(runnable=statement, trace=True)
-        run.terminated_at = utcnow_with_tz()
-        run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
-        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
-        run.metadata.cached_at = generated_at
-        run.metadata.cached_in = generated_in
-        run.metadata.cached_duration = duration
-        run._update_status()
-        self.track(run)
-        self._update_cached_info()
-        logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     @contextlib.contextmanager
     def capture(self) -> list[Run]:
@@ -542,6 +549,16 @@ class RunTracer(Tracer):
             yield
         finally:
             capture.runs = [run for run in self.runs.values() if run.id not in start_ids]
+
+    @contextlib.contextmanager
+    def metadata(self, **kwargs):
+        """Set custom metadata for all runs created within the context."""
+        old = _custom_metadata.get() or {}
+        _custom_metadata.set({**old, **kwargs})
+        try:
+            yield
+        finally:
+            _custom_metadata.set(old or None)
 
 
 @dataclass
