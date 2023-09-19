@@ -231,35 +231,39 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
   };
 }
 
-function getPartsInOrder(options?: { includeInactive?: boolean }) {
+function getPartsInOrder(options?: { includeInactive?: boolean; excludeNotFocusable?: boolean }) {
   const partsInOrder: StatementPart[] = [
     ...(options?.includeInactive ? enabledControlParts.value.map((p) => p.part) : activeControlParts.value),
     ...(options?.includeInactive ? elementParts.value.map((p) => p.part) : activeElementParts.value),
-  ];
+  ].filter((p) => !options?.excludeNotFocusable || !p.notFocusable);
   // controls in one 'row', elements have their own rows
-  const partsInOrderRowwise: StatementPart[][] = [
-    [...activeControlParts.value, ...(iface.value?.extraControls ?? [])],
-    ...(activeElementParts.value ?? []).map((e) => [e]),
+  const partsRows: StatementPart[][] = [
+    [...activeControlParts.value, ...(iface.value?.extraControls ?? [])].filter(
+      (p) => !options?.excludeNotFocusable || !p.notFocusable
+    ),
+    ...(activeElementParts.value ?? [])
+      .map((e) => [e])
+      .filter((p) => !options?.excludeNotFocusable || !p[0].notFocusable),
   ].filter((row) => row.length > 0);
-  return { partsInOrder, partsInOrderRowwise };
+  return { partsInOrder, partsRows };
 }
 
 function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
-  const { partsInOrderRowwise } = getPartsInOrder();
-  const y = partsInOrderRowwise.findIndex((row) => row.find((p) => p.id == partId));
+  const { partsRows } = getPartsInOrder({ excludeNotFocusable: true });
+  const y = partsRows.findIndex((row) => row.find((p) => p.id == partId));
   if (y == null || y < 0) {
-    console.warn("statement part not found", partId, partsInOrderRowwise);
+    console.warn("statement part not found", partId, partsRows);
     return;
   }
-  const x = partsInOrderRowwise[y].findIndex((p) => p.id == partId);
+  const x = partsRows[y].findIndex((p) => p.id == partId);
   if (x == null || x < 0) return;
 
   // navigate inside statement parts if possible, otherwise navigate in file
   if (direction == "left" && x == 0) direction = "up";
-  if (direction == "right" && x >= partsInOrderRowwise[y].length - 1) direction = "down";
+  if (direction == "right" && x >= partsRows[y].length - 1) direction = "down";
   if (direction == "up") {
     if (y > 0) {
-      const nextPart = partsInOrderRowwise[y - 1][Math.min(x, partsInOrderRowwise[y - 1].length - 1)];
+      const nextPart = partsRows[y - 1][Math.min(x, partsRows[y - 1].length - 1)];
       partsRefs.value[nextPart.id]?.focus("last");
     } else {
       const above = nav?.value?.getAbove(statement.value);
@@ -267,8 +271,8 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
       else nav?.value?.navigateUp();
     }
   } else if (direction == "down") {
-    if (y < partsInOrderRowwise.length - 1) {
-      const nextPart = partsInOrderRowwise[y + 1][Math.min(x, partsInOrderRowwise[y + 1].length - 1)];
+    if (y < partsRows.length - 1) {
+      const nextPart = partsRows[y + 1][Math.min(x, partsRows[y + 1].length - 1)];
       partsRefs.value[nextPart.id]?.focus("first");
     } else {
       const below = nav?.value?.getBelow(statement.value);
@@ -279,16 +283,16 @@ function navigate(direction: "left" | "up" | "right" | "down", partId: string) {
       }
     }
   } else if (direction == "left") {
-    const nextPart = partsInOrderRowwise[y][x - 1];
+    const nextPart = partsRows[y][x - 1];
     partsRefs.value[nextPart.id]?.focus("last");
   } else if (direction == "right") {
-    const nextPart = partsInOrderRowwise[y][x + 1];
+    const nextPart = partsRows[y][x + 1];
     partsRefs.value[nextPart.id]?.focus("first");
   }
 }
 
 function focus(focus: "first" | "last" | StatementPartId = "first") {
-  const { partsInOrder } = getPartsInOrder();
+  const { partsInOrder } = getPartsInOrder({ excludeNotFocusable: true });
   if (partsInOrder.length == 0) {
     console.warn("statement has no parts to focus", props.statement, focus, iface.value, partsInOrder);
   } else if (focus == "first") {
