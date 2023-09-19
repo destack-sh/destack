@@ -766,7 +766,7 @@ defineExpose({
       <!-- :StatementPadding -->
       <div
         ref="innerWrapperRef"
-        class="relative max-w-full px-2 py-1"
+        class="relative flex max-w-full flex-col gap-y-0.5 px-2 py-1"
         :class="{
           'text-sm': bench.textSmall,
           'text-md': !bench.textSmall,
@@ -780,7 +780,7 @@ defineExpose({
             (statement.type == StatementType.Text && statement.headingLevel != null) ||
             statement.name != null
           "
-          class="flex w-full flex-row justify-between pb-0.5"
+          class="flex w-full flex-row justify-between"
         >
           <!-- Declaration or title (if text with heading) -->
           <div class="flex flex-row flex-wrap gap-y-1">
@@ -901,6 +901,7 @@ defineExpose({
           :visible="active"
           :bounding="containerBounding"
           :xoffset="contentOffsetX"
+          :class="[element.id == 'run' ? '-mt-0.5' : '']"
           v-on="handleStatementPartEvents('element', element.id)"
         />
         <!-- Fold / unfold elements -->

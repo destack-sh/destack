@@ -209,7 +209,7 @@ defineExpose({
           @delete-left="deleteField('input', field.id)"
           @delete-self="deleteField('input', field.id)"
           @drop="(p, v) => dropField(v.id, p, field.id)"
-          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-50"
+          class="w-full self-start px-1 py-0.5 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-50"
         />
       </template>
       <!-- Add a field -->
@@ -255,7 +255,7 @@ defineExpose({
           @delete-left="deleteField('output', field.id)"
           @delete-self="deleteField('output', field.id)"
           @drop="(p, v) => dropField(v.id, p, field.id)"
-          class="w-full self-start px-1 py-1 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-100"
+          class="w-full self-start px-1 py-0.5 text-gray-400 focus-within:bg-amber-100 hover:bg-amber-100"
         />
       </template>
       <!-- Add a field -->
