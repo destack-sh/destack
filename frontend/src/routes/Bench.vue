@@ -46,7 +46,7 @@ import {
   ExclamationTriangleIcon as ExclamationTriangleIconOutline,
 } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useElementSize, useTitle, useWindowFocus } from "@vueuse/core";
+import { useElementSize, useTitle, useWindowFocus, useWindowSize } from "@vueuse/core";
 import Mousetrap from "mousetrap";
 import {
   computed,
@@ -200,6 +200,7 @@ const ready = computed(() => bench.projectVersionId != null && bench.projectVers
 const notifications = useNotifications();
 const viewContainerRef = ref<HTMLElement | null>(null);
 const viewContainerSize = useElementSize(viewContainerRef);
+const { height: windowHeight } = useWindowSize();
 const mainContainerRef = ref<HTMLElement | null>(null);
 
 // sync title bar with project info
@@ -663,6 +664,7 @@ onBeforeUnmount(() => {
           class="relative h-full max-h-full max-w-full flex-1 border-r border-orange-900 border-opacity-[10%]"
           v-show="bench.showViewContent"
         >
+          <!-- 36 == :GlobalHeaderHeight -->
           <component
             :is="activeView.view"
             :ref="(ref: any) => viewsRefs.registerRef(activeView.id, ref)"
@@ -673,7 +675,7 @@ onBeforeUnmount(() => {
             :container-size="viewContainerSize"
             :project="project"
             class="scroll-hidden overflow-y-auto"
-            :style="{ width: viewContainerSize.width.value + 'px', height: viewContainerSize.height.value + 'px' }"
+            :style="{ width: '256px', height: windowHeight - 40 + 'px' }"
           />
         </div>
       </aside>
