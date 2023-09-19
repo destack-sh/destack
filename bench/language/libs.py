@@ -1,13 +1,13 @@
 """
 Built-in library implementations.
 """
-
 import enum
 import json
 import typing
 from dataclasses import dataclass
+from functools import cached_property
 from json import JSONDecodeError
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from uuid import UUID
 
 import anthropic
@@ -18,6 +18,7 @@ from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import RunStatus, TypeFlag, TypeTag
 from bench.language.field import Field, HasFields, Key, Vector, new_short_key_length
 from bench.language.mapping import map_value, pack_value_flat
+from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
@@ -203,6 +204,76 @@ def _type_to_json_schema(
         raise IncapableError(f"unsupported type {type}")
 
 
+class BaseTextTaskCompiler(TaskCompiler):
+    def _render_value_flat(self, value: Any, type: Field | Type, *args, **kwargs) -> Any:
+        """Model-friendly rendering of instantiated value."""
+        if type.effective_tag == TypeTag.ENUM:
+            return type.get_field(value).name
+        else:
+            return pack_value_flat(value, type, *args, **kwargs)
+
+    def _render_text(self, text: HasText) -> str:
+        if text.text is None:
+            return "<no text>"
+        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text.text_spans)
+
+    def _render_statement_header(self, statement: Statement) -> str:
+        """Model-friendly string describing statement header."""
+        if isinstance(statement, HasText):
+            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {self._render_text(statement)}"
+        else:
+            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}"
+
+    # TODO @Performance @Task: cache statement rendering (for datasets)
+    async def _render_statement_content(
+        self, statement: Statement
+    ) -> tuple[str, list[UUID]] | None:
+        """Model-friendly string describing statement content (excl. header)."""
+        if isinstance(statement, Variable):
+            value_str = json.dumps(statement._raw_named_value(), indent=2)
+            return value_str, []
+        elif isinstance(statement, Dataset):
+            records = await statement.limit(10).atolist()
+            records_str = "\n".join([json.dumps(r._raw_named_value(), indent=2) for r in records])
+            return records_str, [r.id for r in records]
+        elif isinstance(statement, Type):
+            if statement.tag == TypeTag.ENUM:
+                options_str = ", ".join(f"{f.name} ({f.text_plain})" for f in statement.fields)
+                return f"options: {options_str}", [f.id for f in statement.fields]
+            elif statement.tag == TypeTag.STRUCT:
+                fields_str = ", ".join(f"{f.name}: {f} {f.text_plain}" for f in statement.fields)
+                return f"fields:\n{fields_str}", [f.id for f in statement.fields]
+        else:
+            return None
+
+    async def _render_context(self, task: Task, view: ModuleView, *, exclude_output: bool) -> str:
+        """Model-friendly string describing the entire task context."""
+        # ignore output types, they're covered by function schemas
+        if exclude_output:
+            seen_node_ids = {n.id for o in task.outputs for n in o.walk_type()}
+        else:
+            seen_node_ids = set()
+        context_strs = []
+        for level in view.nodes_by_distance:
+            for node in level:
+                if node.id in seen_node_ids:
+                    continue
+                if not isinstance(node, Statement) or node.id == task.id:
+                    continue
+                node: Statement
+                head = self._render_statement_header(node)
+                content = await self._render_statement_content(node)
+                if content:
+                    content, covered_children = content
+                    for c in covered_children:
+                        seen_node_ids.add(c)
+                    context_strs.append(f"{head}\n{content}")
+                else:
+                    context_strs.append(head)
+        context_str = "\n".join(context_strs)
+        return context_str
+
+
 #
 # openai.lib
 #
@@ -305,12 +376,6 @@ class OpenAIChatCompletion:
 
 @x_model(
     "gpt3",
-    "OpenAI's instruct-tuned 4k context GPT3.5 based chat model",
-    external_name="gpt-3.5-turbo-0613",
-    file=_openai_chat,
-)
-@x_model(
-    "gpt3-16k",
     "OpenAI's instruct-tuned 16k context GPT3.5 based chat model",
     external_name="gpt-3.5-turbo-16k-0613",
     file=_openai_chat,
@@ -337,13 +402,16 @@ class OpenAIChatCompletionModel(Model):
         settings_raw = omit_empty(settings.to_dict())
         messages_raw = [(OpenAIChatMessage.to_dict(m)) for m in messages]
         functions_raw = [omit_empty(OpenAIFunction.to_dict(f)) for f in functions]
-        response = await openai.ChatCompletion.acreate(
-            model=self.external_name,
-            messages=messages_raw,
-            functions=functions_raw,
-            **settings_raw,
-            api_key=self._api_key,
-        )
+        try:
+            response = await openai.ChatCompletion.acreate(
+                model=self.external_name,
+                messages=messages_raw,
+                functions=functions_raw,
+                **settings_raw,
+                api_key=self._api_key,
+            )
+        except Exception as e:
+            raise _map_openai_error(self, e) from e
         message = response["choices"][0]["message"]
         if "function_call" in message:
             function_call = OpenAIFunctionCall(
@@ -370,6 +438,12 @@ class OpenAIChatCompletionModel(Model):
         return OpenAIChatCompiler()
 
 
+def _map_openai_error(model: Model, e: Exception) -> ModelError:
+    if isinstance(e, openai.InvalidRequestError):
+        return ModelError(ModelErrorType.InvalidRequest, model, str(e))
+    return ModelError(ModelErrorType.Unavailable, model, str(e))
+
+
 @dataclass
 class OpenAIChatInput(CompiledInput):
     settings: OpenAIChatSettings
@@ -377,8 +451,21 @@ class OpenAIChatInput(CompiledInput):
     functions: list[OpenAIFunction]
     runnables_by_name: dict[str, HasRun]
 
+    def __str__(self):
+        return f"{self.tokens} tokens"
 
-class OpenAIChatCompiler(TaskCompiler):
+    def __repr__(self):
+        return f"<OpenAIChatInput {self}>"
+
+    @cached_property
+    def tokens(self) -> int:
+        """Estimated token usage (very rough)."""
+        messages_str = json.dumps([m.to_dict() for m in self.messages])
+        functions_str = json.dumps([f.to_dict() for f in self.functions])
+        return (len(messages_str) + len(functions_str)) * 4
+
+
+class OpenAIChatCompiler(BaseTextTaskCompiler):
     SYSTEM_MESSAGE = OpenAIChatMessage(
         role=OpenAIChatRole.system,
         content="You are a precise and highly capable bot that can do almost anything a user asks."
@@ -405,46 +492,6 @@ class OpenAIChatCompiler(TaskCompiler):
         ),
     )
 
-    def _render_value_flat(self, value: Any, type: Field | Type, *args, **kwargs) -> Any:
-        """Model-friendly rendering of instantiated value."""
-        if type.effective_tag == TypeTag.ENUM:
-            return type.get_field(value).name
-        else:
-            return pack_value_flat(value, type, *args, **kwargs)
-
-    def _render_text(self, text: HasText) -> str:
-        if text.text is None:
-            return "<no text>"
-        return "".join(str(s) if isinstance(s, TextMention) else str(s) for s in text.text_spans)
-
-    def _render_statement_header(self, statement: Statement) -> str:
-        """Model-friendly rendering of instantiated statement."""
-        if isinstance(statement, HasText):
-            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}: {self._render_text(statement)}"
-        else:
-            return f"'{statement.type.name.lower()}' {statement.name or '<no name>'}"
-
-    # TODO @Performance @Task: cache statement rendering (for datasets)
-    async def _render_statement_content(
-        self, statement: Statement
-    ) -> tuple[str, list[UUID]] | None:
-        if isinstance(statement, Variable):
-            value_str = json.dumps(statement._raw_named_value())
-            return value_str, []
-        elif isinstance(statement, Dataset):
-            records = await statement.limit(10).atolist()
-            records_str = "\n".join([json.dumps(r._raw_named_value()) for r in records])
-            return records_str, [r.id for r in records]
-        elif isinstance(statement, Type):
-            if statement.tag == TypeTag.ENUM:
-                options_str = ", ".join(f"{f.name} ({f.text_plain})" for f in statement.fields)
-                return f"options: {options_str}", [f.id for f in statement.fields]
-            elif statement.tag == TypeTag.STRUCT:
-                fields_str = ", ".join(f"{f.name}: {f} {f.text_plain}" for f in statement.fields)
-                return f"fields:\n{fields_str}", [f.id for f in statement.fields]
-        else:
-            return None
-
     def _compile_function(self, tool: HasRun, prefix: str) -> OpenAIFunction:
         return OpenAIFunction(
             name=prefix + tool.py_ident,
@@ -460,7 +507,7 @@ class OpenAIChatCompiler(TaskCompiler):
                 role=OpenAIChatRole.function,
                 name=run.runnable.py_ident,
                 content=json.dumps(
-                    map_value(run.outputs, run.runnable, map_v=self._render_value_flat)
+                    map_value(run.outputs, run.runnable, map_v=self._render_value_flat), indent=2
                 ),
             )
 
@@ -478,75 +525,60 @@ class OpenAIChatCompiler(TaskCompiler):
         previous_results: list[TaskError | Run],
         nonce: Optional[str],
     ) -> OpenAIChatInput:
-        # TODO @Task: improve context message / module view generation
-        # custom context messages
-        # ignore output types, they're covered by function schemas
-        covered_nodes = {n.id for o in task.outputs for n in o.walk_type()}
-        context_strs = []
-        for level in view.nodes_by_distance:
-            for node in level:
-                if node.id in covered_nodes:
-                    continue
-                if not isinstance(node, Statement) or node.id == task.id:
-                    continue
-                node: Statement
-                head = self._render_statement_header(node)
-                content = await self._render_statement_content(node)
-                if content:
-                    content, covered_children = content
-                    for c in covered_children:
-                        covered_nodes.add(c)
-                    context_strs.append(f"{head}\n{content}")
-                else:
-                    context_strs.append(head)
-        context_str = "\n".join(context_strs)
-        context_messages = [
-            OpenAIChatMessage(
-                role=OpenAIChatRole.system,
-                content=f"Additional user instructions for task '{task.name}':\n {context_str}"
-                f"\nFollow the above very carefully.",
-            )
-        ]
-
-        # context from previous runs (function executions, failures)
-        previous_messages = []
-        for result in previous_results:
-            if isinstance(result, TaskError):
-                previous_messages.append(self._compile_error(result))
-            elif isinstance(result, Run):
-                previous_messages.append(self._compile_run(result))
-            else:
-                raise ValueError(f"unexpected result {result}")
-
-        # system and wrapper messages
-        inputs = map_value(
-            inputs,
-            task,
-            map_k=lambda f: (f.py_ident, f.py_ident),
-            map_v=self._render_value_flat,
-            is_output=False,
-        )
-        nonce_str = f"nonce:{nonce}\n" if nonce else ""
+        # system wrapper
         messages: list[OpenAIChatMessage] = [
             self.SYSTEM_MESSAGE,
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
                 content=f"Your main task is {self._render_statement_header(task)}.",
             ),
-            *context_messages,
+        ]
+
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        messages.append(
+            OpenAIChatMessage(
+                role=OpenAIChatRole.system,
+                content=f"Additional user instructions for task '{task.name}':\n {context_str}"
+                f"\nFollow the above very carefully.",
+            )
+        )
+
+        # inputs
+        inputs: dict = map_value(
+            inputs,
+            task,
+            map_k=lambda f: (f.py_ident, f.py_ident),
+            map_v=self._render_value_flat,
+            is_output=False,
+        )
+        nonce_str = f"(nonce:{nonce})\n" if nonce else ""
+        messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.user,
                 content=f"{nonce_str}The user's inputs for '{task.name}': \n\n{inputs}",
-            ),
-            *previous_messages,
+            )
+        )
+
+        # context from previous runs (function executions, failures)
+        for result in previous_results:
+            if isinstance(result, TaskError):
+                messages.append(self._compile_error(result))
+            elif isinstance(result, Run):
+                messages.append(self._compile_run(result))
+            else:
+                raise ValueError(f"unexpected result {result}")
+
+        # final CTA
+        messages.append(
             OpenAIChatMessage(
                 role=OpenAIChatRole.system,
                 content=f"Now complete the task '{task.name}' given the inputs according to the schema."
                 f" Consider the instructions and context for every part carefully.",
             ),
-        ]
+        )
 
-        # relevant functions
+        # task functions :TaskFunctions
         available_functions = [
             f for f in view.nodes if isinstance(f, Code) and f.inputs and f.outputs
         ]
@@ -594,6 +626,19 @@ class OpenAIChatCompiler(TaskCompiler):
         model: OpenAIChatCompletionModel,
         input: OpenAIChatInput,
     ) -> TaskOutput:
+        # check if input fits in model context window
+        context_window: int = {
+            "gpt3": 16 * 1024,
+            "gpt4": 8 * 1024,
+            "gpt4-32k": 32 * 1024,
+        }[model.name]
+        if input.tokens > context_window:
+            raise TaskError(
+                TaskErrorType.Incapable,
+                input.task,
+                f"input exceeds context window of {context_window} tokens",
+            )
+
         completion = await model(
             messages=input.messages, functions=input.functions, settings=input.settings
         )
@@ -643,9 +688,12 @@ class OpenAITextEmbeddingModel(Model):
         is_batched = isinstance(text, list)
         if not is_batched:
             text = [text]
-        rep = await openai.Embedding.acreate(
-            input=text, model=self.external_name, api_key=self._api_key
-        )
+        try:
+            rep = await openai.Embedding.acreate(
+                input=text, model=self.external_name, api_key=self._api_key
+            )
+        except Exception as e:
+            raise _map_openai_error(self, e)
         if not is_batched:
             vector = rep["data"][0]["embedding"]
         else:
@@ -660,22 +708,6 @@ class OpenAITextEmbeddingModel(Model):
         )
 
 
-@x_struct("OpenAIAudioTranscriptionResponse", "Response ", file=_openai_text)
-class OpenAIAudioTranscriptionResponse:
-    text: str
-
-
-@x_model(
-    "whisper",
-    "OpenAI's latest audio transcription model",
-    external_name="whisper",
-    file=_openai_audio,
-)
-class OpenAIAudioTranscriptionModel(Model):
-    async def _endpoint(self, audio: RemoteObject) -> OpenAIAudioTranscriptionResponse:
-        raise NotImplementedError
-
-
 #
 # anthropic.lib
 #
@@ -688,8 +720,8 @@ _anthropic_text = anthropic_lib.create_file("text")
 )
 class AnthropicTextCompletionSettings:
     temperature: float
-    top_p: Optional[float]
-    top_k: Optional[int]
+    top_p: float
+    top_k: int
     max_tokens_to_sample: int
     stop_sequences: Optional[list[str]]
 
@@ -700,57 +732,191 @@ class AnthropicTextCompletion:
     stop_reason: str
 
 
+def _map_anthropic_error(model: Model, e: Exception) -> ModelError:
+    if isinstance(
+        e, (anthropic.BadRequestError, anthropic.NotFoundError, anthropic.UnprocessableEntityError)
+    ):
+        return ModelError(ModelErrorType.InvalidRequest, model, str(e))
+    elif isinstance(e, (anthropic.RateLimitError,)):
+        return ModelError(ModelErrorType.ExceededLimit, model, str(e))
+    else:
+        return ModelError(ModelErrorType.Unknown, model, str(e))
+
+
 @x_model(
     "claude-2",
-    "Anthropic's latest 9k context Claude based text model",
+    "Anthropic's latest 100k context Claude based text model",
     external_name="claude-2.0",
     file=_anthropic_text,
 )
 @x_model(
-    "claude-2-100k",
-    "Anthropic's latest 100k context Claude based text model",
-    external_name="claude-2.0-100k",
-    file=_anthropic_text,
-)
-@x_model(
-    "claude-instant-2.0",
-    "Anthropic's faster 9k context Claude based text model",
-    external_name="claude-instant-2.0",
-    file=_anthropic_text,
-)
-@x_model(
-    "claude-instant-2.0-100k",
+    "claude-instant-1",
     "Anthropic's faster 100k context Claude based text model",
-    external_name="claude-instant-2.0-100k",
+    external_name="claude-instant-1.2",
     file=_anthropic_text,
 )
 class AnthropicTextCompletionModel(Model):
-    _client: anthropic.Client | None = None
-
-    def _clear(self) -> None:
-        self._client = None
-
     async def _endpoint(
         self, prompt: str, settings: AnthropicTextCompletionSettings
     ) -> AnthropicTextCompletion:
-        if self._client is None:
-            self.client = anthropic.Client(self._api_key)
-
-            # monkey patch Anthropic validation (which is broken)
-            from anthropic import api
-
-            api._validate_prompt_length = lambda *args, **kwargs: None
-
+        # monkey patch Anthropic validation (which is broken)
+        client = anthropic.AsyncAnthropic(api_key=self._api_key)
         # see https://console.anthropic.com/docs/api
-        rep = await self.client.acompletion(
-            prompt=prompt,
-            model=self.external_name,
-            stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop or [])],
-            temperature=settings.temperature,
-            max_tokens_to_sample=settings.max_tokens_to_sample,
-            top_p=settings.top_p,
+        try:
+            rep = await client.completions.create(
+                prompt=prompt,
+                model=self.external_name,
+                stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop_sequences or [])],
+                temperature=settings.temperature,
+                max_tokens_to_sample=int(settings.max_tokens_to_sample),
+                top_p=settings.top_p,
+            )
+        except Exception as e:
+            raise _map_anthropic_error(self, e)
+        return AnthropicTextCompletion(completion=rep.completion, stop_reason=rep.stop_reason)
+
+    def _compiler(self) -> "TaskCompiler":
+        return AnthropicTextCompiler()
+
+
+@dataclass
+class AnthropicTextInput(CompiledInput):
+    settings: AnthropicTextCompletionSettings
+    prompt: str
+
+    def __str__(self):
+        return f"{self.tokens} tokens"
+
+    def __repr__(self):
+        return f"<AnthropicTextInput {self}>"
+
+    @cached_property
+    def tokens(self) -> int:
+        """Estimated token usage (very rough)."""
+        return len(self.prompt) * 4
+
+
+class AnthropicTextCompiler(BaseTextTaskCompiler):
+    SYSTEM_MESSAGE = (
+        "You are a precise and highly capable bot that can do almost anything a user asks."
+        " Interpret inputs generously and attentively, be concise, be considerate."
+        " You are accessed through an API, so don't respond to the user directly."
+    )
+
+    def _compile_run(self, run: Run) -> str:
+        if run.status == RunStatus.Failed:
+            return self._compile_error(run)
+        else:
+            run_inputs_str = json.dumps(
+                map_value(run.inputs, run.runnable, map_v=self._render_value_flat), indent=2
+            )
+            run_outputs_str = json.dumps(
+                map_value(run.outputs, run.runnable, map_v=self._render_value_flat), indent=2
+            )
+            return f"Previous result for '{run.runnable.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
+
+    def _compile_error(self, error: RunError | TaskError) -> str:
+        return f"Avoid previous error: {error}"
+
+    async def compile(
+        self,
+        task: Task,
+        view: ModuleView,
+        inputs: dict,
+        previous_results: list[Union[TaskError, "Run"]],
+        nonce: Optional[str],
+    ) -> AnthropicTextInput:
+        # system wrapper
+        messages: list[str] = [
+            self.SYSTEM_MESSAGE,
+            f"Your main task is {self._render_statement_header(task)}.",
+        ]
+
+        # module context
+        context_str = await self._render_context(task, view, exclude_output=True)
+        if context_str:
+            messages.append(
+                f"Additional user instructions for task '{task.name}':\n {context_str}"
+                f"\nFollow the above very carefully."
+            )
+
+        # inputs
+        inputs = map_value(
+            inputs,
+            task,
+            map_k=lambda f: (f.py_ident, f.py_ident),
+            map_v=self._render_value_flat,
+            is_output=False,
         )
-        return AnthropicTextCompletion(completion=rep["completion"], stop_reason=rep["stop_reason"])
+        nonce_str = f"nonce:{nonce}\n" if nonce else ""
+        messages.append(
+            f"({nonce_str})The user's inputs for '{task.name}': \n{inputs}",
+        )
+
+        # output schema
+        output_schema = _type_to_json_schema(task, is_output=True).to_dict()
+        output_schema = omit_empty(output_schema)
+        output_schema_str = json.dumps(output_schema, indent=2)
+        messages.append(
+            f"JSON schema for output to '{task.name}': \n{output_schema_str}",
+        )
+
+        # final CTA
+        messages.append(
+            f"Now complete the task '{task.name}' given the inputs according to the schema."
+            f" Consider the instructions and context for every part carefully."
+            f" Respond with either COMPLETE, PANIC or CALL_FUNCTION, then a newline, then JSON arguments."
+            f" COMPLETE with a result for the task, PANIC with a text 'reason' if no reasonable termination is possible."
+            f" CALL_FUNCTION <func_name> to run a provided function.",
+        )
+
+        # TODO @Task: anthropic task functions :TaskFunctions
+
+        # compile final prompt
+        prompt = "\n\n".join(messages)
+        prompt = f"{anthropic.HUMAN_PROMPT}: {prompt}{anthropic.AI_PROMPT}"
+
+        # settings
+        settings = AnthropicTextCompletionSettings(
+            temperature=0.8,
+            top_p=0.7,
+            top_k=5,
+            max_tokens_to_sample=99 * 1024 - len(prompt) * 4,
+            stop_sequences=None,
+        )
+
+        return AnthropicTextInput(task=task, settings=settings, prompt=prompt)
+
+    async def run(self, model: "Model", input: AnthropicTextInput) -> TaskOutput:
+        context_window: int = {
+            "claude-2": 100 * 1024,
+            "claude-instant-1": 100 * 1024,
+        }[model.name]
+        if input.tokens > context_window:
+            raise TaskError(
+                TaskErrorType.Incapable,
+                input.task,
+                f"input exceeds context window of {context_window} tokens",
+            )
+
+        rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
+
+        try:
+            completion = rep.completion.strip()
+            header = completion.split("\n", maxsplit=1)[0].strip()
+            action = header.split(" ", maxsplit=1)[0].strip()
+            arguments = json.loads(completion[len(action) :])
+        except (ValueError, TypeError, JSONDecodeError) as e:
+            raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
+
+        if action == "COMPLETE":
+            return TaskOutput(result_raw=arguments)
+        elif action == "PANIC":
+            raise TaskError(TaskErrorType.Incapable, arguments["reason"])
+        elif action == "CALL_FUNCTION":
+            raise NotImplementedError("anthropic task functions :TaskFunctions")
+        else:
+            raise TaskError(TaskErrorType.InvalidFormat, model, f"unknown action {action}")
 
 
 DEFAULT_MODULES: dict[str, Module] = {

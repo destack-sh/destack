@@ -137,6 +137,12 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 # defined here to avoid import cycles
 
 
+@reflect_struct("ModelMetadata", "Default metadata for any model")
+class ModelMetadata:
+    context_window: Optional[int]
+    capability_level: Optional[int]
+
+
 @reflect_struct("RunMetadata", "Default metadata for any run")
 class RunMetadata:
     name: Optional[str]

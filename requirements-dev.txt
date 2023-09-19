@@ -8,7 +8,6 @@ aiohttp==3.8.5
     # via
     #   -c requirements.txt
     #   -r requirements.in
-    #   anthropic
     #   kubernetes-asyncio
     #   openai
     #   opensearch-py
@@ -20,13 +19,18 @@ aiostream==0.4.5
     # via
     #   -c requirements.txt
     #   -r requirements.in
-anthropic==0.2.9
+annotated-types==0.5.0
+    # via
+    #   -c requirements.txt
+    #   pydantic
+anthropic==0.3.11
     # via
     #   -c requirements.txt
     #   -r requirements.in
-anyio==4.0.0
+anyio==3.7.1
     # via
     #   -c requirements.txt
+    #   anthropic
     #   httpcore
     #   starlette
 asgiref==3.7.2
@@ -160,6 +164,10 @@ deprecated==1.2.14
     #   opentelemetry-api
 distlib==0.3.7
     # via virtualenv
+distro==1.8.0
+    # via
+    #   -c requirements.txt
+    #   anthropic
 dj-database-url==1.0.0
     # via
     #   -c requirements.txt
@@ -458,7 +466,7 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
     #   social-auth-core
-openai==0.27.2
+openai==0.28.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -538,6 +546,14 @@ pycparser==2.21
     # via
     #   -c requirements.txt
     #   cffi
+pydantic==2.3.0
+    # via
+    #   -c requirements.txt
+    #   anthropic
+pydantic-core==2.6.3
+    # via
+    #   -c requirements.txt
+    #   pydantic
 pydub==0.25.1
     # via
     #   -c requirements.txt
@@ -617,7 +633,6 @@ referencing==0.30.2
 requests==2.31.0
     # via
     #   -c requirements.txt
-    #   anthropic
     #   djangorestframework-stubs
     #   kubernetes
     #   openai
@@ -752,6 +767,7 @@ types-urllib3==1.26.25.14
 typing-extensions==4.7.1
     # via
     #   -c requirements.txt
+    #   anthropic
     #   django-stubs
     #   django-stubs-ext
     #   djangorestframework-stubs
@@ -759,6 +775,8 @@ typing-extensions==4.7.1
     #   libcst
     #   mypy
     #   opentelemetry-sdk
+    #   pydantic
+    #   pydantic-core
     #   strawberry-graphql
     #   twisted
     #   typer

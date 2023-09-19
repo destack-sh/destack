@@ -9,6 +9,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language.const import ModuleReference, TriggerType, WorkerProfile, WorkerRegion
+from bench.language.model import ModelErrorType
 from bench.language.mutate import ModuleMutation
 from bench.language.query import Query, Sort
 from bench.language.wire import (
@@ -462,7 +463,7 @@ class ReqRunInferencePayload(Payload):
 @payload(NMessageType.RUN_PROXY_INFERENCE_REP)
 class RepRunInferencePayload(Payload):
     outputs: Optional[typing.Any] = None
-    timeout: bool = False
+    error: Optional[ModelErrorType] = None
 
 
 @payload(NMessageType.WAKE_RUNTIME)
