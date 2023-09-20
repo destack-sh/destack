@@ -38,7 +38,7 @@ import {
   XCircleIcon as XCircleIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
-import { createSharedComposable } from "@vueuse/core";
+import { createSharedComposable, useDebounceFn } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, onBeforeUnmount, reactive, ref, watch, type Ref } from "vue";
 
@@ -191,6 +191,8 @@ export function _useSessions(
   // rewrap refs to prevent eager updates
   filter = wrapValueRefs(filter);
 
+  const { client } = useApolloClient();
+
   const { loading: initialLoading, onResult: onInitialLoaded } = useQuery(
     graphql(/* GraphQL */ `
       query currentRuns($projectId: GlobalID!, $projectVersionId: GlobalID!) {
@@ -317,6 +319,47 @@ export function _useSessions(
     };
   }
 
+  // automatically refetch worker sets if they're not ready and the last update is >5s ago
+  // (this doesn't actually _do_ anything, it's just to ensure the UI remains fresh)
+  // TODO @Cleanup @Architecture: manual worker set syncing should not be needed
+  watch(
+    () => Object.values(workerSets.value).map((w) => w.updatedAt),
+    async () => {
+      if (workerSetReady.value) return;
+      const lastUpdate = Math.max(...Object.values(workerSets.value).map((w) => w.updatedAt));
+      if (lastUpdate > Date.now() - 5000) return;
+      refetchWorkerSetsDebounced();
+    }
+  );
+
+  async function _refetchWorkerSets() {
+    console.debug("refetching stale worker sets");
+    const { data } = await client.query({
+      query: graphql(/* GraphQL */ `
+        query refetchProjectWorkerSets($projectId: GlobalID!) {
+          project(id: $projectId) {
+            id
+            workerSets {
+              ...WorkerSetContent
+            }
+          }
+        }
+      `),
+      variables: { projectId: filter.projectId.value },
+    });
+    if (data?.project?.workerSets != null) {
+      for (const ws of data.project.workerSets.map((ws) => useFragment(WorkerSetContentType, ws))) {
+        workerSets.value[ws.id] = ws as WorkerSet;
+        for (const subscriber of onWorkerSetChangeSubscribers.value) {
+          subscriber(ws as WorkerSet);
+        }
+      }
+      console.debug("refetched worker sets", workerSets.value, workerSet.value);
+    }
+  }
+
+  const refetchWorkerSetsDebounced = useDebounceFn(_refetchWorkerSets, 5000, { maxWait: 30000 });
+
   //
   // session ops
   //
@@ -329,13 +372,17 @@ export function _useSessions(
   const waking = ref(false);
   const restarting = ref(false);
 
-  // TODO @UX: auto wake worker set if user is logged in and not idle?
-  // (especially when we get to proper LSP)
-
   // worker sets
 
   function wakeWorkerSet(): Promise<boolean> {
+    if (workerSetReady.value) return Promise.resolve(true);
     waking.value = true;
+    const unsub = onWorkerSetChange((ws) => {
+      if (ws.status === WorkerSetStatus.Healthy) {
+        unsub();
+        waking.value = false;
+      }
+    });
     return sessionOps
       .wakeWorkerSet(filter.projectId.value as string)
       .then((r) => r?.data?.wakeWorkerSet.__typename == "WakeWorkerSetPayload" && r?.data?.wakeWorkerSet?.success)

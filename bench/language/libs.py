@@ -258,9 +258,9 @@ class BaseTextTaskCompiler(TaskCompiler):
                 return f"{field.name}"
         else:
             if field.text:
-                return f"{field.name}: {self._render_text(field)} ({field})"
+                return f"{field.name}: {self._render_text(field)} ({field._type_str})"
             else:
-                return f"{field.name} ({field})"
+                return f"{field.name} ({field._type_str})"
 
     async def _render_context(self, task: Task, view: ModuleView, *, exclude_output: bool) -> str:
         """Model-friendly string describing the entire task context."""

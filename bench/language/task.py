@@ -151,6 +151,7 @@ async def run_task(
             check_type(output, task, is_output=True)
             return DotDict(output)
         except Exception as e:
+            # nocheckin: add error metadata to run attempt
             e = TaskError.from_exception(task, e)
             logger.debug("task.error", error=e)
             if e.type in UNRECOVERABLE_ERRORS:

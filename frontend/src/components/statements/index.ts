@@ -45,7 +45,7 @@ export type StatementElementId =
   | "type.function"
   | "type.list"
   | "code"
-  | "variable"
+  | "value"
   | "dataset"
   | "run";
 export type StatementPartId = StatementControlId | StatementElementId;
@@ -199,8 +199,8 @@ const CODE: StatementElement = {
   component: CodeElement,
   exists: (iface, statement) => (statement.code ?? "").length > 0,
 };
-const VARIABLE: StatementElement = {
-  id: "variable",
+const VALUE: StatementElement = {
+  id: "value",
   component: ValueElement,
   exists: (iface, statement) => statement.value != null,
 };
@@ -264,11 +264,11 @@ register(StatementType.Reference, {
   elements: [TEXT],
 });
 register(StatementType.Variable, {
-  primaryPart: "variable",
+  primaryPart: "value",
   foldable: "list-all",
   needsDeclaration: true,
   hasTags: true,
-  elements: [TEXT, { ...VARIABLE, showIfNotExists: true }],
+  elements: [TEXT, { ...VALUE, showIfNotExists: true }],
 });
 register(StatementType.Dataset, {
   primaryPart: "dataset",

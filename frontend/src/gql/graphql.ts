@@ -5352,6 +5352,21 @@ export type SessionsChangedSubscription = {
       };
 };
 
+export type RefetchProjectWorkerSetsQueryVariables = Exact<{
+  projectId: Scalars["GlobalID"];
+}>;
+
+export type RefetchProjectWorkerSetsQuery = {
+  __typename?: "Query";
+  project?: {
+    __typename?: "Project";
+    id: any;
+    workerSets: Array<
+      { __typename?: "WorkerSet" } & { " $fragmentRefs"?: { WorkerSetContentFragment: WorkerSetContentFragment } }
+    >;
+  } | null;
+};
+
 export type SearchRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
@@ -16025,6 +16040,54 @@ export const SessionsChangedDocument = {
     ...WorkerSetContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<SessionsChangedSubscription, SessionsChangedSubscriptionVariables>;
+export const RefetchProjectWorkerSetsDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "query",
+      name: { kind: "Name", value: "refetchProjectWorkerSets" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "project" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "id" },
+                value: { kind: "Variable", name: { kind: "Name", value: "projectId" } },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                { kind: "Field", name: { kind: "Name", value: "id" } },
+                {
+                  kind: "Field",
+                  name: { kind: "Name", value: "workerSets" },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [{ kind: "FragmentSpread", name: { kind: "Name", value: "WorkerSetContent" } }],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...WorkerSetContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<RefetchProjectWorkerSetsQuery, RefetchProjectWorkerSetsQueryVariables>;
 export const SearchRunsDocument = {
   kind: "Document",
   definitions: [

@@ -56,20 +56,20 @@ const auth = useAuth();
         :groups="panel.actionGroups?.value"
       >
         <div class="pb-0.5 pr-0.5">
-          <component :is="PANEL_ICONS_OUTLINE[panel.panel.value.type]" class="h-4 w-4 text-gray-700" />
+          <component :is="PANEL_ICONS_OUTLINE[panel.panel.value.type]" class="h-4 w-4 text-gray-500" />
         </div>
       </ActionPopover>
       <!-- Panel path -->
       <div class="flex max-w-full flex-row items-center truncate whitespace-nowrap">
         <template v-for="(node, i) in path" :key="i">
           <!-- Self node with actions -->
-          <span v-if="i == self" class="select-none px-0.5 font-semibold text-gray-900">
+          <span v-if="i == self" class="select-none px-0.5 font-semibold text-gray-500">
             {{ node.name ?? "(Unnamed)" }}
           </span>
           <!-- Regular node -->
           <button
             v-else-if="(node.name ?? '').length > 0 || i != path.length"
-            class="group/node relative select-none rounded-sm px-0.5 text-gray-900 hover:bg-orange-100"
+            class="group/node relative select-none rounded-sm px-0.5 text-gray-500 hover:bg-orange-100"
             @click="
               i >= self || node.id == null
                 ? emit('focus', node)
@@ -114,7 +114,7 @@ const auth = useAuth();
       <button
         v-for="action in actions.filter((a) => !a.hideInline && !a.disabled)"
         :key="action.label"
-        class="group/action relative rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        class="group/action relative rounded-sm p-0.5 text-gray-500 hover:bg-orange-100"
         @click="action.action(thing)"
       >
         <component :is="action.icon" class="h-4 w-4" />
@@ -128,7 +128,7 @@ const auth = useAuth();
       </button>
       <button
         v-if="!hideWideToggle"
-        class="group/actoin relative rounded-sm p-0.5 text-gray-600 hover:bg-orange-100"
+        class="group/actoin relative rounded-sm p-0.5 text-gray-500 hover:bg-orange-100"
         @click.stop="panelAppearance.wide = !panel.panel.value.effectiveWide"
       >
         <component
@@ -138,7 +138,7 @@ const auth = useAuth();
       </button>
       <!-- Popover -->
       <ActionPopover v-if="actions.length > 0" anchor="left" small :thing="thing" :actions="actions" :groups="[]">
-        <EllipsisHorizontalIcon class="h-6 w-6 text-gray-700" />
+        <EllipsisHorizontalIcon class="h-4 w-4 text-gray-500" />
       </ActionPopover>
     </div>
   </div>

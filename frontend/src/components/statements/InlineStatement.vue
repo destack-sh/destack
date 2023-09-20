@@ -905,7 +905,11 @@ defineExpose({
           :visible="active"
           :bounding="containerBounding"
           :xoffset="contentOffsetX"
-          :class="[element.id == 'run' ? '-mt-0.5' : '']"
+          :class="[
+            // push run element up so it's directly below code, push dataset/value down else it looks cramped
+            element.id == 'run' ? '-mt-0.5' : '',
+            element.id == 'dataset' || element.id == 'value' ? 'mt-0.5' : '',
+          ]"
           v-on="handleStatementPartEvents('element', element.id)"
         />
         <!-- Fold / unfold elements -->

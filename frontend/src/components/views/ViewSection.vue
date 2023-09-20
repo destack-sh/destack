@@ -38,7 +38,7 @@ api.registerSection(props.index, {
 defineExpose({ api });
 </script>
 <template>
-  <div class="flex flex-col" ref="sectionRef">
+  <div ref="sectionRef">
     <!-- Header -->
     <div
       class="flex flex-shrink-0 flex-row items-center justify-between px-3"
@@ -66,7 +66,7 @@ defineExpose({ api });
     <div
       v-if="!loading"
       ref="sectionContainerRef"
-      class="overflow-y-scroll"
+      class="scroll-hidden w-full overflow-y-scroll"
       :style="{
         maxHeight: api.heights.value[props.index] != null ? api.heights.value[props.index] + 'px' : 'none',
       }"

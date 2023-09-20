@@ -261,6 +261,8 @@ const documents = {
     types.CurrentRunsDocument,
   "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on RunsChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      ":
     types.SessionsChangedDocument,
+  "\n        query refetchProjectWorkerSets($projectId: GlobalID!) {\n          project(id: $projectId) {\n            id\n            workerSets {\n              ...WorkerSetContent\n            }\n          }\n        }\n      ":
+    types.RefetchProjectWorkerSetsDocument,
   "\n    query searchRuns(\n      $projectId: GlobalID!\n      $projectVersionId: GlobalID!\n      $runnableIds: [GlobalID!]\n      $runnableCks: [UUID!]\n      $sessionId: GlobalID\n      $runId: GlobalID\n      $rootOnly: Boolean!\n      $query: SearchQuery\n      $sort: [SearchSort!]\n      $after: String\n      $limit: Int\n      $count: Boolean\n    ) {\n      searchRuns(\n        projectId: $projectId\n        projectVersionId: $projectVersionId\n        runnableIds: $runnableIds\n        runnableCks: $runnableCks\n        sessionId: $sessionId\n        runId: $runId\n        rootOnly: $rootOnly\n        query: $query\n        sort: $sort\n        after: $after\n        limit: $limit\n        count: $count\n      ) {\n        totalCount\n        pageInfo {\n          hasNextPage\n          hasPreviousPage\n          startCursor\n          endCursor\n        }\n        edges {\n          node {\n            ...RunContent\n          }\n          cursor\n        }\n      }\n    }\n  ":
     types.SearchRunsDocument,
   "\n    query runById($id: GlobalID!) {\n      run(id: $id) {\n        ...RunContent\n        descendants {\n          ...RunContent\n        }\n      }\n    }\n  ":
@@ -1035,6 +1037,12 @@ export function graphql(
 export function graphql(
   source: "\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on RunsChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      "
 ): typeof documents["\n        subscription sessionsChanged($projectId: GlobalID!, $projectVersionId: GlobalID) {\n          sessionsChanged(projectId: $projectId, projectVersionId: $projectVersionId) {\n            ... on SessionChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on RunsChange {\n              runs {\n                ...RunContent\n              }\n            }\n            ... on WorkerChange {\n              workerSets {\n                ...WorkerSetContent\n              }\n            }\n          }\n        }\n      "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n        query refetchProjectWorkerSets($projectId: GlobalID!) {\n          project(id: $projectId) {\n            id\n            workerSets {\n              ...WorkerSetContent\n            }\n          }\n        }\n      "
+): typeof documents["\n        query refetchProjectWorkerSets($projectId: GlobalID!) {\n          project(id: $projectId) {\n            id\n            workerSets {\n              ...WorkerSetContent\n            }\n          }\n        }\n      "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
