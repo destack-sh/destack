@@ -37,7 +37,7 @@ const emit = defineEmits<{ (e: "show"): void; (e: "blur"): void }>();
 
 const bench = useBenchState();
 const session = useCurrentSessions();
-const workerSet = session.workerSet;
+const workerSet = computed(() => session.workerSet.value);
 const appearance = useAppearance();
 const now = useTimeFromNow(100);
 
@@ -116,11 +116,13 @@ function getNicePercentage(value: number, total: number): string {
   }
 }
 
-const statusIconSolid = computed(() =>
-  session.waking.value || session.restarting.value
-    ? BusySpinnerIcon
-    : WORKER_STATUS_ICON_SOLID[workerSet.value?.status ?? WorkerSetStatus.Unknown]
-);
+const effectiveWorkerStatus = computed(() => {
+  if (session.waking.value || session.restarting.value) {
+    return WorkerSetStatus.Pending;
+  } else {
+    return workerSet.value?.status ?? WorkerSetStatus.Unknown;
+  }
+});
 </script>
 <template>
   <ViewSectionGroup :focused="props.focused" @show="emit('show')" @blur="emit('blur')">
@@ -139,28 +141,24 @@ const statusIconSolid = computed(() =>
           <!-- Status -->
           <div class="flex flex-row items-center">
             <component
-              :is="statusIconSolid"
+              :is="WORKER_STATUS_ICON_SOLID[effectiveWorkerStatus]"
               class="mr-1.5 h-4 w-4"
               :class="[
-                WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                WORKER_STATUS_COLOR[effectiveWorkerStatus].includes('gray')
                   ? 'text-gray-400'
-                  : WORKER_STATUS_COLOR[workerSet.status],
-                statusIconSolid == BusySpinnerIcon ? 'animate-spin' : '',
+                  : WORKER_STATUS_COLOR[effectiveWorkerStatus],
+                WORKER_STATUS_ICON_SOLID[effectiveWorkerStatus] == BusySpinnerIcon ? 'animate-spin' : '',
               ]"
             />
             <span
               class="mr-1.5 whitespace-nowrap font-semibold"
               :class="
-                WORKER_STATUS_COLOR[workerSet.status].includes('gray')
+                WORKER_STATUS_COLOR[effectiveWorkerStatus].includes('gray')
                   ? 'text-gray-900'
-                  : WORKER_STATUS_COLOR[workerSet.status]
+                  : WORKER_STATUS_COLOR[effectiveWorkerStatus]
               "
             >
-              {{
-                WORKER_STATUS_TITLE[
-                  session.waking.value || session.restarting.value ? WorkerSetStatus.Pending : workerSet.status
-                ]
-              }}
+              {{ WORKER_STATUS_TITLE[effectiveWorkerStatus] }}
             </span>
           </div>
           <!-- Idle / actions -->

@@ -192,8 +192,9 @@ function initMonaco(monaco: Monaco) {
       }
     });
     // overwrite undo/redo to use our own undo/redo
-    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => opsStore.undo());
-    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => opsStore.redo());
+    // update: actually, this is really annoying, so we don't do it anymore
+    // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => opsStore.undo());
+    // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => opsStore.redo());
   }
 
   // update focused when editor is focused/defocused

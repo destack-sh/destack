@@ -316,19 +316,21 @@ watch(
   () => {
     if (module.idx.value != null && !consideredUrl.value && ready.value) {
       const hash = router.currentRoute.value.hash.slice(1);
-      const panel = Object.values(PANEL_INSTANCE_TYPES)
-        .map((panelType) => panelType.parsePath(hash, module.idx.value as ModuleIndex))
-        .find((e) => e != null);
-      if (panel != null) {
-        panel.onInstantiated(bench);
-        if (!bench.panels.some((p) => p.path == panel.path)) {
-          // open from url if not already open
-          bench.openPanel(panel);
-          bench.focusPanel(panel);
-          console.log(`open ${panel.path} (${panel.type}) from url`);
+      if (hash.length != 0) {
+        const panel = Object.values(PANEL_INSTANCE_TYPES)
+          .map((panelType) => panelType.parsePath(hash, module.idx.value as ModuleIndex))
+          .find((e) => e != null);
+        if (panel != null) {
+          panel.onInstantiated(bench);
+          if (!bench.panels.some((p) => p.path == panel.path)) {
+            // open from url if not already open
+            bench.openPanel(panel);
+            bench.focusPanel(panel);
+            console.log(`open ${panel.path} (${panel.type}) from url`);
+          }
+        } else {
+          console.debug(`no matching editor for ${hash}`);
         }
-      } else {
-        console.log(`no matching editor for ${hash}`);
       }
       consideredUrl.value = true;
     }
@@ -674,8 +676,8 @@ onBeforeUnmount(() => {
             :focused="bench.focusedViewId == activeView.id"
             :container-size="viewContainerSize"
             :project="project"
-            class="scroll-hidden overflow-y-auto"
-            :style="{ width: '278px', height: windowHeight - 40 + 'px' }"
+            class="scroll-hidden overflow-y-hidden"
+            :style="{ width: '276px', height: windowHeight - 40 + 'px' }"
           />
         </div>
       </aside>

@@ -275,10 +275,8 @@ class Field(HasText, TypeBase, FieldQueryOps):
         self.key = self.key or new_short_key_length(self.ck)
 
     def __str__(self):
-        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
-        flags_str = f" ({flag_str})" if flag_str else ""
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
-        return f"{name_str}{self.tag}{flags_str}"
+        return f"{name_str}{self._type_str}"
 
     def __repr__(self):
         return f"<Field {self}>"
@@ -289,6 +287,15 @@ class Field(HasText, TypeBase, FieldQueryOps):
     def _visit(self, visitor: ModuleVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
+
+    @property
+    def _type_str(self) -> str:
+        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
+        flags_str = f" ({flag_str})" if flag_str else ""
+        if self.hint:
+            return f"{self.hint}{flags_str}"
+        else:
+            return f"{self.tag}{flags_str}"
 
     @property
     def path(self) -> str:
