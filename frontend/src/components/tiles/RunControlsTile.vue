@@ -52,7 +52,7 @@ const actions: Ref<Action[]> = computed(() => [
     action: () => {
       if (props.run == null || props.runnable == null) throw new Error("run not set");
       if (runActive.value) {
-        sessions.cancel(props.run);
+        sessions.kill(props.run);
         emit("kill");
       }
       const { run: newRun } = sessions.run(props.runnable, { inputs: props.run.inputs ?? {}, keyed: true });
@@ -63,10 +63,11 @@ const actions: Ref<Action[]> = computed(() => [
     id: "stop",
     label: "Stop",
     icon: StopIcon,
+    active: props.run != null && sessions.isKilling(props.run),
     disabled: !bench.canUse || !runActive.value,
     action: () => {
       if (props.run == null) throw new Error("run not set");
-      sessions.cancel(props.run);
+      sessions.kill(props.run);
       emit("kill");
     },
   },

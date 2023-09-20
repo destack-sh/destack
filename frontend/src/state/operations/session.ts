@@ -148,10 +148,11 @@ export function useSessionOps() {
 
   const { mutate: killMut } = useMutation(
     graphql(/* GraphQL */ `
-      mutation kill($projectVersionId: GlobalID!, $runId: GlobalID!) {
-        killRun(input: { projectVersionId: $projectVersionId, runId: $runId }) {
+      mutation kill($projectVersionId: GlobalID!, $runId: GlobalID!, $restartIfUnresponsive: Boolean!) {
+        killRun(
+          input: { projectVersionId: $projectVersionId, runId: $runId, restartIfUnresponsive: $restartIfUnresponsive }
+        ) {
           ... on KillRunPayload {
-            success
             run {
               id
               status
@@ -168,7 +169,7 @@ export function useSessionOps() {
     `)
   );
 
-  async function kill(runId: string) {
+  async function kill(runId: string, restartIfUnresponsive: boolean) {
     return await ops.perform({
       type: "runtime.kill",
       key: runId,
@@ -176,6 +177,7 @@ export function useSessionOps() {
       do: async () => {
         return await killMut({
           projectVersionId: bench.projectVersionId,
+          restartIfUnresponsive,
           runId,
         });
       },

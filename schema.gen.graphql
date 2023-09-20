@@ -354,11 +354,11 @@ scalar JSON @specifiedBy(url: "http://www.ecma-international.org/publications/fi
 input KillRunInput {
   projectVersionId: GlobalID!
   runId: GlobalID!
+  restartIfUnresponsive: Boolean!
   sessionId: GlobalID = null
 }
 
 type KillRunPayload {
-  success: Boolean!
   run: Run
 }
 

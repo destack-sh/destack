@@ -61,7 +61,6 @@ from bench.opensearch.client import os_client
 from bench.opensearch.core import IndexType
 from bench.opensearch.index import write_runs_to_os
 from bench.opensearch.query import encode_cursor, prepare_search
-from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
     from bench.api.project import Project, ProjectVersion
@@ -323,12 +322,12 @@ class RunState:
 class KillRunInput:
     project_version_id: GlobalID
     run_id: GlobalID
+    restart_if_unresponsive: bool
     session_id: Optional[GlobalID] = None
 
 
 @strawberry.type
 class KillRunPayload:
-    success: bool
     run: Optional[Run]
 
 
@@ -704,27 +703,43 @@ class SessionMutation:
                 NMessageType.KILL_RUN, kill, reply_t=RepKillRunPayload, retry=2, timeout=2
             )
             if rep.p.success:
-                return KillRunPayload(success=True, run=None)
-        except (NoRespondersError, TimeoutError, MessagingError):
+                run = await models.Run.objects.aget(id=run_id)
+                return KillRunPayload(run=run)
+        except (TimeoutError, MessagingError) as e:
+            if input.restart_if_unresponsive:
+                logger.debug("kill_run.restart", run_id=run_id, session_id=session_id, exc_info=e)
+                # try to restart worker set
+                project_id = UUID(input.project_id.node_id)
+                project = await models.Project.objects.aget(id=project_id)
+                await sync_to_async(check_module_access)(info, project, ModuleAccessLevel.Use)
+                rep: NMessage[RepRestartWorkerSetPayload] = await request(
+                    NMessageType.RESTART_WORKER_SET,
+                    ReqRestartWorkerSetPayload(project_id=project_id),
+                    reply_t=RepRestartWorkerSetPayload,
+                    retry=3,
+                )
+                if rep.p.success and rep.p.worker_set_id:
+                    run = await models.Run.objects.aget(id=run_id)
+                    return KillRunPayload(run=run)
+        except NoRespondersError:
             pass
 
-        # mark as killed, probably stale
+        # fall back to just mark it as killed, probably stale
+        logger.debug("kill_run.mark", run_id=run_id, session_id=session_id)
         if session_id:
             runs = models.Run.objects.filter(session_id=session_id)
         else:
             runs = models.Run.objects.get_descendants([run_id])
         runs = runs.filter(status__in=PENDING_RUN_STATUSES)
-        now = utcnow_with_tz()
         async for run in runs:
-            run.terminated_at = now
-            run.status = RunStatus.Aborted
+            run.mark_dead()
         if runs:
             await models.Run.objects.abulk_update(runs, ["terminated_at", "status"])
             runs_data = [packer.pack_data(r) for r in runs]
             await sync_to_async(write_runs_to_os)(runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
         run = await models.Run.objects.aget(id=run_id)
-        return KillRunPayload(success=True, run=run)
+        return KillRunPayload(run=run)
 
 
 @strawberry.type

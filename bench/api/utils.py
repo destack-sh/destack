@@ -21,7 +21,7 @@ from strawberry_django.mutations.fields import _handle_exception
 from bench import models
 from bench.language import Q, query
 from bench.msg.messages import ClientOrigin
-from bench.utils.utils import DEBUG, LOCAL, sentry_capture_if_enabled
+from bench.utils.utils import DEBUG, LOCAL, sentry_capture
 
 if typing.TYPE_CHECKING:
     from bench.api.user import User
@@ -115,9 +115,7 @@ def asafe_subscription(func, **kwargs):
                 yield item
         except Exception as e:
             # no way to propagate exception to client here?
-            logger.error(
-                "subscribe.error", func=func, exc_info=e, sentry=sentry_capture_if_enabled(e)
-            )
+            logger.error("subscribe.error", func=func, exc_info=e, sentry=sentry_capture(e))
             raise StopAsyncIteration from e
 
     return strawberry.subscription(wrapped, **kwargs)

@@ -135,7 +135,7 @@ def to_pyidentifier_multi(*parts: str, type: IdentifierType) -> str:
     return ".".join(to_pyidentifier(part, type) for part in parts)
 
 
-def sentry_capture_if_enabled(e: Exception) -> bool:
+def sentry_capture(e: Exception) -> bool:
     sentry_enabled = sentry_sdk.Hub.current is not None
     if sentry_enabled:
         sentry_sdk.capture_exception(e)

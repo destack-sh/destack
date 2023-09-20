@@ -27,7 +27,7 @@ from bench.msg.messages import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.serialize import from_dict, to_dict
-from bench.utils.utils import get_from_env, required_field, sentry_capture_if_enabled
+from bench.utils.utils import get_from_env, required_field, sentry_capture
 
 logger = structlog.get_logger(__name__)
 NATS_SERVER = get_from_env("NATS_SERVER", "nats://localhost:4222", type_cast=str)
@@ -43,7 +43,7 @@ class MessagingError(Exception):
 
 
 async def nats_error_cb(e: Exception) -> None:
-    log.error("nats.error", exc_info=e, sentry=sentry_capture_if_enabled(e))
+    log.error("nats.error", exc_info=e, sentry=sentry_capture(e))
 
 
 async def nats_disconnected_cb() -> None:
@@ -148,7 +148,7 @@ def _parse_message(message_json: bytes) -> NMessage:
             logger.exception(
                 "message.parse.failed",
                 exc_info=e,
-                sentry=sentry_capture_if_enabled(e),
+                sentry=sentry_capture(e),
                 payload_cls=payload_cls,
                 id=message_dict.get("id"),
                 type=message_dict.get("type"),
@@ -180,9 +180,7 @@ async def process_nats_message(
             raise TypeError(f"expected message {expect_t} for {func}, got {message}")
         return await func(message)
     except Exception as e:
-        log.exception(
-            "message.process.failed", exc_info=True, e=e, sentry=sentry_capture_if_enabled(e)
-        )
+        log.exception("message.process.failed", exc_info=True, e=e, sentry=sentry_capture(e))
 
 
 def message_handler(func=None):
@@ -239,7 +237,7 @@ async def request(
                 "request.failed",
                 exc_info=True,
                 e=e,
-                sentry=sentry_capture_if_enabled(e),
+                sentry=sentry_capture(e),
                 retry=retry,
             )
             retry -= 1

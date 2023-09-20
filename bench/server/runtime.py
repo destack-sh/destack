@@ -88,7 +88,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture
 from bench.utils.uuidt import UUIDT
 from bench.worker.mutate import get_api_mutation_from_internal, trim_record_mutations
 
@@ -258,7 +258,7 @@ class RuntimeServer(Monitored):
             logger.debug("module.write.done", msg=msg)
             success = True
         except Exception as e:
-            sentry_capture_if_enabled(e)
+            sentry_capture(e)
             logger.error("module.write.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteModulePayload(success=success))
@@ -274,7 +274,7 @@ class RuntimeServer(Monitored):
             logger.debug("session.write.done", msg=msg)
             success = True
         except Exception as e:
-            sentry_capture_if_enabled(e)
+            sentry_capture(e)
             logger.error("session.write.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepWriteSessionPayload(success=success))
@@ -323,7 +323,7 @@ class RuntimeServer(Monitored):
                 end_cursor=end_cursor,
             )
         except Exception as e:
-            sentry_capture_if_enabled(e)
+            sentry_capture(e)
             logger.error("dataset.search.failed", req=req, exc_info=True)
             rep = rep_cls(
                 elements=None,
@@ -502,7 +502,7 @@ class RuntimeServer(Monitored):
             outputs = pack_value(outputs, model, is_output=True, ignore_outer_map=True)
             error = None
         except Exception as e:
-            log.error("inference.exception", exc_info=True, sentry=sentry_capture_if_enabled(e))
+            log.error("inference.exception", exc_info=True, sentry=sentry_capture(e))
             outputs = None
             if isinstance(e, asyncio.TimeoutError):
                 error = ModelErrorType.Timeout
