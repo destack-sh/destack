@@ -47,13 +47,13 @@ defineExpose({
     <!-- For now just info button -->
     <button
       ref="infoButtonRef"
-      class="group flex flex-row rounded-sm transition duration-150 focus:outline-none"
+      class="group flex flex-row rounded-sm focus:outline-none"
       :class="[
         statement.versioned && focused ? 'text-gray-400' : '',
         statement.versioned && !focused ? 'text-gray-300' : '',
         statement.versioned
-          ? 'group-hover:statement/text-gray-400 hover:bg-orange-100 focus:bg-orange-100 focus:text-gray-700'
-          : 'rounded-xl bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-emerald-600/20 focus:bg-emerald-200',
+          ? 'group-hover:statement/text-gray-400 transition duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:text-gray-700'
+          : 'rounded-xl bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-emerald-600/20 focus:bg-emerald-200 focus:ring-emerald-600/80',
       ]"
       @click="emit('openActions')"
       @keydown.left.exact.prevent="emit('navigateLeft')"
