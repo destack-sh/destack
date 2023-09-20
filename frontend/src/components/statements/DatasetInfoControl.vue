@@ -1,16 +1,15 @@
 <script lang="ts" setup>
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useOperations } from "@/state/operations";
-import { ClockIcon, GlobeAltIcon } from "@heroicons/vue/24/outline";
+import { ClockIcon as ClockIconOutline, GlobeAltIcon as GlobeAltIconOutline } from "@heroicons/vue/24/outline";
+import { GlobeAltIcon as GlobeAltIconSolid } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
 import { DATASET_VERSIONED_RECORD_LIMIT } from "@/state/module";
-import { useNotifications } from "@/state/notifications";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
 
 const ops = useOperations();
-const notifications = useNotifications();
 
 const infoButtonRef = ref<HTMLButtonElement | null>(null);
 
@@ -18,13 +17,13 @@ const actions = computed(() => [
   {
     label: props.statement.versioned ? "Make global" : "Make local",
     groupId: "edit",
-    icon: GlobeAltIcon,
+    icon: GlobeAltIconOutline,
     disabled: props.readonly,
     action: () => {
       // TODO @UX: confirm before making dataset global/local?
       //  (maybe add general confirm option to actions)
       // TODO @UX @Robustness: prevent morph to versioned if record count is too large
-      // TODO @UX: localizing dataset does not actually copy it
+      // TODO @UX: localizing dataset after global does not actually copy it
       ops.statement.morph(null, props.statement.id, props.statement, {
         ...props.statement,
         versioned: !props.statement.versioned,
@@ -48,15 +47,22 @@ defineExpose({
     <!-- For now just info button -->
     <button
       ref="infoButtonRef"
-      class="group-hover:statement/text-gray-400 group flex flex-row rounded-sm transition duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:text-gray-700 focus:outline-none"
-      :class="[focused ? 'text-gray-400' : 'text-gray-300']"
+      class="group flex flex-row rounded-sm transition duration-150 focus:outline-none"
+      :class="[
+        statement.versioned && focused ? 'text-gray-400' : '',
+        statement.versioned && !focused ? 'text-gray-300' : '',
+        statement.versioned
+          ? 'group-hover:statement/text-gray-400 hover:bg-orange-100 focus:bg-orange-100 focus:text-gray-700'
+          : 'rounded-xl bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-emerald-600/20 focus:bg-emerald-200',
+      ]"
       @click="emit('openActions')"
       @keydown.left.exact.prevent="emit('navigateLeft')"
       @keydown.right.exact.prevent="emit('navigateRight')"
       @keydown.up.exact.prevent="emit('navigateUp')"
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
-      <component :is="statement.versioned ? ClockIcon : GlobeAltIcon" class="mr-0.5 mt-0.5 h-4 w-4" />
+      <component :is="statement.versioned ? ClockIconOutline : GlobeAltIconSolid" class="mr-0.5 mt-0.5 h-4 w-4" />
+      <span v-if="!statement.versioned">Global</span>
       <!-- Label popover -->
       <span
         v-if="!readonly"
@@ -64,8 +70,8 @@ defineExpose({
       >
         {{
           statement.versioned
-            ? "Local dataset, versioned with this Bench"
-            : "Global dataset, not versioned with this Bench"
+            ? "Local dataset, records are distinct per version"
+            : "Global dataset, records are shared across versions"
         }}
       </span>
     </button>
