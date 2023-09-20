@@ -131,15 +131,20 @@ async def run_task(
         task.current_run.metadata.retries = attempts
         # run task step
         model = models[model_idx]
-        compiled = await model.compiler.compile(task, view, inputs, previous_results, nonce)
-        if not model.compiler.can_run(model, compiled):
+        compiler = model.compiler  # models may share a compiler
+        compiled = await compiler.compile(task, view, inputs, previous_results, nonce)
+        if not compiler.can_run(model, compiled):
             model_idx += 1
             attempts = 0
             continue  # try next model, not an error, just not capable
+
+        # try step
+        run_capture = task.session.capture_runs()
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
-            with task.session.tracer.run.metadata(retry=attempts, nonce=nonce):
-                step = await model.compiler.run(model, compiled)
+            run_name = f"{task.name} #{attempts + 1}"
+            with task.session.tracer.run.metadata(retry=attempts, nonce=nonce, name=run_name):
+                step = await compiler.run(model, compiled)
             if step.runnable is not None:
                 raise NotImplementedError(":TaskFunctions not supported yet")
 
@@ -151,7 +156,6 @@ async def run_task(
             check_type(output, task, is_output=True)
             return DotDict(output)
         except Exception as e:
-            # nocheckin: add error metadata to run attempt
             e = TaskError.from_exception(task, e)
             logger.debug("task.error", error=e)
             if e.type in UNRECOVERABLE_ERRORS:
@@ -159,7 +163,13 @@ async def run_task(
             elif e.type == TaskErrorType.ExceededLimit:
                 await asyncio.sleep(0.1)
             else:
-                previous_results.append(TaskError.from_exception(task, e))
+                previous_results.append(e)
+
+            run = run_capture.stop_one_or_none()
+            if run is not None:
+                run.metadata.verdict = "reject"
+                run.metadata.verdict_reason = str(e)
+
             continue
 
     latest_error = previous_results[-1] if previous_results else None

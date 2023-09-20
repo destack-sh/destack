@@ -157,3 +157,5 @@ class RunMetadata:
     batch_size: Optional[int]
     nonce: Optional[str]
     keys: Optional[list[str]]
+    verdict: Optional[str]
+    verdict_reason: Optional[str]

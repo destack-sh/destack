@@ -558,10 +558,10 @@ class RunTracer(Tracer):
         return run
 
     @contextlib.contextmanager
-    def capture(self) -> list[Run]:
+    def capture(self) -> _CapturedRuns:
         """Get all runs that are created within the context."""
         start_ids = set(self.runs.keys())
-        capture = _RunCapture()
+        capture = _CapturedRuns()
         try:
             yield
         finally:
@@ -577,10 +577,38 @@ class RunTracer(Tracer):
         finally:
             _custom_metadata.set(old or None)
 
+    def start_capture(self) -> _RunCapture:
+        """Start capturing runs."""
+        capture = _RunCapture(self)
+        capture.start()
+        return capture
+
 
 @dataclass
-class _RunCapture:
+class _CapturedRuns:
     runs: list[Run] = None
+
+
+class _RunCapture:
+    def __init__(self, tracer: RunTracer):
+        self.tracer = tracer
+        self._start_ids: set[UUID] | None = None
+
+    def start(self):
+        self._start_ids = set(self.tracer.runs.keys())
+
+    def stop(self) -> list[Run]:
+        runs = [run for run in self.tracer.runs.values() if run.id not in self._start_ids]
+        self._start_ids = None
+        return runs
+
+    def stop_one_or_none(self) -> Run | None:
+        runs = self.stop()
+        if len(runs) == 0:
+            return None
+        if len(runs) > 1:
+            raise ValueError(f"expected 1 run, got {len(runs)}")
+        return runs[0]
 
 
 class MutationTracer(Tracer):
