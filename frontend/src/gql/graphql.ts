@@ -377,6 +377,7 @@ export enum IssueType {
 
 export type KillRunInput = {
   projectVersionId: Scalars["GlobalID"];
+  restartIfUnresponsive: Scalars["Boolean"];
   runId: Scalars["GlobalID"];
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
 };
@@ -384,7 +385,6 @@ export type KillRunInput = {
 export type KillRunPayload = {
   __typename?: "KillRunPayload";
   run?: Maybe<Run>;
-  success: Scalars["Boolean"];
 };
 
 export type KillRunPayloadOperationInfo = KillRunPayload | OperationInfo;
@@ -4275,6 +4275,7 @@ export type StartRunMutation = {
 export type KillMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   runId: Scalars["GlobalID"];
+  restartIfUnresponsive: Scalars["Boolean"];
 }>;
 
 export type KillMutation = {
@@ -4282,7 +4283,6 @@ export type KillMutation = {
   killRun:
     | {
         __typename?: "KillRunPayload";
-        success: boolean;
         run?: {
           __typename?: "Run";
           id: any;
@@ -11529,6 +11529,11 @@ export const KillDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "restartIfUnresponsive" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -11553,6 +11558,11 @@ export const KillDocument = {
                       name: { kind: "Name", value: "runId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "runId" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "restartIfUnresponsive" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "restartIfUnresponsive" } },
+                    },
                   ],
                 },
               },
@@ -11566,7 +11576,6 @@ export const KillDocument = {
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [
-                      { kind: "Field", name: { kind: "Name", value: "success" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "run" },

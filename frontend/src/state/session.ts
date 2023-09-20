@@ -215,6 +215,7 @@ export function _useSessions(
   const workerSets = ref<Record<string, WorkerSet>>({});
   const currentRuns = ref<Record<string, Run>>({});
   const localRunsIds = reactive(new Set<string>());
+  const killingRunsIds = reactive(new Set<string>());
   onInitialLoaded((result) => {
     if (result?.data?.currentRuns?.__typename == "SessionState") {
       if (result.data.currentRuns.runs != null) {
@@ -320,7 +321,6 @@ export function _useSessions(
   // session ops
   //
 
-  const auth = useAuth();
   const notifications = useNotifications();
   const sessionOps = useSessionOps();
   const workerSet: Ref<WorkerSet | undefined> = computed(() => Object.values(workerSets.value)[0]); // only one worker set for now
@@ -496,12 +496,11 @@ export function _useSessions(
     if (currentRuns.value[run.id] == null) {
       return Promise.resolve(false);
     }
-    // nocheckin: kill optimistically or show some sort of 'killing' state
-    // nocheckin: kill properly - fall back to restart if kill fails
-    // return restartWorkerSet();
-    return sessionOps
-      .kill(run.id)
-      .then((r) => r?.data?.killRun.__typename != "KillRunPayload" || (r?.data?.killRun?.success ?? false));
+    killingRunsIds.add(run.id);
+    return sessionOps.kill(run.id, true).then((r) => {
+      killingRunsIds.delete(run.id);
+      return r?.data?.killRun.__typename != "KillRunPayload";
+    });
   }
 
   // utilities
@@ -537,6 +536,10 @@ export function _useSessions(
     return formatDuration(getDurationSeconds(run) * 1000);
   }
 
+  function isKilling(run: { id: string }) {
+    return killingRunsIds.has(run.id);
+  }
+
   return {
     loading: initialLoading,
     ready,
@@ -556,10 +559,11 @@ export function _useSessions(
     onWorkerSetChange,
     runsOf,
     currentRunOf,
+    isKilling,
     run,
     pause,
     resume,
-    cancel: kill,
+    kill,
     getDurationSeconds,
     getDurationFormatted,
   };

@@ -35,7 +35,7 @@ defineExpose({
         icon: currentRunActive.value ? StopIcon : PlayIcon,
         action: () => {
           if (currentRunActive.value) {
-            sessions.cancel(currentRun.value);
+            sessions.kill(currentRun.value);
           } else {
             emit("run");
           }

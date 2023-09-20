@@ -144,7 +144,7 @@ async function run() {
 
 async function cancel() {
   if (!isCurrentRunActive.value) return;
-  await sessions.cancel(currentRun.value);
+  await sessions.kill(currentRun.value);
 }
 
 async function onRun(newRun: Run) {

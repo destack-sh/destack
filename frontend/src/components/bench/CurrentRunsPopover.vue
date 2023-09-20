@@ -124,7 +124,7 @@ function runOrLaunch(statement: InterpStatement) {
             <!-- Controls -->
             <button
               class="p-0.5 text-gray-400 transition duration-150 hover:bg-orange-100 hover:text-gray-700"
-              @click="sessions.cancel(run)"
+              @click="sessions.kill(run)"
             >
               <StopIconSolid class="h-4 w-4 text-gray-900" />
             </button>

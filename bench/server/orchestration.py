@@ -1,13 +1,14 @@
 import asyncio
 from datetime import datetime, timedelta
-from typing import Collection
+from typing import Collection, Optional
 from uuid import UUID
 
 import structlog
 from asgiref.sync import sync_to_async
+from django.db.models import Q
 
 from bench import models
-from bench.language.const import PENDING_RUN_STATUSES, RunStatus, WorkerSetStatus
+from bench.language.const import PENDING_RUN_STATUSES, WorkerSetStatus
 from bench.models import packer
 from bench.models.worker import WORKER_SET_FIELDS_NO_ID
 from bench.msg import nc_init
@@ -32,7 +33,7 @@ from bench.utils.cache import redis
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture
 from bench.utils.uuidt import UUIDT
 
 logger = structlog.get_logger(__name__)
@@ -128,7 +129,7 @@ class OrchestrationServer(Monitored):
         }
         dead_worker_node_ids = set(dead_worker_node_ids) | presumed_dead_worker_node_ids
         if dead_worker_node_ids:
-            await self._mark_worker_nodes_as_deadish(dead_worker_node_ids)
+            await self._mark_runs_dead(project_id=None, worker_node_ids=dead_worker_node_ids)
 
         # start for real
         if KUBERNETES_ENABLED:
@@ -178,27 +179,40 @@ class OrchestrationServer(Monitored):
             WorkersChangedPayload(project_id=project_id, worker_sets=worker_sets_data),
         )
 
-    async def _mark_worker_nodes_as_deadish(self, worker_node_ids: Collection[str]):
+    async def _mark_runs_dead(
+        self,
+        project_id: Optional[UUID],
+        worker_node_ids: Collection[str],
+        run_ids: Optional[Collection[UUID]] = None,
+    ):
         """Marks runs on worker nodes as aborted (node may be lost or just restarting)."""
-        dead_runs = [
-            r
-            async for r in models.Run.objects.filter(
-                worker_node_id__in=worker_node_ids, status__in=PENDING_RUN_STATUSES
-            )
-        ]
-        logger.debug(  #
-            "mark_worker_nodes_as_deadish", worker_node_ids=worker_node_ids, runs=len(dead_runs)
-        )
+        logger.debug("mark_runs_dead", worker_node_ids=worker_node_ids, run_ids=run_ids)
+
+        if project_id is not None:
+            # extend worker_node_ids by any worker nodes that have an active run but aren't in k8
+            worker_set = self.worker_sets_by_project_id.get(project_id)
+            active_runs = models.Run.objects.filter(
+                worker_node_id__isnull=False, status__in=PENDING_RUN_STATUSES
+            ).values_list("worker_node_id", flat=True)
+            also_dead_worker_node_ids = {
+                i async for i in active_runs if i not in worker_set.active_replicas_ids
+            }
+            worker_node_ids = set(worker_node_ids) | also_dead_worker_node_ids
+
+        # collect presumed dead runs
+        dead_runs = models.Run.objects.filter(
+            Q(worker_node_id__in=worker_node_ids, status__in=PENDING_RUN_STATUSES)
+            | Q(id__in=run_ids or [])
+        ).filter(project_id=project_id)
+        dead_runs = [r async for r in dead_runs]
+
+        # mark dead and send out updates
         if not dead_runs:
             return
-        now = utcnow_with_tz()
         for run in dead_runs:
-            run.terminated_at = now
-            run.status = RunStatus.Aborted
+            run.mark_dead()
         await models.Run.objects.abulk_update(dead_runs, ["status", "terminated_at"])
         dead_runs_data = [packer.pack_data(r) for r in dead_runs]
-        # nocheckin: sometimes run.project_id is null here, causing write_runs_to_os to fail?
-        #  (because it can't get the index name)
         await sync_to_async(write_runs_to_os)(dead_runs_data)
         await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=dead_runs_data))
 
@@ -210,13 +224,16 @@ class OrchestrationServer(Monitored):
             if worker_set is None:
                 logger.warning("workers.unknown", object=object)
                 continue  # delete maybe?
+
             if isinstance(object, k8.Deployment):
+                # deployment / worker set changed
                 partial_worker_set = object.to_model()
                 worker_set.target_replicas = partial_worker_set.target_replicas
                 worker_set.status = partial_worker_set.status
                 if not worker_set.sleeping:
                     worker_set.last_bumped_at = utcnow_with_tz()
             elif isinstance(object, k8.Pod):
+                # pod / worker node changed
                 if event_type == k8.EventType.ADDED:
                     worker_set.active_replicas_ids.append(object.name)
                 elif event_type == k8.EventType.DELETED:
@@ -224,7 +241,7 @@ class OrchestrationServer(Monitored):
                         logger.warning("workers.unknown_pod", object=object)
                         continue
                     worker_set.active_replicas_ids.remove(object.name)
-                    await self._mark_worker_nodes_as_deadish([object.name])
+                    await self._mark_runs_dead(worker_set.project_id, [object.name])
                 else:
                     continue
             else:
@@ -317,7 +334,7 @@ class OrchestrationServer(Monitored):
             success = True
             logger.info("workers.configure.done", msg=msg, worker_set=worker_set)
         except Exception as e:
-            sentry_capture_if_enabled(e)
+            sentry_capture(e)
             logger.error("workers.configure.failed", msg=msg, exc_info=True)
             success = False
         await msg.reply(RepConfigureWorkerSetPayload(success=success))
@@ -339,7 +356,7 @@ class OrchestrationServer(Monitored):
             logger.info("workers.wake.done", msg=msg, worker_sets=worker_set)
             success = True
         except Exception as e:
-            sentry_capture_if_enabled(e)
+            sentry_capture(e)
             logger.error("workers.wake.failed", msg=msg, exc_info=True)
             success = False
             worker_set = None
@@ -356,7 +373,7 @@ class OrchestrationServer(Monitored):
         success = False
 
         # restart (if we have any nodes)
-        active_replicas_ids = worker_set.active_replicas_ids  # may change during restart
+        dead_replicas_ids = worker_set.active_replicas_ids[:]  # may change during restart
         if worker_set.target_replicas > 0:
             try:
                 # TODO @Broken: do restart worker node only works with 1 worker node
@@ -374,18 +391,17 @@ class OrchestrationServer(Monitored):
                 success = rep.p.success
                 logger.info("workers.restart.done", msg=msg, worker_set=worker_set)
             except Exception as e:
-                sentry_capture_if_enabled(e)
+                sentry_capture(e)
                 logger.error("workers.restart.failed", msg=msg, exc_info=True)
             if not success and KUBERNETES_ENABLED:
                 await k8.restart_deployment(k8.Deployment.from_model(worker_set))
                 success = True
 
         # mark all worker set nodes as deadish
-        # nocheckin: kill runs on worker node properly if restarting?
         if KUBERNETES_ENABLED:
-            await self._mark_worker_nodes_as_deadish(active_replicas_ids)
+            await self._mark_runs_dead(msg.p.project_id, dead_replicas_ids)
         else:
-            await self._mark_worker_nodes_as_deadish(["local"])
+            await self._mark_runs_dead(msg.p.project_id, ["local"])
 
         await msg.reply(
             RepRestartWorkerSetPayload(

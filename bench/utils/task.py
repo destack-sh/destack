@@ -3,7 +3,7 @@ from asyncio import CancelledError
 
 import structlog
 
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
 
@@ -27,9 +27,7 @@ class TaskManager:
             logger.exception("task.cancelled", task_id=task_id, exc_info=e)
             raise
         except Exception as e:
-            logger.exception(
-                "task.error", task_id=task_id, exc_info=e, sentry=sentry_capture_if_enabled(e)
-            )
+            logger.exception("task.error", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
             self._errors.append(e)
             raise
 

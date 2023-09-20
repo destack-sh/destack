@@ -43,7 +43,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
-from bench.utils.utils import get_from_env, sentry_capture_if_enabled
+from bench.utils.utils import get_from_env, sentry_capture
 from bench.utils.uuidt import UUIDT
 from bench.worker.environment import WORKER_ENVIRONMENT_DATA
 
@@ -200,7 +200,7 @@ class WorkerNode(Monitored):
             # only create session id if not scheduled
             run_data = RunData(
                 id=run_id,
-                project_id=self.project_id,
+                project_id=worker.project_id,
                 module_id=msg.p.module_id,
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
@@ -395,9 +395,7 @@ class ModuleWorkerProcess(ModuleWriter):
             except RunError as e:
                 self.log.debug("run.failed", job=job, exc_info=e)
             except Exception as e:
-                self.log.error(
-                    "run.failed.internal", job=job, sentry=sentry_capture_if_enabled(e), exc_info=e
-                )
+                self.log.error("run.failed.internal", job=job, sentry=sentry_capture(e), exc_info=e)
             finally:
                 job.terminated.set()
                 self.queue.task_done()

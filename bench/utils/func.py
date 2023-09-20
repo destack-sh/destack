@@ -17,7 +17,7 @@ from uuid import UUID
 
 import structlog
 
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture
 
 logger = structlog.get_logger(__name__)
 
@@ -84,9 +84,7 @@ async def wrap_task(coro: Coroutine, task_id: str | None = None) -> None:
         logger.exception("task.cancelled", task_id=task_id, exc_info=e)
         raise
     except Exception as e:
-        logger.exception(
-            "task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture_if_enabled(e)
-        )
+        logger.exception("task.errored", task_id=task_id, exc_info=e, sentry=sentry_capture(e))
         raise
 
 

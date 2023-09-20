@@ -37,7 +37,7 @@ from bench.api.user import ClientQuery, ClientSubscription, User, UserFilter, Us
 from bench.api.utils import HasCrud, get_user_from_info
 from bench.models import ModuleAccessLevel, OwnerSlug
 from bench.settings import DEBUG, TEST
-from bench.utils.utils import sentry_capture_if_enabled
+from bench.utils.utils import sentry_capture
 
 if TYPE_CHECKING:
     from bench.api.statement import Statement
@@ -210,7 +210,7 @@ class SentryCaptureSchema(strawberry.Schema):
     ) -> None:
         for error in errors:
             if error.original_error:
-                sentry_capture_if_enabled(error.original_error)
+                sentry_capture(error.original_error)
         super().process_errors(errors, execution_context)
 
 

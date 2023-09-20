@@ -31,6 +31,7 @@ const preparingWorkers = computed(
     :class="[
       focused || currentRunActive ? ' ' : 'opacity-0',
       currentRun == null ? '' : 'hover:cursor-pointer hover:bg-orange-100',
+      currentRun != null && sessions.isKilling(currentRun) ? 'animate-pulse' : '',
     ]"
     @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
   >

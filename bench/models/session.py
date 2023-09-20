@@ -10,6 +10,7 @@ from strawberry_django.descriptors import model_property
 
 from bench.language.const import RunStatus, TriggerType
 from bench.models.utils import UUIDTModel, get_choices
+from bench.utils.dt import utcnow_with_tz
 
 
 class HasTriggeredBy(Model):
@@ -101,13 +102,20 @@ class Run(UUIDTModel, HasTriggeredBy):
         parent_str = f"parent={self.parent_id}" if self.parent_id else ""
         return f"{self.id} {self.status} ({(root_str + ' ' + parent_str).strip()})"
 
-    objects = RunManager()
+    def mark_dead(self):
+        if self.started_at is not None:
+            self.terminated_at = utcnow_with_tz()
+            self.status = RunStatus.Aborted
+        else:
+            self.status = RunStatus.Cancelled
 
     def descendants(self) -> models.QuerySet[Run]:
         if self.parent_id is None:
             return self.root_descendants.all()
         else:
             return Run.objects.get_descendants([self.id])
+
+    objects = RunManager()
 
     class Meta:
         ordering = ["-created_at"]
