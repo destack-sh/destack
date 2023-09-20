@@ -31,9 +31,6 @@ const nameSync = syncProperty({
 });
 const hasName = computed(() => name.value.trim().length > 0);
 const icon = computed(() => getStatementIconSolid(props.statement.type, props.statement.tag));
-const headingLevel = computed(() =>
-  props.statement.type != StatementType.Text ? 0 : props.statement.headingLevel ?? 0
-);
 const runButtonRef = ref<HTMLButtonElement | null>(null);
 
 const canOpenInStandaloneEditor = computed(
@@ -47,13 +44,7 @@ function openInEditor() {
 }
 
 function onDeleteLeft() {
-  if ((props.statement.headingLevel ?? 0) > 0) {
-    // remove heading level
-    ops.statement.morph(null, props.statement.id, props.statement, {
-      type: (props.statement.text ?? "").length > 0 ? StatementType.Text : StatementType.Blank,
-      headingLevel: null,
-    });
-  } else if (props.statement.type == StatementType.Text) {
+  if (props.statement.type == StatementType.Text) {
     // remove name from text
     ops.statement.rename(null, props.statement.id, props.statement.name ?? "", null);
   } else {
@@ -74,18 +65,9 @@ defineExpose({
 });
 </script>
 <template>
-  <div
-    class="relative flex w-fit flex-row whitespace-nowrap"
-    :class="{
-      'mt-2 text-2xl': headingLevel == 1,
-      'mt-1 text-xl': headingLevel == 2,
-      'mt-0.5 text-lg': headingLevel == 3,
-      'text-orange-600': headingLevel == 0,
-      'text-gray-900': headingLevel > 0,
-    }"
-  >
+  <div class="relative flex w-fit flex-row whitespace-nowrap text-orange-600">
     <!-- Icon -->
-    <span class="group/icon relative mr-[18px]" v-if="headingLevel == 0">
+    <span class="group/icon relative mr-[18px]">
       <component :is="icon" class="absolute top-0.5 h-4 w-4" />
       <!-- Statement explanation on hover -->
       <span
@@ -99,12 +81,11 @@ defineExpose({
     <!-- Alt click to open in full -->
     <EditableSpan
       ref="nameRef"
-      class="text-md flex-shrink-0 whitespace-nowrap font-semibold"
+      class="text-md flex-shrink-0 whitespace-nowrap px-0.5 font-semibold"
       :class="[
         altKey && canOpenInStandaloneEditor
           ? 'cursor-pointer decoration-gray-600 underline-offset-4 hover:underline'
           : 'cursor-text',
-        headingLevel == 0 ? 'px-0.5' : '',
       ]"
       regex="name"
       v-model="name"
@@ -127,7 +108,6 @@ defineExpose({
       v-if="!hasName"
       @click="nameRef?.focus()"
       class="w-fit select-none rounded-sm text-gray-300 hover:bg-orange-100 hover:text-gray-700 group-focus-within/statement:text-gray-400"
-      :class="[headingLevel == 0 ? '-ml-0.5' : '']"
     >
       unnamed
     </button>

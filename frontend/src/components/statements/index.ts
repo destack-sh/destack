@@ -134,8 +134,7 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     id: "declaration",
     component: DeclarationControl,
     enabled: (iface, statement) =>
-      iface.needsDeclaration ||
-      (statement.type == StatementType.Text && (statement.headingLevel != null || statement.name != null)),
+      iface.needsDeclaration || (statement.type == StatementType.Text && statement.name != null),
     exists: (iface, statement) => statement.name != null,
   },
   {
@@ -181,8 +180,7 @@ const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: 
 const TEXT: StatementElement = {
   id: "text",
   component: TextElement,
-  exists: (iface, statement) =>
-    (statement.text ?? "").length > 0 || (statement.type == StatementType.Text && (statement.headingLevel ?? 0) == 0),
+  exists: (iface, statement) => (statement.text ?? "").length > 0 || statement.type == StatementType.Text,
 };
 const FUNCTION_TYPE: StatementElement = {
   id: "type.function",

@@ -460,7 +460,7 @@ defineExpose({
        (only if mention query is empty since this is 'above' the query due to different stacking contexts) -->
     <div
       v-if="insertingMentionAt != null && mentionQuery == ''"
-      class="fixed -mx-0.5 rounded-sm bg-orange-100 px-0.5 text-gray-400"
+      class="fixed -mx-0.5 rounded-sm bg-orange-100 px-0.5 font-normal text-gray-400"
       :style="{
         left: insertingMentionAt.pos.left + 2 + 'px',
         top: insertingMentionAt.pos.top - 2 + 'px',
@@ -471,7 +471,7 @@ defineExpose({
     <!-- Adding mention popover -->
     <div
       v-if="insertingMentionAt != null"
-      class="scroll-hidden fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
+      class="scroll-hidden fixed z-50 max-h-[300px] w-80 overflow-y-scroll rounded-sm bg-white p-1 text-sm font-normal text-gray-900 ring-1 ring-orange-900 ring-opacity-40"
       :style="{
         left: insertingMentionAt.pos.left - 12 + 'px',
         top: insertingMentionAt.above ? 'auto' : insertingMentionAt.pos.top + 18 + 'px',

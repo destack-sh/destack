@@ -21,6 +21,7 @@ const textSync = syncProperty({
   debounceMs: 500,
   debounceMaxWait: 3000,
 });
+const headingLevel = computed(() => props.statement.headingLevel ?? 0);
 
 function focus(position: "first" | "last" = "first") {
   textRef.value?.focus("last"); // we always want to focus the end of the text
@@ -39,7 +40,7 @@ function onInput() {
     props.focused &&
     !props.readonly &&
     props.statement.type == StatementType.Text &&
-    (props.statement.headingLevel ?? 0) == 0 &&
+    headingLevel.value == 0 &&
     text.value == ""
   ) {
     // should ideally be done in one tx, but we don't have that yet
@@ -48,6 +49,19 @@ function onInput() {
       type: StatementType.Blank,
       headingLevel: null,
     });
+  }
+}
+
+function onDeleteLeft() {
+  if (headingLevel.value > 0) {
+    // remove heading level
+    ops.statement.morph(null, props.statement.id, props.statement, {
+      type: (text.value ?? "").length > 0 ? StatementType.Text : StatementType.Blank,
+      headingLevel: null,
+    });
+  } else {
+    // actually delete
+    emit("deleteLeft");
   }
 }
 
@@ -123,7 +137,16 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative w-full text-gray-900" @click="textRef?.focusIfUnfocused">
+  <div
+    class="relative w-full text-gray-900"
+    :class="{
+      'mt-2 text-2xl': headingLevel == 1,
+      'mt-1 text-xl': headingLevel == 2,
+      'mt-0.5 text-lg': headingLevel == 3,
+      'font-semibold': headingLevel > 0,
+    }"
+    @click="textRef?.focusIfUnfocused"
+  >
     <!-- Actual text -->
     <AnnotatedText
       ref="textRef"
@@ -136,22 +159,23 @@ defineExpose({
       @enter-left="emit('enterLeft')"
       @enter="emit('enter')"
       @enter-right="emit('enterRight')"
-      @delete-left="emit('deleteLeft')"
+      @delete-left="onDeleteLeft"
       @delete-if-empty="emit('deleteSelf')"
       @paste="emit('paste')"
       :focused="focused"
       :readonly="readonly"
       :statement="statement"
+      :minimal-mentions="headingLevel > 0"
     />
     <!-- Placeholder if empty -->
     <template v-if="text.length == 0">&nbsp;</template>
     <button
       v-if="text.length == 0"
-      class="absolute left-0 top-0 -m-0.5 -mx-0.5 flex flex-row items-center rounded-sm p-0.5 transition-colors duration-75 hover:bg-orange-100"
+      class="absolute bottom-0 left-0 -m-0.5 -mx-0.5 flex flex-row items-center rounded-sm p-0.5 transition-colors duration-75 hover:bg-orange-100"
       :class="[focused ? 'text-gray-400' : 'text-gray-300']"
       @click="textRef?.focus"
     >
-      Enter text...
+      Type for text...
     </button>
     <!-- Quick inline actions (positioned as not to disturb the flow) -->
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
