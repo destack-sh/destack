@@ -265,7 +265,7 @@ const gridScrollOffsetX = computed(() => gridScroll.x.value);
 const isHeaderRowFloating = computed(() => {
   // sticky the header to the top if the grid is partially visible (top of editor viewport)
   const editorTop = panel.pos.value.top + appearance.panelHeaderHeight;
-  return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight > editorTop;
+  return gridBounding.top.value < editorTop && gridBounding.bottom.value - minRowHeight * 2 > editorTop;
 });
 const gridOverhangLeft = computed(() => {
   // how much the grid overhangs the left of the editor
@@ -699,7 +699,7 @@ defineExpose({
               @navigate-up="grid.navigateUp(record.id, field.key as string)"
               @navigate-down="grid.navigateDown(record.id, field.key as string)"
               @delete-self="deleteRecordField(record.id, module.getTypedKey(field) as string)"
-              class="scroll-hidden h-full w-full overflow-auto border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
+              class="scroll-hidden h-full w-full border border-transparent p-1 focus-within:border-solid focus-within:border-orange-900 focus-within:border-opacity-[15%] focus-within:bg-orange-100 hover:bg-orange-100"
               :style="{ 'max-height': maxRowHeight + rowPadding * 2 + 'px' }"
             />
           </div>

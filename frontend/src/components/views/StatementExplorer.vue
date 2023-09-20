@@ -111,7 +111,7 @@ defineExpose({
       <!-- Hide icon for text headings -->
       <span
         v-if="
-          !(o.statement.type == StatementType.Text && o.statement.headingLevel != null) &&
+          !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0) &&
           o.statement.type != StatementType.Blank
         "
         class="mr-1.5 rounded-sm font-mono"
@@ -126,16 +126,19 @@ defineExpose({
       <span v-if="o.statement.type == StatementType.Blank" class="text-gray-400">(Blank)</span>
       <!-- Show text for unnamed statements -->
       <AnnotatedText
-        v-else-if="
-          (o.statement.name ?? '').length == 0 &&
-          o.statement.text != null &&
-          !(o.statement.type == StatementType.Text && (o.statement.headingLevel ?? 0) > 0)
-        "
+        v-else-if="(o.statement.name ?? '').length == 0 && o.statement.text != null"
         :model-value="o.statement.text"
         readonly
-        class="max-w-full truncate text-sm"
         minimal-mentions
-        :class="[o.id == bench?.focusedStatementId ? 'text-orange-600' : 'text-gray-400']"
+        class="max-w-full truncate"
+        :class="[
+          o.id == bench?.focusedStatementId
+            ? 'text-orange-600'
+            : o.statement.headingLevel != null
+            ? 'text-gray-700'
+            : 'text-gray-400',
+          ,
+        ]"
       />
       <!-- Default to proper name -->
       <span class="truncate" v-else>{{ getStatementName(o.statement) ?? "(Unnamed)" }}</span>

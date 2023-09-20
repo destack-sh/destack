@@ -128,7 +128,7 @@ const { focused: inContainerFocused } = useFocusWithin(containerRef);
 const { focused: inStatementFocused } = useFocusWithin(innerWrapperRef);
 
 // manage interfaces
-// TODO @Performance: don't instantiate inactive statement parts
+// TODO @Performance: don't instantiate inactive statement parts components
 //  We currently need to to contribute their available actions, but ideally the
 //  actions and add popovers would be factored out so we don't need their instances.
 
@@ -778,21 +778,13 @@ defineExpose({
       >
         <!-- Header -->
         <div
-          v-if="
-            iface?.needsDeclaration ||
-            activeControlParts.length > 0 ||
-            (statement.type == StatementType.Text && statement.headingLevel != null) ||
-            statement.name != null
-          "
+          v-if="iface?.needsDeclaration || activeControlParts.length > 0 || statement.name != null"
           class="flex w-full flex-row justify-between"
         >
           <!-- Declaration or title (if text with heading) -->
           <div class="flex flex-row flex-wrap gap-y-1">
             <DeclarationControl
-              v-if="
-                iface?.needsDeclaration ||
-                (statement.type == StatementType.Text && (statement.headingLevel != null || statement.name != null))
-              "
+              v-if="iface?.needsDeclaration || (statement.type == StatementType.Text && statement.name != null)"
               :ref="(ref: any) => (partsRefs['declaration'] = ref)"
               :statement="statement"
               :readonly="readonly"
