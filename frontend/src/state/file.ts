@@ -11,8 +11,7 @@ import {
   newNodeIdentity,
 } from "@/state/module";
 import { useObjects } from "@/state/object";
-import { closeTransaction, openTransaction, useOperations, type Transaction } from "@/state/operations";
-import { newFieldKey } from "@/state/operations/statement";
+import { useOperations, type Transaction } from "@/state/operations";
 import { generateKeyBetween, generateNKeysBetween, INTEGER_ZERO } from "@/utils/fractional";
 import { DocumentDuplicateIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { computed, inject, onBeforeUnmount, provide, ref, watchEffect, type Ref, nextTick } from "vue";

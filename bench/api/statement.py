@@ -119,6 +119,7 @@ class Statement(HasCrud, ModuleNode, Revisioned, relay.Node):
     text: auto
     value: auto
     reference_ck: auto
+    versioned: bool
     tag: Optional[TypeTag]
     flags: Optional[int]
     tags: list[Tagging] = strawberry_django.field(filters=TaggingFilter)
@@ -137,6 +138,7 @@ class StatementCreateInput:
     file_id: GlobalID
     order_key: str
     type: StatementType
+    versioned: bool
     parent_id: Optional[GlobalID] = None
     name: Optional[str] = None
     tag: Optional[TypeTag] = None
@@ -173,6 +175,7 @@ class StatementDeleteInput(strawberry_django.NodeInput):
 @strawberry.input
 class StatementMorphInput(strawberry_django.NodeInput):
     type: StatementType
+    versioned: bool
     name: Optional[str] = None
     tag: Optional[TypeTag] = None
     flags: Optional[int] = None
@@ -301,6 +304,9 @@ class StatementMutation:
         statement.flags = input.flags
         statement.key = input.key
         statement.heading_level = input.heading_level
+        statement.versioned = input.versioned
+        if input.type != StatementType.DATASET and not input.versioned:
+            raise ValidationError("only datasets can be detached")
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)

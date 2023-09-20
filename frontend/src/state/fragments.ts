@@ -256,6 +256,7 @@ export const StatementContentType = graphql(/* GraphQL */ `
     tag
     flags
     referenceCk
+    versioned
     tags(filters: { isVisible: true }) {
       ...TaggingContent
     }

@@ -15,6 +15,7 @@ from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
 from bench.language import wire
+from bench.language.const import StatementType, new_dynamic_node_key
 from bench.models.object import get_s3_client
 from bench.models.statement import Statement
 from bench.models.utils import CrudModel, CrudNode, ModuleNode, UUIDModel, create_models_bfs
@@ -403,15 +404,16 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
         target_ids_reversed = {target.id: source.id}
         target_cks = {**(target_cks or {}), source.ck: target.ck}
         target_cks_reversed = {target.ck: source.ck}
+        target_keys = {}
         packed = packer.pack_node(
             *nodes, filter=filter or packer.DEFAULT_PACK_FILTER, excluded=excluded
         )
 
-        # map all ids to new ids
+        # map all identities to new identities (id, ck, key)
         for node in packed.nodes_by_id.values():
             if (node.id in target_ids) != (node.ck in target_cks):
                 raise ValueError(
-                    f"node id and ck must be set together: {node}"
+                    f"node id and ck must be set together: {repr(node)}"
                     f" (id:{node.id}:{node.id in target_ids}, ck:{node.ck}:{node.ck in target_cks})"
                 )
             if node.id not in target_ids:
@@ -421,15 +423,23 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             target_cks_reversed[target_cks[node.ck]] = node.ck
             node.id = target_ids[node.id]
             node.ck = target_cks[node.ck]
-            if not isinstance(node, wire.HasCrud):
-                continue
-            if not copy_revisions:
+            if isinstance(node, wire.HasCrud) and not copy_revisions:
                 node.revision = 0
+            # dynamic key is used to attach records to datasets
+            # so if it's copied and the dataset is versioned, we need to update the key
+            if (
+                isinstance(node, wire.StatementData)
+                and node.type == StatementType.DATASET
+                and node.versioned
+            ):
+                source_key = node.key
+                node.key = new_dynamic_node_key(node.id)
+                target_keys[source_key] = node.key
 
         # patch parents & references
         for node in packed.nodes_by_id.values():
             node.parent_id = target_ids.get(node.parent_id, node.parent_id)
-            wire.patch_node_flat(node, target_cks)
+            wire.patch_node_flat(node, target_cks, target_keys)
 
         # sanity check target cks
         if DEBUG or LOCAL:

@@ -20,7 +20,7 @@ import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
 import { cyrb53a } from "@/utils/functools";
 import { useMutation } from "@vue/apollo-composable";
 
-export function newFieldKey(ck: string): string {
+export function newDynamicNodeKey(ck: string): string {
   /**
    * Gets a 'random' alphabetic key as a persistent key for a field.
    * (FIELD_KEY_LENGTH alphabetic characters)
@@ -67,6 +67,7 @@ export function useStatementOps() {
         $value: JSON
         $tag: TypeTag
         $flags: Int
+        $versioned: Boolean!
       ) {
         createStatement(
           input: {
@@ -83,6 +84,7 @@ export function useStatementOps() {
             value: $value
             tag: $tag
             flags: $flags
+            versioned: $versioned
           }
         ) {
           ... on Statement {
@@ -113,6 +115,7 @@ export function useStatementOps() {
             tag
             flags
             referenceCk
+            versioned
             tags(filters: { isVisible: true }) {
               id
             }
@@ -163,6 +166,7 @@ export function useStatementOps() {
         value: any | null;
         tag: TypeTag | null;
         flags: number | null;
+        versioned: boolean;
       }) {
         return {
           __typename: "Mutation",
@@ -190,6 +194,7 @@ export function useStatementOps() {
             referenceCk: null,
             tag: vars.tag,
             flags: vars.flags,
+            versioned: vars.versioned,
             tags: [],
             fields: [],
             triggers: [],
@@ -255,6 +260,7 @@ export function useStatementOps() {
           value: null,
           tag: null,
           flags: null,
+          versioned: true,
         });
       },
       undo: async () => {
@@ -281,6 +287,7 @@ export function useStatementOps() {
       text?: string;
       tag?: TypeTag;
       flags?: number;
+      versioned?: boolean;
     }
   ) {
     return await ops.perform({
@@ -301,6 +308,7 @@ export function useStatementOps() {
           text: input.text ?? null,
           tag: input.tag ?? null,
           flags: input.flags ?? null,
+          versioned: input.versioned ?? true,
         });
       },
       undo: async () => {
@@ -407,9 +415,19 @@ export function useStatementOps() {
         $flags: Int
         $key: String
         $headingLevel: Int
+        $versioned: Boolean!
       ) {
         morphStatement(
-          input: { id: $id, type: $type, name: $name, tag: $tag, flags: $flags, key: $key, headingLevel: $headingLevel }
+          input: {
+            id: $id
+            type: $type
+            name: $name
+            tag: $tag
+            flags: $flags
+            key: $key
+            headingLevel: $headingLevel
+            versioned: $versioned
+          }
         ) {
           ... on Statement {
             id
@@ -420,6 +438,7 @@ export function useStatementOps() {
             flags
             key
             headingLevel
+            versioned
           }
           ...OperationInfoContent
         }
@@ -434,6 +453,7 @@ export function useStatementOps() {
         flags?: number;
         key?: string;
         headingLevel?: number;
+        versioned: boolean;
       }) =>
         ({
           morphStatement: {
@@ -446,6 +466,7 @@ export function useStatementOps() {
             flags: vars.flags ?? null,
             key: vars.key ?? null,
             headingLevel: vars.headingLevel ?? null,
+            versioned: vars.versioned,
           },
         } as MorphStatementMutation),
     }
@@ -461,6 +482,7 @@ export function useStatementOps() {
       flags?: number | null;
       key?: string | null;
       headingLevel?: number | null;
+      versioned?: boolean | null;
     },
     newStatement: {
       type: StatementType;
@@ -469,6 +491,7 @@ export function useStatementOps() {
       flags?: number | null;
       key?: string | null;
       headingLevel?: number | null;
+      versioned?: boolean | null;
     }
   ) {
     const old = {
@@ -479,6 +502,7 @@ export function useStatementOps() {
       flags: oldStatement.flags ?? undefined,
       key: oldStatement.key ?? undefined,
       headingLevel: oldStatement.headingLevel ?? undefined,
+      versioned: oldStatement.versioned === undefined ? true : oldStatement.versioned ?? false,
     };
     await ops.perform({
       tx,
@@ -492,6 +516,7 @@ export function useStatementOps() {
           flags: newStatement.flags ?? undefined,
           key: newStatement.key ?? undefined,
           headingLevel: newStatement.headingLevel ?? undefined,
+          versioned: newStatement.versioned === undefined ? true : newStatement.versioned ?? false,
         });
       },
       undo: async () => {

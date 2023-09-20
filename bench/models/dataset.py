@@ -75,6 +75,7 @@ class Record(CrudModel, DetachedModuleNode, Revisioned):
         "Statement", on_delete=models.CASCADE, null=True, related_name="records+"
     )
     statement_ck = models.UUIDField()
+    statement_key = models.CharField(max_length=64)
     value = models.JSONField(null=True, blank=True)
 
     @property
@@ -92,3 +93,6 @@ class Record(CrudModel, DetachedModuleNode, Revisioned):
         self.deleted_at = None
 
     objects = RecordManager()
+
+    class Meta:
+        indexes = []

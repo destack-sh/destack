@@ -52,7 +52,7 @@ class Statement(ModuleNode, Scope):
     flags: Optional["TypeFlag"] = 0
     code: str | None = None
     value: Any | None = None
-    versioned: bool | None = None
+    versioned: bool = True
     # internal
     _unpacked: bool = False
 

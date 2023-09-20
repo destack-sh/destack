@@ -3,6 +3,7 @@ import BlankElement from "@/components/statements/BlankElement.vue";
 import CodeElement from "@/components/statements/CodeElement.vue";
 import CurrentRunControl from "@/components/statements/CurrentRunControl.vue";
 import DatasetElement from "@/components/statements/DatasetElement.vue";
+import DatasetInfoControl from "@/components/statements/DatasetInfoControl.vue";
 import DatasetSearchControl from "@/components/statements/DatasetSearchControl.vue";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
@@ -38,6 +39,7 @@ export type StatementControlId =
   | "trigger"
   | "reference"
   | "run.meta"
+  | "dataset.info"
   | "dataset.search";
 export type StatementElementId =
   | "blank"
@@ -162,10 +164,17 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     enabled: (iface, statement) => statement.type === StatementType.Reference,
     exists: (iface, statement) => true,
   },
+  {
+    id: "dataset.info",
+    component: DatasetInfoControl,
+    enabled: (iface, statement) => statement.type === StatementType.Dataset,
+    exists: (iface, statement) => true,
+  },
 ];
 const RUN_META: StatementControl = {
   id: "run.meta",
   component: CurrentRunControl,
+  // must click to enable
   enabled: (iface, statement) => false,
   exists: (iface, statement) => false,
 };

@@ -364,8 +364,10 @@ class Tile(CrudThing, Revisioned, os.Document):
 @document(DocumentType.RECORD)
 class Record(CrudThing, os.Document):
     ck: UUID = os.field(os.FT.KEYWORD)
+    project_id: UUID = os.field(os.FT.KEYWORD)
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    statement_key: Optional[str] = os.field(os.FT.KEYWORD)
     statement_ck: UUID = os.field(os.FT.KEYWORD)
     # single name field to copy all data names to :RecordNameField
     name: Optional[str] = replace(NAME_FIELD, can_set_directly=False, store=False)
@@ -379,9 +381,11 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
         return Record(
             id=node.id,
             ck=node.ck,
+            project_id=project_v.project_id,
             project_version_id=project_v.id,
             statement_id=node.statement_id,
             statement_ck=node.statement_ck,
+            statement_key=node.statement_key,
             value=node.value,
             revision=node.revision,
             created_at=node.created_at,
@@ -397,6 +401,7 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
             id=node.id,
             ck=node.ck,
             parent_id=node.statement_id,
+            parent_key=node.statement_key,
             value=node.value,
             revision=node.revision,
             created_at=node.created_at,
@@ -414,6 +419,7 @@ class RecordPacker(CrudThingPacker, Packer[models.Record, Record, wire.RecordDat
             project_version_id=project_v.id,
             statement_id=data.parent_id,
             statement_ck=parent.ck,
+            statement_key=parent.key,
             value=data.value,
             revision=data.revision,
             created_at=data.created_at,

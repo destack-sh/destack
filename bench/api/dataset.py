@@ -78,6 +78,7 @@ class RecordCreateInput(RecordInput, strawberry_django.NodeInput):
     ck: UUID
     value: JSON
     statement_ck: UUID
+    statement_key: str
 
 
 @strawberry.input
@@ -126,6 +127,7 @@ class DatasetMutation:
             ck=input.ck,
             statement_id=UUID(input.statement_id.node_id),
             statement_ck=input.statement_ck,
+            statement_key=input.statement_key,
             value=input.value,
         )
         return record
@@ -193,7 +195,7 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         check_module_node_access(info, statement, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
-        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_id", statement.id), query)
+        query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", statement.key), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.RECORD,  # already limited by dataset

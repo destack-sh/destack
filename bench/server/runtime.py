@@ -339,10 +339,8 @@ class RuntimeServer(Monitored):
     async def search_records(self, msg: NMessage[ReqSearchRecordsPayload]) -> None:
         logger.debug("search.record", msg=msg)
         extra_queries = []
-        if msg.p.statement_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statement_ids))
-        if msg.p.statement_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statement_cks))
+        if msg.p.statement_keys:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_key", msg.p.statement_keys))
         # TODO @Security: check if msg origin has read access to dataset
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(

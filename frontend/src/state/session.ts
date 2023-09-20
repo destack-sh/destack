@@ -321,7 +321,7 @@ export function _useSessions(
 
   // automatically refetch worker sets if they're not ready and the last update is >5s ago
   // (this doesn't actually _do_ anything, it's just to ensure the UI remains fresh)
-  // TODO @Cleanup @Architecture: manual worker set syncing should not be needed
+  // TODO @Cleanup @Architecture: manual worker set syncing should not be needed?
   watch(
     () => Object.values(workerSets.value).map((w) => w.updatedAt),
     async () => {

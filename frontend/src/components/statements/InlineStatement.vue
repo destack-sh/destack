@@ -968,6 +968,7 @@ defineExpose({
       >
       <span>{{ statement?.ck.slice(0, 5) }}/{{ statement?.id.slice(-6, -1) }}</span>
       <span class="mx-0.5">{{ statement.type.toLocaleLowerCase() }}</span>
+      <template v-if="!statement.versioned">global</template>
       <span class="mx-0.5">{{ activeControlParts.length }}c {{ activeElementParts.length }}e</span>
       <template v-if="isAncestorHighlight">h{{ ancestorHighlightDepth }}</template>
       <template v-if="isActive">a</template>

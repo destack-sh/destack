@@ -189,7 +189,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
             value = to_global_id("File", mutation.file_id)
         elif field.name == "statement_id":
             value = to_global_id("Statement", mutation.statement_id)
-        elif field.name == "statement_ck":
+        elif field.name in ("statement_ck", "statement_key"):
             value = None  # incorrect, but not actually used in frontend and mutations will be overhauled soon
         elif field.name in extra_fields:
             value = extra_fields[field.name]

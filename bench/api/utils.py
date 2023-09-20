@@ -66,7 +66,6 @@ def safe_mutation(
     """Wraps a mutation resolver to make it async-safe and wrap exceptions into OperationInfo."""
 
     def wrapper(func):
-        func = wrap_exceptions(func)
         if atomic:
 
             @functools.wraps(func)
@@ -77,6 +76,7 @@ def safe_mutation(
             wrapped_func = wrapped_atomic
         else:
             wrapped_func = func
+        wrapped_func = wrap_exceptions(wrapped_func)
         return strawberry_django.mutation(wrapped_func, extensions=extensions, **kwargs)
 
     if func is None:

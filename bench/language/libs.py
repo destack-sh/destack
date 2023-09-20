@@ -16,7 +16,7 @@ import openai
 from bench.language import Dataset, HasRun, HasText, Module, Run, RunError, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import RunStatus, TypeFlag, TypeTag
-from bench.language.field import Field, HasFields, Key, Vector, new_short_key_length
+from bench.language.field import Field, HasFields, Key, Vector, new_dynamic_node_key
 from bench.language.mapping import map_value, pack_value_flat
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import get_node_id
@@ -972,7 +972,7 @@ for name, module in DEFAULT_MODULES.items():
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, HasFields)):
-            node.key = new_short_key_length(node.ck)
+            node.key = new_dynamic_node_key(node.ck)
     module.clear()  # ids changed
 
     # index

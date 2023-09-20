@@ -366,6 +366,7 @@ function insertRecord(options?: { belowRecordId?: string; value?: any }) {
     identity.ck,
     props.statement.id,
     props.statement.ck,
+    props.statement.key as string,
     options?.value ?? ({} as any)
   );
   // add record to search results optimistically (regardless of filter)
@@ -548,8 +549,8 @@ defineExpose({
         <!-- Header (with types) -->
         <!-- To make this 'sticky' without creating a new stacking context we position it absolutely 'above' the placeholder above  -->
         <div
-          class="z-[1] flex flex-row self-start border-b border-t border-amber-900/[12%] bg-amber-100"
-          :class="[(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-amber-100']"
+          class="z-[1] flex flex-row self-start border-b border-t border-amber-900/[12%]"
+          :class="[(focused && !editing) || !isHeaderRowFloating ? '' : 'bg-white']"
           :style="{
             position: isHeaderRowFloating ? 'fixed' : 'absolute',
             left: isHeaderRowFloating
@@ -581,7 +582,7 @@ defineExpose({
                 is-view
                 hide-outline
                 orientation="horizontal"
-                class="h-full w-full border border-transparent p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
+                class="h-full w-full border border-transparent bg-amber-100 p-1 text-gray-400 focus-within:border-amber-900 focus-within:border-opacity-[15%] focus-within:bg-amber-200 hover:bg-amber-200"
                 :model-value="field"
                 @update:model-value="(node: any) => updateField(field.key, node)"
                 @navigate-left="grid.navigateLeft('', field.key as string)"
@@ -605,7 +606,7 @@ defineExpose({
           <!-- Properties column (add + settings) -->
           <div
             v-if="showPropertiesColumn"
-            class="overflow-x-hidden bg-white"
+            class="overflow-x-hidden"
             :style="{
               width: columnWidths[columnWidths.length - 1] + 'px',
             }"

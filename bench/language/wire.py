@@ -270,7 +270,9 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Re-assigns the node's children"""
         pass
 
-    def patch(self, node: NodeDataT, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, node: NodeDataT, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         pass
 
 
@@ -395,10 +397,12 @@ def unpack_node_flat(node: NodeDataT, parent: Optional[NodeT], session: Optional
     return packer.unpack(node, parent, session)
 
 
-def patch_node_flat(node: NodeDataT, target_cks: dict[UUID, UUID]) -> NodeDataT:
+def patch_node_flat(
+    node: NodeDataT, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+) -> NodeDataT:
     """Patch a flat module node"""
     packer = _node_packers_by_data[type(node)]
-    packer.patch(node, target_cks)
+    packer.patch(node, target_cks, target_keys)
     return node
 
 
@@ -662,8 +666,11 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         if isinstance(statement, lang.HasFields):
             statement.fields = tree.get_descendants(statement.id, lang.Field)
 
-    def patch(self, statement: StatementData, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, statement: StatementData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         statement.reference_ck = target_cks.get(statement.reference_ck, statement.reference_ck)
+        statement.key = target_keys.get(statement.key, statement.key)
         statement.text = patch_text_html(statement.text, target_cks)
 
 
@@ -735,8 +742,11 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             _session=session,
         )
 
-    def patch(self, node: FieldData, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, node: FieldData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         node.reference_ck = target_cks.get(node.reference_ck, node.reference_ck)
+        node.key = target_keys.get(node.key, node.key)
         node.text = patch_text_html(node.text, target_cks)
 
 
@@ -802,7 +812,9 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             _session=session,
         )
 
-    def patch(self, node: TriggerData, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, node: TriggerData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         node.runnable_ck = target_cks.get(node.runnable_ck, node.runnable_ck)
         node.scope_ck = target_cks.get(node.scope_ck, node.scope_ck)
 
@@ -858,7 +870,9 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             _session=session,
         )
 
-    def patch(self, node: TaggingData, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, node: TaggingData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         node.reference_ck = target_cks.get(node.reference_ck, node.reference_ck)
 
 
@@ -916,10 +930,11 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
 class RecordData(NodeData, HasCrud):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
+    parent_key: str
     value: Optional[typing.Any] = None
 
     def __str__(self):
-        return f"{self.parent_id} {describe_type(self.value)}"
+        return f"{self.parent_id} {describe_type(self.value) or '<empty>'}"
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {str(self)}>"
@@ -934,6 +949,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             id=record.id,
             ck=record.ck,
             parent_id=record.parent_id,
+            parent_key=record.parent.key,
             value=record._raw_value(),
             revision=record.revision,
             created_at=record.created_at,
@@ -976,7 +992,9 @@ class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
             field_ck=resolved_field.field_ck,
         )
 
-    def patch(self, node: ResolvedFieldData, target_cks: dict[UUID, UUID]) -> None:
+    def patch(
+        self, node: ResolvedFieldData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
         node.field_ck = target_cks.get(node.field_ck, node.field_ck)
 
 

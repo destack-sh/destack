@@ -95,6 +95,7 @@ class VectorFieldMapper(FieldMapper):
     def to_os_type(self, type: lang.Field, depth: int) -> os.Field:
         # see https://aws.amazon.com/blogs/big-data/choose-the-k-nn-algorithm-for-your-billion-scale-use-case-with-opensearch/
         # see https://github.com/nmslib/hnswlib/blob/master/ALGO_PARAMS.md#construction-parameters
+        # ideally we would use the Lucene engine with byte vectors here, but it only goes to 1024 dims
         method = os.KnnMethod(
             # assumes normalized vectors with a :FixedEmbeddingDimension
             name=os.KnnMethodName.HNSW,

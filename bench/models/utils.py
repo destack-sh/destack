@@ -48,10 +48,6 @@ class ModuleNode(models.Model):
     def parent(self) -> Optional["ModuleNode"]:
         raise NotImplementedError(f"{self} does not implement parent")
 
-    @property
-    def versioned(self) -> bool:
-        return True
-
     class Meta:
         abstract = True
 
