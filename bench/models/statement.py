@@ -291,6 +291,7 @@ class Statement(CrudNode):
     value = models.JSONField(null=True, blank=True)
     external_name = models.CharField(max_length=128, null=True, blank=True)
     reference_ck = models.UUIDField(null=True, blank=True)
+    versioned = models.BooleanField(default=True)
     fields: models.QuerySet[Field]  # noqa via Field.statement
     taggings: models.QuerySet[Tagging]  # noqa via Tagging.statement
     triggers: models.QuerySet[Trigger]  # noqa via Trigger.statement

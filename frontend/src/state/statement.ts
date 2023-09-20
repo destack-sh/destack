@@ -10,7 +10,7 @@ import {
   type Statement,
 } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { newFieldKey } from "@/state/operations/statement";
+import { newDynamicNodeKey } from "@/state/operations/statement";
 import { TYPEHINT_KEYWORD, TYPETAG_KEYWORD } from "@/state/type";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import { getFieldNameFromTypeName } from "@/utils/functools";
@@ -209,7 +209,7 @@ export function useFields(statement: Ref<Statement>) {
       ...field,
       ...identity,
       name: newName,
-      key: newFieldKey(identity.ck),
+      key: newDynamicNodeKey(identity.ck),
       orderKey,
       referenceCk: field.referenceCk ?? null,
     };
@@ -295,7 +295,7 @@ export function makeField(data: {
     name: data.name ?? null,
     tag: data.tag,
     hint: data.hint ?? null,
-    key: data.key ?? newFieldKey(data.ck ?? identity.ck),
+    key: data.key ?? newDynamicNodeKey(data.ck ?? identity.ck),
     orderKey: data.orderKey ?? INTEGER_ZERO,
     referenceCk: data.referenceCk ?? null,
     flags: data.flags ?? 0,
@@ -494,8 +494,10 @@ export function useStatementMorph(
     statement: { id: string; ck: string } & MorphIdentity,
     identity: MorphIdentity & { name?: string | null }
   ) {
-    const needsKey = [StatementType.Type, StatementType.Tag].includes(identity.type);
-    const key = needsKey ? newFieldKey(statement.ck) : undefined;
+    let key = null;
+    if ([StatementType.Type, StatementType.Tag, StatementType.Dataset].includes(identity.type)) {
+      key = newDynamicNodeKey(statement.ck);
+    }
     ops.statement.morph(null, statement.id, statement, { ...identity, key });
   }
 

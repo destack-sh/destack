@@ -8,7 +8,14 @@ from uuid import UUID
 import structlog
 from more_itertools import first
 
-from bench.language.const import MNT, DatasetViewLayout, StatementType, TypeFlag, TypeTag
+from bench.language.const import (
+    MNT,
+    DatasetViewLayout,
+    StatementType,
+    TypeFlag,
+    TypeTag,
+    new_dynamic_node_key,
+)
 from bench.language.field import Field, HasFields
 from bench.language.mapping import map_value, pack_value, unpack_value
 from bench.language.module import Module, ModuleNode, ModuleVisitor, node
@@ -144,11 +151,25 @@ class DatasetViewField(ModuleNode):
 
 @node(tracked=["versioned"])
 class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
+    # note that HasDataset feels like a neat component than the others (HasCode, HasText, etc.)
+    #  but it would also be weird to have it not be a component now.
+
     type: StatementType = StatementType.DATASET
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
     views: Optional[list[DatasetView]] = None
+
+    def __post_init__(self):
+        if self.key is not None:
+            return  # already set
+        if self.versioned:
+            if self.id is not None:
+                self.key = new_dynamic_node_key(self.id)
+            else:
+                self.key = None
+        else:
+            self.key = new_dynamic_node_key(self.ck)
 
     def view_by_name(self, name: str) -> DatasetView:
         view = first((view for view in self.views if view.name == name), None)
@@ -291,17 +312,14 @@ class RecordSearch(Search["RecordData", Record]):
 
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
-            statement_ids = [dataset.id for dataset in self.datasets]
-            statement_cks = [dataset.ck for dataset in self.datasets]
+            statement_keys = [dataset.key for dataset in self.datasets]
         else:
-            statement_ids = None
-            statement_cks = None
+            statement_keys = None
         rep: NMessage[RepSearchRecordsPayload] = await request(
             NMessageType.SEARCH_RECORDS,
             ReqSearchRecordsPayload(
                 module_id=self.module.id,
-                statement_ids=statement_ids,
-                statement_cks=statement_cks,
+                statement_keys=statement_keys,
                 query=self._query,
                 sort=self._sort,
                 after=after,

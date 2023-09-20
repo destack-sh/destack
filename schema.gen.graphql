@@ -1260,6 +1260,7 @@ input RecordCreateInput {
   ck: UUID!
   value: JSON!
   statementCk: UUID!
+  statementKey: String!
 }
 
 input RecordDeleteInput {
@@ -1577,6 +1578,7 @@ type Statement implements HasCrud & ModuleNode & Node {
   text: String
   value: JSON
   referenceCk: UUID
+  versioned: Boolean!
   tag: TypeTag
   flags: Int
   tags(filters: TaggingFilter): [Tagging!]!
@@ -1622,6 +1624,7 @@ input StatementCreateInput {
   fileId: GlobalID!
   orderKey: String!
   type: StatementType!
+  versioned: Boolean!
   parentId: GlobalID = null
   name: String = null
   tag: TypeTag = null
@@ -1646,6 +1649,7 @@ input StatementFilter {
 input StatementMorphInput {
   id: GlobalID!
   type: StatementType!
+  versioned: Boolean!
   name: String = null
   tag: TypeTag = null
   flags: Int = null

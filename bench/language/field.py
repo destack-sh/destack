@@ -20,7 +20,7 @@ from bench.language.const import (
     TypeHint,
     TypeStorageFormat,
     TypeTag,
-    new_short_key_length,
+    new_dynamic_node_key,
 )
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, get_node_id, node
 from bench.language.query import FieldQueryOps
@@ -272,7 +272,7 @@ class Field(HasText, TypeBase, FieldQueryOps):
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
     def __post_init__(self):
-        self.key = self.key or new_short_key_length(self.ck)
+        self.key = self.key or new_dynamic_node_key(self.ck)
 
     def __str__(self):
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
@@ -371,8 +371,9 @@ class HasFields(TypeBase, ModuleNode):
     reference = None
 
     def __post_init__(self):
+        super().__post_init__()
         if self.key is None:
-            self.key = new_short_key_length(self.ck)
+            self.key = new_dynamic_node_key(self.ck)
 
     def _clear(self) -> None:
         self.resolved_fields = None

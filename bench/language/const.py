@@ -10,7 +10,7 @@ from bench.utils.func import cyrb53a
 from bench.utils.utils import to_all_caps
 
 if typing.TYPE_CHECKING:
-    from bench.language import ModuleNode, Statement
+    from bench.language import ModuleNode, Statement  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
@@ -61,17 +61,23 @@ RUNNABLE_STATEMENT_TYPES = {
     StatementType.FLOW,
 }
 
-NODE_SHORT_KEY_LENGTH = 8
+DYNAMIC_NODE_KEY_LENGTH = 8
+
+# :ModuleLimits
+MODULE_VERSIONED_RECORD_LIMIT = 25_000
+DATASET_VERSIONED_RECORD_LIMIT = 2500
+DATASET_UNVERSIONED_RECORD_LIMIT = 10_000_000
 
 
-def new_short_key_length(ck: UUID) -> str:
+def new_dynamic_node_key(ck_or_id: UUID) -> str:
     """
-    Gets a 'random' alphabetic key as a persistent key for a field.
+    Gets a 'random' alphabetic key as a persistent key for a node.
+    Also used for dynamic dataset identities (versioned/un-versioned).
     (short key length alphabetic characters) :FieldKeys
     """
-    hash_value = cyrb53a(str(ck))
+    hash_value = cyrb53a(str(ck_or_id))
     key = ""
-    while len(key) < NODE_SHORT_KEY_LENGTH:
+    while len(key) < DYNAMIC_NODE_KEY_LENGTH:
         hash_value, remainder = divmod(hash_value, 52)
         if remainder < 26:
             key += chr(ord("a") + remainder)

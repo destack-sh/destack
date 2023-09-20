@@ -646,3 +646,8 @@ export function mergeNodePaths(a: NodeBase[], b: NodeBase[]): NodeBase[] {
   if (commonAncestor == -1) return a;
   return [...a.slice(0, commonAncestor), ...b];
 }
+
+// :ModuleLimits
+export const MODULE_VERSIONED_RECORD_LIMIT = 25000;
+export const DATASET_VERSIONED_RECORD_LIMIT = 2500;
+export const DATASET_UNVERSIONED_RECORD_LIMIT = 10000000;

@@ -24,7 +24,7 @@ from bench.language.const import (
     RemoteObjectStatus,
     TriggerType,
 )
-from bench.language.mutate import MMK, ModuleMutation, MutationBundle
+from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
 from bench.language.wire import ModuleTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
@@ -373,7 +373,8 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
-            models.Record.objects.filter(statement__in=nodes),
+            # for records, we only include versioned dataset's records
+            models.Record.objects.filter(statement_key__in=[n.key for n in nodes if n.versioned]),
         ]
 
     def pack(self, statement: models.Statement) -> wire.StatementData:
@@ -391,7 +392,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             key=statement.key,
             code=statement.code,
             value=statement.value,
-            versioned=False,  # not stored yet
+            versioned=statement.versioned,
             reference_ck=statement.reference_ck,
             revision=statement.revision,
             created_at=statement.created_at,
@@ -414,6 +415,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             type=data.type.value,
             name=data.name,
             heading_level=data.heading_level,
+            versioned=data.versioned,
             text=data.text,
             flags=data.flags,
             tag=data.tag,
@@ -543,6 +545,7 @@ class RecordPacker(NodePacker[wire.RecordData, models.Record]):
             id=record.id,
             ck=record.ck,
             parent_id=record.statement_id,
+            parent_key=record.statement_key,
             value=record.value,
             revision=record.revision,
             created_at=record.created_at,
@@ -557,6 +560,7 @@ class RecordPacker(NodePacker[wire.RecordData, models.Record]):
             ck=data.ck,
             statement_id=parent.id,
             statement_ck=parent.ck,
+            statement_key=parent.key,
             value=data.value,
             revision=data.revision,
             created_at=data.created_at,
@@ -887,21 +891,26 @@ def write_mutations(
     for mmt, batch in mut.batched_apply(module, module_data):
         if mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
-            statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
-            file_ids = [m.file_id for m in batch if m.file_id is not None]
-            model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            if statement_ids:
-                if hasattr(model_cls, "statement"):
-                    model_cls.objects.filter(statement_id__in=statement_ids).delete()
-                else:
-                    model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
-            elif file_ids:
-                if hasattr(model_cls, "file"):
-                    model_cls.objects.filter(file_id__in=file_ids).delete()
-                else:
-                    model_cls.objects.filter(parent_file_id__in=file_ids).delete()
+            if mmt == MMT.TRUNCATE_RECORDS:
+                statement_keys = [typing.cast(wire.StatementData, m.data).key for m in batch]
+                models.Record.objects.filter(statement_key__in=statement_keys).delete()
             else:
-                model_cls.objects.filter(project_version_id=project_v.id).delete()
+                # this is a bit unwieldy...
+                statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
+                file_ids = [m.file_id for m in batch if m.file_id is not None]
+                model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
+                if statement_ids:
+                    if hasattr(model_cls, "statement"):
+                        model_cls.objects.filter(statement_id__in=statement_ids).delete()
+                    else:
+                        model_cls.objects.filter(parent_statement_id__in=statement_ids).delete()
+                elif file_ids:
+                    if hasattr(model_cls, "file"):
+                        model_cls.objects.filter(file_id__in=file_ids).delete()
+                    else:
+                        model_cls.objects.filter(parent_file_id__in=file_ids).delete()
+                else:
+                    model_cls.objects.filter(project_version_id=project_v.id).delete()
         elif mmt.kind in (MMK.CREATE, MMK.UPDATE):
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
@@ -910,7 +919,8 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MMK.UPDATE
-                # should probably optimize this (i.e. compile into single query)
+                # TODO @Performance: optimize single module node update mutations
+                #  (e.g.. compile into single query)
                 for m, node in zip(batch, nodes):
                     node._state.adding = False  # ensure update
                     node.save(force_update=True, update_fields=m.properties)

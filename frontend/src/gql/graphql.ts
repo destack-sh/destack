@@ -1691,6 +1691,7 @@ export type RecordCreateInput = {
   id: Scalars["GlobalID"];
   statementCk: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
+  statementKey: Scalars["String"];
   value: Scalars["JSON"];
 };
 
@@ -2032,6 +2033,7 @@ export type Statement = HasCrud &
     type: StatementType;
     updatedAt: Scalars["DateTime"];
     value?: Maybe<Scalars["JSON"]>;
+    versioned: Scalars["Boolean"];
   };
 
 export type StatementFieldsArgs = {
@@ -2092,6 +2094,7 @@ export type StatementCreateInput = {
   text?: InputMaybe<Scalars["String"]>;
   type: StatementType;
   value?: InputMaybe<Scalars["JSON"]>;
+  versioned: Scalars["Boolean"];
 };
 
 export type StatementDeleteInput = {
@@ -2112,6 +2115,7 @@ export type StatementMorphInput = {
   name?: InputMaybe<Scalars["String"]>;
   tag?: InputMaybe<TypeTag>;
   type: StatementType;
+  versioned: Scalars["Boolean"];
 };
 
 export type StatementMoveInput = {
@@ -3612,6 +3616,7 @@ export type StatementContentFragment = {
   tag?: TypeTag | null;
   flags?: number | null;
   referenceCk?: any | null;
+  versioned: boolean;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -4313,6 +4318,7 @@ export type CreateStatementMutationVariables = Exact<{
   value?: InputMaybe<Scalars["JSON"]>;
   tag?: InputMaybe<TypeTag>;
   flags?: InputMaybe<Scalars["Int"]>;
+  versioned: Scalars["Boolean"];
 }>;
 
 export type CreateStatementMutation = {
@@ -4337,6 +4343,7 @@ export type CreateStatementMutation = {
         tag?: TypeTag | null;
         flags?: number | null;
         referenceCk?: any | null;
+        versioned: boolean;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -4406,6 +4413,7 @@ export type MorphStatementMutationVariables = Exact<{
   flags?: InputMaybe<Scalars["Int"]>;
   key?: InputMaybe<Scalars["String"]>;
   headingLevel?: InputMaybe<Scalars["Int"]>;
+  versioned: Scalars["Boolean"];
 }>;
 
 export type MorphStatementMutation = {
@@ -4424,6 +4432,7 @@ export type MorphStatementMutation = {
         flags?: number | null;
         key?: string | null;
         headingLevel?: number | null;
+        versioned: boolean;
       };
 };
 
@@ -4666,6 +4675,7 @@ export type CreateRecordMutationVariables = Exact<{
   ck: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
   statementCk: Scalars["UUID"];
+  statementKey: Scalars["String"];
   value: Scalars["JSON"];
 }>;
 
@@ -6136,6 +6146,7 @@ export const StatementContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "tag" } },
           { kind: "Field", name: { kind: "Name", value: "flags" } },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+          { kind: "Field", name: { kind: "Name", value: "versioned" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "tags" },
@@ -11693,6 +11704,11 @@ export const CreateStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "flags" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -11772,6 +11788,11 @@ export const CreateStatementDocument = {
                       name: { kind: "Name", value: "flags" },
                       value: { kind: "Variable", name: { kind: "Name", value: "flags" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "versioned" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
+                    },
                   ],
                 },
               },
@@ -11832,6 +11853,7 @@ export const CreateStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "tag" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
+                      { kind: "Field", name: { kind: "Name", value: "versioned" } },
                       {
                         kind: "Field",
                         name: { kind: "Name", value: "tags" },
@@ -12155,6 +12177,11 @@ export const MorphStatementDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Boolean" } } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -12204,6 +12231,11 @@ export const MorphStatementDocument = {
                       name: { kind: "Name", value: "headingLevel" },
                       value: { kind: "Variable", name: { kind: "Name", value: "headingLevel" } },
                     },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "versioned" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "versioned" } },
+                    },
                   ],
                 },
               },
@@ -12225,6 +12257,7 @@ export const MorphStatementDocument = {
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "key" } },
                       { kind: "Field", name: { kind: "Name", value: "headingLevel" } },
+                      { kind: "Field", name: { kind: "Name", value: "versioned" } },
                     ],
                   },
                 },
@@ -13396,6 +13429,11 @@ export const CreateRecordDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementKey" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } } },
         },
@@ -13432,6 +13470,11 @@ export const CreateRecordDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "statementCk" },
                       value: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "statementKey" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementKey" } },
                     },
                     {
                       kind: "ObjectField",

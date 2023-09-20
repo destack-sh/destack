@@ -210,8 +210,24 @@ export function useSymbolContentOps() {
   const { mutate: createRecordMut } = registry.defineModuleMutation(
     ModuleMutationType.CreateRecord,
     graphql(/* GraphQL */ `
-      mutation createRecord($id: GlobalID!, $ck: UUID!, $statementId: GlobalID!, $statementCk: UUID!, $value: JSON!) {
-        createRecord(input: { id: $id, ck: $ck, statementId: $statementId, statementCk: $statementCk, value: $value }) {
+      mutation createRecord(
+        $id: GlobalID!
+        $ck: UUID!
+        $statementId: GlobalID!
+        $statementCk: UUID!
+        $statementKey: String!
+        $value: JSON!
+      ) {
+        createRecord(
+          input: {
+            id: $id
+            ck: $ck
+            statementId: $statementId
+            statementCk: $statementCk
+            statementKey: $statementKey
+            value: $value
+          }
+        ) {
           ... on Record {
             id
             ck
@@ -226,7 +242,14 @@ export function useSymbolContentOps() {
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; ck: string; statementId: string; statementCk: string; value: any }) =>
+      optimisticResponse: (vars: {
+        id: string;
+        ck: string;
+        statementId: string;
+        statementCk: string;
+        statementKey: string;
+        value: any;
+      }) =>
         ({
           __typename: "Mutation",
           createRecord: {
@@ -421,6 +444,7 @@ export function useSymbolContentOps() {
     ck: string,
     statementId: string,
     statementCk: string,
+    statementKey: string,
     value: Scalars["JSON"]
   ) {
     await ops.perform({
@@ -432,6 +456,7 @@ export function useSymbolContentOps() {
           ck: ck,
           statementId: statementId,
           statementCk: statementCk,
+          statementKey: statementKey,
           value: value,
         });
       },

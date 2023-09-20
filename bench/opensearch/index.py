@@ -203,7 +203,7 @@ def write_mutations_to_os(
         if m.type.kind == MMK.TRUNCATE and m.mnt == MNT.Record:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
-                index=index, body={"query": {"term": {"statement_id": m.statement_id}}}
+                index=index, body={"query": {"term": {"statement_key": m.data.key}}}
             )
         elif not mirror.has_mirror(m.thing):
             continue  # ignore
@@ -235,6 +235,8 @@ def write_module_to_os(
     if wipe:
         delete_module_in_os(project_v)
 
+    update_dynamic_field_mappings(project_v)  # can we only do this sometimes? when?
+
     for node in model_tree.walk_bfs():
         if not mirror.has_mirror(node):
             continue
@@ -245,6 +247,8 @@ def write_module_to_os(
     logger.debug(
         "os.write_module", project_version=project_v, index=bench_index, operations=len(ops)
     )
+    if not ops:
+        return
     ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
