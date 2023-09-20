@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from bench.language.mutate import ModuleMutation, ModuleMutator
     from bench.language.run import Run
     from bench.language.statement import Statement
+    from bench.language.tracing import _RunCapture
     from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
@@ -127,6 +128,9 @@ class Session:
     @property
     def current_run(self) -> "Run":
         return self.tracer.run.current_run
+
+    def capture_runs(self) -> "_RunCapture":
+        return self.tracer.run.start_capture()
 
     @property
     def is_open(self) -> bool:

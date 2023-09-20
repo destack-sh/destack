@@ -233,23 +233,7 @@ def write_module_to_os(
     ops: list[dict] = []
 
     if wipe:
-        logger.debug("os.wipe_module", project_version=project_v)
-        os_client.delete_by_query(
-            index=global_index, body={"query": {"term": {"project_version_id": project_v.id}}}
-        )
-        os_client.delete_by_query(
-            index=bench_index,
-            body={
-                "query": {
-                    "bool": {
-                        "must": [
-                            {"term": {"project_version_id": project_v.id}},
-                            {"term": {"_type": "record"}},
-                        ]
-                    }
-                }
-            },
-        )
+        delete_module_in_os(project_v)
 
     for node in model_tree.walk_bfs():
         if not mirror.has_mirror(node):
@@ -264,6 +248,27 @@ def write_module_to_os(
     ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
     if ret.get("errors"):
         raise RuntimeError(f"failed to write module to OpenSearch: {ret['items'][:5]}")
+
+
+def delete_module_in_os(project_v: models.ProjectVersion):
+    logger.debug("os.delete", project_version=project_v)
+    os_client.delete_by_query(
+        index=IndexType.GLOBAL.get_index_name(),
+        body={"query": {"term": {"project_version_id": project_v.id}}},
+    )
+    os_client.delete_by_query(
+        index=IndexType.BENCH.get_index_name(project_v.project_id),
+        body={
+            "query": {
+                "bool": {
+                    "must": [
+                        {"term": {"project_version_id": project_v.id}},
+                        {"term": {"_type": "record"}},
+                    ]
+                }
+            }
+        },
+    )
 
 
 def write_session_to_os(
