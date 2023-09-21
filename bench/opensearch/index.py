@@ -162,7 +162,7 @@ def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
 
 
 def write_mutations_to_os(
-    project_v: models.ProjectVersion, mutations: list[ModuleMutation], *, wait: bool = False
+    project_v: models.ProjectVersion, mutations: list[ModuleMutation], *, refresh: bool = False
 ) -> None:
     """
     Writes/mirrors any relevant mutations to OpenSearch.
@@ -170,6 +170,12 @@ def write_mutations_to_os(
     """
     global_index = IndexType.GLOBAL.get_index_name()
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
+
+    if not mutations:
+        if refresh:
+            # just refresh the index
+            os_client.indices.refresh(index=bench_index)
+        return  # nothing to do
 
     # mut state
     ops: list[dict] = []
@@ -184,7 +190,8 @@ def write_mutations_to_os(
                 mutations=len(mutations),
                 operations=len(ops),
             )
-            ret = os_client.bulk(ops, refresh="wait_for" if wait else False)
+            # TODO @Performance: consider bulking OS refreshes in mutations somehow
+            ret = os_client.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
                 raise RuntimeError(f"failed to write mutations to OpenSearch: {ret['items'][:5]}")
 
@@ -357,7 +364,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
             if f.type == os.FieldType.KNN_VECTOR:
-                f.index = False
+                f.refresh_index = False
 
     # and 'static' value mappings (hard-coded)
     for value_type in (libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),):

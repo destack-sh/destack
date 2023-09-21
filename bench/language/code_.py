@@ -328,11 +328,15 @@ class HasCode(HasFields, ModuleNode):
         # TODO @UX: instrument test callables with pytest for better assert reporting
         def _test_sync(*args, **kwargs):
             self.current_run.value.test = True
-            return callable(*args, **kwargs)
+            ret = callable(*args, **kwargs)
+            self.session.flush()  # force any write errors to appear immediately
+            return ret
 
         async def _test_async(*args, **kwargs):
             self.current_run.value.test = True
-            return await callable(*args, **kwargs)
+            ret = await callable(*args, **kwargs)  # force any errors to appear immediately
+            await self.session.aflush()
+            return ret
 
         return _test_async if self._parse.is_async else _test_sync
 

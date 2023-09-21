@@ -254,7 +254,9 @@ class RuntimeServer(Monitored):
         # TODO @Security: check if msg origin has write access to module
         worker = await self._prepare_worker(msg.p.module_id)
         try:
-            await worker.write_module(msg.p.mutations, origins=(msg.p.client,), wait=msg.p.wait)
+            await worker.write_module(
+                msg.p.mutations, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
+            )
             logger.debug("module.write.done", msg=msg)
             success = True
         except Exception as e:
@@ -851,7 +853,7 @@ class RuntimeWorker:
             # TODO @Performance: ensure write resolved fields only happens if module changed
             #  This is especially important on startup because we load all the modules.
             await sync_to_async(write_mutations)(
-                self.project_version, self.module_tree, interp_mut.mutations, wait_for_os=False
+                self.project_version, self.module_tree, interp_mut.mutations, refresh_index=False
             )
             await publish(
                 NMessageType.MODULE_CHANGED,
@@ -929,14 +931,25 @@ class RuntimeWorker:
         self,
         mutations: list[ModuleMutation] | ModuleMutator,
         origins: tuple[ClientOrigin] = None,
-        wait: bool = False,
+        refresh_index: bool = False,
     ):
         if isinstance(mutations, ModuleMutator):
             mutations = mutations.mutations
-        logger.debug("write_module", mutations=mutations[:5], total=len(mutations), origins=origins)
-        await sync_to_async(write_mutations)(
-            self.project_version, self.module_tree, mutations, wait_for_os=wait
+        logger.debug(
+            "write_module",
+            mutations=mutations[:5],
+            total=len(mutations),
+            origins=origins,
+            refresh_index=refresh_index,
         )
+        await sync_to_async(write_mutations)(
+            self.project_version, self.module_tree, mutations, refresh_index=refresh_index
+        )
+        if not mutations:
+            # mutations may be empty if we just want to trigger an index refresh
+            # e.g. on record search preflight in session after a non-refresh flush happened
+            return
+
         await self.on_module_changed(mutations)
 
         # trim mutations to remove overhead from large dataset updates
