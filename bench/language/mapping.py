@@ -78,6 +78,7 @@ def map_value(
     is_output: bool = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
+    none_if_invalid: bool = False,
     ignore_empty: bool = True,
 ):
     """Walks the value and reassembles with new keys and values."""
@@ -89,19 +90,42 @@ def map_value(
 
     if type.flags & TypeFlag.IsArray and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
-            return value  # type error, ignore here
+            # type error, ignore here
+            return None if none_if_invalid else value
         return [
             map_value(
-                item, type, map_v, map_k, premap_v, ignore_array=True, ignore_empty=ignore_empty
+                item,
+                type,
+                map_v,
+                map_k,
+                premap_v,
+                ignore_array=True,
+                none_if_invalid=none_if_invalid,
+                ignore_empty=ignore_empty,
             )
             for item in value
         ]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
         if _is_arrayable_not_an_array(type, value):
-            return map_value(value, type, map_v, map_k, ignore_array=True)
+            return map_value(
+                value,
+                type,
+                map_v,
+                map_k,
+                ignore_array=True,
+                ignore_empty=ignore_empty,
+                none_if_invalid=none_if_invalid,
+            )
         return [
             map_value(
-                item, type, map_v, map_k, premap_v, ignore_array=True, ignore_empty=ignore_empty
+                item,
+                type,
+                map_v,
+                map_k,
+                premap_v,
+                ignore_array=True,
+                none_if_invalid=none_if_invalid,
+                ignore_empty=ignore_empty,
             )
             for item in value
         ]
@@ -114,7 +138,8 @@ def map_value(
     elif type.effective_tag not in (TypeTag.STRUCT, TypeTag.FUNCTION):
         raise RuntimeError(f"expected struct-like {type} at {value}")
     if not isinstance(value, Mapping) and not is_dataclass(value):
-        return value  # type error, ignore here
+        # type error, ignore here
+        return None if none_if_invalid else value
 
     # map into a dict
     mapped = {}
@@ -132,7 +157,13 @@ def map_value(
             target_value = None
         else:
             target_value = map_value(
-                value[source_k], subtype, map_v, map_k, premap_v, ignore_empty=ignore_empty
+                value[source_k],
+                subtype,
+                map_v,
+                map_k,
+                premap_v,
+                ignore_empty=ignore_empty,
+                none_if_invalid=none_if_invalid,
             )
         mapped[target_k] = target_value
     if not ignore_outer_map:
@@ -707,6 +738,7 @@ def pack_value(
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     ignore_empty: bool = True,
+    none_if_invalid: bool = False,
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
@@ -719,6 +751,7 @@ def pack_value(
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         ignore_empty=ignore_empty,
+        none_if_invalid=none_if_invalid,
         is_output=is_output,
     )
 
