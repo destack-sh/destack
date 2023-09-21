@@ -60,7 +60,7 @@ const addRecordRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
 
 const fields = useFields(toRef(props, "statement"));
-const { allFields, selfFields, inheritedFields } = fields;
+const { allFields, selfFields, inheritedFields, moveFieldTo } = fields;
 
 const properties = useElementPanelSettings<DatasetStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
@@ -335,22 +335,11 @@ function deleteField(node: Field) {
   nextTick(() => grid.flush());
 }
 
-function moveField(field: Field, position: "before" | "after", other: Field) {
-  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
-  if (position == "before") {
-    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    fields.moveField(field, orderKey);
-  } else {
-    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    fields.moveField(field, orderKey);
-  }
-}
-
 function dropField(droppedId: string, position: "above" | "below" | "right" | "left", fieldId: string) {
   const dropped = selfFields.value.find((n) => n.id == droppedId);
   const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
-  moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
+  moveFieldTo(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
   nextTick(() => grid.focus("", dropped.key ?? ""));
 }
 

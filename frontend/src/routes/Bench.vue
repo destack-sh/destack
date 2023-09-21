@@ -438,7 +438,8 @@ onBeforeUnmount(() => {
 
 <template>
   <!-- Root -->
-  <div class="relative flex h-full flex-col bg-gray-50">
+  <!-- Crude min-w to make this not look totally shit on mobile -->
+  <div class="relative flex h-full min-w-[800px] flex-col bg-gray-50">
     <!-- Header with controls and auth -->
     <FatHeader v-show="bench.showBenchHeader">
       <!-- Left side: organizational & status -->

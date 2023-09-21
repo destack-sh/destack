@@ -36,13 +36,13 @@ const userNavigation = computed(() => [
     </div>
     <Menu v-else as="div" class="relative h-full flex-shrink-0" v-slot="{ open }">
       <MenuButton
-        class="group flex h-full items-center px-2 text-left hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+        class="group flex h-full items-center px-2 text-left focus:bg-orange-100 focus:outline-none"
         :class="{ 'bg-orange-100': open }"
       >
         <UserAvatar
           :client-id="auth.me.value.id"
           :user="auth.me.value"
-          class="h-5 w-5 transition-transform duration-150"
+          class="h-7 w-7 text-gray-900 transition-transform duration-150 group-hover:bg-orange-200"
         />
       </MenuButton>
       <FadeTransition>
@@ -51,7 +51,7 @@ const userNavigation = computed(() => [
         >
           <div class="flex flex-row items-center gap-1 px-2">
             <div class="p-1">
-              <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-6 w-6" />
+              <UserAvatar :client-id="auth.me.value.id" :user="auth.me.value" class="h-8 w-8 text-gray-700" />
             </div>
             <p class="flex max-w-full flex-col px-2 py-2">
               <span class="truncate text-sm text-gray-900">{{ auth.me.value?.username }}</span>

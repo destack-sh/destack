@@ -240,6 +240,17 @@ export function useFields(statement: Ref<Statement>) {
     ops.symbol.moveField(null, field.id, oldField.orderKey, orderKey);
   }
 
+  function moveFieldTo(field: Field, position: "before" | "after", other: Field) {
+    const otherIndex = fields.value?.findIndex((n) => n.id == other.id);
+    if (position == "before") {
+      const orderKey = generateKeyBetween(fields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
+      moveField(field, orderKey);
+    } else {
+      const orderKey = generateKeyBetween(other.orderKey, fields.value[otherIndex + 1]?.orderKey ?? null);
+      moveField(field, orderKey);
+    }
+  }
+
   function deleteField(field: { id: string }) {
     const oldField = fields.value?.find((n) => n.id == field.id);
     if (!oldField) {
@@ -266,6 +277,7 @@ export function useFields(statement: Ref<Statement>) {
     duplicateField,
     updateField,
     moveField,
+    moveFieldTo,
     deleteField,
   };
 }
