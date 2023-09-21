@@ -132,6 +132,9 @@ class Session:
     def capture_runs(self) -> "_RunCapture":
         return self.tracer.run.start_capture()
 
+    def run_value(self, **kwargs):
+        return self.tracer.run.value(**kwargs)
+
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None

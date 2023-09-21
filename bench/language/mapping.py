@@ -78,6 +78,7 @@ def map_value(
     is_output: bool = None,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
+    ignore_empty: bool = True,
 ):
     """Walks the value and reassembles with new keys and values."""
     map_v = map_v or _map_v_noop
@@ -89,11 +90,21 @@ def map_value(
     if type.flags & TypeFlag.IsArray and not ignore_array:
         if not isinstance(value, Collection) or isinstance(value, str):
             return value  # type error, ignore here
-        return [map_value(item, type, map_v, map_k, premap_v, ignore_array=True) for item in value]
+        return [
+            map_value(
+                item, type, map_v, map_k, premap_v, ignore_array=True, ignore_empty=ignore_empty
+            )
+            for item in value
+        ]
     elif type.flags & TypeFlag.IsArrayable and not ignore_array:
         if _is_arrayable_not_an_array(type, value):
             return map_value(value, type, map_v, map_k, ignore_array=True)
-        return [map_value(item, type, map_v, map_k, premap_v, ignore_array=True) for item in value]
+        return [
+            map_value(
+                item, type, map_v, map_k, premap_v, ignore_array=True, ignore_empty=ignore_empty
+            )
+            for item in value
+        ]
     elif type.effective_tag in PRIMITIVE_TYPES:
         return map_v(value=value, type=type, ignore_array=ignore_array)
     elif type.effective_tag == TypeTag.ENUM:
@@ -116,9 +127,13 @@ def map_value(
             continue
         source_k, target_k = map_k(subtype)
         if source_k not in value:
+            if ignore_empty:
+                continue
             target_value = None
         else:
-            target_value = map_value(value[source_k], subtype, map_v, map_k, premap_v)
+            target_value = map_value(
+                value[source_k], subtype, map_v, map_k, premap_v, ignore_empty=ignore_empty
+            )
         mapped[target_k] = target_value
     if not ignore_outer_map:
         mapped = map_v(value=mapped, type=type, ignore_array=ignore_array)
@@ -669,6 +684,7 @@ def unpack_value(
     type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
+    ignore_empty: bool = True,
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
@@ -680,6 +696,7 @@ def unpack_value(
         map_v=unpack_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
+        ignore_empty=ignore_empty,
         is_output=is_output,
     )
 
@@ -689,6 +706,7 @@ def pack_value(
     type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
+    ignore_empty: bool = True,
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
 ):
@@ -700,6 +718,7 @@ def pack_value(
         map_v=pack_value_flat,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
+        ignore_empty=ignore_empty,
         is_output=is_output,
     )
 

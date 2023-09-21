@@ -3,6 +3,7 @@ Built-in library implementations.
 """
 import enum
 import json
+import re
 import typing
 from dataclasses import dataclass
 from functools import cached_property
@@ -738,7 +739,6 @@ class AnthropicTextCompletionSettings:
     top_p: float
     top_k: int
     max_tokens_to_sample: int
-    stop_sequences: Optional[list[str]]
 
 
 @x_struct("AnthropicTextCompletion", "Completion from Anthropic text models", file=_anthropic_text)
@@ -781,7 +781,7 @@ class AnthropicTextCompletionModel(Model):
             rep = await client.completions.create(
                 prompt=prompt,
                 model=self.external_name,
-                stop_sequences=[anthropic.HUMAN_PROMPT, *(settings.stop_sequences or [])],
+                stop_sequences=[anthropic.HUMAN_PROMPT],
                 temperature=settings.temperature,
                 max_tokens_to_sample=int(settings.max_tokens_to_sample),
                 top_p=settings.top_p,
@@ -903,11 +903,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
 
         # settings
         settings = AnthropicTextCompletionSettings(
-            temperature=0.8,
-            top_p=0.7,
-            top_k=5,
-            max_tokens_to_sample=99 * 1024 - len(prompt) * 4,
-            stop_sequences=None,
+            temperature=0.8, top_p=0.7, top_k=5, max_tokens_to_sample=99 * 1024 - len(prompt) * 4
         )
 
         return AnthropicTextInput(task=task, settings=settings, prompt=prompt)
@@ -941,7 +937,14 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         try:
             arguments = json.loads(body or "{}")
         except JSONDecodeError as e:
-            raise TaskError(TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}")
+            # try to extract the arguments JSON block
+            try:
+                arguments_str = re.match(r"\{.*}", body, flags=re.DOTALL).group(0)
+                arguments = json.loads(arguments_str)
+            except (JSONDecodeError, AttributeError):
+                raise TaskError(
+                    TaskErrorType.InvalidFormat, model, f"invalid JSON arguments: {str(e)}"
+                )
 
         if action == "COMPLETE":
             return TaskOutput(result_raw=arguments)

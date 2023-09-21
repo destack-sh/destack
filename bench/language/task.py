@@ -126,6 +126,7 @@ async def run_task(
     log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
 
     previous_results = []
+    last_error = None
     while attempts < TASK_STEP_ATTEMPTS and model_idx < len(models):
         attempts += 1
         task.current_run.value.retries = attempts
@@ -142,7 +143,7 @@ async def run_task(
         run_capture = task.session.capture_runs()
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
-            run_name = f"{task.name} #{attempts + 1}"
+            run_name = f"{task.name} #{attempts}"
             with task.session.tracer.run.value(retry=attempts, nonce=nonce, name=run_name):
                 step = await compiler.run(model, compiled)
             if step.runnable is not None:
@@ -157,6 +158,7 @@ async def run_task(
             return DotDict(output)
         except Exception as e:
             e = TaskError.from_exception(task, e)
+            last_error = e
             logger.debug("task.error", error=e)
             if e.type in UNRECOVERABLE_ERRORS:
                 model_idx += 1
@@ -172,11 +174,10 @@ async def run_task(
 
             continue
 
-    latest_error = previous_results[-1] if previous_results else None
     raise TaskError(
         TaskErrorType.ExceededLimit,
         task,
-        f"could not solve task in {attempts} attempts across {len(models)} models:\n{latest_error or '<no details>'}",
+        f"could not solve task in {TASK_STEP_ATTEMPTS} attempts across {len(models)} models:\n{last_error or '<no details>'}",
     )
 
 
