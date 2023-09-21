@@ -12,7 +12,8 @@ from collections import defaultdict
 from typing import Collection, Optional, TypeVar
 from uuid import UUID
 
-from django.db import transaction
+import structlog
+from django.db import DatabaseError, transaction
 from django.db.models import Model, QuerySet
 
 from bench import models
@@ -35,6 +36,8 @@ NodeDataT = TypeVar("NodeDataT", bound=wire.NodeData)
 NodeT = TypeVar("NodeT", bound=Model)
 DataT = TypeVar("DataT")
 ModelT = TypeVar("ModelT", bound=Model)
+
+logger = structlog.get_logger(__name__)
 
 
 class NodePacker(typing.Generic[NodeDataT, NodeT]):
@@ -445,7 +448,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             text=field.text,
             flags=field.flags,
             reference_ck=field.reference_ck,
-            metadata=field.metadata,
+            value=field.value,
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
@@ -466,7 +469,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
             text=data.text,
             flags=data.flags,
             reference_ck=data.reference_ck,
-            metadata=data.metadata,
+            value=data.value,
         )
 
 
@@ -519,7 +522,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             parent_id=tagging.statement_id,
             key=tagging.key,
             reference_ck=tagging.reference_ck,
-            metadata=tagging.metadata,
+            value=tagging.value,
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
@@ -534,7 +537,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
             statement_id=data.parent_id,
             key=data.key,
             reference_ck=data.reference_ck,
-            metadata=data.metadata,
+            value=data.value,
         )
 
 
@@ -738,7 +741,6 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
             module_id=data.project_version_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
-            metadata=data.metadata,
             trigger_id=data.trigger_id,
             trigger_type=data.trigger_type,
         )
@@ -758,7 +760,6 @@ class SessionPacker(DataPacker[wire.SessionData, models.Session]):
             project_version_id=data.module_id,
             opened_at=data.opened_at,
             closed_at=data.closed_at,
-            metadata=data.metadata,
             trigger_type=data.trigger_type,
             trigger_access_token_id=access_token_id,
             trigger_user_id=user_id,
@@ -791,7 +792,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             status=model.status,
             inputs=model.inputs,
             outputs=model.outputs,
-            metadata=model.metadata,
+            value=model.value,
             error=wire.RunErrorData.from_dict(model.error) if model.error else None,
         )
 
@@ -830,7 +831,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
-            metadata=data.metadata,
+            value=data.value,
             error=data.error.to_dict() if data.error else None,
         )
 
@@ -923,7 +924,10 @@ def write_mutations(
                 #  (e.g.. compile into single query)
                 for m, node in zip(batch, nodes):
                     node._state.adding = False  # ensure update
-                    node.save(force_update=True, update_fields=m.properties)
+                    try:
+                        node.save(force_update=True, update_fields=m.properties)
+                    except DatabaseError as e:
+                        raise ValueError(f"failed to update {node} with {m.properties}") from e
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:
@@ -949,7 +953,7 @@ def write_session(
             [session],
             update_conflicts=True,
             unique_fields=["id"],
-            update_fields=["updated_at", "opened_at", "closed_at", "metadata"],
+            update_fields=["updated_at", "opened_at", "closed_at"],
         )
     runs_models = [unpack_data(r) for r in runs]
     models.Run.objects.bulk_create(
@@ -964,7 +968,7 @@ def write_session(
             "inputs",
             "outputs",
             "error",
-            "metadata",
+            "value",
         ],
     )
 

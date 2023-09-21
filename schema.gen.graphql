@@ -170,7 +170,7 @@ type Field implements HasCrud & ModuleNode & Node {
   flags: Int!
   text: String
   referenceCk: UUID
-  metadata: JSON
+  value: JSON
 }
 
 input FieldCreateInput {
@@ -185,7 +185,7 @@ input FieldCreateInput {
   text: String = null
   flags: Int! = 0
   referenceCk: UUID = null
-  metadata: JSON = null
+  value: JSON = null
 }
 
 input FieldDeleteInput {
@@ -222,7 +222,7 @@ input FieldUpdateInput {
   text: String = null
   flags: Int! = 0
   referenceCk: UUID = null
-  metadata: JSON = null
+  value: JSON = null
 }
 
 input FieldUpdateTextInput {
@@ -380,7 +380,7 @@ type LogEntry {
   runnableId: GlobalID
   runnableCk: UUID
   runId: GlobalID
-  metadata: JSON
+  value: JSON
 }
 
 """A connection to a list of items."""
@@ -1364,7 +1364,7 @@ type Run implements HasTriggeredBy & Node {
   outputs: JSON
   error: JSON
   errorNice: RunError
-  metadata: JSON
+  value: JSON
 }
 
 type RunCodeFrame {
@@ -1500,7 +1500,6 @@ type Session implements HasTriggeredBy & Node {
   updatedAt: DateTime!
   openedAt: DateTime
   closedAt: DateTime
-  metadata: JSON
   runs: [Run!]!
 }
 
@@ -1760,7 +1759,7 @@ type Tagging implements HasCrud & ModuleNode & Node {
   statement: Statement!
   referenceCk: UUID
   key: String!
-  metadata: JSON
+  value: JSON
 }
 
 input TaggingCreateInput {
@@ -1769,7 +1768,7 @@ input TaggingCreateInput {
   statementId: GlobalID!
   key: String!
   referenceCk: UUID!
-  metadata: JSON = null
+  value: JSON = null
 }
 
 input TaggingDeleteInput {
@@ -1790,7 +1789,7 @@ input TaggingRestoreInput {
 
 input TaggingUpdateInput {
   id: GlobalID!
-  metadata: JSON = null
+  value: JSON = null
 }
 
 type Trigger implements HasCrud & ModuleNode & Node {

@@ -162,7 +162,6 @@ class Session(HasTriggeredBy, relay.Node):
     updated_at: auto
     opened_at: auto
     closed_at: auto
-    metadata: Optional[JSON]
     runs: list["Run"]
     # trigger
     trigger_type: Optional[TriggerType]
@@ -193,7 +192,7 @@ class Run(HasTriggeredBy, relay.Node):
     error_nice: Optional[RunError] = strawberry_django.field(
         only=["error"], resolver=get_error_nice
     )
-    metadata: auto
+    value: auto
     # trigger
     trigger_type: Optional[TriggerType]
     trigger_user: Optional[Annotated["User", lazy(".user")]]
@@ -214,7 +213,7 @@ class LogEntry:
     runnable_id: Optional[GlobalID]
     runnable_ck: Optional[UUID]
     run_id: Optional[GlobalID]
-    metadata: Optional[JSON]
+    value: Optional[JSON]
 
     @staticmethod
     def from_os(log_entry: mirror.LogEntry) -> "LogEntry":
@@ -230,7 +229,7 @@ class LogEntry:
             runnable_id=to_global_id("Statement", log_entry.runnable_id),
             runnable_ck=log_entry.runnable_ck,
             run_id=to_global_id("Run", log_entry.run_id),
-            metadata=log_entry.metadata,
+            value=log_entry.value,
         )
 
     @staticmethod
@@ -247,7 +246,7 @@ class LogEntry:
             runnable_id=to_global_id("Statement", log_entry.runnable_id),
             runnable_ck=log_entry.runnable_ck,
             run_id=to_global_id("Run", log_entry.run_id),
-            metadata=log_entry.metadata,
+            value=log_entry.value,
         )
 
 

@@ -1,24 +1,27 @@
 from dataclasses import field
 from typing import TYPE_CHECKING
 
-from bench.language import HasFields
 from bench.language.module import ModuleNode, ModuleVisitor, node
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
-    from bench.language.session import Scope, Session
+    from bench.language import HasFields, Scope, Session
 
 
 @node
-class HasValue(HasFields, ModuleNode):
+class HasValue(ModuleNode):
     value: dict | None = field(default_factory=dict)
     _value_unpacked: bool = False
+
+    @property
+    def _type_of_value(self) -> "HasFields":
+        return self  # assume this is a HasFields
 
     def _clear(self):
         pass
 
     def _interp(self, scope: "Scope") -> None:
-        pass
+        pass  # TODO @Interp: interp value in HasValue
 
     def _index(self) -> None:
         pass
@@ -36,7 +39,9 @@ class HasValue(HasFields, ModuleNode):
             self.value = self._raw_value()
             self._value_unpacked = False
         # proxy
-        value = unpack_value(self.value or {}, self, ignore_array=True, ignore_outer_map=True)
+        value = unpack_value(
+            self.value or {}, self._type_of_value, ignore_array=True, ignore_outer_map=True
+        )
         self.value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
         self._value_unpacked = True
 
@@ -52,7 +57,9 @@ class HasValue(HasFields, ModuleNode):
         if not self._value_unpacked:
             return self.value
         else:
-            return pack_value(self.value, self, ignore_array=True, ignore_outer_map=True)
+            return pack_value(
+                self.value, self._type_of_value, ignore_array=True, ignore_outer_map=True
+            )
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""

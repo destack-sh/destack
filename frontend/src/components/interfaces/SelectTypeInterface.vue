@@ -21,7 +21,7 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "referenceCk" | "metadata">): void;
+  (e: "update:modelValue", value: Pick<Field, "name" | "tag" | "flags" | "referenceCk" | "value">): void;
   (e: "escape"): void;
 }>();
 

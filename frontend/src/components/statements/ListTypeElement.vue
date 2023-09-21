@@ -45,7 +45,7 @@ function createOption() {
   });
 }
 
-function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value"> & Partial<Field>) {
   const field = fieldsX.createNewField(template);
   nextTick(() => {
     grid.getRef(field.id, "type").open("all");

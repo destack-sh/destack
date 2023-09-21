@@ -73,7 +73,7 @@ function writeColumn(kind: "input" | "output", fieldId: string, column: ColumnTy
 
 function insertBelow(
   kind: "input" | "output",
-  template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">
+  template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value">
 ) {
   // function fields are required by default
   const flags = (kind == "output" ? TypeFlag.IsOutput : 0) | ((template.flags ?? 0) & ~TypeFlag.IsOptional);

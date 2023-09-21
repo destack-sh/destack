@@ -43,7 +43,7 @@ class Field(CrudNode):
     tag = models.CharField(max_length=20, choices=get_choices(TypeTag))
     hint = models.CharField(max_length=20, choices=get_choices(TypeHint), null=True, blank=True)
     flags = models.IntegerField(default=0)
-    metadata = models.JSONField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
     text = models.TextField(null=True, blank=True)
     reference_ck = models.UUIDField(null=True, blank=True)
 
@@ -140,7 +140,7 @@ class Tagging(CrudNode):
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="tags")
     key = models.CharField(max_length=48)
     reference_ck = models.UUIDField(null=True, blank=True)
-    metadata = models.JSONField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
 
     @property
     def parent_id(self):
@@ -179,6 +179,7 @@ class Tile(CrudNode):
     order_key = models.CharField(max_length=64)  # in parent
     x = models.IntegerField(null=True, blank=True)
     y = models.IntegerField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
 
     children: models.QuerySet[Tile]  # noqa via Tile.parent
 

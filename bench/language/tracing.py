@@ -381,7 +381,7 @@ def _pack_and_truncate_value(
 # This will need to be expanded when we get to parallel runs.
 _active_root_run: ContextVar[Run | None] = ContextVar("active_root_run", default=None)
 _active_run_by_root: dict[UUID, Run] = {}
-_custom_metadata: ContextVar[dict[str, Any] | None] = ContextVar("custom_metadata", default=None)
+_custom_value: ContextVar[dict[str, Any] | None] = ContextVar("custom_value", default=None)
 
 
 def _get_active_run() -> Run | None:
@@ -439,7 +439,7 @@ class RunTracer(Tracer):
     def pop_stacktrace(self) -> Run:
         run = self.stacktrace.pop()
         # update cached info in parent(s)
-        if run.metadata.cached_at is not None:
+        if run.value.cached_at is not None:
             self._update_cached_info()
         return run
 
@@ -487,25 +487,23 @@ class RunTracer(Tracer):
         run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
         run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
         run.status = RunStatus.Completed
-        run.metadata.cached_at = generated_at
-        run.metadata.cached_in = generated_in
-        run.metadata.cached_duration = duration
-        custom_metadata = _custom_metadata.get()
-        for k, v in (custom_metadata or {}).items():
-            run.metadata[k] = v
+        run.value.cached_at = generated_at
+        run.value.cached_in = generated_in
+        run.value.cached_duration = duration
+        custom_value = _custom_value.get()
+        for k, v in (custom_value or {}).items():
+            run.value[k] = v
         self.track(run)
         self._update_cached_info()
         logger.debug("trace.run.cached", run=run, stackdepth=len(self.stacktrace))
 
     def _update_cached_info(self):
         for run in self.stacktrace:
-            run.metadata.cached_at = min(
-                r.metadata.cached_at for r in run.walk_descendants() if r.metadata.cached_at
+            run.value.cached_at = min(
+                r.value.cached_at for r in run.walk_descendants() if r.value.cached_at
             )
-            run.metadata.cached_duration = sum(
-                r.metadata.cached_duration
-                for r in run.walk_descendants()
-                if r.metadata.cached_duration
+            run.value.cached_duration = sum(
+                r.value.cached_duration for r in run.walk_descendants() if r.value.cached_duration
             )
 
     def _create_run(
@@ -547,14 +545,14 @@ class RunTracer(Tracer):
             outputs=None,
             error=None,
             status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
-            metadata={},
+            value={},
         )
         run._activate_in(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
-        custom_metadata = _custom_metadata.get()
-        for k, v in (custom_metadata or {}).items():
-            run.metadata[k] = v
+        custom_value = _custom_value.get()
+        for k, v in (custom_value or {}).items():
+            run.value[k] = v
         return run
 
     @contextlib.contextmanager
@@ -568,14 +566,14 @@ class RunTracer(Tracer):
             capture.runs = [run for run in self.runs.values() if run.id not in start_ids]
 
     @contextlib.contextmanager
-    def metadata(self, **kwargs):
-        """Set custom metadata for all runs created within the context."""
-        old = _custom_metadata.get() or {}
-        _custom_metadata.set({**old, **kwargs})
+    def value(self, **kwargs):
+        """Set custom value for all runs created within the context."""
+        old = _custom_value.get() or {}
+        _custom_value.set({**old, **kwargs})
         try:
             yield
         finally:
-            _custom_metadata.set(old or None)
+            _custom_value.set(old or None)
 
     def start_capture(self) -> _RunCapture:
         """Start capturing runs."""

@@ -131,7 +131,7 @@ export const RunContentType = graphql(/* GraphQL */ `
         locals
       }
     }
-    metadata
+    value
     runnable {
       id
     }
@@ -167,7 +167,7 @@ export const LogEntryContentType = graphql(/* GraphQL */ `
     level
     logger
     message
-    metadata
+    value
   }
 `);
 
@@ -462,7 +462,7 @@ export function _useSessions(
       runnable,
       runnableCk: runnable.ck,
       outputs: null,
-      metadata: null,
+      value: null,
       error: null,
       session: {
         __typename: "Session",

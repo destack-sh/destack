@@ -86,7 +86,7 @@ class Tagging(HasCrud, ModuleNode, Revisioned, relay.Node):
     statement: "Statement"
     reference_ck: auto
     key: auto
-    metadata: auto
+    value: auto
 
 
 @strawberry_django.type(models.Field)
@@ -101,7 +101,7 @@ class Field(HasCrud, ModuleNode, Revisioned, relay.Node):
     flags: int
     text: auto
     reference_ck: auto
-    metadata: auto
+    value: auto
 
 
 @strawberry_django.type(models.Statement)
@@ -506,12 +506,12 @@ class TaggingCreateInput:
     statement_id: GlobalID
     key: str
     reference_ck: UUID
-    metadata: Optional[JSON] = None
+    value: Optional[JSON] = None
 
 
 @strawberry.input
 class TaggingUpdateInput(strawberry_django.NodeInput):
-    metadata: Optional[JSON] = None
+    value: Optional[JSON] = None
 
 
 @strawberry.input
@@ -586,7 +586,7 @@ class FieldCreateInput:
     text: Optional[str] = None
     flags: int = 0
     reference_ck: Optional[UUID] = None
-    metadata: Optional[JSON] = None
+    value: Optional[JSON] = None
 
 
 @strawberry.input
@@ -597,7 +597,7 @@ class FieldUpdateInput(strawberry_django.NodeInput):
     text: Optional[str] = None
     flags: int = 0
     reference_ck: Optional[UUID] = None
-    metadata: Optional[JSON] = None
+    value: Optional[JSON] = None
 
 
 @strawberry.input
@@ -683,7 +683,7 @@ class SymbolMutation:
             hint=input.hint,
             flags=input.flags,
             reference_ck=input.reference_ck,
-            metadata=input.metadata,
+            value=input.value,
         )
         return field
 
@@ -696,7 +696,7 @@ class SymbolMutation:
         field.hint = input.hint
         field.flags = input.flags
         field.reference_ck = input.reference_ck
-        field.metadata = input.metadata
+        field.value = input.value
         return field
 
     @tracked_db_mutation(MMT.RENAME_FIELD)
@@ -753,14 +753,14 @@ class SymbolMutation:
             statement_id=UUID(input.statement_id.node_id),
             key=input.key,
             reference_ck=input.reference_ck,
-            metadata=input.metadata,
+            value=input.value,
         )
         return tagging
 
     @tracked_db_mutation(MMT.UPDATE_TAGGING)
     def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
-        tagging.metadata = input.metadata
+        tagging.value = input.value
         return tagging
 
     @tracked_db_mutation(MMT.DELETE_TAGGING)

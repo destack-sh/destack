@@ -163,7 +163,7 @@ export const FieldType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    metadata
+    value
     # crud
     createdAt
     updatedAt
@@ -189,7 +189,7 @@ export const TaggingType = graphql(/* GraphQL */ `
       id
     }
     referenceCk
-    metadata
+    value
     # crud
     createdAt
     updatedAt

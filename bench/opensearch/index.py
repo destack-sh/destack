@@ -344,7 +344,6 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
     outputs_mappings: dict[str, os.Field] = {}
-    metadata_mappings: dict[str, os.Field] = {}
 
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
@@ -360,10 +359,10 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             if f.type == os.FieldType.KNN_VECTOR:
                 f.index = False
 
-    # and 'static' metadata mappings (hard-coded)
-    for metadata_type in (libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),):
-        for field in metadata_type.resolved_fields:
-            metadata_mappings[field.typed_key] = map_to_os_field(field)
+    # and 'static' value mappings (hard-coded)
+    for value_type in (libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),):
+        for field in value_type.resolved_fields:
+            value_mappings[field.typed_key] = map_to_os_field(field)
 
     # add dynamic user mappings
     for statement in module._nodes_by_id.values():
@@ -386,14 +385,12 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         value_mappings=len(value_mappings),
         inputs_mappings=len(inputs_mappings),
         outputs_mappings=len(outputs_mappings),
-        metadata_mappings=len(metadata_mappings),
     )
     mappings = {}
     for key, sub_mappings in (
         ("value", value_mappings),
         ("inputs", inputs_mappings),
         ("outputs", outputs_mappings),
-        ("metadata", metadata_mappings),
     ):
         sub_mappings = {k: v.to_dict() for (k, v) in sub_mappings.items()}
         mappings[key] = {"type": "object", "dynamic": "strict", "properties": sub_mappings}

@@ -13,7 +13,7 @@ from .file import File
 from .issue import Issue
 from .module import Module, ModuleNode, ModuleVisitor, Scope
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
-from .reflect import ModelMetadata, RunMetadata
+from .reflect import RunMetadata
 from .remote import RemoteObject, Secret
 from .run import HasRun, Run, RunError
 from .session import LogEntry, Session
@@ -59,7 +59,6 @@ __all__ = [
     "Module",
     "ModuleNode",
     "ModuleVisitor",
-    "ModelMetadata",
     "Q",
     "Query",
     "QueryOp",

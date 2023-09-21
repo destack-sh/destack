@@ -550,7 +550,7 @@ export function useSymbolContentOps() {
         $text: String
         $flags: Int!
         $referenceCk: UUID
-        $metadata: JSON
+        $value: JSON
       ) {
         createField(
           input: {
@@ -565,7 +565,7 @@ export function useSymbolContentOps() {
             text: $text
             flags: $flags
             referenceCk: $referenceCk
-            metadata: $metadata
+            value: $value
           }
         ) {
           ... on Field {
@@ -587,7 +587,7 @@ export function useSymbolContentOps() {
             text
             referenceCk
             flags
-            metadata
+            value
             # crud
             createdAt
             updatedAt
@@ -617,7 +617,7 @@ export function useSymbolContentOps() {
         text: string | null;
         flags: number;
         referenceCk: string | null;
-        metadata: any;
+        value: any;
       }) =>
         ({
           __typename: "Mutation",
@@ -642,7 +642,7 @@ export function useSymbolContentOps() {
             orderKey: vars.orderKey,
             referenceCk: vars.referenceCk,
             flags: vars.flags,
-            metadata: vars.metadata ?? null,
+            value: vars.value ?? null,
             // crud
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -763,7 +763,7 @@ export function useSymbolContentOps() {
       | "hint"
       | "orderKey"
       | "flags"
-      | "metadata"
+      | "value"
       | "referenceCk"
       | "statement"
     >
@@ -793,7 +793,7 @@ export function useSymbolContentOps() {
       | "key"
       | "orderKey"
       | "flags"
-      | "metadata"
+      | "value"
       | "referenceCk"
       | "statement"
     >
@@ -847,7 +847,7 @@ export function useSymbolContentOps() {
         $text: String
         $flags: Int!
         $referenceCk: UUID
-        $metadata: JSON
+        $value: JSON
       ) {
         updateField(
           input: {
@@ -858,7 +858,7 @@ export function useSymbolContentOps() {
             text: $text
             flags: $flags
             referenceCk: $referenceCk
-            metadata: $metadata
+            value: $value
           }
         ) {
           ... on Field {
@@ -871,7 +871,7 @@ export function useSymbolContentOps() {
             text
             flags
             referenceCk
-            metadata
+            value
           }
           ...OperationInfoContent
         }
@@ -886,7 +886,7 @@ export function useSymbolContentOps() {
         text: string;
         flags: number;
         referenceCk?: string;
-        metadata?: any;
+        value?: any;
       }) => {
         return {
           updateField: {
@@ -900,7 +900,7 @@ export function useSymbolContentOps() {
             text: vars.text,
             flags: vars.flags,
             referenceCk: vars.referenceCk ?? null,
-            metadata: vars.metadata ?? null,
+            value: vars.value ?? null,
           },
         } as UpdateFieldMutation;
       },
@@ -967,17 +967,10 @@ export function useSymbolContentOps() {
         $statementId: GlobalID!
         $key: String!
         $referenceCk: UUID!
-        $metadata: JSON
+        $value: JSON
       ) {
         createTagging(
-          input: {
-            id: $id
-            ck: $ck
-            statementId: $statementId
-            key: $key
-            referenceCk: $referenceCk
-            metadata: $metadata
-          }
+          input: { id: $id, ck: $ck, statementId: $statementId, key: $key, referenceCk: $referenceCk, value: $value }
         ) {
           ... on Tagging {
             id
@@ -988,7 +981,7 @@ export function useSymbolContentOps() {
               id
             }
             referenceCk
-            metadata
+            value
             # crud
             createdAt
             updatedAt
@@ -1012,7 +1005,7 @@ export function useSymbolContentOps() {
         statementId: string;
         key: string;
         referenceCk: string | null;
-        metadata: any;
+        value: any;
       }) =>
         ({
           __typename: "Mutation",
@@ -1027,7 +1020,7 @@ export function useSymbolContentOps() {
               id: vars.statementId,
             },
             referenceCk: vars.referenceCk,
-            metadata: vars.metadata ?? null,
+            value: vars.value ?? null,
             // crud
             createdAt: new Date().toISOString(),
             updatedAt: new Date().toISOString(),
@@ -1138,7 +1131,7 @@ export function useSymbolContentOps() {
   async function createTagging(
     tx: Transaction | null,
     statementId: string,
-    tagging: Pick<Tagging, "id" | "ck" | "key" | "referenceCk" | "metadata">
+    tagging: Pick<Tagging, "id" | "ck" | "key" | "referenceCk" | "value">
   ) {
     await ops.perform({
       tx,
@@ -1150,7 +1143,7 @@ export function useSymbolContentOps() {
           statementId: statementId,
           key: tagging.key,
           referenceCk: tagging.referenceCk ?? null,
-          metadata: tagging.metadata ?? null,
+          value: tagging.value ?? null,
         });
       },
       undo: async () => {
@@ -1188,33 +1181,33 @@ export function useSymbolContentOps() {
   const { mutate: updateTaggingMut } = registry.defineModuleMutation(
     ModuleMutationType.UpdateTagging,
     graphql(/* GraphQL */ `
-      mutation updateTagging($id: GlobalID!, $metadata: JSON) {
-        updateTagging(input: { id: $id, metadata: $metadata }) {
+      mutation updateTagging($id: GlobalID!, $value: JSON) {
+        updateTagging(input: { id: $id, value: $value }) {
           ... on Tagging {
             id
             updatedAt
             revision
-            metadata
+            value
           }
           ...OperationInfoContent
         }
       }
     `),
     {
-      optimisticResponse: (vars: { id: string; key: string; referenceCk: string | null; metadata: any }) =>
+      optimisticResponse: (vars: { id: string; key: string; referenceCk: string | null; value: any }) =>
         ({
           updateTagging: {
             __typename: "Tagging",
             id: vars.id,
             updatedAt: new Date().toISOString(),
             revision: PENDING_REVISION,
-            metadata: vars.metadata ?? null,
+            value: vars.value ?? null,
           },
         } as any),
     }
   );
 
-  function _toTaggingInput(input: Pick<Tagging, "id" | "key" | "referenceCk" | "metadata">) {
+  function _toTaggingInput(input: Pick<Tagging, "id" | "key" | "referenceCk" | "value">) {
     return {
       ...input,
       // set optional values to null if not provided
@@ -1225,8 +1218,8 @@ export function useSymbolContentOps() {
   async function updateTaggingMetadata(
     tx: Transaction | null,
     statementId: string,
-    oldTagging: Pick<Tagging, "id" | "metadata">,
-    newTagging: Pick<Tagging, "id" | "metadata">
+    oldTagging: Pick<Tagging, "id" | "value">,
+    newTagging: Pick<Tagging, "id" | "value">
   ) {
     await ops.perform({
       tx,

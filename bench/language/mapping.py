@@ -434,7 +434,7 @@ class EnumMapper(TypeMapper):
         return field_.key if field_ else value
 
 
-class FileMapper(TypeMapper):
+class RemoteObjectMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is RemoteObject
 
@@ -713,7 +713,7 @@ register_mapper(
 register_mapper(StaticPyTypeMapper(type(None), TypeTag.NULL), tags=[TypeTag.NULL])
 register_mapper(StaticPyTypeMapper(bool, TypeTag.BOOLEAN), tags=[TypeTag.BOOLEAN])
 register_mapper(VectorTypeMapper(), tags=[TypeTag.VECTOR])
-register_mapper(FileMapper(), tags=[TypeTag.FILE])
+register_mapper(RemoteObjectMapper(), tags=[TypeTag.FILE])
 register_mapper(EnumMapper(), tags=[TypeTag.ENUM])
 register_mapper(StructTypeMapper(), tags=[TypeTag.STRUCT])
 register_mapper(FunctionTypeMapper(), tags=[TypeTag.FUNCTION])

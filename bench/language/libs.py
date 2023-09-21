@@ -32,7 +32,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.statement import Code, Model, Statement, Task, Type
+from bench.language.statement import Model, Statement, Task, Type
 from bench.language.task import (
     CompiledInput,
     IncapableError,
@@ -934,7 +934,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
                 body = completion[len(header) :].strip()
             header_parts = header.split(" ", maxsplit=1)
             action = header_parts[0]
-            function_name = header_parts[1] if len(header_parts) > 1 else None
+            # function_name = header_parts[1] if len(header_parts) > 1 else None
         except (ValueError, TypeError) as e:
             raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
 
@@ -992,11 +992,6 @@ for name, module in DEFAULT_MODULES.items():
             module_reloaded.add_dependency(symbolx_lib)
         module_reloaded.index()
         module_reloaded.interp()
-
-        # check that all HasType things have fields
-        for statement in module_reloaded._nodes_by_id.values():
-            if isinstance(statement, (Type, Code, Task, Model)) and not statement.fields:
-                raise RuntimeError(f"statement {statement} has no fields")
 
         if module_reloaded.issues:
             raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")

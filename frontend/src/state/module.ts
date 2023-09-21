@@ -255,7 +255,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
       .map((v) => v as ModuleIndex)
   );
 
-  // run metadata fields are hardcoded for now
+  // run value fields are hardcoded for now
   const runMetadataFields = computed(() => {
     return (
       Object.values(defaultLibs["symbolx.lib"]?.value?.statementsById ?? {})
@@ -447,8 +447,8 @@ function _useModule(projectVersionId: Ref<string | null>) {
     return descendants;
   }
 
-  function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "referenceCk" | "metadata">) {
-    // TODO @Performance: cache getTypedKey (esp. when without references & metadata)
+  function getTypedKey(field: Pick<Field, "key" | "tag" | "hint" | "flags" | "referenceCk" | "value">) {
+    // TODO @Performance: cache getTypedKey (esp. when without references & value)
     let tag = field.tag;
     if (field.tag == TypeTag.TypeReference) {
       const reference = statementOf(field.referenceCk);
@@ -457,7 +457,7 @@ function _useModule(projectVersionId: Ref<string | null>) {
     }
     const storageFormat = getStorageFormat(tag, field.hint ?? undefined, field.flags);
     if (tag == TypeTag.Vector) {
-      const dimension = field.metadata?.dimension ?? DEFAULT_EMBEDDING_DIMENSION;
+      const dimension = field.value?.dimension ?? DEFAULT_EMBEDDING_DIMENSION;
       return `${field.key}-${storageFormat}${dimension}`;
     } else {
       return `${field.key}-${storageFormat}`;

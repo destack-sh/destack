@@ -128,7 +128,7 @@ async def run_task(
     previous_results = []
     while attempts < TASK_STEP_ATTEMPTS and model_idx < len(models):
         attempts += 1
-        task.current_run.metadata.retries = attempts
+        task.current_run.value.retries = attempts
         # run task step
         model = models[model_idx]
         compiler = model.compiler  # models may share a compiler
@@ -143,7 +143,7 @@ async def run_task(
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
             run_name = f"{task.name} #{attempts + 1}"
-            with task.session.tracer.run.metadata(retry=attempts, nonce=nonce, name=run_name):
+            with task.session.tracer.run.value(retry=attempts, nonce=nonce, name=run_name):
                 step = await compiler.run(model, compiled)
             if step.runnable is not None:
                 raise NotImplementedError(":TaskFunctions not supported yet")
@@ -167,8 +167,8 @@ async def run_task(
 
             run = run_capture.stop_one_or_none()
             if run is not None:
-                run.metadata.verdict = "reject"
-                run.metadata.verdict_reason = str(e)
+                run.value.verdict = "reject"
+                run.value.verdict_reason = str(e)
 
             continue
 

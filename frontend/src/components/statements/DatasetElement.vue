@@ -303,7 +303,7 @@ function focusLastRecord() {
 
 const ops = useOperations();
 
-function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>) {
+function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value"> & Partial<Field>) {
   grid.beginBatchChange();
   const field = fields.createNewField(template);
   nextTick(() => {

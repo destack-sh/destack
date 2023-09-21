@@ -795,7 +795,7 @@ class RuntimeWorker:
                 inputs={},
                 outputs=None,
                 error=None,
-                metadata=None,
+                value=None,
             )
             runs.append(run)
         models.Run.objects.bulk_create([packer.unpack_data(run) for run in runs])
