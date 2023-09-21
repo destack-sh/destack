@@ -4,6 +4,7 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useElementRefs } from "@/composables/useGrid";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
+import { newDynamicNodeKey } from "@/state/operations/statement";
 import { getStatementIconSolid } from "@/state/statement";
 import { syncProperty } from "@/utils/sync";
 import { AtSymbolIcon } from "@heroicons/vue/24/solid";
@@ -114,7 +115,11 @@ const quickActions = computed(() => {
     label: "Turn into dataset",
     icon: getStatementIconSolid(StatementType.Dataset),
     action: () => {
-      ops.statement.morph(null, props.statement.id, props.statement, { type: StatementType.Dataset });
+      ops.statement.morph(null, props.statement.id, props.statement, {
+        type: StatementType.Dataset,
+        versioned: true,
+        key: newDynamicNodeKey(props.statement.id),
+      });
       nextTick(() => emit("focus", "dataset"));
     },
   });

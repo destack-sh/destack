@@ -149,7 +149,10 @@ class DotDict(dict):
         try:
             return self[name]
         except KeyError:
-            raise AttributeError(name)
+            # TODO @Cleanup: don't return None for missing keys in DotDict
+            #  need type info here, but don't have it
+            # (since we omit empty fields now, this would cause many spurious errors.)
+            return None
 
     def __setattr__(self, name, value):
         self[name] = value
