@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         Field,
         File,
         HasFields,
+        HasValue,
         Model,
         Record,
         RemoteObject,
@@ -667,7 +668,7 @@ class TypeCheckingTracer(Tracer):
     def run_exit(self, statement: HasRun, outputs):
         check_type(outputs, statement, is_output=True)
 
-    def value_update(self, value: Variable, key: Optional[str] = None):
+    def value_update(self, value: HasValue, key: Optional[str] = None):
         if key:
             field_ = value.get_field(key)
             if field_ is None:

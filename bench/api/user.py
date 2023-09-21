@@ -210,7 +210,7 @@ class UserMutation:
         async_to_sync(channels_logout)(info.context["request"].consumer.scope)
         return None
 
-    # TODO @Security: check that secret root login is never exposed in prod
+    # TODO @Security!: check that secret root login is never exposed in prod
     @safe_mutation
     def secret_root_login(self, info: Info, username: str) -> User | OperationInfo:
         from bench.utils.utils import DEBUG, TEST

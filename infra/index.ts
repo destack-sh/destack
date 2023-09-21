@@ -295,7 +295,8 @@ const redisRestrictedPassword = new random.RandomPassword("redisRestrictedPasswo
 });
 const redisWorkerUser = new aws.elasticache.User("redisRestrictedUser", {
   engine: "REDIS",
-  accessString: "on ~* -@all +get +set +ping",
+  // TODO @Security!: don't give worker user full Redis access
+  accessString: "on ~* -@all +get +set +ping +incrby +expire +multi +exec",
   userId: "worker",
   userName: "worker",
   passwords: [redisRestrictedPassword.result],
