@@ -364,7 +364,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
             if f.type == os.FieldType.KNN_VECTOR:
-                f.refresh_index = False
+                f.index = False
 
     # and 'static' value mappings (hard-coded)
     for value_type in (libs.symbolx_lib.lookup_or_error(".reflect.RunMetadata"),):

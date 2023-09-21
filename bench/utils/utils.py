@@ -151,7 +151,8 @@ class DotDict(dict):
         except KeyError:
             # TODO @Cleanup: don't return None for missing keys in DotDict
             #  need type info here, but don't have it
-            # (since we omit empty fields now, this would cause many spurious errors.)
+            # (since we omit empty fields now, this would cause spurious errors,
+            #  esp. in our library dataset/struct hybrid types)
             return None
 
     def __setattr__(self, name, value):

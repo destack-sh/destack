@@ -352,6 +352,7 @@ def _pack_and_truncate_value(
     type: HasFields,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
+    none_if_invalid: bool = False,
     is_output: bool = None,
 ) -> Any:
     def _is_type_truncated(type: HasFields) -> bool:
@@ -372,6 +373,7 @@ def _pack_and_truncate_value(
         premap_v=_truncate_value,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
+        none_if_invalid=none_if_invalid,
         is_output=is_output,
     )
 
@@ -444,8 +446,11 @@ class RunTracer(Tracer):
         return run
 
     def run_enter(self, statement: HasRun, inputs):
+        # we set invalid values to none here unlike in other packing places because
+        #  these values may be written even if invalid
         run = self._create_run(
-            runnable=statement, inputs=pack_value(inputs, statement, is_output=False)
+            runnable=statement,
+            inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
         )
         self.stacktrace.append(run)
         _set_active_run(run)
@@ -455,7 +460,9 @@ class RunTracer(Tracer):
     def run_exit(self, statement: HasRun, outputs):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
-        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run.outputs = _pack_and_truncate_value(
+            outputs, statement, is_output=True, none_if_invalid=True
+        )
         run.status = RunStatus.Completed
         self.track(run)
         _clear_active_run(run)
@@ -484,8 +491,12 @@ class RunTracer(Tracer):
     ):
         run = self._create_run(runnable=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
-        run.inputs = _pack_and_truncate_value(inputs, statement, is_output=False)
-        run.outputs = _pack_and_truncate_value(outputs, statement, is_output=True)
+        run.inputs = _pack_and_truncate_value(
+            inputs, statement, is_output=False, none_if_invalid=True
+        )
+        run.outputs = _pack_and_truncate_value(
+            outputs, statement, is_output=True, none_if_invalid=True
+        )
         run.status = RunStatus.Completed
         run.value.cached_at = generated_at
         run.value.cached_in = generated_in

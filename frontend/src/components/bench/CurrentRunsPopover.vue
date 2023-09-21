@@ -94,9 +94,13 @@ function runOrLaunch(statement: InterpStatement) {
         <!-- Active runs -->
         <div v-if="activeRuns.length > 0" class="mt-2 flex flex-col gap-0.5">
           <!-- Run -->
-          <div v-for="run in activeRunsDesc" :key="run.id" class="relative flex flex-row justify-between gap-1 py-0.5">
+          <div
+            v-for="run in activeRunsDesc"
+            :key="run.id"
+            class="relative flex max-w-full flex-row justify-between gap-1 py-0.5"
+          >
             <!-- Run preview -->
-            <div class="flex flex-row items-center">
+            <div class="flex max-w-full flex-row items-center">
               <!-- Status -->
               <component
                 :is="getRunStatusIconSolid(run.status)"
@@ -108,7 +112,7 @@ function runOrLaunch(statement: InterpStatement) {
               </span>
               <!-- Statement -->
               <span
-                class="ml-1 cursor-pointer text-gray-900 decoration-gray-700 underline-offset-2 hover:underline"
+                class="ml-1 cursor-pointer truncate text-gray-900 decoration-gray-700 underline-offset-2 hover:underline"
                 @click="nav.focusStatement(run.runnableCk)"
               >
                 {{ module.statementOf(run.runnableCk)?.name ?? "unnamed" }}
