@@ -44,7 +44,7 @@ class TypeError(TypeError):
         suberrors: list["TypeError"] = None,
     ):
         value_str = repr(value)
-        max_value_str_len = 400
+        max_value_str_len = 300
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
         super().__init__(
