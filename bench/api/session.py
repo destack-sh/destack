@@ -703,7 +703,7 @@ class SessionMutation:
                 NMessageType.KILL_RUN, kill, reply_t=RepKillRunPayload, retry=2, timeout=2
             )
             if rep.p.success:
-                run = await models.Run.objects.aget(id=run_id)
+                run = await models.Run.objects.filter(id=run_id).afirst()
                 return KillRunPayload(run=run)
         except (TimeoutError, MessagingError) as e:
             if input.restart_if_unresponsive:
@@ -719,7 +719,7 @@ class SessionMutation:
                     retry=3,
                 )
                 if rep.p.success and rep.p.worker_set_id:
-                    run = await models.Run.objects.aget(id=run_id)
+                    run = await models.Run.objects.filter(id=run_id).afirst()
                     return KillRunPayload(run=run)
         except NoRespondersError:
             pass
@@ -738,7 +738,7 @@ class SessionMutation:
             runs_data = [packer.pack_data(r) for r in runs]
             await sync_to_async(write_runs_to_os)(runs_data)
             await publish(NMessageType.RUNS_CHANGED, RunsChangedGlobalPayload(runs=runs_data))
-        run = await models.Run.objects.aget(id=run_id)
+        run = await models.Run.objects.filter(id=run_id).afirst()
         return KillRunPayload(run=run)
 
 
