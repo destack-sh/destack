@@ -108,7 +108,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     blank_module_tree = wire.ModuleTree(blank_module.nodes)
     new_module = wire.pack_module(module)
     mutations = diff_modules(blank_module, new_module)
-    packer.write_mutations(project_v, blank_module_tree, mutations, wait_for_os=False)
+    packer.write_mutations(project_v, blank_module_tree, mutations, refresh_index=False)
     project_v.commit()
 
     if sanity_check:

@@ -334,7 +334,7 @@ class ReqWriteModulePayload(Payload):
     module_id: UUID
     mutations: list[ModuleMutation]
     client: ClientOrigin
-    wait: bool
+    refresh_index: bool
 
 
 @payload(NMessageType.WRITE_MODULE_REP)

@@ -17,7 +17,7 @@ from bench.language.search import Search
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language.mutate import ModuleMutation, ModuleMutator
+    from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
     from bench.language.run import Run
     from bench.language.statement import Statement
     from bench.language.tracing import _RunCapture
@@ -47,7 +47,7 @@ SESSION_MUTATION_FLUSH_WATERMARK = 512
 class ModuleWriter(abc.ABC):
     """Base for writing module/session for type-checking."""
 
-    async def write_module(self, mutations: list["ModuleMutation"]) -> bool:
+    async def write_module(self, mutations: list["ModuleMutation"], refresh_index: bool) -> bool:
         raise NotImplementedError
 
     async def write_session(
@@ -57,7 +57,7 @@ class ModuleWriter(abc.ABC):
 
 
 class NoopModuleWriter(ModuleWriter):
-    async def write_module(self, mutations: list["ModuleMutation"]) -> bool:
+    async def write_module(self, mutations: list["ModuleMutation"], refresh_index: bool) -> bool:
         return True
 
     async def write_session(
@@ -107,6 +107,7 @@ class Session:
         self.tracer = SessionTracer(self, mutator=self.mutator, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+        self._past_flushes: list[tuple[int, set[MMT]]] = []
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
 
     def __str__(self):
@@ -181,9 +182,20 @@ class Session:
         await self.tracer.open()
         logger.debug("session.open", session=self)
 
-    async def _do_flush(self, mutations: list["ModuleMutation"]) -> bool:
+    async def _do_search_preflight(self, search: Search) -> None:
+        """FLush any relevant mutations before searching."""
+        from bench.language.dataset import RecordSearch
+
+        if isinstance(search, RecordSearch):
+            # force flush and index if there are any pending dataset mutations
+            #  (or previous mutations that were already flushed but didn't refresh the index)
+            # TODO @Performance: force flush module for record search only if needed
+            if self.mutator.mutations or self._past_flushes:
+                await self.aflush(optimistic=False, refresh_index=True)
+
+    async def _do_flush(self, mutations: list["ModuleMutation"], refresh_index: bool) -> bool:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
-        success = await self.writer.write_module(mutations)
+        success = await self.writer.write_module(mutations, refresh_index)
         if not success:
             if len(mutations) > 20:
                 mutations_str = f"{mutations[:10]} ... {mutations[-10:]}"
@@ -193,25 +205,34 @@ class Session:
         logger.debug("session.flush.done", session=self, mutator=self.mutator)
         return success
 
-    async def aflush(self, optimistic: bool = False):
+    async def aflush(self, optimistic: bool = False, refresh_index: bool = False):
         """
         Flushes all module mutations.
         If optimistic, this will return before the flush is complete (but will wait on close).
         """
-        if not self.mutator.mutations:
-            return
+        if not self.mutator.mutations and not refresh_index:
+            return  # skip if no mutations and no index refresh
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
-        logger.debug("session.flush", session=self, mutator=self.mutator, optimistic=optimistic)
+        logger.debug(
+            "session.flush",
+            session=self,
+            mutator=self.mutator,
+            optimistic=optimistic,
+            refresh_index=refresh_index,
+        )
         mutations = self.mutator.bundle().compact()
         self.mutator.reset()
-        flush = self._do_flush(mutations)
+        flush = self._do_flush(mutations, refresh_index)
         if optimistic:
             self._pending_flushes.append((len(mutations), asyncio.create_task(flush)))
         else:
             await flush
+        self._past_flushes.append((len(mutations), set(m.type for m in mutations)))
 
     def flush(self, optimistic: bool = False):
+        if not self.mutator.mutations:
+            return
         asgiref.sync.async_to_sync(self.aflush)(optimistic=optimistic)
 
     async def aclose(self):
@@ -220,6 +241,7 @@ class Session:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = utcnow_with_tz()
         await self.aflush(optimistic=True)
+        # TODO @Robustness: flush pending mutations inside top level run (to report errors properly)
         # await all pending flushes
         pending_mutations_count = sum(count for count, _ in self._pending_flushes)
         logger.debug(
@@ -312,6 +334,7 @@ class RunSearch(Search["RunData", "Run"]):
         from bench.msg.core import request
         from bench.msg.messages import NMessageType, RepSearchRunPayload, ReqSearchRunsPayload
 
+        await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_cks = [runnable.ck for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchRunPayload] = await request(
@@ -379,6 +402,7 @@ class LogSearch(Search["LogEntryData", LogEntry]):
         from bench.msg.core import request
         from bench.msg.messages import NMessageType, RepSearchLogPayload, ReqSearchLogPayload
 
+        await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
         rep: NMessage[RepSearchLogPayload] = await request(

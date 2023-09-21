@@ -556,7 +556,7 @@ class ModuleWorkerProcess(ModuleWriter):
                     logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
             await asyncio.sleep(interval)
 
-    async def write_module(self, mutations: list[ModuleMutation]) -> bool:
+    async def write_module(self, mutations: list[ModuleMutation], refresh_index: bool) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
         is_semantic = any(m.type.semantic for m in mutations)
         self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
@@ -571,7 +571,7 @@ class ModuleWorkerProcess(ModuleWriter):
             module_id=self.module_id,
             mutations=mutations,
             client=self.node.client,
-            wait=False,
+            refresh_index=refresh_index,
         )
         rep: NMessage[RepWriteModulePayload] = await request(
             NMessageType.WRITE_MODULE, req, RepWriteModulePayload, retry=3

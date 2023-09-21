@@ -878,7 +878,7 @@ def write_mutations(
     project_v: models.ProjectVersion,
     module: ModuleTree,
     mutations: list[ModuleMutation],
-    wait_for_os: bool,
+    refresh_index: bool,
 ):
     """
     Writes a series of module mutations to the database AND mutates the given module.
@@ -920,8 +920,7 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MMK.UPDATE
-                # TODO @Performance: optimize single module node update mutations
-                #  (e.g.. compile into single query)
+                # nocheckin: optimize single module node update mutations (group by updated props?)
                 for m, node in zip(batch, nodes):
                     node._state.adding = False  # ensure update
                     try:
@@ -934,7 +933,7 @@ def write_mutations(
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
-    write_mutations_to_os(project_v, mut.mutations, wait=wait_for_os)
+    write_mutations_to_os(project_v, mut.mutations, refresh=refresh_index)
 
 
 @transaction.atomic(savepoint=False)

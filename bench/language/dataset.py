@@ -193,7 +193,7 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
         for view in self.views or []:
             visitor.visit_child(view)
 
-    def append(self, record: Record | dict = None, **value):
+    def append(self, record: Record | dict = None, **value) -> Record:
         """Appends a record to the dataset."""
         if record is not None:
             if value:
@@ -208,8 +208,9 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
         record = Record(parent=self, value=value)
         self._notify_added(record)
         self.session.tracer.dataset_append(self, record)
+        return record
 
-    def extend(self, records: typing.Iterable[Record | dict]):
+    def extend(self, records: typing.Iterable[Record | dict]) -> None:
         """Extends the dataset with the given records."""
         values = [  # remove source proxy if any
             unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
@@ -310,6 +311,7 @@ class RecordSearch(Search["RecordData", Record]):
             ReqSearchRecordsPayload,
         )
 
+        await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
         if self.datasets is not None:
             statement_keys = [dataset.key for dataset in self.datasets]
