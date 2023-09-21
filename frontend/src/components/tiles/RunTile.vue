@@ -6,7 +6,7 @@ import { RunStatus, type Run, type LogEntry } from "@/gql/graphql";
 import { Bars3Icon, ChartBarIcon, FireIcon, QueueListIcon, XCircleIcon, XMarkIcon } from "@heroicons/vue/24/outline";
 import { ref, watch } from "vue";
 
-type View = "logs" | "flamegraph" | "error" | "trace";
+type View = "logs" | "error" | "trace";
 
 const props = defineProps<{
   projectId: string;
@@ -53,13 +53,11 @@ defineExpose({
       <!-- View switcher -->
       <div class="group/controls z-10 flex flex-row gap-1">
         <button
-          v-for="view in ['logs', 'flamegraph', 'error', 'trace'].filter(
-            (v) => v != 'error' || run?.status == RunStatus.Failed
-          )"
+          v-for="view in ['logs', 'error', 'trace'].filter((v) => v != 'error' || run?.status == RunStatus.Failed)"
           :key="view"
           class="group/button relative cursor-pointer rounded-sm p-0.5 hover:bg-orange-100"
           :class="[activeView == view ? 'text-orange-600' : 'text-gray-400 hover:text-gray-700']"
-          @click="activeView = (view as View)"
+          @click="activeView = view as View"
         >
           <component :is="VIEW_ICONS[view]" class="h-4 w-4" />
           <!-- Label -->
@@ -88,13 +86,7 @@ defineExpose({
     <!-- View container (scrollable) -->
     <div ref="outputRef" class="mt-1">
       <!-- Output views -->
-      <TraceTile
-        v-if="activeView == 'flamegraph' || activeView == 'trace'"
-        :session-id="run.session?.id"
-        :root-id="run.id"
-        :layout="activeView == 'flamegraph' ? 'bars' : 'list'"
-        live
-      />
+      <TraceTile v-if="activeView == 'trace'" :session-id="run.session?.id" :root-id="run.id" layout="list" live />
       <LogsTile
         v-else-if="activeView == 'logs' && run.session?.id != null"
         ref="logsTileRef"
