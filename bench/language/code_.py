@@ -327,11 +327,11 @@ class HasCode(HasFields, ModuleNode):
     def _wrap_test(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
         # TODO @UX: instrument test callables with pytest for better assert reporting
         def _test_sync(*args, **kwargs):
-            self.current_run.metadata.test = True
+            self.current_run.value.test = True
             return callable(*args, **kwargs)
 
         async def _test_async(*args, **kwargs):
-            self.current_run.metadata.test = True
+            self.current_run.value.test = True
             return await callable(*args, **kwargs)
 
         return _test_async if self._parse.is_async else _test_sync

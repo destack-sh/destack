@@ -168,7 +168,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 
 
 # TODO @Architecture: sessions/runs are kind of like module nodes, but also kind of not
-#  (have parent run/session, no ck, activation, ..?)
+#  (have parent run/session, need revisions for value, no ck, activation, ..?)
 
 
 @dataclass
@@ -188,18 +188,18 @@ class Run:
     inputs: Optional[dict[str, Any]]
     outputs: Optional[dict[str, Any]]
     error: Optional["RunError"]
-    metadata: dict[str, Any] = field(default_factory=dict)
+    value: dict[str, Any] = field(default_factory=dict)
     created_at: datetime = field(default_factory=utcnow_with_tz)
     updated_at: datetime = field(default_factory=utcnow_with_tz)
     children: list["Run"] = field(default_factory=list)
-    _metadata_unpacked: bool = False
+    _value_unpacked: bool = False
 
     def __post_init__(self):
         self.updated_at = utcnow_with_tz()
 
     def __str__(self):
-        metadata_keys_str = ", ".join(self.metadata.keys()) if self.metadata else ""
-        return f"{self.runnable} ({self.status}, metadata={metadata_keys_str or '<none>'})"
+        value_keys_str = ", ".join(self.value.keys()) if self.value else ""
+        return f"{self.runnable} ({self.status}, value={value_keys_str or '<none>'})"
 
     def __repr__(self):
         return f"<Run {self}>"
@@ -210,28 +210,28 @@ class Run:
 
         metatype = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
 
-        def _onwrite_metadata(key: str):
-            check_type(self.metadata, metatype)
+        def _onwrite_value(key: str):
+            check_type(self.value, metatype)
 
-        metadata = unpack_value(self.metadata, metatype, ignore_array=True, ignore_outer_map=True)
-        self.metadata = proxy_value(
-            metadata, onread=lambda *args: None, onwrite=_onwrite_metadata, default_none=True
+        value = unpack_value(self.value, metatype, ignore_array=True, ignore_outer_map=True)
+        self.value = proxy_value(
+            value, onread=lambda *args: None, onwrite=_onwrite_value, default_none=True
         )
-        self._metadata_unpacked = True
+        self._value_unpacked = True
 
         for key, value in kwargs.items():
-            self.metadata[key] = value
+            self.value[key] = value
 
-    def _raw_metadata(self) -> dict:
+    def _raw_value(self) -> dict:
         from bench.language.libs import symbolx_lib
         from bench.language.mapping import pack_value
 
-        run_metadata = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
+        run_value = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
 
-        if not self._metadata_unpacked:
-            return self.metadata
+        if not self._value_unpacked:
+            return self.value
         else:
-            return pack_value(self.metadata, run_metadata, ignore_array=True, ignore_outer_map=True)
+            return pack_value(self.value, run_value, ignore_array=True, ignore_outer_map=True)
 
     @property
     def active(self) -> bool:

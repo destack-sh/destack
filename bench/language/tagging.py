@@ -2,23 +2,28 @@ import typing
 from dataclasses import field
 from uuid import UUID
 
-from bench.language import Scope
 from bench.language.const import MNT, StatementReference
-from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language.value import HasValue
 from bench.utils.utils import required_field
 
 if typing.TYPE_CHECKING:
-    from bench.language.statement import Tag
+    from bench.language import HasFields, Tag
 
 
 @node(mnt=MNT.Tagging, tracked=[])
-class Tagging(ModuleNode):
-    """An association between a tag and a statement (with optional metadata)."""
+class Tagging(HasValue, ModuleNode):
+    """An association between a tag and a statement (with optional value)."""
 
     reference: typing.Union["Tag", StatementReference] = required_field()
     key: str = required_field()
     parent: ModuleNode | None = None
-    metadata: dict[str, typing.Any] | None = None
+
+    @property
+    def _type_of_value(self) -> "HasFields":
+        from bench.language.libs import symbolx_lib
+
+        return symbolx_lib.lookup_or_error(".reflect.TaggingMetadata")
 
     def __str__(self):
         if isinstance(self.reference, ModuleNode):
@@ -30,7 +35,8 @@ class Tagging(ModuleNode):
         return f"<Tagging {self}>"
 
     def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
+        if isinstance(self.reference, ModuleNode):
+            visitor.visit_reference(self.reference)
 
     @property
     def reference_ck(self) -> typing.Optional[UUID]:

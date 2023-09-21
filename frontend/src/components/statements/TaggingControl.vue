@@ -64,7 +64,7 @@ function createTagging(tag: Pick<Statement, "ck" | "key" | "name">) {
     ck: identity.ck,
     key: tag.key as string,
     referenceCk: tag.ck,
-    metadata: null,
+    value: null,
   });
   nextTick(() => taggingRefs.focus(identity.id));
 }

@@ -444,7 +444,6 @@ class Session(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     opened_at: Optional[datetime] = os.field(os.FT.DATE)
     closed_at: Optional[datetime] = os.field(os.FT.DATE)
-    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
     trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
 
 
@@ -456,7 +455,6 @@ class SessionPacker(Packer[models.Session, Session, wire.SessionData]):
             project_version_id=node.project_version_id,
             opened_at=node.opened_at,
             closed_at=node.closed_at,
-            metadata=node.metadata,
             trigger_type=node.trigger_type,
         )
 
@@ -484,7 +482,7 @@ class Run(os.Document):
     inputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     outputs: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined
     error: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
-    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
+    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
 
 @packer(models.Run, Run, wire.RunData)
@@ -514,7 +512,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             inputs=mirror.inputs,
             outputs=mirror.outputs,
             error=None,
-            metadata=mirror.metadata,
+            value=mirror.value,
         )
 
     def unpack(self, project_v: None, data: wire.RunData, parent: None) -> Run:
@@ -545,7 +543,7 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             inputs=data.inputs,
             outputs=data.outputs,
             error=None,
-            metadata=data.metadata,
+            value=data.value,
         )
 
 
@@ -561,7 +559,7 @@ class LogEntry(os.Document):
     level: Optional[str] = os.field(os.FT.KEYWORD)
     logger: Optional[str] = os.field(os.FT.KEYWORD)
     message: Optional[str] = os.field(os.FT.TEXT)
-    metadata: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
+    value: Optional[dict] = os.field(os.FT.OBJECT, dynamic="strict")  # user defined (mostly?)
 
 
 @packer(LogEntry, LogEntry, wire.LogEntryData)
@@ -579,7 +577,7 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             level=mirror.level,
             logger=mirror.logger,
             message=mirror.message,
-            metadata=mirror.metadata,
+            value=mirror.value,
         )
 
     def unpack(
@@ -597,5 +595,5 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             level=data.level,
             logger=data.logger,
             message=data.message,
-            metadata=data.metadata,
+            value=data.value,
         )

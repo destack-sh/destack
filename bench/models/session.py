@@ -37,7 +37,6 @@ class Session(UUIDTModel, HasTriggeredBy):
     updated_at = models.DateTimeField(auto_now=True)
     opened_at = models.DateTimeField(null=True, blank=True)
     closed_at = models.DateTimeField(null=True, blank=True)
-    metadata = models.JSONField(null=True, blank=True)
 
 
 class RunManager(models.Manager):
@@ -89,7 +88,7 @@ class Run(UUIDTModel, HasTriggeredBy):
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
-    metadata = models.JSONField(null=True, blank=True)
+    value = models.JSONField(null=True, blank=True)
 
     @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:
@@ -103,8 +102,8 @@ class Run(UUIDTModel, HasTriggeredBy):
         return f"{self.id} {self.status} ({(root_str + ' ' + parent_str).strip()})"
 
     def mark_dead(self):
+        self.terminated_at = utcnow_with_tz()
         if self.started_at is not None:
-            self.terminated_at = utcnow_with_tz()
             self.status = RunStatus.Aborted
         else:
             self.status = RunStatus.Cancelled

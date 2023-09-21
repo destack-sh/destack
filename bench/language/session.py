@@ -107,7 +107,6 @@ class Session:
         self.tracer = SessionTracer(self, mutator=self.mutator, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
-        self.metadata: dict[str, Any] = {}
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
 
     def __str__(self):
@@ -283,7 +282,7 @@ class LogEntry:
     runnable: Optional["Statement"] = None
     run: Optional["Run"] = None
     message: Optional[str] = None
-    metadata: dict[str, Any] = None
+    value: dict[str, Any] = None
 
     def __str__(self):
         return f"'{self.message}' ({self.created_at})"

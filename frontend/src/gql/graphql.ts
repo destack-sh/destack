@@ -186,7 +186,6 @@ export type Field = HasCrud &
     key: Scalars["String"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
-    metadata?: Maybe<Scalars["JSON"]>;
     name?: Maybe<Scalars["String"]>;
     orderKey: Scalars["String"];
     parent: Statement;
@@ -196,6 +195,7 @@ export type Field = HasCrud &
     tag: TypeTag;
     text?: Maybe<Scalars["String"]>;
     updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
   };
 
 export type FieldCreateInput = {
@@ -204,13 +204,13 @@ export type FieldCreateInput = {
   hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
   key: Scalars["String"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
   orderKey: Scalars["String"];
   referenceCk?: InputMaybe<Scalars["UUID"]>;
   statementId: Scalars["GlobalID"];
   tag: TypeTag;
   text?: InputMaybe<Scalars["String"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type FieldDeleteInput = {
@@ -243,11 +243,11 @@ export type FieldUpdateInput = {
   flags?: Scalars["Int"];
   hint?: InputMaybe<TypeHint>;
   id: Scalars["GlobalID"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
   name?: InputMaybe<Scalars["String"]>;
   referenceCk?: InputMaybe<Scalars["UUID"]>;
   tag: TypeTag;
   text?: InputMaybe<Scalars["String"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type FieldUpdateTextInput = {
@@ -401,13 +401,13 @@ export type LogEntry = {
   level?: Maybe<Scalars["String"]>;
   logger?: Maybe<Scalars["String"]>;
   message?: Maybe<Scalars["String"]>;
-  metadata?: Maybe<Scalars["JSON"]>;
   projectVersionId: Scalars["GlobalID"];
   runId?: Maybe<Scalars["GlobalID"]>;
   runnableCk?: Maybe<Scalars["UUID"]>;
   runnableId?: Maybe<Scalars["GlobalID"]>;
   sessionId?: Maybe<Scalars["GlobalID"]>;
   stream: Scalars["String"];
+  value?: Maybe<Scalars["JSON"]>;
 };
 
 /** A connection to a list of items. */
@@ -1785,7 +1785,6 @@ export type Run = HasTriggeredBy &
     /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
     inputs?: Maybe<Scalars["JSON"]>;
-    metadata?: Maybe<Scalars["JSON"]>;
     outputs?: Maybe<Scalars["JSON"]>;
     parent?: Maybe<Run>;
     projectVersion: ProjectVersion;
@@ -1801,6 +1800,7 @@ export type Run = HasTriggeredBy &
     triggerType?: Maybe<TriggerType>;
     triggerUser?: Maybe<User>;
     updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
   };
 
 export type RunCodeFrame = {
@@ -1935,7 +1935,6 @@ export type Session = HasTriggeredBy &
     createdAt: Scalars["DateTime"];
     /** The Globally Unique ID of this object */
     id: Scalars["GlobalID"];
-    metadata?: Maybe<Scalars["JSON"]>;
     openedAt?: Maybe<Scalars["DateTime"]>;
     project: Project;
     runs: Array<Run>;
@@ -2249,21 +2248,21 @@ export type Tagging = HasCrud &
     key: Scalars["String"];
     lastEditedAt?: Maybe<Scalars["DateTime"]>;
     lastEditedBy?: Maybe<User>;
-    metadata?: Maybe<Scalars["JSON"]>;
     parent: Statement;
     referenceCk?: Maybe<Scalars["UUID"]>;
     revision: Scalars["Int"];
     statement: Statement;
     updatedAt: Scalars["DateTime"];
+    value?: Maybe<Scalars["JSON"]>;
   };
 
 export type TaggingCreateInput = {
   ck: Scalars["UUID"];
   id: Scalars["GlobalID"];
   key: Scalars["String"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
   referenceCk: Scalars["UUID"];
   statementId: Scalars["GlobalID"];
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type TaggingDeleteInput = {
@@ -2284,7 +2283,7 @@ export type TaggingRestoreInput = {
 
 export type TaggingUpdateInput = {
   id: Scalars["GlobalID"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 };
 
 export type Trigger = HasCrud &
@@ -3550,7 +3549,7 @@ export type FieldContentFragment = {
   text?: string | null;
   orderKey: string;
   referenceCk?: any | null;
-  metadata?: any | null;
+  value?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -3567,7 +3566,7 @@ export type TaggingContentFragment = {
   revision: number;
   key: string;
   referenceCk?: any | null;
-  metadata?: any | null;
+  value?: any | null;
   createdAt: any;
   updatedAt: any;
   deletedAt?: any | null;
@@ -4794,7 +4793,7 @@ export type CreateFieldMutationVariables = Exact<{
   text?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
   referenceCk?: InputMaybe<Scalars["UUID"]>;
-  metadata?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type CreateFieldMutation = {
@@ -4813,7 +4812,7 @@ export type CreateFieldMutation = {
         text?: string | null;
         referenceCk?: any | null;
         flags: number;
-        metadata?: any | null;
+        value?: any | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -4875,7 +4874,7 @@ export type UpdateFieldMutationVariables = Exact<{
   text?: InputMaybe<Scalars["String"]>;
   flags: Scalars["Int"];
   referenceCk?: InputMaybe<Scalars["UUID"]>;
-  metadata?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type UpdateFieldMutation = {
@@ -4892,7 +4891,7 @@ export type UpdateFieldMutation = {
         text?: string | null;
         flags: number;
         referenceCk?: any | null;
-        metadata?: any | null;
+        value?: any | null;
       }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
@@ -4919,7 +4918,7 @@ export type CreateTaggingMutationVariables = Exact<{
   statementId: Scalars["GlobalID"];
   key: Scalars["String"];
   referenceCk: Scalars["UUID"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type CreateTaggingMutation = {
@@ -4935,7 +4934,7 @@ export type CreateTaggingMutation = {
         revision: number;
         key: string;
         referenceCk?: any | null;
-        metadata?: any | null;
+        value?: any | null;
         createdAt: any;
         updatedAt: any;
         deletedAt?: any | null;
@@ -4987,7 +4986,7 @@ export type RestoreTaggingMutation = {
 
 export type UpdateTaggingMutationVariables = Exact<{
   id: Scalars["GlobalID"];
-  metadata?: InputMaybe<Scalars["JSON"]>;
+  value?: InputMaybe<Scalars["JSON"]>;
 }>;
 
 export type UpdateTaggingMutation = {
@@ -4996,7 +4995,7 @@ export type UpdateTaggingMutation = {
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       })
-    | { __typename?: "Tagging"; id: any; updatedAt: any; revision: number; metadata?: any | null };
+    | { __typename?: "Tagging"; id: any; updatedAt: any; revision: number; value?: any | null };
 };
 
 export type CreateTriggerMutationVariables = Exact<{
@@ -5273,7 +5272,7 @@ export type RunContentFragment = {
   status: RunStatus;
   inputs?: any | null;
   outputs?: any | null;
-  metadata?: any | null;
+  value?: any | null;
   runnableCk?: any | null;
   triggerType?: TriggerType | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
@@ -5313,7 +5312,7 @@ export type LogEntryContentFragment = {
   level?: string | null;
   logger?: string | null;
   message?: string | null;
-  metadata?: any | null;
+  value?: any | null;
 } & { " $fragmentName"?: "LogEntryContentFragment" };
 
 export type CurrentRunsQueryVariables = Exact<{
@@ -5926,7 +5925,7 @@ export const TaggingContentFragmentDoc = {
             },
           },
           { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -5981,7 +5980,7 @@ export const FieldContentFragmentDoc = {
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
           { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -6594,7 +6593,7 @@ export const RunContentFragmentDoc = {
               ],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "runnable" },
@@ -6665,7 +6664,7 @@ export const LogEntryContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "level" } },
           { kind: "Field", name: { kind: "Name", value: "logger" } },
           { kind: "Field", name: { kind: "Name", value: "message" } },
-          { kind: "Field", name: { kind: "Name", value: "metadata" } },
+          { kind: "Field", name: { kind: "Name", value: "value" } },
         ],
       },
     },
@@ -14043,7 +14042,7 @@ export const CreateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
       ],
@@ -14117,8 +14116,8 @@ export const CreateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "metadata" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -14160,7 +14159,7 @@ export const CreateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
-                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -14419,7 +14418,7 @@ export const UpdateFieldDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
       ],
@@ -14473,8 +14472,8 @@ export const UpdateFieldDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "metadata" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -14498,7 +14497,7 @@ export const UpdateFieldDocument = {
                       { kind: "Field", name: { kind: "Name", value: "text" } },
                       { kind: "Field", name: { kind: "Name", value: "flags" } },
                       { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                     ],
                   },
                 },
@@ -14617,7 +14616,7 @@ export const CreateTaggingDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
       ],
@@ -14661,8 +14660,8 @@ export const CreateTaggingDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "metadata" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -14690,7 +14689,7 @@ export const CreateTaggingDocument = {
                         },
                       },
                       { kind: "Field", name: { kind: "Name", value: "referenceCk" } },
-                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "deletedAt" } },
@@ -14919,7 +14918,7 @@ export const UpdateTaggingDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "value" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
       ],
@@ -14943,8 +14942,8 @@ export const UpdateTaggingDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "metadata" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "metadata" } },
+                      name: { kind: "Name", value: "value" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "value" } },
                     },
                   ],
                 },
@@ -14962,7 +14961,7 @@ export const UpdateTaggingDocument = {
                       { kind: "Field", name: { kind: "Name", value: "id" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
                       { kind: "Field", name: { kind: "Name", value: "revision" } },
-                      { kind: "Field", name: { kind: "Name", value: "metadata" } },
+                      { kind: "Field", name: { kind: "Name", value: "value" } },
                     ],
                   },
                 },

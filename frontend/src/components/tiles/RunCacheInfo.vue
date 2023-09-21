@@ -14,7 +14,7 @@ const props = defineProps<{
 function getMetadataValue(name: string) {
   const fieldKey = module.runMetadataKey(name);
   if (fieldKey == null) return null;
-  return props.run.metadata?.[fieldKey];
+  return props.run.value?.[fieldKey];
 }
 const cachedDuration = computed(() => getMetadataValue("cached duration"));
 const cachedGeneratedAt = computed(() => getMetadataValue("cached at"));

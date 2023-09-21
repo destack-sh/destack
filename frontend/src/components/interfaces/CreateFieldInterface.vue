@@ -8,7 +8,7 @@ import { ref } from "vue";
 defineProps<{ title: string; refOnly?: boolean; refTypes?: TypeTag[] }>();
 
 const emit = defineEmits<{
-  (e: "select", type: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata">): void;
+  (e: "select", type: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value">): void;
 }>();
 
 const open = ref(false);

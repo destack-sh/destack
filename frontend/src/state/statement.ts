@@ -140,9 +140,7 @@ export function useFields(statement: Ref<Statement>) {
     });
   }
 
-  function createNewField(
-    template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "metadata"> & Partial<Field>
-  ) {
+  function createNewField(template: Pick<Field, "tag" | "hint" | "flags" | "referenceCk" | "value"> & Partial<Field>) {
     const nextOrderKey = generateKeyBetween(
       fields.value?.[fields.value?.length - 1 ?? 0]?.orderKey ?? INTEGER_ZERO,
       null

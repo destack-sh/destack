@@ -25,6 +25,7 @@ from bench.language.const import (
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, get_node_id, node
 from bench.language.query import FieldQueryOps
 from bench.language.text import HasText
+from bench.language.value import HasValue
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
@@ -257,8 +258,8 @@ class TypeBase(abc.ABC):
                 yield from child.walk_type(path, include_references=include_references)
 
 
-@node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "metadata"])
-class Field(HasText, TypeBase, FieldQueryOps):
+@node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "value"])
+class Field(HasText, HasValue, TypeBase, FieldQueryOps):
     parent: Union["Statement", None] = None
     name: Optional[str] = None
     tag: TypeTag = required_field()
@@ -267,7 +268,6 @@ class Field(HasText, TypeBase, FieldQueryOps):
     text: Optional[str] = None
     key: str = field(default=None)
     flags: TypeFlag = TypeFlag(0)
-    metadata: dict[str, Any] = None
     reference: Union[None, NodePath, "Statement", UUID, "Type"] = None
     reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
 
@@ -283,6 +283,12 @@ class Field(HasText, TypeBase, FieldQueryOps):
 
     def __eq__(self, other):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
+
+    @property
+    def _type_of_value(self) -> "HasFields":
+        from bench.language.libs import symbolx_lib
+
+        return symbolx_lib.lookup_or_error(".reflect.FieldMetadata")
 
     def _visit(self, visitor: ModuleVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
@@ -308,7 +314,7 @@ class Field(HasText, TypeBase, FieldQueryOps):
     def dimensions(self) -> int:
         if self.tag != TypeTag.VECTOR:
             raise ValueError(f"{self} does not have dimensions")
-        return (self.metadata or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
+        return (self.value or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
 
     @property
     def typed_key(self) -> str:

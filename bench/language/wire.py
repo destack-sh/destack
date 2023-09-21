@@ -683,7 +683,7 @@ class FieldData(NodeData, HasOrder, HasCrud):
     text: Optional[str]
     flags: TypeFlag
     reference_ck: Optional[UUID] = None
-    metadata: Optional[typing.Any] = None
+    value: Optional[typing.Any] = None
 
     def __str__(self):
         name_str = f"{self.name} " if self.name else ""
@@ -711,7 +711,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             flags=field.flags,
             text=field.text,
             reference_ck=reference,
-            metadata=field.metadata,
+            value=field.value,
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
@@ -733,7 +733,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             flags=field.flags,
             text=field.text,
             reference=field.reference_ck,
-            metadata=field.metadata,
+            value=field.value,
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
@@ -823,7 +823,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
 class TaggingData(NodeData, HasCrud):
     reference_ck: Optional[UUID]
     key: str
-    metadata: Optional[typing.Any] = None
+    value: Optional[typing.Any] = None
 
     def __str__(self):
         return self.key
@@ -844,7 +844,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             parent_id=tagging.parent_id,
             reference_ck=reference,
             key=tagging.key,
-            metadata=tagging.metadata,
+            value=tagging.value,
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
@@ -861,7 +861,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             ck=tagging.ck,
             key=tagging.key,
             reference=tagging.reference_ck,
-            metadata=tagging.metadata,
+            value=tagging.value,
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
@@ -1137,7 +1137,6 @@ class SessionData:
     module_id: UUID
     opened_at: Optional[datetime]
     closed_at: Optional[datetime]
-    metadata: Optional[dict[str, Any]]
     trigger_id: Optional[UUID]
     trigger_type: TriggerType
 
@@ -1150,7 +1149,6 @@ class SessionPacker(DataPacker[SessionData, lang.Session]):
             module_id=object.module.id,
             opened_at=object.opened_at,
             closed_at=object.closed_at,
-            metadata=object.metadata,
             trigger_id=object.ctx.trigger_id,
             trigger_type=object.ctx.trigger_type,
         )
@@ -1208,7 +1206,7 @@ class RunData:
     inputs: Optional[Any]
     outputs: Optional[Any]
     error: Optional[RunErrorData]
-    metadata: Optional[dict[str, Any]]
+    value: Optional[dict[str, Any]]
 
 
 @data_packer(RunData, Run)
@@ -1254,7 +1252,7 @@ class RunPacker(DataPacker[RunData, Run]):
             inputs=run.inputs,
             outputs=run.outputs,
             error=error,
-            metadata=run._raw_metadata(),
+            value=run._raw_value(),
         )
 
     def unpack(self, data: RunData, module: Module) -> Run:
@@ -1289,7 +1287,7 @@ class RunPacker(DataPacker[RunData, Run]):
             inputs=data.inputs,
             outputs=data.outputs,
             error=error,
-            metadata=data.metadata,
+            value=data.value,
         )
 
 
@@ -1306,7 +1304,7 @@ class LogEntryData:
     runnable_id: Optional[UUID]
     runnable_ck: Optional[UUID]
     run_id: Optional[UUID]
-    metadata: Optional[dict[str, Any]]
+    value: Optional[dict[str, Any]]
 
 
 @data_packer(LogEntryData, lang.LogEntry)
@@ -1324,7 +1322,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             runnable_id=object.runnable.id if object.runnable else None,
             runnable_ck=object.runnable.ck if object.runnable else None,
             run_id=object.run.id if object.run else None,
-            metadata=object.metadata,
+            value=object.value,
         )
 
     def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
@@ -1341,7 +1339,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             message=data.message,
             runnable=runnable,
             run=run,
-            metadata=data.metadata,
+            value=data.value,
         )
 
 

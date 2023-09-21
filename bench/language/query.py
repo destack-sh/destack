@@ -310,7 +310,6 @@ class FieldQueryOps:
     source_key: Optional[str]
     effective_tag: TypeTag
     hint: Optional[TypeHint]
-    metadata: dict[str, Any]
     storage_format: TypeStorageFormat
 
     # basic support checks

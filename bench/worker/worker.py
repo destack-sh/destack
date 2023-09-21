@@ -221,7 +221,7 @@ class WorkerNode(Monitored):
                 inputs=inputs,
                 outputs=None,
                 error=None,
-                metadata=None,
+                value=None,
             )
 
             # store session id separately from run because we write the run data directly

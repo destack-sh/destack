@@ -307,7 +307,7 @@ class Flow(Statement, HasFields, HasTags, HasText):
 
 
 @node
-class Variable(Statement, HasValue, HasTags, HasText):
+class Variable(Statement, HasValue, HasFields, HasTags, HasText):
     type: StatementType = StatementType.VARIABLE
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.Zero
