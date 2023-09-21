@@ -13,7 +13,7 @@ from typing import Collection, Optional, TypeVar
 from uuid import UUID
 
 import structlog
-from django.db import DatabaseError, transaction
+from django.db import transaction
 from django.db.models import Model, QuerySet
 
 from bench import models
@@ -920,13 +920,19 @@ def write_mutations(
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MMK.UPDATE
-                # nocheckin: optimize single module node update mutations (group by updated props?)
+                # different properties may be updated, so group by properties
+                nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
                 for m, node in zip(batch, nodes):
-                    node._state.adding = False  # ensure update
-                    try:
-                        node.save(force_update=True, update_fields=m.properties)
-                    except DatabaseError as e:
-                        raise ValueError(f"failed to update {node} with {m.properties}") from e
+                    properties = ";".join(m.properties or [])
+                    nodes_by_props[properties].append(node)
+                # batch update
+                for properties, nodes in nodes_by_props.items():
+                    properties = properties.split(";")
+                    num_updated = model_cls.objects.bulk_update(nodes, properties)
+                    if num_updated != len(nodes):
+                        raise ValueError(
+                            f"failed to update {len(nodes)} {model_cls} nodes to {properties}"
+                        )
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MMK.DELETE:
