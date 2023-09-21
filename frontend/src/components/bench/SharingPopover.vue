@@ -100,7 +100,7 @@ function copy(text: string) {
                         {
                           [ModuleAccessLevel.Zero]: "Do and see nothing.",
                           [ModuleAccessLevel.Read]: "View and comment, but not run.",
-                          [ModuleAccessLevel.Use]: "Use and view, but not edit.",
+                          [ModuleAccessLevel.Use]: "Use and read, but not edit.",
                           [ModuleAccessLevel.Edit]: "Edit and use, but not manage.",
                           [ModuleAccessLevel.Manage]: "Manage members, but not destruct.",
                           [ModuleAccessLevel.Admin]: "Do everything.",

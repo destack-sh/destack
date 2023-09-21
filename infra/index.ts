@@ -663,20 +663,20 @@ const apiIngress = new k8s.networking.v1.Ingress(
   { provider: eksCluster.provider }
 );
 
-// BetterStack Logs (Vector Helm chart)
-const vectorNamespace = new k8s.core.v1.Namespace("vector", {}, { provider: eksCluster.provider });
-// read vector config from .vector.yaml file
-const vectorValuesPath = config.require("vectorValuesPath");
-const vectorConfig = yaml.load(fs.readFileSync(vectorValuesPath, "utf8")) as Record<string, unknown>;
-const vector = new k8s.helm.v3.Chart(
-  "vector",
+// BetterStack Logs
+// see https://betterstack.com/docs/logs/kubernetes#helm
+const betterstackNamespace = new k8s.core.v1.Namespace("betterstack", {}, { provider: eksCluster.provider });
+const betterstackValuesPath = config.require("betterstackValuesPath");
+const betterstackConfig = yaml.load(fs.readFileSync(betterstackValuesPath, "utf8")) as Record<string, unknown>;
+const betterstack = new k8s.helm.v3.Chart(
+  "betterstack-logs",
   {
-    namespace: vectorNamespace.metadata.name,
-    chart: "vector",
+    namespace: betterstackNamespace.metadata.name,
+    chart: "betterstack-logs",
     fetchOpts: {
-      repo: "https://helm.vector.dev",
+      repo: "https://betterstackhq.github.io/logs-helm-chart",
     },
-    values: vectorConfig,
+    values: betterstackConfig,
   },
-  { provider: eksCluster.provider, dependsOn: [vectorNamespace] }
+  { provider: eksCluster.provider, dependsOn: [betterstackNamespace] }
 );
