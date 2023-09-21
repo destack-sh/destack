@@ -30,7 +30,12 @@ const now = useTimeFromNow();
   <div class="flex flex-row items-baseline gap-1">
     <!-- :ProfilePreview -->
     <div v-for="client in filteredClients.slice(0, first)" :key="client.id" class="group/popover relative">
-      <UserAvatar :user="client.user" :clientId="client.id" :class="props.size == 'large' ? 'h-5 w-5' : 'h-4 w-4'" />
+      <UserAvatar
+        :user="client.user"
+        :clientId="client.id"
+        class="text-gray-900"
+        :class="props.size == 'large' ? 'h-7 w-7' : 'h-6 w-6'"
+      />
       <!-- Profile info popover -->
       <div
         class="invisible absolute right-0 z-30 mt-3 w-60 origin-bottom-right bg-white px-3 py-2 text-sm shadow-sm ring-1 ring-orange-900 ring-opacity-40 group-hover/popover:visible"
