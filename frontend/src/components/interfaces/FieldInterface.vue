@@ -285,12 +285,12 @@ defineExpose({
           <!-- :EnumStyle -->
           <svg
             v-if="isEnum"
-            class="absolute left-2.5 top-2 h-1.5 w-1.5"
+            class="absolute left-2.5 top-[9px] h-[7px] w-[7px]"
             :style="{ fill: getEnumColor(value) }"
             viewBox="0 0 6 6"
             aria-hidden="true"
           >
-            <circle cx="3" cy="3" r="3" />
+            <rect rx="2" ry="2" width="5" height="6" />
           </svg>
           <span
             class="mr-1.5 max-w-full truncate text-gray-900"

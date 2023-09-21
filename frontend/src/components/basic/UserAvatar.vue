@@ -6,44 +6,25 @@ const props = defineProps<{
   user: { username: string; name: string };
 }>();
 
-const getClientColors = (clientId: string) => {
-  const colorMap = [
-    "#f56565", // red-500
-    "#ecc94b", // yellow-500
-    "#48bb78", // green-500
-    "#4299e1", // blue-500
-    "#667eea", // indigo-500
-    "#9f7aea", // purple-500
-    "#ed64a6", // pink-500
-    "#6b7280", // gray-500
-  ];
-  let seed = 0;
-  for (let i = 0; i < clientId.length; i++) {
-    seed += clientId.charCodeAt(i);
+const INITIALS_LENGTH = 2;
+const initials = computed(() => {
+  const name = props.user.name ?? props.user.username;
+  const parts = name.split(" ");
+  if (parts.length === 1) {
+    return name.substring(0, INITIALS_LENGTH);
+  } else {
+    return parts[0].substring(0, 1) + parts[parts.length - 1].substring(0, 1);
   }
-  const colors = Array(9)
-    .fill("")
-    .map((_, i) => colorMap[(seed + i) % colorMap.length]);
-  return colors;
-};
-
-const gridColors = computed(() => getClientColors(props.clientId));
+});
 </script>
 
 <template>
-  <div :class="['rounded-sm border-orange-900 border-opacity-[15%]']">
-    <svg viewBox="0 0 30 30">
-      <rect
-        v-for="(color, index) in gridColors"
-        :key="index"
-        :fill="color"
-        :x="(index % 3) * 10"
-        :y="Math.floor(index / 3) * 10"
-        width="10"
-        height="10"
-        rx="1"
-        ry="1"
-      />
-    </svg>
+  <div
+    class="relative justify-center rounded-2xl border border-orange-900/[20%] bg-orange-100 text-center align-middle text-sm"
+  >
+    <!-- initials at exact center -->
+    <span class="absolute inset-0 mb-0.5 flex items-center justify-center uppercase">
+      {{ initials }}
+    </span>
   </div>
 </template>

@@ -67,10 +67,10 @@ defineExpose({
     <span
       v-for="member in selectedMembers"
       :key="member.key"
-      class="inline-flex items-center gap-x-1.5 rounded-sm bg-amber-50 px-2 text-gray-900 ring-1 ring-inset ring-amber-600/[15%]"
+      class="inline-flex items-center gap-x-1.5 rounded-sm bg-amber-100 px-2 text-gray-900 ring-1 ring-inset ring-amber-600/[15%]"
     >
-      <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
-        <circle cx="3" cy="3" r="3" />
+      <svg class="h-[7px] w-[7px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+        <rect rx="2" ry="2" width="5" height="6" />
       </svg>
       {{ member.name }}
       <!-- Delete button -->
@@ -130,15 +130,15 @@ defineExpose({
           <div
             :class="[
               'relative  w-full cursor-default select-none py-0.5 ',
-              active ? 'bg-orange-100' : '',
               selected ? 'text-orange-600' : 'text-gray-900',
             ]"
           >
             <li
-              class="mx-1 flex w-fit flex-row items-center gap-1.5 bg-amber-50 px-2 ring-1 ring-inset ring-amber-600/[15%]"
+              class="mx-1 flex w-fit flex-row items-center gap-1.5 px-2 ring-1 ring-inset"
+              :class="[active ? 'bg-amber-200 ring-amber-600/[80%]' : 'bg-amber-100 ring-amber-600/[15%]']"
             >
-              <svg class="h-1.5 w-1.5" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
-                <circle cx="3" cy="3" r="3" />
+              <svg class="h-[7px] w-[7px]" :style="{ fill: getEnumColor(member) }" viewBox="0 0 6 6" aria-hidden="true">
+                <rect rx="2" ry="2" width="5" height="6" />
               </svg>
               <span>
                 {{ member.name }}

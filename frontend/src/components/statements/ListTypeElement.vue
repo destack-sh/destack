@@ -20,7 +20,7 @@ const ops = useOperations();
 
 const isEnum = computed(() => props.statement.tag == TypeTag.Enum);
 const fieldsX = useFields(toRef(props, "statement"));
-const { fields, selfFields, duplicateField } = fieldsX;
+const { moveFieldTo, selfFields, duplicateField } = fieldsX;
 const fieldsLength = computed(() => selfFields.value?.length ?? 0);
 const addFieldRef: Ref<HTMLButtonElement | null> = ref(null);
 const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = ref(null);
@@ -71,22 +71,11 @@ function deleteField(fieldId: string) {
   grid.focus(fieldIdx - 1, "type"); // move focus above
 }
 
-function moveField(field: Field, position: "before" | "after", other: Field) {
-  const otherIndex = selfFields.value?.findIndex((n) => n.id == other.id);
-  if (position == "before") {
-    const orderKey = generateKeyBetween(selfFields.value[otherIndex - 1]?.orderKey ?? null, other.orderKey);
-    ops.symbol.moveField(null, field.id, field.orderKey, orderKey);
-  } else {
-    const orderKey = generateKeyBetween(other.orderKey, selfFields.value[otherIndex + 1]?.orderKey ?? null);
-    ops.symbol.moveField(null, field.id, field.orderKey, orderKey);
-  }
-}
-
 function dropField(droppedId: string, position: "above" | "below" | "left" | "right", fieldId: string) {
   const dropped = selfFields.value.find((n) => n.id == droppedId);
   const field = selfFields.value.find((n) => n.id == fieldId);
   if (dropped == null || field == null || dropped.id == field.id) return; // ignore invalid / cross statement drops
-  moveField(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
+  moveFieldTo(dropped, ["above", "left"].includes(position) ? "before" : "after", field);
   nextTick(() => grid.focus(droppedId, "type"));
 }
 
