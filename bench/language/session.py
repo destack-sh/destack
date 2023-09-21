@@ -197,8 +197,8 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.writer.write_module(mutations, refresh_index)
         if not success:
-            if len(mutations) > 20:
-                mutations_str = f"{mutations[:10]} ... {mutations[-10:]}"
+            if len(mutations) > 10:
+                mutations_str = f"{mutations[:5]} ... {mutations[-5:]}"
             else:
                 mutations_str = str(mutations)
             raise RuntimeError(f"failed to write {len(mutations)} mutations {mutations_str}")
