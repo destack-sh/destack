@@ -62,7 +62,7 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <component :is="statement.versioned ? ClockIconOutline : GlobeAltIconSolid" class="mr-0.5 mt-0.5 h-4 w-4" />
-      <span v-if="!statement.versioned">Global</span>
+      <span v-if="!statement.versioned">global</span>
       <!-- Label popover -->
       <span
         v-if="!readonly"

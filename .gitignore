@@ -300,4 +300,4 @@ dist
 
 *.gpg
 
-infra/.vector.prod.yaml
+infra/.*

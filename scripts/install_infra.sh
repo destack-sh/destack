@@ -19,4 +19,5 @@ helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server/
 helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo add mtougeron https://mtougeron.github.io/helm-charts/
 helm repo add jetstack https://charts.jetstack.io
+helm repo add betterstack-logs https://betterstackhq.github.io/logs-helm-chart
 helm repo update
