@@ -13,7 +13,6 @@ from random import Random
 from typing import Any, Optional
 
 import structlog
-from _pytest.assertion.rewrite import rewrite_asserts
 from more_itertools import first, last
 
 from bench.language import IssueType
@@ -245,6 +244,8 @@ class HasCode(HasFields, ModuleNode):
         self, code_str: str, locals: dict[str, Any], func_name: str
     ) -> typing.Callable:
         if self.is_test:
+            from _pytest.assertion.rewrite import rewrite_asserts
+
             # rewrite asserts for better debugging
             tree = ast.parse(code_str)
             rewrite_asserts(tree, code_str.encode())
