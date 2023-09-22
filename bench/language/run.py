@@ -199,7 +199,7 @@ class Run:
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.runnable} ({self.status}, value={value_keys_str or '<none>'})"
+        return f"{self.runnable} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
 
     def __repr__(self):
         return f"<Run {self}>"
