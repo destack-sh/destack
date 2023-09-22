@@ -13,7 +13,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.dataset import HasDataset
-from bench.language.field import HasFields
+from bench.language.field import HasFields, TypedDict
 from bench.language.issue import BenchError, Issue
 from bench.language.model import HasModel
 from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
@@ -25,7 +25,7 @@ from bench.language.trigger import HasTriggers
 from bench.language.value import HasValue
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language.file import File
@@ -237,7 +237,7 @@ class Type(Statement, HasFields, HasTags, HasText):
         combined_kwargs = {**kwargs}
         for i in range(len(args)):
             combined_kwargs[self.fields[i].name] = args[i]
-        return DotDict(combined_kwargs)  # this is not quite correct, should be a real type
+        return TypedDict(self, combined_kwargs)
 
     def __str__(self):
         path_str = f"{self.path} " if self.name else ""

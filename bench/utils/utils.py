@@ -7,6 +7,7 @@ import textwrap
 from dataclasses import field
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
+import cachetools
 import sentry_sdk
 
 
@@ -83,6 +84,7 @@ class IdentifierType(enum.StrEnum):
     FIELD = "field"
 
 
+@cachetools.cached(cache={})
 def to_pyidentifier(name: str, type: IdentifierType) -> str:
     """Turns a string into a valid Python identifier."""
     if type in (
@@ -149,10 +151,6 @@ class DotDict(dict):
         try:
             return self[name]
         except KeyError:
-            # nocheckin: don't return None for missing keys in DotDict
-            #  need type info here, but don't have it
-            # (since we omit empty fields now, this would cause spurious errors,
-            #  esp. in our library dataset/struct hybrid types)
             raise AttributeError(name)
 
     def __setattr__(self, name, value):
@@ -160,10 +158,6 @@ class DotDict(dict):
 
     def to_dict(self):  # :ToDict
         return self
-
-    @classmethod
-    def from_dict(cls, d):
-        return cls(**d)
 
 
 class DotList(list):

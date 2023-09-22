@@ -28,7 +28,7 @@ from bench.language.text import HasText
 from bench.language.value import HasValue
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement, Type
@@ -234,14 +234,16 @@ class TypeBase(abc.ABC):
             if child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
         ]
 
-    def get_field(self, some_id: str) -> Optional["Field"]:
+    def get_field(self, some_id: str, is_output: bool = None) -> Optional["Field"]:
         for field_ in self.resolved_fields or self.fields:
+            if is_output is not None and bool(field_.flags & TypeFlag.IsOutput) != is_output:
+                continue
             if field_.py_ident == some_id or field_.name == some_id or field_.key == some_id:
                 return field_
         return None
 
-    def has_field(self, some_id: str) -> bool:
-        return self.get_field(some_id) is not None
+    def has_field(self, some_id: str, is_output: bool = None) -> bool:
+        return self.get_field(some_id, is_output=is_output) is not None
 
     def walk_type(self, path: list["UUID"] | None = None, include_references: bool = False):
         if path is None:
@@ -567,3 +569,31 @@ def _resolve_unions(type: "HasFields", path: list[TypeBase]) -> None:
             )
             resolved_fields.append(resolved)
     type.resolved_fields = resolved_fields
+
+
+class TypedDict(DotDict):
+    """
+    A dot dict based on a type.
+    Errors on attribute access if the field doesn't exist, otherwise returns the value (or None).
+    """
+
+    def __init__(self, type: "HasFields", d: dict, is_output: bool = None):
+        super().__init__(**d)
+        self._type = type
+        self._is_output = is_output
+
+    def __getattr__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            if self._type.has_field(item, is_output=self._is_output):
+                return None
+            raise AttributeError(item)
+
+    def __setattr__(self, name, value):
+        if name in ("_type", "_is_output"):
+            return super().__setattr__(name, value)
+        elif self._type.has_field(name, is_output=self._is_output):
+            return dict.__setitem__(self, name, value)
+        else:
+            raise AttributeError(name)

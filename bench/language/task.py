@@ -8,7 +8,7 @@ from typing import TYPE_CHECKING, Optional, Self, Union
 import structlog
 
 from bench.language.const import IssueType
-from bench.language.field import HasFields
+from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
@@ -158,11 +158,11 @@ async def run_task(
 
             # done, terminate
             # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
-            output = unpack_value(
+            outputs = unpack_value(
                 step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
             )
-            check_type(output, task, is_output=True)
-            return DotDict(output)
+            check_type(outputs, task, is_output=True)
+            return TypedDict(task, outputs, is_output=True)
         except Exception as e:
             e = TaskError.from_exception(task, e)
             last_error = e
