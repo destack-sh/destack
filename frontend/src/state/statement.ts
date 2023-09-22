@@ -1,3 +1,4 @@
+import ChoiceTypeIcon from "@/components/basic/ChoiceTypeIcon.vue";
 import { StatementType, TypeHint, TypeTag, type SearchSort, type SearchQuery } from "@/gql/graphql";
 import {
   TypeFlag,
@@ -360,7 +361,7 @@ export function getStatementIconOutline(type: StatementType, tag?: TypeTag | nul
   if (type == StatementType.Type && tag == TypeTag.Struct) {
     return RectangleGroupIconOutline;
   } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return ViewColumnsIconOutline;
+    return ChoiceTypeIcon;
   } else {
     return STATEMENT_ICONS_OUTLINE[type];
   }
@@ -370,7 +371,7 @@ export function getStatementIconSolid(type: StatementType, tag?: TypeTag | null)
   if (type == StatementType.Type && tag == TypeTag.Struct) {
     return RectangleGroupIconSolid;
   } else if (type == StatementType.Type && tag == TypeTag.Enum) {
-    return ViewColumnsIconSolid;
+    return ChoiceTypeIcon;
   } else {
     return STATEMENT_ICONS_SOLID[type];
   }

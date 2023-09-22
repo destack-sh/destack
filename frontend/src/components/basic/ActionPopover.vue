@@ -209,7 +209,7 @@ defineExpose({
                 ]"
               >
                 <component :is="action.icon" class="h-4 w-4" />
-                <span class="text-gray-700">{{ action.label }}</span>
+                <span class="truncate text-gray-700">{{ action.label }}</span>
               </button>
               <!-- Keyboard shortcut or chevron for nested action components -->
               <div
