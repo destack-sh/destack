@@ -799,6 +799,7 @@ defineExpose({
               :is="control.component"
               :statement="statement"
               :focused="isFocused"
+              :selected="isSelected"
               :editing="isEditing"
               :readonly="readonly"
               v-on="handleStatementPartEvents('control', control.id)"
@@ -818,6 +819,7 @@ defineExpose({
               :is="component"
               :statement="statement"
               :focused="isFocused"
+              :selected="isSelected"
               :editing="isEditing"
               :readonly="readonly"
             />
@@ -892,6 +894,7 @@ defineExpose({
           :is="element.component"
           :statement="statement"
           :focused="isFocused"
+          :selected="isSelected"
           :editing="isEditing"
           :readonly="readonly"
           :visible="active"

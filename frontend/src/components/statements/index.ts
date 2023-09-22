@@ -72,6 +72,7 @@ export type StatementElement = StatementPart & {
 export type StatementProps = {
   statement: Statement;
   focused: boolean;
+  selected: boolean;
   editing: boolean;
   readonly: boolean;
   visible: boolean;
