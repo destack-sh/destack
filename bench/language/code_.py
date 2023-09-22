@@ -24,7 +24,7 @@ from bench.language.module import LookupBy, ModuleNode, Scope, node
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import DotDict, get_from_env
+from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import ModuleVisitor, Statement
@@ -610,9 +610,9 @@ def _parse_code(code: str | None) -> "CodeParse":
 
 
 def _to_outputs_dict(code: "HasCode", result: Any) -> TypedDict:
-    if isinstance(result, DotDict):
+    if isinstance(result, TypedDict):
         return result
-    if result is None:
+    elif result is None:
         return TypedDict(code, {}, is_output=True)
     else:
         return TypedDict(code, result, is_output=True)

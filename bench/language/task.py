@@ -13,7 +13,6 @@ from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.language.reference import ModuleView
-from bench.utils.utils import DotDict
 
 from ..utils.func import describe_type
 
@@ -78,17 +77,17 @@ class HasTask(HasFields, ModuleNode):
         try:
             self.session.tracer.run_enter(self, inputs)
             if mono_model:
-                output = await mono_model(**inputs)
+                outputs = await mono_model(**inputs)
                 # trim output to own outputs
-                if isinstance(output, dict):
-                    output = {k: v for k, v in output.items() if self.has_field(k)}
-                if not isinstance(output, DotDict):
-                    output = DotDict(output)
+                if isinstance(outputs, dict):
+                    outputs = {k: v for k, v in outputs.items() if self.has_field(k)}
+                if not isinstance(outputs, TypedDict):
+                    outputs = TypedDict(self, outputs, is_output=True)
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
-                output = await run_task(self, view, inputs, _nonce)
-            self.session.tracer.run_exit(self, output)
-            return output
+                outputs = await run_task(self, view, inputs, _nonce)
+            self.session.tracer.run_exit(self, outputs)
+            return outputs
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
