@@ -660,7 +660,15 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         )
         msg: OpenAIChatMessage = rep.message
         if msg.function_call is None:  # missing function call
-            raise TaskError(TaskErrorType.InvalidFormat, model, "no function call")
+            # try to figure out what it tried to do by parsing out json
+            try:
+                arguments_str = re.match(r"\{.*}", msg.content, flags=re.DOTALL)
+                json.loads(arguments_str.group(0))
+                function_call = "complete"
+            except Exception:
+                raise TaskError(TaskErrorType.InvalidFormat, model, "no function call")
+        else:
+            function_call = msg.function_call.name
 
         # try to parse arguments (only json format check, no type check)
         try:
@@ -669,19 +677,19 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             raise TaskError(TaskErrorType.InvalidFormat, model, str(e))
 
         # handle standard panic/terminate
-        if msg.function_call.name == "panic":
+        if function_call == "panic":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
-        elif msg.function_call.name == "complete":
+        elif function_call == "complete":
             return TaskOutput(result_raw=arguments)
 
         # handle other function calls
-        if msg.function_call.name not in input.runnables_by_name:
+        if function_call not in input.runnables_by_name:
             raise TaskError(
                 TaskErrorType.InvalidFormat,
                 model,
-                f"unknown function {msg.function_call.name}",
+                f"unknown function {function_call}",
             )
-        function = input.runnables_by_name[msg.function_call.name]
+        function = input.runnables_by_name[function_call]
         return TaskOutput(result_raw=arguments, function=function)
 
 
