@@ -277,7 +277,13 @@ class RuntimeServer(Monitored):
             success = True
         except Exception as e:
             sentry_capture(e)
-            logger.error("session.write.failed", msg=msg, exc_info=True)
+            logger.error(
+                "session.write.failed",
+                msg=msg,
+                session=msg.p.session,
+                runs=msg.p.runs,
+                exc_info=True,
+            )
             success = False
         await msg.reply(RepWriteSessionPayload(success=success))
 

@@ -487,9 +487,9 @@ class OpenAIChatInput(CompiledInput):
     @cached_property
     def tokens(self) -> int:
         """Estimated token usage (very rough)."""
-        messages_str = json.dumps([m.to_dict() for m in self.messages])
+        messages_str = "\n".join([f"{m.role}: {m.content}" for m in self.messages])
         functions_str = json.dumps([f.to_dict() for f in self.functions])
-        return (len(messages_str) + len(functions_str)) * 4
+        return len(messages_str) * 4 + len(functions_str) * 2
 
 
 class OpenAIChatCompiler(BaseTextTaskCompiler):
