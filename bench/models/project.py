@@ -425,11 +425,11 @@ class ProjectVersionManager(models.Manager["ProjectVersion"]):
             node.ck = target_cks[node.ck]
             if isinstance(node, wire.HasCrud) and not copy_revisions:
                 node.revision = 0
-            # dynamic key is used to attach records to datasets
-            # so if it's copied and the dataset is versioned, we need to update the key
+            # dynamic key is used to attach records to databases
+            # so if it's copied and the database is versioned, we need to update the key
             if (
                 isinstance(node, wire.StatementData)
-                and node.type == StatementType.DATASET
+                and node.type == StatementType.DATABASE
                 and node.versioned
             ):
                 source_key = node.key

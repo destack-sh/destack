@@ -305,8 +305,8 @@ class StatementMutation:
         statement.key = input.key
         statement.heading_level = input.heading_level
         statement.versioned = input.versioned
-        if input.type != StatementType.DATASET and not input.versioned:
-            raise ValidationError("only datasets can be detached")
+        if input.type != StatementType.DATABASE and not input.versioned:
+            raise ValidationError("only databases can be detached")
         return statement
 
     @tracked_db_mutation(MMT.RENAME_STATEMENT)

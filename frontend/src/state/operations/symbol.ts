@@ -371,7 +371,7 @@ export function useSymbolContentOps() {
             __typename: "Record",
             id: vars.id,
             deletedAt: null,
-            // NOTE: revision is not actually needed here, but it seems the specific way we query for records in datasets (with searchDataset)
+            // NOTE: revision is not actually needed here, but it seems the specific way we query for records in databases (with searchDatabase)
             // doesn't (always?) trigger reactivity through Apollo's cache properly if deletedAt is reset to null optimistically.
             // i.e. if we don't change something - like the pending revision - the record will still appear deleted on this client (only, it's just a local UX issue).
             revision: PENDING_REVISION,

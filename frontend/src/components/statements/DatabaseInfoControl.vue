@@ -4,7 +4,7 @@ import { useOperations } from "@/state/operations";
 import { ClockIcon as ClockIconOutline, GlobeAltIcon as GlobeAltIconOutline } from "@heroicons/vue/24/outline";
 import { GlobeAltIcon as GlobeAltIconSolid } from "@heroicons/vue/24/solid";
 import { computed, ref } from "vue";
-import { DATASET_VERSIONED_RECORD_LIMIT } from "@/state/module";
+import { DATABASE_VERSIONED_RECORD_LIMIT } from "@/state/module";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -20,10 +20,10 @@ const actions = computed(() => [
     icon: GlobeAltIconOutline,
     disabled: props.readonly,
     action: () => {
-      // TODO @UX: confirm before making dataset global/local?
+      // TODO @UX: confirm before making database global/local?
       //  (maybe add general confirm option to actions)
       // TODO @UX @Robustness: prevent morph to versioned if record count is too large
-      // TODO @UX: localizing dataset after global does not actually copy it
+      // TODO @UX: localizing database after global does not actually copy it
       ops.statement.morph(null, props.statement.id, props.statement, {
         ...props.statement,
         versioned: !props.statement.versioned,
@@ -70,8 +70,8 @@ defineExpose({
       >
         {{
           statement.versioned
-            ? "Local dataset, records are isolated per version"
-            : "Global dataset, records are shared across versions"
+            ? "Local database, records are isolated per version"
+            : "Global database, records are shared across versions"
         }}
       </span>
     </button>

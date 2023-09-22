@@ -877,7 +877,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 
 @dataclass
-class DatasetViewData(NodeData, HasOrder, HasCrud):
+class DatabaseViewData(NodeData, HasOrder, HasCrud):
     PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     id: UUID
@@ -887,12 +887,12 @@ class DatasetViewData(NodeData, HasOrder, HasCrud):
     length: Optional[int] = None
 
 
-@node_packer(MNT.DatasetView, DatasetViewData, lang.DatasetView)
-class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
+@node_packer(MNT.DatabaseView, DatabaseViewData, lang.DatabaseView)
+class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
-    def pack(self, view: lang.DatasetView) -> "DatasetViewData":
-        return DatasetViewData(
+    def pack(self, view: lang.DatabaseView) -> "DatabaseViewData":
+        return DatabaseViewData(
             id=view.id,
             ck=view.ck,
             order_key=view.order_key,
@@ -907,9 +907,9 @@ class DatasetViewPacker(NodePacker[DatasetViewData, lang.DatasetView]):
         )
 
     def unpack(
-        self, view: DatasetViewData, parent: lang.Statement, session: Optional[Session]
-    ) -> lang.DatasetView:
-        return lang.DatasetView(
+        self, view: DatabaseViewData, parent: lang.Statement, session: Optional[Session]
+    ) -> lang.DatabaseView:
+        return lang.DatabaseView(
             id=view.id,
             ck=view.ck,
             name=view.name,

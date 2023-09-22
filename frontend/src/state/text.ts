@@ -146,7 +146,7 @@ export function useTextMentions(
         statement.tag != TypeTag.Enum &&
         statement.tag != TypeTag.Struct &&
         statement.type != StatementType.Variable &&
-        statement.type != StatementType.Dataset
+        statement.type != StatementType.Database
       )
         continue;
       availableFields.push(...statement.fields.filter((f) => f.deletedAt == null && (f.name ?? "").length > 0));

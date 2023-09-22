@@ -10,7 +10,7 @@ from more_itertools import first
 
 from bench.language.const import (
     MNT,
-    DatasetViewLayout,
+    DatabaseViewLayout,
     StatementType,
     TypeFlag,
     TypeTag,
@@ -34,7 +34,7 @@ logger = structlog.get_logger(__name__)
 
 @node(mnt=MNT.Record, tracked=["value"])
 class Record(ModuleNode):
-    parent: "HasDataset" = required_field()
+    parent: "HasDatabase" = required_field()
     value: typing.Any = field(default_factory=dict)
     _instantiated: bool = True
 
@@ -88,7 +88,7 @@ class Record(ModuleNode):
 
     def _onwrite(self, key: Optional[str]):
         # TODO @Performance: writing an entire update on every change is obviously inefficient
-        self.session.tracer.dataset_update(self.parent, self, key)
+        self.session.tracer.database_update(self.parent, self, key)
 
     def __contains__(self, item: str):
         return item in self.value
@@ -122,43 +122,43 @@ class Record(ModuleNode):
             self.value[key] = value
 
 
-@node(mnt=MNT.DatasetView, tracked=["name", "layout", "query", "sort", "order_key"])
-class DatasetView(ModuleNode):
-    parent: "HasDataset" = required_field()
+@node(mnt=MNT.DatabaseView, tracked=["name", "layout", "query", "sort", "order_key"])
+class DatabaseView(ModuleNode):
+    parent: "HasDatabase" = required_field()
     name: str = None
-    layout: Optional[DatasetViewLayout] = DatasetViewLayout.TABLE
+    layout: Optional[DatabaseViewLayout] = DatabaseViewLayout.TABLE
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
     order_key: str = field(default_factory=uuid.uuid4)
-    fields: Optional[list["DatasetViewField"]] = None
+    fields: Optional[list["DatabaseViewField"]] = None
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
 
     def __repr__(self):
-        return f"<DatasetView {self}>"
+        return f"<DatabaseView {self}>"
 
     @property
     def path(self) -> str:
         return f"{self.parent.path}.{self.name}"
 
 
-@node(mnt=MNT.DatasetViewField, tracked=["order_key"])
-class DatasetViewField(ModuleNode):
+@node(mnt=MNT.DatabaseViewField, tracked=["order_key"])
+class DatabaseViewField(ModuleNode):
     field: UUID | Field = required_field()
     order_key: Optional[str] = None
 
 
 @node(tracked=["versioned"])
-class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
-    # note that HasDataset feels like a neat component than the others (HasCode, HasText, etc.)
+class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
+    # note that HasDatabase feels like a neat component than the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
 
-    type: StatementType = StatementType.DATASET
+    type: StatementType = StatementType.DATABASE
     tag: TypeTag = TypeTag.STRUCT
     flags: TypeFlag = TypeFlag.IsArray
     versioned: bool = True
-    views: Optional[list[DatasetView]] = None
+    views: Optional[list[DatabaseView]] = None
 
     def __post_init__(self):
         if self.key is not None:
@@ -171,14 +171,14 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
         else:
             self.key = new_dynamic_node_key(self.ck)
 
-    def view_by_name(self, name: str) -> DatasetView:
+    def view_by_name(self, name: str) -> DatabaseView:
         view = first((view for view in self.views if view.name == name), None)
         if view is None:
             raise KeyError(f"no view named '{name}' in {self}")
         return view
 
     def clear(self):
-        self.session.tracer.dataset_clear(self)
+        self.session.tracer.database_clear(self)
 
     def _clear(self):
         pass
@@ -194,7 +194,7 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
             visitor.visit_child(view)
 
     def append(self, record: Record | dict = None, **value) -> Record:
-        """Appends a record to the dataset."""
+        """Appends a record to the database."""
         if record is not None:
             if value:
                 raise ValueError("cannot pass both record and data")
@@ -207,25 +207,25 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
         value = unproxy_value(value)  # remove source proxy if any
         record = Record(parent=self, value=value)
         self._notify_added(record)
-        self.session.tracer.dataset_append(self, record)
+        self.session.tracer.database_append(self, record)
         return record
 
     def extend(self, records: typing.Iterable[Record | dict]) -> None:
-        """Extends the dataset with the given records."""
+        """Extends the database with the given records."""
         values = [  # remove source proxy if any
             unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
         records = [Record(parent=self, value=value) for value in values]
         self._notify_added(*records)
-        self.session.tracer.dataset_extend(self, records)
+        self.session.tracer.database_extend(self, records)
 
     def map(
         self,
         func: typing.Union["MapFunction", "BatchMapFunction"],
         batch_size: Optional[int] = None,
     ):
-        """Maps the dataset with the given function."""
+        """Maps the database with the given function."""
         self.search().map(func, batch_size)
 
     async def amap(
@@ -233,13 +233,13 @@ class HasDataset(HasFields, ModuleNode, Search["RecordData", Record]):
         func: typing.Union["AmapFunction", "BatchAmapFunction"],
         batch_size: Optional[int] = None,
     ):
-        """Maps the dataset with the given async function."""
+        """Maps the database with the given async function."""
         await self.search().amap(func, batch_size)
 
     def search(
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
     ) -> "RecordSearch":
-        """Searches this dataset remotely."""
+        """Searches this database remotely."""
         return RecordSearch(self.module, [self], query, sort, limit)
 
     def __getitem__(self, item: slice):
@@ -280,24 +280,24 @@ BatchAmapFunction = typing.Callable[
 
 
 class RecordSearch(Search["RecordData", Record]):
-    """A search over records (of a dataset)."""
+    """A search over records (of a database)."""
 
     def __init__(
         self,
         module: Module,
-        datasets: list[HasDataset],
+        databases: list[HasDatabase],
         query: Query,
         sort: list[Sort],
         limit: Optional[int],
     ):
         super().__init__(module, query, sort, limit)
-        if not isinstance(datasets, list):
-            raise TypeError(f"datasets must be a list (not {type(datasets)}): {datasets}")
+        if not isinstance(databases, list):
+            raise TypeError(f"databases must be a list (not {type(databases)}): {databases}")
         self.module = module
-        self.datasets = datasets
+        self.databases = databases
 
     def __str__(self):
-        return f"{self.datasets} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
+        return f"{self.databases} {self._query or '<no query>'} {self._sort or '<no sort>'} limit={self._limit or '<no limit>'}"
 
     def __repr__(self):
         return f"<RecordSearch {self}>"
@@ -313,8 +313,8 @@ class RecordSearch(Search["RecordData", Record]):
 
         await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        if self.datasets is not None:
-            statement_keys = [dataset.key for dataset in self.datasets]
+        if self.databases is not None:
+            statement_keys = [database.key for database in self.databases]
         else:
             statement_keys = None
         rep: NMessage[RepSearchRecordsPayload] = await request(
@@ -350,14 +350,14 @@ class RecordSearch(Search["RecordData", Record]):
 
     def filter(self, query: Query) -> "RecordSearch":
         combined_query = Query.and_if_set(self._query, query)
-        return RecordSearch(self.module, self.datasets, combined_query, self._sort, self._limit)
+        return RecordSearch(self.module, self.databases, combined_query, self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
         sort = [sort] if isinstance(sort, Sort) else sort
-        return RecordSearch(self.module, self.datasets, self._query, sort, self._limit)
+        return RecordSearch(self.module, self.databases, self._query, sort, self._limit)
 
     def limit(self, limit: int) -> "RecordSearch":
-        return RecordSearch(self.module, self.datasets, self._query, self._sort, limit)
+        return RecordSearch(self.module, self.databases, self._query, self._sort, limit)
 
     async def avalues(self, field: str) -> list[Any]:
         """Returns the values of the given field for all records."""

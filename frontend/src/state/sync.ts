@@ -274,7 +274,7 @@ function useSyncedOps() {
     console.debug("apply raw sync mutation", mutation);
     // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
     // TODO @Cleanup: organize 'manual' mutations better
-    // map dataset mutations to bumps
+    // map database mutations to bumps
     if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
       if (mutation.statementId != null) {
         client.cache.modify({

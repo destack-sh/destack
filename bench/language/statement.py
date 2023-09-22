@@ -12,7 +12,7 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.dataset import HasDataset
+from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
 from bench.language.issue import BenchError, Issue
 from bench.language.model import HasModel
@@ -271,8 +271,8 @@ class Tag(Statement, HasFields, HasTags, HasText):
 
 
 @node
-class Dataset(Statement, HasDataset, HasTags, HasText):
-    type: StatementType = StatementType.DATASET
+class Database(Statement, HasDatabase, HasTags, HasText):
+    type: StatementType = StatementType.DATABASE
     tag: TypeTag = TypeTag.STRUCT
 
 
@@ -355,7 +355,7 @@ class Variable(Statement, HasValue, HasFields, HasTags, HasText):
 
 _COMPONENT_CLASSES: list[type[ModuleNode]] = [
     HasCode,
-    HasDataset,
+    HasDatabase,
     HasFields,
     HasModel,
     HasRun,
@@ -385,7 +385,7 @@ STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Statement]] = {
     StatementType.TYPE: Type,
     StatementType.TAG: Tag,
     StatementType.CODE: Code,
-    StatementType.DATASET: Dataset,
+    StatementType.DATABASE: Database,
     StatementType.VARIABLE: Variable,
     StatementType.FLOW: Flow,
     StatementType.MODEL: Model,

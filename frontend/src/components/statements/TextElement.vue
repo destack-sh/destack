@@ -112,15 +112,15 @@ const quickActions = computed(() => {
   });
   actions.push({
     id: "data",
-    label: "Turn into dataset",
-    icon: getStatementIconSolid(StatementType.Dataset),
+    label: "Turn into database",
+    icon: getStatementIconSolid(StatementType.Database),
     action: () => {
       ops.statement.morph(null, props.statement.id, props.statement, {
-        type: StatementType.Dataset,
+        type: StatementType.Database,
         versioned: true,
         key: newDynamicNodeKey(props.statement.id),
       });
-      nextTick(() => emit("focus", "dataset"));
+      nextTick(() => emit("focus", "database"));
     },
   });
 

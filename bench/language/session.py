@@ -187,10 +187,10 @@ class Session:
 
     async def _do_search_preflight(self, search: Search) -> None:
         """FLush any relevant mutations before searching."""
-        from bench.language.dataset import RecordSearch
+        from bench.language.database import RecordSearch
 
         if isinstance(search, RecordSearch):
-            # force flush and index if there are any pending dataset mutations
+            # force flush and index if there are any pending database mutations
             #  (or previous mutations that were already flushed but didn't refresh the index)
             # TODO @Performance: force flush module for record search only if needed
             if self.mutator.mutations or self._past_flushes:

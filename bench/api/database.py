@@ -119,7 +119,7 @@ class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
 
 
 @strawberry.type
-class DatasetMutation:
+class DatabaseMutation:
     @tracked_db_mutation(MMT.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
@@ -179,7 +179,7 @@ RECORDS_LIMIT = 100
 
 
 @strawberry.type
-class RecordQuery:  # avoid name conflict with DatasetQuery
+class RecordQuery:  # avoid name conflict with DatabaseQuery
     @strawberry_django.field
     def search_records(
         self,
@@ -198,8 +198,8 @@ class RecordQuery:  # avoid name conflict with DatasetQuery
         query = Query.and_if_set(Q(QueryOp.EQUALS, "statement_key", statement.key), query)
         effective_limit = min(limit or RECORDS_LIMIT, RECORDS_LIMIT)
         search = prepare_search(
-            type=mirror.DocumentType.RECORD,  # already limited by dataset
-            project_version_id=None,  # already limited by dataset
+            type=mirror.DocumentType.RECORD,  # already limited by database
+            project_version_id=None,  # already limited by database
             limit=effective_limit + 1,  # +1 to determine if there is a next page
             count=count or False,
             after=after,

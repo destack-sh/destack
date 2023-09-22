@@ -25,7 +25,7 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import (
         Code,
-        Dataset,
+        Database,
         Field,
         File,
         HasFields,
@@ -62,19 +62,19 @@ class Tracer:
     def value_update(self, value: Variable, key: Optional[str] = None):
         pass
 
-    def dataset_clear(self, dataset: Dataset):
+    def database_clear(self, database: Database):
         pass
 
-    def dataset_append(self, dataset: Dataset, record: Record):
+    def database_append(self, database: Database, record: Record):
         pass
 
-    def dataset_extend(self, dataset: Dataset, records: list[Record]):
+    def database_extend(self, database: Database, records: list[Record]):
         pass
 
-    def dataset_remove(self, dataset: Dataset, record: Record):
+    def database_remove(self, database: Database, record: Record):
         pass
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
+    def database_update(self, database: Database, record: Record, key: Optional[str] = None):
         pass
 
     # TODO @Broken: the below trace events aren't fired (or used) yet
@@ -299,25 +299,25 @@ class SessionTracer(Tracer):
         for tracer in self.tracers:
             tracer.value_update(value, key)
 
-    def dataset_clear(self, dataset: Dataset):
+    def database_clear(self, database: Database):
         for tracer in self.tracers:
-            tracer.dataset_clear(dataset)
+            tracer.database_clear(database)
 
-    def dataset_append(self, dataset: Dataset, record: Record):
+    def database_append(self, database: Database, record: Record):
         for tracer in self.tracers:
-            tracer.dataset_append(dataset, record)
+            tracer.database_append(database, record)
 
-    def dataset_extend(self, dataset: Dataset, records: list[Record]):
+    def database_extend(self, database: Database, records: list[Record]):
         for tracer in self.tracers:
-            tracer.dataset_extend(dataset, records)
+            tracer.database_extend(database, records)
 
-    def dataset_remove(self, dataset: Dataset, record: Record):
+    def database_remove(self, database: Database, record: Record):
         for tracer in self.tracers:
-            tracer.dataset_remove(dataset, record)
+            tracer.database_remove(database, record)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
+    def database_update(self, database: Database, record: Record, key: Optional[str] = None):
         for tracer in self.tracers:
-            tracer.dataset_update(dataset, record, key)
+            tracer.database_update(database, record, key)
 
     def run_enter(self, statement: HasRun, inputs):
         for tracer in self.tracers:
@@ -633,26 +633,26 @@ class MutationTracer(Tracer):
 
         self.mutator.update(wire.pack_node_flat(variable), properties=["value"])
 
-    def dataset_clear(self, dataset: Dataset):
-        self.mutator.truncate(dataset, MNT.Record)
+    def database_clear(self, database: Database):
+        self.mutator.truncate(database, MNT.Record)
 
-    def dataset_append(self, dataset: Dataset, record: Record):
+    def database_append(self, database: Database, record: Record):
         from bench.language import wire
 
         self.mutator.create(wire.pack_node_flat(record))
 
-    def dataset_extend(self, dataset: Dataset, records: list[Record]):
+    def database_extend(self, database: Database, records: list[Record]):
         from bench.language import wire
 
         self.mutator.create_many(*[wire.pack_node_flat(record) for record in records])
 
-    def dataset_remove(self, dataset: Dataset, record: Record):
+    def database_remove(self, database: Database, record: Record):
         from bench.language import wire
 
         self.mutator.delete(wire.pack_node_flat(record))
 
-    def dataset_update(
-        self, dataset: Dataset | Variable, record: Record, key: Optional[str] = None
+    def database_update(
+        self, database: Database | Variable, record: Record, key: Optional[str] = None
     ):
         from bench.language import wire
 
@@ -677,18 +677,20 @@ class TypeCheckingTracer(Tracer):
         else:
             check_type(value.value, value)
 
-    def dataset_append(self, dataset: Dataset, record: Record):
-        check_type(record.value, dataset, ignore_array=True)
+    def database_append(self, database: Database, record: Record):
+        check_type(record.value, database, ignore_array=True)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
+    def database_update(self, database: Database, record: Record, key: Optional[str] = None):
         if key:
             # validate only this key
-            field_ = dataset.get_field(key)
+            field_ = database.get_field(key)
             if field_ is None:
-                raise ValueError(f"{key} does not exist in {dataset} (available: {dataset.fields})")
+                raise ValueError(
+                    f"{key} does not exist in {database} (available: {database.fields})"
+                )
             check_type(record.value.get(key), field_)
         else:
-            check_type(record.value, dataset, ignore_array=True)
+            check_type(record.value, database, ignore_array=True)
 
 
 class PermissionCheckingTracer(Tracer):
@@ -709,17 +711,17 @@ class PermissionCheckingTracer(Tracer):
     def value_update(self, value: Variable, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
-    def dataset_clear(self, dataset: Dataset):
-        self.session.check_can(ModuleOp.UPDATE, dataset)
+    def database_clear(self, database: Database):
+        self.session.check_can(ModuleOp.UPDATE, database)
 
-    def dataset_append(self, dataset: Dataset, record: Record):
-        self.session.check_can(ModuleOp.UPDATE, dataset)
+    def database_append(self, database: Database, record: Record):
+        self.session.check_can(ModuleOp.UPDATE, database)
 
-    def dataset_update(self, dataset: Dataset, record: Record, key: Optional[str] = None):
-        self.session.check_can(ModuleOp.UPDATE, dataset)
+    def database_update(self, database: Database, record: Record, key: Optional[str] = None):
+        self.session.check_can(ModuleOp.UPDATE, database)
 
-    def dataset_delete(self, dataset: Dataset, record: Record):
-        self.session.check_can(ModuleOp.UPDATE, dataset)
+    def database_delete(self, database: Database, record: Record):
+        self.session.check_can(ModuleOp.UPDATE, database)
 
-    def dataset_search(self, dataset: Dataset, query: Query, sort: list[Sort]):
-        self.session.check_can(ModuleOp.READ, dataset)
+    def database_search(self, database: Database, query: Query, sort: list[Sort]):
+        self.session.check_can(ModuleOp.READ, database)

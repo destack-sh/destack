@@ -376,7 +376,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             models.Field.objects.filter(statement__in=nodes),
             models.Tagging.objects.filter(statement__in=nodes),
             models.Trigger.objects.filter(statement__in=nodes),
-            # for records, we only include versioned dataset's records
+            # for records, we only include versioned database's records
             models.Record.objects.filter(statement_key__in=[n.key for n in nodes if n.versioned]),
         ]
 

@@ -2,9 +2,9 @@ import BaseTypeControl from "@/components/statements/BaseTypeControl.vue";
 import BlankElement from "@/components/statements/BlankElement.vue";
 import CodeElement from "@/components/statements/CodeElement.vue";
 import CurrentRunControl from "@/components/statements/CurrentRunControl.vue";
-import DatasetElement from "@/components/statements/DatasetElement.vue";
-import DatasetInfoControl from "@/components/statements/DatasetInfoControl.vue";
-import DatasetSearchControl from "@/components/statements/DatasetSearchControl.vue";
+import DatabaseElement from "@/components/statements/DatabaseElement.vue";
+import DatabaseInfoControl from "@/components/statements/DatabaseInfoControl.vue";
+import DatabaseSearchControl from "@/components/statements/DatabaseSearchControl.vue";
 import DeclarationControl from "@/components/statements/DeclarationControl.vue";
 import FunctionTypeElement from "@/components/statements/FunctionTypeElement.vue";
 import ListTypeElement from "@/components/statements/ListTypeElement.vue";
@@ -20,7 +20,7 @@ import { TypeFlag, type Statement } from "@/state/module";
 import type { UseElementBoundingReturn } from "@vueuse/core";
 
 export const STATEMENT_RUNNABLE_TYPES: StatementType[] = [StatementType.Code, StatementType.Task, StatementType.Flow];
-export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Dataset, StatementType.Code];
+export const STATEMENT_STANDALONE_TYPES: StatementType[] = [StatementType.Database, StatementType.Code];
 export const STANDALONE_ENABLED = false; // needs proper support
 
 export type StatementPartComponent = InstanceType<any> & {
@@ -39,8 +39,8 @@ export type StatementControlId =
   | "trigger"
   | "reference"
   | "run.meta"
-  | "dataset.info"
-  | "dataset.search";
+  | "database.info"
+  | "database.search";
 export type StatementElementId =
   | "blank"
   | "text"
@@ -48,7 +48,7 @@ export type StatementElementId =
   | "type.list"
   | "code"
   | "value"
-  | "dataset"
+  | "database"
   | "run";
 export type StatementPartId = StatementControlId | StatementElementId;
 
@@ -165,9 +165,9 @@ export const BASIC_CONTROL_PARTS: StatementControl[] = [
     exists: (iface, statement) => true,
   },
   {
-    id: "dataset.info",
-    component: DatasetInfoControl,
-    enabled: (iface, statement) => statement.type === StatementType.Dataset,
+    id: "database.info",
+    component: DatabaseInfoControl,
+    enabled: (iface, statement) => statement.type === StatementType.Database,
     exists: (iface, statement) => true,
   },
 ];
@@ -178,10 +178,10 @@ const RUN_META: StatementControl = {
   enabled: (iface, statement) => false,
   exists: (iface, statement) => false,
 };
-const DATASET_SEARCH: StatementControl = {
-  id: "dataset.search",
-  component: DatasetSearchControl,
-  enabled: (iface, statement) => statement.type === StatementType.Dataset,
+const DATABASE_SEARCH: StatementControl = {
+  id: "database.search",
+  component: DatabaseSearchControl,
+  enabled: (iface, statement) => statement.type === StatementType.Database,
   exists: (iface, statement) => true,
 };
 
@@ -212,9 +212,9 @@ const VALUE: StatementElement = {
   component: ValueElement,
   exists: (iface, statement) => statement.value != null,
 };
-const DATASET: StatementElement = {
-  id: "dataset",
-  component: DatasetElement,
+const DATABASE: StatementElement = {
+  id: "database",
+  component: DatabaseElement,
   exists: (iface, statement) => true, // unknown, but doesn't matter
 };
 const RUN: StatementElement = {
@@ -278,14 +278,14 @@ register(StatementType.Variable, {
   hasTags: true,
   elements: [TEXT, { ...VALUE, showIfNotExists: true }],
 });
-register(StatementType.Dataset, {
-  primaryPart: "dataset",
+register(StatementType.Database, {
+  primaryPart: "database",
   foldable: "list-all",
   needsDeclaration: true,
   hasTags: true,
   hasBases: true,
-  extraControls: [DATASET_SEARCH],
-  elements: [TEXT, DATASET],
+  extraControls: [DATABASE_SEARCH],
+  elements: [TEXT, DATABASE],
 });
 register(StatementType.Tag, {
   primaryPart: "declaration",

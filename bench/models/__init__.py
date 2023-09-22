@@ -1,6 +1,6 @@
 from django.db.models import Q
 
-from .dataset import Record
+from .database import Record
 from .interp import Issue, IssueKind, ResolvedField
 from .notification import Notification, NotificationStatus, NotificationType
 from .object import RemoteObject, RemoteObjectStatus
