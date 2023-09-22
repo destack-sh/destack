@@ -195,6 +195,10 @@ function initMonaco(monaco: Monaco) {
     // update: actually, this is really annoying, so we don't do it anymore
     // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => opsStore.undo());
     // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => opsStore.redo());
+    // suppress cmd+s
+    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
+      // no op
+    });
   }
 
   // update focused when editor is focused/defocused
