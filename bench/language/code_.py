@@ -287,6 +287,7 @@ class HasCode(HasFields, ModuleNode):
             outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             self.cache.set(cache_subkey, run_bytes)
+            return result
 
         async def _cached_async(*args, **kwargs):
             # yes this is annoyingly duplicated...
@@ -304,6 +305,7 @@ class HasCode(HasFields, ModuleNode):
             outputs_raw = pack_value(result, self, is_output=True)
             run_bytes = CachedRun.bytes_from_run(inputs_raw, outputs_raw, started_at)
             await self.cache.set(cache_subkey, run_bytes)
+            return result
 
         return _cached_async if self._parse.is_async else _cached_sync
 

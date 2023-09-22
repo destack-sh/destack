@@ -362,7 +362,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   async function unindent(statement: StatementHeader, tx?: Transaction) {
     // move to after parent in grandparent's children
     const parent = statementsById.value[statement.parent?.id];
-    const grandparent = statementsById.value[parent.parent?.id] ?? file.value?.file;
+    if (parent == null) return;
+    const grandparent = statementsById.value[parent?.parent?.id] ?? file.value?.file;
     const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
     const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
     await ops.statement.move(tx ?? null, statement.id, getLocation(statement), {
@@ -395,7 +396,8 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
   async function unindentBatch(statements: StatementHeader[]) {
     const roots = getLocalRoots(statements);
     const parent = statementsById.value[roots[0].parent?.id];
-    const grandparent = statementsById.value[parent.parent?.id] ?? file.value?.file;
+    if (parent == null) return;
+    const grandparent = statementsById.value[parent?.parent?.id] ?? file.value?.file;
     const parentSiblings = statementsByParentId.value[grandparent?.id ?? ""];
     const parentNextSibling = parentSiblings.find((s) => s.orderKey > parent.orderKey);
     // insert all roots in order after parent
