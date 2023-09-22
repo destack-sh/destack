@@ -39,7 +39,7 @@ export const RECORD_SEARCH_QUERY = graphql(/* GraphQL */ `
   }
 `);
 
-export function useDatasetInlineSearch(
+export function useDatabaseInlineSearch(
   fields: ReturnType<typeof useFields>,
   query: Ref<string | undefined>,
   options?: { debounceMs?: number }

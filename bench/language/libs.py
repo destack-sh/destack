@@ -14,7 +14,7 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import Dataset, HasRun, HasText, Module, Run, RunError, Variable
+from bench.language import Database, HasRun, HasText, Module, Run, RunError, Variable
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import RunStatus, TypeFlag, TypeTag
 from bench.language.field import Field, HasFields, Key, Vector, new_dynamic_node_key
@@ -231,13 +231,13 @@ class BaseTextTaskCompiler(TaskCompiler):
         else:
             return None
 
-    # TODO @Performance @Task: cache statement rendering (for datasets)
+    # TODO @Performance @Task: cache statement rendering (for databases)
     async def _render_statement_body(self, statement: Statement) -> tuple[str | None, list[UUID]]:
         """Model-friendly string describing statement content (excl. header)."""
         if isinstance(statement, Variable):
             value_str = json.dumps(statement._raw_named_value(), indent=2)
             return value_str, []
-        elif isinstance(statement, Dataset):
+        elif isinstance(statement, Database):
             records = await statement.limit(10).atolist()
             records_str = "\n".join([json.dumps(r._raw_named_value(), indent=2) for r in records])
             return records_str, [r.id for r in records]

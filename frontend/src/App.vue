@@ -151,7 +151,7 @@ body {
 }
 
 /* turns out visible on hover is annoying, especially without transition */
-/* (causes flickering, e.g. for horizontal scrollbars in datasets) */
+/* (causes flickering, e.g. for horizontal scrollbars in databases) */
 /* ::-webkit-scrollbar-thumb:hover {
   background-color: #fdba74;
 } */

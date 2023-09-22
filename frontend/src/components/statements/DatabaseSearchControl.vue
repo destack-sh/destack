@@ -2,7 +2,7 @@
 import EditableSpan from "@/components/basic/EditableSpan.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useElementPanelSettings } from "@/state/bench";
-import type { DatasetStatementProperties } from "@/state/statement";
+import type { DatabaseStatementProperties } from "@/state/statement";
 import { MagnifyingGlassIcon, XCircleIcon } from "@heroicons/vue/24/outline";
 import { nextTick, ref, toRef } from "vue";
 
@@ -10,7 +10,7 @@ const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readon
 const emit = defineEmits<StatementEmit>();
 
 const searchRef = ref<InstanceType<typeof EditableSpan> | null>(null);
-const properties = useElementPanelSettings<DatasetStatementProperties>(toRef(props, "statement"), {
+const properties = useElementPanelSettings<DatabaseStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
   wrapColumns: false,
 });

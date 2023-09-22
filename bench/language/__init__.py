@@ -1,5 +1,5 @@
 from .const import (
-    DatasetViewLayout,
+    DatabaseViewLayout,
     IssueType,
     ScheduleType,
     StatementType,
@@ -7,7 +7,7 @@ from .const import (
     TypeHint,
     TypeTag,
 )
-from .dataset import DatasetView, Record
+from .database import DatabaseView, Record
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
 from .issue import Issue
@@ -20,7 +20,7 @@ from .session import LogEntry, Session
 from .statement import (
     Blank,
     Code,
-    Dataset,
+    Database,
     Flow,
     Model,
     Reference,
@@ -40,9 +40,9 @@ __all__ = [
     "Aggregation",
     "Blank",
     "Code",
-    "Dataset",
-    "DatasetView",
-    "DatasetViewLayout",
+    "Database",
+    "DatabaseView",
+    "DatabaseViewLayout",
     "Field",
     "File",
     "Flow",

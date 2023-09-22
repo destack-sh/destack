@@ -447,7 +447,7 @@ function onDragStart(e: DragEvent) {
   if (innerWrapperRef.value == null) return;
   setDragData(e, { type: "Statement", id: statement.value.id });
   // TODO @Broken @UX: drag image looks horrible sometimes
-  // (when statements have large hidden content like Code (Monaco infinite lines view) or Dataset (horizontal overscroll area))
+  // (when statements have large hidden content like Code (Monaco infinite lines view) or Database (horizontal overscroll area))
   e.dataTransfer?.setDragImage(innerWrapperRef.value, 0, 0);
 }
 
@@ -898,9 +898,9 @@ defineExpose({
           :bounding="containerBounding"
           :xoffset="contentOffsetX"
           :class="[
-            // push run element up so it's directly below code, push dataset/value down else it looks cramped
+            // push run element up so it's directly below code, push database/value down else it looks cramped
             element.id == 'run' ? '-mt-0.5' : '',
-            element.id == 'dataset' || element.id == 'value' ? 'mt-0.5' : '',
+            element.id == 'database' || element.id == 'value' ? 'mt-0.5' : '',
           ]"
           v-on="handleStatementPartEvents('element', element.id)"
         />

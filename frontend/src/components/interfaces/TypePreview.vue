@@ -31,7 +31,7 @@ const resolvedTag = computed(() => resolvedReference.value?.tag ?? props.type.ta
 const icon = computed(() => {
   if (
     resolvedReference.value != null &&
-    [StatementType.Code, StatementType.Flow, StatementType.Task, StatementType.Dataset].includes(
+    [StatementType.Code, StatementType.Flow, StatementType.Task, StatementType.Database].includes(
       resolvedReference.value?.type
     )
   ) {

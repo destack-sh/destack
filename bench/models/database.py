@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from django.db import models
 
-from bench.language.const import DatasetViewLayout
+from bench.language.const import DatabaseViewLayout
 from bench.models.utils import CrudModel, CrudNode, DetachedModuleNode, Revisioned, get_choices
 from bench.utils.dt import utcnow_with_tz
 
@@ -13,19 +13,19 @@ if TYPE_CHECKING:
     from bench.models.statement import Statement
 
 
-class DatasetViewManager(models.Manager):
+class DatabaseViewManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class DatasetView(CrudNode):
-    """A view of a dataset."""
+class DatabaseView(CrudNode):
+    """A view of a database."""
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="views")
-    layout = models.CharField(max_length=64, choices=get_choices(DatasetViewLayout))
+    layout = models.CharField(max_length=64, choices=get_choices(DatabaseViewLayout))
     query = models.JSONField()
     sort = models.JSONField()
-    fields: models.QuerySet[DatasetViewField]  # noqa via DatasetViewField.view
+    fields: models.QuerySet[DatabaseViewField]  # noqa via DatabaseViewField.view
 
     @property
     def parent_id(self) -> Optional[uuid.UUID]:
@@ -35,16 +35,16 @@ class DatasetView(CrudNode):
     def parent(self) -> Optional["Statement"]:
         return self.statement
 
-    objects = DatasetViewManager()
+    objects = DatabaseViewManager()
 
 
-class DatasetViewFieldManager(models.Manager):
+class DatabaseViewFieldManager(models.Manager):
     def get_queryset(self):
         return super().get_queryset().filter(deleted_at__isnull=True)
 
 
-class DatasetViewField(CrudNode):
-    view = models.ForeignKey("DatasetView", on_delete=models.CASCADE, related_name="fields")
+class DatabaseViewField(CrudNode):
+    view = models.ForeignKey("DatabaseView", on_delete=models.CASCADE, related_name="fields")
     field = models.ForeignKey("Field", on_delete=models.CASCADE, related_name="views+")
     order_key = models.CharField(max_length=64, null=True, blank=True)
     visible = models.BooleanField(default=True)
@@ -54,10 +54,10 @@ class DatasetViewField(CrudNode):
         return self.view_id
 
     @property
-    def parent(self) -> Optional["DatasetView"]:
+    def parent(self) -> Optional["DatabaseView"]:
         return self.view
 
-    objects = DatasetViewFieldManager()
+    objects = DatabaseViewFieldManager()
 
 
 class RecordManager(models.Manager):
@@ -67,7 +67,7 @@ class RecordManager(models.Manager):
 
 class Record(CrudModel, DetachedModuleNode, Revisioned):
     """
-    A record in a dataset (may be detached if the dataset is not versioned).
+    A record in a database (may be detached if the database is not versioned).
     We may choose not to store the actual record value here later, but for now it's convenient.
     """
 

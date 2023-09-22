@@ -28,8 +28,8 @@ GQL_NODE_NAME_BY_MNT = {
     MNT.Tagging: "Tagging",
     MNT.Trigger: "Trigger",
     MNT.Comment: "Comment",
-    MNT.DatasetView: "DatasetView",
-    MNT.DatasetViewField: "DatasetViewField",
+    MNT.DatabaseView: "DatabaseView",
+    MNT.DatabaseViewField: "DatabaseViewField",
     MNT.ResolvedField: "ResolvedField",
     MNT.Issue: "Issue",
 }

@@ -11,7 +11,7 @@ import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
 import { useOperations } from "@/state/operations";
-import { useFields, type DatasetStatementProperties } from "@/state/statement";
+import { useFields, type DatabaseStatementProperties } from "@/state/statement";
 import { generateKeyBetween, generateNKeysBetween } from "@/utils/fractional";
 import { IS_DEBUG, IS_LOCALHOST } from "@/utils/globals";
 import {
@@ -38,7 +38,7 @@ import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
 import type { StatementEmit, StatementProps } from "@/components/statements";
-import { RECORD_SEARCH_QUERY, useDatasetInlineSearch } from "@/state/dataset";
+import { RECORD_SEARCH_QUERY, useDatabaseInlineSearch } from "@/state/database";
 import { humanizeNumber } from "@/composables/useNow";
 import { emptyConnection, getUpdatedConnectionQuery } from "@/utils/connection";
 
@@ -62,7 +62,7 @@ const createFieldRef: Ref<InstanceType<typeof CreateFieldInterface> | null> = re
 const fields = useFields(toRef(props, "statement"));
 const { allFields, selfFields, inheritedFields, moveFieldTo } = fields;
 
-const properties = useElementPanelSettings<DatasetStatementProperties>(toRef(props, "statement"), {
+const properties = useElementPanelSettings<DatabaseStatementProperties>(toRef(props, "statement"), {
   inlineQuery: undefined,
   wrapColumns: false,
 });
@@ -74,7 +74,7 @@ onMounted(() => {
   }
 });
 
-const { inlineQuery } = useDatasetInlineSearch(fields, toRef(properties, "inlineQuery"));
+const { inlineQuery } = useDatabaseInlineSearch(fields, toRef(properties, "inlineQuery"));
 
 function addSort(field: Field, order: SortOrder) {
   const subkey = canSort(field, { excludeSubfields: true }) ? "" : "." + getMainSubfield(field);
@@ -132,7 +132,7 @@ const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
 useMutationListener([ModuleMutationType.BumpStatement], props.statement.id, () => {
   refetchDebounced();
 });
-// trigger refetch (debounced) once if just created to autoload if the dataset was duplicated
+// trigger refetch (debounced) once if just created to autoload if the database was duplicated
 onMounted(() => {
   const delta = DateTime.now().diff(DateTime.fromISO(props.statement.createdAt ?? ""));
   if (delta.as("seconds") < 1) {

@@ -338,7 +338,7 @@ export const STATEMENT_ICONS_OUTLINE: Partial<Record<StatementType, any>> = {
   [StatementType.Tag]: TagIconOutline,
   [StatementType.Task]: SparklesIconOutline,
   [StatementType.Variable]: VariableIcon,
-  [StatementType.Dataset]: CircleStackIconOutline,
+  [StatementType.Database]: CircleStackIconOutline,
   [StatementType.Code]: CodeBracketSquareIconOutline,
   [StatementType.Flow]: PaperAirplaneIconOutline,
   [StatementType.Model]: CpuChipIconOutline,
@@ -349,7 +349,7 @@ export const STATEMENT_ICONS_SOLID: Partial<Record<StatementType, any>> = {
   [StatementType.Tag]: TagIconSolid,
   [StatementType.Task]: SparklesIconSolid,
   [StatementType.Variable]: VariableIcon,
-  [StatementType.Dataset]: CircleStackIconSolid,
+  [StatementType.Database]: CircleStackIconSolid,
   [StatementType.Code]: CodeBracketSquareIconSolid,
   [StatementType.Flow]: PaperAirplaneIconSolid,
   [StatementType.Model]: CpuChipIconSolid,
@@ -384,7 +384,7 @@ export const STATEMENT_TYPE_LABELS: Record<StatementType, string> = {
   [StatementType.Task]: "Task",
   [StatementType.Code]: "Code",
   [StatementType.Variable]: "Variable",
-  [StatementType.Dataset]: "Dataset",
+  [StatementType.Database]: "Database",
   [StatementType.Model]: "Model",
   [StatementType.Flow]: "Flow",
   [StatementType.Reference]: "Reference",
@@ -403,7 +403,7 @@ export function getStatementLabel(type: StatementType, tag?: TypeTag | null) {
 export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Text]: "A plain text comment",
   [StatementType.Type]: "A class, choice or union type",
-  [StatementType.Dataset]: "Context, examples, feedback - any records",
+  [StatementType.Database]: "Examples, state, feedback: any records",
   [StatementType.Code]: "Connect, test & customize with Python",
   [StatementType.Task]: "Structured prompt with I/O fields",
   [StatementType.Variable]: "Common values for configuration or secrets",
@@ -424,10 +424,10 @@ export function getStatementDescription(type: StatementType, tag?: TypeTag | nul
   }
 }
 
-export type DatasetStatementProperties = {
+export type DatabaseStatementProperties = {
   inlineQuery?: string;
   wrapColumns: boolean;
-  // local 'view' (because we don't have proper module dataset view yet, this is the only view)
+  // local 'view' (because we don't have proper module database view yet, this is the only view)
   sorts?: SearchSort[];
   query?: SearchQuery;
 };
@@ -505,7 +505,7 @@ export function useStatementMorph(
     identity: MorphIdentity & { name?: string | null }
   ) {
     let key = null;
-    if ([StatementType.Type, StatementType.Tag, StatementType.Dataset].includes(identity.type)) {
+    if ([StatementType.Type, StatementType.Tag, StatementType.Database].includes(identity.type)) {
       key = newDynamicNodeKey(statement.ck);
     }
     ops.statement.morph(null, statement.id, statement, { ...identity, key });
@@ -528,7 +528,7 @@ export function useStatementMorph(
         aliases: ["type", "struct"],
       }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Type, { tag: TypeTag.Enum, aliases: ["type", "enum"] }),
-      simpleStatementCommand(GROUPS.BASIC, StatementType.Dataset, {
+      simpleStatementCommand(GROUPS.BASIC, StatementType.Database, {
         aliases: ["table", "retrieval", "rag", "samples"],
       }),
       simpleStatementCommand(GROUPS.BASIC, StatementType.Code),

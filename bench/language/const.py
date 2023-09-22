@@ -25,8 +25,8 @@ class ModuleNodeType(enum.StrEnum):
     Tagging = "Tagging"
     Field = "Field"
     Record = "Record"
-    DatasetView = "DatasetView"
-    DatasetViewField = "DatasetViewField"
+    DatabaseView = "DatabaseView"
+    DatabaseViewField = "DatabaseViewField"
     # interp
     Issue = "Issue"
     ResolvedField = "ResolvedField"
@@ -50,7 +50,7 @@ class StatementType(enum.StrEnum):
     FLOW = "flow"
     MODEL = "model"
     VARIABLE = "variable"
-    DATASET = "dataset"
+    DATABASE = "database"
     REFERENCE = "reference"
 
 
@@ -65,14 +65,14 @@ DYNAMIC_NODE_KEY_LENGTH = 8
 
 # :ModuleLimits
 MODULE_VERSIONED_RECORD_LIMIT = 25_000
-DATASET_VERSIONED_RECORD_LIMIT = 2500
-DATASET_UNVERSIONED_RECORD_LIMIT = 10_000_000
+DATABASE_VERSIONED_RECORD_LIMIT = 2500
+DATABASE_UNVERSIONED_RECORD_LIMIT = 10_000_000
 
 
 def new_dynamic_node_key(ck_or_id: UUID) -> str:
     """
     Gets a 'random' alphabetic key as a persistent key for a node.
-    Also used for dynamic dataset identities (versioned/un-versioned).
+    Also used for dynamic database identities (versioned/un-versioned).
     (short key length alphabetic characters) :FieldKeys
     """
     hash_value = cyrb53a(str(ck_or_id))
@@ -121,13 +121,13 @@ NODE_CHILDREN_BY_MNT: dict[MNT, list[MNT]] = {
         MNT.Field,
         MNT.Tagging,
         MNT.Trigger,
-        MNT.DatasetView,
+        MNT.DatabaseView,
         MNT.Record,
         MNT.Comment,
         MNT.ResolvedField,
         MNT.Issue,
     ],
-    MNT.DatasetView: [MNT.DatasetViewField],
+    MNT.DatabaseView: [MNT.DatabaseViewField],
 }
 
 
@@ -157,8 +157,8 @@ class TextHeadingLevel(enum.IntEnum):
     H3 = 3
 
 
-class DatasetViewLayout(enum.StrEnum):
-    """The layout of a dataset view."""
+class DatabaseViewLayout(enum.StrEnum):
+    """The layout of a database view."""
 
     TABLE = "table"
 

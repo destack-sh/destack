@@ -332,7 +332,7 @@ class RuntimeServer(Monitored):
             )
         except Exception as e:
             sentry_capture(e)
-            logger.error("dataset.search.failed", req=req, exc_info=True)
+            logger.error("database.search.failed", req=req, exc_info=True)
             rep = rep_cls(
                 elements=None,
                 total=-1,
@@ -349,7 +349,7 @@ class RuntimeServer(Monitored):
         extra_queries = []
         if msg.p.statement_keys:
             extra_queries.append(Q(QueryOp.EQUALS, "statement_key", msg.p.statement_keys))
-        # TODO @Security!: check if msg origin has read access to dataset
+        # TODO @Security!: check if msg origin has read access to database
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
@@ -364,8 +364,8 @@ class RuntimeServer(Monitored):
 
     @message_handler
     async def search_runs(self, msg: NMessage[ReqSearchRunsPayload]) -> None:
-        logger.debug("search.dataset", msg=msg)
-        # TODO @Security!: check if msg origin has read access to dataset
+        logger.debug("search.database", msg=msg)
+        # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
         if msg.p.runnables_ids:
             extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
@@ -391,7 +391,7 @@ class RuntimeServer(Monitored):
             extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
         if msg.p.runnables_cks:
             extra_queries.append(Q(QueryOp.EQUALS, "runnable_ck", msg.p.runnables_cks))
-        # TODO @Security!: check if msg origin has read access to dataset
+        # TODO @Security!: check if msg origin has read access to database
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
@@ -958,7 +958,7 @@ class RuntimeWorker:
 
         await self.on_module_changed(mutations)
 
-        # trim mutations to remove overhead from large dataset updates
+        # trim mutations to remove overhead from large database updates
         trimmed_mutations = trim_record_mutations(mutations)
         origins = (*(origins or ()), self.client)
         api_mutations = list(

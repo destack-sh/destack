@@ -102,7 +102,7 @@ class ExistenceQueryCompiler(Compiler):
 class VectorQueryCompiler(Compiler):
     def compile(self, info: CompilationInfo, query: VectorQuery) -> dict[str, Any]:
         if query.approximate:
-            # TODO @Performance @Robustness: tune knn k relative to dataset and query limit
+            # TODO @Performance @Robustness: tune knn k relative to database and query limit
             return {"knn": {query.key: {"vector": query.value, "k": info.root_limit * 2}}}
         else:
             raise NotImplementedError(f"exact knn not implemented: {query}")

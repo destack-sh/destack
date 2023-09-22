@@ -30,8 +30,8 @@ _MNT_TO_TYPE_NAME = {
     MNT.Record: "Record",
     MNT.Tagging: "Tagging",
     MNT.Trigger: "Trigger",
-    MNT.DatasetView: "DatasetView",
-    MNT.DatasetViewField: "DatasetViewField",
+    MNT.DatabaseView: "DatabaseView",
+    MNT.DatabaseViewField: "DatabaseViewField",
     MNT.Comment: "Comment",
     MNT.Issue: "Issue",
 }
