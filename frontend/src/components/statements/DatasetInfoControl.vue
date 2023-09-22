@@ -70,7 +70,7 @@ defineExpose({
       >
         {{
           statement.versioned
-            ? "Local dataset, records are distinct per version"
+            ? "Local dataset, records are isolated per version"
             : "Global dataset, records are shared across versions"
         }}
       </span>

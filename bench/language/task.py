@@ -109,6 +109,7 @@ class TaskErrorType(enum.StrEnum):
 
 UNRECOVERABLE_ERRORS = {TaskErrorType.Incapable, TaskErrorType.Unknown}
 TASK_STEP_ATTEMPTS = 5
+TASK_TOTAL_ATTEMPTS = 10
 
 
 async def run_task(
@@ -117,7 +118,8 @@ async def run_task(
     inputs: dict,
     nonce: Optional[str],
 ) -> dict:
-    attempts = 0
+    total_attempts = 0
+    step_attempts = 0
     models = [
         task.module.lookup_or_error(m)
         for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
@@ -127,24 +129,29 @@ async def run_task(
 
     previous_results = []
     last_error = None
-    while attempts < TASK_STEP_ATTEMPTS and model_idx < len(models):
-        attempts += 1
-        task.current_run.value.retries = attempts
+    while (
+        step_attempts < TASK_STEP_ATTEMPTS
+        and total_attempts < TASK_TOTAL_ATTEMPTS
+        and model_idx < len(models)
+    ):
+        task.current_run.value.retries = step_attempts
         # run task step
         model = models[model_idx]
         compiler = model.compiler  # models may share a compiler
         compiled = await compiler.compile(task, view, inputs, previous_results, nonce)
         if not compiler.can_run(model, compiled):
             model_idx += 1
-            attempts = 0
+            step_attempts = 0
             continue  # try next model, not an error, just not capable
 
         # try step
+        step_attempts += 1
+        total_attempts += 1
         run_capture = task.session.capture_runs()
         try:
-            log.debug("task.run", model=model, compiled=compiled, attempt=attempts)
-            run_name = f"{task.name} #{attempts}"
-            with task.session.tracer.run.value(retry=attempts, nonce=nonce, name=run_name):
+            log.debug("task.run", model=model, compiled=compiled, attempt=step_attempts)
+            run_name = f"{task.name} #{step_attempts}"
+            with task.session.tracer.run.value(retry=step_attempts, nonce=nonce, name=run_name):
                 step = await compiler.run(model, compiled)
             if step.runnable is not None:
                 raise NotImplementedError(":TaskFunctions not supported yet")
@@ -174,11 +181,15 @@ async def run_task(
 
             continue
 
-    raise TaskError(
-        TaskErrorType.ExceededLimit,
-        task,
-        f"could not solve task in {TASK_STEP_ATTEMPTS} attempts across {len(models)} models:\n{last_error or '<no details>'}",
-    )
+    if total_attempts == 0:
+        # no models
+        raise TaskError(TaskErrorType.Incapable, task, "cannot solve task with given inputs")
+    else:
+        raise TaskError(
+            TaskErrorType.ExceededLimit,
+            task,
+            f"could not solve task in {TASK_STEP_ATTEMPTS} attempts across {len(models)} models:\n{last_error or '<no details>'}",
+        )
 
 
 # avoid circular import
