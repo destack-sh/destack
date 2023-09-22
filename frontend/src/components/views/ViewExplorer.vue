@@ -68,6 +68,7 @@ const explorers: Ref<Explorer[]> = computed(() => {
       :index="i"
       :title="explorer.title"
       :actions="explorer.actions"
+      :loading="module.loading.value"
       v-slot="{ navigateUp, navigateDown }"
     >
       <component
