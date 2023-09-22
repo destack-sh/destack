@@ -18,13 +18,13 @@ from more_itertools import first, last
 
 from bench.language import IssueType
 from bench.language.const import NodePath
-from bench.language.field import HasFields
+from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import LookupBy, ModuleNode, Scope, node
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import DotDict, IdentifierType, get_from_env, to_pyidentifier
+from bench.utils.utils import DotDict, get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import ModuleVisitor, Statement
@@ -219,9 +219,7 @@ class HasCode(HasFields, ModuleNode):
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
         func_name = self.py_ident or "_anon" + self.id.hex[:6]
-        func_params = ", ".join(
-            to_pyidentifier(i.name, IdentifierType.VARIABLE) + "=None" for i in self.inputs
-        )
+        func_params = ", ".join(i.py_ident + "=None" for i in self.inputs)
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"
             if self._parse.is_async:
@@ -275,7 +273,7 @@ class HasCode(HasFields, ModuleNode):
                 self.session.tracer.run_cached(
                     self, inputs, outputs, run.generated_at, run.duration
                 )
-                return DotDict(outputs)
+                return TypedDict(self, outputs)
             except (ValueError, TypeError, JSONDecodeError) as e:
                 logger.exception("code.cache.error", e=e, excinfo=e)
                 # ignore, will be overwritten on success
@@ -362,7 +360,7 @@ class HasCode(HasFields, ModuleNode):
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
-            return _to_result_dict(result)
+            return _to_outputs_dict(self, result)
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
@@ -374,7 +372,7 @@ class HasCode(HasFields, ModuleNode):
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
-            return _to_result_dict(result)
+            return _to_outputs_dict(self, result)
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
@@ -611,13 +609,13 @@ def _parse_code(code: str | None) -> "CodeParse":
     )
 
 
-def _to_result_dict(result: Any) -> dict:
+def _to_outputs_dict(code: "HasCode", result: Any) -> TypedDict:
     if isinstance(result, DotDict):
         return result
     if result is None:
-        return DotDict()
+        return TypedDict(code, {}, is_output=True)
     else:
-        return DotDict(result)
+        return TypedDict(code, result, is_output=True)
 
 
 _PYTHON_BUILTINS = {

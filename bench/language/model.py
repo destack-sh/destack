@@ -13,12 +13,12 @@ import msgpack
 import structlog
 
 from bench.language.cache import CacheAsync
-from bench.language.field import HasFields, TypeTag
+from bench.language.field import HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
-from bench.utils.utils import DotDict, get_from_env
+from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement
@@ -108,7 +108,7 @@ class HasModel(HasFields, ModuleNode):
                         generated_in=inference.generated_in,
                         duration=inference.duration,
                     )
-                    return DotDict(outputs)
+                    return TypedDict(self, outputs, is_output=True)
                 except Exception as e:
                     log.warning("inference.cache.error", e=e, exc_info=e)
                     # ignore and continue, will be overwritten
@@ -143,7 +143,7 @@ class HasModel(HasFields, ModuleNode):
                 outputs = unpack_value(rep.p.outputs, self, is_output=True)
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
-                return DotDict(outputs)
+                return TypedDict(self, outputs, is_output=True)
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
@@ -170,7 +170,7 @@ class HasModel(HasFields, ModuleNode):
                 )
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.exit", output=describe_type(outputs))
-                return outputs
+                return TypedDict(self, outputs, is_output=True)
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.error", e=e, exc_info=e)

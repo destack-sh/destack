@@ -31,11 +31,12 @@ from bench.language.field import (
     Json,
     Key,
     TypeBase,
+    TypedDict,
     TypeError,
     Vector,
 )
 from bench.language.remote import RemoteObject, Secret
-from bench.utils.utils import DotDict, IdentifierType, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import Type
@@ -238,7 +239,7 @@ def check_type(
             check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
         if hasattr(value, "keys"):
             for key in value.keys():
-                _check(type.has_field(key), f"extraneous field {key}")
+                _check(type.has_field(key), f"extraneous field '{key}'")
 
 
 class TypeMapper:
@@ -565,7 +566,7 @@ class StructTypeMapper(TypeMapper):
         return isinstance(value, Mapping) or is_dataclass(value)
 
     def unpack_value(self, type: TypeBase, value: Any) -> Any:
-        return DotDict(value) if not isinstance(value, DotDict) else value
+        return TypedDict(type, value) if not isinstance(value, TypedDict) else value
 
     def pack_value(self, type: TypeBase, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
