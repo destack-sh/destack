@@ -705,9 +705,6 @@ class PermissionCheckingTracer(Tracer):
     def statement_create(self, statement: Statement):
         self.session.check_can(ModuleOp.CREATE, statement)
 
-    def symbol_create(self, symbol: Statement):
-        self.session.check_can(ModuleOp.CREATE, symbol)
-
     def value_update(self, value: Variable, key: Optional[str] = None):
         self.session.check_can(ModuleOp.UPDATE, value)
 
