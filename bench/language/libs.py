@@ -489,7 +489,7 @@ class OpenAIChatInput(CompiledInput):
         """Estimated token usage (very rough)."""
         messages_str = "\n".join([f"{m.role}: {m.content}" for m in self.messages])
         functions_str = json.dumps([f.to_dict() for f in self.functions])
-        return len(messages_str) * 4 + len(functions_str) * 2
+        return int(len(messages_str) * 0.8 + len(functions_str) * 0.6)
 
 
 class OpenAIChatCompiler(BaseTextTaskCompiler):
@@ -808,7 +808,7 @@ class AnthropicTextInput(CompiledInput):
     @cached_property
     def tokens(self) -> int:
         """Estimated token usage (very rough)."""
-        return len(self.prompt) * 4
+        return int(len(self.prompt) * 0.8)
 
 
 class AnthropicTextCompiler(BaseTextTaskCompiler):
