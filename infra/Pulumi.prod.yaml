@@ -2,6 +2,8 @@ config:
   aws:region: "eu-central-1"
   bench:ANTHROPIC_API_KEY:
     secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
+  bench:BETTERSTACK_SECRET:
+    secure: AAABAMcwUhrDe9/PMrDDQk9hpHE5QnHFfGG4gdUBTjnOTB+eIKH0syhoPvnBh0In4KlQ2yF4Syc=
   bench:COHERE_API_KEY:
     secure: AAABAGwaYpLADp5UUQemDsUFVsu+rb2kihRdZBABFV8/r3qvO6pckT8xY02z7ikfGEpajgeUNacS/Jmd1Q/3lABUAy2OCJ1i
   bench:LOOPS_API_KEY:
@@ -24,6 +26,7 @@ config:
   bench:apiAllowedOrigins: https://api.bench.is,https://bench.is
   bench:awsRegion: eu-central-1
   bench:bench: ""
+  bench:betterstackValuesPath: .betterstack.prod.yaml
   bench:dbPassword:
     secure: AAABAHNMg0BRcTWRgoeTiH5W+ydM7jkjxqbgEgPjA3+mFYzaVEA7FMD3YCTD9TqkO7B24rypa3jTTWtnnabxegRsyYMIznF5EiAprlKyVmCcEUOK2KLmekCUWu8QI6w=
   bench:desiredClusterSize: "2"
@@ -37,7 +40,6 @@ config:
   bench:minClusterSize: "2"
   bench:opensearchPassword:
     secure: AAABAPl+GtM/VYhHJdq0JN8+PYbCvpolc3HQVSIDDNMmpZd8vedXQLmFYRJxV8ZfHx9sDwFqdG6L+U+yjT2m6cHPIJmI1du7EK6b0nqb7ZbIBw==
-  bench:betterstackValuesPath: .betterstack.prod.yaml
   bench:version: "current"
   bench:vpcNetworkCidr: 10.0.0.0/16
   bench:webappUrl: https://bench.is

@@ -666,9 +666,42 @@ const apiIngress = new k8s.networking.v1.Ingress(
 
 // Monitoring: BetterStack & Prometheus Logs
 // see https://betterstack.com/docs/logs/kubernetes#helm
-const monitoringNamespace = new k8s.core.v1.Namespace("monitoring", {}, { provider: eksCluster.provider });
-const betterstackValuesPath = config.require("betterstackValuesPath");
-const betterstackConfig = yaml.load(fs.readFileSync(betterstackValuesPath, "utf8")) as Record<string, unknown>;
+const monitoringNamespace = new k8s.core.v1.Namespace(
+  "monitoring",
+  { metadata: { name: "monitoring" } },
+  { provider: eksCluster.provider }
+);
+const monitoringServiceAccount = new k8s.core.v1.ServiceAccount("monitoringServiceAccount", {
+  metadata: {
+    namespace: monitoringNamespace.metadata.name,
+    name: "vector-service-account", // required by betterstack
+  },
+});
+const monitoringClusterRole = new k8s.rbac.v1.ClusterRole("monitoringClusterRole", {
+  rules: [
+    {
+      apiGroups: ["*"],
+      resources: ["*"],
+      verbs: ["get", "list", "watch"],
+    },
+  ],
+});
+const monitoringClusterRoleBinding = new k8s.rbac.v1.ClusterRoleBinding("monitoringClusterRoleBinding", {
+  subjects: [
+    {
+      kind: "ServiceAccount",
+      name: monitoringServiceAccount.metadata.name,
+      namespace: monitoringServiceAccount.metadata.namespace,
+    },
+  ],
+  roleRef: {
+    kind: "ClusterRole",
+    name: monitoringClusterRole.metadata.name,
+    apiGroup: "rbac.authorization.k8s.io",
+  },
+});
+
+const betterstackToken = config.requireSecret("BETTERSTACK_SECRET");
 const betterstack = new k8s.helm.v3.Chart(
   "betterstack-logs",
   {
@@ -677,31 +710,49 @@ const betterstack = new k8s.helm.v3.Chart(
     fetchOpts: {
       repo: "https://betterstackhq.github.io/logs-helm-chart",
     },
-    values: betterstackConfig,
-  },
-  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
-);
-const kubeStateMetrics = new k8s.helm.v3.Chart(
-  "kube-state-metrics",
-  {
-    repo: "prometheus-community",
-    chart: "kube-state-metrics",
-    namespace: monitoringNamespace.metadata.name,
-    fetchOpts: {
-      repo: "https://prometheus-community.github.io/helm-charts",
+    values: {
+      vector: {
+        customConfig: {
+          sinks: {
+            better_stack_http_sink: {
+              auth: {
+                token: betterstackToken,
+              },
+            },
+            better_stack_http_metrics_sink: {
+              auth: {
+                token: betterstackToken,
+              },
+            },
+          },
+          sources: {
+            better_stack_kubernetes_metric_nodes: {
+              tls: {
+                verify_certificate: false,
+                verify_hostname: false,
+              },
+            },
+            better_stack_kubernetes_metric_pods: {
+              tls: {
+                verify_certificate: false,
+                verify_hostname: false,
+              },
+            },
+          },
+          serviceAccount: {
+            create: false,
+            name: monitoringServiceAccount.metadata.name,
+          },
+        },
+      },
+      metricsServer: {
+        args: ["--kubelet-insecure-tls"],
+      },
+      serviceAccount: {
+        create: false,
+        name: monitoringServiceAccount.metadata.name,
+      },
     },
   },
-  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
-);
-const prometheus = new k8s.helm.v3.Chart(
-  "prometheus",
-  {
-    repo: "prometheus-community",
-    chart: "prometheus",
-    namespace: monitoringNamespace.metadata.name,
-    fetchOpts: {
-      repo: "https://prometheus-community.github.io/helm-charts",
-    },
-  },
-  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
+  { provider: eksCluster.provider, dependsOn: [monitoringNamespace, monitoringServiceAccount] }
 );
