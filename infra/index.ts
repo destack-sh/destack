@@ -664,20 +664,44 @@ const apiIngress = new k8s.networking.v1.Ingress(
   { provider: eksCluster.provider }
 );
 
-// BetterStack Logs
+// Monitoring: BetterStack & Prometheus Logs
 // see https://betterstack.com/docs/logs/kubernetes#helm
-const betterstackNamespace = new k8s.core.v1.Namespace("betterstack", {}, { provider: eksCluster.provider });
+const monitoringNamespace = new k8s.core.v1.Namespace("monitoring", {}, { provider: eksCluster.provider });
 const betterstackValuesPath = config.require("betterstackValuesPath");
 const betterstackConfig = yaml.load(fs.readFileSync(betterstackValuesPath, "utf8")) as Record<string, unknown>;
 const betterstack = new k8s.helm.v3.Chart(
   "betterstack-logs",
   {
-    namespace: betterstackNamespace.metadata.name,
+    namespace: monitoringNamespace.metadata.name,
     chart: "betterstack-logs",
     fetchOpts: {
       repo: "https://betterstackhq.github.io/logs-helm-chart",
     },
     values: betterstackConfig,
   },
-  { provider: eksCluster.provider, dependsOn: [betterstackNamespace] }
+  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
+);
+const kubeStateMetrics = new k8s.helm.v3.Chart(
+  "kube-state-metrics",
+  {
+    repo: "prometheus-community",
+    chart: "kube-state-metrics",
+    namespace: monitoringNamespace.metadata.name,
+    fetchOpts: {
+      repo: "https://prometheus-community.github.io/helm-charts",
+    },
+  },
+  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
+);
+const prometheus = new k8s.helm.v3.Chart(
+  "prometheus",
+  {
+    repo: "prometheus-community",
+    chart: "prometheus",
+    namespace: monitoringNamespace.metadata.name,
+    fetchOpts: {
+      repo: "https://prometheus-community.github.io/helm-charts",
+    },
+  },
+  { provider: eksCluster.provider, dependsOn: [monitoringNamespace] }
 );
