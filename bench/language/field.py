@@ -28,7 +28,7 @@ from bench.language.text import HasText
 from bench.language.value import HasValue
 from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
-from bench.utils.utils import DotDict, IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement, Type
@@ -571,11 +571,13 @@ def _resolve_unions(type: "HasFields", path: list[TypeBase]) -> None:
     type.resolved_fields = resolved_fields
 
 
-class TypedDict(DotDict):
+class TypedDict(dict):
     """
     A dot dict based on a type.
     Errors on attribute access if the field doesn't exist, otherwise returns the value (or None).
     """
+
+    _PROPS = ("_type", "_is_output")
 
     def __init__(self, type: "HasFields", d: dict, is_output: bool = None):
         super().__init__(**d)
@@ -583,6 +585,8 @@ class TypedDict(DotDict):
         self._is_output = is_output
 
     def __getattr__(self, item):
+        if item in TypedDict._PROPS:
+            return super().__getattr__(item)
         try:
             return dict.__getitem__(self, item)
         except KeyError:
@@ -591,9 +595,12 @@ class TypedDict(DotDict):
             raise AttributeError(item)
 
     def __setattr__(self, name, value):
-        if name in ("_type", "_is_output"):
+        if name in TypedDict._PROPS:
             return super().__setattr__(name, value)
         elif self._type.has_field(name, is_output=self._is_output):
             return dict.__setitem__(self, name, value)
         else:
             raise AttributeError(name)
+
+    def to_dict(self):  # :ToDict
+        return self
