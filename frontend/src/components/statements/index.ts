@@ -189,7 +189,8 @@ const BLANK: StatementElement = { id: "blank", component: BlankElement, exists: 
 const TEXT: StatementElement = {
   id: "text",
   component: TextElement,
-  exists: (iface, statement) => (statement.text ?? "").length > 0 || statement.type == StatementType.Text,
+  exists: (iface, statement) =>
+    (statement.text ?? "").length > 0 || (statement.type == StatementType.Text && statement.name == null),
 };
 const FUNCTION_TYPE: StatementElement = {
   id: "type.function",
