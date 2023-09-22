@@ -13,7 +13,7 @@ const runnableName = computed(() => module.statementOf(props.runnableCk)?.name);
 <template>
   <div class="relative w-full font-mono text-red-600">
     {{ runnableName ?? "run" }} failed:
-    <span class="font-bold">{{ errorNice?.message }}</span>
+    <span class="whitespace-pre-wrap font-bold">{{ errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
       <li

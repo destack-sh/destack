@@ -202,7 +202,7 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
       if (
         partId == "text" &&
         canHaveText.value &&
-        (statement.value.type != StatementType.Text || (statement.value.headingLevel ?? 0) != 0)
+        (statement.value.type != StatementType.Text || statement.value.name != null)
       ) {
         // if part has text and can do without, remove the text
         partsForceShown.value = partsForceShown.value.filter((p) => p != "text");

@@ -153,7 +153,7 @@ class DotDict(dict):
             #  need type info here, but don't have it
             # (since we omit empty fields now, this would cause spurious errors,
             #  esp. in our library dataset/struct hybrid types)
-            return None
+            raise AttributeError(name)
 
     def __setattr__(self, name, value):
         self[name] = value

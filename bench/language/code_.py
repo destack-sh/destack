@@ -4,6 +4,7 @@ import ast
 import hashlib
 import itertools
 import textwrap
+import types
 import typing
 from dataclasses import field
 from functools import cached_property
@@ -12,6 +13,7 @@ from random import Random
 from typing import Any, Optional
 
 import structlog
+from _pytest.assertion.rewrite import rewrite_asserts
 from more_itertools import first, last
 
 from bench.language import IssueType
@@ -53,7 +55,6 @@ class HasCode(HasFields, ModuleNode):
     _parse: Optional[CodeParse] = None
     _transform: Optional[CodeTransformation] = None
     _statement_references: dict[str, "Statement"] | None = None
-    _callable_inner: AsyncCodeCallable | SyncCodeCallable | None = None
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = None
     _cached_exports: dict[str, Any] | None = None
 
@@ -61,7 +62,6 @@ class HasCode(HasFields, ModuleNode):
         self._parse = None
         self._transform = None
         self._statement_references = None
-        self._callable_inner = None
         self._callable_wrapped = None
         self._cached_exports = None
 
@@ -211,9 +211,9 @@ class HasCode(HasFields, ModuleNode):
         else:
             return "\n".join(func_body_lines), 0, 0
 
-    def _prep_callable(self) -> None:
+    def _prepare_callable(self) -> None:
         """Creates a callable wrapping this code for execution with the required context."""
-        if self._callable_inner is not None:
+        if self._callable_wrapped is not None:
             return
 
         locals = self._prep_locals()
@@ -226,15 +226,14 @@ class HasCode(HasFields, ModuleNode):
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"
             if self._parse.is_async:
                 method_str = f"async {method_str}"
-            self._callable_inner = do_execute_arbitrary_code(method_str, locals)[func_name]
-            self._callable_wrapped = self._wrap_callable(self._callable_inner)
+            self._callable_wrapped = self._make_callable(method_str, locals, func_name)
         except SyntaxError as e:
             # raise error in code when called for proper reporting
             err_str = e.args[1][3] or str(e)
             raise_str = f"raise {e.__class__.__name__}('invalid syntax: ' + {err_str})"
             indented_raise = textwrap.indent(raise_str, " " * 4)
             method_str = f"def {func_name}({func_params}):\n{indented_raise}"
-            self._callable_inner = do_execute_arbitrary_code(method_str, locals)[func_name]
+            self._callable_inner = _do_exec_get_globals(method_str, locals)[func_name]
             self._callable_wrapped = self._callable_inner
         self._transform = CodeTransformation(
             original_code=self.code,
@@ -244,7 +243,17 @@ class HasCode(HasFields, ModuleNode):
             method_name=func_name,
         )
 
-    def _wrap_callable(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+    def _make_callable(
+        self, code_str: str, locals: dict[str, Any], func_name: str
+    ) -> typing.Callable:
+        if self.is_test:
+            # rewrite asserts for better debugging
+            tree = ast.parse(code_str)
+            rewrite_asserts(tree, code_str.encode())
+            co = compile(tree, "<string>", "exec", dont_inherit=True)
+            callable = _do_exec_get_globals(co, locals)[func_name]
+        else:
+            callable = _do_exec_get_globals(code_str, locals)[func_name]
         if self.exported:
             callable = self._wrap_exported(callable)
         elif self.cached:
@@ -327,26 +336,30 @@ class HasCode(HasFields, ModuleNode):
         return _exported_async if self._parse.is_async else _exported_sync
 
     def _wrap_test(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
-        # TODO @UX: instrument test callables with pytest for better assert reporting
-        def _test_sync(*args, **kwargs):
-            self.current_run.value.test = True
-            ret = callable(*args, **kwargs)
-            self.session.flush()  # force any write errors to appear immediately
-            return ret
+        if not self._parse.is_async:
 
-        async def _test_async(*args, **kwargs):
-            self.current_run.value.test = True
-            ret = await callable(*args, **kwargs)  # force any errors to appear immediately
-            await self.session.aflush()
-            return ret
+            def _test_sync(*args, **kwargs):
+                self.current_run.value.test = True
+                ret = callable(*args, **kwargs)
+                self.session.flush()  # force any write errors to appear immediately
+                return ret
 
-        return _test_async if self._parse.is_async else _test_sync
+            return _test_sync
+        else:
+
+            async def _test_async(*args, **kwargs):
+                self.current_run.value.test = True
+                ret = await callable(*args, **kwargs)  # force any errors to appear immediately
+                await self.session.aflush()
+                return ret
+
+            return _test_async
 
     async def __call_async__(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         try:
             self.session.tracer.run_enter(self, inputs)
-            self._prep_callable()
+            self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
             return _to_result_dict(result)
@@ -358,7 +371,7 @@ class HasCode(HasFields, ModuleNode):
         inputs = self._inputs_from_args(args, kwargs)
         try:
             self.session.tracer.run_enter(self, inputs)
-            self._prep_callable()
+            self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
             return _to_result_dict(result)
@@ -395,7 +408,7 @@ DYNAMIC_BUILTINS: set[str] = {"builtins", "session", "storage", "cache", "random
 ALLOW_UNTRUSTED_CODE = get_from_env("ALLOW_UNTRUSTED_CODE", False, type_cast=bool)
 
 
-def do_execute_arbitrary_code(code: str, globals: dict[str, Any]) -> dict:
+def _do_exec_get_globals(code: str | types.CodeType, globals: dict[str, Any]) -> dict:
     # remember the globals we started with, do not modify originals
     if not ALLOW_UNTRUSTED_CODE:
         raise RuntimeError("untrusted code execution is disabled")
