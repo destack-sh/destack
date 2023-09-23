@@ -4,11 +4,11 @@ import itertools
 import typing
 import uuid
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from functools import cached_property
 from logging import Logger
-from typing import Optional, Union
+from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
@@ -24,9 +24,9 @@ from bench.language.const import (
     parse_node_path,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
-if typing.TYPE_CHECKING:
+if TYPE_CHECKING:
     from bench.language import Field, File, Issue, Session, Statement
     from bench.language.wire import ModuleTreeData
 
@@ -40,38 +40,88 @@ class LookupBy(enum.StrEnum):
     PyIdent = "py_ident"
 
 
-def node(cls: Optional[typing.Type] = None, mnt: MNT = None, tracked: list[str] | None = None):
+class NodeRelationType(enum.IntFlag):
+    """Parent relation between node and descendants."""
+
+    INLINE = 2**0  # File->Statement, Statement->Field, ...
+    REMOTE = 2**1  # Statement->Record, ...
+    SHARED = 2**2  # Statement[versioned=False]->Record, ...
+    FLAT = 2**3  # Module->File, File->Statement, ...
+    CUMULATIVE = 2**4  # Module->Issue, File->Issue, ...
+    NAMED = 2**5  # Module->File, File->Statement, ...
+    ORDERED = 2**6  # File->Statement, Statement->Field, ...
+
+
+NRel = NodeRelationType
+
+UNSET = object()
+
+
+@dataclass
+class NodeProperty:
+    default: typing.Any = UNSET
+    default_factory: typing.Callable[[], typing.Any] | None = None
+    is_internal: bool = False
+    is_runtime: bool = False
+    is_child_of: list[MNT] | None = None
+    is_descendant_of: MNT | None = None
+    is_parent_of: MNT | None = None
+    relation_flags: NodeRelationType = NodeRelationType.INLINE
+
+
+def nproperty(
+    *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
+):
+    return NodeProperty(default=default, default_factory=default_factory)
+
+
+def ninternal(
+    *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
+):
+    return NodeProperty(is_internal=True, default=default, default_factory=default_factory)
+
+
+def nruntime(
+    *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
+):
+    return NodeProperty(is_runtime=True, default=default, default_factory=default_factory)
+
+
+def nparent(*mnt: MNT) -> NodeProperty:
+    return NodeProperty(is_child_of=list(mnt), default=None)
+
+
+def nroot(mnt: MNT) -> NodeProperty:
+    return NodeProperty(is_descendant_of=mnt, default=None)
+
+
+def nchildren(mnt: MNT, flags: NRel = NRel.INLINE) -> NodeProperty:
+    return NodeProperty(is_parent_of=mnt, relation_flags=flags)
+
+
+def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
     """
-    Decorator alias for module node.
-    Only tracked properties may be mutated during a session (by the 'user'/run).
+    Decorator alias for module nodes and their components.
     """
 
     def decorate(cls):
+        properties: dict[str, NodeProperty] = {}
+        # nocheckin, gather properties, see os.document
+
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         if mnt:
             cls.mnt = mnt
-        cls._PROPERTIES = [f.name for f in cls.__dataclass_fields__.values()]  # type: ignore
-        # add @property methods to _PROPERTIES
-        for name, attr in cls.__dict__.items():
-            if isinstance(attr, property):
-                cls._PROPERTIES.append(name)  # type: ignore
-        # check that all tracked properties are actually properties
-        for prop in tracked or []:
-            if prop not in cls._PROPERTIES:  # type: ignore
-                raise ValueError(f"invalid tracked property: {prop}")
-        cls._TRACKED = tracked or []  # type: ignore
-        # add tracked properties from base classes
-        for base in cls.__bases__:  # type: ignore
-            if hasattr(base, "_TRACKED"):
-                cls._TRACKED.extend(base._TRACKED)  # type: ignore
-        # can only track properties inside a session
-        if cls._TRACKED and not issubclass(cls, ModuleNode):  # type: ignore
-            raise ValueError(f"{cls} cannot have tracked properties without ModuleNode")
-
         return cls
 
     if cls is not None:
         return decorate(cls)
+
+    return decorate
+
+
+def node(mnt: MNT, tracked: list[str] | None = None):
+    def decorate(cls):
+        return node_component(cls, mnt=mnt, tracked=tracked)
 
     return decorate
 
@@ -92,55 +142,40 @@ def get_node_id(module_id: UUID, ck: UUID):
     return uuid.uuid5(module_id, str(ck))
 
 
-class ModuleVisitor:
-    def __init__(self):
-        self._descendant_by_ck: dict[UUID, ModuleNode] = {}
-        self._reference_by_ck: dict[UUID, ModuleNode] = {}
-
-    def __str__(self):
-        return f"{len(self._descendant_by_ck)} nodes"
-
-    def __repr__(self):
-        return f"<ModuleVisitor {str(self)}>"
-
-    @property
-    def subtree(self) -> typing.Collection["ModuleNode"]:
-        return self._descendant_by_ck.values()
-
-    @property
-    def references(self) -> typing.Collection["ModuleNode"]:
-        return self._reference_by_ck.values()
-
-    def visit_child(self, node: "ModuleNode"):
-        if node.ck in self._descendant_by_ck and self._descendant_by_ck[node.ck].id != node.id:
-            raise ValueError(f"cannot visit child {node} twice: {self._descendant_by_ck[node.ck]}")
-        self._descendant_by_ck[node.ck] = node
-
-    def visit_reference(self, node: "ModuleNode"):
-        self._reference_by_ck[node.ck] = node
+NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
-@node
+class NodeList(Collection, typing.Generic[NodeT]):
+    def __init__(self, parent: "ModuleNode", flags: NodeRelationType):
+        self._parent = parent
+        self._flags = flags
+
+
+@node_component
 class ModuleNode(abc.ABC):
     """
     A node in a Bench module tree.
     A node has a per-version unique id (id) and a constant identifier key (ck).
     """
 
-    mnt: typing.ClassVar[MNT]  # set in @node decorator
-    id: UUID = field(default=None)
-    ck: UUID = field(default_factory=uuid.uuid4)
-    parent: Optional["ModuleNode"] = None
-    # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
-    created_at: datetime = field(default_factory=utcnow_with_tz)
-    updated_at: datetime = field(default_factory=utcnow_with_tz)
-    last_edited_at: datetime = field(default_factory=utcnow_with_tz)
-    last_changed_at: datetime = field(default_factory=utcnow_with_tz)
-    revision: int = 0
-    issues: list["Issue"] | None = None
+    mnt: ClassVar[MNT]  # set in @node decorator
+    __properties__: ClassVar[dict[str, NodeProperty]] = {}
 
-    _session: Optional["Session"] = None
-    _tracked: bool = False
+    id: UUID = nproperty(default=None)
+    ck: UUID = nproperty(default_factory=uuid.uuid4)
+    parent: Optional["ModuleNode"] = nparent()
+    # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
+
+    created_at: datetime = ninternal(default_factory=utcnow_with_tz)
+    updated_at: datetime = ninternal(default_factory=utcnow_with_tz)
+    last_edited_at: datetime = ninternal(default_factory=utcnow_with_tz)
+    last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz)
+    revision: int = ninternal(default=0)
+
+    issues: list["Issue"] = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
+
+    _session: Optional["Session"] = nruntime(default=None)
+    _tracked: bool = nruntime(default=False)
 
     def __post_init__(self):
         if self._session is SESSION_NOT_READY:
@@ -202,7 +237,20 @@ class ModuleNode(abc.ABC):
     def _interp(self, scope: "Scope") -> None:
         pass
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _reinterp(self, scope: "Scope" = None, raise_errors: bool = True) -> None:
+        """Clears and re-interprets this statement in scope."""
+        self._clear()
+        self._index()
+        self._interp(scope or self)
+        if raise_errors and self.errors:
+            from bench.language.issue import BenchError
+
+            raise BenchError(self.errors[0])
+
+    def _validate(self, properties: Collection[str]):
+        pass  # nocheckin: implement validate
+
+    def _visit(self, visitor: "NodeVisitor") -> None:
         """Visit any child nodes."""
         raise NotImplementedError(f"{self.__class__.__name__} does not implement _visit")
 
@@ -228,7 +276,7 @@ class ModuleNode(abc.ABC):
                 self.module._on_added(n)
 
     def _walk(self) -> typing.Iterator["ModuleNode"]:
-        visitor = ModuleVisitor()
+        visitor = NodeVisitor()
         visitor.visit_child(self)
 
         seen: dict[UUID, ModuleNode] = {}
@@ -293,16 +341,13 @@ class ModuleNode(abc.ABC):
         return self.session.logger
 
 
-NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
-
-
-@node
+@node_component
 class Scope:
     parent: Optional["Scope"] = None
-    _scopes_by_name: dict[str, "Scope"] = field(default_factory=dict)
-    _nodes_by_id: dict[UUID, "ModuleNode"] = field(default_factory=dict)
-    _nodes_by_ck: dict[UUID, "ModuleNode"] = field(default_factory=dict)
-    _names_by_ident: dict[str, str] = field(default_factory=dict)
+    _scopes_by_name: dict[str, "Scope"] = nruntime(default_factory=dict)
+    _nodes_by_id: dict[UUID, "ModuleNode"] = nruntime(default_factory=dict)
+    _nodes_by_ck: dict[UUID, "ModuleNode"] = nruntime(default_factory=dict)
+    _names_by_ident: dict[str, str] = nruntime(default_factory=dict)
 
     def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["Scope", None]:
         if by is None and name in self._scopes_by_name or by == LookupBy.Name:
@@ -398,29 +443,54 @@ class Scope:
         return self.parent._root_scope
 
 
+class NodeVisitor:
+    def __init__(self):
+        self._descendant_by_ck: dict[UUID, ModuleNode] = {}
+        self._reference_by_ck: dict[UUID, ModuleNode] = {}
+
+    def __str__(self):
+        return f"{len(self._descendant_by_ck)} nodes"
+
+    def __repr__(self):
+        return f"<NodeVisitor {str(self)}>"
+
+    @property
+    def subtree(self) -> typing.Collection["ModuleNode"]:
+        return self._descendant_by_ck.values()
+
+    @property
+    def references(self) -> typing.Collection["ModuleNode"]:
+        return self._reference_by_ck.values()
+
+    def visit_child(self, node: "ModuleNode"):
+        if node.ck in self._descendant_by_ck and self._descendant_by_ck[node.ck].id != node.id:
+            raise ValueError(f"cannot visit child {node} twice: {self._descendant_by_ck[node.ck]}")
+        self._descendant_by_ck[node.ck] = node
+
+    def visit_reference(self, node: "ModuleNode"):
+        self._reference_by_ck[node.ck] = node
+
+
 class ModuleStatus(enum.IntEnum):
     Raw = 0
     Index = 1
     Interp = 2
-    Instance = 3
 
 
 @node(mnt=MNT.Module)
 class Module(ModuleNode, Scope):
-    name: str = required_field()
-    files: list["File"] = field(default_factory=list)
-    dependencies: dict[str, Union["Module", ModuleReference]] = field(default_factory=dict)
-    builtins: list["File"] = field(default_factory=list)
-    parent: None = None
-    parent_scope: Scope = None
-    committed: bool = False
-    status: ModuleStatus = ModuleStatus.Raw
-    # index
-    _files_by_parent_id: dict[UUID, list["File"]] | None = None
+    parent: None = nparent()
+    name: str = nproperty()
+    committed: bool = nproperty()
+    files: list["File"] = nchildren(MNT.File, NodeRelationType.INLINE | NodeRelationType.FLAT)
+    dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
+    builtins: list["File"] = nruntime(default_factory=list)
+
+    _status: ModuleStatus = nruntime(default=ModuleStatus.Raw)
 
     def __str__(self):
         issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
-        return f"{self.name} ({self.status.name}, {len(self.files)} files{issues_str})"
+        return f"{self.name} ({self._status.name}, {len(self.files)} files{issues_str})"
 
     def __repr__(self):
         return f"<Module {str(self)}>"
@@ -441,7 +511,7 @@ class Module(ModuleNode, Scope):
     def all_statements(self):
         return itertools.chain.from_iterable(file.statements for file in self.files)
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for file in self._files_by_parent_id.get(self.id, []):
             visitor.visit_child(file)
 
@@ -522,9 +592,9 @@ class Module(ModuleNode, Scope):
         for n in node._walk():
             n._assign_id_if_none()
 
-    def _expect_status(self, status: ModuleStatus):
-        if self.status != status:
-            raise ValueError(f"need {self} to be {status.name}")
+    def _expect__status(self, _status: ModuleStatus):
+        if self._status != _status:
+            raise ValueError(f"need {self} to be {_status.name}")
 
     def _activate_in(self, session: "Session"):
         if self._session is not None:
@@ -550,11 +620,11 @@ class Module(ModuleNode, Scope):
         self._session = None
         for file in self.files:
             file._clear()
-        self.status = ModuleStatus.Raw
+        self._status = ModuleStatus.Raw
         self._files_by_parent_id = None
 
     def index(self):
-        self._expect_status(ModuleStatus.Raw)
+        self._expect__status(ModuleStatus.Raw)
         for builtin in self.builtins:
             for statement in builtin.statements:
                 self._add_child_scope(statement, by_name=True)
@@ -567,13 +637,13 @@ class Module(ModuleNode, Scope):
             self._files_by_parent_id[file.parent_id].append(file)
             file._index()
             self._add_child_scope(file, by_name=True)
-        self.status = ModuleStatus.Index
+        self._status = ModuleStatus.Index
 
     def interp(self):
-        self._expect_status(ModuleStatus.Index)
+        self._expect__status(ModuleStatus.Index)
         for file in self.files:
             file._interp(file)
-        self.status = ModuleStatus.Interp
+        self._status = ModuleStatus.Interp
 
     def copy(self):
         from bench.language import wire
@@ -584,9 +654,9 @@ class Module(ModuleNode, Scope):
             module_copy.add_builtin(builtin)  # also copy?
         for dependency in self.dependencies.values():
             module_copy.add_dependency(dependency)  # also copy?
-        if self.status >= ModuleStatus.Index:
+        if self._status >= ModuleStatus.Index:
             module_copy.index()
-        if self.status >= ModuleStatus.Interp:
+        if self._status >= ModuleStatus.Interp:
             module_copy.interp()
         if len(module_copy.issues or []) != len(self.issues or []):
             raise RuntimeError(

@@ -4,7 +4,17 @@ from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language.const import MNT
-from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import (
+    Module,
+    ModuleNode,
+    NodeList,
+    NodeVisitor,
+    NRel,
+    Scope,
+    nchildren,
+    node,
+    nproperty,
+)
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
@@ -14,13 +24,12 @@ if TYPE_CHECKING:
 
 @node(mnt=MNT.File, tracked=["name"])
 class File(ModuleNode, Scope):
-    name: str = required_field()
+    name: str = nproperty()
     module: Optional[Module] = None
     parent: Union["File", Module] = None
-    children: list[Union["File", "Statement"]] = field(default_factory=list)
-    statements: list["Statement"] = field(default_factory=list)
-    # index
-    _statements_by_parent_id: dict[UUID | None, list["Statement"]] | None = None
+
+    children: NodeList[Union["File", "Statement"]] = nchildren(MNT.File, NRel.INLINE)
+    statements: NodeList["Statement"] = nchildren(MNT.Statement, NRel.INLINE | NRel.FLAT)
 
     def __post_init__(self):
         super().__post_init__()
@@ -49,12 +58,13 @@ class File(ModuleNode, Scope):
         else:
             return to_pyidentifier(self.name, IdentifierType.PATH)
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for statement in self._statements_by_parent_id.get(self.id, []):
             visitor.visit_child(statement)
 
     def append_statement(self, *statements: "Statement"):
         """Appends the statements to this file."""
+        # nocheckin: replace append_statement with NodeList.append
         last_ok = self.statements[-1].order_key if self.statements else None
         oks = generate_n_keys_between(last_ok, None, len(statements))
         for ok, statement in zip(oks, statements):

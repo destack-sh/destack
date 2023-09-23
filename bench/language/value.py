@@ -1,17 +1,16 @@
-from dataclasses import field
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Collection
 
-from bench.language.module import ModuleNode, ModuleVisitor, node
+from bench.language.module import ModuleNode, NodeVisitor, node, node_component, nproperty, nruntime
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
     from bench.language import HasFields, Scope, Session
 
 
-@node
+@node_component
 class HasValue(ModuleNode):
-    value: dict | None = field(default_factory=dict)
-    _value_unpacked: bool = False
+    value: Any | None = nproperty(default=None)
+    _value_unpacked: bool = nruntime(default=False)
 
     @property
     def _type_of_value(self) -> "HasFields":
@@ -26,8 +25,14 @@ class HasValue(ModuleNode):
     def _index(self) -> None:
         pass
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
+    def _visit(self, visitor: "NodeVisitor") -> None:
         pass
+
+    def _validate(self, properties: Collection[str]):
+        if "value" in properties:
+            from bench.language.mapping import check_type
+
+            check_type(self.value, self._type_of_value)
 
     def _onwrite_value(self, key: str) -> None:
         self.session.tracer.value_update(self, key)

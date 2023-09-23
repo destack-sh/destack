@@ -648,6 +648,6 @@ export function mergeNodePaths(a: NodeBase[], b: NodeBase[]): NodeBase[] {
 }
 
 // :ModuleLimits
-export const MODULE_VERSIONED_RECORD_LIMIT = 25000;
-export const DATABASE_VERSIONED_RECORD_LIMIT = 2500;
-export const DATABASE_UNVERSIONED_RECORD_LIMIT = 10000000;
+export const MODULE_RECORD_LIMIT = 25_000;
+export const DATABASE_VERSIONED_RECORD_LIMIT = 2_500;
+export const DATABASE_GENERAL_RECORD_LIMIT = 10_000_000;

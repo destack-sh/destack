@@ -30,7 +30,7 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
-from bench.language.module import ModuleNode, ModuleVisitor
+from bench.language.module import ModuleNode, NodeVisitor
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -276,7 +276,7 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         pass
 
 
-class PackContext(ModuleVisitor):
+class PackContext(NodeVisitor):
     """Tree visitor for packing"""
 
     pass
@@ -884,7 +884,6 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     name: str
     query: Optional[Query] = None
     sort: Optional[list[Sort]] = None
-    length: Optional[int] = None
 
 
 @node_packer(MNT.DatabaseView, DatabaseViewData, lang.DatabaseView)

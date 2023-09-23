@@ -15,7 +15,7 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.field import HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import ModuleNode, NodeVisitor, Scope, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -38,7 +38,7 @@ class ModelErrorType(enum.StrEnum):
     Unknown = "Unknown"
 
 
-@node
+@node_component
 class HasModel(HasFields, ModuleNode):
     external_name: typing.Optional[str] = None
     _is_async: bool = True
@@ -71,7 +71,7 @@ class HasModel(HasFields, ModuleNode):
                 self._has_vector_io = True
                 break
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
+    def _visit(self, visitor: "NodeVisitor") -> None:
         pass
 
     @property

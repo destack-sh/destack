@@ -139,7 +139,7 @@ reflect_struct = typing.dataclass_transform()(reflect_struct)
 
 @reflect_struct("FieldMetadata", "Default metadata for any field")
 class FieldMetadata:
-    pass
+    store_only: Optional[bool]
 
 
 @reflect_struct("TaggingMetadata", "Default metadata for any tagging")

@@ -11,7 +11,7 @@ from .database import DatabaseView, Record
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
 from .issue import Issue
-from .module import Module, ModuleNode, ModuleVisitor, Scope
+from .module import Module, ModuleNode, NodeVisitor, Scope
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .reflect import RunMetadata
 from .remote import RemoteObject, Secret
@@ -58,7 +58,7 @@ __all__ = [
     "Model",
     "Module",
     "ModuleNode",
-    "ModuleVisitor",
+    "NodeVisitor",
     "Q",
     "Query",
     "QueryOp",

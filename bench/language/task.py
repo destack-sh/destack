@@ -11,7 +11,7 @@ from bench.language.const import IssueType
 from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import ModuleNode, NodeVisitor, Scope, node, node_component
 from bench.language.reference import ModuleView
 
 from ..utils.func import describe_type
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node
+@node_component
 class HasTask(HasFields, ModuleNode):
     _is_async: bool = True
     _root_models: list["HasModel"] = None
@@ -45,7 +45,7 @@ class HasTask(HasFields, ModuleNode):
         # TODO @UX @Task: interp task
         #  - check if task is possible given the fields, models & available runnables
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         pass
 
     async def __call_async__(
