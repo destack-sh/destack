@@ -1,42 +1,39 @@
 import inspect
 import typing
-import uuid
-from dataclasses import field
 from typing import Any, Optional
 from uuid import UUID
 
 import structlog
-from more_itertools import first
 
-from bench.language.const import (
-    MNT,
-    DatabaseViewLayout,
-    StatementType,
-    TypeFlag,
-    TypeTag,
-    new_dynamic_node_key,
-)
+from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
 from bench.language.field import Field, HasFields
-from bench.language.mapping import map_value, pack_value, unpack_value
-from bench.language.module import Module, ModuleNode, ModuleVisitor, node
+from bench.language.module import (
+    Module,
+    ModuleNode,
+    NodeVisitor,
+    nchildren,
+    node,
+    node_component,
+    nparent,
+    nproperty,
+)
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
+from bench.language.value import HasValue
 from bench.utils.func import describe_type, did_you_mean_str
-from bench.utils.proxy import proxy_value, unproxy_value
-from bench.utils.utils import DotList, required_field
+from bench.utils.proxy import unproxy_value
+from bench.utils.utils import DotList
 
 if typing.TYPE_CHECKING:
-    from bench.language import Scope, Session
+    from bench.language import Scope, Statement
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
 
 
-@node(mnt=MNT.Record, tracked=["value"])
-class Record(ModuleNode):
-    parent: "HasDatabase" = required_field()
-    value: typing.Any = field(default_factory=dict)
-    _instantiated: bool = True
+@node(mnt=MNT.Record)
+class Record(HasValue, ModuleNode):
+    parent: "Statement" = nparent(MNT.Statement)
 
     def __str__(self):
         return f"{self.parent.path}:{self.id} {describe_type(self.value)}"
@@ -44,51 +41,17 @@ class Record(ModuleNode):
     def __repr__(self):
         return f"<Record {self}>"
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
-        pass
-
     @property
     def parent_id(self):
         return self.parent.id
 
     @property
+    def _type_of_value(self):
+        return self.parent
+
+    @property
     def keys(self):
         return self.value.keys
-
-    def _activate_in(self, session: "Session") -> None:
-        if self._instantiated:
-            self.value = self._raw_value()
-            self._instantiated = False
-        # proxy
-        self.value = unpack_value(self.value, self.parent, ignore_array=True, ignore_outer_map=True)
-        self.value = proxy_value(self.value, onread=self._onread, onwrite=self._onwrite)
-        self._instantiated = True
-        super()._activate_in(session)
-
-    def _raw_value(self) -> dict:
-        """The raw/stripped value with field keys."""
-        if not self._instantiated:
-            return self.value
-        else:
-            value = unproxy_value(self.value)
-            return pack_value(value, self.parent, ignore_array=True, ignore_outer_map=True)
-
-    def _raw_named_value(self):
-        """The raw/stripped value with field names."""
-        return map_value(
-            self._raw_value(),
-            self.parent,
-            ignore_array=True,
-            ignore_outer_map=True,
-            map_k=lambda f: (f.typed_key, f.py_ident),
-        )
-
-    def _onread(self, key: Optional[str]):
-        pass
-
-    def _onwrite(self, key: Optional[str]):
-        # TODO @Performance: writing an entire update on every change is obviously inefficient
-        self.session.tracer.database_update(self.parent, self, key)
 
     def __contains__(self, item: str):
         return item in self.value
@@ -122,15 +85,14 @@ class Record(ModuleNode):
             self.value[key] = value
 
 
-@node(mnt=MNT.DatabaseView, tracked=["name", "layout", "query", "sort", "order_key"])
+@node(mnt=MNT.DatabaseView)
 class DatabaseView(ModuleNode):
-    parent: "HasDatabase" = required_field()
-    name: str = None
-    layout: Optional[DatabaseViewLayout] = DatabaseViewLayout.TABLE
-    query: Optional[Query] = None
-    sort: Optional[list[Sort]] = None
-    order_key: str = field(default_factory=uuid.uuid4)
-    fields: Optional[list["DatabaseViewField"]] = None
+    parent: "Statement" = nparent(MNT.Statement)
+    name: str | None = nproperty(default=None)
+    layout: DatabaseViewLayout = nproperty(default=DatabaseViewLayout.TABLE)
+    query: Optional[Query] = nproperty(default=None)
+    sort: Optional[list[Sort]] = nproperty(default=None)
+    fields: Optional[list["DatabaseViewField"]] = nchildren(MNT.DatabaseViewField)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
@@ -145,20 +107,17 @@ class DatabaseView(ModuleNode):
 
 @node(mnt=MNT.DatabaseViewField, tracked=["order_key"])
 class DatabaseViewField(ModuleNode):
-    field: UUID | Field = required_field()
-    order_key: Optional[str] = None
+    field: UUID | Field = nproperty()
+    order_key: str | None = nproperty(default=None)
 
 
-@node(tracked=["versioned"])
+@node_component(tracked=["versioned"])
 class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
     # note that HasDatabase feels like a neat component than the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
 
-    type: StatementType = StatementType.DATABASE
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.IsArray
-    versioned: bool = True
-    views: Optional[list[DatabaseView]] = None
+    versioned: bool = nproperty(default=True)
+    views: Optional[list[DatabaseView]] = nchildren(MNT.DatabaseView)
 
     def __post_init__(self):
         if self.key is not None:
@@ -170,12 +129,6 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
                 self.key = None
         else:
             self.key = new_dynamic_node_key(self.ck)
-
-    def view_by_name(self, name: str) -> DatabaseView:
-        view = first((view for view in self.views if view.name == name), None)
-        if view is None:
-            raise KeyError(f"no view named '{name}' in {self}")
-        return view
 
     def clear(self):
         self.session.tracer.database_clear(self)
@@ -189,7 +142,7 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
     def _index(self) -> None:
         pass
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for view in self.views or []:
             visitor.visit_child(view)
 
@@ -218,7 +171,7 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
         ]
         records = [Record(parent=self, value=value) for value in values]
         self._notify_added(*records)
-        self.session.tracer.database_extend(self, records)
+        self.session.tracer.node_create(self, records)
 
     def map(
         self,

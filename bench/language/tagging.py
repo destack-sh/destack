@@ -1,23 +1,24 @@
 import typing
 from dataclasses import field
+from typing import Union
 from uuid import UUID
 
 from bench.language.const import MNT, StatementReference
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import ModuleNode, NodeVisitor, Scope, node, node_component
 from bench.language.value import HasValue
 from bench.utils.utils import required_field
 
 if typing.TYPE_CHECKING:
-    from bench.language import HasFields, Tag
+    from bench.language import Field, File, HasFields, Statement, Tag
 
 
 @node(mnt=MNT.Tagging, tracked=[])
 class Tagging(HasValue, ModuleNode):
     """An association between a tag and a statement (with optional value)."""
 
-    reference: typing.Union["Tag", StatementReference] = required_field()
+    parent: Union["File", "Statement", "Field"] | None = None
+    reference: Union["Tag", StatementReference] = required_field()
     key: str = required_field()
-    parent: ModuleNode | None = None
 
     @property
     def _type_of_value(self) -> "HasFields":
@@ -34,7 +35,7 @@ class Tagging(HasValue, ModuleNode):
     def __repr__(self):
         return f"<Tagging {self}>"
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
@@ -46,30 +47,22 @@ class Tagging(HasValue, ModuleNode):
             return self.reference
 
 
-@node
+@node_component
 class HasTags(ModuleNode):
     tags: list[Tagging] = field(default_factory=list)
 
     @staticmethod
-    def _to_tag_key(key: typing.Union[str, "Tag", Tagging]) -> str:
+    def _to_tag_key(key: Union[str, "Tag", Tagging]) -> str:
         if hasattr(key, "key"):
             key = key.key
         return key
 
-    def set_tag(self, key: typing.Union[str, "Tag", Tagging], value: str = None) -> None:
-        """Tags this statement with the given key and value."""
-        raise NotImplementedError
-
-    def clear_tag(self, key: typing.Union[str, "Tag", Tagging]) -> None:
-        """Clears the tag with the given key."""
-        raise NotImplementedError
-
-    def has_tag(self, key: typing.Union[str, "Tag", Tagging]) -> bool:
+    def has_tag(self, key: Union[str, "Tag", Tagging]) -> bool:
         """Returns whether this statement has the given tag."""
         key = self._to_tag_key(key)
         return any(tagging.key == key for tagging in self.tags)
 
-    def get_tag(self, key: typing.Union[str, "Tag", Tagging]) -> Tagging:
+    def get_tag(self, key: Union[str, "Tag", Tagging]) -> Tagging:
         """Returns the tag with the given key."""
         key = self._to_tag_key(key)
         for tagging in self.tags:
@@ -78,8 +71,7 @@ class HasTags(ModuleNode):
         raise KeyError(key)
 
     def _clear(self) -> None:
-        for tagging in self.tags:
-            tagging._tag = None
+        pass
 
     def _index(self) -> None:
         pass
@@ -93,6 +85,6 @@ class HasTags(ModuleNode):
                 # is that an error? not sure
                 continue
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for tagging in self.tags:
             visitor.visit_child(tagging)

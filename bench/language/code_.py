@@ -6,7 +6,7 @@ import itertools
 import textwrap
 import types
 import typing
-from dataclasses import field
+from dataclasses import dataclass, field
 from functools import cached_property
 from json import JSONDecodeError
 from random import Random
@@ -19,19 +19,19 @@ from bench.language import IssueType
 from bench.language.const import NodePath
 from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import LookupBy, ModuleNode, Scope, node
+from bench.language.module import LookupBy, ModuleNode, Scope, node_component
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import ModuleVisitor, Statement
+    from bench.language import NodeVisitor, Statement
 
 logger = structlog.get_logger(__name__)
 
 
-@node
+@dataclass
 class CodeTransformation:
     original_code: str
     transformed_code: str
@@ -40,14 +40,14 @@ class CodeTransformation:
     end_offset: int
 
 
-@node
+@dataclass
 class CodeParse:
     references: dict[str, NodePath] = field(default_factory=dict)
     is_async: bool = False
     x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
-@node(tracked=["code"])
+@node_component(tracked=["code"])
 class HasCode(HasFields, ModuleNode):
     code: str | None = None
     _is_async: Optional[bool] = None
@@ -82,8 +82,8 @@ class HasCode(HasFields, ModuleNode):
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
-        pass  # should visit statement references?
+    def _visit(self, visitor: "NodeVisitor") -> None:
+        pass  # should code visit in-code statement references?
 
     @cached_property
     def cached(self) -> bool:

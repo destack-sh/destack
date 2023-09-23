@@ -14,10 +14,23 @@ from bench.language.const import (
 )
 from bench.language.database import HasDatabase
 from bench.language.field import HasFields, TypedDict
-from bench.language.issue import BenchError, Issue
+from bench.language.issue import Issue
 from bench.language.model import HasModel
-from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import (
+    Module,
+    ModuleNode,
+    NodeList,
+    NodeVisitor,
+    NRel,
+    Scope,
+    nchildren,
+    node,
+    nparent,
+    nproperty,
+    nroot,
+)
 from bench.language.reference import HasReference
+from bench.language.run import HasRun
 from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
@@ -25,36 +38,43 @@ from bench.language.trigger import HasTriggers
 from bench.language.value import HasValue
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language.file import File
-    from bench.language.session import Session
+    from bench.language import DatabaseView, Field, File, Record, Statement, Tagging, Trigger
 
 
-@node(mnt=MNT.Statement, tracked=["name"])
+@node(MNT.Statement)
 class Statement(ModuleNode, Scope):
     """A Bench statement."""
 
-    file: Optional["File"] = None
-    parent: Union["Statement", "File"] = None
-    children: list["Statement"] | None = None
-    order_key: str | None = None
-    type: StatementType = required_field()  # set by subclasses
-    name: Optional[str] = None
-    issues: list[Issue] | None = None
-    # content
-    reference: Union["Statement", StatementReference, None] = None
-    heading_level: Optional["TextHeadingLevel"] = None
-    text: str | None = None
-    key: str | None = None
-    tag: Optional["TypeTag"] = None
-    flags: Optional["TypeFlag"] = 0
-    code: str | None = None
-    value: Any | None = None
-    versioned: bool = True
-    # internal
-    _unpacked: bool = False
+    file: Optional["File"] = nroot(MNT.File)
+    parent: Union["Statement", "File"] = nparent(MNT.Statement, MNT.File)
+    children: NodeList["Statement"] = nchildren(
+        MNT.Statement, NRel.INLINE | NRel.ORDERED | NRel.NAMED
+    )
+    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
+    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.INLINE)
+    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.INLINE | NRel.NAMED | NRel.ORDERED)
+    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger, NRel.INLINE)
+    views: NodeList["DatabaseView"] = nchildren(
+        MNT.DatabaseView, NRel.INLINE | NRel.NAMED | NRel.ORDERED
+    )
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.REMOTE)
+
+    name: Optional[str] = nproperty(default=None)
+    order_key: str | None = nproperty(default=None)
+    type: StatementType = nproperty(default=StatementType.BLANK)
+
+    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
+    heading_level: Optional["TextHeadingLevel"] = nproperty(default=None)
+    text: str | None = nproperty(default=None)
+    key: str | None = nproperty(default=None)
+    tag: Optional["TypeTag"] = nproperty(default=None)
+    flags: Optional["TypeFlag"] = nproperty(default=0)
+    code: str | None = nproperty(default=None)
+    value: Any | None = nproperty(default=None)
+    versioned: bool = nproperty(default=True)
 
     def __post_init__(self):
         super().__post_init__()
@@ -140,14 +160,13 @@ class Statement(ModuleNode, Scope):
                 yield from child.walk_descendants()
 
     def __getattr__(self, item):
-        if item in self._PROPERTIES:
+        if not self._tracked or item in self._PROPERTIES:
             return super().__getattribute__(item)
-        else:
-            if item in self._names_by_ident:
-                item = self._names_by_ident.get(item)
-            scope = self._scopes_by_name.get(item)
-            if scope is not None:
-                return scope
+        if item in self._names_by_ident:
+            item = self._names_by_ident.get(item)
+        scope = self._scopes_by_name.get(item)
+        if scope is not None:
+            return scope
         candidates = {
             **{s: s for s in self._PROPERTIES},
             **{s.name: s for s in self._scopes_by_name.values()},
@@ -176,19 +195,11 @@ class Statement(ModuleNode, Scope):
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._interp(self, scope)
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for child in self.children or []:
             visitor.visit_child(child)
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._visit(self, visitor)
-
-    def _reinterp(self, scope: Scope = None, raise_errors: bool = True) -> None:
-        """Clears and re-interprets this statement in scope."""
-        self._clear()
-        self._index()
-        self._interp(scope or self)
-        if raise_errors and self.errors:
-            raise BenchError(self.errors[0])
 
     def _activate_in(self, session: "Session") -> None:
         """Activates this statement in the given session."""
@@ -210,25 +221,25 @@ class Statement(ModuleNode, Scope):
 #
 
 
-@node
+@node(MNT.Statement)
 class Blank(Statement):
     """A blank statement."""
 
     type: StatementType = StatementType.BLANK
 
 
-@node
+@node(MNT.Statement)
 class Text(Statement, HasText, HasTags, HasFields):
     heading_level: Optional[TextHeadingLevel] = None
     type: StatementType = StatementType.TEXT
 
 
-@node
+@node(MNT.Statement)
 class Reference(Statement, HasFields, HasReference, HasTags, HasText):
     type: StatementType = StatementType.REFERENCE
 
 
-@node
+@node(MNT.Statement)
 class Type(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TYPE
     tag: TypeTag = TypeTag.STRUCT
@@ -264,49 +275,47 @@ class Type(Statement, HasFields, HasTags, HasText):
         return type_from_instance_type(py_type)
 
 
-@node
+@node(MNT.Statement)
 class Tag(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TAG
     tag: TypeTag = TypeTag.STRUCT
 
 
-@node
+@node(MNT.Statement)
 class Database(Statement, HasDatabase, HasTags, HasText):
     type: StatementType = StatementType.DATABASE
     tag: TypeTag = TypeTag.STRUCT
+    flags: TypeFlag = TypeFlag.IsArray
 
 
-from bench.language.run import HasRun  # noqa: E402
-
-
-@node
+@node(MNT.Statement)
 class Model(Statement, HasModel, HasRun):
     type: StatementType = StatementType.MODEL
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
-@node
+@node(MNT.Statement)
 class Code(Statement, HasCode, HasRun, HasTriggers, HasTags, HasText):
     type: StatementType = StatementType.CODE
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
-@node
+@node(MNT.Statement)
 class Task(Statement, HasTask, HasRun, HasFields, HasTags, HasText):
     type: StatementType = StatementType.TASK
     tag: TypeTag = TypeTag.FUNCTION
     flags: TypeFlag = TypeFlag.Zero
 
 
-@node
+@node(MNT.Statement)
 class Flow(Statement, HasFields, HasTags, HasText):
     type: StatementType = StatementType.FLOW
     tag: TypeTag = TypeTag.FUNCTION
 
 
-@node
+@node(MNT.Statement)
 class Variable(Statement, HasValue, HasFields, HasTags, HasText):
     type: StatementType = StatementType.VARIABLE
     tag: TypeTag = TypeTag.STRUCT
@@ -366,8 +375,17 @@ _COMPONENT_CLASSES: list[type[ModuleNode]] = [
     HasValue,
     HasReference,
 ]
-_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit", "_activate_in", "_deactivate"]
-_MUST_OVERRIDE_METHODS = ["_clear", "_index", "_interp", "_visit"]
+_COMPONENT_METHODS = [
+    "_clear",
+    "_index",
+    "_interp",
+    "_visit",
+    "_activate_in",
+    "_deactivate",
+    "_validate",
+]
+_MUST_OVERRIDE_METHODS = ["_clear", "_index", "_interp", "_visit", "_validate"]
+
 _seen_methods: dict[object, type] = {getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS}
 for c in _COMPONENT_CLASSES:
     # check that they implement _clear, _index, _interp, _visit (in their own class)
@@ -378,19 +396,6 @@ for c in _COMPONENT_CLASSES:
             assert seen is None, f"{c} must override {m}"
         _seen_methods[getattr(c, m)] = c
 
-STATEMENT_CLASS_BY_TYPE: dict[StatementType, typing.Type[Statement]] = {
-    StatementType.BLANK: Blank,
-    StatementType.TEXT: Text,
-    StatementType.TASK: Task,
-    StatementType.TYPE: Type,
-    StatementType.TAG: Tag,
-    StatementType.CODE: Code,
-    StatementType.DATABASE: Database,
-    StatementType.VARIABLE: Variable,
-    StatementType.FLOW: Flow,
-    StatementType.MODEL: Model,
-    StatementType.REFERENCE: Reference,
-}
 _missing_statement_types = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
 assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
 

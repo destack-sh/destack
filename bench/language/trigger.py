@@ -1,5 +1,4 @@
 from collections import deque
-from dataclasses import field
 from datetime import datetime
 from typing import TYPE_CHECKING, Deque, Mapping, Optional, Union
 from uuid import UUID
@@ -9,28 +8,37 @@ from croniter import croniter
 
 from bench.language import IssueType
 from bench.language.const import MNT, ScheduleType, TriggerType
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import (
+    ModuleNode,
+    NodeList,
+    NodeVisitor,
+    Scope,
+    nchildren,
+    node,
+    node_component,
+    nparent,
+    nproperty,
+)
 from bench.language.run import HasRun
-from bench.utils.utils import required_field
 
 if TYPE_CHECKING:
-    pass
+    from bench.language.statement import Statement
 
 
 @node(mnt=MNT.Trigger)
 class Trigger(ModuleNode):
     """A trigger for a runnable, possibly inside a flow."""
 
-    type: TriggerType = required_field()
-    parent: ModuleNode | None = None
-    active: bool = True
-    mapping: Optional[Mapping] = None
-    schedule_type: Optional[ScheduleType] = None
-    timezone: Optional[str] = None
-    interval: Optional[int] = None
-    cron: Optional[str] = None
-    runnable: Union[HasRun, UUID, None] = None
-    scope: Union["ModuleNode", UUID, None] = None
+    parent: "Statement" = nparent(MNT.Statement)
+    type: TriggerType = nproperty()
+    active: bool = nproperty(default=True)
+    mapping: Optional[Mapping] = nproperty(default=None)
+    schedule_type: Optional[ScheduleType] = nproperty(default=None)
+    timezone: Optional[str] = nproperty(default=pytz.utc.zone)
+    interval: Optional[int] = nproperty(default=None)
+    cron: Optional[str] = nproperty(default=None)
+    runnable: Union["Statement", UUID, None] = nproperty(default=None)
+    scope: Union["ModuleNode", UUID, None] = nproperty(default=None)
 
     def __str__(self):
         if self.type == TriggerType.TIME:
@@ -47,15 +55,15 @@ class Trigger(ModuleNode):
     def __repr__(self):
         return f"<Trigger {self}>"
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         pass
 
 
-@node
+@node_component
 class HasTriggers(ModuleNode):
     """A symbol that can participate in a flow."""
 
-    triggers: list[Trigger] = field(default_factory=list)
+    triggers: NodeList[Trigger] = nchildren(MNT.Trigger)
 
     def _clear(self) -> None:
         pass
@@ -81,15 +89,9 @@ class HasTriggers(ModuleNode):
                 else:
                     trigger.scope = resolved
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for trigger in self.triggers:
             visitor.visit_child(trigger)
-
-    def add_trigger(self, trigger: Trigger) -> None:
-        raise NotImplementedError
-
-    def remove_trigger(self, trigger: Trigger | UUID) -> None:
-        raise NotImplementedError
 
 
 # :TriggerSchedule

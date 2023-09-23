@@ -11,9 +11,7 @@ from more_itertools import first
 
 from bench.language.const import (
     MNT,
-    FieldReferenceMask,
     IssueType,
-    NodePath,
     StatementReference,
     StatementType,
     TypeFlag,
@@ -22,11 +20,21 @@ from bench.language.const import (
     TypeTag,
     new_dynamic_node_key,
 )
-from bench.language.module import ModuleNode, ModuleVisitor, Scope, get_node_id, node
+from bench.language.module import (
+    ModuleNode,
+    NodeVisitor,
+    Scope,
+    get_node_id,
+    node,
+    node_component,
+    nparent,
+    nproperty,
+)
 from bench.language.query import FieldQueryOps
+from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.utils.fractional import INTEGER_ZERO, generate_n_keys_between
+from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
@@ -261,17 +269,15 @@ class TypeBase(abc.ABC):
 
 
 @node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "value"])
-class Field(HasText, HasValue, TypeBase, FieldQueryOps):
-    parent: Union["Statement", None] = None
-    name: Optional[str] = None
-    tag: TypeTag = required_field()
-    hint: Optional[TypeHint] = None
-    order_key: str = INTEGER_ZERO
-    text: Optional[str] = None
-    key: str = field(default=None)
-    flags: TypeFlag = TypeFlag(0)
-    reference: Union[None, NodePath, "Statement", UUID, "Type"] = None
-    reference_mask: Union[list[tuple[FieldReferenceMask, str]], None] = None
+class Field(HasText, HasValue, HasReference, TypeBase, FieldQueryOps):
+    parent: Union["Statement", None] = nparent(MNT.Statement)
+    name: Optional[str] = nproperty(default=None)
+    tag: TypeTag = nproperty()
+    hint: Optional[TypeHint] = nproperty(default=None)
+    order_key: str | None = nproperty(default=None)
+    key: str = nproperty(default=None)
+    text: Optional[str] = nproperty(default=None)
+    flags: TypeFlag = nproperty(default=TypeFlag.Zero)
 
     def __post_init__(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
@@ -292,7 +298,7 @@ class Field(HasText, HasValue, TypeBase, FieldQueryOps):
 
         return symbolx_lib.lookup_or_error(".reflect.FieldMetadata")
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
@@ -348,24 +354,7 @@ class ResolvedField(Field):
         return self.field.ck
 
 
-@node
-class Mapping:
-    """Mapping fields between statements (or other keyed connections)."""
-
-    connections: Optional[list[tuple[str, str]]] = None
-
-
-class _FieldAccessor:
-    """Access the fields of a type as attributes."""
-
-    def __init__(self, type: "HasFields"):
-        self.type = type
-
-    def __getattr__(self, item: str):
-        return self.type.get_field(item)
-
-
-@node
+@node_component
 class HasFields(TypeBase, ModuleNode):
     """A symbol that has fields"""
 
@@ -418,7 +407,7 @@ class HasFields(TypeBase, ModuleNode):
         # expand unions (recursively)
         _resolve_unions(self, [])
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         for field_ in self.fields:
             visitor.visit_child(field_)
 
@@ -507,10 +496,6 @@ class HasFields(TypeBase, ModuleNode):
         }
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
-
-    @property
-    def t(self):
-        return _FieldAccessor(self)
 
 
 def _resolve_unions(type: "HasFields", path: list[TypeBase]) -> None:

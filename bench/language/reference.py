@@ -4,17 +4,17 @@ from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import StatementReference
-from bench.language.module import Module, ModuleNode, ModuleVisitor, Scope, node
+from bench.language.module import Module, ModuleNode, NodeVisitor, Scope, node_component, nproperty
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(tracked=["reference"])
+@node_component
 class HasReference(ModuleNode):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = None
+    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
 
     def _clear(self) -> None:
         pass
@@ -31,7 +31,7 @@ class HasReference(ModuleNode):
         else:
             self.reference = resolved
 
-    def _visit(self, visitor: "ModuleVisitor") -> None:
+    def _visit(self, visitor: "NodeVisitor") -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
@@ -56,7 +56,7 @@ class ModuleView:
 
         # TODO @Task: gather module view more intelligently (prevent reference jungle)
         seen: dict[UUID, ModuleNode] = {}
-        child_visitor = ModuleVisitor()
+        child_visitor = NodeVisitor()
         to_visit = [self.origin]
         while to_visit:
             self._nodes_by_distance.append(to_visit)

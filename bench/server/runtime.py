@@ -617,9 +617,7 @@ class RuntimeWorker:
         # fetch and interp module
         source, project = await read_module(self.module_ref)
         await self.interp(source)
-
         self.tasks.start(self.process_time_triggers_forever())
-
         self.ready.set()
 
     async def process_time_triggers_forever(self) -> None:

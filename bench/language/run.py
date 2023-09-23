@@ -11,17 +11,17 @@ from uuid import UUID
 import msgpack
 
 from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, TriggerType
-from bench.language.module import Module, ModuleNode, ModuleVisitor, node
+from bench.language.module import Module, ModuleNode, NodeVisitor, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
-    from bench.language import Code, Model, Session, Statement, Task, Trigger
+    from bench.language import Session, Statement, Trigger
     from bench.language.session import LogSearch, RunSearch, Scope
 
 
-@node
+@node_component
 class HasRun(ModuleNode):
     """A runnable statement"""
 
@@ -36,7 +36,7 @@ class HasRun(ModuleNode):
     def _interp(self, scope: "Scope") -> None:
         pass
 
-    def _visit(self, visitor: ModuleVisitor) -> None:
+    def _visit(self, visitor: NodeVisitor) -> None:
         pass
 
     @property
@@ -174,7 +174,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 @dataclass
 class Run:
     id: UUID
-    runnable: Union["Code", "Model", "Task"]
+    runnable: "Statement"
     module: Module
     session: Optional["Session"]
     root: Optional["Run"]
@@ -203,6 +203,11 @@ class Run:
 
     def __repr__(self):
         return f"<Run {self}>"
+
+    def mark_dead_if_active(self):
+        if self.active:
+            self.terminated_at = utcnow_with_tz()
+            self.status = RunStatus.Aborted if self.started_at else RunStatus.Cancelled
 
     def _activate_in(self, session: "Session", **kwargs):
         from bench.language.libs import symbolx_lib
