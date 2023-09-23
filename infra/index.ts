@@ -407,7 +407,7 @@ const PUBLIC_BACKEND_VARS = [
   },
 ];
 
-const MODEL_PROVIDER_VARS = ["OPENAI_API_KEY", "COHERE_API_KEY", "ANTHROPIC_API_KEY"].map((name) => ({
+const MODEL_PROVIDER_VARS = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"].map((name) => ({
   name,
   value: config.requireSecret(name),
 }));
@@ -427,8 +427,6 @@ const apiService = new k8s.core.v1.Service(
 );
 // internal server service
 const serverName = "server";
-// internal worker service
-const workerName = "worker";
 
 const version = config.require("version");
 // if version is 'current', get the current commit hash
@@ -677,6 +675,21 @@ const monitoringServiceAccount = new k8s.core.v1.ServiceAccount("monitoringServi
     name: "vector-service-account", // required by betterstack
   },
 });
+const monitoringServiceAccountSecret = new k8s.core.v1.Secret(
+  "monitoringServiceAccountSecret",
+  {
+    metadata: {
+      namespace: monitoringNamespace.metadata.name,
+      name: monitoringServiceAccount.metadata.name,
+      annotations: {
+        "kubernetes.io/service-account.name": monitoringServiceAccount.metadata.name,
+      },
+    },
+    type: "kubernetes.io/service-account-token",
+  },
+  { provider: eksCluster.provider }
+);
+
 const monitoringClusterRole = new k8s.rbac.v1.ClusterRole("monitoringClusterRole", {
   rules: [
     {
@@ -725,34 +738,57 @@ const betterstack = new k8s.helm.v3.Chart(
               },
             },
           },
+          // stolen from generated config map to accept insecure TLS
           sources: {
-            better_stack_kubernetes_metric_nodes: {
+            better_stack_kubernetes_logs: {
+              type: "kubernetes_logs",
+            },
+            better_stack_kubernetes_metrics_nodes: {
+              auth: {
+                strategy: "bearer",
+                token: "$SERVICE_ACCOUNT_TOKEN",
+              },
+              decoding: {
+                codec: "json",
+              },
+              endpoint: "https://betterstack-logs-metrics-server/apis/metrics.k8s.io/v1beta1/nodes",
+              headers: {
+                accept: ["application/json"],
+              },
               tls: {
                 verify_certificate: false,
-                verify_hostname: false,
               },
+              type: "http_client",
             },
-            better_stack_kubernetes_metric_pods: {
+            better_stack_kubernetes_metrics_pods: {
+              auth: {
+                strategy: "bearer",
+                token: "$SERVICE_ACCOUNT_TOKEN",
+              },
+              decoding: {
+                codec: "json",
+              },
+              endpoint: "https://betterstack-logs-metrics-server/apis/metrics.k8s.io/v1beta1/pods",
+              headers: {
+                accept: ["application/json"],
+              },
               tls: {
                 verify_certificate: false,
-                verify_hostname: false,
               },
+              type: "http_client",
             },
-          },
-          serviceAccount: {
-            create: false,
-            name: monitoringServiceAccount.metadata.name,
           },
         },
-      },
-      metricsServer: {
-        args: ["--kubelet-insecure-tls"],
-      },
-      serviceAccount: {
-        create: false,
-        name: monitoringServiceAccount.metadata.name,
+        serviceAccount: {
+          create: false,
+          name: monitoringServiceAccount.metadata.name,
+          automountToken: true,
+        },
       },
     },
   },
-  { provider: eksCluster.provider, dependsOn: [monitoringNamespace, monitoringServiceAccount] }
+  {
+    provider: eksCluster.provider,
+    dependsOn: [monitoringNamespace, monitoringServiceAccount, monitoringServiceAccountSecret],
+  }
 );
