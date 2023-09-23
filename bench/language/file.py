@@ -1,5 +1,4 @@
 from collections import defaultdict
-from dataclasses import field
 from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
@@ -16,7 +15,7 @@ from bench.language.module import (
     nproperty,
 )
 from bench.utils.fractional import generate_n_keys_between
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement

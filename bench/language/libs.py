@@ -14,12 +14,12 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import Database, HasRun, HasText, Module, Run, RunError, Variable
+from bench.language import HasRun, HasText, Module, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.const import RunStatus, TypeFlag, TypeTag
+from bench.language.const import RunStatus, TypeFlag, TypeTag, StatementType
 from bench.language.field import Field, HasFields, Key, Vector, new_dynamic_node_key
 from bench.language.mapping import map_value, pack_value_flat
-from bench.language.model import ModelError, ModelErrorType
+from bench.language.model import ModelError, ModelErrorType, HasModel
 from bench.language.module import get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
@@ -234,14 +234,14 @@ class BaseTextTaskCompiler(TaskCompiler):
     # TODO @Performance @Task: cache statement rendering (for databases)
     async def _render_statement_body(self, statement: Statement) -> tuple[str | None, list[UUID]]:
         """Model-friendly string describing statement content (excl. header)."""
-        if isinstance(statement, Variable):
+        if statement.type == StatementType.VARIABLE:
             value_str = json.dumps(statement._raw_named_value(), indent=2)
             return value_str, []
-        elif isinstance(statement, Database):
+        elif statement.type == StatementType.DATABASE:
             records = await statement.limit(10).atolist()
             records_str = "\n".join([json.dumps(r._raw_named_value(), indent=2) for r in records])
             return records_str, [r.id for r in records]
-        elif isinstance(statement, Type):
+        elif statement.type == StatementType.TYPE:
             if statement.tag == TypeTag.ENUM:
                 options_str = "\n".join("  - " + self._render_field(f) for f in statement.fields)
                 return f"has options (one of):\n{options_str}", [f.id for f in statement.fields]
@@ -419,7 +419,7 @@ class OpenAIChatCompletion:
     external_name="gpt-4-32k-0613",
     file=_openai_chat,
 )
-class OpenAIChatCompletionModel(Model):
+class OpenAIChatCompletionModel(HasModel):
     async def _endpoint(
         self,
         messages: list[OpenAIChatMessage],
@@ -465,7 +465,7 @@ class OpenAIChatCompletionModel(Model):
         return OpenAIChatCompiler()
 
 
-def _map_openai_error(model: Model, e: Exception) -> ModelError:
+def _map_openai_error(model: Statement, e: Exception) -> ModelError:
     if isinstance(e, openai.InvalidRequestError):
         return ModelError(ModelErrorType.InvalidRequest, model, str(e))
     return ModelError(ModelErrorType.Unavailable, model, str(e))
@@ -642,7 +642,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             runnables_by_name=user_functions_by_name,
         )
 
-    def can_run(self, model: "Model", input: OpenAIChatInput) -> bool:
+    def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
         context_window: int = {
             "gpt3": 16 * 1024,
             "gpt4": 8 * 1024,
@@ -707,7 +707,7 @@ class OpenAITextEmbeddingResponse:
     external_name="text-embedding-ada-002",
     file=_openai_text,
 )
-class OpenAITextEmbeddingModel(Model):
+class OpenAITextEmbeddingModel(HasModel):
     async def _endpoint(self, text: typing.Union[str, list[str]]) -> OpenAITextEmbeddingResponse:
         is_batched = isinstance(text, list)
         if not is_batched:
@@ -755,7 +755,7 @@ class AnthropicTextCompletion:
     stop_reason: str
 
 
-def _map_anthropic_error(model: Model, e: Exception) -> ModelError:
+def _map_anthropic_error(model: Statement, e: Exception) -> ModelError:
     if isinstance(
         e, (anthropic.BadRequestError, anthropic.NotFoundError, anthropic.UnprocessableEntityError)
     ):
@@ -778,7 +778,7 @@ def _map_anthropic_error(model: Model, e: Exception) -> ModelError:
     external_name="claude-instant-1.2",
     file=_anthropic_text,
 )
-class AnthropicTextCompletionModel(Model):
+class AnthropicTextCompletionModel(HasModel):
     async def _endpoint(
         self, prompt: str, settings: AnthropicTextCompletionSettings
     ) -> AnthropicTextCompletion:

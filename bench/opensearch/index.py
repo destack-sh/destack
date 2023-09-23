@@ -3,6 +3,7 @@ from uuid import UUID
 
 import structlog
 
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
 import bench.opensearch.core as os
 from bench import language as lang
 from bench import models
@@ -373,18 +374,21 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     # add dynamic user mappings
     for statement in module._nodes_by_id.values():
+        if not isinstance(statement, lang.Statement):
+            continue
         if not isinstance(statement, lang.HasFields) or statement.self_errors:
             continue  # ignore symbols with issues
-        elif isinstance(statement, lang.Database):
+        elif statement.type == lang.StatementType.MODEL:
             # all fields go into Record.data ('data' is a "dynamic" object)
             for field in statement.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field)
-        elif isinstance(statement, lang.HasRun):
+        elif statement.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
-            for field in statement.inputs:
-                inputs_mappings[field.typed_key] = map_to_os_field(field)
-            for field in statement.outputs:
-                outputs_mappings[field.typed_key] = map_to_os_field(field)
+            for field in statement.resolved_fields:
+                if field.flags & TypeFlag.IsOutput:
+                    outputs_mappings[field.typed_key] = map_to_os_field(field)
+                else:
+                    inputs_mappings[field.typed_key] = map_to_os_field(field)
 
     logger.info(
         "os.update_mappings.done",
