@@ -4,8 +4,6 @@ config:
     secure: AAABAHyFILHkCEywro2kS7igSsknM+6GFPZ19UFUzGJtdTkO5pja1sGWJdTSo72bbH+Y/xy2wXFGECZ4BJWhuOq+l+i3N5FWPzlCMaZcCAO40aS2tqHTJttfro6EXyef1GXO9CLPjPLG9kFa5ZOns2/XQ0DLNAgthw==
   bench:BETTERSTACK_SECRET:
     secure: AAABAMcwUhrDe9/PMrDDQk9hpHE5QnHFfGG4gdUBTjnOTB+eIKH0syhoPvnBh0In4KlQ2yF4Syc=
-  bench:COHERE_API_KEY:
-    secure: AAABAGwaYpLADp5UUQemDsUFVsu+rb2kihRdZBABFV8/r3qvO6pckT8xY02z7ikfGEpajgeUNacS/Jmd1Q/3lABUAy2OCJ1i
   bench:LOOPS_API_KEY:
     secure: AAABALugbjvj+BJBfVwXcSB2vq9oCmiWncVZ5V6k1xNKaIkCCLIJa/+VmPsidbPSTLYJpnROIzaSD6MGabTWDA==
   bench:OPENAI_API_KEY:
@@ -34,8 +32,6 @@ config:
   bench:env: prod
   bench:ghcrToken:
     secure: AAABAEEyRBP91rRUbjQJZ/l3IjF6qVVIPMXxk8yMov7HkCt5ziuHbjqnoFF4OY8HpI9aG6TXmG+bu5NjKViUoeIko4oFM98d5wIWezpMpDGKf8vDZiwBRcl9PeV4RMgvbRD5PQ1Qpok=
-  bench:kubecostToken:
-    secure: AAABADxhpYcMMG9bqkEvKF/jedva+la5SiCBuNFNl4H+IhrwIxsWlVUYqaljio5+Kxgt4ZBH+I2TDMom2S+EFnTQQbdjB+k=
   bench:maxClusterSize: "4"
   bench:minClusterSize: "2"
   bench:opensearchPassword:
