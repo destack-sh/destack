@@ -58,6 +58,23 @@ class Trigger(ModuleNode):
     def _visit(self, visitor: NodeVisitor) -> None:
         pass
 
+    def _interp(self, scope: "Scope") -> None:
+        # nocheckin: make sure this _interp is called
+        # resolve runnable
+        if self.runnable is not None and not isinstance(self.runnable, HasRun):
+            resolved = scope.lookup(self.runnable)
+            if resolved is None:
+                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
+            else:
+                self.runnable = resolved
+        # resolve scope
+        if self.scope is not None and not isinstance(self.scope, ModuleNode):
+            resolved = scope.lookup(self.scope)
+            if resolved is None:
+                self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
+            else:
+                self.scope = resolved
+
 
 @node_component
 class HasTriggers(ModuleNode):
@@ -72,22 +89,7 @@ class HasTriggers(ModuleNode):
         pass
 
     def _interp(self, scope: Scope) -> None:
-        # resolve triggers
-        for trigger in self.triggers:
-            # resolve runnable
-            if trigger.runnable is not None and not isinstance(trigger.runnable, HasRun):
-                resolved = scope.lookup(trigger.runnable)
-                if resolved is None:
-                    self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-                else:
-                    trigger.runnable = resolved
-            # resolve scope
-            if trigger.scope is not None and not isinstance(trigger.scope, ModuleNode):
-                resolved = scope.lookup(trigger.scope)
-                if resolved is None:
-                    self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
-                else:
-                    trigger.scope = resolved
+        pass
 
     def _visit(self, visitor: NodeVisitor) -> None:
         for trigger in self.triggers:

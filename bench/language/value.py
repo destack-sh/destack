@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Collection
 
-from bench.language.module import ModuleNode, NodeVisitor, node, node_component, nproperty, nruntime
+from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:

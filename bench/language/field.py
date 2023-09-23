@@ -219,10 +219,6 @@ class TypeBase(abc.ABC):
         return self.effective_type.hint
 
     @property
-    def bases(self):
-        return [field for field in self.fields if field.flags & TypeFlag.IsUnionWith]
-
-    @property
     def inputs(self) -> list["TypeBase"]:
         if self.tag != TypeTag.FUNCTION:
             return []

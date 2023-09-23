@@ -1,9 +1,7 @@
 import typing
-from dataclasses import field
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
-from bench.language.code_ import HasCode
 from bench.language.const import (
     MNT,
     StatementReference,
@@ -12,36 +10,37 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.database import HasDatabase
-from bench.language.field import HasFields, TypedDict
 from bench.language.issue import Issue
-from bench.language.model import HasModel
 from bench.language.module import (
     Module,
     ModuleNode,
-    NodeList,
     NodeVisitor,
-    NRel,
     Scope,
-    nchildren,
     node,
-    nparent,
     nproperty,
     nroot,
+    nparent,
+    nchildren,
+    NRel,
+    NodeList,
 )
-from bench.language.reference import HasReference
-from bench.language.run import HasRun
-from bench.language.tagging import HasTags
-from bench.language.task import HasTask
+from bench.language.field import HasFields
 from bench.language.text import HasText
-from bench.language.trigger import HasTriggers
-from bench.language.value import HasValue
-from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import DatabaseView, Field, File, Record, Statement, Tagging, Trigger
+    from bench.language import (
+        File,
+        Statement,
+        Field,
+        Trigger,
+        Tagging,
+        DatabaseView,
+        Record,
+        ResolvedField,
+        Session,
+    )
 
 
 @node(MNT.Statement)
@@ -53,14 +52,6 @@ class Statement(ModuleNode, Scope):
     children: NodeList["Statement"] = nchildren(
         MNT.Statement, NRel.INLINE | NRel.ORDERED | NRel.NAMED
     )
-    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
-    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.INLINE)
-    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.INLINE | NRel.NAMED | NRel.ORDERED)
-    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger, NRel.INLINE)
-    views: NodeList["DatabaseView"] = nchildren(
-        MNT.DatabaseView, NRel.INLINE | NRel.NAMED | NRel.ORDERED
-    )
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.REMOTE)
 
     name: Optional[str] = nproperty(default=None)
     order_key: str | None = nproperty(default=None)
@@ -75,6 +66,18 @@ class Statement(ModuleNode, Scope):
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)
+
+    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
+    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.INLINE)
+    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.INLINE | NRel.NAMED | NRel.ORDERED)
+    resolved_fields: NodeList["ResolvedField"] = nchildren(
+        MNT.ResolvedField, NRel.INLINE | NRel.ORDERED
+    )
+    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger, NRel.INLINE)
+    views: NodeList["DatabaseView"] = nchildren(
+        MNT.DatabaseView, NRel.INLINE | NRel.NAMED | NRel.ORDERED
+    )
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.REMOTE)
 
     def __post_init__(self):
         super().__post_init__()
@@ -97,6 +100,14 @@ class Statement(ModuleNode, Scope):
             return self.reference
         else:
             return None
+
+    @property
+    def inputs(self):
+        return [f for f in self.resolved_fields if not (f.flags & TypeFlag.IsOutput)]
+
+    @property
+    def outputs(self):
+        return [f for f in self.resolved_fields if f.flags & TypeFlag.IsOutput]
 
     @property
     def module(self) -> Optional[Module]:
@@ -137,20 +148,6 @@ class Statement(ModuleNode, Scope):
     @property
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
-
-    def append_statement(self, *statements: "Statement"):
-        last_ok = self.children[-1].order_key if self.children else None
-        oks = generate_n_keys_between(last_ok, None, len(statements))
-        for ok, statement in zip(oks, statements):
-            if statement.parent is not None and statement.parent != self:
-                raise ValueError(f"statement {statement} belongs to {statement.parent}")
-            statement.order_key = ok
-            statement.file = self.file
-            statement.parent = self
-        if self.children is None:
-            self.children = [*statements]
-        else:
-            self.children.extend(statements)
 
     def walk_descendants(self) -> typing.Iterator["Statement"]:
         """Yields all descendant statements in DFS order."""
@@ -216,207 +213,45 @@ class Statement(ModuleNode, Scope):
                 cls._deactivate(self)
 
 
+_STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {
+    StatementType.TYPE: [HasFields, HasText],
+}
+
+
 #
-# Concrete statements
+# 'Concrete' statements are a mirage, we just have a custom metaclass
+#  where for e.g. statement.type == 'X', the 'concrete' class X
+#  works for isinstance(x, Type) and Type(**kwargs) works like Statement(type=X, **kwargs)
 #
 
 
-@node(MNT.Statement)
-class Blank(Statement):
-    """A blank statement."""
-
-    type: StatementType = StatementType.BLANK
-
-
-@node(MNT.Statement)
-class Text(Statement, HasText, HasTags, HasFields):
-    heading_level: Optional[TextHeadingLevel] = None
-    type: StatementType = StatementType.TEXT
-
-
-@node(MNT.Statement)
-class Reference(Statement, HasFields, HasReference, HasTags, HasText):
-    type: StatementType = StatementType.REFERENCE
-
-
-@node(MNT.Statement)
-class Type(Statement, HasFields, HasTags, HasText):
-    type: StatementType = StatementType.TYPE
-    tag: TypeTag = TypeTag.STRUCT
+class _StatementProxy(type):
+    def __init__(self, _type: StatementType):
+        super().__init__()
+        self._type = _type
 
     def __call__(self, *args, **kwargs):
-        combined_kwargs = {**kwargs}
-        for i in range(len(args)):
-            combined_kwargs[self.fields[i].name] = args[i]
-        return TypedDict(self, combined_kwargs)
+        return Statement(type=self._type, *args, **kwargs)
 
-    def __str__(self):
-        path_str = f"{self.path} " if self.name else ""
-        return f"{path_str}{self.tag}"
+    def __instancecheck__(self, instance):
+        return isinstance(instance, Statement) and instance.type == self._type
 
-    def __repr__(self):
-        return f"<Type {self}>"
-
-    def __getattr__(self, item):
-        if self._names_by_ident is not None and item in self._names_by_ident:
-            item = self._names_by_ident.get(item)
-            return self._scopes_by_name.get(item)
-        else:
-            return super().__getattr__(item)
-
-    @property
-    def py_ident(self) -> str:
-        return to_pyidentifier(self.name, IdentifierType.TYPE)
-
-    @staticmethod
-    def from_py_type(py_type: Any):
-        from bench.language.mapping import type_from_instance_type
-
-        return type_from_instance_type(py_type)
+    def __subclasscheck__(self, subclass):
+        return issubclass(subclass, Statement) and subclass.type == self._type
 
 
-@node(MNT.Statement)
-class Tag(Statement, HasFields, HasTags, HasText):
-    type: StatementType = StatementType.TAG
-    tag: TypeTag = TypeTag.STRUCT
+def _make_statement_proxy(_type: StatementType):
+    return _StatementProxy(_type)
 
 
-@node(MNT.Statement)
-class Database(Statement, HasDatabase, HasTags, HasText):
-    type: StatementType = StatementType.DATABASE
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.IsArray
-
-
-@node(MNT.Statement)
-class Model(Statement, HasModel, HasRun):
-    type: StatementType = StatementType.MODEL
-    tag: TypeTag = TypeTag.FUNCTION
-    flags: TypeFlag = TypeFlag.Zero
-
-
-@node(MNT.Statement)
-class Code(Statement, HasCode, HasRun, HasTriggers, HasTags, HasText):
-    type: StatementType = StatementType.CODE
-    tag: TypeTag = TypeTag.FUNCTION
-    flags: TypeFlag = TypeFlag.Zero
-
-
-@node(MNT.Statement)
-class Task(Statement, HasTask, HasRun, HasFields, HasTags, HasText):
-    type: StatementType = StatementType.TASK
-    tag: TypeTag = TypeTag.FUNCTION
-    flags: TypeFlag = TypeFlag.Zero
-
-
-@node(MNT.Statement)
-class Flow(Statement, HasFields, HasTags, HasText):
-    type: StatementType = StatementType.FLOW
-    tag: TypeTag = TypeTag.FUNCTION
-
-
-@node(MNT.Statement)
-class Variable(Statement, HasValue, HasFields, HasTags, HasText):
-    type: StatementType = StatementType.VARIABLE
-    tag: TypeTag = TypeTag.STRUCT
-    flags: TypeFlag = TypeFlag.Zero
-    value: Any = field(default_factory=dict)
-
-    def __getattr__(self, item):
-        if item in self._PROPERTIES:
-            return self.__dict__[item]
-        elif item in self.value:
-            return self.value[item]
-        elif self.has_field(item):
-            return None
-        elif not isinstance(item, str):
-            raise TypeError(f"cannot index {self} with {type(item)}")
-        candidates = {
-            **{f: f for f in self._PROPERTIES},
-            **{f.py_ident: f for f in self.fields},
-        }
-        raise AttributeError(
-            f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-        )
-
-    def __setattr__(self, key, value):
-        if key in self._PROPERTIES:
-            super().__setattr__(key, value)
-        else:
-            assert self.value is not None, f"cannot set {key} on {self} without value"
-            self.value[key] = value
-
-    def __getitem__(self, item):
-        if item in self.value:
-            return self.value[item]
-        elif self.has_field(item):
-            return None
-        elif not isinstance(item, str):
-            raise TypeError(f"cannot index {self} with {type(item)}")
-        candidates = {f.py_ident: f for f in self.fields}
-        raise AttributeError(
-            f"{self} has no field {item} ({did_you_mean_str(candidates, item)}, available: {self.fields})"
-        )
-
-    def __iter__(self):
-        return iter(self.value)
-
-
-_COMPONENT_CLASSES: list[type[ModuleNode]] = [
-    HasCode,
-    HasDatabase,
-    HasFields,
-    HasModel,
-    HasRun,
-    HasTags,
-    HasText,
-    HasTask,
-    HasTriggers,
-    HasValue,
-    HasReference,
-]
-_COMPONENT_METHODS = [
-    "_clear",
-    "_index",
-    "_interp",
-    "_visit",
-    "_activate_in",
-    "_deactivate",
-    "_validate",
-]
-_MUST_OVERRIDE_METHODS = ["_clear", "_index", "_interp", "_visit", "_validate"]
-
-_seen_methods: dict[object, type] = {getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS}
-for c in _COMPONENT_CLASSES:
-    # check that they implement _clear, _index, _interp, _visit (in their own class)
-    for m in _COMPONENT_METHODS:
-        assert hasattr(c, m), f"{c} does not implement {m}"
-        seen = _seen_methods.get(getattr(c, m))
-        if m in _MUST_OVERRIDE_METHODS:
-            assert seen is None, f"{c} must override {m}"
-        _seen_methods[getattr(c, m)] = c
-
-_missing_statement_types = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
-assert not _missing_statement_types, f"missing statement types: {_missing_statement_types}"
-
-_STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {}
-for type, cls in STATEMENT_CLASS_BY_TYPE.items():
-    assert cls.type == type, f"{cls} has wrong type {cls.type} (expected: {type})"
-    # check that only Statement and Component classes are immediate parent of cls
-    parents = [c for c in cls.__bases__ if c != Statement]
-    illegal_parents = [c for c in parents if c not in _COMPONENT_CLASSES]
-    assert (
-        not illegal_parents
-    ), f"unexpected parents of {cls}: {illegal_parents} (allowed: {_COMPONENT_CLASSES})"
-    # check that Statement is first parent of cls (for MRO)
-    assert (
-        cls.__bases__[0] == Statement
-    ), f"unexpected first parent of {cls}: {parents[0]} (expected: Statement)"
-    _STATEMENT_COMPONENTS_BY_TYPE[type] = parents
-    # expand parents into their parent components
-    parents = parents[:]
-    while parents:
-        parent = parents.pop()
-        if parent not in _STATEMENT_COMPONENTS_BY_TYPE[type]:
-            _STATEMENT_COMPONENTS_BY_TYPE[type].append(parent)
-        parents.extend([c for c in parent.__bases__ if c in _COMPONENT_CLASSES])
+Blank = _make_statement_proxy(StatementType.BLANK)
+Text = _make_statement_proxy(StatementType.TEXT)
+Reference = _make_statement_proxy(StatementType.REFERENCE)
+Type = _make_statement_proxy(StatementType.TYPE)
+Tag = _make_statement_proxy(StatementType.TAG)
+Database = _make_statement_proxy(StatementType.DATABASE)
+Model = _make_statement_proxy(StatementType.MODEL)
+Code = _make_statement_proxy(StatementType.CODE)
+Task = _make_statement_proxy(StatementType.TASK)
+Flow = _make_statement_proxy(StatementType.FLOW)
+Variable = _make_statement_proxy(StatementType.VARIABLE)

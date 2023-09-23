@@ -99,14 +99,40 @@ def nchildren(mnt: MNT, flags: NRel = NRel.INLINE) -> NodeProperty:
     return NodeProperty(is_parent_of=mnt, relation_flags=flags)
 
 
+_COMPONENT_METHODS: list[str] = [
+    "_clear",
+    "_index",
+    "_interp",
+    "_visit",
+    "_activate_in",
+    "_deactivate",
+    "_validate",
+]
+_MUST_OVERRIDE_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit", "_validate"]
+
+_seen_methods: dict[object, type] = {}
+
+
 def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
     """
     Decorator alias for module nodes and their components.
     """
 
+    if not _seen_methods:
+        # init with ModuleNode methods
+        _seen_methods.update({getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS})
+
     def decorate(cls):
         properties: dict[str, NodeProperty] = {}
-        # nocheckin, gather properties, see os.document
+        # nocheckin, gather node properties, see os.document
+
+        # check that they implement _clear, _index, _interp, _visit (in their own class)
+        for m in _COMPONENT_METHODS:
+            assert hasattr(cls, m), f"{cls} does not implement {m}"
+            seen = _seen_methods.get(getattr(cls, m))
+            if m in _MUST_OVERRIDE_COMPONENT_METHODS:
+                assert seen is None, f"{cls} must override {m}"
+            _seen_methods[getattr(cls, m)] = cls
 
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         if mnt:
@@ -149,6 +175,8 @@ class NodeList(Collection, typing.Generic[NodeT]):
     def __init__(self, parent: "ModuleNode", flags: NodeRelationType):
         self._parent = parent
         self._flags = flags
+
+    # nocheckin: implement node list
 
 
 @node_component

@@ -9,7 +9,7 @@ from bench.language.value import HasValue
 from bench.utils.utils import required_field
 
 if typing.TYPE_CHECKING:
-    from bench.language import Field, File, HasFields, Statement, Tag
+    from bench.language import Field, File, HasFields, Statement
 
 
 @node(mnt=MNT.Tagging, tracked=[])
@@ -17,7 +17,7 @@ class Tagging(HasValue, ModuleNode):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = None
-    reference: Union["Tag", StatementReference] = required_field()
+    reference: Union["Statement", StatementReference] = required_field()
     key: str = required_field()
 
     @property
@@ -52,17 +52,17 @@ class HasTags(ModuleNode):
     tags: list[Tagging] = field(default_factory=list)
 
     @staticmethod
-    def _to_tag_key(key: Union[str, "Tag", Tagging]) -> str:
+    def _to_tag_key(key: Union[str, "Statement", Tagging]) -> str:
         if hasattr(key, "key"):
             key = key.key
         return key
 
-    def has_tag(self, key: Union[str, "Tag", Tagging]) -> bool:
+    def has_tag(self, key: Union[str, "Statement", Tagging]) -> bool:
         """Returns whether this statement has the given tag."""
         key = self._to_tag_key(key)
         return any(tagging.key == key for tagging in self.tags)
 
-    def get_tag(self, key: Union[str, "Tag", Tagging]) -> Tagging:
+    def get_tag(self, key: Union[str, "Statement", Tagging]) -> Tagging:
         """Returns the tag with the given key."""
         key = self._to_tag_key(key)
         for tagging in self.tags:
