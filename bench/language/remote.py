@@ -2,21 +2,17 @@ import hashlib
 import io
 import mimetypes
 import typing
-import uuid
-from dataclasses import field
 from typing import Optional
 from urllib.parse import parse_qs, urlparse, urlunparse
-from uuid import UUID
 
 import aiohttp
 import requests
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.language.const import RemoteObjectStatus
-from bench.language.module import Module, ModuleNode, node
+from bench.language.const import RemoteObjectStatus, MNT
+from bench.language.module import Module, ModuleNode, node, nproperty, nruntime
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import required_field
 
 if typing.TYPE_CHECKING:
     from bench.language.session import Session
@@ -27,19 +23,18 @@ REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
 REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
-@node
+@node(MNT.RemoteObject)
 class RemoteObject(ModuleNode):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
     :RemoteObjectType
     """
 
-    id: UUID = field(default_factory=uuid.uuid4)
-    sha512: str = required_field()
-    content_length: int = required_field()
-    content_type: str = required_field()
-    name: str = required_field()
-    status: RemoteObjectStatus = RemoteObjectStatus.PREPARED
+    sha512: str = nproperty()
+    content_length: int = nproperty()
+    content_type: str = nproperty()
+    name: str = nproperty()
+    status: RemoteObjectStatus = nproperty(default=RemoteObjectStatus.PREPARED)
 
     _cached_bytes: Optional[bytes] = None
 
@@ -263,13 +258,12 @@ class Storage:
 SecretValueT = typing.TypeVar("SecretValueT")
 
 
-@node
+@node(MNT.Secret)
 class Secret(ModuleNode, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
-    id: UUID = field(default_factory=uuid.uuid4)
-    sha512: str = required_field()
-    value: Optional[SecretValueT] = None
+    sha512: str = nproperty()
+    value: Optional[SecretValueT] = nruntime(default=None)
 
     def __str__(self):
         return f"{self.id} ({self.sha512[:8]})"

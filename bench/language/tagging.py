@@ -1,12 +1,20 @@
 import typing
-from dataclasses import field
 from typing import Union
 from uuid import UUID
 
 from bench.language.const import MNT, StatementReference
-from bench.language.module import ModuleNode, NodeVisitor, Scope, node, node_component
+from bench.language.module import (
+    ModuleNode,
+    NodeVisitor,
+    Scope,
+    node,
+    node_component,
+    nparent,
+    nproperty,
+    nchildren,
+    NRel,
+)
 from bench.language.value import HasValue
-from bench.utils.utils import required_field
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, File, HasFields, Statement
@@ -16,9 +24,9 @@ if typing.TYPE_CHECKING:
 class Tagging(HasValue, ModuleNode):
     """An association between a tag and a statement (with optional value)."""
 
-    parent: Union["File", "Statement", "Field"] | None = None
-    reference: Union["Statement", StatementReference] = required_field()
-    key: str = required_field()
+    parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
+    reference: Union["Statement", StatementReference] = nproperty()
+    key: str = nproperty()
 
     @property
     def _type_of_value(self) -> "HasFields":
@@ -49,7 +57,7 @@ class Tagging(HasValue, ModuleNode):
 
 @node_component
 class HasTags(ModuleNode):
-    tags: list[Tagging] = field(default_factory=list)
+    tags: list[Tagging] = nchildren(MNT.Tagging, NRel.INLINE)
 
     @staticmethod
     def _to_tag_key(key: Union[str, "Statement", Tagging]) -> str:

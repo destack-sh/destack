@@ -528,7 +528,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
 
     def _compile_run(self, run: Run) -> OpenAIChatMessage:
         if run.status == RunStatus.Failed:
-            return self._compile_error(run)
+            return self._compile_error(run.error)
         else:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,

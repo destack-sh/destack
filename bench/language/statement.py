@@ -18,7 +18,7 @@ from bench.language.module import (
     Scope,
     node,
     nproperty,
-    nroot,
+    nancestor,
     nparent,
     nchildren,
     NRel,
@@ -47,7 +47,7 @@ if TYPE_CHECKING:
 class Statement(ModuleNode, Scope):
     """A Bench statement."""
 
-    file: Optional["File"] = nroot(MNT.File)
+    file: Optional["File"] = nancestor(MNT.File)
     parent: Union["Statement", "File"] = nparent(MNT.Statement, MNT.File)
     children: NodeList["Statement"] = nchildren(
         MNT.Statement, NRel.INLINE | NRel.ORDERED | NRel.NAMED
@@ -67,7 +67,6 @@ class Statement(ModuleNode, Scope):
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)
 
-    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.INLINE)
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.INLINE | NRel.NAMED | NRel.ORDERED)
     resolved_fields: NodeList["ResolvedField"] = nchildren(
@@ -77,7 +76,8 @@ class Statement(ModuleNode, Scope):
     views: NodeList["DatabaseView"] = nchildren(
         MNT.DatabaseView, NRel.INLINE | NRel.NAMED | NRel.ORDERED
     )
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.REMOTE)
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.ZERO)
+    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
 
     def __post_init__(self):
         super().__post_init__()
@@ -85,6 +85,7 @@ class Statement(ModuleNode, Scope):
             self.file = self.parent.file
         if self.parent is None:
             self.parent = self.file
+        # nocheckin: init components
 
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path
@@ -215,7 +216,11 @@ class Statement(ModuleNode, Scope):
 
 _STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {
     StatementType.TYPE: [HasFields, HasText],
+    StatementType.MODEL: [HasFields, HasText],
 }
+
+_missing_types = set(StatementType) - set(_STATEMENT_COMPONENTS_BY_TYPE)
+assert not _missing_types, f"missing statement components for {_missing_types}"
 
 
 #

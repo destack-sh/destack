@@ -1,11 +1,11 @@
 import abc
 import uuid
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Union
 from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import MNT, IssueKind
-from bench.language.module import node, nparent, nproperty
+from bench.language.module import node, nparent, nproperty, ModuleNode
 
 if TYPE_CHECKING:
     from bench.language.file import File
@@ -63,7 +63,7 @@ class BenchError(ValueError):
 
 
 @node(mnt=MNT.Issue)
-class Issue:
+class Issue(ModuleNode):
     parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)
     kind: IssueKind = nproperty()
     type: IssueType = nproperty()
