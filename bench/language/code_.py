@@ -19,7 +19,7 @@ from bench.language import IssueType
 from bench.language.const import NodePath
 from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import LookupBy, ModuleNode, Scope, node_component
+from bench.language.module import LookupBy, ModuleNode, Scope, node_component, nruntime
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
@@ -49,13 +49,12 @@ class CodeParse:
 
 @node_component(tracked=["code"])
 class HasCode(HasFields, ModuleNode):
-    code: str | None = None
-    _is_async: Optional[bool] = None
-    _parse: Optional[CodeParse] = None
-    _transform: Optional[CodeTransformation] = None
-    _statement_references: dict[str, "Statement"] | None = None
-    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = None
-    _cached_exports: dict[str, Any] | None = None
+    _is_async: Optional[bool] = nruntime(default=None)
+    _parse: Optional[CodeParse] = nruntime(default=None)
+    _transform: Optional[CodeTransformation] = nruntime(default=None)
+    _statement_references: dict[str, "Statement"] | None = nruntime(default=None)
+    _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = nruntime(default=None)
+    _cached_exports: dict[str, Any] | None = nruntime(default=None)
 
     def _clear(self) -> None:
         self._parse = None

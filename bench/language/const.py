@@ -32,6 +32,11 @@ class ModuleNodeType(enum.StrEnum):
     ResolvedField = "ResolvedField"
     # user
     Comment = "Comment"
+    # remote
+    RemoteObject = "RemoteObject"
+    Secret = "Secret"
+    # session
+    Run = "Run"  # ?
 
     @property
     def caps_name(self):

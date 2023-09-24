@@ -2,7 +2,7 @@ import abc
 import enum
 import typing
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Optional, Self, Union
 from uuid import UUID
 
@@ -13,7 +13,6 @@ from bench.language.const import (
     MNT,
     IssueType,
     StatementReference,
-    StatementType,
     TypeFlag,
     TypeHint,
     TypeStorageFormat,
@@ -48,7 +47,7 @@ class TypeError(TypeError):
     def __init__(
         self,
         value: Any,
-        expected: "TypeBase",
+        expected: "SomeType",
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
@@ -174,7 +173,9 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
     return STORAGE_FORMAT_BY_TYPE_TAG[tag]
 
 
-class TypeBase(abc.ABC):
+class SomeType(abc.ABC):
+    """Abstract base for Field nas HasFields/Statement types"""
+
     id: UUID
     name: Optional[str]
     key: Optional[str]
@@ -183,8 +184,8 @@ class TypeBase(abc.ABC):
     flags: TypeFlag
     text: Optional[str]
     text_plain: Optional[str]
-    fields: list["TypeBase"]
-    resolved_fields: list["TypeBase"]  # resolved fields with unions and such
+    fields: list["SomeType"]
+    resolved_fields: list["SomeType"]  # resolved fields with unions and such
     reference: Union[None, StatementReference, "HasFields"]
     source: Optional["Statement"]
 
@@ -204,7 +205,7 @@ class TypeBase(abc.ABC):
             return to_pyidentifier(self.name, IdentifierType.FIELD)
 
     @property
-    def effective_type(self) -> Union["TypeBase", "HasFields"]:
+    def effective_type(self) -> Union["SomeType", "HasFields"]:
         if isinstance(self.reference, HasFields):
             return self.reference
         else:
@@ -219,7 +220,7 @@ class TypeBase(abc.ABC):
         return self.effective_type.hint
 
     @property
-    def inputs(self) -> list["TypeBase"]:
+    def inputs(self) -> list["SomeType"]:
         if self.tag != TypeTag.FUNCTION:
             return []
         return [
@@ -229,7 +230,7 @@ class TypeBase(abc.ABC):
         ]
 
     @property
-    def outputs(self) -> list["TypeBase"]:
+    def outputs(self) -> list["SomeType"]:
         if self.tag != TypeTag.FUNCTION:
             return []
         return [
@@ -265,7 +266,7 @@ class TypeBase(abc.ABC):
 
 
 @node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "value"])
-class Field(HasText, HasValue, HasReference, TypeBase, FieldQueryOps):
+class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.Statement)
     name: Optional[str] = nproperty(default=None)
     tag: TypeTag = nproperty()
@@ -351,17 +352,8 @@ class ResolvedField(Field):
 
 
 @node_component
-class HasFields(TypeBase, ModuleNode):
+class HasFields(SomeType, ModuleNode):
     """A symbol that has fields"""
-
-    type: StatementType = StatementType.TYPE
-    tag: TypeTag = required_field()
-    hint: Optional[TypeHint] = None
-    flags: TypeFlag = TypeFlag.Zero
-    fields: list[Field] = field(default_factory=list)
-    resolved_fields: list[Field | ResolvedField] | None = None
-    key: str = None
-    reference = None
 
     def __post_init__(self):
         super().__post_init__()
@@ -393,7 +385,7 @@ class HasFields(TypeBase, ModuleNode):
             statement = None
             if f.reference is not None:
                 statement = scope.lookup(f.reference)
-            if not isinstance(statement, TypeBase):
+            if not isinstance(statement, SomeType):
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
                 )
@@ -494,7 +486,7 @@ class HasFields(TypeBase, ModuleNode):
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
 
-def _resolve_unions(type: "HasFields", path: list[TypeBase]) -> None:
+def _resolve_unions(type: "HasFields", path: list[SomeType]) -> None:
     """
     Resolves (and inlines) the union-ed fields of any union types in the type tree.
     """

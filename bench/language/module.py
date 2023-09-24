@@ -1,5 +1,6 @@
 import abc
 import enum
+import inspect
 import itertools
 import typing
 import uuid
@@ -43,13 +44,13 @@ class LookupBy(enum.StrEnum):
 class NodeRelationType(enum.IntFlag):
     """Parent relation between node and descendants."""
 
-    INLINE = 2**0  # File->Statement, Statement->Field, ...
-    REMOTE = 2**1  # Statement->Record, ...
-    SHARED = 2**2  # Statement[versioned=False]->Record, ...
-    FLAT = 2**3  # Module->File, File->Statement, ...
-    CUMULATIVE = 2**4  # Module->Issue, File->Issue, ...
-    NAMED = 2**5  # Module->File, File->Statement, ...
-    ORDERED = 2**6  # File->Statement, Statement->Field, ...
+    ZERO = 0
+    INLINE = 2**0  # fully loaded: File->Statement, Statement->Field, ...
+    SHARED = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
+    FLAT = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
+    CUMULATIVE = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
+    NAMED = 2**4  # scoped by name: Module->File, File->Statement, ...
+    ORDERED = 2**5  # ordered: File->Statement, Statement->Field, ...
 
 
 NRel = NodeRelationType
@@ -59,47 +60,64 @@ UNSET = object()
 
 @dataclass
 class NodeProperty:
+    """A property of a module node."""
+
     default: typing.Any = UNSET
     default_factory: typing.Callable[[], typing.Any] | None = None
     is_internal: bool = False
     is_runtime: bool = False
     is_child_of: list[MNT] | None = None
     is_descendant_of: MNT | None = None
-    is_parent_of: MNT | None = None
+    _annotation: typing.Any = None  # type annotation on LHS of assignment
+    # for relations
+    is_ancestor_of: MNT | None = None
+    is_allowed: typing.Callable[["NodeT"], bool] | None = None
     relation_flags: NodeRelationType = NodeRelationType.INLINE
 
 
 def nproperty(
     *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
 ):
+    """Standard user facing node property."""
     return NodeProperty(default=default, default_factory=default_factory)
 
 
 def ninternal(
     *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
 ):
+    """Internal only, persisted node property."""
     return NodeProperty(is_internal=True, default=default, default_factory=default_factory)
 
 
 def nruntime(
     *, default: typing.Any = UNSET, default_factory: typing.Callable[[], typing.Any] = None
 ):
-    return NodeProperty(is_runtime=True, default=default, default_factory=default_factory)
+    """Internal only, non-persisted runtime node property."""
+    return NodeProperty(
+        is_internal=True, is_runtime=True, default=default, default_factory=default_factory
+    )
 
 
-def nparent(*mnt: MNT) -> NodeProperty:
+def nparent(*mnt: MNT):
+    """The parent of a node, must be of one of the given types."""
     return NodeProperty(is_child_of=list(mnt), default=None)
 
 
-def nroot(mnt: MNT) -> NodeProperty:
+def nancestor(mnt: MNT):
+    """Computed nearest ancestor of the given type."""
     return NodeProperty(is_descendant_of=mnt, default=None)
 
 
-def nchildren(mnt: MNT, flags: NRel = NRel.INLINE) -> NodeProperty:
-    return NodeProperty(is_parent_of=mnt, relation_flags=flags)
+def nchildren(
+    mnt: MNT, flags: NRel = NRel.INLINE, is_allowed: typing.Callable[["NodeT"], bool] = None
+):
+    """Computed read/write children or descendants of the given type."""
+    return NodeProperty(is_ancestor_of=mnt, relation_flags=flags, is_allowed=is_allowed)
 
 
-_COMPONENT_METHODS: list[str] = [
+# :NodeMethods
+_NODE_METHODS: list[str] = [
+    "__post_init__",
     "_clear",
     "_index",
     "_interp",
@@ -108,35 +126,56 @@ _COMPONENT_METHODS: list[str] = [
     "_deactivate",
     "_validate",
 ]
-_MUST_OVERRIDE_COMPONENT_METHODS = ["_clear", "_index", "_interp", "_visit", "_validate"]
-
+_REQUIRED_NODE_METHODS = ["_clear", "_index", "_interp", "_visit", "_validate"]
+_NODE_CLASS_BY_MNT: dict[MNT, type] = {}
 _seen_methods: dict[object, type] = {}
 
 
+@typing.dataclass_transform()
 def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
     """
-    Decorator alias for module nodes and their components.
+    Mark a class as a node component (or concrete node for a MNT).
     """
 
     if not _seen_methods:
         # init with ModuleNode methods
-        _seen_methods.update({getattr(ModuleNode, m): ModuleNode for m in _COMPONENT_METHODS})
+        _seen_methods.update({getattr(ModuleNode, m): ModuleNode for m in _NODE_METHODS})
 
     def decorate(cls):
         properties: dict[str, NodeProperty] = {}
-        # nocheckin, gather node properties, see os.document
 
-        # check that they implement _clear, _index, _interp, _visit (in their own class)
-        for m in _COMPONENT_METHODS:
-            assert hasattr(cls, m), f"{cls} does not implement {m}"
-            seen = _seen_methods.get(getattr(cls, m))
-            if m in _MUST_OVERRIDE_COMPONENT_METHODS:
-                assert seen is None, f"{cls} must override {m}"
-            _seen_methods[getattr(cls, m)] = cls
+        for name, prop in cls.__dict__.items():
+            # ignore reserved names and non-fields
+            if (
+                prop is None
+                or inspect.ismethod(properties)
+                or inspect.isfunction(prop)
+                or isinstance(prop, property)
+            ):
+                continue
+            if not isinstance(prop, NodeProperty):
+                raise TypeError(f"expected NodeProperty, got {prop}")
+
+        # check that they implement the required methods in their own class (not inherited)
+        if cls != ModuleNode:
+            for m in _NODE_METHODS:
+                assert hasattr(cls, m), f"{cls} does not implement {m}"
+                seen = _seen_methods.get(getattr(cls, m))
+                if m in _REQUIRED_NODE_METHODS:
+                    assert seen is None, f"{cls} must override {m}"
+                _seen_methods[getattr(cls, m)] = cls
 
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         if mnt:
             cls.mnt = mnt
+
+        cls.__properties__ = properties
+
+        if mnt:
+            if mnt in _NODE_CLASS_BY_MNT:
+                raise ValueError(f"node class conflict for {mnt}: {cls}, {_NODE_CLASS_BY_MNT[mnt]}")
+            _NODE_CLASS_BY_MNT[mnt] = cls
+
         return cls
 
     if cls is not None:
@@ -172,9 +211,11 @@ NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
 class NodeList(Collection, typing.Generic[NodeT]):
-    def __init__(self, parent: "ModuleNode", flags: NodeRelationType):
+    def __init__(self, parent: "ModuleNode", property: NodeProperty):
         self._parent = parent
-        self._flags = flags
+        self._property = property
+        self._flags = property.relation_flags
+        self._children: list[NodeT] = []
 
     # nocheckin: implement node list
 
@@ -200,12 +241,15 @@ class ModuleNode(abc.ABC):
     last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz)
     revision: int = ninternal(default=0)
 
+    module: Optional["Module"] = nancestor(MNT.Module)
     issues: list["Issue"] = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
 
     _session: Optional["Session"] = nruntime(default=None)
     _tracked: bool = nruntime(default=False)
 
     def __post_init__(self):
+        # nocheckin: probably need to update __post_init__ to track node relations
+        # nocheckin: also consider component __post_init__s
         if self._session is SESSION_NOT_READY:
             pass
         elif self._session is None:
@@ -242,16 +286,10 @@ class ModuleNode(abc.ABC):
     def parent_id(self) -> Optional[UUID]:
         return self.parent.id if self.parent is not None else None
 
-    @property
-    def module(self) -> Optional["Module"]:
-        if self.parent is not None:
-            return self.parent.module
-        elif isinstance(self, Module):
-            return self
-        return None
+    # :ComponentMethods
 
     def _clear(self) -> None:
-        """Resets this scope and all child scopes."""
+        """Resets this scope and all child scopes (recursively)."""
         self._scopes_by_name = {}
         self._nodes_by_id = {}
         self._nodes_by_ck = {}
@@ -260,13 +298,21 @@ class ModuleNode(abc.ABC):
             scope._clear()
 
     def _index(self) -> None:
+        """Indexes children into this scope (recursively)."""
         pass
 
     def _interp(self, scope: "Scope") -> None:
+        """Interpret nocheckin:??? and validate this node (with _validate on all children)."""
         pass
+
+    def _validate(self, properties: Collection[str]):
+        """Validate the given properties of this node."""
+        pass  # nocheckin: implement validate
+        # how does this work with _interp? is it part of interp?
 
     def _reinterp(self, scope: "Scope" = None, raise_errors: bool = True) -> None:
         """Clears and re-interprets this statement in scope."""
+        # nocheckin: probably need to change this
         self._clear()
         self._index()
         self._interp(scope or self)
@@ -274,9 +320,6 @@ class ModuleNode(abc.ABC):
             from bench.language.issue import BenchError
 
             raise BenchError(self.errors[0])
-
-    def _validate(self, properties: Collection[str]):
-        pass  # nocheckin: implement validate
 
     def _visit(self, visitor: "NodeVisitor") -> None:
         """Visit any child nodes."""

@@ -266,10 +266,6 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
         """Unpacks the node itself from the wire format (plain or instrumented into session)"""
         raise NotImplementedError(f"unpack not implemented for {self.__class__.__name__}")
 
-    def recover(self, node: NodeT, tree: ModuleTree) -> None:
-        """Re-assigns the node's children"""
-        pass
-
     def patch(
         self, node: NodeDataT, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
     ) -> None:
@@ -380,7 +376,7 @@ def unpack_node(
     # 'unwalk' all nodes to re-assign descendants
     for node in unpacked_tree.nodes.values():
         packer = _node_packers_by_node[type(node)]
-        packer.recover(node, unpacked_tree)
+        # nocheckin: recover node lists
 
     return unpacked_tree.root
 
@@ -519,9 +515,6 @@ class ModulePacker(NodePacker[ModuleData, Module]):
             files=[],
         )
 
-    def recover(self, module: Module, tree: ModuleTree):
-        module.files = tree.get_descendants(module.id, File, recursive=True)
-
 
 @dataclass
 class FileData(NodeData, HasCrud):
@@ -566,10 +559,6 @@ class FilePacker(NodePacker[FileData, File]):
             children=[],
             _session=session,
         )
-
-    def recover(self, file: File, tree: ModuleTree):
-        file.statements = tree.get_descendants(file.id, lang.Statement, recursive=True)
-        file.children = tree.get_descendants(file.id, File)
 
 
 @dataclass
@@ -656,15 +645,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             last_changed_at=statement.last_changed_at,
             _session=session,
         )
-
-    def recover(self, statement: lang.Statement, tree: ModuleTree):
-        statement.children = tree.get_descendants(statement.id, lang.Statement)
-        if isinstance(statement, lang.HasTags):
-            statement.tags = tree.get_descendants(statement.id, lang.Tagging)
-        if isinstance(statement, lang.HasTriggers):
-            statement.triggers = tree.get_descendants(statement.id, lang.Trigger)
-        if isinstance(statement, lang.HasFields):
-            statement.fields = tree.get_descendants(statement.id, lang.Field)
 
     def patch(
         self, statement: StatementData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]

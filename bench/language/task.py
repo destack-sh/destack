@@ -24,9 +24,12 @@ logger = structlog.get_logger(__name__)
 
 @node_component
 class HasTask(HasFields, ModuleNode):
-    _is_async: bool = True
     _root_models: list["HasModel"] = None
     _randomize: bool = False
+
+    @property
+    def _is_async(self):
+        return True
 
     def _clear(self) -> None:
         pass

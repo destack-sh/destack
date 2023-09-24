@@ -25,7 +25,9 @@ if TYPE_CHECKING:
 class HasRun(ModuleNode):
     """A runnable statement"""
 
-    _is_async: Optional[bool] = None
+    @property
+    def _is_async(self) -> Optional[bool]:
+        return None
 
     def _clear(self) -> None:
         pass

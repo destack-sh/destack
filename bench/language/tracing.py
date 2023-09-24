@@ -216,7 +216,7 @@ class SessionTracer(Tracer):
             self._update_cached_info()
         return run
 
-    def run_enter(self, statement: HasRun, inputs):
+    def run_enter(self, statement: "Statement", inputs):
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
         run = self._create_run(
@@ -229,7 +229,7 @@ class SessionTracer(Tracer):
         self._track_run(run)  # tracker may mutate/do other things, so log after it's run
         logger.debug("trace.run.enter", run=run, stackdepth=len(self.stacktrace))
 
-    def run_exit(self, statement: HasRun, outputs):
+    def run_exit(self, statement: "Statement", outputs):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         run.outputs = _pack_and_truncate_value(
@@ -240,7 +240,7 @@ class SessionTracer(Tracer):
         _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
-    def run_exception(self, statement: HasRun, exception: Exception):
+    def run_exception(self, statement: "Statement", exception: Exception):
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         if isinstance(exception, asyncio.CancelledError):
@@ -440,7 +440,7 @@ def _set_active_run(run: Run):
 
 def _pack_and_truncate_value(
     value: Any,
-    type: HasFields,
+    type: Statement,
     ignore_array: bool = False,
     ignore_outer_map: bool = False,
     none_if_invalid: bool = False,

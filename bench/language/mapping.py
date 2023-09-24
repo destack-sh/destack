@@ -30,7 +30,7 @@ from bench.language.field import (
     HasFields,
     Json,
     Key,
-    TypeBase,
+    SomeType,
     TypedDict,
     TypeError,
     Vector,
@@ -39,13 +39,13 @@ from bench.language.remote import RemoteObject, Secret
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import Type
+    from bench.language import Type, Statement
 
 logger = structlog.get_logger(__name__)
 
 
 def on_invalid_raise(
-    value: Any, expected: TypeBase, message: str = None, suberrors: list[TypeError] = None
+    value: Any, expected: SomeType, message: str = None, suberrors: list[TypeError] = None
 ):
     raise TypeError(value, expected, message, suberrors)
 
@@ -72,7 +72,7 @@ def _is_arrayable_not_an_array(type: Field, value: Any) -> bool:
 
 def map_value(
     value: Any,
-    type: TypeBase,
+    type: "Statement",
     map_v: Callable[[Any, Field, bool], Any] = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
     premap_v: Callable[[Any, Field, bool], Any] = None,
@@ -183,7 +183,7 @@ TypeSignature = NamedTuple(
 
 def check_type(
     value: Any,
-    type: TypeBase,
+    type: SomeType,
     get_k: Callable[[Field], str] = None,
     on_invalid=on_invalid_raise,
     is_output: bool = None,
@@ -256,18 +256,18 @@ class TypeMapper:
         """Converts a Python instance type into a Bench Type."""
         raise NotImplementedError
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         """
         Whether this mapper can represent the given Python instance value.
         For nested types (like structs) this only checks the top-level value (no walking).
         """
         raise NotImplementedError
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         """Converts and coerces a raw flat value of the type into an instance value."""
         return value
 
-    def pack_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: SomeType, value: Any) -> Any:
         """Converts a value of the given instance type back into a flat value."""
         return value
 
@@ -302,7 +302,7 @@ def register_mapper(
         _register(TypeSignature(tag, hint, flags))
 
 
-def get_type_mapper_by_type(type: TypeBase) -> TypeMapper:
+def get_type_mapper_by_type(type: SomeType) -> TypeMapper:
     """
     Gets the most appropriate mapping for the given type.
     (flat because we ignore list and optional types).
@@ -382,10 +382,10 @@ class StaticPyTypeMapper(TypeMapper):
 
         return Type(name=None, tag=self.tag, hint=self.hint)
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return isinstance(value, self._all_py_types)
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         return self.py_type(value)
 
 
@@ -394,7 +394,7 @@ class StringTypeMapper(StaticPyTypeMapper):
     py_type: type = str
     tag: TypeTag = TypeTag.STRING
 
-    def pack_value(self, type: TypeBase, value: Any) -> str:
+    def pack_value(self, type: SomeType, value: Any) -> str:
         # sanitize null character
         return str(value).replace("\x00", "")
 
@@ -404,7 +404,7 @@ class VectorTypeMapper(StaticPyTypeMapper):
     py_type: type = Vector
     tag: TypeTag = TypeTag.VECTOR
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         # not quite right but good enough for now
         return isinstance(value, Collection) and len(value) > 0 and isinstance(value[0], float)
 
@@ -414,10 +414,10 @@ class StringifyTypeMapping(StaticPyTypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return self.py_type == py_type
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         return self.py_type(value)
 
-    def pack_value(self, type: TypeBase, value: Any) -> str:
+    def pack_value(self, type: SomeType, value: Any) -> str:
         return str(value)
 
 
@@ -438,12 +438,12 @@ class IsoDtTypeMapping(StaticPyTypeMapper):
 
         return Type(tag=TypeTag.STRING, hint=self.HINT_BY_PY_TYPE[py_type])
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         if isinstance(value, self.py_type):
             return value
         return self.py_type.fromisoformat(value)
 
-    def pack_value(self, type: TypeBase, value: Any) -> str:
+    def pack_value(self, type: SomeType, value: Any) -> str:
         return value.isoformat()
 
 
@@ -451,7 +451,7 @@ class EnumMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> SomeType:
         from bench.language.statement import Type
 
         assert issubclass(py_type, enum.StrEnum)
@@ -465,7 +465,7 @@ class EnumMapper(TypeMapper):
         type._assign_oks()
         return type
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         if isinstance(value, str):
             # allow string values for built-in enums
             # (that also function as regular enums in code)
@@ -485,15 +485,15 @@ class RemoteObjectMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is RemoteObject
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> SomeType:
         from bench.language.statement import Type
 
         return Type(name=None, tag=TypeTag.FILE)
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return isinstance(value, RemoteObject)
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         return RemoteObject(
             id=UUID(value["id"]),
             name=value["name"],
@@ -503,7 +503,7 @@ class RemoteObjectMapper(TypeMapper):
             status=RemoteObjectStatus[value["status"]],
         )
 
-    def pack_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: SomeType, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: REMOTE_OBJECT_TYPENAME,
             "id": str(value.id),
@@ -519,18 +519,18 @@ class SecretTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Secret
 
-    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> TypeBase:
+    def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> SomeType:
         from bench.language.statement import Type
 
         return Type(name=None, tag=TypeTag.STRING, hint=TypeHint.SECRET, flags=TypeFlag.IsSecret)
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return isinstance(value, Secret)
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         return Secret(id=UUID(value["id"]), sha512=value["sha512"])
 
-    def pack_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: SomeType, value: Any) -> Any:
         return {
             TYPENAME_SENTINEL: SECRET_TYPENAME,
             "id": str(value.id),
@@ -562,13 +562,13 @@ class StructTypeMapper(TypeMapper):
         type._assign_oks()
         return type
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return isinstance(value, Mapping) or is_dataclass(value)
 
-    def unpack_value(self, type: TypeBase, value: Any) -> Any:
+    def unpack_value(self, type: SomeType, value: Any) -> Any:
         return TypedDict(type, value) if not isinstance(value, TypedDict) else value
 
-    def pack_value(self, type: TypeBase, value: Any) -> Any:
+    def pack_value(self, type: SomeType, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}
 
 
@@ -576,7 +576,7 @@ class JsonTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return py_type is Json or py_type is dict or get_origin(py_type) is dict
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return True  # not sure how to check this
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
@@ -589,7 +589,7 @@ class FunctionTypeMapper(TypeMapper):
     def is_instance_type(self, py_type: type) -> bool:
         return inspect.isfunction(py_type)
 
-    def is_instance_value(self, type: TypeBase, value: Any) -> bool:
+    def is_instance_value(self, type: SomeType, value: Any) -> bool:
         return value is None or isinstance(value, dict)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> "Type":
@@ -673,7 +673,7 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
         return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
 
 
-def unpack_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) -> Any:
+def unpack_value_flat(value: Any, type: SomeType, ignore_array: bool = False) -> Any:
     """Maps to the proper Python representation of the given value."""
     if value is None:  # skip null values
         return None  # type checking is done elsewhere
@@ -700,7 +700,7 @@ def unpack_value_flat(value: Any, type: TypeBase, ignore_array: bool = False) ->
         return value  # type checking is done elsewhere
 
 
-def pack_value_flat(value: Any, type: TypeBase, *args, **kwargs) -> Any:
+def pack_value_flat(value: Any, type: SomeType, *args, **kwargs) -> Any:
     """Maps back to the raw value from the Python representation."""
     # we don't auto-coerce here since that's only needed for external data
     if value is None:

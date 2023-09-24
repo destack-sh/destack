@@ -116,9 +116,6 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
     # note that HasDatabase feels like a neat component than the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
 
-    versioned: bool = nproperty(default=True)
-    views: Optional[list[DatabaseView]] = nchildren(MNT.DatabaseView)
-
     def __post_init__(self):
         if self.key is not None:
             return  # already set
