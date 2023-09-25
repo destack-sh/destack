@@ -6,13 +6,13 @@ from bench.language.const import MNT, StatementReference
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
+    NRel,
     ScopedNode,
+    nchildren,
     node,
     node_component,
     nparent,
     nproperty,
-    nchildren,
-    NRel,
 )
 from bench.language.value import HasValue
 
@@ -61,7 +61,7 @@ class Tagging(HasValue, ModuleNode):
 
 @node_component
 class HasTags(ModuleNode):
-    tags: list[Tagging] = nchildren(MNT.Tagging, NRel.INLINE)
+    tags: list[Tagging] = nchildren(MNT.Tagging)
 
     @staticmethod
     def _to_tag_key(key: Union[str, "Statement", Tagging]) -> str:

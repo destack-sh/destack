@@ -13,7 +13,6 @@ from .file import File
 from .issue import Issue
 from .module import Module, ModuleNode, NodeVisitor, ScopedNode
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
-from .reflect import RunMetadata
 from .remote import RemoteObject, Secret
 from .run import HasRun, Run, RunError
 from .session import LogEntry, Session
@@ -68,7 +67,6 @@ __all__ = [
     "ResolvedField",
     "Run",
     "RunError",
-    "RunMetadata",
     "ScheduleType",
     "ScopedNode",
     "Secret",

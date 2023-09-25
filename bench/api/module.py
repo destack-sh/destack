@@ -12,29 +12,10 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_node_access
 from bench.api.utils import ModuleNode
-from bench.language.const import MNT
 from bench.models import ModuleAccessLevel, packer
 from bench.models.packer import MNT_BY_BASE_MODEL_CLASS
 
 logger = structlog.get_logger(__name__)
-
-# this is a hack until we have proper generated module GQL types
-GQL_NODE_NAME_BY_MNT = {
-    MNT.Module: "ProjectVersion",
-    MNT.File: "File",
-    MNT.Statement: "Statement",
-    MNT.Record: "Record",
-    MNT.Field: "Field",
-    MNT.Tagging: "Tagging",
-    MNT.Trigger: "Trigger",
-    MNT.Comment: "Comment",
-    MNT.DatabaseView: "DatabaseView",
-    MNT.DatabaseViewField: "DatabaseViewField",
-    MNT.ResolvedField: "ResolvedField",
-    MNT.Issue: "Issue",
-}
-MNT_NAME_BY_GQL_NODE = {v: k for k, v in GQL_NODE_NAME_BY_MNT.items()}
-assert len(GQL_NODE_NAME_BY_MNT) == len(MNT), f"missing {set(MNT) - GQL_NODE_NAME_BY_MNT.keys()}"
 
 
 class StaticPrefetchedQueryset:

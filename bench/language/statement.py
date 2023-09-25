@@ -12,41 +12,39 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.database import HasDatabase
-from bench.language.issue import Issue
+from bench.language.field import HasFields
 from bench.language.model import HasModel
 from bench.language.module import (
     Module,
     ModuleNode,
-    NodeVisitor,
-    ScopedNode,
-    node,
-    nproperty,
-    nancestor,
-    nparent,
-    nchildren,
-    NRel,
     NodeList,
+    NRel,
+    ScopedNode,
+    nancestor,
+    nchildren,
     ninternal,
+    node,
+    nparent,
+    nproperty,
 )
-from bench.language.field import HasFields
 from bench.language.reference import HasReference
+from bench.language.run import HasRun
 from bench.language.task import HasTask
 from bench.language.text import HasText
+from bench.language.value import HasValue
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import (
-        File,
-        Statement,
-        Field,
-        Trigger,
-        Tagging,
         DatabaseView,
+        Field,
+        File,
         Record,
         ResolvedField,
-        HasRun,
-        HasValue,
+        Statement,
+        Tagging,
+        Trigger,
     )
 
 
@@ -56,9 +54,7 @@ class Statement(ScopedNode):
 
     file: Optional["File"] = nancestor(MNT.File)
     parent: Union["Statement", "File"] = nparent(MNT.Statement, MNT.File)
-    children: NodeList["Statement"] = nchildren(
-        MNT.Statement, NRel.INLINE | NRel.ORDERED | NRel.NAMED
-    )
+    children: NodeList["Statement"] = nchildren(MNT.Statement, NRel.Ordered | NRel.Named)
 
     type: StatementType = nproperty(default=StatementType.BLANK)
     name: Optional[str] = nproperty(default=None)
@@ -74,17 +70,12 @@ class Statement(ScopedNode):
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)
 
-    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.INLINE)
-    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.INLINE | NRel.NAMED | NRel.ORDERED)
-    resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.ResolvedField, NRel.INLINE | NRel.ORDERED
-    )
-    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger, NRel.INLINE)
-    views: NodeList["DatabaseView"] = nchildren(
-        MNT.DatabaseView, NRel.INLINE | NRel.NAMED | NRel.ORDERED
-    )
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.ZERO)
-    issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
+    tags: NodeList["Tagging"] = nchildren(MNT.Tagging)
+    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Ordered)
+    resolved_fields: NodeList["ResolvedField"] = nchildren(MNT.ResolvedField, NRel.Ordered)
+    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger)
+    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
 
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path
@@ -171,33 +162,6 @@ class Statement(ScopedNode):
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
-    def _clear(self) -> None:
-        """Clears any derived/interpreted values on this statement."""
-        ScopedNode._clear(self)
-        self.issues = None
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            cls._clear(self)
-
-    def _index(self):
-        self.children = self.file._statements_by_parent_id.get(self.id, [])
-        for child in self.children:
-            # only index self, not children
-            # (unlike in file/module, statement nesting is only semantic, not structural)
-            self._add_child_scope(child, by_name=True)
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            cls._index(self)
-
-    def _interp_inner(self, scope: ScopedNode) -> None:
-        """Updates, resolves and checks any derived/interpreted values on this statement."""
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            cls._interp(self, scope)
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for child in self.children or []:
-            visitor.visit_child(child)
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            cls._visit(self, visitor)
-
 
 _STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {
     StatementType.TYPE: [HasFields, HasText],
@@ -237,13 +201,16 @@ assert not _missing_types, f"missing statement components for {_missing_types}"
 #
 
 
-class _StatementProxy(type):
-    def __init__(self, _type: StatementType):
-        super().__init__()
+class _StatementProxy:
+    def __init__(
+        self, _type: StatementType, tag: Optional[TypeTag] = None, flags: Optional[TypeFlag] = None
+    ):
         self._type = _type
+        self._tag = tag
+        self._flags = flags
 
     def __call__(self, *args, **kwargs):
-        return Statement(type=self._type, *args, **kwargs)
+        return Statement(type=self._type, tag=self._tag, flags=self._flags, **kwargs)
 
     def __instancecheck__(self, instance):
         return isinstance(instance, Statement) and instance.type == self._type
@@ -252,18 +219,22 @@ class _StatementProxy(type):
         return issubclass(subclass, Statement) and subclass.type == self._type
 
 
-def _make_statement_proxy(_type: StatementType):
-    return _StatementProxy(_type)
+def _make_statement_proxy(
+    _type: StatementType, tag: Optional[TypeTag] = None, flags: Optional[TypeFlag] = None
+):
+    return _StatementProxy(_type, tag=tag, flags=flags)
 
 
 Blank = _make_statement_proxy(StatementType.BLANK)
 Text = _make_statement_proxy(StatementType.TEXT)
 Reference = _make_statement_proxy(StatementType.REFERENCE)
-Type = _make_statement_proxy(StatementType.TYPE)
-Tag = _make_statement_proxy(StatementType.TAG)
-Database = _make_statement_proxy(StatementType.DATABASE)
-Model = _make_statement_proxy(StatementType.MODEL)
-Code = _make_statement_proxy(StatementType.CODE)
-Task = _make_statement_proxy(StatementType.TASK)
-Flow = _make_statement_proxy(StatementType.FLOW)
-Variable = _make_statement_proxy(StatementType.VARIABLE)
+Struct = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.STRUCT)
+Choice = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.ENUM)
+Type = Struct
+Tag = _make_statement_proxy(StatementType.TAG, tag=TypeTag.STRUCT)
+Database = _make_statement_proxy(StatementType.DATABASE, tag=TypeTag.STRUCT, flags=TypeFlag.IsArray)
+Model = _make_statement_proxy(StatementType.MODEL, tag=TypeTag.FUNCTION)
+Code = _make_statement_proxy(StatementType.CODE, tag=TypeTag.FUNCTION)
+Task = _make_statement_proxy(StatementType.TASK, tag=TypeTag.FUNCTION)
+Flow = _make_statement_proxy(StatementType.FLOW, tag=TypeTag.FUNCTION)
+Variable = _make_statement_proxy(StatementType.VARIABLE, tag=TypeTag.STRUCT)

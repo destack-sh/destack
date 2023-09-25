@@ -3,15 +3,13 @@ from typing import TYPE_CHECKING, Optional, Union
 from bench.language.const import MNT
 from bench.language.module import (
     Module,
-    ModuleNode,
     NodeList,
-    NodeVisitor,
     NRel,
     ScopedNode,
     nchildren,
     node,
-    nproperty,
     nparent,
+    nproperty,
 )
 from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import IdentifierType, to_pyidentifier
@@ -25,8 +23,8 @@ class File(ScopedNode):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
     name: str = nproperty()
 
-    children: NodeList[Union["File", "Statement"]] = nchildren(MNT.File, NRel.INLINE)
-    statements: NodeList["Statement"] = nchildren(MNT.Statement, NRel.INLINE | NRel.FLAT)
+    children: NodeList[Union["File", "Statement"]] = nchildren(MNT.File)
+    statements: NodeList["Statement"] = nchildren(MNT.Statement, NRel.Flat)
 
     def __str__(self):
         return f"{self.path} '{self.name}' ({len(self.statements)} statements)"
@@ -50,22 +48,8 @@ class File(ScopedNode):
         else:
             return to_pyidentifier(self.name, IdentifierType.PATH)
 
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for statement in self._statements_by_parent_id.get(self.id, []):
-            visitor.visit_child(statement)
-
     def _assign_oks(self):
         for statements in self._statements_by_parent_id.values():
             oks = generate_n_keys_between(None, None, len(statements))
             for ok, statement in zip(oks, statements):
                 statement.order_key = ok
-
-    def _clear(self):
-        """Resets this scope and all child scopes."""
-        super()._clear()
-        for statement in self.statements:
-            statement._clear()
-
-    def _interp_inner(self, scope: "ScopedNode"):
-        for statement in self.statements:
-            statement._interp(statement)

@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import NamedTuple, Optional
+from typing import NamedTuple, Optional, Union
 
 import bench.language as lang
 import bench.opensearch.core as os
@@ -19,7 +19,7 @@ class FieldMapper:
     Don't bother with lists and optional here.
     """
 
-    def to_os_type(self, type: lang.Field | lang.Type, depth: int) -> os.Field:
+    def to_os_type(self, type: Union[lang.Field, lang.Type], depth: int) -> os.Field:
         raise NotImplementedError
 
 
@@ -50,7 +50,7 @@ def register_mapper(
         field_mappers[TypeSignature(tag, hint, flags)] = mapper
 
 
-def get_mapper(type: lang.Field | lang.Type) -> FieldMapper:
+def get_mapper(type: Union[lang.Field, lang.Type]) -> FieldMapper:
     if type.tag == TypeTag.TYPE_REFERENCE and isinstance(type.reference, lang.Type):
         return get_mapper(type.reference)  # skip the reference
     stripped_flags = type.flags & TypeFlag.IsSecret
