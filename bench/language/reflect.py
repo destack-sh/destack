@@ -9,6 +9,7 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
 from bench.language.file import File
 from bench.language.mapping import pack_value, type_from_instance_type, unpack_value
+from bench.language.module import SESSION_NOT_READY
 
 
 def _derive_constant_key(path: str) -> UUID:
@@ -28,7 +29,7 @@ def x_enum(name: str, text: str, *, file: File):
         bench_type.text = text
         if bench_type.tag != TypeTag.ENUM:
             raise TypeError(f"expected enum, got {bench_type.tag}")
-        file.append_statement(bench_type)
+        file.statements.append(bench_type)
         return cls
 
     return decorator
@@ -55,7 +56,7 @@ def x_struct(
             if base_type.tag != TypeTag.STRUCT:
                 raise TypeError(f"expected {TypeTag.STRUCT} for {base_type}, got {base_type.tag}")
             bench_type.extend_type(base_type)
-        file.append_statement(bench_type)
+        file.statements.append(bench_type)
 
         cls.__getitem__ = lambda self, key: getattr(self, key, None)
         cls.__setitem__ = lambda self, key, value: setattr(self, key, value)
@@ -79,7 +80,7 @@ def x_task(
         from bench.language.statement import Task
 
         task = Task(name=name, text=text)
-        file.append_statement(task)
+        file.statements.append(task)
         task_type = type_from_instance_type(fn, name=None)
         task._take_fields_from(task_type, reset_id=False)
         return task
@@ -95,7 +96,7 @@ def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type],
         # also turn tag into dataclass, it's basically a struct
         cls = dataclass(cls)
         tag = Tag(name=name, text=text)
-        file.append_statement(tag)
+        file.statements.append(tag)
         tag_type = type_from_instance_type(cls, name=None)
         tag._take_fields_from(tag_type, reset_id=False)
         return cls
@@ -115,7 +116,7 @@ def x_model(
         from bench.language.statement import Model
 
         model = Model(name=name, external_name=external_name, text=text)
-        file.append_statement(model)
+        file.statements.append(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
         model._take_fields_from(model_type, reset_id=True)
 
@@ -126,8 +127,8 @@ def x_model(
     return decorator
 
 
-_symbolx_reflect = File(name="reflect", module=symbolx_lib)
-symbolx_lib.add_file(_symbolx_reflect)
+_symbolx_reflect = File(name="reflect", module=symbolx_lib, _session=SESSION_NOT_READY)
+symbolx_lib.files.append(_symbolx_reflect)
 
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)
 reflect_struct = functools.partial(x_struct, file=_symbolx_reflect)

@@ -12,7 +12,7 @@ from asgiref.sync import async_to_sync
 
 from bench.language.const import RemoteObjectStatus, MNT
 from bench.language.issue import ValidationHandler
-from bench.language.module import Module, ModuleNode, node, nproperty, nruntime
+from bench.language.module import Module, ModuleNode, node, nproperty, nruntime, ninternal
 from bench.utils.func import did_you_mean_str
 
 if typing.TYPE_CHECKING:
@@ -31,13 +31,13 @@ class RemoteObject(ModuleNode):
     :RemoteObjectType
     """
 
-    sha512: str = nproperty()
-    content_length: int = nproperty()
-    content_type: str = nproperty()
-    name: str = nproperty()
-    status: RemoteObjectStatus = nproperty(default=RemoteObjectStatus.PREPARED)
+    sha512: str = ninternal()
+    content_length: int = ninternal()
+    content_type: str = ninternal()
+    name: str = ninternal()
+    status: RemoteObjectStatus = ninternal(default=RemoteObjectStatus.PREPARED)
 
-    _cached_bytes: Optional[bytes] = None
+    _cached_bytes: Optional[bytes] = nruntime(default=None)
 
     def __str__(self):
         return f"{self.id} {self.name} ({self.status}, {self.content_type}, {self.content_length} bytes)"

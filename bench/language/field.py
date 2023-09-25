@@ -277,7 +277,7 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     text: Optional[str] = nproperty(default=None)
     flags: TypeFlag = nproperty(default=TypeFlag.Zero)
 
-    def __post_init__(self):
+    def _init_(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
     def __str__(self):
