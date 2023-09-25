@@ -28,11 +28,6 @@ class File(ScopedNode):
     children: NodeList[Union["File", "Statement"]] = nchildren(MNT.File, NRel.INLINE)
     statements: NodeList["Statement"] = nchildren(MNT.Statement, NRel.INLINE | NRel.FLAT)
 
-    def __post_init__(self):
-        super().__post_init__()
-        if self.parent is None:
-            self.parent = self.module
-
     def __str__(self):
         return f"{self.path} '{self.name}' ({len(self.statements)} statements)"
 

@@ -26,7 +26,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
-from bench.language.wire import NodeTree
+from bench.language.module import NodeTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 

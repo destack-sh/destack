@@ -10,8 +10,8 @@ from typing import Any, Callable, Iterator, Optional, Union
 from uuid import UUID
 
 from bench.language.const import ModuleNodeType
-from bench.language.module import Module, ModuleNode
-from bench.language.wire import ModuleData, NodeTree, ModuleTreeData, NodeData
+from bench.language.module import Module, ModuleNode, NodeTree
+from bench.language.wire import ModuleData, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
 
 

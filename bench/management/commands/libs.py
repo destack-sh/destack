@@ -12,6 +12,7 @@ from bench import models
 from bench.language import wire
 from bench.language.builtin import symbolx_lib
 from bench.language.libs import DEFAULT_MODULES
+from bench.language.module import NodeTree
 from bench.language.mutate import diff_modules
 from bench.models import packer
 from bench.models.packer import DEFAULT_PACK_FILTER
@@ -149,8 +150,8 @@ def _sanity_check_diff(
 
     if diff:
         # get exact diff for debugging
-        module_tree = wire.NodeTree(new_module.nodes)
-        other_module_tree = wire.NodeTree(other_module_data.nodes)
+        module_tree = NodeTree(new_module.nodes)
+        other_module_tree = NodeTree(other_module_data.nodes)
 
         def _get_path(n_id: UUID) -> str:
             if n_id in module_tree.nodes_by_id:
