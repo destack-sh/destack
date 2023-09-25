@@ -1,16 +1,17 @@
 import abc
-from collections import deque
 import dataclasses
 import enum
+import functools
 import inspect
 import itertools
 import typing
-from typing import Iterator
 import uuid
+from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime
+from importlib import import_module
 from logging import Logger
-from typing import TYPE_CHECKING, ClassVar, Collection, Optional, Union
+from typing import TYPE_CHECKING, ClassVar, Collection, Iterator, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
@@ -26,12 +27,13 @@ from bench.language.const import (
     parse_node_path,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.utils import IdentifierType, to_pyidentifier, required_field
+from bench.utils.fractional import generate_key_between
+from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import Field, File, Issue, Session, Statement
-    from bench.language.wire import ModuleTreeData, NodeTree
+    from bench.language import File, Issue, Session
     from bench.language.issue import ValidationHandler
+    from bench.language.wire import ModuleTreeData
 
 logger = structlog.get_logger(__name__)
 
@@ -62,14 +64,14 @@ class LookupBy(enum.StrEnum):
 class NodeRelationType(enum.IntFlag):
     """Parent relation between node and descendants."""
 
-    ZERO = 0
-    INLINE = 2**0  # fully loaded: File->Statement, Statement->Field, ...
-    SHARED = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
-    FLAT = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
-    CUMULATIVE = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
-    NAMED = 2**4  # scoped by name: Module->File, File->Statement, ...
-    KEYED = 2**5  # scoped by key: File->Tagging, Statement->Tagging, ...
-    ORDERED = 2**6  # ordered: File->Statement, Statement->Field, ...
+    Default = 0  # default inline relation
+    Remote = 2**0  # not inline: Statement->Record, ...
+    Shared = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
+    Flat = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
+    Cumulative = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
+    Named = 2**4  # scoped by name: Module->File, File->Statement, ...
+    Keyed = 2**5  # scoped by key: File->Tagging, Statement->Tagging, ...
+    Ordered = 2**6  # ordered: File->Statement, Statement->Field, ...
 
 
 NRel = NodeRelationType
@@ -84,26 +86,29 @@ class NodeProperty:
     name: str | None = None  # name from LHS of assignment
     is_internal: bool = False
     is_runtime: bool = False
-    is_child_of: list[MNT] | None = None
-    is_descendant_of: MNT | None = None
+    parent_mnts: list[MNT] | None = None
+    ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
     default_factory: typing.Callable[[], typing.Any] | None = None
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # for relations
-    is_ancestor_of: MNT | None = None
+    child_mnt: MNT | None = None
     is_allowed: typing.Callable[["NodeT"], bool] | None = None
-    relation_flags: NodeRelationType = NodeRelationType.ZERO
+    children_flags: NodeRelationType = NodeRelationType.Default
 
     def __post_init__(self):
-        if self.is_ancestor_of:
+        if self.child_mnt:
             assert self.default is UNSET, f"cannot set default for {self}"
             assert self.default_factory is None, f"cannot set default_factory for {self}"
-            self.default = None  # init to None, is set properly in _init
 
     def __str__(self):
         non_default = []
         for k, v in self.__dict__.items():
-            if k not in ("name", "annotation") and v is not UNSET and v:
+            if k == "children_flags":
+                flags_str = ", ".join(f.name for f in NodeRelationType if v & f)
+                if flags_str:
+                    non_default.append(flags_str)
+            elif k not in ("name", "annotation") and v is not UNSET and v:
                 if isinstance(v, bool):
                     non_default.append(k)
                 else:
@@ -113,6 +118,10 @@ class NodeProperty:
 
     def __repr__(self):
         return f"<NodeProperty {self}>"
+
+    @property
+    def is_relation(self) -> bool:
+        return self.child_mnt is not None or self.ancestor_mnt is not None
 
 
 def nproperty(
@@ -140,20 +149,20 @@ def nruntime(
 
 def nparent(*mnt: MNT):
     """The parent of a node, must be of one of the given types."""
-    return NodeProperty(is_child_of=list(mnt), default=None, is_internal=True)
+    return NodeProperty(parent_mnts=list(mnt), default=None, is_internal=True)
 
 
 def nancestor(mnt: MNT):
     """Computed nearest ancestor of the given type."""
-    return NodeProperty(is_descendant_of=mnt, default=None, is_internal=True)
+    return NodeProperty(ancestor_mnt=mnt, default=None, is_internal=True)
 
 
 def nchildren(
-    mnt: MNT, flags: NRel = NRel.INLINE, is_allowed: typing.Callable[["NodeT"], bool] = None
+    mnt: MNT, flags: NRel = NRel.Default, is_allowed: typing.Callable[["NodeT"], bool] = None
 ):
     """Computed read/write children or descendants of the given type."""
     return NodeProperty(
-        is_ancestor_of=mnt, relation_flags=flags, is_allowed=is_allowed, is_internal=True
+        child_mnt=mnt, children_flags=flags, is_allowed=is_allowed, is_internal=True
     )
 
 
@@ -192,7 +201,14 @@ _NODE_INNER_METHODS: list[str] = [m.inner for m in NodeMethod]
 _FORBIDDEN_NODE_METHODS = (
     [m.self for m in NodeMethod] + [m.rec for m in NodeMethod] + ["__post_init__", "__del__"]
 )
-_NODE_CLASS_BY_MNT: dict[MNT, type] = {}
+_NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
+
+
+def _get_node_class(mnt: MNT):
+    if len(_NODE_CLASS_BY_MNT) < len(MNT):
+        m = import_module(f"bench.language")
+        getattr(m, mnt)  # noqa
+    return _NODE_CLASS_BY_MNT[mnt]
 
 
 @typing.dataclass_transform()
@@ -204,7 +220,9 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: 
     def decorate(cls):
         properties: dict[str, NodeProperty] = {}
         mutable_properties: dict[str, NodeProperty] = {}
+        ancestor_properties: dict[str, NodeProperty] = {}
         list_properties: dict[str, NodeProperty] = {}
+        list_properties_by_child: dict[MNT, list[NodeProperty]] = defaultdict(list)
         static_components: list[type["ModuleNode"]] = []
 
         # check that no forbidden methods are defined
@@ -226,16 +244,28 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: 
                 or isinstance(prop, property)
                 or isinstance(prop, classmethod)
                 or isinstance(prop, staticmethod)
+                or type(prop) == functools.cached_property
             ):
                 continue  # ignore reserved names and non-fields
             if not isinstance(prop, NodeProperty):
                 raise TypeError(f"{cls}.{name} is not a NodeProperty: {prop} ({type(prop)})")
             prop.name = name
             properties[name] = prop
-            if not prop.is_internal:
-                mutable_properties[name] = prop
-            if prop.is_ancestor_of:
+
+            # register property
+            if prop.child_mnt:
+                if (
+                    cls.__name__ != "ScopedNode"
+                    and not issubclass(cls, ScopedNode)
+                    and mnt is not None
+                ):
+                    raise ValueError(f"{cls} is not ScopedNode for {prop}")
                 list_properties[name] = prop
+                list_properties_by_child[prop.child_mnt].append(prop)
+            elif prop.ancestor_mnt:
+                ancestor_properties[name] = prop
+            elif not prop.is_internal:
+                mutable_properties[name] = prop
 
         # add any parent classes properties
         for base in reversed(cls.__bases__):
@@ -254,21 +284,30 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: 
             if static_props:
                 raise TypeError(f"expected only dynamic props for {cls}, got {static_props}")
 
-        # create dataclass
+        # create class
         for name, prop in properties.items():
             if not hasattr(cls, name):  # may be inherited
                 continue
-            if prop.default is not UNSET:
+            if prop.ancestor_mnt:
+                setattr(cls, name, _node_ancestor_prop(prop))
+                if name in cls.__annotations__:  # ensure property doesn't have a dataclass field
+                    del cls.__annotations__[name]
+            elif prop.child_mnt:
+                setattr(cls, name, dataclasses.field(init=False, default=None))
+            elif prop.default is not UNSET:
                 setattr(cls, name, dataclasses.field(default=prop.default))
             elif prop.default_factory is not None:
                 setattr(cls, name, dataclasses.field(default_factory=prop.default_factory))
             else:
                 setattr(cls, name, required_field())
-            cls.__annotations__[name] = prop.annotation
+            if not prop.ancestor_mnt:
+                cls.__annotations__[name] = prop.annotation
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         cls.__properties__ = properties
         cls.__tracked_properties__ = mutable_properties
+        cls.__ancestor_properties__ = ancestor_properties
         cls.__list_properties__ = list_properties
+        cls.__list_properties_by_child__ = list_properties_by_child
         cls.__static_components__ = tuple(static_components)
 
         # register as concrete node class for mnt
@@ -296,61 +335,136 @@ def node(mnt: MNT):
 NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
+def _node_ancestor_prop(prop: NodeProperty) -> property:
+    def get(self: NodeT) -> Optional[NodeT]:
+        parent = self.parent
+        while parent is not None:
+            if parent.mnt == prop.ancestor_mnt:
+                return parent
+            parent = parent.parent
+        return None
+
+    def set(self: NodeT, value: NodeT):
+        raise NotImplementedError(f"cannot set ancestor property {prop}")
+
+    return property(get, set)
+
+
 class NodeList(Collection, typing.Generic[NodeT]):
-    def __init__(self, parent: "ModuleNode", property: NodeProperty):
+    def __init__(self, parent: "ScopedNode", property: NodeProperty):
         self._parent = parent
+        self._child_t: type[NodeT] = _get_node_class(property.child_mnt)
         self._prop = property
-        self._flags = property.relation_flags
+        self._flags = property.children_flags
         self._children: list[NodeT] = []
 
     def __str__(self):
-        return f"{self._parent}.{self._prop.name} ({len(self._children)} items, {self._prop})"
+        return f"{self._parent.path}.{self._prop.name} ({len(self._children)} items, {self._prop})"
 
     def __repr__(self):
         return f"<NodeList {self}>"
 
     def _init_from(self, scope: "ScopedNode"):
-        self._children = []  # nocheckin: implement NodeList._init_from
-        # old impl of File.statements.append:
-        # last_ok = self.statements[-1].order_key if self.statements else None
-        # oks = generate_n_keys_between(last_ok, None, len(statements))
-        # for ok, statement in zip(oks, statements):
-        # if statement.parent is not None and statement.parent != self:
-        #         raise ValueError(f"statement {statement} belongs to {statement.parent}")
-        #     statement.order_key = ok
-        #             statement.parent = self
-        #             statement.file = self
-        #             self.module._on_added(statement)
-        #             statement._index()
-        #             for descendant in statement.walk_descendants():
-        #                 descendant.file = self
-        #                 self.statements.append(descendant)
-        #                 self.module._on_added(descendant)
+        """Initialize the list from the given scope."""
+        # TODO @Performance: use mark dirty in node list to avoid reinit
+
+        # _children is effectively a computed property which is replaced wholesale,
+        # we don't do diff updates to keep it simple with all the relation types.
+        if self._flags & NRel.Cumulative:
+            # all matching children of parent's descendants
+            #  e.g. Module->Issue, File->Issue, ... -> all issues
+            self.children = scope._tree.get_descendants(
+                scope.id, self._child_t, recursive=True, prefilter=False
+            )
+            assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
+        elif self._flags & NRel.Flat:
+            # all matching descendants of matching children of parent
+            #  e.g. Module->File, File->File, ... -> all files
+            self.children = scope._tree.get_descendants(
+                scope.id, self._child_t, recursive=True, prefilter=True
+            )
+            if self._flags & NRel.Ordered:
+                self.children.sort(key=lambda n: n.order_key)  # nocheckin: incorrect flat sort
+        else:
+            # only matching children of parent
+            self.children = scope._tree.get_descendants(scope.id, self._child_t, recursive=False)
+            if self._flags & NRel.Ordered:
+                self.children.sort(key=lambda n: n.order_key)
 
     def create(self, **kwargs):
-        node = None  # nocheckin: implement NodeList.create
-        return self.append(node)
+        raise NotImplementedError("nocheckin: implement NodeList.create")
+        # return self.append(node)
 
     def append(self, _node: NodeT):
-        # nocheckin: implement NodeList.append
-        raise NotImplementedError
+        """
+        Attaches a child node to a parent through a list.
+        This is the primary way of adding nodes to the tree.
+        A node may be 'append'-ed to a list at most once,
+         but may exist in multiple lists for (through _init_from collection).
+        """
+        if _node.parent is not None:  # maybe copy?
+            raise ValueError(f"cannot append {_node} to {self}: already has parent {_node.parent}")
+        was_attached = _node.attached
+        _node.parent = self._parent
+
+        if self._flags & NRel.Ordered and _node.order_key is None:
+            last_ok = self._children[-1].order_key if self._children else None
+            _node.order_key = generate_key_between(last_ok, None)
+
+        # assign ids if newly attached to the module
+        if not was_attached and _node.attached:
+            module_id = _node.module.id
+            for n in _node._walk():
+                if n.id is None:
+                    n._assign_id(module_id)
+        if not was_attached and not _node.attached:
+            raise NotImplementedError(f"cannot append to detached node {self._parent}: {_node}")
+
+        # index child into tree
+        by_name = bool(self._flags & NRel.Named)
+        if isinstance(_node, ScopedNode):
+            self._parent._add_child_scope(_node, by_name=by_name)
+        else:
+            self._parent._add_child_node(_node, by_name=by_name)
+
+        # reinit children for any affected parent nodes
+        parent = self._parent
+        while parent is not None:
+            for prop in parent.__list_properties__.values():
+                if prop.child_mnt == self._prop.child_mnt:
+                    getattr(parent, prop.name)._init_from(parent)
+            parent = parent.parent
+
+        assert _node in self._children, f"node {_node} not in {self}"
+
+    def extend(self, nodes: list[NodeT]):
+        """Attaches a list of child nodes to a parent. See append."""
+        for node in nodes:
+            self.append(node)
+
+    def remove(self, node: NodeT):
+        """Removes a child node from a parent. See append for reverse."""
+        raise NotImplementedError("nocheckin: implement NodeList.remove")
 
     def clear(self):
-        raise NotImplementedError(f"{self} does not support clear")
+        """Removes all child nodes from a parent. See append for reverse."""
+        children = list(self._children)
+        for child in children:
+            self.remove(child)
 
     def get(self, some_id: str) -> Optional[NodeT]:
-        if not (self._flags & NRel.KEYED) and not (self._flags & NRel.NAMED):
+        if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
             raise ValueError(f"cannot get {some_id} from {self}")
         for child in self._children:
             if child.key == some_id or child.name == some_id or child.py_ident == some_id:
                 return child
         return None
 
-    def __contains__(self, some_id: object) -> bool:
-        if isinstance(some_id, str) and (self._flags & NRel.KEYED or self._flags & NRel.NAMED):
-            return self.get(some_id) is not None
-        elif isinstance(some_id, ModuleNode):
-            return some_id in self._children
+    def __contains__(self, obj: object) -> bool:
+        if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
+            return self.get(obj) is not None
+        elif isinstance(obj, ModuleNode):
+            return obj in self._children
         else:
             return False
 
@@ -380,12 +494,6 @@ class NodeTree(typing.Generic[NT]):
     def __repr__(self):
         return f"<ModuleTree {self}>"
 
-    def __contains__(self, item):
-        return item in self.nodes_by_id
-
-    def __getitem__(self, item):
-        return self.nodes_by_id[item]
-
     #
     # Mutations
     #
@@ -399,10 +507,10 @@ class NodeTree(typing.Generic[NT]):
     def add(self, node: NT):
         """Add a node to the tree (error if node already exists)"""
         if node.id is None:
-            raise ValueError(f"node {node} has no id")
+            raise ValueError(f"node {node!r} has no id")
         if node.id in self.nodes_by_id:
             existing = self.nodes_by_id[node.id]
-            raise ValueError(f"node {node} (id={node.id}) already exists in {self}: {existing}")
+            raise ValueError(f"node {node!r} (id={node.id}) already exists in {self}: {existing}")
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
         if node.parent_id is not None:
@@ -544,22 +652,27 @@ class NodeTree(typing.Generic[NT]):
         node_id: UUID,
         t: type[NT] | None = None,
         recursive: bool = False,
+        prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
         """Finds all children (or descendants) of the given type"""
         children = [
             self.nodes_by_id[child_id]
             for child_id in self.nodes_by_parent_id.get(node_id, [])
-            if t is None or isinstance(self.nodes_by_id[child_id], t)
+            if t is None or not prefilter or isinstance(self.nodes_by_id[child_id], t)
         ]
         descendants = children[:]
         if recursive:
             for child in children:
                 if child.id not in self.nodes_by_parent_id:
                     continue
-                descendants.extend(self.get_descendants(child.id, t, recursive=True))
+                descendants.extend(
+                    self.get_descendants(child.id, t, prefilter=prefilter, recursive=True)
+                )
         if include_self and node_id in self.nodes_by_id:
             descendants.append(self.nodes_by_id[node_id])
+        if not prefilter and t is not None:
+            descendants = [n for n in descendants if isinstance(n, t)]
         return descendants
 
     def get_ancestor(self, node_id: UUID, t: type[NT] | None = None) -> Optional["NT"]:
@@ -607,7 +720,9 @@ class ModuleNode(abc.ABC):
     mnt: ClassVar[MNT]  # set in @node decorator
     __properties__: ClassVar[dict[str, NodeProperty]] = {}
     __static_components__: ClassVar[tuple[type["ModuleNode"]]] = []
+    __ancestor_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
+    __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
 
     id: UUID = ninternal(default=None)
@@ -622,13 +737,11 @@ class ModuleNode(abc.ABC):
     revision: int = ninternal(default=0)
 
     module: Optional["Module"] = nancestor(MNT.Module)
-    issues: NodeList["Issue"] = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
 
     _session: Optional["Session"] = nruntime(default=None)
     _status: NodeStatus = nruntime(default=NodeStatus.Interpreted)
 
     def __post_init__(self):
-        # nocheckin: update __post_init__ to track node relations?
         self._init_self()
         if self._session is SESSION_NOT_READY:
             pass
@@ -642,12 +755,15 @@ class ModuleNode(abc.ABC):
                 raise RuntimeError(f"no active session for {self}")
 
     @property
+    def parent_id(self) -> Optional[UUID]:
+        return self.parent.id if self.parent is not None else None
+
+    @property
     def _components(self) -> tuple[type["ModuleNode"]]:
         return self.__static_components__
 
     def _assign_id(self, module_id: UUID):
-        if module_id is None:
-            raise ValueError(f"cannot assign id to {self} without module_id")
+        assert module_id, f"cannot assign id to {self} without a module id"
         assert self.id is None, f"cannot assign id to {self} twice"
         assert self.ck is not None, f"cannot assign id to {self} without ck"
         self.id = get_node_id(module_id, self.ck)
@@ -662,9 +778,16 @@ class ModuleNode(abc.ABC):
     def __hash__(self):
         return hash(self.id)
 
-    @property
-    def parent_id(self) -> Optional[UUID]:
-        return self.parent.id if self.parent is not None else None
+    def __setattr__(self, key, value):
+        if self._status != NodeStatus.Tracked:
+            super().__setattr__(key, value)
+        elif key in self.__tracked_properties__:
+            super().__setattr__(key, value)
+            # nocheckin: track and validate mutation
+        elif key in self.__list_properties__:
+            raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
+        else:
+            raise AttributeError(f"cannot set {key} on {self}")
 
     # abstract :ComponentMethods
 
@@ -680,7 +803,7 @@ class ModuleNode(abc.ABC):
     def _index_inner(self) -> None:
         """Index this node."""
         for prop in self.__properties__.values():
-            if prop.is_ancestor_of is not None:
+            if prop.child_mnt is not None:
                 pass  # nocheckin: auto implement index
 
     def _interp_inner(self, scope: "ScopedNode") -> None:
@@ -713,9 +836,10 @@ class ModuleNode(abc.ABC):
     # final :ComponentMethods
 
     @staticmethod
-    def _make_self_method(method: NodeMethod):
+    def _make_self_method(method: NodeMethod, wraps):
         """Creates method that calls _method_inner for all components"""
 
+        @functools.wraps(wraps)
         def self_method(self, *args, **kwargs):
             for component in self._components:
                 if hasattr(component, method.inner):
@@ -724,20 +848,14 @@ class ModuleNode(abc.ABC):
         self_method.__name__ = method.self
         return self_method
 
-    _init_self = _make_self_method(NodeMethod.init)
-    _clear_self = _make_self_method(NodeMethod.clear)
-    _index_self = _make_self_method(NodeMethod.index)
-    _interp_self = _make_self_method(NodeMethod.interp)
-    _visit_self = _make_self_method(NodeMethod.visit)
-    _validate_self = _make_self_method(NodeMethod.validate)
-    _activate_self = _make_self_method(NodeMethod.activate)
-    _deactivate_self = _make_self_method(NodeMethod.deactivate)
-
-    def _notify_added(self, *nodes: "ModuleNode") -> None:
-        """When this node adds another node."""
-        if self.module is not None:
-            for n in nodes:
-                self.module._on_added(n)
+    _init_self = _make_self_method(NodeMethod.init, _init_inner)
+    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner)
+    _index_self = _make_self_method(NodeMethod.index, _index_inner)
+    _interp_self = _make_self_method(NodeMethod.interp, _interp_inner)
+    _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
+    _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
+    _activate_self = _make_self_method(NodeMethod.activate, _activate_inner)
+    _deactivate_self = _make_self_method(NodeMethod.deactivate, _deactivate_inner)
 
     def _walk(self) -> typing.Iterator["ModuleNode"]:
         visitor = NodeVisitor()
@@ -748,27 +866,10 @@ class ModuleNode(abc.ABC):
         while to_visit:
             for node in to_visit:
                 seen[node.ck] = node
-                node._visit(visitor)
+                node._visit_self(visitor)
             to_visit = [n for n in visitor.subtree if n.ck not in seen]
 
         yield from visitor._descendant_by_ck.values()
-
-    def _on_issue(
-        self,
-        issue: "Issue" = None,
-        *,
-        subject: Union["Statement", "File", "Field", None] = None,
-        type: IssueType = None,
-        **kwargs,
-    ):
-        from bench.language import Statement, File
-        from bench.language.issue import Issue
-
-        if not isinstance(subject, (Statement, File)):
-            subject = subject.parent  # fields don't have issues (yet)
-        if issue is None:
-            issue = Issue(type=type, parent=subject, **kwargs)
-        self.issues.append(issue)
 
     def copy(self):
         from bench.language import wire
@@ -777,18 +878,8 @@ class ModuleNode(abc.ABC):
         return wire.unpack_node(node_datas, parent=self.parent, session=None)
 
     @property
-    def errors(self) -> list["Issue"]:
-        if self.issues is None:
-            return []
-        return [i for i in self.issues or [] if i.kind == IssueKind.Error]
-
-    @property
-    def self_errors(self):
-        return [i for i in self.errors or [] if i.parent == self]
-
-    @property
     def attached(self) -> bool:
-        return self.parent is not None
+        return self.module is not None
 
     @property
     def path(self) -> str:
@@ -815,6 +906,7 @@ class ModuleNode(abc.ABC):
 class ScopedNode(ModuleNode):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
+    issues: NodeList["Issue"] = nchildren(MNT.Issue, NRel.Cumulative)
     _scopes_by_name: dict[str, "ScopedNode"] = nruntime(default_factory=dict)
     _names_by_ident: dict[str, str] = nruntime(default_factory=dict)
     # TODO @Performance: technically we only need id tree in scope at the root level
@@ -876,10 +968,6 @@ class ScopedNode(ModuleNode):
             return None
         return scope.lookup(inner_part, node_t=node_t, by=by)
 
-    def _add_child_scope(self, scope: "ScopedNode", by_name: bool) -> None:
-        self._add_child_node(scope, by_name)
-        self._tree.add_tree(scope._tree)
-
     def _add_child_node(self, node: ModuleNode, by_name: bool) -> None:
         self._tree.add(node)
         # index name
@@ -889,6 +977,18 @@ class ScopedNode(ModuleNode):
             else:
                 self._scopes_by_name[node.name] = node
                 self._names_by_ident[node.py_ident] = node.name
+
+    def _add_child_scope(self, scope: "ScopedNode", by_name: bool) -> None:
+        self._add_child_node(scope, by_name)
+        self._tree.add_tree(scope._tree)
+
+    def _add_child_scope_rec(self, scope: "ScopedNode", by_name: bool) -> None:
+        self._add_child_scope(scope, by_name)
+        for child in scope._tree.nodes_by_id.values():
+            if isinstance(child, ScopedNode):
+                self._add_child_scope(child, by_name)
+            else:
+                self._add_child_node(child, by_name)
 
     def _clear_inner(self):
         """Resets this scope and all child scopes."""
@@ -901,6 +1001,33 @@ class ScopedNode(ModuleNode):
         if self.parent is None:
             return self
         return self.parent._root_scope
+
+    def _on_issue(
+        self,
+        issue: "Issue" = None,
+        *,
+        subject: Union["Statement", "File", "Field", None] = None,
+        type: IssueType = None,
+        **kwargs,
+    ):
+        from bench.language import File, Statement
+        from bench.language.issue import Issue
+
+        if not isinstance(subject, (Statement, File)):
+            subject = subject.parent  # fields don't have issues (yet)
+        if issue is None:
+            issue = Issue(type=type, parent=subject, **kwargs)
+        self.issues.append(issue)
+
+    @property
+    def errors(self) -> list["Issue"]:
+        if self.issues is None:
+            return []
+        return [i for i in self.issues or [] if i.kind == IssueKind.Error]
+
+    @property
+    def self_errors(self):
+        return [i for i in self.errors or [] if i.parent == self]
 
 
 class NodeVisitor:
@@ -936,7 +1063,7 @@ class Module(ScopedNode):
     parent: None = nparent()
     name: str = ninternal()  # can't change this yet
     committed: bool = ninternal(default=False)
-    files: NodeList["File"] = nchildren(MNT.File, NodeRelationType.INLINE | NodeRelationType.FLAT)
+    files: NodeList["File"] = nchildren(MNT.File, NRel.Flat)
     dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
     builtins: list["File"] = nruntime(default_factory=list)
 

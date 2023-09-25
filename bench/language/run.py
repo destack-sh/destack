@@ -11,14 +11,14 @@ from uuid import UUID
 import msgpack
 
 from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, TriggerType
-from bench.language.module import Module, ModuleNode, NodeVisitor, node_component
+from bench.language.module import Module, ModuleNode, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language import Session, Statement, Trigger
-    from bench.language.session import LogSearch, RunSearch, ScopedNode
+    from bench.language.session import LogSearch, RunSearch
 
 
 @node_component
@@ -28,15 +28,6 @@ class HasRun(ModuleNode):
     @property
     def _is_async(self) -> Optional[bool]:
         return None
-
-    def _clear(self) -> None:
-        pass
-
-    def _interp_inner(self, scope: "ScopedNode") -> None:
-        pass
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        pass
 
     @property
     def logs(self) -> "LogSearch":

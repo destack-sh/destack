@@ -10,12 +10,13 @@ from bench.language.field import Field
 from bench.language.module import (
     Module,
     ModuleNode,
+    ScopedNode,
     nchildren,
+    ninternal,
     node,
     node_component,
     nparent,
     nproperty,
-    ninternal,
 )
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
@@ -86,7 +87,7 @@ class Record(HasValue, ModuleNode):
 
 
 @node(mnt=MNT.DatabaseView)
-class DatabaseView(ModuleNode):
+class DatabaseView(ScopedNode):
     parent: "Statement" = nparent(MNT.Statement)
     name: str | None = nproperty(default=None)
     layout: DatabaseViewLayout = nproperty(default=DatabaseViewLayout.TABLE)
@@ -143,7 +144,6 @@ class HasDatabase(ModuleNode, Search["RecordData", Record]):
                 raise TypeError(f"cannot append {type(record)} to {self}")
         value = unproxy_value(value)  # remove source proxy if any
         record = Record(parent=self, value=value)
-        self._notify_added(record)
         self.session.tracer.database_append(self, record)
         return record
 
@@ -154,7 +154,6 @@ class HasDatabase(ModuleNode, Search["RecordData", Record]):
             for record in records
         ]
         records = [Record(parent=self, value=value) for value in values]
-        self._notify_added(*records)
         self.session.tracer.node_create(self, records)
 
     def search(

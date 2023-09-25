@@ -11,7 +11,6 @@ from bench.language.const import MNT, ScheduleType, TriggerType
 from bench.language.module import (
     ModuleNode,
     NodeList,
-    NodeVisitor,
     ScopedNode,
     nchildren,
     node,
@@ -81,16 +80,6 @@ class HasTriggers(ModuleNode):
     """A symbol that can participate in a flow."""
 
     triggers: NodeList[Trigger] = nchildren(MNT.Trigger)
-
-    def _clear(self) -> None:
-        pass
-
-    def _interp_inner(self, scope: ScopedNode) -> None:
-        pass
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for trigger in self.triggers:
-            visitor.visit_child(trigger)
 
 
 # :TriggerSchedule

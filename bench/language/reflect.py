@@ -127,7 +127,7 @@ def x_model(
     return decorator
 
 
-_symbolx_reflect = File(name="reflect", module=symbolx_lib, _session=SESSION_NOT_READY)
+_symbolx_reflect = File(name="reflect", _session=SESSION_NOT_READY)
 symbolx_lib.files.append(_symbolx_reflect)
 
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)

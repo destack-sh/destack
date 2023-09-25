@@ -24,11 +24,11 @@ from bench.language.module import (
     NodeVisitor,
     ScopedNode,
     get_node_id,
+    ninternal,
     node,
     node_component,
     nparent,
     nproperty,
-    ninternal,
 )
 from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
@@ -393,9 +393,7 @@ class HasFields(SomeType, ModuleNode):
                 reference=base,
                 flags=TypeFlag.IsUnionWith,
             )
-            self.session.tracer.field_append(self, field_)
             self.fields.append(field_)
-            self._notify_added(field_)
         return self
 
     def _inputs_from_args(self, args, kwargs) -> dict:
@@ -420,7 +418,6 @@ class HasFields(SomeType, ModuleNode):
                 field_copy.id = None
                 field_copy.ck = uuid.uuid4()
             self.fields.append(field_copy)
-            self._notify_added(field_copy)
             new_fields.append(field_copy)
         self._assign_oks()
         return new_fields
