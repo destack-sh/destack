@@ -93,32 +93,6 @@ class File(ModuleNode, Scope):
         for statement in self.statements:
             statement._clear()
 
-    def _index(self):
-        """Indexes all statements in this file into the scope."""
-        # per parent (incl. root = None) sort by order key
-        sorted_statements = []
-        self._statements_by_parent_id: dict[UUID, list[Statement]] = defaultdict(list)
-        for statement in self.statements:
-            self._statements_by_parent_id[statement.parent_id].append(statement)
-
-        def walk_dfs(statement: "Statement"):
-            sorted_statements.append(statement)
-            children = self._statements_by_parent_id.get(statement.id)
-            if children is not None:
-                for child in sorted(children, key=lambda s: s.order_key):
-                    walk_dfs(child)
-
-        roots = self._statements_by_parent_id.get(self.id, [])
-        for statement in sorted(roots, key=lambda s: s.order_key):
-            walk_dfs(statement)
-        assert len(sorted_statements) == len(self.statements), f"invalid {self} statements"
-        self.statements = sorted_statements
-
-        self.children = [s for s in self.statements if s.parent == self]
-        for statement in self.statements:
-            statement._index()
-            self._add_child_scope(statement, by_name=statement.parent == self)
-
-    def _interp(self, scope: "Scope"):
+    def _interp_inner(self, scope: "Scope"):
         for statement in self.statements:
             statement._interp(statement)

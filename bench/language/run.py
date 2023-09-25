@@ -32,10 +32,7 @@ class HasRun(ModuleNode):
     def _clear(self) -> None:
         pass
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: "Scope") -> None:
+    def _interp_inner(self, scope: "Scope") -> None:
         pass
 
     def _visit(self, visitor: NodeVisitor) -> None:
@@ -211,7 +208,7 @@ class Run:
             self.terminated_at = utcnow_with_tz()
             self.status = RunStatus.Aborted if self.started_at else RunStatus.Cancelled
 
-    def _activate_in(self, session: "Session", **kwargs):
+    def _activate_inner(self, session: "Session", **kwargs):
         from bench.language.libs import symbolx_lib
         from bench.language.mapping import check_type, unpack_value
 
@@ -304,7 +301,7 @@ class RunCodeFrame:
 
         code_by_method: dict[str, HasCode] = {
             symbol._transform.method_name: symbol
-            for symbol in session.instances_by_id.values()
+            for symbol in session.module._nodes_by_id.values()
             if isinstance(symbol, HasCode) and symbol._transform is not None
         }
 
@@ -329,8 +326,8 @@ class RunCodeFrame:
                     frame.line = code.code.splitlines()[frame.lineno - 1]
                     frame.locals = frame.locals or {}
                     for ident, var in code._statement_references.items():
-                        if ident not in frame.locals and var.id in session.instances_by_id:
-                            frame.locals[ident] = repr(session.instances_by_id[var.id])
+                        if ident not in frame.locals and var.id in session.module._nodes_by_id:
+                            frame.locals[ident] = repr(session.module._nodes_by_id[var.id])
             if found_start:
                 # trim file path for python modules
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"

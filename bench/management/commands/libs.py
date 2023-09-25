@@ -118,7 +118,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         if name != "symbolx.lib":
             new_module_loaded.add_dependency(symbolx_lib)
         new_module_loaded.index()
-        new_module_loaded.interp()
+        new_module_loaded._interp()
         if new_module_loaded.issues:
             raise ValueError(f"module {new_module_loaded} has issues: {new_module_loaded.issues}")
 

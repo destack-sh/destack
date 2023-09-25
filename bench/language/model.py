@@ -17,10 +17,8 @@ from bench.language.field import HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import (
     ModuleNode,
-    NodeVisitor,
     Scope,
     node_component,
-    ninternal,
     nruntime,
 )
 from bench.utils.dt import utcnow_with_tz
@@ -45,7 +43,7 @@ class ModelErrorType(enum.StrEnum):
     Unknown = "Unknown"
 
 
-@node_component
+@node_component(dynamic=True)
 class HasModel(HasFields, ModuleNode):
     _is_async: bool = nruntime(default=False)
     _remote: bool = nruntime(default=False)
@@ -56,17 +54,14 @@ class HasModel(HasFields, ModuleNode):
 
     # we only cache models without vector inputs/outputs
 
-    def _clear(self) -> None:
+    def _clear_inner(self) -> None:
         self._api_key = None
         self._remote = True
         self._endpoint_impl = None
         self._compiler_impl = None
         self._has_vector_io = False
 
-    def _index(self):
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:
@@ -78,9 +73,6 @@ class HasModel(HasFields, ModuleNode):
             if t.tag == TypeTag.VECTOR:
                 self._has_vector_io = True
                 break
-
-    def _visit(self, visitor: "NodeVisitor") -> None:
-        pass
 
     @property
     def should_cache(self) -> bool:

@@ -89,7 +89,6 @@ class Session:
         self.id = id or uuid4()
         self.ctx = ctx
         self.module = module
-        self.instances_by_id: dict[UUID, "ModuleNode"] = {}
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
@@ -138,29 +137,6 @@ class Session:
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
-
-    def add(self, *objs: "ModuleNode", new: bool = False) -> None:
-        from bench.language import File, Statement
-
-        if new:
-            for obj in objs:
-                # permissions are checked in tracer
-                if isinstance(obj, File):
-                    self.tracer.file_create(obj)
-                elif isinstance(obj, Statement):
-                    self.tracer.statement_create(obj)
-                    if isinstance(obj, ModuleNode):
-                        # it feels like this should be done in some tracer? also (re?)-index?
-                        self.module._nodes_by_id[obj.id] = obj
-                        self.module._nodes_by_ck[obj.ck] = obj
-        for obj in objs:
-            self.instances_by_id[obj.id] = obj
-
-    def remove(self, *objs: "ModuleNode") -> None:
-        for obj in objs:
-            if obj.id in self.instances_by_id:
-                del self.instances_by_id[obj.id]
-                # not doing anything yet?
 
     def check_can(self, op: ModuleOp, thing: ModuleNode):
         if not self.can(op, thing):

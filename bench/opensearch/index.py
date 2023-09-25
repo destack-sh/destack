@@ -347,7 +347,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         module.add_dependency(dependency)
     module.add_builtin(libs.symbolx_lib.get_file("builtins"))
     module.index()
-    module.interp()
+    module._interp()
 
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}

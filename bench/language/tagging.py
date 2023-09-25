@@ -43,7 +43,11 @@ class Tagging(HasValue, ModuleNode):
     def __repr__(self):
         return f"<Tagging {self}>"
 
-    def _visit(self, visitor: NodeVisitor) -> None:
+    def _interp_inner(self, scope: "Scope") -> None:
+        if self.reference_ck is not None:
+            self.reference = scope._root_scope._nodes_by_id.get(self.reference_ck)
+
+    def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
@@ -77,22 +81,3 @@ class HasTags(ModuleNode):
             if tagging.key == key:
                 return tagging
         raise KeyError(key)
-
-    def _clear(self) -> None:
-        pass
-
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
-        for tagging in self.tags:
-            if tagging.reference_ck is None:
-                continue
-            tagging.reference = scope._root_scope._nodes_by_id.get(tagging.reference_ck)
-            if tagging.reference is None:
-                # is that an error? not sure
-                continue
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for tagging in self.tags:
-            visitor.visit_child(tagging)

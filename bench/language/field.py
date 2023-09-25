@@ -351,28 +351,15 @@ class ResolvedField(Field):
         return self.field.ck
 
 
-@node_component
+@node_component(dynamic=True)
 class HasFields(SomeType, ModuleNode):
     """A symbol that has fields"""
 
-    def __post_init__(self):
-        super().__post_init__()
+    def _init(self):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
-    def _clear(self) -> None:
-        self.resolved_fields = None
-        for f in self.fields:
-            f._clear()
-
-    def _index(self):
-        for f in self.fields:
-            self._add_child_node(f, by_name=True)
-
-    def _interp(self, scope: Scope) -> None:
-        # sort fields by order key
-        self.fields.sort(key=lambda f: f.order_key)
-
+    def _interp_inner(self, scope: Scope) -> None:
         # interp fields
         for f in self.fields:
             HasText._interp(f, scope)
@@ -395,10 +382,6 @@ class HasFields(SomeType, ModuleNode):
         # expand unions (recursively)
         _resolve_unions(self, [])
 
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for field_ in self.fields:
-            visitor.visit_child(field_)
-
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""
         for base in bases:
@@ -412,22 +395,6 @@ class HasFields(SomeType, ModuleNode):
             self.session.tracer.field_append(self, field_)
             self.fields.append(field_)
             self._notify_added(field_)
-        self._reinterp()
-        return self
-
-    def add_field(self, *fields_: Field) -> "Self":
-        """Adds a field to this type"""
-        last_ok = self.fields[-1].order_key if self.fields else None
-        oks = generate_n_keys_between(last_ok, None, len(fields_))
-        for ok, field_ in zip(oks, fields_):  # noqa shadows dataclass.field
-            self.session.tracer.field_append(self, field_)
-            if not field_.detached:
-                raise ValueError(f"{field_} is already attached to {field_.parent}")
-            field_.parent = self
-            field_.order_key = ok
-            self.fields.append(field_)
-            self._notify_added(field_)
-        self._reinterp()
         return self
 
     def _inputs_from_args(self, args, kwargs) -> dict:

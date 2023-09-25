@@ -16,13 +16,12 @@ class HasReference(ModuleNode):
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None)
 
-    def _clear(self) -> None:
-        pass
+    def _clear_inner(self) -> None:
+        self.reference = (
+            self.reference.ck if isinstance(self.reference, ModuleNode) else self.reference
+        )
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         resolved = None
         if not isinstance(self.reference, ModuleNode):
             resolved = scope.lookup(self.reference)
@@ -31,14 +30,13 @@ class HasReference(ModuleNode):
         else:
             self.reference = resolved
 
-    def _visit(self, visitor: "NodeVisitor") -> None:
+    def _visit_inner(self, visitor: "NodeVisitor") -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
 
 class ModuleView:
     def __init__(self, module: Module, origin: ModuleNode):
-        super().__init__()
         self.module = module
         self.origin = origin
         self._nodes_by_distance: list[list[ModuleNode]] = []

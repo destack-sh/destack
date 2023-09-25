@@ -62,6 +62,32 @@ class BenchError(ValueError):
         self.issue = issue
 
 
+class ValidationError(ValueError):
+    def __init__(
+        self,
+        subject: ModuleNode,
+        properties: list[str] | None,
+        message: str,
+        cause: Exception | None = None,
+    ):
+        super().__init__(message)
+        self.subject = subject
+        self.properties = properties
+        self.message = message
+        self.cause = cause
+
+
+class ValidationHandler:
+    def __call__(
+        self,
+        subject: ModuleNode,
+        message: str,
+        properties: list[str] | None,
+        cause: Exception | None = None,
+    ):
+        pass
+
+
 @node(mnt=MNT.Issue)
 class Issue(ModuleNode):
     parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)

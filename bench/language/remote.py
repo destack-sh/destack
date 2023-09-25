@@ -11,6 +11,7 @@ import structlog
 from asgiref.sync import async_to_sync
 
 from bench.language.const import RemoteObjectStatus, MNT
+from bench.language.issue import ValidationHandler
 from bench.language.module import Module, ModuleNode, node, nproperty, nruntime
 from bench.utils.func import did_you_mean_str
 
@@ -47,10 +48,10 @@ class RemoteObject(ModuleNode):
     def __getitem__(self, item):
         return self.__dict__[item]
 
-    def _validate(self):
+    def _validate_inner(self, properties: set[str], on_issue: ValidationHandler) -> None:
         if self.content_length > REMOTE_OBJECT_MAX_SIZE:
-            raise ValueError(
-                f"{self} is too big ({self.content_length} > {REMOTE_OBJECT_MAX_SIZE} bytes)"
+            on_issue(
+                self, f"{self} is too big ({self.content_length} > {REMOTE_OBJECT_MAX_SIZE} bytes)"
             )
 
     async def aread(self, timeout: float = 1) -> bytes:

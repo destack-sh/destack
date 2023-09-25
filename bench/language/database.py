@@ -111,37 +111,24 @@ class DatabaseViewField(ModuleNode):
     order_key: str | None = nproperty(default=None)
 
 
-@node_component(tracked=["versioned"])
-class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
-    # note that HasDatabase feels like a neat component than the others (HasCode, HasText, etc.)
+@node_component(dynamic=True)
+class HasDatabase(ModuleNode, Search["RecordData", Record]):
+    # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
 
-    def __post_init__(self):
-        if self.key is not None:
-            return  # already set
-        if self.versioned:
-            if self.id is not None:
-                self.key = new_dynamic_node_key(self.id)
+    def _init(self):
+        # nocheckin: ensure this takes effect if HasFields is also a component
+        if self.key is None:
+            if self.versioned:
+                if self.id is not None:
+                    self.key = new_dynamic_node_key(self.id)
+                else:
+                    self.key = None
             else:
-                self.key = None
-        else:
-            self.key = new_dynamic_node_key(self.ck)
+                self.key = new_dynamic_node_key(self.ck)
 
     def clear(self):
-        self.session.tracer.database_clear(self)
-
-    def _clear(self):
-        pass
-
-    def _interp(self, scope: "Scope") -> None:
-        pass
-
-    def _index(self) -> None:
-        pass
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        for view in self.views or []:
-            visitor.visit_child(view)
+        self.records.clear(self)
 
     def append(self, record: Record | dict = None, **value) -> Record:
         """Appends a record to the database."""
@@ -170,22 +157,6 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
         self._notify_added(*records)
         self.session.tracer.node_create(self, records)
 
-    def map(
-        self,
-        func: typing.Union["MapFunction", "BatchMapFunction"],
-        batch_size: Optional[int] = None,
-    ):
-        """Maps the database with the given function."""
-        self.search().map(func, batch_size)
-
-    async def amap(
-        self,
-        func: typing.Union["AmapFunction", "BatchAmapFunction"],
-        batch_size: Optional[int] = None,
-    ):
-        """Maps the database with the given async function."""
-        await self.search().amap(func, batch_size)
-
     def search(
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
     ) -> "RecordSearch":
@@ -210,9 +181,6 @@ class HasDatabase(HasFields, ModuleNode, Search["RecordData", Record]):
 
     def limit(self, limit: int) -> "RecordSearch":
         return self.search(limit=limit)
-
-    def __len__(self):
-        return self.count()
 
     def __iter__(self):
         return iter(self.search())
@@ -295,7 +263,7 @@ class RecordSearch(Search["RecordData", Record]):
             )
         record = wire.unpack_node_flat(record_data, parent, self.module.session)
         record._instantiated = False
-        record._activate_in(self.module.session)
+        record._activate_rec(self.module.session)
         return record
 
     def filter(self, query: Query) -> "RecordSearch":

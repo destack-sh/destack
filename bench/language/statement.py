@@ -2,6 +2,7 @@ import typing
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
+from bench.language.code_ import HasCode
 from bench.language.const import (
     MNT,
     StatementReference,
@@ -10,7 +11,9 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
+from bench.language.database import HasDatabase
 from bench.language.issue import Issue
+from bench.language.model import HasModel
 from bench.language.module import (
     Module,
     ModuleNode,
@@ -25,6 +28,8 @@ from bench.language.module import (
     NodeList,
 )
 from bench.language.field import HasFields
+from bench.language.reference import HasReference
+from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, to_pyidentifier
@@ -39,7 +44,8 @@ if TYPE_CHECKING:
         DatabaseView,
         Record,
         ResolvedField,
-        Session,
+        HasRun,
+        HasValue,
     )
 
 
@@ -53,9 +59,9 @@ class Statement(ModuleNode, Scope):
         MNT.Statement, NRel.INLINE | NRel.ORDERED | NRel.NAMED
     )
 
+    type: StatementType = nproperty(default=StatementType.BLANK)
     name: Optional[str] = nproperty(default=None)
     order_key: str | None = nproperty(default=None)
-    type: StatementType = nproperty(default=StatementType.BLANK)
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None)
     heading_level: Optional["TextHeadingLevel"] = nproperty(default=None)
@@ -79,19 +85,11 @@ class Statement(ModuleNode, Scope):
     records: NodeList["Record"] = nchildren(MNT.Record, NRel.ZERO)
     issues: NodeList[Issue] | None = nchildren(MNT.Issue, NRel.INLINE | NRel.CUMULATIVE)
 
-    def __post_init__(self):
-        super().__post_init__()
-        if self.file is None and self.parent is not None:
-            self.file = self.parent.file
-        if self.parent is None:
-            self.parent = self.file
-        # nocheckin: init components
-
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path
 
     def __repr__(self):
-        return f"<{self.__class__.__name__} {self}>"
+        return f"<{self.type.name} {self}>"
 
     @property
     def reference_ck(self) -> Optional[UUID]:
@@ -144,7 +142,7 @@ class Statement(ModuleNode, Scope):
         if self.name is None:
             return None
         else:
-            return to_pyidentifier(self.name, IdentifierType.VARIABLE)
+            return to_pyidentifier(self.name, _STATEMENT_IDENTIFIER_BY_TYPE[self.type])
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -188,7 +186,7 @@ class Statement(ModuleNode, Scope):
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._index(self)
 
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         """Updates, resolves and checks any derived/interpreted values on this statement."""
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._interp(self, scope)
@@ -199,24 +197,32 @@ class Statement(ModuleNode, Scope):
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._visit(self, visitor)
 
-    def _activate_in(self, session: "Session") -> None:
-        """Activates this statement in the given session."""
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            if hasattr(cls, "_activate_in"):
-                cls._activate_in(self, session)
-        super()._activate_in(session)
-
-    def _deactivate(self) -> None:
-        """Deactivates this statement."""
-        super()._deactivate()
-        for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
-            if hasattr(cls, "_deactivate"):
-                cls._deactivate(self)
-
 
 _STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {
     StatementType.TYPE: [HasFields, HasText],
-    StatementType.MODEL: [HasFields, HasText],
+    StatementType.CODE: [HasCode, HasRun, HasFields, HasText],
+    StatementType.MODEL: [HasModel, HasRun, HasFields, HasText],
+    StatementType.TASK: [HasTask, HasRun, HasFields, HasText],
+    StatementType.FLOW: [HasRun, HasFields, HasText],
+    StatementType.DATABASE: [HasDatabase, HasFields, HasText],
+    StatementType.TAG: [HasFields, HasText],
+    StatementType.VARIABLE: [HasValue, HasFields, HasText],
+    StatementType.REFERENCE: [HasReference, HasText],
+    StatementType.TEXT: [HasText],
+    StatementType.BLANK: [],
+}
+_STATEMENT_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
+    StatementType.TYPE: IdentifierType.TYPE,
+    StatementType.MODEL: IdentifierType.METHOD,
+    StatementType.TASK: IdentifierType.METHOD,
+    StatementType.FLOW: IdentifierType.METHOD,
+    StatementType.CODE: IdentifierType.METHOD,
+    StatementType.DATABASE: IdentifierType.VARIABLE,
+    StatementType.VARIABLE: IdentifierType.VARIABLE,
+    StatementType.TAG: IdentifierType.VARIABLE,
+    StatementType.REFERENCE: IdentifierType.VARIABLE,
+    StatementType.TEXT: IdentifierType.VARIABLE,
+    StatementType.BLANK: IdentifierType.VARIABLE,
 }
 
 _missing_types = set(StatementType) - set(_STATEMENT_COMPONENTS_BY_TYPE)

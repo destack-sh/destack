@@ -8,12 +8,11 @@ from typing import TYPE_CHECKING, Optional, Self, Union
 import structlog
 
 from bench.language.const import IssueType
-from bench.language.field import HasFields, TypedDict
+from bench.language.field import TypedDict
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
-from bench.language.module import ModuleNode, NodeVisitor, Scope, node, node_component
+from bench.language.module import ModuleNode, Scope, node_component, nruntime
 from bench.language.reference import ModuleView
-
 from ..utils.func import describe_type
 
 if TYPE_CHECKING:
@@ -22,22 +21,20 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_component
-class HasTask(HasFields, ModuleNode):
-    _root_models: list["HasModel"] = None
-    _randomize: bool = False
+@node_component(dynamic=True)
+class HasTask(ModuleNode):
+    _root_models: list["HasModel"] | None = nruntime(default=None)
+    _randomize: bool = nruntime(default=False)
 
     @property
     def _is_async(self):
         return True
 
-    def _clear(self) -> None:
-        pass
+    def _clear_inner(self) -> None:
+        self._root_models = None
+        self._randomize = False
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         from bench.language.builtin import symbolx_lib
 
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
@@ -45,11 +42,8 @@ class HasTask(HasFields, ModuleNode):
 
         if not self.outputs:
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
-        # TODO @UX @Task: interp task
+        # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available runnables
-
-    def _visit(self, visitor: NodeVisitor) -> None:
-        pass
 
     async def __call_async__(
         self,
