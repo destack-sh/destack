@@ -55,10 +55,11 @@ class Trigger(ModuleNode):
     def __repr__(self):
         return f"<Trigger {self}>"
 
-    def _visit(self, visitor: NodeVisitor) -> None:
-        pass
+    def _clear_inner(self) -> None:
+        self.runnable = self.runnable.id if isinstance(self.runnable, ModuleNode) else self.runnable
+        self.scope = self.scope.id if isinstance(self.scope, ModuleNode) else self.scope
 
-    def _interp(self, scope: "Scope") -> None:
+    def _interp_inner(self, scope: "Scope") -> None:
         # nocheckin: make sure this _interp is called
         # resolve runnable
         if self.runnable is not None and not isinstance(self.runnable, HasRun):
@@ -85,10 +86,7 @@ class HasTriggers(ModuleNode):
     def _clear(self) -> None:
         pass
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         pass
 
     def _visit(self, visitor: NodeVisitor) -> None:

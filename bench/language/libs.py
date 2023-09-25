@@ -988,7 +988,7 @@ for name, module in DEFAULT_MODULES.items():
 
     # index
     module.index()
-    module.interp()
+    module._interp()
     if module.issues:
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
 
@@ -1002,7 +1002,7 @@ for name, module in DEFAULT_MODULES.items():
         if module_reloaded.name != "symbolx.lib":
             module_reloaded.add_dependency(symbolx_lib)
         module_reloaded.index()
-        module_reloaded.interp()
+        module_reloaded._interp()
 
         if module_reloaded.issues:
             raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")

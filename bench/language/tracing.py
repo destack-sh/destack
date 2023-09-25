@@ -164,7 +164,7 @@ class SessionTracer(Tracer):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
-        self._pending_runs: list[Run] = []
+        self._pending_runs: dict[UUID, Run] = {}
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
 
@@ -197,13 +197,8 @@ class SessionTracer(Tracer):
 
     def _track_run(self, run: Run):
         # replace if already exists by id (runs are updated)
-        # nocheckin: do we still need this replacing?
-        for i, existing in enumerate(self._pending_runs):
-            if existing.id == run.id:
-                self._pending_runs[i] = run
-                return
         self.runs[run.id] = run
-        self._pending_runs.append(run)
+        self._pending_runs[run.id] = run
 
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)
@@ -330,7 +325,7 @@ class SessionTracer(Tracer):
             status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
             value={},
         )
-        run._activate_in(self.session, queue_position=queue_position)
+        run._activate(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
         custom_value = _custom_value.get()
@@ -370,7 +365,7 @@ class SessionTracer(Tracer):
             return  # skip if nothing to flush
 
         logs = self._pending_logs[:]
-        runs = self._pending_runs[:]
+        runs = list(self._pending_runs.values())
         self._pending_logs.clear()
         self._pending_runs.clear()
 

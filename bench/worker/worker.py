@@ -489,7 +489,7 @@ class ModuleWorkerProcess(ModuleWriter):
             )
 
             # run in active session
-            self.module._activate_in(job.session)
+            self.module._activate(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()

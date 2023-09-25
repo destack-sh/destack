@@ -1,5 +1,6 @@
-from typing import TYPE_CHECKING, Any, Collection
+from typing import TYPE_CHECKING, Any, Collection, Callable
 
+from bench.language.issue import ValidationError
 from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime
 from bench.utils.proxy import proxy_value
 
@@ -19,25 +20,25 @@ class HasValue(ModuleNode):
     def _clear(self):
         pass
 
-    def _interp(self, scope: "Scope") -> None:
+    def _interp_inner(self, scope: "Scope") -> None:
         pass  # TODO @Interp: interp value in HasValue
-
-    def _index(self) -> None:
-        pass
 
     def _visit(self, visitor: "NodeVisitor") -> None:
         pass
 
-    def _validate(self, properties: Collection[str]):
+    def _validate(self, properties: Collection[str], on_issue: ValidationHandler) -> None:
         if "value" in properties:
             from bench.language.mapping import check_type
 
-            check_type(self.value, self._type_of_value)
+            try:
+                check_type(self.value, self._type_of_value)
+            except TypeError as e:
+                on_issue(ValidationError(self, ["value"], str(e)))
 
     def _onwrite_value(self, key: str) -> None:
-        self.session.tracer.value_update(self, key)
+        self.session.tracer.node_update(self, key)
 
-    def _activate_in(self, session: "Session") -> None:
+    def _activate_inner(self, session: "Session") -> None:
         from bench.language.mapping import unpack_value
 
         if self._value_unpacked:

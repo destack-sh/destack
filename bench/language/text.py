@@ -32,13 +32,10 @@ class HasText(ModuleNode):
     def mentions(self) -> list["TextMention"]:
         return [span for span in self.text_spans if isinstance(span, TextMention)]
 
-    def _clear(self) -> None:
+    def _clear_inner(self) -> None:
         self._text_spans = None
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         if self.text is None:
             return
         self._text_spans = parse_text_html(self.text)
@@ -59,7 +56,7 @@ class HasText(ModuleNode):
                 continue
             span.reference = resolved  # success
 
-    def _visit(self, visitor: NodeVisitor) -> None:
+    def _visit_inner(self, visitor: NodeVisitor) -> None:
         if self._text_spans is None:
             return
         for span in self._text_spans:

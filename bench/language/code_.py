@@ -47,8 +47,8 @@ class CodeParse:
     x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
-@node_component(tracked=["code"])
-class HasCode(HasFields, ModuleNode):
+@node_component(dynamic=True)
+class HasCode(ModuleNode):
     _is_async: Optional[bool] = nruntime(default=None)
     _parse: Optional[CodeParse] = nruntime(default=None)
     _transform: Optional[CodeTransformation] = nruntime(default=None)
@@ -56,17 +56,14 @@ class HasCode(HasFields, ModuleNode):
     _callable_wrapped: AsyncCodeCallable | SyncCodeCallable | None = nruntime(default=None)
     _cached_exports: dict[str, Any] | None = nruntime(default=None)
 
-    def _clear(self) -> None:
+    def _clear_inner(self) -> None:
         self._parse = None
         self._transform = None
         self._statement_references = None
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _index(self) -> None:
-        pass
-
-    def _interp(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: Scope) -> None:
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._statement_references = {}
@@ -80,9 +77,6 @@ class HasCode(HasFields, ModuleNode):
         if self.exported:
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
-
-    def _visit(self, visitor: "NodeVisitor") -> None:
-        pass  # should code visit in-code statement references?
 
     @cached_property
     def cached(self) -> bool:
