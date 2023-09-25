@@ -19,7 +19,7 @@ from bench.language import IssueType
 from bench.language.const import NodePath
 from bench.language.field import HasFields, TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import LookupBy, ModuleNode, Scope, node_component, nruntime
+from bench.language.module import LookupBy, ModuleNode, ScopedNode, node_component, nruntime
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
@@ -63,7 +63,7 @@ class HasCode(ModuleNode):
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._statement_references = {}

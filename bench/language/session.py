@@ -11,13 +11,13 @@ import asgiref.sync
 import structlog
 
 from bench.language.const import ModuleOp, SessionMode, TriggerType
-from bench.language.module import Module, ModuleNode, Scope
+from bench.language.module import Module, ModuleNode, ScopedNode
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.search import Search
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
+    from bench.language.mutate import MMT, ModuleMutation, NodeMutator
     from bench.language.run import Run
     from bench.language.statement import Statement
     from bench.language.tracing import _RunCapture
@@ -82,7 +82,7 @@ class Session:
         executor: Executor = None,
     ):
         from bench.language.cache import CacheAsync, CacheSync
-        from bench.language.mutate import ModuleMutator
+        from bench.language.mutate import NodeMutator
         from bench.language.remote import Storage
         from bench.language.tracing import SessionTracer
 
@@ -99,10 +99,10 @@ class Session:
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
 
-        self.anonymous_scope = Scope(parent=self.module)
+        self.anonymous_scope = ScopedNode(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
-        self.mutator = ModuleMutator(self.module, hooks=[self._on_mutated])
+        self.mutator = NodeMutator(self.module, hooks=[self._on_mutated])
         self.tracer = SessionTracer(self, mutator=self.mutator, validate=True)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
@@ -234,7 +234,7 @@ class Session:
     def close(self):
         asgiref.sync.async_to_sync(self.aclose)()
 
-    def _on_mutated(self, mutator: "ModuleMutator", mutation: "ModuleMutation"):
+    def _on_mutated(self, mutator: "NodeMutator", mutation: "ModuleMutation"):
         if len(self.mutator.mutations) > SESSION_MUTATION_FLUSH_WATERMARK:
             self.flush(optimistic=True)
 

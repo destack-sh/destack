@@ -12,7 +12,7 @@ from bench.language.module import (
     ModuleNode,
     NodeList,
     NodeVisitor,
-    Scope,
+    ScopedNode,
     nchildren,
     node,
     node_component,
@@ -59,8 +59,7 @@ class Trigger(ModuleNode):
         self.runnable = self.runnable.id if isinstance(self.runnable, ModuleNode) else self.runnable
         self.scope = self.scope.id if isinstance(self.scope, ModuleNode) else self.scope
 
-    def _interp_inner(self, scope: "Scope") -> None:
-        # nocheckin: make sure this _interp is called
+    def _interp_inner(self, scope: "ScopedNode") -> None:
         # resolve runnable
         if self.runnable is not None and not isinstance(self.runnable, HasRun):
             resolved = scope.lookup(self.runnable)
@@ -86,7 +85,7 @@ class HasTriggers(ModuleNode):
     def _clear(self) -> None:
         pass
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         pass
 
     def _visit(self, visitor: NodeVisitor) -> None:

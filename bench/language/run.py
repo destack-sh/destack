@@ -18,7 +18,7 @@ from bench.utils.utils import IdentifierType, to_pyidentifier_multi
 
 if TYPE_CHECKING:
     from bench.language import Session, Statement, Trigger
-    from bench.language.session import LogSearch, RunSearch, Scope
+    from bench.language.session import LogSearch, RunSearch, ScopedNode
 
 
 @node_component
@@ -32,7 +32,7 @@ class HasRun(ModuleNode):
     def _clear(self) -> None:
         pass
 
-    def _interp_inner(self, scope: "Scope") -> None:
+    def _interp_inner(self, scope: "ScopedNode") -> None:
         pass
 
     def _visit(self, visitor: NodeVisitor) -> None:

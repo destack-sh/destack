@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
 from bench.language.const import ModuleReference, RunStatus, SessionMode
 from bench.language.mapping import map_value, unpack_value_flat
-from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.mutate import ModuleMutation, NodeMutator
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session, SessionContext
 from bench.language.wire import RunData
@@ -402,8 +402,9 @@ class ModuleWorkerProcess(ModuleWriter):
 
     async def interp_on_change(self, mutations: list[ModuleMutation]):
         self.log.debug("worker.interp", mutations=len(mutations))
-        new_source = ModuleMutator(self.source, mutations).to_module()
+        new_source = NodeMutator(self.source, mutations).to_module()
         self.source = new_source
+        # nocheckin @Broken: hot reload module nodes
         self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
 
     def add_run(self, run_data: RunData, session_id: UUID) -> RunJob:
@@ -561,11 +562,9 @@ class ModuleWorkerProcess(ModuleWriter):
         is_semantic = any(m.type.semantic for m in mutations)
         self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
 
-        # interp
-        if is_semantic:
-            new_source = ModuleMutator(self.module, mutations).to_module()
-            self.source = new_source
-            self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
+        self.source = NodeMutator(self.module, mutations).to_module()
+        # nocheckin: module interp no longer needed?
+        # self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
 
         req = ReqWriteModulePayload(
             module_id=self.module_id,

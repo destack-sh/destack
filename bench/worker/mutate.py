@@ -9,7 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language.mutate import MMT, MNT, ModuleMutation, ModuleMutator
+from bench.language.mutate import MMT, MNT, ModuleMutation, NodeMutator
 from bench.models import packer
 from bench.models.packer import INTERP_MODEL_TYPES
 from bench.opensearch import mirror
@@ -104,7 +104,7 @@ def map_mutation_from_api(
     if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT):
         packed = packer.pack_node(thing, excluded=[models.Record, *INTERP_MODEL_TYPES])
         file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
-        internal = ModuleMutator(module=project_v.id, file_id=file_id).create_many(
+        internal = NodeMutator(module=project_v.id, file_id=file_id).create_many(
             *packed.nodes_list()
         )
         api_mutations = list(

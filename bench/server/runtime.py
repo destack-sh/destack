@@ -32,10 +32,10 @@ from bench.language.const import MNT, ModuleReference, RunStatus, parse_absolute
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mapping import pack_value, unpack_value
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.mutate import ModuleMutation, ModuleMutator
+from bench.language.mutate import ModuleMutation, NodeMutator
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.language.wire import ModuleTree
+from bench.language.wire import NodeTree
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
@@ -590,7 +590,7 @@ class RuntimeWorker:
         # module data
         self.source: wire.ModuleTreeData | None = None
         self.module: Optional[Module] = None
-        self.module_tree: Optional[ModuleTree] = None
+        self.module_tree: Optional[NodeTree] = None
         # time triggers
         self.active_triggers: dict[UUID, ActiveTrigger] = {}
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
@@ -869,7 +869,7 @@ class RuntimeWorker:
                 ),
             )
 
-    def _do_interp(self, new_source: wire.ModuleTreeData) -> ModuleMutator:
+    def _do_interp(self, new_source: wire.ModuleTreeData) -> NodeMutator:
         """
         Re-interpret the module from the given source in place.
         Return any interpreted module state changes.
@@ -879,10 +879,10 @@ class RuntimeWorker:
         old_module = self.module
         old_tree = self.module_tree
         self.module = Module.interp_from(new_source, session=None)
-        self.module_tree = ModuleTree(wire.pack_module(self.module).nodes)
+        self.module_tree = NodeTree(wire.pack_module(self.module).nodes)
 
         # check for any interp changes
-        interp_mut = ModuleMutator(new_source)
+        interp_mut = NodeMutator(new_source)
         # resolved fields
         interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
         if old_module is None:
@@ -927,17 +927,17 @@ class RuntimeWorker:
         if not is_semantic:
             # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
             return
-        mutator = ModuleMutator(self.source, mutations)
+        mutator = NodeMutator(self.source, mutations)
         new_source = mutator.to_module()
         await self.interp(new_source)
 
     async def write_module(
         self,
-        mutations: list[ModuleMutation] | ModuleMutator,
+        mutations: list[ModuleMutation] | NodeMutator,
         origins: tuple[ClientOrigin] = None,
         refresh_index: bool = False,
     ):
-        if isinstance(mutations, ModuleMutator):
+        if isinstance(mutations, NodeMutator):
             mutations = mutations.mutations
         logger.debug(
             "write_module",

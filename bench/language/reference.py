@@ -4,7 +4,14 @@ from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import StatementReference
-from bench.language.module import Module, ModuleNode, NodeVisitor, Scope, node_component, nproperty
+from bench.language.module import (
+    Module,
+    ModuleNode,
+    NodeVisitor,
+    ScopedNode,
+    node_component,
+    nproperty,
+)
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
@@ -21,7 +28,7 @@ class HasReference(ModuleNode):
             self.reference.ck if isinstance(self.reference, ModuleNode) else self.reference
         )
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         resolved = None
         if not isinstance(self.reference, ModuleNode):
             resolved = scope.lookup(self.reference)

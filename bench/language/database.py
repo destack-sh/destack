@@ -6,16 +6,16 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
-from bench.language.field import Field, HasFields
+from bench.language.field import Field
 from bench.language.module import (
     Module,
     ModuleNode,
-    NodeVisitor,
     nchildren,
     node,
     node_component,
     nparent,
     nproperty,
+    ninternal,
 )
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
@@ -25,7 +25,7 @@ from bench.utils.proxy import unproxy_value
 from bench.utils.utils import DotList
 
 if typing.TYPE_CHECKING:
-    from bench.language import Scope, Statement
+    from bench.language import Statement
     from bench.language.wire import RecordData
 
 logger = structlog.get_logger(__name__)
@@ -105,10 +105,10 @@ class DatabaseView(ModuleNode):
         return f"{self.parent.path}.{self.name}"
 
 
-@node(mnt=MNT.DatabaseViewField, tracked=["order_key"])
+@node(mnt=MNT.DatabaseViewField)
 class DatabaseViewField(ModuleNode):
     field: UUID | Field = nproperty()
-    order_key: str | None = nproperty(default=None)
+    order_key: str | None = ninternal(default=None)
 
 
 @node_component(dynamic=True)

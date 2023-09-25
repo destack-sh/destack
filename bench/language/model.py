@@ -17,7 +17,7 @@ from bench.language.field import HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import (
     ModuleNode,
-    Scope,
+    ScopedNode,
     node_component,
     nruntime,
 )
@@ -61,7 +61,7 @@ class HasModel(HasFields, ModuleNode):
         self._compiler_impl = None
         self._has_vector_io = False
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:

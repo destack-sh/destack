@@ -105,7 +105,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
         project_v.save()
 
     blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
-    blank_module_tree = wire.ModuleTree(blank_module.nodes)
+    blank_module_tree = wire.NodeTree(blank_module.nodes)
     new_module = wire.pack_module(module)
     mutations = diff_modules(blank_module, new_module)
     packer.write_mutations(project_v, blank_module_tree, mutations, refresh_index=False)
@@ -149,14 +149,14 @@ def _sanity_check_diff(
 
     if diff:
         # get exact diff for debugging
-        module_tree = wire.ModuleTree(new_module.nodes)
-        other_module_tree = wire.ModuleTree(other_module_data.nodes)
+        module_tree = wire.NodeTree(new_module.nodes)
+        other_module_tree = wire.NodeTree(other_module_data.nodes)
 
         def _get_path(n_id: UUID) -> str:
-            if n_id in module_tree.nodes:
-                path = module_tree.path_of(module_tree.nodes[n_id])
+            if n_id in module_tree.nodes_by_id:
+                path = module_tree.path_of(module_tree.nodes_by_id[n_id])
             else:
-                path = other_module_tree.path_of(other_module_tree.nodes[n_id])
+                path = other_module_tree.path_of(other_module_tree.nodes_by_id[n_id])
             return ".".join(n.name for n in path)
 
         diff_str = "\n".join(f"{m.data.id} {_get_path(m.data.id)}: {m.type} {m.data}" for m in diff)

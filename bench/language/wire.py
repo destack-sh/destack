@@ -34,7 +34,6 @@ from bench.language.module import ModuleNode, NodeVisitor
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
-from bench.language.statement import STATEMENT_CLASS_BY_TYPE
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
@@ -53,107 +52,143 @@ NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
 NodeT = typing.TypeVar("NodeT", bound=ModuleNode)
 DataT = typing.TypeVar("DataT")
 ObjectT = typing.TypeVar("ObjectT")
+NT = typing.TypeVar("NT")
 
 
-class ModuleTree:
+class NodeTree(typing.Generic[NT]):
     """An indexed tree of module nodes"""
 
-    def __init__(self, nodes: list[NodeT | NodeDataT] = None):
-        self.nodes: dict[UUID, NodeT] = {}
-        self.children: dict[UUID, list[UUID]] = {}
+    def __init__(self, nodes: list[NT] = None):
+        self.nodes_by_id: dict[UUID, NT] = {}
+        self.nodes_by_ck: dict[UUID, NT] = {}
+        self.nodes_by_parent_id: dict[UUID, list[UUID]] = {}
         for node in nodes or []:
             self.add(node)
 
     def __str__(self):
-        return f"{len(self.nodes)} nodes"
+        return f"{len(self.nodes_by_id)} nodes"
 
     def __repr__(self):
         return f"<ModuleTree {self}>"
 
     def __contains__(self, item):
-        return item in self.nodes
+        return item in self.nodes_by_id
 
     def __getitem__(self, item):
-        return self.nodes[item]
+        return self.nodes_by_id[item]
 
-    def path_of(self, node: NodeT | NodeDataT) -> list[NodeT | NodeDataT]:
+    #
+    # Mutations
+    #
+
+    def clear(self):
+        """Clear the tree"""
+        self.nodes_by_id.clear()
+        self.nodes_by_ck.clear()
+        self.nodes_by_parent_id.clear()
+
+    def add(self, node: NT):
+        """Add a node to the tree (error if node already exists)"""
+        if node.id is None:
+            raise ValueError(f"node {node} has no id")
+        if node.id in self.nodes_by_id:
+            existing = self.nodes_by_id[node.id]
+            raise ValueError(f"node {node} (id={node.id}) already exists in {self}: {existing}")
+        self.nodes_by_id[node.id] = node
+        self.nodes_by_ck[node.ck] = node
+        if node.parent_id is not None:
+            if node.parent_id not in self.nodes_by_parent_id:
+                self.nodes_by_parent_id[node.parent_id] = []
+            self.nodes_by_parent_id[node.parent_id].append(node.id)
+
+    def replace(self, node: NT):
+        """Upsert a node in the tree (replace if node already exists)"""
+        old_node = self.nodes_by_id.get(node.id)
+        if old_node is not None and old_node.parent_id is not None:
+            self.nodes_by_parent_id[old_node.parent_id].remove(node.id)
+        self.nodes_by_id[node.id] = node
+        self.nodes_by_ck[node.ck] = node
+        if node.parent_id not in self.nodes_by_parent_id:
+            self.nodes_by_parent_id[node.parent_id] = []
+        self.nodes_by_parent_id[node.parent_id].append(node.id)
+
+    def remove(self, node: NT):
+        """Remove a node from the tree (incl. all descendants if recursive)"""
+        descendants = self.get_descendants(node.id, recursive=True, include_self=True)
+        for descendant in descendants:
+            if descendant.id in self.nodes_by_id:
+                self.nodes_by_id.pop(descendant.id)
+            if descendant.ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(descendant.ck)
+            if descendant.id in self.nodes_by_parent_id:
+                self.nodes_by_parent_id.pop(descendant.id)
+            if descendant.parent_id in self.nodes_by_parent_id:
+                self.nodes_by_parent_id[descendant.parent_id].remove(descendant.id)
+
+    def truncate(self, node: NT, t: type[NT] | None = None, recursive: bool = True):
+        """Truncate descendants of a node"""
+        descendants = self.get_descendants(node.id, t, recursive=recursive)
+        for descendant in descendants:
+            if descendant.id in self.nodes_by_parent_id:
+                self.nodes_by_parent_id.pop(descendant.id)
+            if descendant.parent_id in self.nodes_by_parent_id:
+                self.nodes_by_parent_id[descendant.parent_id].remove(descendant.id)
+            self.nodes_by_id.pop(descendant.id)
+            self.nodes_by_ck.pop(descendant.ck)
+
+    def prune(self, t: type[NT]):
+        """Prune all nodes of the given type"""
+        for node in list(self.nodes_by_id.values()):
+            if isinstance(node, t):
+                self.remove(node, recursive=True)
+
+    def add_tree(self, tree: "NodeTree"):
+        self.nodes_by_id.update(tree.nodes_by_id)
+        self.nodes_by_ck.update(tree.nodes_by_ck)
+        self.nodes_by_parent_id.update(tree.nodes_by_parent_id)
+
+    def remove_tree(self, tree: "NodeTree"):
+        for node in tree.nodes_by_id.values():
+            if node.id in self.nodes_by_id:
+                self.nodes_by_id.pop(node.id)
+            if node.ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(node.ck)
+            if node.id in self.nodes_by_parent_id:
+                self.nodes_by_parent_id.pop(node.id)
+
+    #
+    # Read only
+    #
+
+    def get(self, node_id_or_ck: UUID) -> Optional[NT]:
+        """Gets a node by id"""
+        node = self.nodes_by_id.get(node_id_or_ck)
+        return node if node is not None else self.nodes_by_ck.get(node_id_or_ck)
+
+    def path_of(self, node: NT) -> list[NT]:
         """Returns the path from the root to the node"""
         path = []
         while node:
             path.insert(0, node)
-            node = self.nodes.get(node.parent_id)
+            node = self.nodes_by_id.get(node.parent_id)
         return path
 
-    def add(self, node: NodeT | NodeDataT):
-        """Add a node to the tree (error if node already exists)"""
-        if node.id is None:
-            raise ValueError(f"node {node} has no id")
-        if node.id in self.nodes:
-            existing = self.nodes[node.id]
-            raise ValueError(f"node {node} (id={node.id}) already exists in {self}: {existing}")
-        self.nodes[node.id] = node
-        if node.parent_id is not None:
-            if node.parent_id not in self.children:
-                self.children[node.parent_id] = []
-            self.children[node.parent_id].append(node.id)
-
-    def replace(self, node: NodeT | NodeDataT):
-        """Upsert a node in the tree (replace if node already exists)"""
-        old_node = self.nodes.get(node.id)
-        if old_node is not None and old_node.parent_id is not None:
-            self.children[old_node.parent_id].remove(node.id)
-        self.nodes[node.id] = node
-        if node.parent_id not in self.children:
-            self.children[node.parent_id] = []
-        self.children[node.parent_id].append(node.id)
-
-    def remove(self, node: NodeT | NodeDataT):
-        """Remove a node from the tree (incl. all descendants if recursive)"""
-        descendants = self.get_descendants(node.id, recursive=True, include_self=True)
-        for descendant in descendants:
-            if descendant.id in self.nodes:
-                self.nodes.pop(descendant.id)
-            if descendant.id in self.children:
-                self.children.pop(descendant.id)
-            if descendant.parent_id in self.children:
-                self.children[descendant.parent_id].remove(descendant.id)
-
-    def truncate(
-        self, node: NodeT | NodeDataT, t: NodeT | NodeDataT | None = None, recursive: bool = True
-    ):
-        """Truncate descendants of a node"""
-        descendants = self.get_descendants(node.id, t, recursive=recursive)
-        for descendant in descendants:
-            if descendant.id in self.children:
-                self.children.pop(descendant.id)
-            if descendant.parent_id in self.children:
-                self.children[descendant.parent_id].remove(descendant.id)
-            self.nodes.pop(descendant.id)
-
-    def prune(self, t: NodeT | NodeDataT):
-        """Prune all nodes of the given type"""
-        for node in list(self.nodes.values()):
-            if isinstance(node, t):
-                self.remove(node, recursive=True)
-
     @property
-    def roots(self) -> list[NodeT | NodeDataT]:
+    def roots(self) -> list[NT]:
         return [
             node
-            for node in self.nodes.values()
-            if node.parent_id is None or node.parent_id not in self.nodes
+            for node in self.nodes_by_id.values()
+            if node.parent_id is None or node.parent_id not in self.nodes_by_id
         ]
 
     @property
-    def root(self) -> Optional[NodeT | NodeDataT]:
+    def root(self) -> Optional[NT]:
         roots = self.roots
         if len(roots) > 1:
             raise ValueError(f"expected 0 or 1 root nodes, got {roots}")
         return roots[0] if roots else None
 
-    def walk_bfs(
-        self, roots: list[NodeT | NodeDataT] = None
-    ) -> typing.Generator[NodeT | NodeDataT, None, None]:
+    def walk_bfs(self, roots: list[NT] = None) -> typing.Generator[NT, None, None]:
         """Walks the tree in breadth-first order"""
         num_traversed = 0
         queue = deque(roots or self.roots)
@@ -161,14 +196,14 @@ class ModuleTree:
             current_node = queue.popleft()
             num_traversed += 1
             yield current_node
-            for child_id in self.children.get(current_node.id, []):
-                queue.append(self.nodes[child_id])
-        if roots == self.roots and num_traversed != len(self.nodes):
-            raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
+            for child_id in self.nodes_by_parent_id.get(current_node.id, []):
+                queue.append(self.nodes_by_id[child_id])
+        if roots == self.roots and num_traversed != len(self.nodes_by_id):
+            raise ValueError(
+                f"expected {len(self.nodes_by_id)} nodes, but traversed {num_traversed}"
+            )
 
-    def walk_bfs_batched(
-        self, roots: list[NodeT | NodeDataT] = None
-    ) -> typing.Generator[list[NodeT | NodeDataT], None, None]:
+    def walk_bfs_batched(self, roots: list[NT] = None) -> typing.Generator[list[NT], None, None]:
         """Walks the tree in breadth-first order, yielding all nodes at each level"""
         num_traversed = 0
         queue = deque(roots or self.roots)
@@ -177,16 +212,16 @@ class ModuleTree:
             for _ in range(len(queue)):
                 current_node = queue.popleft()
                 level.append(current_node)
-                for child_id in self.children.get(current_node.id, []):
-                    queue.append(self.nodes[child_id])
+                for child_id in self.nodes_by_parent_id.get(current_node.id, []):
+                    queue.append(self.nodes_by_id[child_id])
             num_traversed += len(level)
             yield level
-        if roots == self.roots and num_traversed != len(self.nodes):
-            raise ValueError(f"expected {len(self.nodes)} nodes, but traversed {num_traversed}")
+        if roots == self.roots and num_traversed != len(self.nodes_by_id):
+            raise ValueError(
+                f"expected {len(self.nodes_by_id)} nodes, but traversed {num_traversed}"
+            )
 
-    def get_child(
-        self, parent_id: UUID, t: NodeT | NodeDataT | None = None
-    ) -> Optional["NodeT | NodeDataT"]:
+    def get_child(self, parent_id: UUID, t: NT | None = None) -> Optional["NT"]:
         """Finds one or zero children of the given type"""
         children = self.get_descendants(parent_id, t)
         if len(children) > 1:
@@ -201,28 +236,28 @@ class ModuleTree:
         t: type[NodeT] | type[NodeDataT] | None = None,
         recursive: bool = False,
         include_self: bool = False,
-    ) -> list["NodeT | NodeDataT"]:
+    ) -> list["NT"]:
         """Finds all children (or descendants) of the given type"""
         children = [
-            self.nodes[child_id]
-            for child_id in self.children.get(node_id, [])
-            if t is None or isinstance(self.nodes[child_id], t)
+            self.nodes_by_id[child_id]
+            for child_id in self.nodes_by_parent_id.get(node_id, [])
+            if t is None or isinstance(self.nodes_by_id[child_id], t)
         ]
         descendants = children[:]
         if recursive:
             for child in children:
-                if child.id not in self.children:
+                if child.id not in self.nodes_by_parent_id:
                     continue
                 descendants.extend(self.get_descendants(child.id, t, recursive=True))
-        if include_self and node_id in self.nodes:
-            descendants.append(self.nodes[node_id])
+        if include_self and node_id in self.nodes_by_id:
+            descendants.append(self.nodes_by_id[node_id])
         return descendants
 
     def get_ancestor(
         self, node_id: UUID, t: type[NodeT] | type[NodeDataT] | None = None
-    ) -> Optional["NodeT | NodeDataT"]:
+    ) -> Optional["NT"]:
         """Finds the next ancestor of the given type"""
-        node = self.nodes.get(node_id)
+        node = self.nodes_by_id.get(node_id)
         if node is None:
             raise ValueError(f"node {node_id} is not in {self}")
         while node:
@@ -230,7 +265,7 @@ class ModuleTree:
                 return node
             if node.parent_id is None:
                 return None
-            node = self.nodes[node.parent_id]
+            node = self.nodes_by_id[node.parent_id]
         return None
 
     def get_ancestors(
@@ -238,10 +273,10 @@ class ModuleTree:
         node_id: UUID,
         t: type[NodeT] | type[NodeDataT] | None = None,
         include_self: bool = False,
-    ) -> list["NodeT | NodeDataT"]:
+    ) -> list["NT"]:
         """Finds all ancestors of the given type"""
         ancestors = []
-        node = self.nodes.get(node_id)
+        node = self.nodes_by_id.get(node_id)
         if node is None:
             raise ValueError(f"node {node_id} is not in {self}")
         if include_self:
@@ -251,7 +286,7 @@ class ModuleTree:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
-            node = self.nodes[node.parent_id]
+            node = self.nodes_by_id[node.parent_id]
         return ancestors
 
 
@@ -291,7 +326,6 @@ def node_packer(
     mnt: MNT,
     data_t: typing.Type[NodeDataT],
     node_t: typing.Type[NodeT] | None,
-    extra_classes: typing.Collection[typing.Type[NodeT]] = None,
 ):
     """Decorator to register a node packer for a given type"""
 
@@ -310,8 +344,7 @@ def node_packer(
         if mnt in DATA_CLASS_BY_MNT:
             raise ValueError(f"packer for {mnt} already registered: {DATA_CLASS_BY_MNT[mnt]}")
         packer = cls()
-        for nt in [node_t] + list(extra_classes or []):
-            _node_packers_by_node[nt] = packer
+        _node_packers_by_node[node_t] = packer
         _node_packers_by_data[data_t] = packer
         MNT_BY_DATA_CLASS[data_t] = mnt
         DATA_CLASS_BY_MNT[mnt] = data_t
@@ -354,15 +387,15 @@ def unpack_node(
     nodes: list[NodeDataT], parent: Optional[NodeT], session: Optional[Session]
 ) -> NodeT:
     """Unpack a node and all its descendants"""
-    data_tree = ModuleTree(nodes)
-    unpacked_tree = ModuleTree()
+    data_tree = NodeTree(nodes)
+    unpacked_tree = NodeTree()
 
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
         packer = _node_packers_by_data[type(node)]
         if node.parent_id is None:
             node_parent = parent
-        elif node.parent_id not in unpacked_tree.nodes:
+        elif node.parent_id not in unpacked_tree.nodes_by_id:
             if parent is not None and node.parent_id == parent.id:
                 node_parent = parent
             else:
@@ -370,12 +403,13 @@ def unpack_node(
                     f"node {node} parent {node.parent_id} not found in unpacked {unpacked_tree}"
                 )
         else:
-            node_parent = unpacked_tree.nodes[node.parent_id]
+            node_parent = unpacked_tree.nodes_by_id[node.parent_id]
         unpacked_tree.add(packer.unpack(node, node_parent, session))
 
-    # 'unwalk' all nodes to re-assign descendants
-    for node in unpacked_tree.nodes.values():
-        packer = _node_packers_by_node[type(node)]
+    # recover node descendant lists
+    unpacked_tree.root._index_rec()
+    for node in unpacked_tree.nodes_by_id.values():
+        node
         # nocheckin: recover node lists
 
     return unpacked_tree.root
@@ -582,9 +616,7 @@ class StatementData(NodeData, HasOrder, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(
-    MNT.Statement, StatementData, lang.Statement, extra_classes=STATEMENT_CLASS_BY_TYPE.values()
-)
+@node_packer(MNT.Statement, StatementData, lang.Statement)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
 
@@ -616,11 +648,10 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     def unpack(
         self,
         statement: StatementData,
-        parent: File | lang.Statement,
+        parent: lang.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
-        cls = STATEMENT_CLASS_BY_TYPE[statement.type]
-        return cls(
+        return lang.Statement(
             id=statement.id,
             ck=statement.ck,
             parent=parent,

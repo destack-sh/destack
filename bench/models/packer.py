@@ -26,7 +26,7 @@ from bench.language.const import (
     TriggerType,
 )
 from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
-from bench.language.wire import ModuleTree
+from bench.language.wire import NodeTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
@@ -245,10 +245,10 @@ def pack_node(
 
 def unpack_nodes_tree(
     nodes: list[NodeDataT], parent: Optional[NodeT] = None, pre_unpacked: dict[UUID, NodeT] = None
-) -> ModuleTree:
+) -> NodeTree:
     """Unpack a node and its descendants"""
-    data_tree = ModuleTree(nodes)
-    unpacked_tree = ModuleTree()
+    data_tree = NodeTree(nodes)
+    unpacked_tree = NodeTree()
     pre_unpacked = pre_unpacked or {}
 
     # unpack all nodes top down (breadth first)
@@ -257,8 +257,8 @@ def unpack_nodes_tree(
         node_parent = None
         if node.parent_id in pre_unpacked:
             node_parent = pre_unpacked[node.parent_id]
-        elif node.parent_id in unpacked_tree.nodes:
-            node_parent = unpacked_tree.nodes[node.parent_id]
+        elif node.parent_id in unpacked_tree.nodes_by_id:
+            node_parent = unpacked_tree.nodes_by_id[node.parent_id]
         elif parent is not None:
             node_parent = parent
 
@@ -278,7 +278,7 @@ def unpack_nodes_tree(
 
 
 def unpack_nodes(
-    project_v: models.ProjectVersion, module: ModuleTree, data_nodes: list[NodeDataT]
+    project_v: models.ProjectVersion, module: NodeTree, data_nodes: list[NodeDataT]
 ) -> list[NodeT]:
     """Unpack a list nodes (incl. their ancestors) without DB queries"""
     unpacked_nodes = []
@@ -876,7 +876,7 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 @transaction.atomic(savepoint=False)
 def write_mutations(
     project_v: models.ProjectVersion,
-    module: ModuleTree,
+    module: NodeTree,
     mutations: list[ModuleMutation],
     refresh_index: bool,
 ):
