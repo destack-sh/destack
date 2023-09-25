@@ -16,7 +16,7 @@ import structlog
 from bench.language.const import RunStatus, TriggerType, TypeFlag, TypeTag
 from bench.language.mapping import map_value, pack_value, pack_value_flat
 from bench.language.module import ModuleNode
-from bench.language.mutate import ModuleMutator
+from bench.language.mutate import NodeMutator
 from bench.language.run import HasRun, Run, RunError
 from bench.language.session import LogEntry, Session
 from bench.language.statement import Statement
@@ -160,7 +160,7 @@ LOG_CACHE_SIZE = 1000
 
 
 class SessionTracer(Tracer):
-    def __init__(self, session: Session, mutator: ModuleMutator):
+    def __init__(self, session: Session, mutator: NodeMutator):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []

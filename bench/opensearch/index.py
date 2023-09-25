@@ -229,7 +229,7 @@ def write_mutations_to_os(
 
 
 def write_module_to_os(
-    project_v: models.ProjectVersion, model_tree: wire.ModuleTree, *, wipe: bool, wait: bool = False
+    project_v: models.ProjectVersion, model_tree: wire.NodeTree, *, wipe: bool, wait: bool = False
 ):
     """
     Writes all nodes in the module to OpenSearch.

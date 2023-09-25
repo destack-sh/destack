@@ -11,7 +11,7 @@ from uuid import UUID
 
 from bench.language.const import ModuleNodeType
 from bench.language.module import Module, ModuleNode
-from bench.language.wire import ModuleData, ModuleTree, ModuleTreeData, NodeData
+from bench.language.wire import ModuleData, NodeTree, ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
 
 
@@ -322,12 +322,12 @@ def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
 ModuleMutationHook = Callable[["ModuleMutator", ModuleMutation], None]
 
 
-class ModuleMutator:
-    """Helper for mutating module data."""
+class NodeMutator:
+    """Helper for mutating module node data."""
 
     def __init__(
         self,
-        module: Union[Module, "ModuleTree", "ModuleTreeData", UUID],
+        module: Union[Module, "NodeTree", "ModuleTreeData", UUID],
         mutations: list[ModuleMutation] = None,
         hooks: list[ModuleMutationHook] = None,
         module_data: "ModuleData" = None,  # ModuleTree doesn't have an id
@@ -337,9 +337,9 @@ class ModuleMutator:
     ):
         from bench.language import wire
 
-        if isinstance(module, wire.ModuleTree):
+        if isinstance(module, wire.NodeTree):
             self.module = wire.ModuleTreeData(
-                nodes=list(module.nodes.values()), module=module_data, **module_data.__dict__
+                nodes=list(module.nodes_by_id.values()), module=module_data, **module_data.__dict__
             )
             self.module_id = self.module.id
             self.tree = module
@@ -348,11 +348,11 @@ class ModuleMutator:
                 module = wire.pack_module(module)
             self.module = module
             self.module_id = module.id
-            self.tree = wire.ModuleTree(module.nodes)
+            self.tree = wire.NodeTree(module.nodes)
         else:
             self.module = None
             self.module_id = module
-            self.tree = wire.ModuleTree()
+            self.tree = wire.NodeTree()
         # default file and statement id
         self.file_id = file_id
         self.statement_id = statement_id
@@ -375,7 +375,7 @@ class ModuleMutator:
 
     def do(
         self, type: MMT, node: "NodeData", apply: bool = True, properties: list[str] = None
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         from bench.language import wire
 
         if isinstance(node, wire.StatementData):
@@ -433,7 +433,7 @@ class ModuleMutator:
 
     def truncate(
         self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         """Truncates all records of the given statement."""
         node = pack_node_flat_if_needed(node)
         mmt = MMT(f"TRUNCATE_{mnt.caps_name}S")
@@ -442,12 +442,12 @@ class ModuleMutator:
 
     def create_many(
         self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         for obj in nodes:
             self.create(obj, apply=apply)
         return self
 
-    def create(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+    def create(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "NodeMutator":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -458,14 +458,14 @@ class ModuleMutator:
 
     def update_many(
         self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         for obj in nodes:
             self.update(obj, apply=apply)
         return self
 
     def update(
         self, node: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -476,12 +476,12 @@ class ModuleMutator:
 
     def delete_many(
         self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleMutator":
+    ) -> "NodeMutator":
         for obj in nodes:
             self.delete(obj, apply=apply)
         return self
 
-    def delete(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleMutator":
+    def delete(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "NodeMutator":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -497,7 +497,7 @@ class ModuleMutator:
         # already applied in memory
         if self.module is None:
             raise ValueError(f"cannot apply {self} without a module")
-        return replace(self.module, nodes=list(self.tree.nodes.values()))
+        return replace(self.module, nodes=list(self.tree.nodes_by_id.values()))
 
 
 class MutationBundle:
@@ -526,9 +526,9 @@ class MutationBundle:
         Compact simple mutations into fewer semantically identical mutations.
 
         Reduces:
-         1. Successive updates to same object to the last update
-         2. Successive deletes of same object to the last delete
-         Not implemented yet:
+         1. Successive updates to same object merged into the last update
+         2. Successive deletes of same object merged into the last delete
+        Not implemented yet:
          3. Delete after create to nothing
          4. Create then updated merged into a single create
         """
@@ -536,20 +536,23 @@ class MutationBundle:
             raise ValueError(f"cannot collapse complex mutations: {self}")
 
         reduced_inverse = []
-        seen_ops: set[tuple[MMT, UUID]] = set()
+        seen_ops: dict[tuple[MMT, UUID], ModuleMutation] = {}
 
         for mutation in reversed(self.mutations):
             key = (mutation.type, mutation.data.id)
             if key in seen_ops:
-                continue
-            seen_ops.add(key)
+                if mutation.type.kind == MMK.UPDATE:
+                    # merge properties
+                    seen_ops[key].properties.extend(mutation.properties)
+                    seen_ops[key].properties = list(set(seen_ops[key].properties))
+            seen_ops[key] = mutation
             reduced_inverse.append(mutation)
 
         reduced = list(reversed(reduced_inverse))
         return reduced
 
     def batched_apply(
-        self, module: ModuleTree, module_data: ModuleData
+        self, module: NodeTree, module_data: ModuleData
     ) -> Iterator[tuple[MMT, list[ModuleMutation]]]:
         """
         Batch consecutive mutations by type in order of appearance
@@ -557,7 +560,7 @@ class MutationBundle:
         (there may be multiple batches of the same type).
         """
 
-        mutator = ModuleMutator(module, module_data=module_data)
+        mutator = NodeMutator(module, module_data=module_data)
         current_batch: list[ModuleMutation] = []
         current_type: MMT | None = None
 
@@ -579,23 +582,23 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
     Get the mutations needed to transform old_module into new_module.
     Find nodes by their id (not ck).
     """
-    mutator = ModuleMutator(old_module)
-    old_tree = ModuleTree(old_module.nodes)
-    new_tree = ModuleTree(new_module.nodes)
+    mutator = NodeMutator(old_module)
+    old_tree = NodeTree(old_module.nodes)
+    new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
         if new_node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
-        if new_node.id not in old_tree.nodes:
+        if new_node.id not in old_tree.nodes_by_id:
             mutator.create(new_node)
         else:
-            old_node = old_tree.nodes[new_node.id]
+            old_node = old_tree.nodes_by_id[new_node.id]
             if not new_node.equals_ignoring_crud(old_node):
                 mutator.update(new_node)
     for old_node in old_tree.walk_bfs():
         if old_node.mnt == ModuleNodeType.Module:
             continue
-        if old_node.id not in new_tree.nodes:
+        if old_node.id not in new_tree.nodes_by_id:
             mutator.delete(old_node)
     # sort into delete -> create -> update
     mutations = [
@@ -610,8 +613,8 @@ def create_module(module: ModuleTreeData) -> list[ModuleMutation]:
     """
     Get the mutations needed to create a new module.
     """
-    mutator = ModuleMutator(module)
-    for node in ModuleTree(module.nodes).walk_bfs():
+    mutator = NodeMutator(module)
+    for node in NodeTree(module.nodes).walk_bfs():
         if node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
         mutator.create(node)

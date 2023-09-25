@@ -1,11 +1,11 @@
 from typing import TYPE_CHECKING, Any, Collection, Callable
 
-from bench.language.issue import ValidationError
+from bench.language.issue import ValidationError, ValidationHandler
 from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
-    from bench.language import HasFields, Scope, Session
+    from bench.language import HasFields, ScopedNode, Session
 
 
 @node_component
@@ -20,13 +20,13 @@ class HasValue(ModuleNode):
     def _clear(self):
         pass
 
-    def _interp_inner(self, scope: "Scope") -> None:
+    def _interp_inner(self, scope: "ScopedNode") -> None:
         pass  # TODO @Interp: interp value in HasValue
 
     def _visit(self, visitor: "NodeVisitor") -> None:
         pass
 
-    def _validate(self, properties: Collection[str], on_issue: ValidationHandler) -> None:
+    def _validate(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         if "value" in properties:
             from bench.language.mapping import check_type
 

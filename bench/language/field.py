@@ -22,12 +22,13 @@ from bench.language.const import (
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
-    Scope,
+    ScopedNode,
     get_node_id,
     node,
     node_component,
     nparent,
     nproperty,
+    ninternal,
 )
 from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
@@ -265,13 +266,13 @@ class SomeType(abc.ABC):
                 yield from child.walk_type(path, include_references=include_references)
 
 
-@node(mnt=MNT.Field, tracked=["name", "tag", "hint", "flags", "value"])
+@node(mnt=MNT.Field)
 class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.Statement)
     name: Optional[str] = nproperty(default=None)
     tag: TypeTag = nproperty()
     hint: Optional[TypeHint] = nproperty(default=None)
-    order_key: str | None = nproperty(default=None)
+    order_key: str | None = ninternal(default=None)
     key: str = nproperty(default=None)
     text: Optional[str] = nproperty(default=None)
     flags: TypeFlag = nproperty(default=TypeFlag.Zero)
@@ -343,8 +344,8 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
 
 @node(mnt=MNT.ResolvedField)
 class ResolvedField(Field):
-    parent: "Statement" = required_field()
-    field: Field = required_field()
+    parent: "Statement" = nparent(MNT.Statement)
+    field: Field = ninternal()
 
     @property
     def field_ck(self) -> UUID:
@@ -359,7 +360,7 @@ class HasFields(SomeType, ModuleNode):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         # interp fields
         for f in self.fields:
             HasText._interp(f, scope)

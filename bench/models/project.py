@@ -638,7 +638,7 @@ class FileManager(models.Manager):
         create_models_bfs(unpacked.walk_bfs_batched())
         write_module_to_os(target, unpacked, wipe=False)
 
-        target_file = unpacked.nodes[target_id]
+        target_file = unpacked.nodes_by_id[target_id]
         return target_file
 
     def get_descendants(

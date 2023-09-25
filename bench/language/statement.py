@@ -18,7 +18,7 @@ from bench.language.module import (
     Module,
     ModuleNode,
     NodeVisitor,
-    Scope,
+    ScopedNode,
     node,
     nproperty,
     nancestor,
@@ -26,6 +26,7 @@ from bench.language.module import (
     nchildren,
     NRel,
     NodeList,
+    ninternal,
 )
 from bench.language.field import HasFields
 from bench.language.reference import HasReference
@@ -50,7 +51,7 @@ if TYPE_CHECKING:
 
 
 @node(MNT.Statement)
-class Statement(ModuleNode, Scope):
+class Statement(ScopedNode):
     """A Bench statement."""
 
     file: Optional["File"] = nancestor(MNT.File)
@@ -61,7 +62,7 @@ class Statement(ModuleNode, Scope):
 
     type: StatementType = nproperty(default=StatementType.BLANK)
     name: Optional[str] = nproperty(default=None)
-    order_key: str | None = nproperty(default=None)
+    order_key: str | None = ninternal(default=None)
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None)
     heading_level: Optional["TextHeadingLevel"] = nproperty(default=None)
@@ -172,7 +173,7 @@ class Statement(ModuleNode, Scope):
 
     def _clear(self) -> None:
         """Clears any derived/interpreted values on this statement."""
-        Scope._clear(self)
+        ScopedNode._clear(self)
         self.issues = None
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._clear(self)
@@ -186,7 +187,7 @@ class Statement(ModuleNode, Scope):
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._index(self)
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         """Updates, resolves and checks any derived/interpreted values on this statement."""
         for cls in _STATEMENT_COMPONENTS_BY_TYPE[self.type]:
             cls._interp(self, scope)

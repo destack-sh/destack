@@ -11,7 +11,7 @@ from .database import DatabaseView, Record
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
 from .issue import Issue
-from .module import Module, ModuleNode, NodeVisitor, Scope
+from .module import Module, ModuleNode, NodeVisitor, ScopedNode
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .reflect import RunMetadata
 from .remote import RemoteObject, Secret
@@ -70,7 +70,7 @@ __all__ = [
     "RunError",
     "RunMetadata",
     "ScheduleType",
-    "Scope",
+    "ScopedNode",
     "Secret",
     "Session",
     "Sort",

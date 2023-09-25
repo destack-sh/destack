@@ -5,7 +5,14 @@ from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import ModuleNodeType, TypedNodeReference
-from bench.language.module import ModuleNode, NodeVisitor, Scope, node_component, nproperty
+from bench.language.module import (
+    ModuleNode,
+    NodeVisitor,
+    ScopedNode,
+    node_component,
+    nproperty,
+    nruntime,
+)
 
 
 @node_component
@@ -13,8 +20,7 @@ class HasText(ModuleNode):
     """Some instruction text with optional references."""
 
     text: str | None = nproperty(default=None)
-
-    _text_spans: list["TextSpan"] | None = None
+    _text_spans: list["TextSpan"] | None = nruntime(default=None)
 
     @property
     def text_plain(self) -> Optional[str]:
@@ -35,7 +41,7 @@ class HasText(ModuleNode):
     def _clear_inner(self) -> None:
         self._text_spans = None
 
-    def _interp_inner(self, scope: Scope) -> None:
+    def _interp_inner(self, scope: ScopedNode) -> None:
         if self.text is None:
             return
         self._text_spans = parse_text_html(self.text)
