@@ -7,7 +7,7 @@ from typing import NamedTuple
 from uuid import UUID
 
 from bench.utils.func import cyrb53a
-from bench.utils.utils import to_all_caps
+from bench.utils.utils import IdentifierType, to_all_caps, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language import ModuleNode, Statement  # noqa: F401
@@ -57,6 +57,10 @@ class StatementType(enum.StrEnum):
     VARIABLE = "variable"
     DATABASE = "database"
     REFERENCE = "reference"
+
+    @property
+    def camel_name(self):
+        return to_pyidentifier(self.name, IdentifierType.TYPE)
 
 
 RUNNABLE_STATEMENT_TYPES = {

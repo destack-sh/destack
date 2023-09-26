@@ -23,8 +23,12 @@ class File(ScopedNode):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
     name: str = nproperty()
 
-    children: NodeList[Union["File", "Statement"]] = nchildren(MNT.File)
-    statements: NodeList["Statement"] = nchildren(MNT.Statement, NRel.Flat)
+    children: NodeList[Union["File", "Statement"]] = nchildren(
+        MNT.File, NRel.Flat | NRel.Ordered | NRel.Named
+    )
+    statements: NodeList["Statement"] = nchildren(
+        MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named
+    )
 
     def __str__(self):
         return f"{self.path} '{self.name}' ({len(self.statements)} statements)"
@@ -47,9 +51,3 @@ class File(ScopedNode):
             return None
         else:
             return to_pyidentifier(self.name, IdentifierType.PATH)
-
-    def _assign_oks(self):
-        for statements in self._statements_by_parent_id.values():
-            oks = generate_n_keys_between(None, None, len(statements))
-            for ok, statement in zip(oks, statements):
-                statement.order_key = ok

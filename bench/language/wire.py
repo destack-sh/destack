@@ -30,10 +30,11 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
-from bench.language.module import ModuleNode, NodeVisitor, NodeTree
+from bench.language.module import ModuleNode, NodeTree, NodeVisitor, ScopedNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
+from bench.language.statement import STATEMENT_CLASS_BY_TYPE
 from bench.language.text import patch_text_html
 from bench.utils.func import describe_type
 from bench.utils.serialize import from_dict, to_dict
@@ -173,7 +174,8 @@ def unpack_node(
     # recover node descendant lists
     unpacked_tree.root._index_rec()
     for node in unpacked_tree.nodes_by_id.values():
-        node  # nocheckin: recover node lists
+        if isinstance(node, ScopedNode):
+            node._update_lists(node)
 
     return unpacked_tree.root
 
@@ -365,8 +367,9 @@ class StatementData(NodeData, HasOrder, HasCrud):
     heading_level: Optional[TextHeadingLevel]
     text: Optional[str]
     tag: Optional[TypeTag]
-    key: Optional[str]
+    hint: Optional[TypeHint]
     flags: Optional[TypeFlag]
+    key: Optional[str]
     code: Optional[str]
     value: Optional[typing.Any]
     versioned: Optional[bool]
@@ -395,8 +398,9 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             heading_level=statement.heading_level,
             text=statement.text,
             tag=statement.tag,
-            key=statement.key,
+            hint=statement.hint,
             flags=statement.flags,
+            key=statement.key,
             code=statement.code,
             value=value,
             versioned=statement.versioned,
@@ -414,6 +418,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
         parent: lang.File | lang.Statement,
         session: Optional[Session],
     ) -> lang.Statement:
+        cls = STATEMENT_CLASS_BY_TYPE[statement.type]
         return lang.Statement(
             id=statement.id,
             ck=statement.ck,
@@ -425,9 +430,10 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             name=statement.name,
             heading_level=statement.heading_level,
             text=statement.text,
-            tag=statement.tag or cls.tag,
-            key=statement.key,
             flags=statement.flags or cls.flags,
+            tag=statement.tag or cls.tag,
+            hint=statement.hint,
+            key=statement.key,
             code=statement.code,
             value=statement.value,
             versioned=statement.versioned,

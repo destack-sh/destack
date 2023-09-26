@@ -6,7 +6,6 @@ from bench.language.const import MNT, StatementReference
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
-    NRel,
     ScopedNode,
     nchildren,
     node,
@@ -45,7 +44,7 @@ class Tagging(HasValue, ModuleNode):
 
     def _interp_inner(self, scope: "ScopedNode") -> None:
         if self.reference_ck is not None:
-            self.reference = scope._root_scope._nodes_by_ck.get(self.reference_ck)
+            self.reference = scope._local_root_scope._nodes_by_ck.get(self.reference_ck)
 
     def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):

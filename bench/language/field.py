@@ -34,9 +34,8 @@ from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.utils.fractional import generate_n_keys_between
 from bench.utils.func import dict_minus, did_you_mean_str
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement, Type
@@ -419,17 +418,7 @@ class HasFields(SomeType, ModuleNode):
                 field_copy.ck = uuid.uuid4()
             self.fields.append(field_copy)
             new_fields.append(field_copy)
-        self._assign_oks()
         return new_fields
-
-    def _assign_oks(self):
-        oks = generate_n_keys_between(None, None, len(self.fields))
-        for ok, field_ in zip(oks, self.fields):
-            if field_.parent is None:
-                field_.parent = self
-            elif field_.parent is not self:
-                raise ValueError(f"{field_} is already attached to {field_.parent}")
-            field_.order_key = ok
 
     def __getattr__(self, item):
         if item in self._PROPERTIES:  # defined for all module node classes

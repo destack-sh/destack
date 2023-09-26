@@ -16,10 +16,10 @@ import openai
 
 from bench.language import HasRun, HasText, Module, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.const import RunStatus, TypeFlag, TypeTag, StatementType
+from bench.language.const import RunStatus, StatementType, TypeFlag, TypeTag
 from bench.language.field import Field, HasFields, Key, Vector, new_dynamic_node_key
 from bench.language.mapping import map_value, pack_value_flat
-from bench.language.model import ModelError, ModelErrorType, HasModel
+from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
@@ -49,8 +49,8 @@ from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 # symbolx.lib
 #
 
-_symbolx_builtins = symbolx_lib.create_file("builtins")
-_symbolx_utils = symbolx_lib.create_file("utils")
+_symbolx_builtins = symbolx_lib.files.create("builtins")
+_symbolx_utils = symbolx_lib.files.create("utils")
 
 
 @x_tag("tool", "A tool for a bot", file=_symbolx_builtins)
@@ -312,10 +312,10 @@ class BaseTextTaskCompiler(TaskCompiler):
 # so we don't need to hot-swap in 'impl' when calling. :LibImplementation
 
 openai_lib.add_dependency(symbolx_lib)
-_openai_chat = openai_lib.create_file("chat")
-_openai_text = openai_lib.create_file("text")
-_openai_audio = openai_lib.create_file("audio")
-_openai_utils = openai_lib.create_file("utils")
+_openai_chat = openai_lib.files.create("chat")
+_openai_text = openai_lib.files.create("text")
+_openai_audio = openai_lib.files.create("audio")
+_openai_utils = openai_lib.files.create("utils")
 
 
 @x_enum("OpenAIChatRole", "Message role in OpenAI chat models", file=_openai_utils)
@@ -736,7 +736,7 @@ class OpenAITextEmbeddingModel(HasModel):
 # anthropic.lib
 #
 
-_anthropic_text = anthropic_lib.create_file("text")
+_anthropic_text = anthropic_lib.files.create("text")
 
 
 @x_struct(

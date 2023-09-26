@@ -39,7 +39,7 @@ from bench.language.remote import RemoteObject, Secret
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import Type, Statement
+    from bench.language import Statement, Type
 
 logger = structlog.get_logger(__name__)
 
@@ -462,7 +462,6 @@ class EnumMapper(TypeMapper):
         for py_member in py_type.__members__.values():
             member = Field(name=py_member.name, key=py_member.name, tag=TypeTag.LITERAL)
             type.fields.append(member)
-        type._assign_oks()
         return type
 
     def is_instance_value(self, type: SomeType, value: Any) -> bool:
@@ -559,7 +558,6 @@ class StructTypeMapper(TypeMapper):
                 type.fields.append(field_)
         else:
             raise ValueError(f"unsupported struct type: {py_type}")
-        type._assign_oks()
         return type
 
     def is_instance_value(self, type: SomeType, value: Any) -> bool:
@@ -618,7 +616,6 @@ class FunctionTypeMapper(TypeMapper):
         for output_field in type._take_fields_from(output, reset_id=True):
             output_field.flags |= TypeFlag.IsOutput
 
-        type._assign_oks()
         return type
 
 
@@ -670,7 +667,13 @@ def field_from_instance_type(py_type: type | str, name: str, type_map: dict[Any,
             name=name_nice, key=None, tag=TypeTag.TYPE_REFERENCE, reference=type, flags=flags
         )
     else:
-        return Field(name=name_nice, key=None, tag=type.tag, hint=type.hint, flags=flags)
+        return Field(
+            name=name_nice,
+            key=None,
+            tag=type.tag,
+            hint=type.hint,
+            flags=flags,
+        )
 
 
 def unpack_value_flat(value: Any, type: SomeType, ignore_array: bool = False) -> Any:

@@ -18,6 +18,7 @@ from bench.language.module import (
     Module,
     ModuleNode,
     NodeList,
+    NodeStatus,
     NRel,
     ScopedNode,
     nancestor,
@@ -42,9 +43,9 @@ if TYPE_CHECKING:
         File,
         Record,
         ResolvedField,
-        Statement,
         Tagging,
         Trigger,
+        TypeHint,
     )
 
 
@@ -65,6 +66,7 @@ class Statement(ScopedNode):
     text: str | None = nproperty(default=None)
     key: str | None = nproperty(default=None)
     tag: Optional["TypeTag"] = nproperty(default=None)
+    hint: Optional["TypeHint"] = nproperty(default=None)
     flags: Optional["TypeFlag"] = nproperty(default=0)
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default=None)
@@ -81,7 +83,7 @@ class Statement(ScopedNode):
         return f"{self.path} '{self.name}'" if self.name else self.path
 
     def __repr__(self):
-        return f"<{self.type.name} {self}>"
+        return f"<{self.type.camel_name} {self}>"
 
     @property
     def reference_ck(self) -> Optional[UUID]:
@@ -148,7 +150,7 @@ class Statement(ScopedNode):
                 yield from child.walk_descendants()
 
     def __getattr__(self, item):
-        if not self._tracked or item in self._PROPERTIES:
+        if self._status != NodeStatus.Tracked or item in self._PROPERTIES:
             return super().__getattribute__(item)
         if item in self._names_by_ident:
             item = self._names_by_ident.get(item)
@@ -193,7 +195,6 @@ _STATEMENT_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
 _missing_types = set(StatementType) - set(_STATEMENT_COMPONENTS_BY_TYPE)
 assert not _missing_types, f"missing statement components for {_missing_types}"
 
-
 #
 # 'Concrete' statements are a mirage, we just have a custom metaclass
 #  where for e.g. statement.type == 'X', the 'concrete' class X
@@ -201,35 +202,54 @@ assert not _missing_types, f"missing statement components for {_missing_types}"
 #
 
 
+STATEMENT_CLASS_BY_TYPE: dict[StatementType, "_StatementProxy"] = {}
+
+
 class _StatementProxy:
     def __init__(
-        self, _type: StatementType, tag: Optional[TypeTag] = None, flags: Optional[TypeFlag] = None
+        self,
+        _type: StatementType,
+        tag: Optional[TypeTag] = None,
+        flags: Optional[TypeFlag] = None,
+        register: bool = True,
     ):
-        self._type = _type
-        self._tag = tag
-        self._flags = flags
+        self.type = _type
+        self.tag = tag
+        self.flags = flags
+        if register:
+            if _type in STATEMENT_CLASS_BY_TYPE:
+                raise ValueError(f"statement type {_type} already registered")
+            STATEMENT_CLASS_BY_TYPE[_type] = self
 
     def __call__(self, *args, **kwargs):
-        return Statement(type=self._type, tag=self._tag, flags=self._flags, **kwargs)
+        kwargs["type"] = self.type
+        if self.tag is not None:
+            kwargs["tag"] = self.tag
+        if self.flags is not None:
+            kwargs["flags"] = self.flags
+        return Statement(**kwargs)
 
     def __instancecheck__(self, instance):
-        return isinstance(instance, Statement) and instance.type == self._type
+        return isinstance(instance, Statement) and instance.type == self.type
 
     def __subclasscheck__(self, subclass):
-        return issubclass(subclass, Statement) and subclass.type == self._type
+        return issubclass(subclass, Statement) and subclass.type == self.type
 
 
 def _make_statement_proxy(
-    _type: StatementType, tag: Optional[TypeTag] = None, flags: Optional[TypeFlag] = None
+    _type: StatementType,
+    tag: Optional[TypeTag] = None,
+    flags: Optional[TypeFlag] = None,
+    register=True,
 ):
-    return _StatementProxy(_type, tag=tag, flags=flags)
+    return _StatementProxy(_type, tag=tag, flags=flags, register=register)
 
 
 Blank = _make_statement_proxy(StatementType.BLANK)
 Text = _make_statement_proxy(StatementType.TEXT)
 Reference = _make_statement_proxy(StatementType.REFERENCE)
 Struct = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.STRUCT)
-Choice = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.ENUM)
+Choice = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.ENUM, register=False)
 Type = Struct
 Tag = _make_statement_proxy(StatementType.TAG, tag=TypeTag.STRUCT)
 Database = _make_statement_proxy(StatementType.DATABASE, tag=TypeTag.STRUCT, flags=TypeFlag.IsArray)
@@ -238,3 +258,6 @@ Code = _make_statement_proxy(StatementType.CODE, tag=TypeTag.FUNCTION)
 Task = _make_statement_proxy(StatementType.TASK, tag=TypeTag.FUNCTION)
 Flow = _make_statement_proxy(StatementType.FLOW, tag=TypeTag.FUNCTION)
 Variable = _make_statement_proxy(StatementType.VARIABLE, tag=TypeTag.STRUCT)
+
+_missing_proxies = set(StatementType) - set(STATEMENT_CLASS_BY_TYPE)
+assert not _missing_proxies, f"missing statement proxies for {_missing_proxies}"
