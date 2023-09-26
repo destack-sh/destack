@@ -11,7 +11,7 @@ import asgiref.sync
 import structlog
 
 from bench.language.const import ModuleOp, SessionMode, TriggerType
-from bench.language.module import Module, ModuleNode, ScopedNode
+from bench.language.module import Module, ModuleNode, ScopeNode
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.search import Search
 from bench.utils.dt import utcnow_with_tz
@@ -99,7 +99,7 @@ class Session:
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
 
-        self.anonymous_scope = ScopedNode(parent=self.module)
+        self.anonymous_scope = ScopeNode(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
         self.mutator = NodeMutator(self.module, hooks=[self._on_mutated])

@@ -22,7 +22,7 @@ from bench.language.const import (
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
-    ScopedNode,
+    ScopeNode,
     get_node_id,
     ninternal,
     node,
@@ -34,7 +34,7 @@ from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.utils.func import dict_minus, did_you_mean_str
+from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -276,6 +276,22 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     text: Optional[str] = nproperty(default=None)
     flags: TypeFlag = nproperty(default=TypeFlag.Zero)
 
+    @staticmethod
+    def _coerce_from(
+        name: str = None, some_type: Union[TypeTag, TypeHint, "Statement"] = None, *args, **kwargs
+    ) -> "Field":
+        if isinstance(some_type, TypeTag):
+            kwargs["tag"] = some_type
+        elif isinstance(some_type, TypeHint):
+            kwargs["hint"] = some_type
+            kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[some_type]
+        elif isinstance(some_type, Statement):
+            kwargs["tag"] = TypeTag.TYPE_REFERENCE
+            kwargs["reference"] = some_type
+        else:
+            raise ValueError(f"unexpected type {some_type!r}")
+        return Field(name=name, *args, **kwargs)
+
     def _init_(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
@@ -295,7 +311,10 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
 
         return symbolx_lib.lookup_or_error(".reflect.FieldMetadata")
 
-    def _visit(self, visitor: NodeVisitor) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
+        pass  # reference already resolved in HasReference
+
+    def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
 
@@ -359,26 +378,7 @@ class HasFields(SomeType, ModuleNode):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
-        # interp fields
-        for f in self.fields:
-            HasText._interp(f, scope)
-        # resolve fields references
-        for f in self.walk_type():
-            # TODO @Cleanup @Architecture: move field reference resolution into Field._interp
-            #  we'll also need text reference resolution and tagging resolution there
-            if f.tag != TypeTag.TYPE_REFERENCE or isinstance(f.reference, ModuleNode):
-                continue  # nothing to resolve
-            statement = None
-            if f.reference is not None:
-                statement = scope.lookup(f.reference)
-            if not isinstance(statement, SomeType):
-                self._on_issue(
-                    type=IssueType.MISSING_REFERENCE, subject=self, path=f.name or "<root>"
-                )
-                continue
-            f.reference = statement
-
+    def _interp_inner(self, scope: ScopeNode) -> None:
         # expand unions (recursively)
         _resolve_unions(self, [])
 
@@ -386,11 +386,7 @@ class HasFields(SomeType, ModuleNode):
         """Adds the fields of another type to this one"""
         for base in bases:
             field_ = Field(
-                parent=self.parent,
-                name=None,
-                tag=TypeTag.TYPE_REFERENCE,
-                reference=base,
-                flags=TypeFlag.IsUnionWith,
+                name=None, tag=TypeTag.TYPE_REFERENCE, reference=base, flags=TypeFlag.IsUnionWith
             )
             self.fields.append(field_)
         return self
@@ -400,44 +396,6 @@ class HasFields(SomeType, ModuleNode):
         for input_t, input in zip(self.inputs, args):
             inputs[input_t.py_ident] = input
         return inputs
-
-    def _take_fields_from(self, other: "HasFields", reset_id: bool) -> list[Field]:
-        """Copies the fields of this type to another type"""
-        module = self.module or other.module
-        if module is None:
-            raise ValueError(f"{self} cannot take fields from {other} without a module")
-        new_fields = []
-        for field_ in other.fields:
-            if not field_.id:
-                field_._assign_id(module.id)
-            field_copy = field_.copy()
-            field_copy.parent = self
-            field_copy.reference = field_.reference
-            if reset_id:
-                field_copy.id = None
-                field_copy.ck = uuid.uuid4()
-            self.fields.append(field_copy)
-            new_fields.append(field_copy)
-        return new_fields
-
-    def __getattr__(self, item):
-        if item in self._PROPERTIES:  # defined for all module node classes
-            return super().__getattr__(item)
-        field_ = self.get_field(item)
-        if field_ is not None:
-            return field_
-        if item in self._names_by_ident:
-            item = self._names_by_ident.get(item)
-        statement = self._scopes_by_name.get(item)
-        if statement is not None:
-            return statement
-        candidates = {
-            **{s: s for s in self._PROPERTIES},
-            **{f.py_ident: f for f in self.fields},
-            **{s.py_ident: s for s in self._scopes_by_name.values()},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
 
 def _resolve_unions(type: "HasFields", path: list[SomeType]) -> None:

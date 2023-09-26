@@ -11,7 +11,7 @@ from bench.language.const import MNT, ScheduleType, TriggerType
 from bench.language.module import (
     ModuleNode,
     NodeList,
-    ScopedNode,
+    ScopeNode,
     nchildren,
     node,
     node_component,
@@ -58,7 +58,7 @@ class Trigger(ModuleNode):
         self.runnable = self.runnable.id if isinstance(self.runnable, ModuleNode) else self.runnable
         self.scope = self.scope.id if isinstance(self.scope, ModuleNode) else self.scope
 
-    def _interp_inner(self, scope: "ScopedNode") -> None:
+    def _interp_inner(self, scope: "ScopeNode") -> None:
         # resolve runnable
         if self.runnable is not None and not isinstance(self.runnable, HasRun):
             resolved = scope.lookup(self.runnable)

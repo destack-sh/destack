@@ -11,8 +11,9 @@ from bench.language.const import IssueType
 from bench.language.field import TypedDict
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
-from bench.language.module import ModuleNode, ScopedNode, node_component, nruntime
+from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
 from bench.language.reference import ModuleView
+
 from ..utils.func import describe_type
 
 if TYPE_CHECKING:
@@ -34,11 +35,11 @@ class HasTask(ModuleNode):
         self._root_models = None
         self._randomize = False
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
         from bench.language.builtin import symbolx_lib
 
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
-        self._randomize = self.has_tag(randomize_tag)
+        self._randomize = randomize_tag.key in self.tags
 
         if not self.outputs:
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)

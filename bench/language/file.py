@@ -5,13 +5,12 @@ from bench.language.module import (
     Module,
     NodeList,
     NRel,
-    ScopedNode,
+    ScopeNode,
     nchildren,
     node,
     nparent,
     nproperty,
 )
-from bench.utils.fractional import generate_n_keys_between
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @node(mnt=MNT.File)
-class File(ScopedNode):
+class File(ScopeNode):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
     name: str = nproperty()
 
@@ -29,6 +28,10 @@ class File(ScopedNode):
     statements: NodeList["Statement"] = nchildren(
         MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named
     )
+
+    @staticmethod
+    def _coerce_from(name: str = None, *args, **kwargs) -> "File":
+        return File(name=name, *args, **kwargs)
 
     def __str__(self):
         return f"{self.path} '{self.name}' ({len(self.statements)} statements)"

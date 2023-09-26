@@ -1,11 +1,10 @@
 import abc
-import uuid
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional, Union
 from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import MNT, IssueKind
-from bench.language.module import node, nparent, nproperty, ModuleNode
+from bench.language.module import ModuleNode, node, nparent, nproperty
 
 if TYPE_CHECKING:
     from bench.language.file import File
@@ -24,10 +23,8 @@ _ISSUE_MESSAGES = {
     IssueType.CODE_REFERENCE_NOT_EXPORTED.value: "code {path} is not exported",
     IssueType.AMBIGUOUS_DEFINITION.value: "multiple definitions for {path}",
     IssueType.TASK_MISSING_IO.value: "task has no inputs or outputs",
-    IssueType.TASK_IMPOSSIBLE.value: "task is impossible in current scope: {reason}",
     # notices
     IssueType.TASK_IS_STATIC.value: "task has no inputs and is not randomized",
-    IssueType.TEXT_HAS_NO_EFFECT.value: "text has no effect here: {help}",
 }
 
 ERRORS = [
@@ -44,9 +41,8 @@ WARNINGS = [
     IssueType.CODE_REFERENCE_NOT_EXPORTED,
     IssueType.CODE_NOT_CACHEABLE,
     IssueType.TASK_MISSING_IO,
-    IssueType.TASK_IMPOSSIBLE,
 ]
-NOTICES = [IssueType.TASK_IS_STATIC, IssueType.TEXT_HAS_NO_EFFECT]
+NOTICES = [IssueType.TASK_IS_STATIC]
 _missing_issue_types = set(IssueType) - set(ERRORS) - set(WARNINGS) - set(NOTICES)
 assert not _missing_issue_types, f"missing issue types: {_missing_issue_types}"
 _ISSUE_KIND_BY_TYPE = {
@@ -91,42 +87,25 @@ class ValidationHandler:
 @node(mnt=MNT.Issue)
 class Issue(ModuleNode):
     parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)
-    kind: IssueKind = nproperty()
     type: IssueType = nproperty()
-    message: str = nproperty()
+    kind: IssueKind = nproperty(default=None)
+    message: str = nproperty(default=None)
+    subject: Optional[ModuleNode] = nproperty(default=None)
+    path: Optional[str] = nproperty(default=None)
+    other: Optional[ModuleNode] = nproperty(default=None)
 
-    def __init__(self, type: IssueType, parent: Union["Statement", "File", None], **kwargs):
-        from bench.language import File, Statement
-        from bench.language.const import NodePath, node_path_as_str
-
-        if parent is not None and not isinstance(parent, (Statement, File)):
-            raise ValueError(f"unexpected parent for issue {type}: {parent!r}")
-
-        # auto convert kwargs
-        for key, value in kwargs.items():
-            if isinstance(value, (Statement, Statement, File)):
-                kwargs[key] = value.name
-            if isinstance(value, NodePath):
-                kwargs[key] = node_path_as_str(value)
-
-        self.type = type
-        self.parent = parent
-        if isinstance(parent, File):
-            self.parent = parent
-        elif isinstance(parent, (Statement, Statement)):
-            self.parent = parent
-
-        message = _ISSUE_MESSAGES.get(type.value)
+    def _init(self):
+        # make message
+        message = _ISSUE_MESSAGES[self.type.value]
+        kwargs = {}
         if "subject" in message:
-            kwargs["subject"] = self.parent
+            kwargs["subject"] = self.subject or self.parent
+        if "path" in message:
+            kwargs["path"] = self.path
+        if "other" in message:
+            kwargs["other"] = self.other
         self.message = message.format(**kwargs)
-        self.kind = _ISSUE_KIND_BY_TYPE[type]
-        # generate id if not provided
-        if "id" not in kwargs:
-            self.id = uuid.uuid5(parent.id, type.value + self.message)
-        else:
-            self.id = kwargs.pop("id")
-        self.ck = self.id
+        self.kind = _ISSUE_KIND_BY_TYPE[self.type]
 
     def __str__(self):
         return f"{self.parent} {self.kind}: {self.type} {self.message}"

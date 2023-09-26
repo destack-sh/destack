@@ -283,7 +283,7 @@ def _check_supports_subfield(field: "Field", subfield: SubfieldType):
         raise UnsupportedSearchError(field, subfield)
 
 
-def _check_has_tag(field: "Field", tag: TypeTag):
+def _check_has_type_tag(field: "Field", tag: TypeTag):
     if field.effective_tag != tag:
         raise UnsupportedSearchError(field, tag)
 
@@ -479,27 +479,27 @@ class FieldQueryOps:
 
     @property
     def raw(self):
-        _check_has_tag(self, TypeTag.STRING)
+        _check_has_type_tag(self, TypeTag.STRING)
         return self._subfield(SubfieldType.key.name, TypeTag.STRING, TypeHint.KEY)
 
     @property
     def file_name(self) -> Subfield:
-        _check_has_tag(self, TypeTag.FILE)
+        _check_has_type_tag(self, TypeTag.FILE)
         return self._subfield("name", TypeTag.STRING, TypeHint.NAME)
 
     @property
     def content_length(self) -> Subfield:
-        _check_has_tag(self, TypeTag.FILE)
+        _check_has_type_tag(self, TypeTag.FILE)
         return self._subfield("content_length", TypeTag.NUMBER, TypeHint.INTEGER)
 
     @property
     def content_type(self) -> Subfield:
-        _check_has_tag(self, TypeTag.FILE)
+        _check_has_type_tag(self, TypeTag.FILE)
         return self._subfield("content_type", TypeTag.STRING, TypeHint.KEY)
 
     @property
     def status(self) -> Subfield:
-        _check_has_tag(self, TypeTag.FILE)
+        _check_has_type_tag(self, TypeTag.FILE)
         return self._subfield("status", TypeTag.STRING, TypeHint.KEY)
 
     @property

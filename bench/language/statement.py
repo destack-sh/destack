@@ -18,9 +18,8 @@ from bench.language.module import (
     Module,
     ModuleNode,
     NodeList,
-    NodeStatus,
     NRel,
-    ScopedNode,
+    ScopeNode,
     nancestor,
     nchildren,
     ninternal,
@@ -50,7 +49,7 @@ if TYPE_CHECKING:
 
 
 @node(MNT.Statement)
-class Statement(ScopedNode):
+class Statement(ScopeNode):
     """A Bench statement."""
 
     file: Optional["File"] = nancestor(MNT.File)
@@ -71,6 +70,7 @@ class Statement(ScopedNode):
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)
+    external_name: str | None = ninternal(default=None)  # for model, to be moved to value
 
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging)
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Ordered)
@@ -79,11 +79,31 @@ class Statement(ScopedNode):
     views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
     records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
 
+    @staticmethod
+    def _coerce_from(type: StatementType = None, name: str = None, *args, **kwargs) -> "Statement":
+        proxy = STATEMENT_CLASS_BY_TYPE[type]
+        if proxy.tag:
+            kwargs["tag"] = proxy.tag
+        if proxy.flags:
+            kwargs["flags"] = proxy.flags
+        return Statement(type=type, name=name, *args, **kwargs)
+
+    @property
+    def _components(self):
+        return _ALL_COMPONENTS_BY_TYPE[self.type]
+
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path
 
     def __repr__(self):
         return f"<{self.type.camel_name} {self}>"
+
+    def _init_inner(self) -> None:
+        # add runtime properties from dynamic components
+        for component in _DYNAMIC_COMPONENTS_BY_TYPE[self.type]:
+            for prop in component.__properties__.values():
+                if prop.is_runtime:
+                    setattr(self, prop.name, prop.new())
 
     @property
     def reference_ck(self) -> Optional[UUID]:
@@ -136,7 +156,7 @@ class Statement(ScopedNode):
         if self.name is None:
             return None
         else:
-            return to_pyidentifier(self.name, _STATEMENT_IDENTIFIER_BY_TYPE[self.type])
+            return to_pyidentifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -150,35 +170,43 @@ class Statement(ScopedNode):
                 yield from child.walk_descendants()
 
     def __getattr__(self, item):
-        if self._status != NodeStatus.Tracked or item in self._PROPERTIES:
+        if item in self.__properties__:
             return super().__getattribute__(item)
+        for component in self._components:
+            if hasattr(component, item):
+                return getattr(component, item).__get__(self)
+
+        # report lookup error
         if item in self._names_by_ident:
             item = self._names_by_ident.get(item)
         scope = self._scopes_by_name.get(item)
         if scope is not None:
             return scope
         candidates = {
-            **{s: s for s in self._PROPERTIES},
+            **{s: s for s in self.__properties__.keys()},
             **{s.name: s for s in self._scopes_by_name.values()},
         }
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
 
-_STATEMENT_COMPONENTS_BY_TYPE: dict[StatementType, list[typing.Type[ModuleNode]]] = {
-    StatementType.TYPE: [HasFields, HasText],
-    StatementType.CODE: [HasCode, HasRun, HasFields, HasText],
-    StatementType.MODEL: [HasModel, HasRun, HasFields, HasText],
-    StatementType.TASK: [HasTask, HasRun, HasFields, HasText],
-    StatementType.FLOW: [HasRun, HasFields, HasText],
-    StatementType.DATABASE: [HasDatabase, HasFields, HasText],
-    StatementType.TAG: [HasFields, HasText],
-    StatementType.VARIABLE: [HasValue, HasFields, HasText],
-    StatementType.REFERENCE: [HasReference, HasText],
-    StatementType.TEXT: [HasText],
-    StatementType.BLANK: [],
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+    StatementType.TYPE: (HasFields, HasText),
+    StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
+    StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
+    StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
+    StatementType.FLOW: (HasRun, HasFields, HasText),
+    StatementType.DATABASE: (HasDatabase, HasFields, HasText),
+    StatementType.TAG: (HasFields, HasText),
+    StatementType.VARIABLE: (HasValue, HasFields, HasText),
+    StatementType.REFERENCE: (HasReference, HasText),
+    StatementType.TEXT: (HasText,),
+    StatementType.BLANK: tuple(),
 }
-_STATEMENT_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
+_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
+}
+_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     StatementType.TYPE: IdentifierType.TYPE,
     StatementType.MODEL: IdentifierType.METHOD,
     StatementType.TASK: IdentifierType.METHOD,
@@ -192,7 +220,7 @@ _STATEMENT_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     StatementType.BLANK: IdentifierType.VARIABLE,
 }
 
-_missing_types = set(StatementType) - set(_STATEMENT_COMPONENTS_BY_TYPE)
+_missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
 assert not _missing_types, f"missing statement components for {_missing_types}"
 
 #
@@ -221,12 +249,10 @@ class _StatementProxy:
                 raise ValueError(f"statement type {_type} already registered")
             STATEMENT_CLASS_BY_TYPE[_type] = self
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, tag: TypeTag = None, flags: TypeFlag = None, *args, **kwargs):
         kwargs["type"] = self.type
-        if self.tag is not None:
-            kwargs["tag"] = self.tag
-        if self.flags is not None:
-            kwargs["flags"] = self.flags
+        kwargs["tag"] = tag if tag is not None else self.tag
+        kwargs["flags"] = (flags if flags is not None else self.flags) or 0
         return Statement(**kwargs)
 
     def __instancecheck__(self, instance):

@@ -8,7 +8,7 @@ from bench.language.const import ModuleNodeType, TypedNodeReference
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
-    ScopedNode,
+    ScopeNode,
     node_component,
     nproperty,
     nruntime,
@@ -41,7 +41,7 @@ class HasText(ModuleNode):
     def _clear_inner(self) -> None:
         self._text_spans = None
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
         if self.text is None:
             return
         self._text_spans = parse_text_html(self.text)
