@@ -81,7 +81,7 @@ def x_task(
         task = Task(name=name, text=text)
         file.statements.append(task)
         task_type = type_from_instance_type(fn, name=None)
-        task._take_fields_from(task_type, reset_id=False)
+        task.fields.extend((f._copy_self(reset_id=False) for f in task_type.fields))
         return task
 
     return decorator
@@ -97,7 +97,7 @@ def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type],
         tag = Tag(name=name, text=text)
         file.statements.append(tag)
         tag_type = type_from_instance_type(cls, name=None)
-        tag._take_fields_from(tag_type, reset_id=False)
+        tag.fields.extend((f._copy_self(reset_id=False) for f in tag_type.fields))
         return cls
 
     return decorator
@@ -117,7 +117,7 @@ def x_model(
         model = Model(name=name, external_name=external_name, text=text)
         file.statements.append(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
-        model._take_fields_from(model_type, reset_id=True)
+        model.fields.extend((f._copy_self(reset_id=True) for f in model_type.fields))
 
         _model_impls[model.path] = cls._endpoint
         _model_compilers[model.path] = cls._compiler
@@ -126,8 +126,7 @@ def x_model(
     return decorator
 
 
-_symbolx_reflect = File(name="reflect")
-symbolx_lib.files.append(_symbolx_reflect)
+_symbolx_reflect = symbolx_lib.files.create("reflect")
 
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)
 reflect_struct = functools.partial(x_struct, file=_symbolx_reflect)

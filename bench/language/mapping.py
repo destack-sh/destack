@@ -452,12 +452,12 @@ class EnumMapper(TypeMapper):
         return inspect.isclass(py_type) and issubclass(py_type, enum.StrEnum)
 
     def from_instance_type(self, py_type: type, type_map: dict[type, Any]) -> SomeType:
-        from bench.language.statement import Type
+        from bench.language.statement import Choice
 
         assert issubclass(py_type, enum.StrEnum)
         if py_type in type_map:
             return type_map[py_type]
-        type = Type(name=py_type.__name__, tag=TypeTag.ENUM)
+        type = Choice(name=py_type.__name__)
         type_map[py_type] = type
         for py_member in py_type.__members__.values():
             member = Field(name=py_member.name, key=py_member.name, tag=TypeTag.LITERAL)
@@ -613,8 +613,9 @@ class FunctionTypeMapper(TypeMapper):
         output = type_from_instance_type(signature.return_annotation, None, type_map)
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
-        for output_field in type._take_fields_from(output, reset_id=True):
+        for output_field in output.fields:
             output_field.flags |= TypeFlag.IsOutput
+            type.fields.append(output_field._copy_self())
 
         return type
 

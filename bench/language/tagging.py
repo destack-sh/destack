@@ -6,7 +6,7 @@ from bench.language.const import MNT, StatementReference
 from bench.language.module import (
     ModuleNode,
     NodeVisitor,
-    ScopedNode,
+    ScopeNode,
     nchildren,
     node,
     node_component,
@@ -42,7 +42,7 @@ class Tagging(HasValue, ModuleNode):
     def __repr__(self):
         return f"<Tagging {self}>"
 
-    def _interp_inner(self, scope: "ScopedNode") -> None:
+    def _interp_inner(self, scope: "ScopeNode") -> None:
         if self.reference_ck is not None:
             self.reference = scope._local_root_scope._nodes_by_ck.get(self.reference_ck)
 
@@ -67,16 +67,3 @@ class HasTags(ModuleNode):
         if hasattr(key, "key"):
             key = key.key
         return key
-
-    def has_tag(self, key: Union[str, "Statement", Tagging]) -> bool:
-        """Returns whether this statement has the given tag."""
-        key = self._to_tag_key(key)
-        return any(tagging.key == key for tagging in self.tags)
-
-    def get_tag(self, key: Union[str, "Statement", Tagging]) -> Tagging:
-        """Returns the tag with the given key."""
-        key = self._to_tag_key(key)
-        for tagging in self.tags:
-            if tagging.key == key:
-                return tagging
-        raise KeyError(key)

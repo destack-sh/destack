@@ -30,7 +30,7 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
-from bench.language.module import ModuleNode, NodeTree, NodeVisitor, ScopedNode
+from bench.language.module import ModuleNode, NodeTree, NodeVisitor, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -138,7 +138,7 @@ def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
     to_pack: list[NodeT] = [root]
     while to_pack:
         for node in to_pack:
-            node._visit(ctx)
+            node._visit_self(ctx)
             packer = _node_packers_by_node[type(node)]
             packed_node = packer.pack(node)
             packed[node.id] = packed_node
@@ -171,13 +171,21 @@ def unpack_node(
             node_parent = unpacked_tree.nodes_by_id[node.parent_id]
         unpacked_tree.add(packer.unpack(node, node_parent, session))
 
-    # recover node descendant lists
-    unpacked_tree.root._index_rec()
+    # recover node lists
+    root = unpacked_tree.root
+    if isinstance(root, ScopeNode):
+        root_tree = root._local_root_tree
+        for node in unpacked_tree.nodes_by_id.values():
+            if node.id != root.id:
+                root_tree.add(node)
+        root._index_rec()
+    else:
+        root._index_self()
     for node in unpacked_tree.nodes_by_id.values():
-        if isinstance(node, ScopedNode):
+        if isinstance(node, ScopeNode):
             node._update_lists(node)
 
-    return unpacked_tree.root
+    return root
 
 
 def pack_node_flat(node: NodeT) -> NodeDataT:
@@ -311,7 +319,6 @@ class ModulePacker(NodePacker[ModuleData, Module]):
             updated_at=module.updated_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
-            files=[],
         )
 
 
@@ -347,15 +354,13 @@ class FilePacker(NodePacker[FileData, File]):
         return File(
             id=file.id,
             ck=file.ck,
-            module=parent,
             name=file.name,
+            parent=parent,
             revision=file.revision,
             created_at=file.created_at,
             updated_at=file.updated_at,
             last_edited_at=file.last_edited_at,
             last_changed_at=file.last_changed_at,
-            statements=[],
-            children=[],
             _session=session,
         )
 
@@ -423,8 +428,6 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             id=statement.id,
             ck=statement.ck,
             parent=parent,
-            file=parent if isinstance(parent, File) else parent.file,
-            children=[],
             order_key=statement.order_key,
             type=statement.type,
             name=statement.name,

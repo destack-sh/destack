@@ -8,7 +8,7 @@ from bench.language.module import (
     Module,
     ModuleNode,
     NodeVisitor,
-    ScopedNode,
+    ScopeNode,
     node_component,
     nproperty,
 )
@@ -21,14 +21,18 @@ if TYPE_CHECKING:
 class HasReference(ModuleNode):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
+    reference: Union["Statement", StatementReference, None] = nproperty(
+        default=None, copy_value=lambda v: v
+    )
 
     def _clear_inner(self) -> None:
         self.reference = (
             self.reference.ck if isinstance(self.reference, ModuleNode) else self.reference
         )
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
+        if self.reference is None:
+            return
         resolved = None
         if not isinstance(self.reference, ModuleNode):
             resolved = scope.lookup(self.reference)

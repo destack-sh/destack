@@ -15,12 +15,7 @@ import structlog
 from bench.language.cache import CacheAsync
 from bench.language.field import HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import (
-    ModuleNode,
-    ScopedNode,
-    node_component,
-    nruntime,
-)
+from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
 from bench.utils.utils import get_from_env
@@ -61,7 +56,7 @@ class HasModel(HasFields, ModuleNode):
         self._compiler_impl = None
         self._has_vector_io = False
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
         # model is remote if we don't have the key in scope or environment
         provider = self.path.split(".")[0]
         if ALLOW_KEY_FROM_ENV:

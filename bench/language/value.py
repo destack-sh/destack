@@ -5,7 +5,7 @@ from bench.language.module import ModuleNode, NodeVisitor, node_component, nprop
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
-    from bench.language import HasFields, ScopedNode, Session
+    from bench.language import HasFields, ScopeNode, Session
 
 
 @node_component
@@ -17,7 +17,7 @@ class HasValue(ModuleNode):
     def _type_of_value(self) -> "HasFields":
         return self  # assume this is a HasFields
 
-    def _interp_inner(self, scope: "ScopedNode") -> None:
+    def _interp_inner(self, scope: "ScopeNode") -> None:
         pass  # TODO @Interp: interp value in HasValue
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:

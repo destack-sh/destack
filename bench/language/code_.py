@@ -17,16 +17,16 @@ from more_itertools import first, last
 
 from bench.language import IssueType
 from bench.language.const import NodePath
-from bench.language.field import HasFields, TypedDict
+from bench.language.field import TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
-from bench.language.module import LookupBy, ModuleNode, ScopedNode, node_component, nruntime
+from bench.language.module import LookupBy, ModuleNode, ScopeNode, node_component, nruntime
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import get_from_env
 
 if typing.TYPE_CHECKING:
-    from bench.language import NodeVisitor, Statement
+    from bench.language import Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -63,7 +63,7 @@ class HasCode(ModuleNode):
         self._callable_wrapped = None
         self._cached_exports = None
 
-    def _interp_inner(self, scope: ScopedNode) -> None:
+    def _interp_inner(self, scope: ScopeNode) -> None:
         self._parse = _parse_code(self.code)
         self._is_async = self._parse.is_async
         self._statement_references = {}
@@ -83,19 +83,19 @@ class HasCode(ModuleNode):
         # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
         from bench.language.libs import symbolx_lib
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.cache"))
+        return symbolx_lib.lookup_or_error(".builtins.cache").key in self.tags
 
     @cached_property
     def exported(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.export"))
+        return symbolx_lib.lookup_or_error(".builtins.export").key in self.tags
 
     @cached_property
     def is_test(self) -> bool:
         from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
 
-        return self.has_tag(symbolx_lib.lookup_or_error(".builtins.test"))
+        return symbolx_lib.lookup_or_error(".builtins.test").key in self.tags
 
     @cached_property
     def _code_hash(self) -> str:

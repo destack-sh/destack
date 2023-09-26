@@ -10,7 +10,7 @@ from bench.language.field import Field
 from bench.language.module import (
     Module,
     ModuleNode,
-    ScopedNode,
+    ScopeNode,
     nchildren,
     ninternal,
     node,
@@ -35,6 +35,12 @@ logger = structlog.get_logger(__name__)
 @node(mnt=MNT.Record)
 class Record(HasValue, ModuleNode):
     parent: "Statement" = nparent(MNT.Statement)
+
+    @staticmethod
+    def _coerce_from(value: Any = None, *args, **kwargs) -> "Record":
+        if isinstance(value, dict):
+            value = unproxy_value(value)
+        return Record(value=value, *args, **kwargs)
 
     def __str__(self):
         return f"{self.parent.path}:{self.id} {describe_type(self.value)}"
@@ -87,7 +93,7 @@ class Record(HasValue, ModuleNode):
 
 
 @node(mnt=MNT.DatabaseView)
-class DatabaseView(ScopedNode):
+class DatabaseView(ScopeNode):
     parent: "Statement" = nparent(MNT.Statement)
     name: str | None = nproperty(default=None)
     layout: DatabaseViewLayout = nproperty(default=DatabaseViewLayout.TABLE)

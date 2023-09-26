@@ -150,7 +150,7 @@ _PARAM_TYPE_BY_TAG = {
 
 
 def _type_to_json_schema(
-    type: Field | Type, ignore_array: bool = False, is_output: bool = None
+    type: Union[Field, Type], ignore_array: bool = False, is_output: bool = None
 ) -> JsonSchemaElement:
     """Convert a Bench type to a JSON schema element."""
     if is_output is None:
@@ -206,7 +206,7 @@ def _type_to_json_schema(
 
 
 class BaseTextTaskCompiler(TaskCompiler):
-    def _render_value_flat(self, value: Any, type: Field | Type, *args, **kwargs) -> Any:
+    def _render_value_flat(self, value: Any, type: Union[Field, Type], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type.effective_tag == TypeTag.ENUM:
             return type.get_field(value).name
@@ -975,8 +975,8 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
-    module.clear()
-    module.index()  # need to index for walk
+    module._clear_rec()
+    module._index_rec()  # need to index for walk
     for node in module._walk():
         if isinstance(node, Module):
             continue  # already assigned in builtin
@@ -984,15 +984,21 @@ for name, module in DEFAULT_MODULES.items():
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, HasFields)):
             node.key = new_dynamic_node_key(node.ck)
-    module.clear()  # ids changed
+
+    # hard re-index everything (ids changed)
+    nodes = module._local_tree.get_descendants(module.id, recursive=True, include_self=True)
+    module._clear_rec()  # ids changed
+    module._local_tree.clear()
+    for node in nodes:
+        module._local_tree.add(node)
 
     # index
-    module.index()
-    module._interp()
+    module._index_rec()
+    module._interp_rec()
     if module.issues:
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
 
-    # some extra checks for debugging
+    # extra sanity checks for debugging
     if DEBUG or LOCAL:
         # also check for issues after reload to prevent any sneaky reference bugs
         from bench.language import wire
@@ -1001,8 +1007,7 @@ for name, module in DEFAULT_MODULES.items():
         module_reloaded = wire.unpack_module(module_data, session=None)
         if module_reloaded.name != "symbolx.lib":
             module_reloaded.add_dependency(symbolx_lib)
-        module_reloaded.index()
-        module_reloaded._interp()
+        module_reloaded._interp_rec()
 
         if module_reloaded.issues:
             raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")
