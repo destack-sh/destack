@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Any, Callable, Collection
+from typing import TYPE_CHECKING, Any, Collection
 
 from bench.language.issue import ValidationError, ValidationHandler
 from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime

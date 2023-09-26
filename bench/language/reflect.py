@@ -9,7 +9,6 @@ from bench.language.builtin import symbolx_lib
 from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
 from bench.language.file import File
 from bench.language.mapping import pack_value, type_from_instance_type, unpack_value
-from bench.language.module import SESSION_NOT_READY
 
 
 def _derive_constant_key(path: str) -> UUID:
@@ -127,7 +126,7 @@ def x_model(
     return decorator
 
 
-_symbolx_reflect = File(name="reflect", _session=SESSION_NOT_READY)
+_symbolx_reflect = File(name="reflect")
 symbolx_lib.files.append(_symbolx_reflect)
 
 reflect_enum = functools.partial(x_enum, file=_symbolx_reflect)
