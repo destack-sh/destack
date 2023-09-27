@@ -490,7 +490,7 @@ class RuntimeServer(Monitored):
             # we call the underlying model implementation directly (the worker does the tracing)
             # :LibImplementation
             module = DEFAULT_MODULES[module_name]
-            model = module.lookup_or_error(localized_path)
+            model = module.resolve(localized_path)
             cache_subkey = get_run_cache_subkey(inputs_raw=msg.p.inputs)
             log = log.bind(cache_subkey=cache_subkey)
             cache = CacheAsync(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)

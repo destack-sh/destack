@@ -538,7 +538,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
          but may exist in multiple lists (through _init_from collection).
         """
         if _node.parent is not None:  # maybe copy?
-            raise ValueError(f"cannot append {_node} to {self}: already has parent {_node.parent}")
+            raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
 
         # assign ids if newly attached to the module (ids are derived from ck + module)
         if not _node.attached and self._parent.attached:
@@ -573,7 +573,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
         if _trigger:
             # and update every affect node & list
             self._parent._trigger_update([_node])
-            assert _node in self._nodes, f"node {_node} not in {self}"
+            assert _node in self._nodes, f"node {_node} not in {self!r}"
 
     def extend(self, nodes: Collection[NodeT]):
         """Attaches a list of child nodes to a parent. See append."""
@@ -582,7 +582,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
             for node in nodes:
                 self.append(node, _trigger=False)
             self._parent._trigger_update(nodes)
-            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self}"
+            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
         """Removes a child node from a parent. See append for reverse."""
@@ -608,7 +608,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
-            raise ValueError(f"cannot get {some_id} from {self}")
+            raise ValueError(f"cannot get {some_id!r} from {self!r}")
         for child in self._nodes:
             if (self._flags & NRel.Keyed and child.key == some_id) or (
                 self._flags & NRel.Named and (child.name == some_id or child.py_ident == some_id)
@@ -620,9 +620,14 @@ class NodeList(Collection, typing.Generic[NodeT]):
         return bool(self._nodes)
 
     def __contains__(self, obj: object) -> bool:
+        # special case to unwrap key (e.g. for tagging/tag objects)
+        if self._flags & NRel.Keyed and hasattr(obj, "key"):
+            obj = obj.key
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, ModuleNode):
+            if obj.mnt != self._prop.child_mnt:
+                raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
             return False
@@ -635,14 +640,14 @@ class NodeList(Collection, typing.Generic[NodeT]):
         elif isinstance(item, str):
             return self.get(item)
         else:
-            raise TypeError(f"invalid index for {self}: {item} ({type(item)})")
+            raise TypeError(f"invalid index for {self!r}: {item} ({type(item)})")
 
     def __getattr__(self, item):
         if item.startswith("_"):
             return super().__getattr__(item)
         node = self.get(item)
         if node is None:
-            raise AttributeError(f"no node {item} in {self}")
+            raise AttributeError(f"no node {item} in {self!r}")
         return node
 
     def __iter__(self) -> Iterator[NodeT]:
@@ -1400,7 +1405,7 @@ class ScopeNode(ModuleNode):
             return None
         return scope.lookup(inner_part, node_t=node_t, by=by)
 
-    def lookup_or_error(
+    def resolve(
         self,
         path: Union["NodePath", UUID, str],
         by: Optional[LookupBy] = None,
@@ -1477,6 +1482,7 @@ class Module(ScopeNode):
     files: NodeList["File"] = nchildren(MNT.File, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
     builtins: list["File"] = nruntime(default_factory=list)
+    _lookup_cache: dict[str, NodeT] = nruntime(default_factory=dict)
 
     def __str__(self):
         if self.issues:
@@ -1530,11 +1536,13 @@ class Module(ScopeNode):
         by: Optional[LookupBy] = None,
         node_t: MNT | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
-        # extend lookup to dependencies
         if isinstance(path, UUID):
             return self._local_tree.get(path)
-        elif isinstance(path, str) and path.startswith("."):
-            return ScopeNode.lookup(self, path, node_t=node_t, by=by)
+        if path in self._lookup_cache:
+            return self._lookup_cache[path]
+        # extend lookup to dependencies, otherwise default to regular scope lookup
+        if isinstance(path, str) and path.startswith("."):
+            resolved = ScopeNode.lookup(self, path, node_t=node_t, by=by)
         else:
             module_name, localized_path = parse_absolute_node_reference(path)
             if module_name == self.name:
@@ -1542,8 +1550,12 @@ class Module(ScopeNode):
             else:
                 dependency = self.dependencies.get(module_name)
             if dependency is None:
-                return None
-            return dependency.lookup(localized_path, node_t=node_t, by=by)
+                resolved = None
+            else:
+                resolved = dependency.lookup(localized_path, node_t=node_t, by=by)
+        if self.committed:
+            self._lookup_cache[path] = resolved
+        return resolved
 
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():

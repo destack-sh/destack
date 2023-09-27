@@ -38,8 +38,8 @@ class HasTask(ModuleNode):
     def _interp_inner(self, scope: ScopeNode) -> None:
         from bench.language.builtin import symbolx_lib
 
-        randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
-        self._randomize = randomize_tag.key in self.tags
+        randomize_tag = symbolx_lib.resolve(".builtins.randomize")
+        self._randomize = randomize_tag in self.tags
 
         if not any(f.flags & TypeFlag.IsOutput for f in self.resolved_fields):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
@@ -60,9 +60,7 @@ class HasTask(ModuleNode):
 
         # shortcut for built-in tasks with fixed implementations
         if self.path == "symbolx.lib.builtins.embed":
-            mono_model: Optional["Model"] = self.session.module.lookup_or_error(
-                "openai.lib.text.ada"
-            )
+            mono_model: Optional["Model"] = self.session.module.resolve("openai.lib.text.ada")
         elif self.path == "symbolx.lib.builtins.transcribe":
             raise NotImplementedError
         else:
@@ -118,7 +116,7 @@ async def run_task(
     total_attempts = 0
     step_attempts = 0
     models = [
-        task.module.lookup_or_error(m)
+        task.module.resolve(m)
         for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
     ]  # in priority order
     model_idx = 0
