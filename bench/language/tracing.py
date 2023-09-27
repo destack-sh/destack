@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 import asyncio
 import contextlib
 import sys
@@ -16,7 +17,7 @@ import structlog
 from bench.language.const import RunStatus, TriggerType, TypeFlag, TypeTag
 from bench.language.mapping import map_value, pack_value, pack_value_flat, check_type
 from bench.language.module import ModuleNode
-from bench.language.mutate import NodeMutator
+from bench.language.mutate import NodeMutator, MNT
 from bench.language.run import HasRun, Run, RunError
 from bench.language.session import LogEntry, Session
 from bench.language.statement import Statement
@@ -29,32 +30,32 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-class Tracer:
+class Tracer(abc.ABC):
     """
     Trace and track everything in a module/session (runs, mutations, etc.).
     """
 
     # module
 
-    def node_create(self, node: ModuleNode):
-        pass
+    def node_create(self, *nodes: ModuleNode):
+        raise NotImplementedError
 
     def node_update(self, node: ModuleNode, properties: list[str]):
-        pass
+        raise NotImplementedError
 
-    def node_move(self, node: ModuleNode):
-        pass
+    def node_delete(self, *node: ModuleNode):
+        raise NotImplementedError
 
-    def node_delete(self, node: ModuleNode):
-        pass
+    def node_truncate(self, node: ModuleNode, mnt: MNT):
+        raise NotImplementedError
 
     # session
 
     def run_enter(self, statement: HasRun, inputs: dict):
-        pass
+        raise NotImplementedError
 
     def run_exit(self, statement: HasRun, outputs: dict):
-        pass
+        raise NotImplementedError
 
     def run_cached(
         self,
@@ -65,10 +66,10 @@ class Tracer:
         generated_in: UUID,
         duration: float,
     ):
-        pass
+        raise NotImplementedError
 
     def run_exception(self, statement: HasRun, exception: Exception):
-        pass
+        raise NotImplementedError
 
 
 # TODO @Performance: improve performance of contextual stdout/stderr capture
@@ -182,6 +183,31 @@ class SessionTracer(Tracer):
     def __repr__(self):
         return f"<RunTracer {self}>"
 
+    #
+    # Module
+    #
+
+    def node_create(self, *nodes: ModuleNode):
+        raise NotImplementedError
+
+    def node_update(self, node: ModuleNode, properties: list[str]):
+        raise NotImplementedError
+
+    def node_delete(self, *node: ModuleNode):
+        raise NotImplementedError
+
+    def node_truncate(self, node: ModuleNode, mnt: MNT):
+        raise NotImplementedError
+
+    #
+    # Session
+    #
+
+    def _track_run(self, run: Run):
+        # replace if already exists by id (runs are updated)
+        self.runs[run.id] = run
+        self._pending_runs[run.id] = run
+
     @property
     def current_run(self) -> Optional[Run]:
         if self.stacktrace:
@@ -195,11 +221,6 @@ class SessionTracer(Tracer):
     @property
     def pending_logs(self) -> list[LogEntry]:
         return self._pending_logs
-
-    def _track_run(self, run: Run):
-        # replace if already exists by id (runs are updated)
-        self.runs[run.id] = run
-        self._pending_runs[run.id] = run
 
     def _track_log(self, log: LogEntry):
         self._pending_logs.append(log)

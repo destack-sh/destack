@@ -28,7 +28,7 @@ from bench.language.const import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import IdentifierType, required_field, to_pyidentifier, DEBUG
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
@@ -303,7 +303,9 @@ def _get_node_class(mnt: MNT):
 
 
 @typing.dataclass_transform()
-def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
+def node_component(
+    cls: Optional[typing.Type] = None, mnt: MNT = None, passthrough: tuple[str] = ()
+):
     """
     Mark a class as a node component (or concrete node for a MNT).
     """
@@ -380,6 +382,7 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
         cls.__properties__ = properties
         cls.__static_components__ = tuple(static_components)
+        cls.__passthrough_targets__ = passthrough
 
         # register properties
         props = properties.values()
@@ -417,9 +420,9 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
     return decorate
 
 
-def node(mnt: MNT):
+def node(mnt: MNT, passthrough: tuple[str] = ()):
     def decorate(cls):
-        return node_component(cls, mnt=mnt)
+        return node_component(cls, mnt=mnt, passthrough=passthrough)
 
     return decorate
 
@@ -471,32 +474,76 @@ def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
     return ordered
 
 
-class NodeList(Collection, typing.Generic[NodeT]):
+class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
+    """
+    Base node list for custom implementation (right now just for database).
+    """
+
+    def __init__(self, parent: "ScopeNode", property: NodeProperty):
+        self._parent = parent
+        self._property = property
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self._parent.path}->{self._property.name}: {self}>"
+
+    def _update(self, scope: "ScopeNode"):
+        """Recomputes the list from the given scope."""
+        raise NotImplementedError
+
+    def create(self, *args, **kwargs):
+        """Creates a new node in the list."""
+        raise NotImplementedError
+
+    def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
+        """
+        Attaches a child node to a parent through a list. This is for users adding nodes.
+        A node may be 'append'-ed to a list at most once,
+         but may exist in multiple lists (through _init_from collection).
+        """
+        raise NotImplementedError
+
+    def extend(self, nodes: Collection[NodeT]):
+        """Attaches a list of child nodes to a parent. See append."""
+        raise NotImplementedError
+
+    def remove(self, node: NodeT, _delete: bool = True, _trigger: bool = True):
+        """Removes a child node from a parent. See append for reverse."""
+        raise NotImplementedError
+
+    def clear(self, _delete: bool = True, _trigger: bool = True):
+        """Removes all child nodes from a parent. See append for reverse."""
+        raise NotImplementedError
+
+    def set(self, nodes: Collection[NodeT]):
+        """Replaces all child nodes of a parent."""
+        self.clear(_trigger=False)
+        self.extend(nodes)
+
+    def get(self, some_id: str) -> Optional[NodeT]:
+        """Gets a node by some id (as determined by the logic of the list)."""
+        raise NotImplementedError
+
+
+class NodeList(NodeListBase[NodeT]):
     """
     A list of node descendants for a parent's property.
     This is the primary way of adding, removing and accessing inline node relations.
     """
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
-        self._parent = parent
+        super().__init__(parent, property)
         self._child_t: type[NodeT] = _get_node_class(property.child_mnt)
-        self._prop = property
         self._flags = property.children_flags
         self._nodes: list[NodeT] = []
 
-    @property
-    def n(self):
-        return self._nodes
+    if DEBUG:
+        # for debugger inspection
+        nodes = property(lambda self: self._nodes)
 
     def __str__(self):
         return str(self._nodes)
 
-    def __repr__(self):
-        return f"<NodeList {self._parent.path}->{self._prop.name}: {self}>"
-
     def _update(self, scope: "ScopeNode"):
-        """Recomputes the list from the given scope."""
-
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
         if self._flags & NRel.Cumulative:
@@ -523,7 +570,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
     def create(self, *args, **kwargs):
-        node_cls = _NODE_CLASS_BY_MNT[self._prop.child_mnt]
+        node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
         if hasattr(node_cls, "_coerce_from"):
             node = node_cls._coerce_from(*args, **kwargs)
         else:
@@ -532,11 +579,6 @@ class NodeList(Collection, typing.Generic[NodeT]):
         return node
 
     def append(self, _node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
-        """
-        Attaches a child node to a parent through a list. This is for users adding nodes.
-        A node may be 'append'-ed to a list at most once,
-         but may exist in multiple lists (through _init_from collection).
-        """
         if _node.parent is not None:  # maybe copy?
             raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
 
@@ -576,7 +618,6 @@ class NodeList(Collection, typing.Generic[NodeT]):
             assert _node in self._nodes, f"node {_node} not in {self!r}"
 
     def extend(self, nodes: Collection[NodeT]):
-        """Attaches a list of child nodes to a parent. See append."""
         nodes = list(nodes) if not isinstance(nodes, list) else nodes
         if nodes:
             for node in nodes:
@@ -585,7 +626,6 @@ class NodeList(Collection, typing.Generic[NodeT]):
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
-        """Removes a child node from a parent. See append for reverse."""
         if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
@@ -594,17 +634,11 @@ class NodeList(Collection, typing.Generic[NodeT]):
             self._parent._trigger_update([_node])
 
     def clear(self, _delete: bool = True, _trigger: bool = True):
-        """Removes all child nodes from a parent. See append for reverse."""
         if self._nodes:
             removed = list(self._nodes)
             for _node in removed:
                 self.remove(_node, _delete=_delete, _trigger=False)
             self._parent._trigger_update(removed)
-
-    def set(self, nodes: Collection[NodeT]):
-        """Replaces all child nodes of a parent."""
-        self.clear(_trigger=False)
-        self.extend(nodes)
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
@@ -626,7 +660,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, ModuleNode):
-            if obj.mnt != self._prop.child_mnt:
+            if obj.mnt != self._property.child_mnt:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
         else:
@@ -1056,6 +1090,7 @@ class ModuleNode(abc.ABC):
     __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
+    __passthrough_targets__: ClassVar[tuple[str]] = ()
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default_factory=uuid.uuid4)
@@ -1095,6 +1130,11 @@ class ModuleNode(abc.ABC):
         return type(self).__name__
 
     @property
+    def _passthrough_targets(self) -> tuple[str] | None:
+        """Preferred __getattr__/__setattr__ property names (before defaulting to usual)"""
+        return self.__passthrough_targets__
+
+    @property
     def _local_root(self) -> "ModuleNode":
         parent = self
         while parent.parent is not None:
@@ -1124,6 +1164,9 @@ class ModuleNode(abc.ABC):
                 super().__setattr__(key, value)
         else:
             super().__setattr__(key, value)
+
+    # nocheckin: proxy __setattr__/__getattr__ with passthrough targets
+    #  and cooperate with dynamic Statement.__getattr__
 
     def _trigger_update(self, changed: list["ModuleNode"]):
         """Trigger list updates and re-interps (now or later) in all relevant nodes."""
