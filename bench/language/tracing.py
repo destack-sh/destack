@@ -325,7 +325,7 @@ class SessionTracer(Tracer):
             status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
             value={},
         )
-        run._activate(self.session, queue_position=queue_position)
+        run._activate_inner(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
         custom_value = _custom_value.get()

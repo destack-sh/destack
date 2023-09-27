@@ -16,7 +16,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language import IssueType
-from bench.language.const import NodePath
+from bench.language.const import NodePath, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import LookupBy, ModuleNode, ScopeNode, node_component, nruntime
@@ -211,7 +211,9 @@ class HasCode(ModuleNode):
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
         func_name = self.py_ident or "_anon" + self.id.hex[:6]
-        func_params = ", ".join(i.py_ident + "=None" for i in self.inputs)
+        func_params = ", ".join(
+            i.py_ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IsOutput)
+        )
         try:
             method_str = f"def {func_name}({func_params}):\n{textwrap.indent(func_body, ' ' * 4)}"
             if self._parse.is_async:

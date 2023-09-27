@@ -252,6 +252,7 @@ _FORBIDDEN_NODE_METHODS = (
 )
 _NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
 _COMPONENT_CLASS_BY_NAME: dict[str, type["ModuleNode"]] = {}
+_COMPONENT_METHODS: dict[[NodeMethod, type["ModuleNode"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
     "ModuleNode",
     "ScopeNode",
@@ -261,7 +262,9 @@ _COMPONENT_CALL_ORDER: list[str] = [
 
 
 @cached(cache={})
-def _sort_components_call(components: list[type["ModuleNode"]]) -> list[type["ModuleNode"]]:
+def _sort_components_in_call_order(
+    components: list[type["ModuleNode"]],
+) -> list[type["ModuleNode"]]:
     """Sorts components by call order. Nodes without call order are left as-is."""
     sorted_components = []
     for component in components:
@@ -272,6 +275,24 @@ def _sort_components_call(components: list[type["ModuleNode"]]) -> list[type["Mo
         if component.__name__ not in _COMPONENT_CALL_ORDER:
             sorted_components.append(component)
     return sorted_components
+
+
+_concrete_component_methods: dict[str, list[typing.Any]] = {}
+
+
+def _get_component_methods(
+    components: list[type["ModuleNode"]], method: NodeMethod, concrete_key: str
+) -> list[typing.Any]:
+    """Get the actually implemented methods in the given components in call order."""
+    cache_key = f"{concrete_key}.{method}"
+    if cache_key not in _concrete_component_methods:
+        methods = []
+        for component in _sort_components_in_call_order(components):
+            if _COMPONENT_METHODS.get((method, component), None) is not None:
+                methods.append(getattr(component, method.inner))
+        _concrete_component_methods[cache_key] = methods
+
+    return _concrete_component_methods[cache_key]
 
 
 def _get_node_class(mnt: MNT):
@@ -330,6 +351,14 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
                     raise ValueError(f"property conflict for {name}: {prop}, {properties[name]}")
             static_components.append(base)
 
+        # collect methods implement in this class (specifically)
+        for meth_type in NodeMethod:
+            meth = getattr(cls, meth_type.inner, None)
+            if meth is not None and not any(
+                meth is getattr(base, meth_type.inner, None) for base in cls.__bases__
+            ):
+                _COMPONENT_METHODS[(meth_type, cls)] = meth
+
         # create class
         for name, prop in properties.items():
             if not hasattr(cls, name):  # may be inherited
@@ -353,8 +382,7 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
         cls.__static_components__ = tuple(static_components)
 
         # register properties
-        mutable_properties: dict[str, NodeProperty] = {}
-        ancestor_properties: dict[str, NodeProperty] = {}
+        props = properties.values()
         list_properties: dict[str, NodeProperty] = {}
         list_properties_by_child: dict[MNT, list[NodeProperty]] = defaultdict(list)
         for prop in properties.values():
@@ -367,14 +395,11 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
                     raise ValueError(f"{cls} is not ScopeNode for {prop}")
                 list_properties[prop.name] = prop
                 list_properties_by_child[prop.child_mnt].append(prop)
-            elif prop.ancestor_mnt:
-                ancestor_properties[prop.name] = prop
-            elif not prop.is_internal:
-                mutable_properties[prop.name] = prop
-        cls.__tracked_properties__ = mutable_properties
-        cls.__ancestor_properties__ = ancestor_properties
         cls.__list_properties__ = list_properties
         cls.__list_properties_by_child__ = list_properties_by_child
+        cls.__tracked_properties__ = {p.name: p for p in props if not p.is_internal}
+        cls.__ancestor_properties__ = {p.name: p for p in props if p.ancestor_mnt}
+        cls.__internal_properties__ = {p.name: p for p in props if p.is_internal}
 
         # register as concrete node class for mnt
         if mnt:
@@ -1000,10 +1025,8 @@ def _make_self_method(
             else:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
 
-        method_name = method.inner
-        for component in _sort_components_call(self._components):
-            if hasattr(component, method_name):
-                getattr(component, method_name)(self, *args, **kwargs)
+        for meth in _get_component_methods(self._components, method, self._concrete_cache_key):
+            meth(self, *args, **kwargs)
         if to_status is not None:
             self._status = to_status
 
@@ -1025,6 +1048,7 @@ class ModuleNode(abc.ABC):
     __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
+    __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default_factory=uuid.uuid4)
@@ -1059,6 +1083,11 @@ class ModuleNode(abc.ABC):
         return self.__static_components__
 
     @property
+    def _concrete_cache_key(self) -> str:
+        """Identifier for dynamic components"""
+        return type(self).__name__
+
+    @property
     def _local_root(self) -> "ModuleNode":
         parent = self
         while parent.parent is not None:
@@ -1078,15 +1107,16 @@ class ModuleNode(abc.ABC):
         return hash(self.id)
 
     def __setattr__(self, key, value):
-        if self._status != NS.Tracked or key == "_status":
-            super().__setattr__(key, value)
-        elif key in self.__tracked_properties__:
-            super().__setattr__(key, value)
-            # nocheckin: track and validate mutation
-        elif key in self.__list_properties__:
-            raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
+        if self._status == NS.Tracked:
+            if key in self.__tracked_properties__:
+                super().__setattr__(key, value)
+                # nocheckin: track and validate mutation
+            elif key in self.__list_properties__:
+                raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
+            else:
+                super().__setattr__(key, value)
         else:
-            raise AttributeError(f"cannot set {key} on {self}")
+            super().__setattr__(key, value)
 
     def _trigger_update(self, changed: list["ModuleNode"]):
         """Trigger list updates and re-interps (now or later) in all relevant nodes."""
@@ -1100,7 +1130,7 @@ class ModuleNode(abc.ABC):
                 if prop.child_mnt in affected_mnts:
                     getattr(parent, prop.name)._update(parent)
             parent = parent.parent
-        # nocheckin: also reinterp
+        # nocheckin: also reinterp if active in session
 
     # abstract :ComponentMethods
 
@@ -1447,7 +1477,15 @@ class Module(ScopeNode):
     builtins: list["File"] = nruntime(default_factory=list)
 
     def __str__(self):
-        issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
+        if self.issues:
+            issue_strs = []
+            for k in (IssueKind.Error, IssueKind.Warning, IssueKind.Notice):
+                issues_of_kind = [i for i in self.issues if i.kind == k]
+                if issues_of_kind:
+                    issue_strs.append(f"{len(issues_of_kind)} {k.name.lower()}s")
+            issues_str = f", {', '.join(issue_strs)}"
+        else:
+            issues_str = ""
         return f"{self.name} ({len(self.files)} files{issues_str})"
 
     def __repr__(self):
@@ -1507,11 +1545,14 @@ class Module(ScopeNode):
 
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
-            dependency._activate(session)
+            if dependency._status != NS.Tracked:
+                # multiple modules can depend on the same module, only activate once
+                dependency._activate_rec(session)
 
     def _deactivate_inner(self) -> None:
         for dependency in self.dependencies.values():
-            dependency._deactivate()
+            if dependency._status == NS.Tracked:  # see above
+                dependency._deactivate_rec()
 
     def _index_inner(self):
         for builtin in self.builtins:

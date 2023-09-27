@@ -24,10 +24,11 @@ class Tagging(HasValue, HasReference, ModuleNode):
         return symbolx_lib.lookup_or_error(".reflect.TaggingMetadata")
 
     def __str__(self):
+        parent_str = self.parent.path if self.parent is not None else "<detached>"
         if isinstance(self.reference, ModuleNode):
-            return f"{self.reference.path}"
+            return f"{parent_str}#{self.reference.path}"
         else:
-            return self.key
+            return f"{parent_str}#{self.key}"
 
     def __repr__(self):
         return f"<Tagging {self}>"

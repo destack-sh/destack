@@ -145,7 +145,7 @@ def map_value(
 
     # map into a dict
     mapped = {}
-    if type.fields and type._status <= NodeStatus.Interpreted:
+    if type._status < NodeStatus.Interpreted:
         raise RuntimeError(f"unexpected unresolved type {type}")
     for subtype in type.resolved_fields:
         if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union

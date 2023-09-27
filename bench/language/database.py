@@ -81,17 +81,7 @@ class Record(HasValue, ModuleNode):
     def __setitem__(self, key, value):
         self.value[key] = value
 
-    def __getattr__(self, item):
-        if item in self._PROPERTIES:
-            return super().__getattr__(item)
-        else:
-            return self[item]
-
-    def __setattr__(self, key, value):
-        if key in self._PROPERTIES:
-            super().__setattr__(key, value)
-        else:
-            self.value[key] = value
+    # nocheckin: __getattr__/__setattr__ for Record & Variable (respect ModuleNode)
 
 
 @node(mnt=MNT.DatabaseView)
@@ -125,7 +115,7 @@ class HasDatabase(ModuleNode, Search["RecordData", Record]):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
     views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)  # nocheckin: proxy records
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
