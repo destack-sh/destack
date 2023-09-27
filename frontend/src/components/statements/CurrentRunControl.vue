@@ -5,7 +5,7 @@ import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import { useTimeFromNow } from "@/composables/useNow";
 import { RunStatus, WorkerSetStatus } from "@/gql/graphql";
 import { useBenchState, usePanelContext } from "@/state/bench";
-import { WORKER_STATUS_TITLE, getRunStatusColor, useCurrentSessions } from "@/state/session";
+import { ACTIVE_RUN_STATUSES, WORKER_STATUS_TITLE, getRunStatusColor, useCurrentSessions } from "@/state/session";
 import { computed } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "focused" | "readonly">>();
@@ -35,7 +35,10 @@ const preparingWorkers = computed(
     ]"
     @click="bench.openViewRun(currentRun, { group: panel.panel.value.group, focus: true, opposite: true })"
   >
-    <BusySpinnerIcon v-if="currentRun != null && currentRun.startedAt == null" class="h-4 w-4 animate-spin" />
+    <BusySpinnerIcon
+      v-if="currentRun != null && ACTIVE_RUN_STATUSES.includes(currentRun.status)"
+      class="h-4 w-4 animate-spin"
+    />
     <span class="rounded-sm underline-offset-2">
       <!-- Worker status if not active -->
       <span v-if="preparingWorkers" class="text-gray-400">
