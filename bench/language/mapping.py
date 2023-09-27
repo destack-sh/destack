@@ -615,8 +615,10 @@ class FunctionTypeMapper(TypeMapper):
         if output.tag != TypeTag.STRUCT:
             raise ValueError(f"function output must be a struct: {py_type}")
         for output_field in output.fields:
+            output_field = output_field._copy_self()
             output_field.flags |= TypeFlag.IsOutput
-            type.fields.append(output_field._copy_self())
+            output_field.order_key = None  # reset order
+            type.fields.append(output_field)
 
         return type
 

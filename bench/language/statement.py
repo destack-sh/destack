@@ -1,4 +1,5 @@
 import typing
+from functools import partial
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -75,7 +76,7 @@ class Statement(ScopeNode):
 
     # all possible child relations inlined (dynamic components can't have non-runtime
     #  properties, primarily because that would be confusing, and we want to edit all of them)
-    tags: NodeList["Tagging"] = nchildren(MNT.Tagging)
+    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.Keyed)
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
     resolved_fields: NodeList["ResolvedField"] = nchildren(
         MNT.ResolvedField, NRel.Named | NRel.Ordered
@@ -165,11 +166,12 @@ class Statement(ScopeNode):
                 yield from child.walk_descendants()
 
     def __getattr__(self, item):
-        if item in self.__properties__:
+        if item in self.__dict__:
             return super().__getattribute__(item)
-        for component in self._components:
+        for component in _DYNAMIC_COMPONENTS_BY_TYPE[self.type]:
             if hasattr(component, item):
-                return getattr(component, item).__get__(self)
+                # must be a method, but is not a supertype, so curry self (this seems strange?)
+                return partial(getattr(component, item), self)
 
         # report lookup error
         if item in self._names_by_ident:
