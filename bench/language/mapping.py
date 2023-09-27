@@ -35,6 +35,7 @@ from bench.language.field import (
     TypeError,
     Vector,
 )
+from bench.language.module import NodeStatus
 from bench.language.remote import RemoteObject, Secret
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -144,7 +145,7 @@ def map_value(
 
     # map into a dict
     mapped = {}
-    if type.fields and type.resolved_fields is None:
+    if type.fields and type._status <= NodeStatus.Interpreted:
         raise RuntimeError(f"unexpected unresolved type {type}")
     for subtype in type.resolved_fields:
         if subtype.flags & TypeFlag.IsUnionWith:  # unresolved union
@@ -228,7 +229,7 @@ def check_type(
         if type.tag == TypeTag.FUNCTION and is_output:
             value = value or {}  # None is allowed for empty outputs
         is_dc = is_dataclass(value)
-        for f in type.resolved_fields or type.fields:
+        for f in type.resolved_fields:
             if is_output is not None and bool(f.flags & TypeFlag.IsOutput) != is_output:
                 continue
             k = get_k(f)
@@ -239,7 +240,7 @@ def check_type(
             check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
         if hasattr(value, "keys"):
             for key in value.keys():
-                _check(type.has_field(key), f"extraneous field '{key}'")
+                _check(key in type.fields, f"extraneous field '{key}'")
 
 
 class TypeMapper:
@@ -468,15 +469,15 @@ class EnumMapper(TypeMapper):
         if isinstance(value, str):
             # allow string values for built-in enums
             # (that also function as regular enums in code)
-            return type.has_field(value)
-        return isinstance(value, Field) and type.has_field(value.key)
+            return value in type.fields
+        return isinstance(value, Field) and value.key in type.fields
 
     def unpack_value(self, type: HasFields, value: Any) -> Any:
-        field_ = type.get_field(value)
+        field_ = type.fields.get(value)
         return field_.name if field_ else value
 
     def pack_value(self, type: HasFields, value: Any) -> Any:
-        field_ = type.get_field(value) if not isinstance(value, Field) else value
+        field_ = type.fields.get(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
 

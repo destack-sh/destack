@@ -347,8 +347,8 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
     module.add_builtin(libs.symbolx_lib.get_file("builtins"))
-    module.index()
-    module._interp()
+    module._index_rec()
+    module._interp_rec()
 
     value_mappings: dict[str, os.Field] = {}
     inputs_mappings: dict[str, os.Field] = {}
@@ -358,10 +358,11 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for lib in libs.DEFAULT_MODULES.values():
         for statement in lib._nodes_by_id.values():
             if isinstance(statement, HasRun):
-                for field in statement.inputs:
-                    inputs_mappings[field.typed_key] = map_to_os_field(field)
-                for field in statement.outputs:
-                    outputs_mappings[field.typed_key] = map_to_os_field(field)
+                for field in statement.resolved_fields:
+                    if field.flags & TypeFlag.IsOutput:
+                        outputs_mappings[field.typed_key] = map_to_os_field(field)
+                    else:
+                        inputs_mappings[field.typed_key] = map_to_os_field(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():

@@ -165,7 +165,7 @@ def unpack_node(
                 node_parent = parent
             else:
                 raise ValueError(
-                    f"node {node} parent {node.parent_id} not found in unpacked {unpacked_tree}"
+                    f"node {node!r} parent {node.parent_id} not found in unpacked {unpacked_tree!r}"
                 )
         else:
             node_parent = unpacked_tree.nodes_by_id[node.parent_id]
