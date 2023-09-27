@@ -71,7 +71,7 @@ class Statement(ScopeNode):
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)
-    external_name: str | None = ninternal(default=None)  # for model, to be moved to value
+    external_name: str | None = ninternal(default=None)  # for model, to be moved into value
 
     # all possible child relations inlined (dynamic components can't have non-runtime
     #  properties, primarily because that would be confusing, and we want to edit all of them)
@@ -94,8 +94,12 @@ class Statement(ScopeNode):
         return Statement(type=type, name=name, *args, **kwargs)
 
     @property
-    def _components(self):
+    def _components(self) -> tuple[typing.Type[ModuleNode]]:
         return _ALL_COMPONENTS_BY_TYPE[self.type]
+
+    @property
+    def _concrete_cache_key(self) -> str:
+        return self.type
 
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path

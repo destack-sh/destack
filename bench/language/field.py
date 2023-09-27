@@ -21,6 +21,7 @@ from bench.language.const import (
 from bench.language.module import (
     ModuleNode,
     NodeList,
+    NodeStatus,
     NodeVisitor,
     NRel,
     ScopeNode,
@@ -353,6 +354,8 @@ class ResolvedField(Field):
             flags=field.flags,
             reference=field.reference,
             field=field,
+            # take same status as field, there are no lifecycle methods in ResolvedField/Field
+            _status=max(field._status, NodeStatus.Interpreted),
         )
 
 

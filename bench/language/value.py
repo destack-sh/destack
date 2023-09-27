@@ -38,13 +38,15 @@ class HasValue(ModuleNode):
     def _activate_inner(self, session: "Session") -> None:
         from bench.language.mapping import unpack_value
 
+        # should probably move instantiate into interp and only do proxying in activate?
         if self._value_unpacked:
             self.value = self._raw_value()
             self._value_unpacked = False
-        # proxy
+        # instantiate
         value = unpack_value(
             self.value or {}, self._type_of_value, ignore_array=True, ignore_outer_map=True
         )
+        # proxy
         self.value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
         self._value_unpacked = True
 
