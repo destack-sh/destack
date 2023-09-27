@@ -7,7 +7,6 @@ from typing import Any, Optional, Self, Union
 from uuid import UUID
 
 import structlog
-from more_itertools import first
 
 from bench.language.const import (
     MNT,
@@ -238,20 +237,6 @@ class SomeType(abc.ABC):
 
     def has_field(self, some_id: str, is_output: bool = None) -> bool:
         return self.get_field(some_id, is_output=is_output) is not None
-
-    def walk_type(self, path: list["UUID"] | None = None, include_references: bool = False):
-        if path is None:
-            path = [self.id]
-        else:
-            path = path + [self.id]
-        yield self
-        if include_references and self.reference:
-            yield from self.reference.walk_type(path, include_references=include_references)
-        if self.fields:
-            for child in self.fields:
-                if child.id in path:
-                    continue  # break cycles (allowed, but we don't want to traverse them)
-                yield from child.walk_type(path, include_references=include_references)
 
 
 @node(mnt=MNT.Field)

@@ -13,7 +13,7 @@ import msgpack
 import structlog
 
 from bench.language.cache import CacheAsync
-from bench.language.field import HasFields, TypedDict, TypeTag
+from bench.language.field import Field, HasFields, TypedDict, TypeTag
 from bench.language.mapping import check_type, pack_value, unpack_value
 from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
 from bench.utils.dt import utcnow_with_tz
@@ -64,8 +64,8 @@ class HasModel(HasFields, ModuleNode):
         self._remote = self._api_key is None
 
         self._has_vector_io = False
-        for t in self.walk_type():
-            if t.tag == TypeTag.VECTOR:
+        for n in self._walk_rec():
+            if isinstance(n, Field) and n.tag == TypeTag.VECTOR:
                 self._has_vector_io = True
                 break
 

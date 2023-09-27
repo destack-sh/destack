@@ -110,7 +110,7 @@ class SessionMode(enum.StrEnum):
 
 MNT = ModuleNodeType
 MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
-INTERP_NODE_TYPES = {ModuleNodeType.Issue, ModuleNodeType.ResolvedField}
+INTERP_NODE_TYPES = {MNT.Issue, MNT.ResolvedField}
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]
