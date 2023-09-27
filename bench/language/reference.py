@@ -37,7 +37,7 @@ class HasReference(ModuleNode):
         if not isinstance(self.reference, ModuleNode):
             resolved = scope.lookup(self.reference)
         if resolved is None:
-            self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
+            self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=self.py_ident)
         else:
             self.reference = resolved
 

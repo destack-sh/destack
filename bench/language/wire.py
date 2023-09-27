@@ -14,6 +14,7 @@ import msgpack
 from bench import language as lang
 from bench.language import File, IssueType, Module
 from bench.language.const import (
+    INTERP_NODE_TYPES,
     MNT,
     IssueKind,
     ModuleNodeType,
@@ -118,8 +119,8 @@ def node_packer(
     return decorator
 
 
-def pack_module(module: Module) -> "ModuleTreeData":
-    module_data, nodes = pack_node(module)
+def pack_module(module: Module, exclude: set[MNT] = INTERP_NODE_TYPES) -> "ModuleTreeData":
+    module_data, nodes = pack_node(module, exclude=exclude)
     module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
     return module_tree
 
@@ -129,21 +130,19 @@ def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> Module:
     return module
 
 
-def pack_node(root: NodeT) -> tuple[NodeDataT, list[NodeDataT]]:
+def pack_node(
+    root: NodeT, exclude: set[MNT] = INTERP_NODE_TYPES
+) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its descendants"""
     packed: dict[UUID, NodeDataT] = OrderedDict()
-    ctx = PackContext()
 
     # walk and pack until nothing is left to pack
-    to_pack: list[NodeT] = [root]
-    while to_pack:
-        for node in to_pack:
-            node._visit_self(ctx)
-            packer = _node_packers_by_node[type(node)]
-            packed_node = packer.pack(node)
-            packed[node.id] = packed_node
-
-        to_pack = [node for node in ctx.subtree if node.id not in packed]
+    to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
+    for node in to_pack:
+        if node.mnt in exclude:
+            continue
+        packer = _node_packers_by_node[type(node)]
+        packed[node.id] = packer.pack(node)
 
     return packed[root.id], list(packed.values())
 

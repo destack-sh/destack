@@ -268,7 +268,7 @@ class BaseTextTaskCompiler(TaskCompiler):
         """Model-friendly string describing the entire task context."""
         # ignore output types, they're covered by function schemas
         if exclude_output:
-            seen_node_ids = {n.id for o in task.outputs for n in o.walk_type()}
+            seen_node_ids = {n.id for o in task.outputs for n in o._walk_rec()}
         else:
             seen_node_ids = set()
         context_strs = []
@@ -976,8 +976,6 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
-    module._clear_rec()
-    module._index_rec()
     nodes = list(module._walk_rec())
     for node in nodes:
         if isinstance(node, Module):
@@ -986,14 +984,13 @@ for name, module in DEFAULT_MODULES.items():
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, HasFields)):
             node.key = new_dynamic_node_key(node.ck)
+    for node in nodes:  # clear resets references to their ids, so re-assign ids first
         node._clear_self()
     module._clear_self()
     # hard re-index everything (ids changed)
     module._local_tree.clear()
     for node in nodes:
         module._local_tree.add(node)
-
-    # index
     module._index_rec()
     module._interp_rec()
     if module.issues:

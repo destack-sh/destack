@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from dataclasses import dataclass
 from typing import Optional, Union
 from uuid import UUID
@@ -20,7 +21,7 @@ class HasText(ModuleNode):
     """Some instruction text with optional references."""
 
     text: str | None = nproperty(default=None)
-    _text_spans: list["TextSpan"] | None = nruntime(default=None)
+    _text_spans: list["TextSpan"] | None = nruntime(default=None, copy_value=lambda v: deepcopy(v))
 
     @property
     def text_plain(self) -> Optional[str]:
@@ -105,6 +106,9 @@ class TextMention:
 
     def __repr__(self):
         return f"<TextMention {self}>"
+
+    def __copy__(self):
+        return TextMention(reference=self.reference, reference_path=self.reference_path)
 
     @property
     def reference_ck(self) -> UUID:

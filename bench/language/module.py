@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, ClassVar, Collection, Iterator, Optional, Unio
 from uuid import UUID, uuid4
 
 import structlog
+from cachetools import cached
 
 from bench.language.const import (
     MNT,
@@ -30,7 +31,7 @@ from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import Field, File, Issue, Session, Statement
+    from bench.language import File, Issue, Session, Statement
     from bench.language.issue import ValidationHandler
     from bench.language.wire import ModuleTreeData
 
@@ -84,6 +85,7 @@ class NodeProperty:
     name: str | None = None  # name from LHS of assignment
     is_internal: bool = False
     is_runtime: bool = False
+    is_cru: bool = False
     parent_mnts: list[MNT] | None = None
     ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
@@ -163,10 +165,15 @@ def ninternal(
     default: typing.Any = UNSET,
     default_factory: typing.Callable[[], typing.Any] = None,
     copy_value: typing.Callable[[typing.Any], typing.Any] = None,
+    is_cru: bool = False,
 ):
     """Internal only, persisted node property."""
     return NodeProperty(
-        is_internal=True, default=default, default_factory=default_factory, copy_value=copy_value
+        is_internal=True,
+        default=default,
+        default_factory=default_factory,
+        copy_value=copy_value,
+        is_cru=is_cru,
     )
 
 
@@ -241,6 +248,27 @@ _FORBIDDEN_NODE_METHODS = (
     [m.self for m in NodeMethod] + [m.rec for m in NodeMethod] + ["__post_init__", "__del__"]
 )
 _NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
+_COMPONENT_CLASS_BY_NAME: dict[str, type["ModuleNode"]] = {}
+_COMPONENT_CALL_ORDER: list[str] = [
+    "ModuleNode",
+    "ScopeNode",
+    "HasFields",  # for resolved_fields
+    # the rest
+]
+
+
+@cached(cache={})
+def _sort_components_call(components: list[type["ModuleNode"]]) -> list[type["ModuleNode"]]:
+    """Sorts components by call order. Nodes without call order are left as-is."""
+    sorted_components = []
+    for component in components:
+        if component.__name__ in _COMPONENT_CALL_ORDER:
+            sorted_components.append(component)
+    sorted_components.sort(key=lambda c: _COMPONENT_CALL_ORDER.index(c.__name__))
+    for component in components:
+        if component.__name__ not in _COMPONENT_CALL_ORDER:
+            sorted_components.append(component)
+    return sorted_components
 
 
 def _get_node_class(mnt: MNT):
@@ -357,6 +385,7 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: 
             if mnt in _NODE_CLASS_BY_MNT:
                 raise ValueError(f"node class conflict for {mnt}: {cls}, {_NODE_CLASS_BY_MNT[mnt]}")
             _NODE_CLASS_BY_MNT[mnt] = cls
+        _COMPONENT_CLASS_BY_NAME[cls.__name__] = cls
 
         return cls
 
@@ -471,14 +500,14 @@ class NodeList(Collection, typing.Generic[NodeT]):
         # subsume node into parent scope
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
             # take over node's descendants (was detached local tree root)
-            self._parent._import_scope(_node)
+            self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:
             # index node into tree
             self._parent._local_root_tree.add(_node)
         # register node scope
         if self._flags & NRel.Scoped and _node.name is not None:
-            self._parent._add_child_scope(_node)
+            self._parent._add_node_to_scope(_node)
 
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
@@ -884,7 +913,7 @@ def _make_self_method(
             raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
         method_name = method.inner
         # nocheckin: fix component call order
-        for component in self._components:
+        for component in _sort_components_call(self._components):
             if hasattr(component, method_name):
                 getattr(component, method_name)(self, *args, **kwargs)
         if to_status is not None:
@@ -914,11 +943,11 @@ class ModuleNode(abc.ABC):
     parent: Optional["ModuleNode"] = nparent()
     # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
 
-    created_at: datetime = ninternal(default_factory=utcnow_with_tz)
-    updated_at: datetime = ninternal(default_factory=utcnow_with_tz)
-    last_edited_at: datetime = ninternal(default_factory=utcnow_with_tz)
-    last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz)
-    revision: int = ninternal(default=0)
+    created_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
+    updated_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
+    last_edited_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
+    last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
+    revision: int = ninternal(default=0, is_cru=True)
 
     module: Optional["Module"] = nancestor(MNT.Module)
 
@@ -1072,6 +1101,16 @@ class ModuleNode(abc.ABC):
         """
         return [self]
 
+    def _on_issue(
+        self,
+        *,
+        subject: Optional["ModuleNode"] = None,
+        type: IssueType = None,
+        message: str = None,
+        **kwargs,
+    ):
+        self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
+
     @property
     def attached(self) -> bool:
         return self.module is not None
@@ -1174,12 +1213,12 @@ class ScopeNode(ModuleNode):
             if prop.children_flags & NRel.Scoped:
                 for child in getattr(self, prop.name):
                     if child.name is not None:
-                        self._add_child_scope(child)
+                        self._add_node_to_scope(child)
 
     def _walk_rec(self) -> Collection["ModuleNode"]:
         return self._local_root_tree.get_descendants(self.ck, recursive=True, include_self=True)
 
-    def _add_child_scope(self, node: ModuleNode) -> None:
+    def _add_node_to_scope(self, node: ModuleNode) -> None:
         """
         Adds a child node into this scope. Idempotent for the same node.
         """
@@ -1194,7 +1233,7 @@ class ScopeNode(ModuleNode):
             self._scopes_by_name[node.name] = node
             self._names_by_ident[node.py_ident] = node.name
 
-    def _import_scope(self, scope: "ScopeNode") -> None:
+    def _import_scope_tree(self, scope: "ScopeNode") -> None:
         """Adds the given tree into this scope."""
         self._local_root_tree.add_tree(scope._local_tree)
 
@@ -1244,7 +1283,7 @@ class ScopeNode(ModuleNode):
     def _on_issue(
         self,
         *,
-        subject: Union["Statement", "File", "Field", None] = None,
+        subject: Optional["ModuleNode"] = None,
         type: IssueType = None,
         message: str = None,
         **kwargs,
@@ -1252,10 +1291,10 @@ class ScopeNode(ModuleNode):
         from bench.language import File, Statement
         from bench.language.issue import Issue
 
-        if not isinstance(subject, (Statement, File)):
-            subject = subject.parent  # fields don't have issues (yet)
         issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
         issue_id = issue_ck  # not sure?
+        if not isinstance(subject, (Statement, File)):
+            subject = subject.parent  # fields don't have issues (yet)
         issue = Issue(id=issue_id, ck=issue_ck, type=type, parent=None, **kwargs)
         subject.issues.append(issue)
 
@@ -1385,29 +1424,10 @@ class Module(ScopeNode):
 
     def _index_inner(self):
         for builtin in self.builtins:
-            self._add_child_scope(builtin)
-            self._import_scope(builtin)
+            self._add_node_to_scope(builtin)
+            self._import_scope_tree(builtin)
         for dependency in self.dependencies.values():
             self._local_root_tree.add_tree(dependency._local_tree)
-
-    def copy(self):
-        from bench.language import wire
-
-        module_data = wire.pack_module(self)
-        module_copy = wire.unpack_module(module_data, session=None)
-        for builtin in self.builtins:
-            module_copy.add_builtin(builtin)  # also copy?
-        for dependency in self.dependencies.values():
-            module_copy.add_dependency(dependency)  # also copy?
-        if self._status >= NodeStatus.Indexed:
-            module_copy._index_rec()
-        if self._status >= NodeStatus.Interpreted:
-            module_copy._interp_rec(module_copy)
-        if len(module_copy.issues or []) != len(self.issues or []):
-            raise RuntimeError(
-                f"{self} copy expected {len(self.issues or [])} issues, got {len(module_copy.issues or [])}: {module_copy.issues}"
-            )
-        return module_copy
 
     @staticmethod
     def interp_from(
