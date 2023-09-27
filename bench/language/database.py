@@ -132,7 +132,7 @@ class HasDatabase(ModuleNode, Search["RecordData", Record]):
     def clear(self):
         self.records.clear(self)
 
-    def append(self, record: Record | dict = None, **value) -> Record:
+    def append(self, record: Record) -> Record:
         """Appends a record to the database."""
         if record is not None:
             if value:
@@ -145,7 +145,6 @@ class HasDatabase(ModuleNode, Search["RecordData", Record]):
                 raise TypeError(f"cannot append {type(record)} to {self}")
         value = unproxy_value(value)  # remove source proxy if any
         record = Record(parent=self, value=value)
-        self.session.tracer.database_append(self, record)
         return record
 
     def extend(self, records: typing.Iterable[Record | dict]) -> None:

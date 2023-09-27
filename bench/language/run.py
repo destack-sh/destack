@@ -203,7 +203,7 @@ class Run:
         from bench.language.libs import symbolx_lib
         from bench.language.mapping import check_type, unpack_value
 
-        metatype = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
+        metatype = symbolx_lib.resolve(".reflect.RunMetadata")
 
         def _onwrite_value(key: str):
             check_type(self.value, metatype)
@@ -221,7 +221,7 @@ class Run:
         from bench.language.libs import symbolx_lib
         from bench.language.mapping import pack_value
 
-        run_value = symbolx_lib.lookup_or_error(".reflect.RunMetadata")
+        run_value = symbolx_lib.resolve(".reflect.RunMetadata")
 
         if not self._value_unpacked:
             return self.value

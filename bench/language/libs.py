@@ -973,6 +973,7 @@ DEFAULT_MODULES: dict[str, Module] = {
 
 # assign reproducible ids, and interp/index them
 for name, module in DEFAULT_MODULES.items():
+    module.committed = True
     assert module.name == name
 
     # assign stable cks / versioned ids

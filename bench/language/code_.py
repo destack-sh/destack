@@ -80,15 +80,15 @@ class HasCode(ModuleNode):
 
     @property
     def cached(self) -> bool:
-        return symbolx_lib.lookup_or_error(".builtins.cache").key in self.tags
+        return symbolx_lib.resolve(".builtins.cache") in self.tags
 
     @property
     def exported(self) -> bool:
-        return symbolx_lib.lookup_or_error(".builtins.export").key in self.tags
+        return symbolx_lib.resolve(".builtins.export") in self.tags
 
     @property
     def is_test(self) -> bool:
-        return symbolx_lib.lookup_or_error(".builtins.test").key in self.tags
+        return symbolx_lib.resolve(".builtins.test") in self.tags
 
     @property
     def _code_hash(self) -> str:

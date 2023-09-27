@@ -287,7 +287,7 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     def _type_of_value(self) -> "HasFields":
         from bench.language.libs import symbolx_lib
 
-        return symbolx_lib.lookup_or_error(".reflect.FieldMetadata")
+        return symbolx_lib.resolve(".reflect.FieldMetadata")
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         pass  # reference already resolved in HasReference

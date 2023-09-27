@@ -30,7 +30,7 @@ class Tagging(HasValue, HasReference, ModuleNode):
     def _type_of_value(self) -> "HasFields":
         from bench.language.libs import symbolx_lib
 
-        return symbolx_lib.lookup_or_error(".reflect.TaggingMetadata")
+        return symbolx_lib.resolve(".reflect.TaggingMetadata")
 
     def __str__(self):
         parent_str = self.parent.path if self.parent is not None else "<detached>"

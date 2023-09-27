@@ -184,7 +184,7 @@ class WorkerNode(Monitored):
 
         try:
             # get runnable
-            runnable = worker.module.lookup_or_error(msg.p.runnable)
+            runnable = worker.module.resolve(msg.p.runnable)
             if runnable is None:
                 pass
 
