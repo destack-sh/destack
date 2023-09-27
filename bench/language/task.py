@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node_component(dynamic=True)
+@node_component
 class HasTask(ModuleNode):
     _root_models: list["HasModel"] | None = nruntime(default=None)
     _randomize: bool = nruntime(default=False)

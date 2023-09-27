@@ -22,8 +22,10 @@ from bench.language.module import (
     ModuleNode,
     NodeList,
     NodeVisitor,
+    NRel,
     ScopeNode,
     get_node_id,
+    nchildren,
     ninternal,
     node,
     node_component,
@@ -354,11 +356,16 @@ class ResolvedField(Field):
         )
 
 
-@node_component(dynamic=True)
+@node_component
 class HasFields(SomeType, ModuleNode):
-    """A symbol that has fields"""
+    """A node with fields"""
 
-    def _init(self):
+    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
+    resolved_fields: NodeList["ResolvedField"] = nchildren(
+        MNT.ResolvedField, NRel.Named | NRel.Ordered
+    )
+
+    def _init_inner(self):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
@@ -380,7 +387,8 @@ class HasFields(SomeType, ModuleNode):
 
     def _inputs_from_args(self, args, kwargs) -> dict:
         inputs = {**kwargs}
-        for input_t, input in zip(self.inputs, args):
+        input_fields = [f for f in self.resolved_fields if not (f.flags & TypeFlag.IsOutput)]
+        for input_t, input in zip(input_fields, args):
             inputs[input_t.py_ident] = input
         return inputs
 

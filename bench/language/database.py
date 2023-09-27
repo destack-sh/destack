@@ -10,6 +10,8 @@ from bench.language.field import Field
 from bench.language.module import (
     Module,
     ModuleNode,
+    NodeList,
+    NRel,
     ScopeNode,
     nchildren,
     ninternal,
@@ -118,13 +120,16 @@ class DatabaseViewField(ModuleNode):
     order_key: str | None = ninternal(default=None)
 
 
-@node_component(dynamic=True)
+@node_component
 class HasDatabase(ModuleNode, Search["RecordData", Record]):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
+    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
 
-    def _init(self):
-        # nocheckin: ensure this takes effect if HasFields is also a component
+    def _init_inner(self):
+        # this runs before HasFields because of the ordering in
+        #  (which is necessary because HasFields also sets key)
         if self.key is None:
             if self.versioned:
                 if self.id is not None:
