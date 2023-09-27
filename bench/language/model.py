@@ -38,7 +38,7 @@ class ModelErrorType(enum.StrEnum):
     Unknown = "Unknown"
 
 
-@node_component(dynamic=True)
+@node_component
 class HasModel(HasFields, ModuleNode):
     _is_async: bool = nruntime(default=False)
     _remote: bool = nruntime(default=False)

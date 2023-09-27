@@ -73,6 +73,8 @@ class Statement(ScopeNode):
     versioned: bool = nproperty(default=True)
     external_name: str | None = ninternal(default=None)  # for model, to be moved to value
 
+    # all possible child relations inlined (dynamic components can't have non-runtime
+    #  properties, primarily because that would be confusing, and we want to edit all of them)
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging)
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
     resolved_fields: NodeList["ResolvedField"] = nchildren(
@@ -179,12 +181,14 @@ class Statement(ScopeNode):
         raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
 
+# Note that order matters as components are called in order.
 _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
     StatementType.TYPE: (HasFields, HasText),
     StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
     StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
     StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
     StatementType.FLOW: (HasRun, HasFields, HasText),
+    # Order matters for Database because HasDatabase _init
     StatementType.DATABASE: (HasDatabase, HasFields, HasText),
     StatementType.TAG: (HasFields, HasText),
     StatementType.VARIABLE: (HasValue, HasFields, HasText),

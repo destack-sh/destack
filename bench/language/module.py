@@ -279,7 +279,7 @@ def _get_node_class(mnt: MNT):
 
 
 @typing.dataclass_transform()
-def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: bool = False):
+def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None):
     """
     Mark a class as a node component (or concrete node for a MNT).
     """
@@ -326,12 +326,6 @@ def node_component(cls: Optional[typing.Type] = None, mnt: MNT = None, dynamic: 
                 elif prop != properties[name]:
                     raise ValueError(f"property conflict for {name}: {prop}, {properties[name]}")
             static_components.append(base)
-
-        if dynamic:
-            # ensure that all properties are dynamic
-            static_props = [prop for prop in properties.values() if not prop.is_runtime]
-            if static_props:
-                raise TypeError(f"expected only dynamic props for {cls}, got {static_props}")
 
         # create class
         for name, prop in properties.items():
@@ -406,6 +400,8 @@ NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 
 def _node_ancestor_prop(prop: NodeProperty) -> property:
+    """Computed ancestor property for ModuleNode instances."""
+
     def get(self: NodeT) -> Optional[NodeT]:
         parent = self  # include self in search
         while parent is not None:
@@ -420,20 +416,48 @@ def _node_ancestor_prop(prop: NodeProperty) -> property:
     return property(get, set)
 
 
+def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
+    """
+    Sort a list of ordered, hierarchical nodes.
+    Each node is ordered within its 'parent' (by 'order_key'). Start at the root.
+    """
+    ordered = []
+
+    nodes_by_parent_ck: dict[UUID, list[NodeT]] = defaultdict(list)
+    for node in nodes:
+        nodes_by_parent_ck[node.parent.ck].append(node)
+
+    def _walk_dfs(parent_id: UUID):
+        children = nodes_by_parent_ck.get(parent_id, None)
+        if children:
+            children.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
+            for child in children:
+                ordered.append(child)
+                _walk_dfs(child.id)
+
+    _walk_dfs(root_ck)
+    return ordered
+
+
 class NodeList(Collection, typing.Generic[NodeT]):
+    """
+    A list of node descendants for a parent's property.
+    This is the primary way of adding, removing and accessing inline node relations.
+    """
+
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         self._parent = parent
         self._child_t: type[NodeT] = _get_node_class(property.child_mnt)
         self._prop = property
         self._flags = property.children_flags
-        self._children: list[NodeT] = []
+        self._nodes: list[NodeT] = []
 
     @property
     def n(self):
-        return self._children
+        return self._nodes
 
     def __str__(self):
-        return str(self._children)
+        return str(self._nodes)
 
     def __repr__(self):
         return f"<NodeList {self._parent.path}->{self._prop.name}: {self}>"
@@ -446,26 +470,25 @@ class NodeList(Collection, typing.Generic[NodeT]):
         if self._flags & NRel.Cumulative:
             # all matching children of parent's descendants
             #  e.g. Module->Issue, File->Issue, ... -> all issues
-            self._children = scope._local_root_tree.get_descendants(
+            self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_t, recursive=True, prefilter=False
             )
             assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
         elif self._flags & NRel.Flat:
             # all matching descendants of matching children of parent
             #  e.g. Module->File, File->File, ... -> all files
-            self._children = scope._local_root_tree.get_descendants(
+            self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_t, recursive=True, prefilter=True
             )
             if self._flags & NRel.Ordered:
-                self._children.sort(key=lambda n: n.order_key)
-                # nocheckin: incorrect for flat
+                self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
         else:
             # only matching children of parent
-            self._children = scope._local_root_tree.get_descendants(
+            self._nodes = scope._local_root_tree.get_descendants(
                 scope.ck, self._child_t, recursive=False
             )
             if self._flags & NRel.Ordered:
-                self._children.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
+                self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
     def create(self, *args, **kwargs):
         node_cls = _NODE_CLASS_BY_MNT[self._prop.child_mnt]
@@ -509,14 +532,16 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
-            last_ok = self._children[-1].order_key if self._children else None
+            if self._flags & NRel.Flat:  # add after last root node
+                local_roots = [n for n in self._nodes if n.parent == self._parent]
+                last_ok = local_roots[-1].order_key if local_roots else None
+            else:
+                last_ok = self._nodes[-1].order_key if self._nodes else None
             _node.order_key = generate_key_between(last_ok, None)
-            # nocheckin: incorrect for flat
-
         if _trigger:
             # and update every affect node & list
             self._parent._trigger_update([_node])
-            assert _node in self._children, f"node {_node} not in {self}"
+            assert _node in self._nodes, f"node {_node} not in {self}"
 
     def extend(self, nodes: Collection[NodeT]):
         """Attaches a list of child nodes to a parent. See append."""
@@ -525,7 +550,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
             for node in nodes:
                 self.append(node, _trigger=False)
             self._parent._trigger_update(nodes)
-            assert all(n in self._children for n in nodes), f"nodes {nodes} not in {self}"
+            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self}"
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
         """Removes a child node from a parent. See append for reverse."""
@@ -538,7 +563,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
     def clear(self, _delete: bool = True, _trigger: bool = True):
         """Removes all child nodes from a parent. See append for reverse."""
-        removed = list(self._children)
+        removed = list(self._nodes)
         if removed:
             for _node in removed:
                 self.remove(_node, _delete=_delete, _trigger=False)
@@ -552,7 +577,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
             raise ValueError(f"cannot get {some_id} from {self}")
-        for child in self._children:
+        for child in self._nodes:
             if (
                 (self._flags & NRel.Keyed and child.key == some_id)
                 or child.name == some_id
@@ -562,21 +587,21 @@ class NodeList(Collection, typing.Generic[NodeT]):
         return None
 
     def __bool__(self):
-        return bool(self._children)
+        return bool(self._nodes)
 
     def __contains__(self, obj: object) -> bool:
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
         elif isinstance(obj, ModuleNode):
-            return obj in self._children
+            return obj in self._nodes
         else:
             return False
 
     def __getitem__(self, item: int | slice | str) -> NodeT | list[NodeT]:
         if isinstance(item, int):
-            return self._children[item]
+            return self._nodes[item]
         elif isinstance(item, slice):
-            return self._children[item]
+            return self._nodes[item]
         elif isinstance(item, str):
             return self.get(item)
         else:
@@ -591,16 +616,16 @@ class NodeList(Collection, typing.Generic[NodeT]):
         return node
 
     def __iter__(self) -> Iterator[NodeT]:
-        yield from self._children
+        yield from self._nodes
 
     def __len__(self) -> int:
-        return len(self._children)
+        return len(self._nodes)
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, NodeList):
-            return self._children == other._children
+            return self._nodes == other._nodes
         elif isinstance(other, list):
-            return self._children == other
+            return self._nodes == other
         else:
             return False
 

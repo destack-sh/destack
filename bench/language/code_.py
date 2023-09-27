@@ -47,7 +47,7 @@ class CodeParse:
     x_imports: dict[int, dict[str, NodePath]] = field(default_factory=dict)
 
 
-@node_component(dynamic=True)
+@node_component
 class HasCode(ModuleNode):
     _is_async: Optional[bool] = nruntime(default=None)
     _parse: Optional[CodeParse] = nruntime(default=None)
