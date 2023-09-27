@@ -16,8 +16,8 @@ import openai
 
 from bench.language import HasRun, HasText, Module, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.const import RunStatus, StatementType, TypeFlag, TypeTag
-from bench.language.field import Field, HasFields, Key, Vector, new_dynamic_node_key
+from bench.language.const import RunStatus, StatementType, TypeFlag, TypeTag, new_dynamic_node_key
+from bench.language.field import Field, Key, Vector
 from bench.language.mapping import map_value, pack_value_flat
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import get_node_id
@@ -982,13 +982,19 @@ for name, module in DEFAULT_MODULES.items():
             continue  # already assigned in builtin
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(module.id, node.ck)
-        if isinstance(node, (Field, HasFields)):
+        if isinstance(node, Field):
             node.key = new_dynamic_node_key(node.ck)
+        elif isinstance(node, Statement):
+            node.key = None
+            node._init_self()  # reset key (everything else is already set)
     # hard re-index everything (ids changed)
     for node in nodes:  # clear resets references to their ids, so run after assigning all ids
         node._clear_self()
     module._clear_self()
     module._local_tree.set(nodes)
+    for node in nodes:
+        if isinstance(node, Statement):
+            node._update_lists(node)  # we re-init above to reset the key, so manually update lists
     module._index_rec()
     module._interp_rec()
     if module.issues:

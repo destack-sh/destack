@@ -7,7 +7,6 @@ import textwrap
 import types
 import typing
 from dataclasses import dataclass, field
-from functools import cached_property
 from json import JSONDecodeError
 from random import Random
 from typing import Any, Optional
@@ -16,6 +15,7 @@ import structlog
 from more_itertools import first, last
 
 from bench.language import IssueType
+from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.mapping import check_type, pack_value, unpack_value
@@ -78,26 +78,19 @@ class HasCode(ModuleNode):
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
-    @cached_property
+    @property
     def cached(self) -> bool:
-        # TODO @Cleanup: manage stdlib references centrally :CentralStdlibAccess
-        from bench.language.libs import symbolx_lib
-
         return symbolx_lib.lookup_or_error(".builtins.cache").key in self.tags
 
-    @cached_property
+    @property
     def exported(self) -> bool:
-        from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
-
         return symbolx_lib.lookup_or_error(".builtins.export").key in self.tags
 
-    @cached_property
+    @property
     def is_test(self) -> bool:
-        from bench.language.libs import symbolx_lib  # :CentralStdlibAccess
-
         return symbolx_lib.lookup_or_error(".builtins.test").key in self.tags
 
-    @cached_property
+    @property
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 

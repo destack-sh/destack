@@ -2,7 +2,16 @@ import typing
 from typing import Union
 
 from bench.language.const import MNT
-from bench.language.module import ModuleNode, nchildren, node, node_component, nparent, nproperty
+from bench.language.module import (
+    ModuleNode,
+    NodeList,
+    NRel,
+    nchildren,
+    node,
+    node_component,
+    nparent,
+    nproperty,
+)
 from bench.language.reference import HasReference
 from bench.language.value import HasValue
 
@@ -36,7 +45,7 @@ class Tagging(HasValue, HasReference, ModuleNode):
 
 @node_component
 class HasTags(ModuleNode):
-    tags: list[Tagging] = nchildren(MNT.Tagging)
+    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.Keyed)
 
     @staticmethod
     def _to_tag_key(key: Union[str, "Statement", Tagging]) -> str:

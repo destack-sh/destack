@@ -586,7 +586,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
         """Removes a child node from a parent. See append for reverse."""
-        if _delete and self._parent.session:
+        if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
 
@@ -595,8 +595,8 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
     def clear(self, _delete: bool = True, _trigger: bool = True):
         """Removes all child nodes from a parent. See append for reverse."""
-        removed = list(self._nodes)
-        if removed:
+        if self._nodes:
+            removed = list(self._nodes)
             for _node in removed:
                 self.remove(_node, _delete=_delete, _trigger=False)
             self._parent._trigger_update(removed)
@@ -610,10 +610,8 @@ class NodeList(Collection, typing.Generic[NodeT]):
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
             raise ValueError(f"cannot get {some_id} from {self}")
         for child in self._nodes:
-            if (
-                (self._flags & NRel.Keyed and child.key == some_id)
-                or child.name == some_id
-                or child.py_ident == some_id
+            if (self._flags & NRel.Keyed and child.key == some_id) or (
+                self._flags & NRel.Named and (child.name == some_id or child.py_ident == some_id)
             ):
                 return child
         return None
@@ -1015,9 +1013,13 @@ def _make_self_method(
     def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
         # the status checking/coercion is a bit messy and probably belongs elsewhere
         if from_status is not None and self._status != from_status:
-            if _coerce and self._status <= from_status:  # automatically index if needed
-                if self._status == NS.Raw:
+            if _coerce and self._status <= to_status:  # automatically index if needed
+                if self._status == NS.Raw and to_status >= NS.Indexed:
                     self._index_self()
+                if self._status == NS.Indexed and to_status >= NS.Interpreted:
+                    self._interp_self(self)
+                if self._status == to_status:
+                    pass  # all good now
                 else:
                     raise RuntimeError(
                         f"cannot coerce {method.name} {self!r} (status={self._status.name})"

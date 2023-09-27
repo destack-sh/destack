@@ -32,6 +32,7 @@ from bench.language.module import (
     node_component,
     nparent,
     nproperty,
+    nruntime,
 )
 from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
@@ -367,6 +368,7 @@ class HasFields(SomeType, ModuleNode):
     resolved_fields: NodeList["ResolvedField"] = nchildren(
         MNT.ResolvedField, NRel.Named | NRel.Ordered
     )
+    _resolved_unions: bool = nruntime(default=False)
 
     def _init_inner(self):
         if self.key is None:
@@ -374,10 +376,54 @@ class HasFields(SomeType, ModuleNode):
 
     def _clear_inner(self) -> None:
         self.resolved_fields.clear()
+        self._resolved_unions = False
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         # expand unions (recursively)
-        _resolve_unions(self, [])
+        self._resolve_unions([])
+
+    def _resolve_unions(self: "HasFields", path: list[SomeType]) -> None:
+        """
+        Resolves (and inlines) the union-ed fields of any union types in the type tree.
+        """
+        if self._resolved_unions:
+            return  # already resolved
+
+        if any(n.id == self.id for n in path):
+            # circular panic
+            path = "->".join(n.name for n in path + [self])
+            self._on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
+            self._resolved_unions = True
+            return
+
+        if not any(n.flags & TypeFlag.IsUnionWith for n in self.fields):
+            # skip, not a union with anything
+            self.resolved_fields.set([ResolvedField.from_field(f) for f in self.fields])
+            self._resolved_unions = True
+            return
+
+        path = path + [self]
+        resolved_fields: list[ResolvedField] = []
+        for field in self.fields:
+            if not field.flags & TypeFlag.IsUnionWith:
+                resolved_fields.append(ResolvedField.from_field(field))
+                continue  # just a regular field
+            if not isinstance(field.reference, HasFields):
+                continue  # ignore unresolved
+
+            # inline fields from union-ed type to resolved fields
+            field.reference._resolve_unions(path)
+            for child in field.reference.resolved_fields:
+                existing = self.resolved_fields.get(child.py_ident)
+                # check if self is compatible if overlapping
+                if existing is not None and not existing.is_type_equivalent(child):
+                    self._on_issue(self=IssueType.MISMATCHED_UNION, subject=self, other=existing)
+                    continue
+                if isinstance(child, ResolvedField):
+                    child = child.field
+                resolved_fields.append(ResolvedField.from_field(child))
+        self.resolved_fields.set(resolved_fields)
+        self._resolved_unions = True
 
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""
@@ -394,47 +440,6 @@ class HasFields(SomeType, ModuleNode):
         for input_t, input in zip(input_fields, args):
             inputs[input_t.py_ident] = input
         return inputs
-
-
-def _resolve_unions(type: "HasFields", path: list[SomeType]) -> None:
-    """
-    Resolves (and inlines) the union-ed fields of any union types in the type tree.
-    """
-    if any(n.id == type.id for n in path):
-        # circular panic
-        type._on_issue(
-            type=IssueType.CIRCULAR_UNION,
-            subject=type,
-            path="->".join(n.name for n in path + [type]),
-        )
-        return
-
-    if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
-        # skip, not a union
-        type.resolved_fields.set([ResolvedField.from_field(f) for f in type.fields])
-        return
-
-    path = path + [type]
-    resolved_fields: list[ResolvedField] = []
-    for field in type.fields:
-        if not field.flags & TypeFlag.IsUnionWith:
-            resolved_fields.append(ResolvedField.from_field(field))
-            continue  # just a regular field
-        if not isinstance(field.reference, HasFields):
-            continue  # ignore unresolved
-
-        # inline union fields
-        _resolve_unions(field.reference, path)
-        for child in field.reference.resolved_fields:
-            existing = type.resolved_fields.get(child.py_ident)
-            # check if type is compatible if overlapping
-            if existing is not None and not existing.is_type_equivalent(child):
-                type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
-                continue
-            if isinstance(child, ResolvedField):
-                child = child.field
-            resolved_fields.append(ResolvedField.from_field(child))
-    type.resolved_fields.set(resolved_fields)
 
 
 class TypedDict(dict):
