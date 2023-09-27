@@ -31,7 +31,7 @@ from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import File, Issue, Session, Statement
+    from bench.language import File, Issue, Session
     from bench.language.issue import ValidationHandler
     from bench.language.wire import ModuleTreeData
 
@@ -497,13 +497,11 @@ class NodeList(Collection, typing.Generic[NodeT]):
         # 'create' node in session
         if _create and self._parent._session:
             self._parent._session.tracer.node_create(_node)
-        # subsume node into parent scope
+        # index node into parent scope (either subsume if previously detached or just add)
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
-            # take over node's descendants (was detached local tree root)
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:
-            # index node into tree
             self._parent._local_root_tree.add(_node)
         # register node scope
         if self._flags & NRel.Scoped and _node.name is not None:
@@ -555,7 +553,11 @@ class NodeList(Collection, typing.Generic[NodeT]):
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
             raise ValueError(f"cannot get {some_id} from {self}")
         for child in self._children:
-            if child.key == some_id or child.name == some_id or child.py_ident == some_id:
+            if (
+                (self._flags & NRel.Keyed and child.key == some_id)
+                or child.name == some_id
+                or child.py_ident == some_id
+            ):
                 return child
         return None
 
@@ -579,6 +581,14 @@ class NodeList(Collection, typing.Generic[NodeT]):
             return self.get(item)
         else:
             raise TypeError(f"invalid index for {self}: {item} ({type(item)})")
+
+    def __getattr__(self, item):
+        if item.startswith("_"):
+            return super().__getattr__(item)
+        node = self.get(item)
+        if node is None:
+            raise AttributeError(f"no node {item} in {self}")
+        return node
 
     def __iter__(self) -> Iterator[NodeT]:
         yield from self._children
@@ -614,6 +624,10 @@ class NodeTree(typing.Generic[NT]):
     def __repr__(self):
         return f"<ModuleTree {self}>"
 
+    @property
+    def nodes(self) -> Collection[NT]:
+        return self.nodes_by_ck.values()
+
     #
     # Mutations
     #
@@ -639,6 +653,12 @@ class NodeTree(typing.Generic[NT]):
             if node.parent_id not in self.node_id_by_parent_id:
                 self.node_id_by_parent_id[node.parent_id] = []
             self.node_id_by_parent_id[node.parent_id].append(node.id)
+
+    def set(self, nodes: Collection[NT]):
+        """Replaces all nodes in the tree"""
+        self.clear()
+        for node in nodes:
+            self.add(node)
 
     def replace(self, node: NT):
         """Upsert a node in the tree (replace if node already exists)"""
@@ -707,6 +727,12 @@ class NodeTree(typing.Generic[NT]):
         """Gets a node by id"""
         node = self.nodes_by_id.get(node_id_or_ck)
         return node if node is not None else self.nodes_by_ck.get(node_id_or_ck)
+
+    def __getitem__(self, item):
+        return self.get(item)
+
+    def __contains__(self, item):
+        return item in self.nodes_by_id or item in self.nodes_by_ck
 
     def path_of(self, node: NT) -> list[NT]:
         """Returns the path from the root to the node"""
@@ -850,6 +876,21 @@ class DetachedNodeTree:
     def __repr__(self):
         return f"<DetachedNodeTree {self}>"
 
+    @property
+    def nodes(self) -> Collection[NT]:
+        return self.nodes_by_ck.values()
+
+    def __getitem__(self, item):
+        return self.nodes_by_ck.get(item)
+
+    def __contains__(self, item):
+        return item in self.nodes_by_ck
+
+    def clear(self):
+        """Clear the tree"""
+        self.nodes_by_ck.clear()
+        self.node_ck_by_parent_ck.clear()
+
     def add(self, node: "ModuleNode"):
         """Add a node to the tree (error if node already exists)"""
         if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
@@ -857,6 +898,12 @@ class DetachedNodeTree:
         self.nodes_by_ck[node.ck] = node
         if node.parent is not None:
             self.node_ck_by_parent_ck[node.parent.ck].append(node)
+
+    def set(self, nodes: Collection[NT]):
+        """Replaces all nodes in the tree"""
+        self.clear()
+        for node in nodes:
+            self.add(node)
 
     def add_tree(self, tree: "DetachedNodeTree"):
         assert type(self) == type(tree), f"cannot add {tree!r} to {self!r}"
@@ -908,11 +955,20 @@ def _make_self_method(
     """Creates method that calls _method_inner for all components"""
 
     @functools.wraps(wraps)
-    def self_method(self: "ModuleNode", *args, **kwargs):
+    def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
+        # the status checking/coercion is a bit messy and probably belongs elsewhere
         if from_status is not None and self._status != from_status:
-            raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
+            if _coerce and self._status <= from_status:  # automatically index if needed
+                if self._status == NodeStatus.Raw:
+                    self._index_self()
+                else:
+                    raise RuntimeError(
+                        f"cannot coerce {method.name} {self!r} (status={self._status.name})"
+                    )
+            else:
+                raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
+
         method_name = method.inner
-        # nocheckin: fix component call order
         for component in _sort_components_call(self._components):
             if hasattr(component, method_name):
                 getattr(component, method_name)(self, *args, **kwargs)
@@ -942,14 +998,13 @@ class ModuleNode(abc.ABC):
     ck: UUID = ninternal(default_factory=uuid.uuid4)
     parent: Optional["ModuleNode"] = nparent()
     # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
+    module: Optional["Module"] = nancestor(MNT.Module)
 
     created_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
     updated_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
     last_edited_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
     last_changed_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
     revision: int = ninternal(default=0, is_cru=True)
-
-    module: Optional["Module"] = nancestor(MNT.Module)
 
     _session: Optional["Session"] = nruntime(default=None)
     _status: NodeStatus = nruntime(default=None)
@@ -1003,7 +1058,7 @@ class ModuleNode(abc.ABC):
 
     def _trigger_update(self, changed: list["ModuleNode"]):
         """Trigger list updates and re-interps (now or later) in all relevant nodes."""
-        assert changed, f"cannot trigger update with no changed nodes"
+        assert changed, f"cannot trigger update on {self} with no changed nodes"
         # reinit children for any affected parent nodes
         # TODO @Performance: use mark dirty in node list to avoid reinit
         parent = self
@@ -1140,18 +1195,18 @@ def _make_rec_method(method: NodeMethod, wraps, pass_scope: bool = False):
     """Creates method that calls _method_self for self and all descendants"""
 
     @functools.wraps(wraps)
-    def rec_method(self: "ScopeNode"):
+    def rec_method(self: "ScopeNode", **kwargs):
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
         method_name = method.self
         if pass_scope:
             for node in descendants:
                 scope = node if isinstance(node, ScopeNode) else node.parent
                 getattr(node, method_name)(scope)
-            getattr(self, method_name)(node)
+            getattr(self, method_name)(self, **kwargs)
         else:
             for node in descendants:
                 getattr(node, method_name)()
-            getattr(self, method_name)()
+            getattr(self, method_name)(**kwargs)
 
     rec_method.__name__ = method.rec
     return rec_method
@@ -1280,6 +1335,17 @@ class ScopeNode(ModuleNode):
             return None
         return scope.lookup(inner_part, node_t=node_t, by=by)
 
+    def lookup_or_error(
+        self,
+        path: Union["NodePath", UUID, str],
+        by: Optional[LookupBy] = None,
+        node_t: typing.Type[NodeT] | None = None,
+    ) -> NodeT:
+        result = self.lookup(path, by=by, node_t=node_t)
+        if result is None:
+            raise LookupError(f"{path} not found in {self!r}")
+        return result
+
     def _on_issue(
         self,
         *,
@@ -1296,7 +1362,8 @@ class ScopeNode(ModuleNode):
         if not isinstance(subject, (Statement, File)):
             subject = subject.parent  # fields don't have issues (yet)
         issue = Issue(id=issue_id, ck=issue_ck, type=type, parent=None, **kwargs)
-        subject.issues.append(issue)
+        if issue not in subject.issues:  # dedup
+            subject.issues.append(issue)
 
     @property
     def errors(self) -> list["Issue"]:
@@ -1354,6 +1421,14 @@ class Module(ScopeNode):
         return f"<Module {str(self)}>"
 
     @property
+    def _tree(self) -> NodeTree:
+        return self._local_tree
+
+    @property
+    def _nodes(self) -> Collection[NT]:
+        return self._tree.nodes_by_ck.values()
+
+    @property
     def attached(self) -> bool:
         return True  # root is always "attached"
 
@@ -1368,12 +1443,13 @@ class Module(ScopeNode):
     def add_builtin(self, file: "File") -> None:
         self.builtins.append(file)
 
-    def add_dependency(self, module: Union["Module", ModuleReference]) -> None:
-        if module.name in self.dependencies:
+    def add_dependency(self, dependency: Union["Module", ModuleReference]) -> None:
+        if dependency.name in self.dependencies:
             raise ValueError(
-                f"{self} has dependency {module.name}: {self.dependencies[module.name]}"
+                f"{self} has dependency {dependency.name}: {self.dependencies[dependency.name]}"
             )
-        self.dependencies[module.name] = module
+        self.dependencies[dependency.name] = dependency
+        self._local_tree.add_tree(dependency._local_tree)
 
     def lookup(
         self,
@@ -1381,6 +1457,7 @@ class Module(ScopeNode):
         by: Optional[LookupBy] = None,
         node_t: MNT | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
+        # extend lookup to dependencies
         if isinstance(path, UUID):
             return self._local_tree.get(path)
         elif isinstance(path, str) and path.startswith("."):
@@ -1395,25 +1472,6 @@ class Module(ScopeNode):
                 return None
             return dependency.lookup(localized_path, node_t=node_t, by=by)
 
-    def lookup_or_error(
-        self,
-        path: Union["NodePath", UUID, str],
-        by: Optional[LookupBy] = None,
-        node_t: typing.Type[NodeT] | None = None,
-    ) -> NodeT:
-        result = self.lookup(path, by=by, node_t=node_t)
-        if result is None:
-            raise LookupError(f"{path} not found in {self!r}")
-        return result
-
-    def get_file(self, name: str) -> "File":
-        from bench.language.file import File
-
-        scope = self._scopes_by_name.get(name)
-        if not isinstance(scope, File):
-            raise ValueError(f"expected file, got {type(scope)}")
-        return scope
-
     def _activate_inner(self, session: "Session"):
         for dependency in self.dependencies.values():
             dependency._activate(session)
@@ -1427,7 +1485,7 @@ class Module(ScopeNode):
             self._add_node_to_scope(builtin)
             self._import_scope_tree(builtin)
         for dependency in self.dependencies.values():
-            self._local_root_tree.add_tree(dependency._local_tree)
+            self._local_tree.add_tree(dependency._local_tree)
 
     @staticmethod
     def interp_from(
@@ -1441,10 +1499,13 @@ class Module(ScopeNode):
             module: Module = wire.unpack_module(maybe_module, session=session)
         else:
             module = maybe_module
-        # no need to copy deps since worker processes are isolated?
-        dependencies = {name: dep for name, dep in libs.DEFAULT_MODULES.items()}
-        module.add_builtin(dependencies["symbolx.lib"].get_file("builtins"))
-        for dependency in dependencies.values():
+
+        if module.name in libs.DEFAULT_MODULES:
+            # would cause weird dependency issues, don't need this anyway
+            raise ValueError(f"cannot interp default module {module}")
+
+        module.add_builtin(libs.symbolx_lib.files.get("builtins"))
+        for dependency in libs.DEFAULT_MODULES.values():
             module.add_dependency(dependency)
         logger.debug("module.interp.interp", module=module)
         module._interp_rec()

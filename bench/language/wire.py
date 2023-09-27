@@ -170,19 +170,20 @@ def unpack_node(
             node_parent = unpacked_tree.nodes_by_id[node.parent_id]
         unpacked_tree.add(packer.unpack(node, node_parent, session))
 
-    # recover node lists
+    # index & recover node lists
     root = unpacked_tree.root
     if isinstance(root, ScopeNode):
-        root_tree = root._local_root_tree
-        for node in unpacked_tree.nodes_by_id.values():
-            if node.id != root.id:
-                root_tree.add(node)
-        root._index_rec()
-    else:
-        root._index_self()
+        root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
     for node in unpacked_tree.nodes_by_id.values():
         if isinstance(node, ScopeNode):
             node._update_lists(node)
+
+    if isinstance(root, ScopeNode):
+        root._index_rec()
+    elif isinstance(root, ModuleNode):
+        root._index_self()
+    else:
+        raise ValueError(f"unexpected root {root} ({type(root)})")
 
     return root
 
@@ -373,6 +374,7 @@ class StatementData(NodeData, HasOrder, HasCrud):
     tag: Optional[TypeTag]
     hint: Optional[TypeHint]
     flags: Optional[TypeFlag]
+    hint: Optional[TypeHint]
     key: Optional[str]
     code: Optional[str]
     value: Optional[typing.Any]
@@ -1107,7 +1109,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
         )
 
     def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
-        runnable = module._nodes_by_id.get(data.runnable_id) or MissingStatement(data.runnable_id)
+        runnable = module._tree.get(data.runnable_ck) or MissingStatement(data.runnable_id)
         run = LazyRun(data.run_id) if data.run_id else None
         return lang.LogEntry(
             id=data.id,

@@ -3,12 +3,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
-from bench.language.module import NodeTree
 import bench.opensearch.core as os
 from bench import language as lang
 from bench import models
 from bench.language import wire
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
+from bench.language.module import NodeTree
 from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
 from bench.language.run import HasRun
 from bench.opensearch import mirror
@@ -346,8 +346,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     module = wire.unpack_module(source, session=None)
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
-    module.add_builtin(libs.symbolx_lib.get_file("builtins"))
-    module._index_rec()
+    module.add_builtin(libs.symbolx_lib.files.get("builtins"))
     module._interp_rec()
 
     value_mappings: dict[str, os.Field] = {}
@@ -356,9 +355,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
 
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
-        for statement in lib._nodes_by_id.values():
-            if isinstance(statement, HasRun):
-                for field in statement.resolved_fields:
+        for node in lib._nodes:
+            if isinstance(node, HasRun):
+                for field in node.resolved_fields:
                     if field.flags & TypeFlag.IsOutput:
                         outputs_mappings[field.typed_key] = map_to_os_field(field)
                     else:
@@ -375,18 +374,18 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             value_mappings[field.typed_key] = map_to_os_field(field)
 
     # add dynamic user mappings
-    for statement in module._nodes_by_id.values():
-        if not isinstance(statement, lang.Statement):
+    for node in module._nodes:
+        if not isinstance(node, lang.Statement):
             continue
-        if not isinstance(statement, lang.HasFields) or statement.self_errors:
+        if not isinstance(node, lang.HasFields) or node.self_errors:
             continue  # ignore symbols with issues
-        elif statement.type == lang.StatementType.MODEL:
+        elif node.type == lang.StatementType.MODEL:
             # all fields go into Record.data ('data' is a "dynamic" object)
-            for field in statement.resolved_fields:
+            for field in node.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field)
-        elif statement.type in RUNNABLE_STATEMENT_TYPES:
+        elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
-            for field in statement.resolved_fields:
+            for field in node.resolved_fields:
                 if field.flags & TypeFlag.IsOutput:
                     outputs_mappings[field.typed_key] = map_to_os_field(field)
                 else:

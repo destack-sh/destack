@@ -984,13 +984,11 @@ for name, module in DEFAULT_MODULES.items():
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, HasFields)):
             node.key = new_dynamic_node_key(node.ck)
-    for node in nodes:  # clear resets references to their ids, so re-assign ids first
+    # hard re-index everything (ids changed)
+    for node in nodes:  # clear resets references to their ids, so run after assigning all ids
         node._clear_self()
     module._clear_self()
-    # hard re-index everything (ids changed)
-    module._local_tree.clear()
-    for node in nodes:
-        module._local_tree.add(node)
+    module._local_tree.set(nodes)
     module._index_rec()
     module._interp_rec()
     if module.issues:
@@ -1007,8 +1005,10 @@ for name, module in DEFAULT_MODULES.items():
             module_reloaded.add_dependency(symbolx_lib)
         module_reloaded._interp_rec()
 
-        if module_reloaded.issues:
-            raise RuntimeError(f"module {module_reloaded} has bad issues: {module_reloaded.issues}")
+        if module_reloaded.issues:  # maybe something got lost in pack/unpack
+            raise RuntimeError(
+                f"module {module_reloaded} has flaky issues: {module_reloaded.issues}"
+            )
 
 
 def lookup_model_impl(path: str) -> Optional[typing.Callable]:
