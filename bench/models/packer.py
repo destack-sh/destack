@@ -25,8 +25,8 @@ from bench.language.const import (
     RemoteObjectStatus,
     TriggerType,
 )
-from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
 from bench.language.module import NodeTree
+from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
@@ -391,6 +391,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             heading_level=statement.heading_level,
             text=statement.text,
             flags=statement.flags,
+            hint=TypeHint(statement.hint) if statement.hint else None,
             tag=statement.tag,
             key=statement.key,
             code=statement.code,
@@ -421,6 +422,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
             versioned=data.versioned,
             text=data.text,
             flags=data.flags,
+            hint=data.hint.value if data.hint else None,
             tag=data.tag,
             key=data.key,
             code=data.code,

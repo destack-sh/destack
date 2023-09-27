@@ -1,18 +1,9 @@
 import typing
 from typing import Union
-from uuid import UUID
 
-from bench.language.const import MNT, StatementReference
-from bench.language.module import (
-    ModuleNode,
-    NodeVisitor,
-    ScopeNode,
-    nchildren,
-    node,
-    node_component,
-    nparent,
-    nproperty,
-)
+from bench.language.const import MNT
+from bench.language.module import ModuleNode, nchildren, node, node_component, nparent, nproperty
+from bench.language.reference import HasReference
 from bench.language.value import HasValue
 
 if typing.TYPE_CHECKING:
@@ -20,11 +11,10 @@ if typing.TYPE_CHECKING:
 
 
 @node(mnt=MNT.Tagging)
-class Tagging(HasValue, ModuleNode):
+class Tagging(HasValue, HasReference, ModuleNode):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
-    reference: Union["Statement", StatementReference] = nproperty()
     key: str = nproperty()
 
     @property
@@ -41,21 +31,6 @@ class Tagging(HasValue, ModuleNode):
 
     def __repr__(self):
         return f"<Tagging {self}>"
-
-    def _interp_inner(self, scope: "ScopeNode") -> None:
-        if self.reference_ck is not None:
-            self.reference = scope._local_root_scope._nodes_by_ck.get(self.reference_ck)
-
-    def _visit_inner(self, visitor: NodeVisitor) -> None:
-        if isinstance(self.reference, ModuleNode):
-            visitor.visit_reference(self.reference)
-
-    @property
-    def reference_ck(self) -> typing.Optional[UUID]:
-        if isinstance(self.reference, ModuleNode):
-            return self.reference.ck
-        else:
-            return self.reference
 
 
 @node_component

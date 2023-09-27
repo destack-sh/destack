@@ -94,7 +94,7 @@ class Issue(ModuleNode):
     path: Optional[str] = nproperty(default=None)
     other: Optional[ModuleNode] = nproperty(default=None)
 
-    def _init(self):
+    def _init_inner(self):
         # make message
         message = _ISSUE_MESSAGES[self.type.value]
         kwargs = {}

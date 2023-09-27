@@ -155,7 +155,7 @@ def _unpack_log(log: mirror.LogEntry):
 
 
 def _get_projects_to_manage() -> list[models.Project]:
-    projects = list(Project.objects.all())
+    projects = list(Project.objects.all())  # obviously will shard this later
 
     # sanity check if default libs in code match those in DB
     for lib in DEFAULT_MODULES.values():
@@ -164,6 +164,8 @@ def _get_projects_to_manage() -> list[models.Project]:
             raise RuntimeError(f"default lib {lib} not found in DB")
         if project.head_id != lib.id:
             raise RuntimeError(f"default lib {lib} head mismatch with {project}: {project.head}")
+    # and then exclude default projects since there's nothing to manage
+    projects = [p for p in projects if p.path not in DEFAULT_MODULES]
 
     return projects
 
@@ -813,9 +815,9 @@ class RuntimeWorker:
 
         # collect new (i.e. current) module's triggers
         new_active_triggers = {}
-        for statement in self.module._nodes_by_id.values():
-            if isinstance(statement, HasTriggers) and not statement.errors:
-                for trigger in statement.triggers:
+        for node in self.module._nodes:
+            if isinstance(node, HasTriggers) and not node.errors:
+                for trigger in node.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
                         new_active_triggers[trigger.id] = trigger
 
@@ -887,8 +889,8 @@ class RuntimeWorker:
         interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
         if old_module is None:
             interp_mut.truncate(new_source.module, MNT.ResolvedField)
-        for statement in self.module._nodes_by_id.values():
-            old_statement = old_module._nodes_by_id.get(statement.id) if old_module else None
+        for statement in self.module._nodes:
+            old_statement = old_module._tree.get(statement.id) if old_module else None
             if not isinstance(statement, HasFields):
                 continue
             if (

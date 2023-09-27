@@ -292,7 +292,7 @@ class RunCodeFrame:
 
         code_by_method: dict[str, HasCode] = {
             symbol._transform.method_name: symbol
-            for symbol in session.module._nodes_by_id.values()
+            for symbol in session.module._nodes
             if isinstance(symbol, HasCode) and symbol._transform is not None
         }
 
@@ -317,8 +317,8 @@ class RunCodeFrame:
                     frame.line = code.code.splitlines()[frame.lineno - 1]
                     frame.locals = frame.locals or {}
                     for ident, var in code._statement_references.items():
-                        if ident not in frame.locals and var.id in session.module._nodes_by_id:
-                            frame.locals[ident] = repr(session.module._nodes_by_id[var.id])
+                        if ident not in frame.locals and var.id in session.module._tree:
+                            frame.locals[ident] = repr(session.module._tree[var.id])
             if found_start:
                 # trim file path for python modules
                 python_version = f"{sys.version_info.major}.{sys.version_info.minor}"
