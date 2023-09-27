@@ -66,9 +66,10 @@ class NodeRelationType(enum.IntFlag):
     Shared = 2**1  # across versions: Statement->Comment, Statement[versioned=False]->Record, ...
     Flat = 2**2  # flattened inner hierarchy: Module->File, File->Statement, ...
     Cumulative = 2**3  # sum of descendants: Module->Issue, File->Issue, ...
-    Named = 2**4  # scoped by name: Module->File, File->Statement, ...
-    Keyed = 2**5  # scoped by key: File->Tagging, Statement->Tagging, ...
-    Ordered = 2**6  # ordered: File->Statement, Statement->Field, ...
+    Named = 2**4  # indexed by name: Module->File, File->Statement, ...
+    Scoped = 2**5  # scoped by name: Module->File, File->Statement, ...
+    Keyed = 2**6  # indexed by key: File->Tagging, Statement->Tagging, ...
+    Ordered = 2**7  # ordered: File->Statement, Statement->Field, ...
 
 
 NRel = NodeRelationType
@@ -377,7 +378,7 @@ NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
 
 def _node_ancestor_prop(prop: NodeProperty) -> property:
     def get(self: NodeT) -> Optional[NodeT]:
-        parent = self.parent
+        parent = self  # include self in search
         while parent is not None:
             if parent.mnt == prop.ancestor_mnt:
                 return parent
@@ -397,6 +398,10 @@ class NodeList(Collection, typing.Generic[NodeT]):
         self._prop = property
         self._flags = property.children_flags
         self._children: list[NodeT] = []
+
+    @property
+    def n(self):
+        return self._children
 
     def __str__(self):
         return str(self._children)
@@ -442,7 +447,7 @@ class NodeList(Collection, typing.Generic[NodeT]):
         self.append(node)
         return node
 
-    def append(self, _node: NodeT, _create: bool = True) -> None:
+    def append(self, _node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
         """
         Attaches a child node to a parent through a list. This is for users adding nodes.
         A node may be 'append'-ed to a list at most once,
@@ -450,8 +455,30 @@ class NodeList(Collection, typing.Generic[NodeT]):
         """
         if _node.parent is not None:  # maybe copy?
             raise ValueError(f"cannot append {_node} to {self}: already has parent {_node.parent}")
-        was_attached = _node.attached
+
+        # assign ids if newly attached to the module (ids are derived from ck + module)
+        if not _node.attached and self._parent.attached:
+            module_id = self._parent.module.id
+            for n in _node._walk_rec():
+                if n.id is None:
+                    n._assign_id(module_id)
+        # update parent after updating ids (need to walk in the node's tree, which may differ)
         _node.parent = self._parent
+
+        # 'create' node in session
+        if _create and self._parent._session:
+            self._parent._session.tracer.node_create(_node)
+        # subsume node into parent scope
+        if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
+            # take over node's descendants (was detached local tree root)
+            self._parent._import_scope(_node)
+            _node._local_tree = None
+        else:
+            # index node into tree
+            self._parent._local_root_tree.add(_node)
+        # register node scope
+        if self._flags & NRel.Scoped and _node.name is not None:
+            self._parent._add_child_scope(_node)
 
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
@@ -459,48 +486,41 @@ class NodeList(Collection, typing.Generic[NodeT]):
             _node.order_key = generate_key_between(last_ok, None)
             # nocheckin: incorrect for flat
 
-        # assign ids if newly attached to the module (ids are derived from ck + module)
-        if not was_attached and _node.attached:
-            module_id = _node.module.id
-            for n in _node._walk():
-                if n.id is None:
-                    n._assign_id(module_id)
-        # 'create' node in session
-        if _create and self._parent._session:
-            self._parent._session.tracer.node_create(_node)
-        # subsume node into parent scope
-        if not was_attached and _node.attached and isinstance(_node, ScopeNode):
-            # take over node's children
-            self._parent._import_scope(_node)
-            _node._local_tree = None
-        else:
-            # index node into tree
-            self._parent._local_root_tree.add(_node)
-        if self._flags & NRel.Named and _node.name is not None:
-            self._parent._register_named_child(_node)
-
-        # and update every affect node & list
-        self._parent._trigger_update([_node])
-
-        assert _node in self._children, f"node {_node} not in {self}"
+        if _trigger:
+            # and update every affect node & list
+            self._parent._trigger_update([_node])
+            assert _node in self._children, f"node {_node} not in {self}"
 
     def extend(self, nodes: Collection[NodeT]):
         """Attaches a list of child nodes to a parent. See append."""
-        for node in nodes:
-            self.append(node)
+        nodes = list(nodes) if not isinstance(nodes, list) else nodes
+        if nodes:
+            for node in nodes:
+                self.append(node, _trigger=False)
+            self._parent._trigger_update(nodes)
+            assert all(n in self._children for n in nodes), f"nodes {nodes} not in {self}"
 
-    def remove(self, _node: NodeT, _delete: bool = True):
+    def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
         """Removes a child node from a parent. See append for reverse."""
         if _delete and self._parent.session:
             self._parent.session.tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
-        raise NotImplementedError(f"{self!r}.remove not supported yet")
 
-    def clear(self):
+        if _trigger:
+            self._parent._trigger_update([_node])
+
+    def clear(self, _delete: bool = True, _trigger: bool = True):
         """Removes all child nodes from a parent. See append for reverse."""
-        children = list(self._children)
-        for child in children:
-            self.remove(child)
+        removed = list(self._children)
+        if removed:
+            for _node in removed:
+                self.remove(_node, _delete=_delete, _trigger=False)
+            self._parent._trigger_update(removed)
+
+    def set(self, nodes: Collection[NodeT]):
+        """Replaces all child nodes of a parent."""
+        self.clear(_trigger=False)
+        self.extend(nodes)
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
@@ -509,6 +529,9 @@ class NodeList(Collection, typing.Generic[NodeT]):
             if child.key == some_id or child.name == some_id or child.py_ident == some_id:
                 return child
         return None
+
+    def __bool__(self):
+        return bool(self._children)
 
     def __contains__(self, obj: object) -> bool:
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
@@ -533,6 +556,14 @@ class NodeList(Collection, typing.Generic[NodeT]):
 
     def __len__(self) -> int:
         return len(self._children)
+
+    def __eq__(self, other: object) -> bool:
+        if isinstance(other, NodeList):
+            return self._children == other._children
+        elif isinstance(other, list):
+            return self._children == other
+        else:
+            return False
 
 
 NT = typing.TypeVar("NT")
@@ -851,9 +882,11 @@ def _make_self_method(
     def self_method(self: "ModuleNode", *args, **kwargs):
         if from_status is not None and self._status != from_status:
             raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
+        method_name = method.inner
+        # nocheckin: fix component call order
         for component in self._components:
-            if hasattr(component, method.inner):
-                getattr(component, method.inner)(self, *args, **kwargs)
+            if hasattr(component, method_name):
+                getattr(component, method_name)(self, *args, **kwargs)
         if to_status is not None:
             self._status = to_status
 
@@ -941,6 +974,7 @@ class ModuleNode(abc.ABC):
 
     def _trigger_update(self, changed: list["ModuleNode"]):
         """Trigger list updates and re-interps (now or later) in all relevant nodes."""
+        assert changed, f"cannot trigger update with no changed nodes"
         # reinit children for any affected parent nodes
         # TODO @Performance: use mark dirty in node list to avoid reinit
         parent = self
@@ -1032,20 +1066,11 @@ class ModuleNode(abc.ABC):
         copy = self.__class__(**props)
         return copy
 
-    def _walk(self) -> typing.Iterator["ModuleNode"]:
-        """Walks this node and all descendants in breadth-first order"""
-        visitor = NodeVisitor()
-        visitor.visit_child(self)
-
-        seen: dict[UUID, ModuleNode] = {}
-        to_visit = [self]
-        while to_visit:
-            for node in to_visit:
-                seen[node.ck] = node
-                node._visit_self(visitor)
-            to_visit = [n for n in visitor.subtree if n.ck not in seen]
-
-        yield from visitor._descendant_by_ck.values()
+    def _walk_rec(self) -> Collection["ModuleNode"]:
+        """
+        Walks this node and all descendants in breadth-first order.
+        """
+        return [self]
 
     @property
     def attached(self) -> bool:
@@ -1078,15 +1103,16 @@ def _make_rec_method(method: NodeMethod, wraps, pass_scope: bool = False):
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode"):
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
+        method_name = method.self
         if pass_scope:
             for node in descendants:
                 scope = node if isinstance(node, ScopeNode) else node.parent
-                getattr(node, method.self)(scope)
-            getattr(self, method.self)(node)
+                getattr(node, method_name)(scope)
+            getattr(self, method_name)(node)
         else:
             for node in descendants:
-                getattr(node, method.self)()
-            getattr(self, method.self)()
+                getattr(node, method_name)()
+            getattr(self, method_name)()
 
     rec_method.__name__ = method.rec
     return rec_method
@@ -1145,12 +1171,15 @@ class ScopeNode(ModuleNode):
 
     def _index_inner(self) -> None:
         for prop in self.__list_properties__.values():
-            if prop.children_flags & NRel.Named:
+            if prop.children_flags & NRel.Scoped:
                 for child in getattr(self, prop.name):
                     if child.name is not None:
-                        self._register_named_child(child)
+                        self._add_child_scope(child)
 
-    def _register_named_child(self, node: ModuleNode) -> None:
+    def _walk_rec(self) -> Collection["ModuleNode"]:
+        return self._local_root_tree.get_descendants(self.ck, recursive=True, include_self=True)
+
+    def _add_child_scope(self, node: ModuleNode) -> None:
         """
         Adds a child node into this scope. Idempotent for the same node.
         """
@@ -1274,13 +1303,13 @@ class Module(ScopeNode):
     parent: None = nparent()
     name: str = ninternal()  # can't change this yet
     committed: bool = ninternal(default=False)
-    files: NodeList["File"] = nchildren(MNT.File, NRel.Flat | NRel.Named)
+    files: NodeList["File"] = nchildren(MNT.File, NRel.Flat | NRel.Named | NRel.Scoped)
     dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
     builtins: list["File"] = nruntime(default_factory=list)
 
     def __str__(self):
         issues_str = f", {len(self.issues)} issues" if self.issues is not None else ""
-        return f"{self.name} ({self._status.name}, {len(self.files)} files{issues_str})"
+        return f"{self.name} ({len(self.files)} files{issues_str})"
 
     def __repr__(self):
         return f"<Module {str(self)}>"
@@ -1335,7 +1364,7 @@ class Module(ScopeNode):
     ) -> NodeT:
         result = self.lookup(path, by=by, node_t=node_t)
         if result is None:
-            raise LookupError(f"{path} not found in {self}")
+            raise LookupError(f"{path} not found in {self!r}")
         return result
 
     def get_file(self, name: str) -> "File":
@@ -1356,8 +1385,8 @@ class Module(ScopeNode):
 
     def _index_inner(self):
         for builtin in self.builtins:
-            for statement in builtin.statements:
-                self._import_scope(statement, by_name=True)
+            self._add_child_scope(builtin)
+            self._import_scope(builtin)
         for dependency in self.dependencies.values():
             self._local_root_tree.add_tree(dependency._local_tree)
 
@@ -1397,9 +1426,7 @@ class Module(ScopeNode):
         module.add_builtin(dependencies["symbolx.lib"].get_file("builtins"))
         for dependency in dependencies.values():
             module.add_dependency(dependency)
-        logger.debug("module.interp.index", module=module)
-        module.index()
         logger.debug("module.interp.interp", module=module)
-        module._interp()
+        module._interp_rec()
         logger.debug("module.interp.done", module=module)
         return module

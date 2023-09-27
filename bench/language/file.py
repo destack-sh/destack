@@ -23,10 +23,10 @@ class File(ScopeNode):
     name: str = nproperty()
 
     children: NodeList[Union["File", "Statement"]] = nchildren(
-        MNT.File, NRel.Flat | NRel.Ordered | NRel.Named
+        MNT.File, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
     )
     statements: NodeList["Statement"] = nchildren(
-        MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named
+        MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
     @staticmethod

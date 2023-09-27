@@ -153,10 +153,11 @@ def _type_to_json_schema(
     type: Union[Field, Type], ignore_array: bool = False, is_output: bool = None
 ) -> JsonSchemaElement:
     """Convert a Bench type to a JSON schema element."""
-    if is_output is None:
-        fields = type.resolved_fields or type.fields
-    else:
-        fields = type.outputs if is_output else type.inputs
+    fields = [
+        f
+        for f in type.fields
+        if is_output is None or bool(f.flags & TypeFlag.IsOutput) == is_output
+    ]
     if type.flags & TypeFlag.IsArray and not ignore_array:
         element_type = _type_to_json_schema(type, ignore_array=True)
         element_type.name = None  # not needed for array element
@@ -209,7 +210,7 @@ class BaseTextTaskCompiler(TaskCompiler):
     def _render_value_flat(self, value: Any, type: Union[Field, Type], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type.effective_tag == TypeTag.ENUM:
-            return type.get_field(value).name
+            return type.fields.get(value).name
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
@@ -976,18 +977,18 @@ for name, module in DEFAULT_MODULES.items():
 
     # assign stable cks / versioned ids
     module._clear_rec()
-    module._index_rec()  # need to index for walk
-    for node in module._walk():
+    module._index_rec()
+    nodes = list(module._walk_rec())
+    for node in nodes:
         if isinstance(node, Module):
             continue  # already assigned in builtin
         node.ck = _derive_constant_key(node.path)
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, (Field, HasFields)):
             node.key = new_dynamic_node_key(node.ck)
-
+        node._clear_self()
+    module._clear_self()
     # hard re-index everything (ids changed)
-    nodes = module._local_tree.get_descendants(module.id, recursive=True, include_self=True)
-    module._clear_rec()  # ids changed
     module._local_tree.clear()
     for node in nodes:
         module._local_tree.add(node)

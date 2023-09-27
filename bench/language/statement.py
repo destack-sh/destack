@@ -15,7 +15,6 @@ from bench.language.database import HasDatabase
 from bench.language.field import HasFields
 from bench.language.model import HasModel
 from bench.language.module import (
-    Module,
     ModuleNode,
     NodeList,
     NRel,
@@ -54,7 +53,9 @@ class Statement(ScopeNode):
 
     file: Optional["File"] = nancestor(MNT.File)
     parent: Union["Statement", "File"] = nparent(MNT.Statement, MNT.File)
-    children: NodeList["Statement"] = nchildren(MNT.Statement, NRel.Ordered | NRel.Named)
+    children: NodeList["Statement"] = nchildren(
+        MNT.Statement, NRel.Ordered | NRel.Named | NRel.Scoped
+    )
 
     type: StatementType = nproperty(default=StatementType.BLANK)
     name: Optional[str] = nproperty(default=None)
@@ -73,8 +74,10 @@ class Statement(ScopeNode):
     external_name: str | None = ninternal(default=None)  # for model, to be moved to value
 
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging)
-    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Ordered)
-    resolved_fields: NodeList["ResolvedField"] = nchildren(MNT.ResolvedField, NRel.Ordered)
+    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
+    resolved_fields: NodeList["ResolvedField"] = nchildren(
+        MNT.ResolvedField, NRel.Named | NRel.Ordered
+    )
     triggers: NodeList["Trigger"] = nchildren(MNT.Trigger)
     views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
     records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
@@ -115,20 +118,6 @@ class Statement(ScopeNode):
             return None
 
     @property
-    def inputs(self):
-        return [f for f in self.resolved_fields if not (f.flags & TypeFlag.IsOutput)]
-
-    @property
-    def outputs(self):
-        return [f for f in self.resolved_fields if f.flags & TypeFlag.IsOutput]
-
-    @property
-    def module(self) -> Optional[Module]:
-        if self.file is None:
-            return None
-        return self.file.module
-
-    @property
     def path(self) -> str:
         if self.file is None:
             return f"<detached>:{self.infile_path}"
@@ -139,7 +128,7 @@ class Statement(ScopeNode):
     def infile_path(self) -> str:
         parent = self.parent
         ancestor_parts = [self.py_ident or "<anon>"]
-        seen_ids = {self.id}
+        seen_ids = [self.id]
         while isinstance(parent, Statement):
             if parent.id in seen_ids:
                 # :CircularAncestry
@@ -147,7 +136,7 @@ class Statement(ScopeNode):
                 ancestor_parts.append("<!loop>")
                 break
             ancestor_parts.append(parent.py_ident or "<anon>")
-            seen_ids.add(parent.id)
+            seen_ids.append(parent.id)
             parent = parent.parent
         return ".".join(reversed(ancestor_parts))
 
@@ -224,7 +213,7 @@ _missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
 assert not _missing_types, f"missing statement components for {_missing_types}"
 
 #
-# 'Concrete' statements are a mirage, we just have a custom metaclass
+# 'Concrete' statements are a mirage, we just have a custom class
 #  where for e.g. statement.type == 'X', the 'concrete' class X
 #  works for isinstance(x, Type) and Type(**kwargs) works like Statement(type=X, **kwargs)
 #

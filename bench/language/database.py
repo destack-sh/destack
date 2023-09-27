@@ -65,7 +65,7 @@ class Record(HasValue, ModuleNode):
 
     def __getitem__(self, item: str):
         val = self.value.get(item)
-        if val is not None or self.parent.has_field(item):
+        if val is not None or item in self.parent.fields:
             return val
         elif not isinstance(item, str):
             raise TypeError(f"cannot index {repr(self)} with {type(item)}")

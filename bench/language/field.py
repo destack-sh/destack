@@ -21,6 +21,7 @@ from bench.language.const import (
 )
 from bench.language.module import (
     ModuleNode,
+    NodeList,
     NodeVisitor,
     ScopeNode,
     get_node_id,
@@ -34,7 +35,6 @@ from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -184,8 +184,8 @@ class SomeType(abc.ABC):
     flags: TypeFlag
     text: Optional[str]
     text_plain: Optional[str]
-    fields: list["SomeType"]
-    resolved_fields: list["SomeType"]  # resolved fields with unions and such
+    fields: NodeList["SomeType"]
+    resolved_fields: NodeList["SomeType"]  # resolved fields with unions and such
     reference: Union[None, StatementReference, "HasFields"]
     source: Optional["Statement"]
 
@@ -219,28 +219,17 @@ class SomeType(abc.ABC):
     def effective_hint(self) -> Optional[TypeHint]:
         return self.effective_type.hint
 
-    @property
-    def inputs(self) -> list["SomeType"]:
-        if self.tag != TypeTag.FUNCTION:
-            return []
-        return [
-            child
-            for child in (self.resolved_fields or self.fields)
-            if not child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
-        ]
-
-    @property
-    def outputs(self) -> list["SomeType"]:
-        if self.tag != TypeTag.FUNCTION:
-            return []
-        return [
-            child
-            for child in (self.resolved_fields or self.fields)
-            if child.flags & TypeFlag.IsOutput and not child.flags & TypeFlag.IsUnionWith
-        ]
+    def is_type_equivalent(self, other: "SomeType") -> bool:
+        return (
+            self.effective_tag == other.effective_tag
+            and self.effective_hint == other.effective_hint
+            and self.flags == other.flags
+        )
 
     def get_field(self, some_id: str, is_output: bool = None) -> Optional["Field"]:
-        for field_ in self.resolved_fields or self.fields:
+        # TODO @Cleanup: get rid if get_field/has_field in favor of fields.get
+        #  (but need is_output filtering for that to work, so maybe computed inputs/output NodeList?)
+        for field_ in self.resolved_fields:
             if is_output is not None and bool(field_.flags & TypeFlag.IsOutput) != is_output:
                 continue
             if field_.py_ident == some_id or field_.name == some_id or field_.key == some_id:
@@ -351,14 +340,6 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     def source_key(self) -> str:
         return "value." + self.typed_key
 
-    @property
-    def resolved_fields(self) -> list["Field"]:
-        if isinstance(self.reference, HasFields):
-            return self.reference.resolved_fields
-        return []
-
-    fields = resolved_fields  # the same by default
-
 
 @node(mnt=MNT.ResolvedField)
 class ResolvedField(Field):
@@ -369,6 +350,24 @@ class ResolvedField(Field):
     def field_ck(self) -> UUID:
         return self.field.ck
 
+    @staticmethod
+    def from_field(field: Field) -> "ResolvedField":
+        ck = uuid.uuid5(field.ck, field.ck.hex)
+        id = (get_node_id(field.module.id, ck),)
+        return ResolvedField(
+            id=id,
+            ck=ck,
+            name=field.name,
+            tag=field.tag,
+            hint=field.hint,
+            order_key=field.order_key,
+            key=field.key,
+            text=field.text,
+            flags=field.flags,
+            reference=field.reference,
+            field=field,
+        )
+
 
 @node_component(dynamic=True)
 class HasFields(SomeType, ModuleNode):
@@ -377,6 +376,9 @@ class HasFields(SomeType, ModuleNode):
     def _init(self):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
+
+    def _clear_inner(self) -> None:
+        self.resolved_fields.clear()
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         # expand unions (recursively)
@@ -403,57 +405,40 @@ def _resolve_unions(type: "HasFields", path: list[SomeType]) -> None:
     Resolves (and inlines) the union-ed fields of any union types in the type tree.
     """
     if any(n.id == type.id for n in path):
+        # circular panic
         type._on_issue(
             type=IssueType.CIRCULAR_UNION,
             subject=type,
             path="->".join(n.name for n in path + [type]),
         )
-        return  # circular
-    if type.resolved_fields is not None:
-        return  # already resolved
-    if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
-        type.resolved_fields = type.fields
-        return  # skip, not a union
-    path = path + [type]
+        return
 
-    resolved_fields = []
-    for maybe_union in type.fields:
-        if not maybe_union.flags & TypeFlag.IsUnionWith:
-            resolved_fields.append(maybe_union)
-            continue
-        if not isinstance(maybe_union.reference, HasFields):
+    if not any(n.flags & TypeFlag.IsUnionWith for n in type.fields):
+        # skip, not a union
+        type.resolved_fields.set([ResolvedField.from_field(f) for f in type.fields])
+        return
+
+    path = path + [type]
+    resolved_fields: list[ResolvedField] = []
+    for field in type.fields:
+        if not field.flags & TypeFlag.IsUnionWith:
+            resolved_fields.append(ResolvedField.from_field(field))
+            continue  # just a regular field
+        if not isinstance(field.reference, HasFields):
             continue  # ignore unresolved
-        _resolve_unions(maybe_union.reference, path)
-        if not maybe_union.reference.resolved_fields:
-            continue  # couldn't resolve *that* union
-        # inline child's type nodes
-        for child in maybe_union.reference.resolved_fields:
-            existing = first((n for n in resolved_fields if n.name == child.name), None)
+
+        # inline union fields
+        _resolve_unions(field.reference, path)
+        for child in field.reference.resolved_fields:
+            existing = type.resolved_fields.get(child.py_ident)
             # check if type is compatible if overlapping
-            if existing is not None and (
-                existing.tag != child.tag
-                or existing.flags != child.flags
-                or existing.hint != child.hint
-            ):
-                # TODO @Robustness: check union type compatibility properly/deeply
+            if existing is not None and not existing.is_type_equivalent(child):
                 type._on_issue(type=IssueType.MISMATCHED_UNION, subject=type, other=existing)
                 continue
-
-            # point directly to the field (for transitive unions)
             if isinstance(child, ResolvedField):
                 child = child.field
-
-            # derive ck/id
-            ck = uuid.uuid5(type.ck, child.ck.hex)
-            resolved = ResolvedField(
-                ck=ck,
-                id=get_node_id(type.module.id, ck),
-                parent=type,
-                field=child,
-                **dict_minus(child.__dict__, ("id", "ck", "field", "parent", "py_type")),
-            )
-            resolved_fields.append(resolved)
-    type.resolved_fields = resolved_fields
+            resolved_fields.append(ResolvedField.from_field(child))
+    type.resolved_fields.set(resolved_fields)
 
 
 class TypedDict(dict):

@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Optional, Self, Union
 
 import structlog
 
-from bench.language.const import IssueType
+from bench.language.const import IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
@@ -41,7 +41,7 @@ class HasTask(ModuleNode):
         randomize_tag = symbolx_lib.lookup_or_error(".builtins.randomize")
         self._randomize = randomize_tag.key in self.tags
 
-        if not self.outputs:
+        if not any(f.flags & TypeFlag.IsOutput for f in self.resolved_fields):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available runnables
@@ -78,7 +78,7 @@ class HasTask(ModuleNode):
                 outputs = await mono_model(**inputs)
                 # trim output to own outputs
                 if isinstance(outputs, dict):
-                    outputs = {k: v for k, v in outputs.items() if self.has_field(k)}
+                    outputs = {k: v for k, v in outputs.items() if k in self.fields}
                 if not isinstance(outputs, TypedDict):
                     outputs = TypedDict(self, outputs, is_output=True)
             else:
