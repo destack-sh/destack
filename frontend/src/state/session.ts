@@ -546,7 +546,12 @@ export function _useSessions(
     killingRunsIds.add(run.id);
     return sessionOps.kill(run.id, true).then((r) => {
       killingRunsIds.delete(run.id);
-      return r?.data?.killRun.__typename != "KillRunPayload";
+      if (r?.data?.killRun.__typename != "KillRunPayload") {
+        return false;
+      } else {
+        currentRuns.value[run.id] = r?.data?.killRun?.run as Run;
+        return true;
+      }
     });
   }
 
@@ -574,12 +579,13 @@ export function _useSessions(
   }
 
   const now = useNow(100);
-  function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "duration">): number {
+  function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
-    return now.value.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
+    const end = run.terminatedAt != null ? DateTime.fromISO(run.terminatedAt) : now.value;
+    return end.diff(DateTime.fromISO(run.startedAt ?? run.createdAt)).as("seconds");
   }
 
-  function getDurationFormatted(run: Pick<Run, "createdAt" | "startedAt" | "duration">): string {
+  function getDurationFormatted(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): string {
     return formatDuration(getDurationSeconds(run) * 1000);
   }
 

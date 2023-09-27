@@ -231,7 +231,7 @@ class _StatementProxy:
         self,
         _type: StatementType,
         tag: Optional[TypeTag] = None,
-        flags: Optional[TypeFlag] = None,
+        flags: TypeFlag = 0,
         register: bool = True,
     ):
         self.type = _type
@@ -242,7 +242,7 @@ class _StatementProxy:
                 raise ValueError(f"statement type {_type} already registered")
             STATEMENT_CLASS_BY_TYPE[_type] = self
 
-    def __call__(self, tag: TypeTag = None, flags: TypeFlag = None, *args, **kwargs):
+    def __call__(self, tag: TypeTag = None, flags: TypeFlag = 0, *args, **kwargs):
         kwargs["type"] = self.type
         kwargs["tag"] = tag if tag is not None else self.tag
         kwargs["flags"] = (flags if flags is not None else self.flags) or 0
@@ -258,7 +258,7 @@ class _StatementProxy:
 def _make_statement_proxy(
     _type: StatementType,
     tag: Optional[TypeTag] = None,
-    flags: Optional[TypeFlag] = None,
+    flags: TypeFlag = 0,
     register=True,
 ):
     return _StatementProxy(_type, tag=tag, flags=flags, register=register)

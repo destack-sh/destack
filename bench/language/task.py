@@ -148,7 +148,7 @@ async def run_task(
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=step_attempts)
             run_name = f"{task.name} #{step_attempts}"
-            with task.session.tracer.run.value(retry=step_attempts, nonce=nonce, name=run_name):
+            with task.session.tracer.value(retry=step_attempts, nonce=nonce, name=run_name):
                 step = await compiler.run(model, compiled)
             if step.runnable is not None:
                 raise NotImplementedError(":TaskFunctions not supported yet")

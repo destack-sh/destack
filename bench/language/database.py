@@ -273,7 +273,7 @@ class RecordSearch(Search["RecordData", Record]):
             )
         record = wire.unpack_node_flat(record_data, parent, self.module.session)
         record._instantiated = False
-        record._activate_rec(self.module.session)
+        record._activate_self(self.module.session)
         return record
 
     def filter(self, query: Query) -> "RecordSearch":

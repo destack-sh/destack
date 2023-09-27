@@ -243,8 +243,8 @@ class WorkerNode(Monitored):
 
         # update job's run_data from session
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
-        if job.session and job.session.tracer.run.runs:
-            run = job.session.tracer.run.runs[job.run_data.id]
+        if job.session and job.session.tracer.runs:
+            run = job.session.tracer.runs[job.run_data.id]
             job.run_data = wire.pack_data(run)
             last_logs = job.session.tracer.cached_logs[:50]
         else:
@@ -490,7 +490,7 @@ class ModuleWorkerProcess(ModuleWriter):
             )
 
             # run in active session
-            self.module._activate(job.session)
+            self.module._activate_rec(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()
@@ -508,7 +508,7 @@ class ModuleWorkerProcess(ModuleWriter):
             await asyncio.wait_for(job.task, timeout=timeout)
         finally:
             job.terminated.set()
-            self.module._deactivate()
+            self.module._deactivate_rec()
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 

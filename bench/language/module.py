@@ -219,6 +219,9 @@ class NodeStatus(enum.IntEnum):
     Tracked = 3
 
 
+NS = NodeStatus
+
+
 class NodeMethod(enum.Enum):
     init = "init"
     clear = "clear"
@@ -427,15 +430,19 @@ def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
     for node in nodes:
         nodes_by_parent_ck[node.parent.ck].append(node)
 
-    def _walk_dfs(parent_id: UUID):
-        children = nodes_by_parent_ck.get(parent_id, None)
+    def _walk_dfs(parent_ck: UUID):
+        children = nodes_by_parent_ck.get(parent_ck, None)
         if children:
             children.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
             for child in children:
                 ordered.append(child)
-                _walk_dfs(child.id)
+                _walk_dfs(child.ck)
 
     _walk_dfs(root_ck)
+
+    if len(ordered) != len(nodes):
+        missing_nodes = [n for n in nodes if n not in ordered]
+        assert not missing_nodes, f"missing {len(missing_nodes)} nodes {missing_nodes} in {ordered}"
     return ordered
 
 
@@ -984,7 +991,7 @@ def _make_self_method(
         # the status checking/coercion is a bit messy and probably belongs elsewhere
         if from_status is not None and self._status != from_status:
             if _coerce and self._status <= from_status:  # automatically index if needed
-                if self._status == NodeStatus.Raw:
+                if self._status == NS.Raw:
                     self._index_self()
                 else:
                     raise RuntimeError(
@@ -1041,7 +1048,7 @@ class ModuleNode(abc.ABC):
 
             self._session = active_session.get()
         if self._status is None:
-            self._status = NodeStatus.Interpreted if self._session else NodeStatus.Raw
+            self._status = NS.Interpreted if self._session else NS.Raw
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -1071,7 +1078,7 @@ class ModuleNode(abc.ABC):
         return hash(self.id)
 
     def __setattr__(self, key, value):
-        if self._status != NodeStatus.Tracked:
+        if self._status != NS.Tracked or key == "_status":
             super().__setattr__(key, value)
         elif key in self.__tracked_properties__:
             super().__setattr__(key, value)
@@ -1127,29 +1134,28 @@ class ModuleNode(abc.ABC):
 
     def _activate_inner(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
-        assert self._status == NodeStatus.Interpreted, f"cannot activate {self} in {self._status}"
-        assert self._session is None, f"cannot activate {self} while active in {self._session}"
+        assert self._status == NS.Interpreted, f"cannot activate {self!r} in {self._status.name}"
         self._session = session
-        self._status = NodeStatus.Tracked
+        self._status = NS.Tracked
 
     def _deactivate_inner(self) -> None:
         """'Deinstantiate' this object."""
-        assert self._status == NodeStatus.Tracked, f"cannot deactivate {self} in {self._status}"
-        self._status = NodeStatus.Interpreted
+        assert self._status == NS.Tracked, f"cannot deactivate {self!r} in {self._status.name}"
+        self._status = NS.Interpreted
         self._session = None
 
     # final :ComponentMethods
 
     _init_self = _make_self_method(NodeMethod.init, _init_inner)
-    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NodeStatus.Raw)
+    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.Raw)
     _index_self = _make_self_method(
-        NodeMethod.index, _index_inner, from_status=NodeStatus.Raw, to_status=NodeStatus.Indexed
+        NodeMethod.index, _index_inner, from_status=NS.Raw, to_status=NS.Indexed
     )
     _interp_self = _make_self_method(
         NodeMethod.interp,
         _interp_inner,
-        from_status=NodeStatus.Indexed,
-        to_status=NodeStatus.Interpreted,
+        from_status=NS.Indexed,
+        to_status=NS.Interpreted,
     )
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
@@ -1220,18 +1226,18 @@ def _make_rec_method(method: NodeMethod, wraps, pass_scope: bool = False):
     """Creates method that calls _method_self for self and all descendants"""
 
     @functools.wraps(wraps)
-    def rec_method(self: "ScopeNode", **kwargs):
+    def rec_method(self: "ScopeNode", *args, **kwargs):
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
         method_name = method.self
         if pass_scope:
             for node in descendants:
                 scope = node if isinstance(node, ScopeNode) else node.parent
                 getattr(node, method_name)(scope)
-            getattr(self, method_name)(self, **kwargs)
+            getattr(self, method_name)(self, *args, **kwargs)
         else:
             for node in descendants:
-                getattr(node, method_name)()
-            getattr(self, method_name)(**kwargs)
+                getattr(node, method_name)(*args, **kwargs)
+            getattr(self, method_name)(*args, **kwargs)
 
     rec_method.__name__ = method.rec
     return rec_method
@@ -1258,6 +1264,8 @@ class ScopeNode(ModuleNode):
     _clear_rec = _make_rec_method(NodeMethod.clear, ModuleNode._clear_self)
     _index_rec = _make_rec_method(NodeMethod.index, ModuleNode._index_self)
     _interp_rec = _make_rec_method(NodeMethod.interp, ModuleNode._interp_self, pass_scope=True)
+    _activate_rec = _make_rec_method(NodeMethod.activate, ModuleNode._activate_self)
+    _deactivate_rec = _make_rec_method(NodeMethod.deactivate, ModuleNode._deactivate_self)
 
     def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
         if by is None and name in self._scopes_by_name or by == LookupBy.Name:

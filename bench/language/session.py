@@ -103,7 +103,7 @@ class Session:
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
         self.mutator = NodeMutator(self.module, hooks=[self._on_mutated])
-        self.tracer = SessionTracer(self, mutator=self.mutator, validate=True)
+        self.tracer = SessionTracer(self, mutator=self.mutator)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
         self._past_flushes: list[tuple[int, set[MMT]]] = []
@@ -126,13 +126,13 @@ class Session:
 
     @property
     def current_run(self) -> "Run":
-        return self.tracer.run.current_run
+        return self.tracer.current_run
 
     def capture_runs(self) -> "_RunCapture":
-        return self.tracer.run.start_capture()
+        return self.tracer.start_capture()
 
     def run_value(self, **kwargs):
-        return self.tracer.run.value(**kwargs)
+        return self.tracer.value(**kwargs)
 
     @property
     def is_open(self) -> bool:
