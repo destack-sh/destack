@@ -169,9 +169,15 @@ class Statement(ScopeNode):
         if item in self.__dict__:
             return super().__getattribute__(item)
         for component in _DYNAMIC_COMPONENTS_BY_TYPE[self.type]:
-            if hasattr(component, item):
-                # must be a method, but is not a supertype, so curry self (this seems strange?)
-                return partial(getattr(component, item), self)
+            attr = getattr(component, item, None)
+            if attr is not None:
+                # could be method or property
+                if isinstance(attr, property):
+                    return attr.fget(self)
+                elif callable(attr):
+                    return partial(attr, self)
+                else:
+                    return attr
 
         # report lookup error
         if item in self._names_by_ident:
@@ -217,6 +223,12 @@ _IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     StatementType.REFERENCE: IdentifierType.VARIABLE,
     StatementType.TEXT: IdentifierType.VARIABLE,
     StatementType.BLANK: IdentifierType.VARIABLE,
+}
+_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[str]] = {
+    StatementType.VARIABLE: ("value",),
+    StatementType.DATABASE: ("records", "fields"),
+    StatementType.TAG: ("fields",),
+    StatementType.TYPE: ("fields",),
 }
 
 _missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)

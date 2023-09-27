@@ -708,12 +708,11 @@ class SessionMutation:
             if input.restart_if_unresponsive:
                 logger.debug("kill_run.restart", run_id=run_id, session_id=session_id, exc_info=e)
                 # try to restart worker set
-                project_id = UUID(input.project_id.node_id)
-                project = await models.Project.objects.aget(id=project_id)
+                project = await models.Project.objects.aget(id=project_version.project_id)
                 await sync_to_async(check_module_access)(info, project, ModuleAccessLevel.Use)
                 rep: NMessage[RepRestartWorkerSetPayload] = await request(
                     NMessageType.RESTART_WORKER_SET,
-                    ReqRestartWorkerSetPayload(project_id=project_id),
+                    ReqRestartWorkerSetPayload(project_id=project_version.project_id),
                     reply_t=RepRestartWorkerSetPayload,
                     retry=3,
                 )
