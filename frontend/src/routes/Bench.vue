@@ -519,36 +519,34 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <!-- Comments, issues -->
-        <div class="ml-1.5 flex items-center gap-2" :class="versionLoaded ? 'visible' : 'hidden'">
-          <FadeTransition appear>
-            <!-- Notices -->
-            <button
-              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-              v-if="module.notices.value?.length || 0 > 0"
-              @click="toggleActiveView('issues', true)"
-            >
-              <InformationCircleIcon class="h-5 w-5 text-cyan-600" />
-              <span class="text-sm font-semibold text-gray-700">{{ module.notices.value?.length }}</span>
-            </button>
-            <!-- Warnings -->
-            <button
-              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-              v-if="module.errors.value?.length || 0 > 0"
-              @click="toggleActiveView('issues', true)"
-            >
-              <XCircleIcon class="h-5 w-5 text-red-600" />
-              <span class="text-sm font-semibold text-gray-700">{{ module.errors.value?.length }}</span>
-            </button>
-            <!-- Errors -->
-            <button
-              class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
-              v-if="module.warnings.value?.length || 0 > 0"
-              @click="toggleActiveView('issues', true)"
-            >
-              <ExclamationTriangleIconSolid class="h-5 w-5 text-yellow-600" />
-              <span class="text-sm font-semibold text-gray-700">{{ module.warnings.value?.length }}</span>
-            </button>
-          </FadeTransition>
+        <div class="ml-1.5 flex flex-row gap-0.5" :class="versionLoaded ? 'visible' : 'hidden'">
+          <!-- Notices -->
+          <button
+            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+            v-if="module.notices.value?.length || 0 > 0"
+            @click="toggleActiveView('issues', true)"
+          >
+            <InformationCircleIcon class="h-5 w-5 text-cyan-600" />
+            <span class="text-sm font-semibold text-gray-700">{{ module.notices.value?.length }}</span>
+          </button>
+          <!-- Warnings -->
+          <button
+            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+            v-if="module.errors.value?.length || 0 > 0"
+            @click="toggleActiveView('issues', true)"
+          >
+            <XCircleIcon class="h-5 w-5 text-red-600" />
+            <span class="text-sm font-semibold text-gray-700">{{ module.errors.value?.length }}</span>
+          </button>
+          <!-- Errors -->
+          <button
+            class="flex items-center gap-0.5 rounded-sm p-1 hover:bg-orange-100"
+            v-if="module.warnings.value?.length || 0 > 0"
+            @click="toggleActiveView('issues', true)"
+          >
+            <ExclamationTriangleIconSolid class="h-5 w-5 text-yellow-600" />
+            <span class="text-sm font-semibold text-gray-700">{{ module.warnings.value?.length }}</span>
+          </button>
         </div>
         <!-- Connection status -->
         <div v-if="versionLoaded && !connectionHealthy" class="ml-1.5 flex">

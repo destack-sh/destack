@@ -92,6 +92,7 @@ class ModuleMutationType(enum.StrEnum):
     DELETE_ISSUE = "DELETE_ISSUE"
     TRUNCATE_RESOLVED_FIELDS = "TRUNCATE_RESOLVED_FIELDS"
     CREATE_RESOLVED_FIELD = "CREATE_RESOLVED_FIELD"
+    DELETE_RESOLVED_FIELD = "DELETE_RESOLVED_FIELD"
 
     @property
     def is_soft_delete(self) -> bool:
@@ -231,6 +232,7 @@ _MODULE_MUTATION_MAP: dict[MMT, tuple[MMK, MNT]] = {
     MMT.DELETE_ISSUE: (MMK.DELETE, MNT.Issue),
     MMT.TRUNCATE_RESOLVED_FIELDS: (MMK.TRUNCATE, MNT.ResolvedField),
     MMT.CREATE_RESOLVED_FIELD: (MMK.CREATE, MNT.ResolvedField),
+    MMT.DELETE_RESOLVED_FIELD: (MMK.DELETE, MNT.ResolvedField),
 }
 
 # assert that all mutations are in the map
@@ -313,10 +315,12 @@ ModuleMutationHook = Callable[["ModuleMutator", ModuleMutation], None]
 
 
 class ModuleMutator:
-    """Create any apply mutations to a module tree."""
+    """
+    Create any apply mutations to a module tree.
+    TODO @Cleanup: split module mutator into mutation creation and application
+    """
 
     def __init__(
-        # nocheckin: update node mutation handling
         self,
         tree: "NodeTree",
         project_id: UUID,
@@ -328,15 +332,12 @@ class ModuleMutator:
         self.tree = tree
         self.project_id = project_id
         self.module_id = module_id
-        # default file and statement id
         self.file_id = file_id
         self.statement_id = statement_id
-        assert bool(file_id) == bool(statement_id), "file_id and statement_id belong together"
-
         self.mutations = []
 
     def __str__(self):
-        return f"mutate {len(self.mutations)} {self.module or '<no module>'}"
+        return f"mutate {len(self.mutations)} {self.module_id}"
 
     def __repr__(self):
         return f"<Mutator {self}>"
@@ -400,7 +401,7 @@ class ModuleMutator:
             else:
                 raise ValueError(f"unexpected mutation kind {mut}")
         except Exception as e:
-            raise ValueError(f"failed to apply {mut} to {self.module!r}") from e
+            raise ValueError(f"failed to apply {mut} to {self.tree!r}") from e
 
     def apply_all(self, mutations: list[ModuleMutation]):
         for mut in mutations:
@@ -521,11 +522,11 @@ class MutationBundle:
         return reduced
 
     def batched_apply(
-        self, module: NodeTree, project_id: UUID, module_id: UUID
+        self, module: NodeTree, project_id: UUID, module_id: UUID, apply: bool = True
     ) -> Iterator[tuple[MMT, list[ModuleMutation]]]:
         """
         Batch consecutive mutations by type in order of appearance
-         AND concurrently apply them to the given module tree.
+         AND optionally concurrently apply them to the given module tree.
         (there may be multiple batches of the same type).
         """
 
@@ -540,7 +541,8 @@ class MutationBundle:
                 current_type = mutation.type
                 current_batch = []
             current_batch.append(mutation)
-            mutator.apply(mutation)
+            if apply:
+                mutator.apply(mutation)
 
         if current_batch:
             yield current_type, current_batch

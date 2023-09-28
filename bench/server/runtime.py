@@ -16,20 +16,27 @@ from more_itertools import first
 from bench import models
 from bench.language import (
     Module,
-    ModuleNode,
     Q,
     Query,
     QueryOp,
+    ResolvedField,
     Trigger,
     TriggerType,
     wire,
 )
 from bench.language.cache import CacheAsync
-from bench.language.const import ModuleReference, RunStatus, parse_absolute_node_reference
+from bench.language.const import (
+    INTERP_NODE_TYPES,
+    MNT,
+    ModuleReference,
+    RunStatus,
+    parse_absolute_node_reference,
+)
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mapping import pack_value, unpack_value
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.mutate import ModuleMutation
+from bench.language.module import ModuleChange
+from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.models import Project, ProjectVersion, packer
@@ -610,8 +617,7 @@ class RuntimeHost:
         # fetch and interp module
         source, project = await read_module(self.module_ref)
         self.module = await sync_to_async(Module.interp)(source.nodes, project.id)
-        await self._on_module_change(self.module._nodes, [])
-        self._update_local_triggers()
+        await self._on_module_changed(change=None)
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
 
@@ -841,22 +847,49 @@ class RuntimeHost:
         # re-trigger active trigger processing
         self.active_trigger_process_wait.set()
 
-    async def _on_module_change(
-        self, changed_nodes: list[ModuleNode], mutations: list[ModuleMutation]
-    ):
+    async def _on_module_changed(self, change: Optional[ModuleChange]):
         """Handle module changes to store interp state, update triggers, etc."""
 
-        if any(isinstance(n, Trigger) for n in changed_nodes):
-            self._update_local_triggers()
+        # interp state
+        if change is None:  # reset completely
+            interp_mut = ModuleMutator(self.module._source, self.project_id, self.module_id)
+            module_data = wire.pack_node_flat(self.module)
+            for mnt in INTERP_NODE_TYPES:
+                interp_mut.truncate(module_data, mnt, apply=False)
+            for node in self.module._nodes:
+                if node.mnt == MNT.Issue or isinstance(node, ResolvedField) and node._is_foreign:
+                    interp_mut.create(node, apply=False)
+            interp_mutations = interp_mut.mutations
+        else:
+            interp_mutations = change.interp_mutations
+        if interp_mutations:
+            await sync_to_async(write_mutations)(
+                self.project_version,
+                self.module._source,
+                interp_mutations,
+                refresh_index=False,
+                apply=False,
+            )
+            await publish(
+                NMessageType.MODULE_CHANGED,
+                ModuleChangedPayload(
+                    project_id=self.project_id,
+                    module_id=self.module_id,
+                    origins=(self.client,),
+                    mutations=interp_mutations,
+                ),
+            )
 
-        # nocheckin: update interp state
+        # triggers
+        if change is None or any(isinstance(n, Trigger) for n in change.touched):
+            self._update_local_triggers()
 
     async def apply_mutations(self, mutations: list[ModuleMutation]) -> None:
         """Apply external mutations to the module."""
         self.log.debug("apply_mutations", total=len(mutations))
-        changed_nodes = self.module._apply_mutations(mutations)
+        change = self.module._apply_mutations(mutations)
         self.log.debug("apply_mutations.done", total=len(mutations))
-        await self._on_module_change(changed_nodes, mutations)
+        await self._on_module_changed(change)
 
     async def write_module(
         self,

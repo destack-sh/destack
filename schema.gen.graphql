@@ -488,6 +488,7 @@ enum ModuleMutationType {
   DELETE_ISSUE
   TRUNCATE_RESOLVED_FIELDS
   CREATE_RESOLVED_FIELD
+  DELETE_RESOLVED_FIELD
 }
 
 interface ModuleNode {
@@ -1316,7 +1317,10 @@ input RequestUploadObjectInput {
   name: String
 }
 
-type ResolvedField {
+type ResolvedField implements Node & ModuleNode {
+  id: GlobalID!
+  ck: UUID!
+  parent: ModuleNode
   statement: Statement
   fieldCk: UUID!
 }

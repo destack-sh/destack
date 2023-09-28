@@ -6,6 +6,7 @@ import inspect
 import typing
 import uuid
 from collections import defaultdict, deque
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
@@ -18,6 +19,7 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
+    INTERP_NODE_TYPES,
     MNT,
     IssueKind,
     IssueType,
@@ -757,6 +759,10 @@ class NodeTree(typing.Generic[NT]):
     @property
     def nodes(self) -> Collection[NT]:
         return self.nodes_by_ck.values()
+
+    def deepcopy(self):
+        nodes = [deepcopy(node) for node in self.nodes]
+        return NodeTree(nodes)
 
     #
     # Mutations
@@ -1621,6 +1627,19 @@ class NodeVisitor:
         self._reference_by_ck[node.ck] = node
 
 
+@dataclass
+class ModuleChange:
+    source_mutations: list["ModuleMutation"]  # incoming external mutations
+    interp_mutations: list["ModuleMutation"]  # resulting interp state change
+    added: list[ModuleNode]
+    updated: list[ModuleNode]
+    removed: list[ModuleNode]
+
+    @property
+    def touched(self) -> typing.Iterable[ModuleNode]:
+        return chain(self.added, self.updated, self.removed)
+
+
 @node(mnt=MNT.Module, passthrough=(("files", Passthrough.Scope),))
 class Module(ScopeNode):
     parent: None = nparent()
@@ -1669,7 +1688,7 @@ class Module(ScopeNode):
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
     def add_builtin(self, file: "File") -> None:
-        if file.module.id not in self._tree:
+        if not any(dep == file.module for dep in self.dependencies.values()):
             raise ValueError(f"cannot add builtin {file!r} to {self!r} without {file.module!r}")
         self.builtins.append(file)
 
@@ -1679,7 +1698,6 @@ class Module(ScopeNode):
                 f"{self} has dependency {dependency.name}: {self.dependencies[dependency.name]}"
             )
         self.dependencies[dependency.name] = dependency
-        self._local_tree.add_tree(dependency._local_tree)
 
     def lookup(
         self,
@@ -1687,12 +1705,18 @@ class Module(ScopeNode):
         by: Optional[LookupBy] = None,
         node_t: MNT | typing.Type[NodeT] | None = None,
     ) -> NodeT | None:
-        if isinstance(path, UUID):
-            return self._local_tree.get(path)
         if path in self._lookup_cache:
             return self._lookup_cache[path]
-        # extend lookup to dependencies, otherwise default to regular scope lookup
-        if isinstance(path, str) and path.startswith("."):
+
+        # extended lookup with dependencies, defaults to regular scope lookup
+        if isinstance(path, UUID):
+            resolved = self._local_tree.get(path)
+            if resolved is None:
+                for dependency in self.dependencies.values():
+                    if path in dependency._tree:
+                        resolved = dependency._tree[path]
+                        break
+        elif isinstance(path, str) and path.startswith("."):
             resolved = ScopeNode.lookup(self, path, node_t=node_t, by=by)
         else:
             module_name, localized_path = parse_absolute_node_reference(path)
@@ -1704,6 +1728,8 @@ class Module(ScopeNode):
                 resolved = None
             else:
                 resolved = dependency.lookup(localized_path, node_t=node_t, by=by)
+
+        # cache result
         if self.committed:
             self._lookup_cache[path] = resolved
         return resolved
@@ -1722,45 +1748,91 @@ class Module(ScopeNode):
     def _index_inner(self):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
-        for dependency in self.dependencies.values():
-            self._local_tree.add_tree(dependency._local_tree)
 
-    def _apply_mutations(self, mutations: list["ModuleMutation"]) -> list["ModuleNode"]:
+    def _apply_mutations(self, mutations: list["ModuleMutation"]) -> ModuleChange:
         """
         Applies the given external mutations to the module.
         Any changed nodes are returned.
         TODO @Performance @UX: :HotReload apply mutations locally
         """
         assert self._source is not None, f"cannot apply mutations to {self!r} without source"
-
-        # update source
-
-        # mutator = ModuleMutator(self._source, self._project_id, self.id)
-        # mutator.apply_all(mutations)
-        # update self
         from bench.language.wire import unpack_node
 
+        # update source
+        old_nodes_by_ck: dict[UUID, ModuleNode] = {**self.module._tree.nodes_by_ck}
+        self._apply_source_mutations(mutations)
+
+        # update self
         self.module._clear_rec()
         self.module._tree.clear()
-        unpack_node(self._source, parent=self, session=None)
+        unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
         self.module._interp_rec()
 
-        return []  # nocheckin: return changed nodes
+        # compute change, apply interp source changes if any
+        change = self._compute_change(mutations, old_nodes_by_ck)
+        if change.interp_mutations:
+            self._apply_source_mutations(change.interp_mutations)
+        return change
+
+    def _apply_source_mutations(self, mutations: list["ModuleMutation"]) -> None:
+        """Applies the mutations directly to the source without any interp."""
+        from bench.language.mutate import ModuleMutator
+
+        mutator = ModuleMutator(self._source, self._project_id, self.id)
+        mutator.apply_all(mutations)
+
+    def _compute_change(
+        self, source_mutations: list["ModuleMutation"], old_nodes_by_ck: dict[UUID, ModuleNode]
+    ) -> ModuleChange:
+        """Computes the change between the old and new module state."""
+        from bench.language.mutate import ModuleMutator
+
+        new_nodes: dict[UUID, ModuleNode] = self.module._tree.nodes_by_ck
+        added = []
+        updated = []
+        for n in new_nodes.values():
+            if n.ck in old_nodes_by_ck:
+                if n.revision != old_nodes_by_ck[n.ck].revision:
+                    updated.append(n)
+            else:
+                added.append(n)
+        removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
+
+        # gather interp mutations
+        mutator = ModuleMutator(self._source, self._project_id, self.id)
+        for node in added:
+            if node.mnt in INTERP_NODE_TYPES:
+                mutator.create(node, apply=False)
+        for node in removed:
+            if node.mnt in INTERP_NODE_TYPES:
+                mutator.delete(node, apply=False)
+
+        return ModuleChange(
+            source_mutations=source_mutations,
+            interp_mutations=mutator.mutations,
+            added=added,
+            updated=updated,
+            removed=removed,
+        )
 
     @staticmethod
     def interp(source: list["NodeData"], project_id: UUID) -> "Module":
         """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wire
 
-        module = wire.unpack_module(source, session=None)
+        module = wire.unpack_module(source, exclude=INTERP_NODE_TYPES, session=None)
         module._source = NodeTree(source)
         module._project_id = project_id
-        if module.name in libs.DEFAULT_MODULES:
-            # would cause weird dependency issues, don't need this anyway
-            raise ValueError(f"cannot interp default module {module}")
+        old_nodes_by_ck = {**module._tree.nodes_by_ck}
 
         for dependency in libs.DEFAULT_MODULES.values():
             module.add_dependency(dependency)
         module.add_builtin(libs.symbolx_lib.files.get("builtins"))
         module._interp_rec()
+
+        # update source with interp mutations (doesn't have them)
+        change = module._compute_change([], old_nodes_by_ck)
+        if change.interp_mutations:
+            module._apply_source_mutations(change.interp_mutations)
+
         return module
