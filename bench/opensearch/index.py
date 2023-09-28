@@ -379,8 +379,8 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             continue
         if node.self_errors:
             continue  # ignore symbols with issues
-        elif node.type == lang.StatementType.MODEL:
-            # all fields go into Record.data ('data' is a "dynamic" object)
+        elif node.type == lang.StatementType.DATABASE:
+            # all fields go into Record.value
             for field in node.resolved_fields:
                 value_mappings[field.typed_key] = map_to_os_field(field)
         elif node.type in RUNNABLE_STATEMENT_TYPES:

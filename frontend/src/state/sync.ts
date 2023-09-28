@@ -299,12 +299,15 @@ function useSyncedOps() {
         id: `Statement:${mutation.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
+            const resolvedField = mutation.data as ResolvedField;
             return [
               ...existingResolvedFields,
               {
                 __typename: "ResolvedField",
+                id: resolvedField.id,
+                ck: resolvedField.ck,
                 statement: { __ref: `Statement:${mutation.statementId}` },
-                fieldCk: (mutation.data as ResolvedField).fieldCk,
+                fieldCk: resolvedField.fieldCk,
               },
             ];
           },
@@ -318,8 +321,7 @@ function useSyncedOps() {
             const resolvedField = mutation.data;
             if (resolvedField?.__typename != "ResolvedField") return existingResolvedFields;
             return existingResolvedFields.filter(
-              (resolvedField: any) =>
-                resolvedField.id != resolvedField?.id && resolvedField.__ref != `ResolvedField:${resolvedField?.id}`
+              (r: any) => r.id != resolvedField?.id && r.__ref != `ResolvedField:${resolvedField?.id}`
             );
           },
         },
@@ -377,7 +379,7 @@ function useSyncedOps() {
           issues(existingIssues = []) {
             const issue = mutation.data;
             if (issue?.__typename != "Issue") return existingIssues;
-            return existingIssues.filter((issue: any) => issue.id != issue?.id && issue.__ref != `Issue:${issue?.id}`);
+            return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
       });
@@ -388,7 +390,7 @@ function useSyncedOps() {
           issues(existingIssues = []) {
             const issue = mutation.data;
             if (issue?.__typename != "Issue") return existingIssues;
-            return existingIssues.filter((issue: any) => issue.id != issue?.id && issue.__ref != `Issue:${issue?.id}`);
+            return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
       });

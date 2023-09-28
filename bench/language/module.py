@@ -1,4 +1,5 @@
 import abc
+from copy import deepcopy
 import dataclasses
 import enum
 import functools
@@ -6,7 +7,6 @@ import inspect
 import typing
 import uuid
 from collections import defaultdict, deque
-from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
@@ -19,7 +19,6 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
-    INTERP_NODE_TYPES,
     MNT,
     IssueKind,
     IssueType,
@@ -28,6 +27,7 @@ from bench.language.const import (
     StatementType,
     parse_absolute_node_reference,
     parse_node_path,
+    INTERP_NODE_TYPES,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
@@ -719,7 +719,7 @@ class NodeList(NodeListBase[NodeT]):
             return super().__getattr__(item)
         node = self.get(item)
         if node is None:
-            raise AttributeError(f"no node {item} in {self!r}")
+            raise AttributeError(f"no node '{item}' in {self!r}")
         return node
 
     def __iter__(self) -> Iterator[NodeT]:
@@ -1779,7 +1779,9 @@ class Module(ScopeNode):
         from bench.language.mutate import ModuleMutator
 
         mutator = ModuleMutator(self._source, self._project_id, self.id)
-        mutator.apply_all(mutations)
+        # errors are fine here since e.g. a deleted issue's parent may have disappeared
+        #  (we could filter that but it's easier this way since it's more explicit for clients)
+        mutator.apply_all(mutations, raise_on_error=False)
 
     def _compute_change(
         self, source_mutations: list["ModuleMutation"], old_nodes_by_ck: dict[UUID, ModuleNode]
