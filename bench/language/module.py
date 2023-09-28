@@ -3,13 +3,13 @@ import dataclasses
 import enum
 import functools
 import inspect
-from itertools import chain
 import typing
 import uuid
 from collections import defaultdict, deque
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
+from itertools import chain
 from logging import Logger
 from typing import TYPE_CHECKING, ClassVar, Collection, Iterator, Optional, Union
 from uuid import UUID, uuid4
@@ -30,12 +30,13 @@ from bench.language.const import (
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import IdentifierType, required_field, to_pyidentifier, DEBUG
+from bench.utils.utils import DEBUG, IdentifierType, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
     from bench.language.issue import ValidationHandler
-    from bench.language.wire import ModuleTreeData
+    from bench.language.mutate import ModuleMutation
+    from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
 
@@ -220,7 +221,7 @@ def nchildren(mnt: MNT, flags: NRel = NRel.Default):
 
 
 class NodeStatus(enum.IntEnum):
-    Raw = 0
+    Source = 0
     Indexed = 1
     Interpreted = 2
     Tracked = 3
@@ -1088,7 +1089,7 @@ def _make_self_method(
         # the status checking/coercion is a bit messy and probably belongs elsewhere
         if from_status is not None and self._status != from_status:
             if _coerce and self._status <= to_status:  # automatically index if needed
-                if self._status == NS.Raw and to_status >= NS.Indexed:
+                if self._status == NS.Source and to_status >= NS.Indexed:
                     self._index_self()
                 if self._status == NS.Indexed and to_status >= NS.Interpreted:
                     self._interp_self(self)
@@ -1149,13 +1150,13 @@ class ModuleNode(abc.ABC):
     _status: NodeStatus = nruntime(default=None)
 
     def __post_init__(self):
-        self._init_self()
         if self._session is None:
             from bench.language.session import active_session
 
             self._session = active_session.get()
         if self._status is None:
-            self._status = NS.Interpreted if self._session else NS.Raw
+            self._status = NS.Interpreted if self._session else NS.Source
+        self._init_self()
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -1200,20 +1201,36 @@ class ModuleNode(abc.ABC):
 
     def __setattr__(self, key, value):
         if self._status != NS.Tracked:
-            super().__setattr__(key, value)
-            return
+            return super().__setattr__(key, value)
 
         # tracked set
-        if key in self.__tracked_properties__:
+        if key in self.__internal_properties__:
+            if key in self.__list_properties__:
+                raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
+            else:
+                return super().__setattr__(key, value)
+        elif key in self.__tracked_properties__:
             super().__setattr__(key, value)
-            # nocheckin: track and validate mutation
-        elif key in self.__list_properties__:
-            raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
-        else:
-            super().__setattr__(key, value)
+            self._session.tracer.node_update(self, [key])
+            # nocheckin: validate mutations
+            return
+        elif key in self.__dict__:
+            return super().__setattr__(key, value)
 
-    # nocheckin: proxy __setattr__/__getattr__ with passthrough targets
-    #  and cooperate with dynamic Statement.__getattr__
+        # try first full passthrough target (if any)
+        for target, mode in self._passthrough_targets:
+            target = getattr(self, target)
+            if mode == Passthrough.Full:
+                setattr(target, key, value)
+                return  # success
+
+        # report set error with additional info
+        candidates = {
+            **(self.__tracked_properties__ if self._status == NS.Tracked else self.__properties__),
+            **{s.name: s for s in self._scopes_by_name.values()},
+        }
+        did_you_mean = did_you_mean_str(candidates, key)
+        raise AttributeError(f"Cannot set '{key}' on {self!r}. {did_you_mean}")
 
     def __getattr__(self, item):
         if item in self.__dict__:  # 'native' property or method
@@ -1225,15 +1242,15 @@ class ModuleNode(abc.ABC):
             attr = getattr(component, item, UNSET)
             if attr is not UNSET:
                 break
-        if self._status == NS.Tracked:
-            # check passthrough targets
+        # check passthrough targets if tracked in session
+        if attr is UNSET and self._status == NS.Tracked:
             for target, mode in self._passthrough_targets:
-                attr = getattr(self, target)
+                target = getattr(self, target)
                 if mode == Passthrough.Full:
-                    attr = getattr(self, attr, UNSET)
+                    attr = getattr(target, item, UNSET)
                 elif mode == Passthrough.Scope:
-                    assert isinstance(attr, NodeList), f"invalid scope passthrough: {attr!r}"
-                    attr = attr.get(item) or UNSET
+                    assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
+                    attr = target.get(item) or UNSET
                 if attr is not UNSET:
                     break
 
@@ -1252,7 +1269,7 @@ class ModuleNode(abc.ABC):
             **{s.name: s for s in self._scopes_by_name.values()},
         }
         did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self!r} has no attribute {item}. {did_you_mean}")
+        raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
 
     def _trigger_update(self, changed: list["ModuleNode"]):
         """Trigger list updates and re-interps in all relevant nodes."""
@@ -1300,22 +1317,19 @@ class ModuleNode(abc.ABC):
 
     def _activate_inner(self, session: "Session") -> None:
         """'Instantiate' this object in the given session."""
-        assert self._status == NS.Interpreted, f"cannot activate {self!r} in {self._status.name}"
         self._session = session
         self._status = NS.Tracked
 
     def _deactivate_inner(self) -> None:
         """'Deinstantiate' this object."""
-        assert self._status == NS.Tracked, f"cannot deactivate {self!r} in {self._status.name}"
-        self._status = NS.Interpreted
         self._session = None
 
     # final :ComponentMethods
 
     _init_self = _make_self_method(NodeMethod.init, _init_inner)
-    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.Raw)
+    _clear_self = _make_self_method(NodeMethod.clear, _clear_inner, to_status=NS.Source)
     _index_self = _make_self_method(
-        NodeMethod.index, _index_inner, from_status=NS.Raw, to_status=NS.Indexed
+        NodeMethod.index, _index_inner, from_status=NS.Source, to_status=NS.Indexed
     )
     _interp_self = _make_self_method(
         NodeMethod.interp,
@@ -1325,8 +1339,12 @@ class ModuleNode(abc.ABC):
     )
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
-    _activate_self = _make_self_method(NodeMethod.activate, _activate_inner)
-    _deactivate_self = _make_self_method(NodeMethod.deactivate, _deactivate_inner)
+    _activate_self = _make_self_method(
+        NodeMethod.activate, _activate_inner, from_status=NS.Interpreted, to_status=NS.Tracked
+    )
+    _deactivate_self = _make_self_method(
+        NodeMethod.deactivate, _deactivate_inner, from_status=NS.Tracked, to_status=NS.Interpreted
+    )
 
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "ModuleNode":
         """
@@ -1374,7 +1392,7 @@ class ModuleNode(abc.ABC):
     def session(self) -> "Session":
         """Access the session, error-ing if there is none."""
         if self._session is None:
-            raise RuntimeError(f"no active session for {self}")
+            raise RuntimeError(f"no active session for {self!r}")
         return self._session
 
     @session.setter
@@ -1488,6 +1506,7 @@ class ScopeNode(ModuleNode):
 
     def _import_scope_tree(self, scope: "ScopeNode") -> None:
         """Adds the given tree into this scope."""
+        assert scope._local_tree is not None, f"no local tree to import {scope!r} into {self!r}"
         self._local_root_tree.add_tree(scope._local_tree)
 
     @property
@@ -1499,7 +1518,7 @@ class ScopeNode(ModuleNode):
     @property
     def _local_root_tree(self) -> Union["NodeTree", "DetachedNodeTree"]:
         tree = self._local_root_scope._local_tree
-        assert tree is not None, f"no local tree for {self} in {self._local_root_scope}"
+        assert tree is not None, f"no local tree for {self!r} in {self._local_root_scope!r}"
         return tree
 
     def lookup(
@@ -1611,6 +1630,8 @@ class Module(ScopeNode):
     dependencies: dict[str, Union["Module", ModuleReference]] = nruntime(default_factory=dict)
     builtins: list["File"] = nruntime(default_factory=list)
     _lookup_cache: dict[str, NodeT] = nruntime(default_factory=dict)
+    _source: Optional[NodeTree] = nruntime(default=None)
+    _project_id: Optional[UUID] = nruntime(default=None)
 
     def __str__(self):
         if self.issues:
@@ -1648,6 +1669,8 @@ class Module(ScopeNode):
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
     def add_builtin(self, file: "File") -> None:
+        if file.module.id not in self._tree:
+            raise ValueError(f"cannot add builtin {file!r} to {self!r} without {file.module!r}")
         self.builtins.append(file)
 
     def add_dependency(self, dependency: Union["Module", ModuleReference]) -> None:
@@ -1699,31 +1722,45 @@ class Module(ScopeNode):
     def _index_inner(self):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
-            self._import_scope_tree(builtin)
         for dependency in self.dependencies.values():
             self._local_tree.add_tree(dependency._local_tree)
 
+    def _apply_mutations(self, mutations: list["ModuleMutation"]) -> list["ModuleNode"]:
+        """
+        Applies the given external mutations to the module.
+        Any changed nodes are returned.
+        TODO @Performance @UX: :HotReload apply mutations locally
+        """
+        assert self._source is not None, f"cannot apply mutations to {self!r} without source"
+
+        # update source
+
+        # mutator = ModuleMutator(self._source, self._project_id, self.id)
+        # mutator.apply_all(mutations)
+        # update self
+        from bench.language.wire import unpack_node
+
+        self.module._clear_rec()
+        self.module._tree.clear()
+        unpack_node(self._source, parent=self, session=None)
+        self.module._interp_rec()
+
+        return []  # nocheckin: return changed nodes
+
     @staticmethod
-    def interp_from(
-        maybe_module: Union["ModuleTreeData", "Module"], session: Optional["Session"]
-    ) -> "Module":
+    def interp(source: list["NodeData"], project_id: UUID) -> "Module":
+        """Create an interpreted Module from a source module node tree."""
         from bench.language import libs, wire
 
-        logger.debug("module.interp", module=maybe_module)
-        if isinstance(maybe_module, wire.ModuleTreeData):
-            logger.debug("module.interp.unpack", module=maybe_module)
-            module: Module = wire.unpack_module(maybe_module, session=session)
-        else:
-            module = maybe_module
-
+        module = wire.unpack_module(source, session=None)
+        module._source = NodeTree(source)
+        module._project_id = project_id
         if module.name in libs.DEFAULT_MODULES:
             # would cause weird dependency issues, don't need this anyway
             raise ValueError(f"cannot interp default module {module}")
 
-        module.add_builtin(libs.symbolx_lib.files.get("builtins"))
         for dependency in libs.DEFAULT_MODULES.values():
             module.add_dependency(dependency)
-        logger.debug("module.interp.interp", module=module)
+        module.add_builtin(libs.symbolx_lib.files.get("builtins"))
         module._interp_rec()
-        logger.debug("module.interp.done", module=module)
         return module

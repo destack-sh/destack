@@ -141,7 +141,7 @@ def wrap_exceptions(func):
             if isinstance(e, (IntegrityError, ValueError, TypeError)):
                 e = ValidationError(e.args[0])
             if DEBUG or LOCAL:
-                logger.debug("mutation.error", exc_info=e, func=func)
+                logger.debug("mutation.error", exc_info=True, e=e, func=func)
             return _handle_exception(e)
 
     return wrapped

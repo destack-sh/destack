@@ -15,7 +15,7 @@ class HasValue(ModuleNode):
 
     @property
     def _type_of_value(self) -> "HasFields":
-        return self  # assume this is a HasFields
+        return self  # assume this is a statement with fields
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
         pass  # TODO @Interp: interp value in HasValue
@@ -40,19 +40,20 @@ class HasValue(ModuleNode):
 
         # should probably move instantiate into interp and only do proxying in activate?
         if self._value_unpacked:
-            self.value = self._raw_value()
+            self.__dict__["value"] = self._raw_value()
             self._value_unpacked = False
         # instantiate
         value = unpack_value(
             self.value or {}, self._type_of_value, ignore_array=True, ignore_outer_map=True
         )
         # proxy
-        self.value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
+        value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
+        self.__dict__["value"] = value  # don't trigger write
         self._value_unpacked = True
 
     def _deactivate(self) -> None:
         if self._value_unpacked:
-            self.value = self._raw_value()
+            self.__dict__["value"] = self._raw_value()  # don't trigger write
             self._value_unpacked = False
 
     def _raw_value(self) -> dict:

@@ -18,6 +18,7 @@ from bench.language.module import (
     ModuleNode,
     NodeList,
     NRel,
+    Passthrough,
     ScopeNode,
     nancestor,
     nchildren,
@@ -25,14 +26,13 @@ from bench.language.module import (
     node,
     nparent,
     nproperty,
-    Passthrough,
 )
 from bench.language.reference import HasReference
 from bench.language.run import HasRun
+from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.language.tagging import HasTags
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -148,13 +148,14 @@ class Statement(ScopeNode, HasTags):
         # add runtime properties from dynamic components
         for component in self._dynamic_components:
             for prop in component.__properties__.values():
-                if prop.is_runtime and not hasattr(self, prop.name):
+                if prop.is_runtime and prop.name not in self.__dict__:
                     setattr(self, prop.name, prop.new())
 
-    def morph(self, to_type: StatementType, **kwargs):
+    def morph(self, to_type: StatementType):
         self.type = to_type
         Statement._init_inner(self)
-        # what else to do?
+        self._session.tracer.node_update(self, ["type"])
+        # what else to do? trigger re-interp of everything?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property

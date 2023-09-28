@@ -11,7 +11,9 @@ from bench.language.module import (
     Module,
     ModuleNode,
     NodeList,
+    NodeListBase,
     NRel,
+    Passthrough,
     ScopeNode,
     nchildren,
     ninternal,
@@ -19,8 +21,6 @@ from bench.language.module import (
     node_component,
     nparent,
     nproperty,
-    NodeListBase,
-    Passthrough,
 )
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
@@ -41,10 +41,12 @@ class Record(HasValue, ModuleNode):
     parent: "Statement" = nparent(MNT.Statement)
 
     @staticmethod
-    def new(value: Any = None, *args, **kwargs) -> "Record":
-        if isinstance(value, dict):
-            value = unproxy_value(value)
-        return Record(value=value, *args, **kwargs)
+    def new(*args, for_parent: "Statement", **kwargs) -> "Record":
+        value = {**kwargs}
+        for field, arg in zip(for_parent.resolved_fields, args):
+            value[field.name] = arg
+        value = unproxy_value(value)
+        return Record(value=value)
 
     def __str__(self):
         return f"{self.parent.path}:{self.id} {describe_type(self.value)}"

@@ -15,9 +15,9 @@ from uuid import UUID
 import structlog
 
 from bench.language.const import RunStatus, TriggerType, TypeFlag, TypeTag
-from bench.language.mapping import map_value, pack_value, pack_value_flat, check_type
+from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
 from bench.language.module import ModuleNode
-from bench.language.mutate import NodeMutator, MNT
+from bench.language.mutate import MNT, ModuleMutator
 from bench.language.run import HasRun, Run, RunError
 from bench.language.session import LogEntry, Session
 from bench.language.statement import Statement
@@ -25,7 +25,7 @@ from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
-    from bench.language import HasFields, Task, Trigger
+    from bench.language import HasFields, Trigger
 
 logger = structlog.get_logger(__name__)
 
@@ -162,7 +162,7 @@ MAX_STACK_DEPTH = 16
 
 
 class SessionTracer(Tracer):
-    def __init__(self, session: Session, mutator: NodeMutator):
+    def __init__(self, session: Session, mutator: ModuleMutator):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []

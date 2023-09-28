@@ -16,7 +16,14 @@ import openai
 
 from bench.language import HasRun, HasText, Module, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
-from bench.language.const import RunStatus, StatementType, TypeFlag, TypeTag, new_dynamic_node_key
+from bench.language.const import (
+    INTERP_NODE_TYPES,
+    RunStatus,
+    StatementType,
+    TypeFlag,
+    TypeTag,
+    new_dynamic_node_key,
+)
 from bench.language.field import Field, Key, Vector
 from bench.language.mapping import map_value, pack_value_flat
 from bench.language.model import HasModel, ModelError, ModelErrorType
@@ -1006,8 +1013,8 @@ for name, module in DEFAULT_MODULES.items():
         # also check for issues after reload to prevent any sneaky reference bugs
         from bench.language import wire
 
-        module_data = wire.pack_module(module)
-        module_reloaded = wire.unpack_module(module_data, session=None)
+        module_data = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
+        module_reloaded = wire.unpack_module(module_data.nodes, session=None)
         if module_reloaded.name != "symbolx.lib":
             module_reloaded.add_dependency(symbolx_lib)
         module_reloaded._interp_rec()
