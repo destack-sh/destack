@@ -593,7 +593,7 @@ def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list
             mutator.create(new_node)
         else:
             old_node = old_tree.nodes_by_id[new_node.id]
-            if not new_node.equals_ignoring_crud(old_node):
+            if not new_node.equals_no_cru(old_node):
                 mutator.update(new_node)
     for old_node in old_tree.walk_bfs():
         if old_node.mnt == ModuleNodeType.Module:

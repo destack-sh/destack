@@ -1,7 +1,8 @@
 import typing
 from typing import Union
 
-from bench.language.const import MNT
+from bench.language.builtin import symbolx_lib
+from bench.language.const import MNT, StatementType
 from bench.language.module import (
     ModuleNode,
     NodeList,
@@ -26,6 +27,34 @@ class Tagging(HasValue, HasReference, ModuleNode):
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
     key: str = nproperty()
 
+    @staticmethod
+    def new(
+        reference: Union["Statement", "Tagging", str],
+        *args,
+        for_parent: Union["File", "Statement", "Field"] = None,
+        **kwargs,
+    ) -> "Tagging":
+        from bench.language import Statement
+
+        if isinstance(reference, Tagging):
+            reference = reference.reference
+            key = reference.key
+        elif isinstance(reference, Statement):
+            if reference.type != StatementType.TAG:
+                raise TypeError(f"cannot use {reference!r} as a tag")
+            key = reference.key
+        elif isinstance(reference, str):
+            module = (for_parent.module if for_parent is not None else None) or symbolx_lib
+            resolved = symbolx_lib.lookup(".builtins." + reference) or module.lookup(reference)
+            if resolved is None:
+                raise ValueError(f"cannot find tag {reference!r}")
+            reference = resolved
+            key = reference.key
+        else:
+            raise TypeError(f"cannot use {reference!r} as a tag")
+
+        return Tagging(reference=reference, key=key, *args, **kwargs)
+
     @property
     def _type_of_value(self) -> "HasFields":
         from bench.language.libs import symbolx_lib
@@ -46,9 +75,3 @@ class Tagging(HasValue, HasReference, ModuleNode):
 @node_component
 class HasTags(ModuleNode):
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.Keyed)
-
-    @staticmethod
-    def _to_tag_key(key: Union[str, "Statement", Tagging]) -> str:
-        if hasattr(key, "key"):
-            key = key.key
-        return key

@@ -3,6 +3,7 @@ import dataclasses
 import enum
 import functools
 import inspect
+from itertools import chain
 import typing
 import uuid
 from collections import defaultdict, deque
@@ -28,6 +29,7 @@ from bench.language.const import (
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
+from bench.utils.func import did_you_mean_str
 from bench.utils.utils import IdentifierType, required_field, to_pyidentifier, DEBUG
 
 if TYPE_CHECKING:
@@ -83,6 +85,7 @@ class NodeProperty:
     """A property of a module node."""
 
     name: str | None = None  # name from LHS of assignment
+    component: type["ModuleNode"] | None = None  # source component class
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
@@ -94,7 +97,6 @@ class NodeProperty:
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # for relations
     child_mnt: MNT | None = None
-    is_allowed: typing.Callable[["NodeT"], bool] | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
 
     def __post_init__(self):
@@ -115,7 +117,7 @@ class NodeProperty:
                 flags_str = ", ".join(f.name for f in NodeRelationType if v & f)
                 if flags_str:
                     non_default.append(flags_str)
-            elif k not in ("name", "annotation") and v is not UNSET and v:
+            elif k not in ("name", "annotation", "component") and v is not UNSET and v:
                 if isinstance(v, bool):
                     non_default.append(k)
                 else:
@@ -124,7 +126,16 @@ class NodeProperty:
         return f"{self.name} ({attrs_str})" if attrs_str else self.name
 
     def __repr__(self):
-        return f"<NodeProperty {self}>"
+        return f"<NodeProperty {self.component.__name__}.{self}>"
+
+    def equals_type(self, other: "NodeProperty") -> bool:
+        """Compares everything but the source component."""
+        for k in dataclasses.fields(self):
+            if k.name == "component":
+                continue
+            if getattr(self, k.name) != getattr(other, k.name):
+                return False
+        return True
 
     def new(self) -> typing.Any:
         if self.default is not UNSET:
@@ -132,22 +143,22 @@ class NodeProperty:
         elif self.default_factory is not None:
             return self.default_factory()
         else:
-            raise ValueError(f"no default for {self}")
+            raise ValueError(f"no default for {self!r}")
 
     def copy(self, value: typing.Any) -> typing.Any:
         if self.is_relation:
-            raise ValueError(f"cannot copy relation {self}")
+            raise ValueError(f"cannot copy relation {self!r}")
         elif self.copy_value is not None:
             return self.copy_value(value)
         # auto-copy if it's trivial (primitives, immutable, enum, ...)
         elif isinstance(value, (type(None), bool, int, float, str, UUID, datetime, enum.Enum)):
             return value
         else:
-            raise ValueError(f"cannot copy {self}")
+            raise ValueError(f"cannot copy {self!r}")
 
     @property
     def is_relation(self) -> bool:
-        return self.parent_mnts or self.child_mnt or self.ancestor_mnt
+        return bool(self.parent_mnts) or self.child_mnt or self.ancestor_mnt
 
 
 def nproperty(
@@ -203,13 +214,9 @@ def nancestor(mnt: MNT):
     return NodeProperty(ancestor_mnt=mnt, default=None, is_internal=True)
 
 
-def nchildren(
-    mnt: MNT, flags: NRel = NRel.Default, is_allowed: typing.Callable[["NodeT"], bool] = None
-):
+def nchildren(mnt: MNT, flags: NRel = NRel.Default):
     """Computed read/write children or descendants of the given type."""
-    return NodeProperty(
-        child_mnt=mnt, children_flags=flags, is_allowed=is_allowed, is_internal=True
-    )
+    return NodeProperty(child_mnt=mnt, children_flags=flags, is_internal=True)
 
 
 class NodeStatus(enum.IntEnum):
@@ -298,13 +305,16 @@ def _get_component_methods(
 def _get_node_class(mnt: MNT):
     if len(_NODE_CLASS_BY_MNT) < len(MNT):
         m = import_module("bench.language")
-        getattr(m, mnt)  # noqa
+        getattr(m, mnt)  # noqa check that the node class is defined
     return _NODE_CLASS_BY_MNT[mnt]
 
 
 @typing.dataclass_transform()
 def node_component(
-    cls: Optional[typing.Type] = None, mnt: MNT = None, passthrough: tuple[str] = ()
+    cls: Optional[typing.Type] = None,
+    mnt: MNT = None,
+    passthrough: tuple[tuple[str, "Passthrough"]] = (),
+    dynamic_components: tuple[type["ModuleNode"]] = (),
 ):
     """
     Mark a class as a node component (or concrete node for a MNT).
@@ -321,10 +331,17 @@ def node_component(
                 good_meth = getattr(ModuleNode, name, getattr(ScopeNode, name, None))
                 if meth is not None and meth is not good_meth:
                     raise ValueError(f"forbidden method {name} defined in {cls}")
+
+        # collect static components from class hierarchy
+        for base in cls.__bases__:
+            if base.__name__ in ("ModuleNode", "ABC"):
+                continue
+            if hasattr(base, "__properties__"):
+                static_components.append(base)
         if cls.__name__ != "ModuleNode":
             static_components.append(ModuleNode)
 
-        # collect properties
+        # collect properties from this
         for name, prop in cls.__dict__.items():
             if (
                 name.startswith("__")
@@ -340,20 +357,21 @@ def node_component(
             if not isinstance(prop, NodeProperty):
                 raise TypeError(f"{cls}.{name} is not a NodeProperty: {prop} ({type(prop)})")
             prop.name = name
+            prop.component = cls
             properties[name] = prop
 
-        # add any parent classes properties
-        for base in reversed(cls.__bases__):
-            if base.__name__ in ("ModuleNode", "ABC") or not hasattr(base, "__properties__"):
-                continue
-            for name, prop in base.__properties__.items():
-                if name not in properties:
-                    properties[name] = prop
-                elif prop != properties[name]:
-                    raise ValueError(f"property conflict for {name}: {prop}, {properties[name]}")
-            static_components.append(base)
+        # collect properties from all components (static and dynamic, least to most specific)
+        cls.__properties__ = {**properties}  # copy own properties
+        for component in chain(reversed(static_components), reversed(dynamic_components)):
+            for name, prop in component.__properties__.items():
+                if name not in properties or name == "parent":  # override parent with more specific
+                    # register all static and any non-runtime dynamic properties
+                    if not prop.is_runtime or component not in dynamic_components:
+                        properties[name] = prop
+                elif not prop.equals_type(properties[name]):
+                    raise ValueError(f"property conflict '{name}': {prop!r}, {properties[name]!r}")
 
-        # collect methods implement in this class (specifically)
+        # collect methods implemented in this class (specifically)
         for meth_type in NodeMethod:
             meth = getattr(cls, meth_type.inner, None)
             if meth is not None and not any(
@@ -361,13 +379,13 @@ def node_component(
             ):
                 _COMPONENT_METHODS[(meth_type, cls)] = meth
 
-        # create class
+        # create class (map to dataclass)
         for name, prop in properties.items():
             if not hasattr(cls, name):  # may be inherited
                 continue
             if prop.ancestor_mnt:
                 setattr(cls, name, _node_ancestor_prop(prop))
-                if name in cls.__annotations__:  # ensure property doesn't have a dataclass field
+                if name in cls.__annotations__:  # computed property doesn't need a dataclass field
                     del cls.__annotations__[name]
             elif prop.child_mnt:
                 setattr(cls, name, dataclasses.field(init=False, default=None))
@@ -380,9 +398,9 @@ def node_component(
             if not prop.ancestor_mnt:
                 cls.__annotations__[name] = prop.annotation
         cls = dataclass(cls, repr=False, eq=False)  # type: ignore
-        cls.__properties__ = properties
         cls.__static_components__ = tuple(static_components)
-        cls.__passthrough_targets__ = passthrough
+        cls.__dynamic_components__ = tuple(dynamic_components or ())
+        cls.__static_passthrough__ = passthrough
 
         # register properties
         props = properties.values()
@@ -420,9 +438,15 @@ def node_component(
     return decorate
 
 
-def node(mnt: MNT, passthrough: tuple[str] = ()):
+def node(
+    mnt: MNT,
+    passthrough: tuple[tuple[str, "Passthrough"]] = (),
+    dynamic_components: tuple[type["ModuleNode"]] = (),
+):
     def decorate(cls):
-        return node_component(cls, mnt=mnt, passthrough=passthrough)
+        return node_component(
+            cls, mnt=mnt, passthrough=passthrough, dynamic_components=dynamic_components
+        )
 
     return decorate
 
@@ -532,7 +556,7 @@ class NodeList(NodeListBase[NodeT]):
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         super().__init__(parent, property)
-        self._child_t: type[NodeT] = _get_node_class(property.child_mnt)
+        self._child_t: type[NodeT] | None = None
         self._flags = property.children_flags
         self._nodes: list[NodeT] = []
 
@@ -543,7 +567,17 @@ class NodeList(NodeListBase[NodeT]):
     def __str__(self):
         return str(self._nodes)
 
+    def _scope(self) -> dict[str, "ModuleNode"]:
+        """Gets the visible scope for error reporting"""
+        if self._flags & NRel.Named:
+            return {n.py_ident: n for n in self._nodes}
+        return {}
+
     def _update(self, scope: "ScopeNode"):
+        if self._child_t is None:
+            # late bind to avoid circular import when getting node class
+            self._child_t = _get_node_class(self._property.child_mnt)
+
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
         if self._flags & NRel.Cumulative:
@@ -571,8 +605,8 @@ class NodeList(NodeListBase[NodeT]):
 
     def create(self, *args, **kwargs):
         node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
-        if hasattr(node_cls, "_coerce_from"):
-            node = node_cls._coerce_from(*args, **kwargs)
+        if hasattr(node_cls, "new"):
+            node = node_cls.new(*args, **kwargs, for_parent=self._parent)
         else:
             node = node_cls(*args, **kwargs)
         self.append(node)
@@ -591,8 +625,8 @@ class NodeList(NodeListBase[NodeT]):
         # update parent after updating ids (need to walk in the node's tree, which may differ)
         _node.parent = self._parent
 
-        # 'create' node in session
-        if _create and self._parent._session:
+        # 'create' node in session if it's attached
+        if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(_node)
         # index node into parent scope (either subsume if previously detached or just add)
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
@@ -607,8 +641,9 @@ class NodeList(NodeListBase[NodeT]):
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
             if self._flags & NRel.Flat:  # add after last root node
-                local_roots = [n for n in self._nodes if n.parent == self._parent]
-                last_ok = local_roots[-1].order_key if local_roots else None
+                last_ok = next(
+                    (n.order_key for n in reversed(self._nodes) if n.parent == self._parent), None
+                )
             else:
                 last_ok = self._nodes[-1].order_key if self._nodes else None
             _node.order_key = generate_key_between(last_ok, None)
@@ -1075,6 +1110,11 @@ def _make_self_method(
     return self_method
 
 
+class Passthrough(enum.StrEnum):
+    Full = "full"
+    Scope = "scope"
+
+
 @node_component
 class ModuleNode(abc.ABC):
     """
@@ -1084,13 +1124,14 @@ class ModuleNode(abc.ABC):
 
     mnt: ClassVar[MNT]  # set in @node decorator
     __static_components__: ClassVar[tuple[type["ModuleNode"]]] = []
+    __dynamic_components__: ClassVar[tuple[type["ModuleNode"]]] = ()
     __properties__: ClassVar[dict[str, NodeProperty]] = {}
     __ancestor_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __passthrough_targets__: ClassVar[tuple[str]] = ()
+    __static_passthrough__: ClassVar[tuple[tuple[str, Passthrough]]] = ()
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default_factory=uuid.uuid4)
@@ -1125,14 +1166,18 @@ class ModuleNode(abc.ABC):
         return self.__static_components__
 
     @property
+    def _dynamic_components(self) -> tuple[type["ModuleNode"]] | None:
+        return None
+
+    @property
     def _concrete_cache_key(self) -> str:
         """Identifier for dynamic components"""
         return type(self).__name__
 
     @property
-    def _passthrough_targets(self) -> tuple[str] | None:
-        """Preferred __getattr__/__setattr__ property names (before defaulting to usual)"""
-        return self.__passthrough_targets__
+    def _passthrough_targets(self) -> tuple[tuple[str, Passthrough]] | None:
+        """Pass through __getattr__/__setattr__ properties (before defaulting to usual)"""
+        return self.__static_passthrough__
 
     @property
     def _local_root(self) -> "ModuleNode":
@@ -1154,22 +1199,63 @@ class ModuleNode(abc.ABC):
         return hash(self.id)
 
     def __setattr__(self, key, value):
-        if self._status == NS.Tracked:
-            if key in self.__tracked_properties__:
-                super().__setattr__(key, value)
-                # nocheckin: track and validate mutation
-            elif key in self.__list_properties__:
-                raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
-            else:
-                super().__setattr__(key, value)
+        if self._status != NS.Tracked:
+            super().__setattr__(key, value)
+            return
+
+        # tracked set
+        if key in self.__tracked_properties__:
+            super().__setattr__(key, value)
+            # nocheckin: track and validate mutation
+        elif key in self.__list_properties__:
+            raise AttributeError(f"cannot set {self.__properties__[key]} (use NodeList)")
         else:
             super().__setattr__(key, value)
 
     # nocheckin: proxy __setattr__/__getattr__ with passthrough targets
     #  and cooperate with dynamic Statement.__getattr__
 
+    def __getattr__(self, item):
+        if item in self.__dict__:  # 'native' property or method
+            return super().__getattribute__(item)
+
+        attr = UNSET
+        # prefer dynamic components own methods
+        for component in self._dynamic_components:
+            attr = getattr(component, item, UNSET)
+            if attr is not UNSET:
+                break
+        if self._status == NS.Tracked:
+            # check passthrough targets
+            for target, mode in self._passthrough_targets:
+                attr = getattr(self, target)
+                if mode == Passthrough.Full:
+                    attr = getattr(self, attr, UNSET)
+                elif mode == Passthrough.Scope:
+                    assert isinstance(attr, NodeList), f"invalid scope passthrough: {attr!r}"
+                    attr = attr.get(item) or UNSET
+                if attr is not UNSET:
+                    break
+
+        # attribute be property, method, or just plain value
+        if attr is not UNSET:
+            if isinstance(attr, property):
+                return attr.fget(self)
+            elif callable(attr):
+                return functools.partial(attr, self)
+            else:
+                return attr
+
+        # report lookup error with additional info
+        candidates = {
+            **(self.__tracked_properties__ if self._status == NS.Tracked else self.__properties__),
+            **{s.name: s for s in self._scopes_by_name.values()},
+        }
+        did_you_mean = did_you_mean_str(candidates, item)
+        raise AttributeError(f"{self!r} has no attribute {item}. {did_you_mean}")
+
     def _trigger_update(self, changed: list["ModuleNode"]):
-        """Trigger list updates and re-interps (now or later) in all relevant nodes."""
+        """Trigger list updates and re-interps in all relevant nodes."""
         assert changed, f"cannot trigger update on {self} with no changed nodes"
         # reinit children for any affected parent nodes
         # TODO @Performance: use mark dirty in node list to avoid reinit
@@ -1245,8 +1331,7 @@ class ModuleNode(abc.ABC):
     def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "ModuleNode":
         """
         Copies this node without any descendants.
-        If keep parent we attach the copy to the same parent.
-        All non-relational properties are copied using NodeProperty.copy.
+        All non-relational properties are copied using NodeProperty.copy, relations are reset.
         """
         props = {}
         for name, prop in self.__properties__.items():
@@ -1517,7 +1602,7 @@ class NodeVisitor:
         self._reference_by_ck[node.ck] = node
 
 
-@node(mnt=MNT.Module)
+@node(mnt=MNT.Module, passthrough=(("files", Passthrough.Scope),))
 class Module(ScopeNode):
     parent: None = nparent()
     name: str = ninternal()  # can't change this yet
