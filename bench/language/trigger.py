@@ -39,6 +39,10 @@ class Trigger(ModuleNode):
     runnable: Union["Statement", UUID, None] = nproperty(default=None)
     scope: Union["ModuleNode", UUID, None] = nproperty(default=None)
 
+    @staticmethod
+    def new(*args, **kwargs) -> "Trigger":
+        return Trigger(*args, **kwargs)
+
     def __str__(self):
         if self.type == TriggerType.TIME:
             schedule_str = (

@@ -208,8 +208,8 @@ class SomeType(abc.ABC):
             return to_pyidentifier(self.name, IdentifierType.FIELD)
 
     @property
-    def effective_type(self) -> Union["SomeType", "HasFields"]:
-        if isinstance(self.reference, HasFields):
+    def effective_type(self) -> Union["SomeType", "Statement"]:
+        if isinstance(self.reference, ModuleNode):
             return self.reference
         else:
             return self
@@ -251,13 +251,25 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     hint: Optional[TypeHint] = nproperty(default=None)
     order_key: str | None = ninternal(default=None)
     key: str = nproperty(default=None)
-    text: Optional[str] = nproperty(default=None)
     flags: TypeFlag = nproperty(default=TypeFlag.Zero)
 
     @staticmethod
-    def _coerce_from(
-        name: str = None, some_type: Union[TypeTag, TypeHint, "Statement"] = None, *args, **kwargs
+    def new(
+        name: str = None,
+        some_type: Union[TypeTag, TypeHint, "Statement"] = None,
+        for_parent: "Statement" = None,
+        *args,
+        **kwargs,
     ) -> "Field":
+        # default to literal or string if no type is specified
+        if some_type is None:
+            if for_parent.tag == TypeTag.ENUM:
+                tag = TypeTag.LITERAL
+                if name is None:
+                    name = f"Option {len(for_parent.fields) + 1}"
+            else:
+                tag = TypeTag.STRING
+
         if isinstance(some_type, TypeTag):
             kwargs["tag"] = some_type
         elif isinstance(some_type, TypeHint):
@@ -278,7 +290,7 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
         return f"{name_str}{self._type_str}"
 
     def __repr__(self):
-        return f"<Field {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def __eq__(self, other):
         return FieldQueryOps.__eq__(self, other)  # override to avoid recursion
@@ -339,10 +351,18 @@ class ResolvedField(Field):
     def field_ck(self) -> UUID:
         return self.field.ck
 
+    @property
+    def resolved_fields(self):
+        return self.reference.resolved_fields if isinstance(self.reference, ModuleNode) else []
+
     @staticmethod
-    def from_field(field: Field) -> "ResolvedField":
-        ck = uuid.uuid5(field.ck, field.ck.hex)
-        id = (get_node_id(field.module.id, ck),)
+    def from_field(parent: ModuleNode, field: Field) -> "ResolvedField":
+        if isinstance(field, ResolvedField):
+            field = field.field
+        if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, ModuleNode):
+            raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
+        ck = uuid.uuid5(parent.ck, field.ck.hex)
+        id = get_node_id(field.module.id, ck)
         return ResolvedField(
             id=id,
             ck=ck,
@@ -384,44 +404,42 @@ class HasFields(SomeType, ModuleNode):
 
     def _resolve_unions(self: "HasFields", path: list[SomeType]) -> None:
         """
-        Resolves (and inlines) the union-ed fields of any union types in the type tree.
+        Resolves (and inlines) field references and unions.
         """
         if self._resolved_unions:
             return  # already resolved
 
-        if any(n.id == self.id for n in path):
+        if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
             self._on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
             self._resolved_unions = True
             return
 
-        if not any(n.flags & TypeFlag.IsUnionWith for n in self.fields):
-            # skip, not a union with anything
-            self.resolved_fields.set([ResolvedField.from_field(f) for f in self.fields])
-            self._resolved_unions = True
-            return
-
         path = path + [self]
         resolved_fields: list[ResolvedField] = []
         for field in self.fields:
-            if not field.flags & TypeFlag.IsUnionWith:
-                resolved_fields.append(ResolvedField.from_field(field))
-                continue  # just a regular field
-            if not isinstance(field.reference, HasFields):
-                continue  # ignore unresolved
+            # try to resolve reference or skip this field
+            if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, ModuleNode):
+                HasReference._interp_inner(field, self)  # resolve reference
+                if not isinstance(field.reference, ModuleNode):
+                    continue  # ignore
 
-            # inline fields from union-ed type to resolved fields
-            field.reference._resolve_unions(path)
-            for child in field.reference.resolved_fields:
-                existing = self.resolved_fields.get(child.py_ident)
-                # check if self is compatible if overlapping
-                if existing is not None and not existing.is_type_equivalent(child):
-                    self._on_issue(self=IssueType.MISMATCHED_UNION, subject=self, other=existing)
-                    continue
-                if isinstance(child, ResolvedField):
-                    child = child.field
-                resolved_fields.append(ResolvedField.from_field(child))
+            if field.flags & TypeFlag.IsUnionWith:
+                # inline fields from union-ed type to resolved fields
+                field.reference._resolve_unions(path)
+                for child in field.reference.resolved_fields:
+                    existing = self.resolved_fields.get(child.py_ident)
+                    # check if self is compatible if overlapping
+                    if existing is not None and not existing.is_type_equivalent(child):
+                        self._on_issue(
+                            self=IssueType.MISMATCHED_UNION, subject=self, other=existing
+                        )
+                        continue
+                    resolved_fields.append(ResolvedField.from_field(self, child))
+            else:
+                # just a normal field
+                resolved_fields.append(ResolvedField.from_field(self, field))
         self.resolved_fields.set(resolved_fields)
         self._resolved_unions = True
 

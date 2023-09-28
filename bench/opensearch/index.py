@@ -377,7 +377,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     for node in module._nodes:
         if not isinstance(node, lang.Statement):
             continue
-        if not isinstance(node, lang.HasFields) or node.self_errors:
+        if node.self_errors:
             continue  # ignore symbols with issues
         elif node.type == lang.StatementType.MODEL:
             # all fields go into Record.data ('data' is a "dynamic" object)

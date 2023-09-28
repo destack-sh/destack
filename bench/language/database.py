@@ -20,11 +20,12 @@ from bench.language.module import (
     nparent,
     nproperty,
     NodeListBase,
+    Passthrough,
 )
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.language.value import HasValue
-from bench.utils.func import describe_type, did_you_mean_str
+from bench.utils.func import describe_type
 from bench.utils.proxy import unproxy_value
 from bench.utils.utils import DotList
 
@@ -35,12 +36,12 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(mnt=MNT.Record, passthrough=("value",))
+@node(mnt=MNT.Record, passthrough=(("value", Passthrough.Full),))
 class Record(HasValue, ModuleNode):
     parent: "Statement" = nparent(MNT.Statement)
 
     @staticmethod
-    def _coerce_from(value: Any = None, *args, **kwargs) -> "Record":
+    def new(value: Any = None, *args, **kwargs) -> "Record":
         if isinstance(value, dict):
             value = unproxy_value(value)
         return Record(value=value, *args, **kwargs)
@@ -65,19 +66,6 @@ class Record(HasValue, ModuleNode):
 
     def __contains__(self, item: str):
         return item in self.value
-
-    def __getitem__(self, item: str):
-        val = self.value.get(item)
-        if val is not None or item in self.parent.fields:
-            return val
-        elif not isinstance(item, str):
-            raise TypeError(f"cannot index {repr(self)} with {type(item)}")
-        else:
-            candidates = {f.py_ident: f for f in self.parent.fields}
-            did_you_mean = did_you_mean_str(candidates, item)
-            raise KeyError(
-                f"{self} has no field '{item}' ({did_you_mean}, available: {list(self.parent.fields)})"
-            )
 
     def __setitem__(self, key, value):
         self.value[key] = value
@@ -120,36 +108,41 @@ class _RemoteRecordList(NodeListBase[Record], Search["RecordData", Record]):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def create(self, *args, **kwargs):
-        raise NotImplementedError(f"{self!r} does not support create yet")
+    def create(self, *args, **kwargs) -> Record:
+        record = Record.new(*args, **kwargs)
+        self.append(record)
+        return record
 
     def append(self, record: Record, _create: bool = True, _trigger: bool = True) -> None:
         value = unproxy_value(record.value)
         record = Record(parent=self, value=value)
         if _create:
-            self.session.tracer.node_create(self, record)
+            self._parent.session.tracer.node_create(self, record)
 
-    def extend(self, records: typing.Iterable[Record | dict]) -> None:
+    def extend(self, records: typing.Iterable[Record]) -> None:
         values = [  # remove source proxy if any
             unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
             for record in records
         ]
         records = [Record(parent=self, value=value) for value in values]
-        self.session.tracer.node_create(self, records)
+        self._parent.session.tracer.node_create(self, records)
 
     def remove(self, record: Record, _delete: bool = True, _trigger: bool = True) -> None:
         if _delete:
-            self.session.tracer.node_delete(self, record)
+            self._parent.session.tracer.node_delete(self, record)
 
     def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
         if _delete:
-            self.session.tracer.node_truncate(self)
+            self._parent.session.tracer.node_truncate(self)
 
     def __getitem__(self, item: slice):
         if isinstance(item, slice):
             return self.search(limit=item.stop)
         else:
             raise TypeError(f"index into {self} must be slice (not {type(item)})")
+
+    def __contains__(self, obj: object) -> bool:
+        return False  # lookup by id?
 
     #
     # Extra methods for records

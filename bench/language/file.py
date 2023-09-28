@@ -1,5 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
+from bench.language.tagging import HasTags
 from bench.language.const import MNT
 from bench.language.module import (
     Module,
@@ -10,6 +11,7 @@ from bench.language.module import (
     node,
     nparent,
     nproperty,
+    Passthrough,
 )
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -17,8 +19,8 @@ if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(mnt=MNT.File)
-class File(ScopeNode):
+@node(mnt=MNT.File, passthrough=(("statements", Passthrough.Scope),))
+class File(ScopeNode, HasTags):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
     name: str = nproperty()
 
@@ -30,7 +32,7 @@ class File(ScopeNode):
     )
 
     @staticmethod
-    def _coerce_from(name: str = None, *args, **kwargs) -> "File":
+    def new(name: str = None, *args, for_parent: Union["File", Module], **kwargs) -> "File":
         return File(name=name, *args, **kwargs)
 
     def __str__(self):

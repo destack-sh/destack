@@ -26,6 +26,7 @@ from bench.language import (
     Trigger,
     TriggerType,
     wire,
+    Statement,
 )
 from bench.language.cache import CacheAsync
 from bench.language.const import MNT, ModuleReference, RunStatus, parse_absolute_node_reference
@@ -890,18 +891,15 @@ class RuntimeWorker:
         if old_module is None:
             interp_mut.truncate(new_source.module, MNT.ResolvedField)
         for statement in self.module._nodes:
-            old_statement = old_module._tree.get(statement.id) if old_module else None
-            if not isinstance(statement, HasFields):
+            if not isinstance(statement, Statement):
                 continue
-            if (
-                not isinstance(old_statement, HasFields)
-                or old_statement.resolved_fields != statement.resolved_fields
-            ):
+            old_statement = old_module._tree.get(statement.id) if old_module else None
+            if old_statement is None or old_statement.resolved_fields != statement.resolved_fields:
                 if old_statement is not None:
                     interp_mut.truncate(statement, MNT.ResolvedField)
-                for resolved in statement.resolved_fields:
-                    if isinstance(resolved, ResolvedField):
-                        interp_mut.create(resolved)
+                for field in statement.resolved_fields:
+                    if field.field.parent != statement:
+                        interp_mut.create(field)
         # issues
         new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues or []}
         old_issues: set[UUID] = (

@@ -21,9 +21,7 @@ if TYPE_CHECKING:
 class HasReference(ModuleNode):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = nproperty(
-        default=None, copy_value=lambda v: v
-    )
+    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
 
     def _clear_inner(self) -> None:
         self.reference = (
@@ -33,7 +31,7 @@ class HasReference(ModuleNode):
     def _interp_inner(self, scope: ScopeNode) -> None:
         if self.reference is None:
             return
-        resolved = None
+        resolved = self.reference
         if not isinstance(self.reference, ModuleNode):
             resolved = scope.lookup(self.reference)
         if resolved is None:

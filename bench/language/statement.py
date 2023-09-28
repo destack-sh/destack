@@ -1,5 +1,4 @@
 import typing
-from functools import partial
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -26,30 +25,68 @@ from bench.language.module import (
     node,
     nparent,
     nproperty,
+    Passthrough,
 )
 from bench.language.reference import HasReference
 from bench.language.run import HasRun
 from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.value import HasValue
-from bench.utils.func import did_you_mean_str
+from bench.language.tagging import HasTags
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import (
-        DatabaseView,
-        Field,
-        File,
-        Record,
-        ResolvedField,
-        Tagging,
-        Trigger,
-        TypeHint,
-    )
+    from bench.language import File, TypeHint
+
+# Note that order matters as components are called in order.
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+    StatementType.TYPE: (HasFields, HasText),
+    StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
+    StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
+    StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
+    StatementType.FLOW: (HasRun, HasFields, HasText),
+    # Order matters for Database because HasDatabase _init
+    StatementType.DATABASE: (HasDatabase, HasFields, HasText),
+    StatementType.TAG: (HasFields, HasText),
+    StatementType.VARIABLE: (HasValue, HasFields, HasText),
+    StatementType.REFERENCE: (HasReference, HasText),
+    StatementType.TEXT: (HasText,),
+    StatementType.BLANK: tuple(),
+}
+_missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
+assert not _missing_types, f"missing statement components for {_missing_types}"
+_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[ModuleNode]] = tuple(
+    {c for cs in _DYNAMIC_COMPONENTS_BY_TYPE.values() for c in cs}
+)
+
+_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
+    StatementType.TYPE: IdentifierType.TYPE,
+    StatementType.MODEL: IdentifierType.METHOD,
+    StatementType.TASK: IdentifierType.METHOD,
+    StatementType.FLOW: IdentifierType.METHOD,
+    StatementType.CODE: IdentifierType.METHOD,
+    StatementType.DATABASE: IdentifierType.VARIABLE,
+    StatementType.VARIABLE: IdentifierType.VARIABLE,
+    StatementType.TAG: IdentifierType.VARIABLE,
+    StatementType.REFERENCE: IdentifierType.VARIABLE,
+    StatementType.TEXT: IdentifierType.VARIABLE,
+    StatementType.BLANK: IdentifierType.VARIABLE,
+}
+_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, Passthrough]]] = {
+    StatementType.VARIABLE: (("value", Passthrough.Full),),
+    StatementType.DATABASE: (("records", Passthrough.Full), ("fields", Passthrough.Scope)),
+    StatementType.TAG: (("fields", Passthrough.Scope),),
+    StatementType.TYPE: (("fields", Passthrough.Full),),
+}
+_STATIC_PASSTHROUGH: tuple[tuple[str, Passthrough]] = (("children", Passthrough.Scope),)
 
 
-@node(MNT.Statement)
-class Statement(ScopeNode):
+@node(
+    MNT.Statement,
+    passthrough=(("children", Passthrough.Scope),),
+    dynamic_components=_ALL_DYNAMIC_COMPONENTS,
+)
+class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
     file: Optional["File"] = nancestor(MNT.File)
@@ -74,19 +111,10 @@ class Statement(ScopeNode):
     versioned: bool = nproperty(default=True)
     external_name: str | None = ninternal(default=None)  # for model, to be moved into value
 
-    # all possible child relations inlined (dynamic components can't have non-runtime
-    #  properties, primarily because that would be confusing, and we want to edit all of them)
-    tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.Keyed)
-    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
-    resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.ResolvedField, NRel.Named | NRel.Ordered
-    )
-    triggers: NodeList["Trigger"] = nchildren(MNT.Trigger)
-    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
-
     @staticmethod
-    def _coerce_from(type: StatementType = None, name: str = None, *args, **kwargs) -> "Statement":
+    def new(type: StatementType = None, name: str = None, *args, **kwargs) -> "Statement":
+        if type is None:
+            raise ValueError("type must be specified")
         proxy = STATEMENT_CLASS_BY_TYPE[type]
         if proxy.tag:
             kwargs["tag"] = proxy.tag
@@ -99,8 +127,16 @@ class Statement(ScopeNode):
         return _ALL_COMPONENTS_BY_TYPE[self.type]
 
     @property
+    def _dynamic_components(self) -> tuple[typing.Type[ModuleNode]]:
+        return _DYNAMIC_COMPONENTS_BY_TYPE[self.type]
+
+    @property
     def _concrete_cache_key(self) -> str:
         return self.type
+
+    @property
+    def _passthrough_targets(self) -> tuple[tuple[str, Passthrough]] | None:
+        return _ALL_PASSTHROUGH_BY_TYPE[self.type]
 
     def __str__(self):
         return f"{self.path} '{self.name}'" if self.name else self.path
@@ -110,10 +146,16 @@ class Statement(ScopeNode):
 
     def _init_inner(self) -> None:
         # add runtime properties from dynamic components
-        for component in _DYNAMIC_COMPONENTS_BY_TYPE[self.type]:
+        for component in self._dynamic_components:
             for prop in component.__properties__.values():
-                if prop.is_runtime:
+                if prop.is_runtime and not hasattr(self, prop.name):
                     setattr(self, prop.name, prop.new())
+
+    def morph(self, to_type: StatementType, **kwargs):
+        self.type = to_type
+        Statement._init_inner(self)
+        # what else to do?
+        raise NotImplementedError(f"{self!r} does not support morphing yet")
 
     @property
     def reference_ck(self) -> Optional[UUID]:
@@ -154,93 +196,20 @@ class Statement(ScopeNode):
         else:
             return to_pyidentifier(self.name, _IDENTIFIER_BY_TYPE[self.type])
 
-    @property
-    def parent_id(self) -> Optional[UUID]:
-        return self.parent.id if self.parent is not None else None
-
-    def walk_descendants(self) -> typing.Iterator["Statement"]:
-        """Yields all descendant statements in DFS order."""
-        yield self
-        if self.children is not None:
-            for child in self.children:
-                yield from child.walk_descendants()
-
-    def __getattr__(self, item):
-        if item in self.__dict__:
-            return super().__getattribute__(item)
-        for component in _DYNAMIC_COMPONENTS_BY_TYPE[self.type]:
-            attr = getattr(component, item, None)
-            if attr is not None:
-                # could be method or property
-                if isinstance(attr, property):
-                    return attr.fget(self)
-                elif callable(attr):
-                    return partial(attr, self)
-                else:
-                    return attr
-
-        # report lookup error
-        if item in self._names_by_ident:
-            item = self._names_by_ident.get(item)
-        scope = self._scopes_by_name.get(item)
-        if scope is not None:
-            return scope
-        candidates = {
-            **{s: s for s in self.__properties__.keys()},
-            **{s.name: s for s in self._scopes_by_name.values()},
-        }
-        did_you_mean = did_you_mean_str(candidates, item)
-        raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
-
-
-# Note that order matters as components are called in order.
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
-    StatementType.TYPE: (HasFields, HasText),
-    StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
-    StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
-    StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
-    StatementType.FLOW: (HasRun, HasFields, HasText),
-    # Order matters for Database because HasDatabase _init
-    StatementType.DATABASE: (HasDatabase, HasFields, HasText),
-    StatementType.TAG: (HasFields, HasText),
-    StatementType.VARIABLE: (HasValue, HasFields, HasText),
-    StatementType.REFERENCE: (HasReference, HasText),
-    StatementType.TEXT: (HasText,),
-    StatementType.BLANK: tuple(),
-}
-_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
-    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
-}
-_IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
-    StatementType.TYPE: IdentifierType.TYPE,
-    StatementType.MODEL: IdentifierType.METHOD,
-    StatementType.TASK: IdentifierType.METHOD,
-    StatementType.FLOW: IdentifierType.METHOD,
-    StatementType.CODE: IdentifierType.METHOD,
-    StatementType.DATABASE: IdentifierType.VARIABLE,
-    StatementType.VARIABLE: IdentifierType.VARIABLE,
-    StatementType.TAG: IdentifierType.VARIABLE,
-    StatementType.REFERENCE: IdentifierType.VARIABLE,
-    StatementType.TEXT: IdentifierType.VARIABLE,
-    StatementType.BLANK: IdentifierType.VARIABLE,
-}
-_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[str]] = {
-    StatementType.VARIABLE: ("value",),
-    StatementType.DATABASE: ("records", "fields"),
-    StatementType.TAG: ("fields",),
-    StatementType.TYPE: ("fields",),
-}
-
-_missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
-assert not _missing_types, f"missing statement components for {_missing_types}"
 
 #
 # 'Concrete' statements are a mirage, we just have a custom class
 #  where for e.g. statement.type == 'X', the 'concrete' class X
-#  works for isinstance(x, Type) and Type(**kwargs) works like Statement(type=X, **kwargs)
 #
 
-
+_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+    t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
+}
+_ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, Passthrough]]] = {
+    # custom passthrough + default passthrough
+    t: _PASSTHROUGH_BY_TYPE.get(t, tuple()) + Statement.__static_passthrough__
+    for t in StatementType
+}
 STATEMENT_CLASS_BY_TYPE: dict[StatementType, "_StatementProxy"] = {}
 
 

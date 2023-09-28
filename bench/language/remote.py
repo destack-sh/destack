@@ -13,7 +13,6 @@ from asgiref.sync import async_to_sync
 from bench.language.const import RemoteObjectStatus, MNT
 from bench.language.issue import ValidationHandler
 from bench.language.module import Module, ModuleNode, node, nproperty, nruntime, ninternal
-from bench.utils.func import did_you_mean_str
 
 if typing.TYPE_CHECKING:
     from bench.language.session import Session
@@ -271,13 +270,6 @@ class Secret(ModuleNode, typing.Generic[SecretValueT]):
 
     def __repr__(self):
         return f"<Secret {self}>"
-
-    def __getattr__(self, item):
-        try:
-            return self.__getattribute__(item)
-        except AttributeError:
-            did_you_mean = did_you_mean_str({"reveal": self.reveal, "areveal": self.areveal}, item)
-            raise AttributeError(f"{self} has no attribute {item} ({did_you_mean})")
 
     async def areveal(self) -> SecretValueT:
         if self.value is not None:
