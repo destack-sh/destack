@@ -17,7 +17,7 @@ from bench.language.search import Search
 from bench.utils.dt import utcnow_with_tz
 
 if TYPE_CHECKING:
-    from bench.language.mutate import MMT, ModuleMutation, NodeMutator
+    from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
     from bench.language.run import Run
     from bench.language.statement import Statement
     from bench.language.tracing import _RunCapture
@@ -82,7 +82,7 @@ class Session:
         executor: Executor = None,
     ):
         from bench.language.cache import CacheAsync, CacheSync
-        from bench.language.mutate import NodeMutator
+        from bench.language.mutate import ModuleMutator
         from bench.language.remote import Storage
         from bench.language.tracing import SessionTracer
 
@@ -102,7 +102,7 @@ class Session:
         self.anonymous_scope = ScopeNode(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
-        self.mutator = NodeMutator(self.module, hooks=[self._on_mutated])
+        self.mutator = ModuleMutator(self.module._source, ctx.project_id, module.id)
         self.tracer = SessionTracer(self, mutator=self.mutator)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
@@ -176,6 +176,7 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.writer.write_module(mutations, refresh_index)
         if not success:
+            # nocheckin: reset module to source?
             if len(mutations) > 10:
                 mutations_str = f"{mutations[:5]} ... {mutations[-5:]}"
             else:
@@ -234,7 +235,7 @@ class Session:
     def close(self):
         asgiref.sync.async_to_sync(self.aclose)()
 
-    def _on_mutated(self, mutator: "NodeMutator", mutation: "ModuleMutation"):
+    def _on_mutated(self, mutator: "ModuleMutator", mutation: "ModuleMutation"):
         if len(self.mutator.mutations) > SESSION_MUTATION_FLUSH_WATERMARK:
             self.flush(optimistic=True)
 

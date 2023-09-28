@@ -11,6 +11,7 @@ from django.db import transaction
 from bench import models
 from bench.language import wire
 from bench.language.builtin import symbolx_lib
+from bench.language.const import INTERP_NODE_TYPES
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
 from bench.language.mutate import diff_modules
@@ -107,7 +108,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
 
     blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
     blank_module_tree = wire.NodeTree(blank_module.nodes)
-    new_module = wire.pack_module(module)
+    new_module = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
     mutations = diff_modules(blank_module, new_module)
     packer.write_mutations(project_v, blank_module_tree, mutations, refresh_index=False)
     project_v.commit()
@@ -174,7 +175,7 @@ def _get_module_dump_path(module_name: str):
 
 def _dump_module(module_name: str):
     module = DEFAULT_MODULES[module_name]
-    module_data = wire.pack_module(module)
+    module_data = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
     module_bytes = wire.serialize_module(module_data)
     module_path = _get_module_dump_path(module_name)
     os.makedirs(os.path.dirname(module_path), exist_ok=True)

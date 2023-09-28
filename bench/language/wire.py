@@ -14,7 +14,6 @@ import msgpack
 from bench import language as lang
 from bench.language import File, IssueType, Module
 from bench.language.const import (
-    INTERP_NODE_TYPES,
     MNT,
     IssueKind,
     ModuleNodeType,
@@ -119,21 +118,20 @@ def node_packer(
     return decorator
 
 
-def pack_module(module: Module, exclude: set[MNT] = INTERP_NODE_TYPES) -> "ModuleTreeData":
+def pack_module(module: Module, exclude: set[MNT] | None = None) -> "ModuleTreeData":
     module_data, nodes = pack_node(module, exclude=exclude)
     module_tree = ModuleTreeData(**module_data.__dict__, module=module_data, nodes=nodes)
     return module_tree
 
 
-def unpack_module(module: ModuleTreeData, session: Optional[Session]) -> Module:
-    module = unpack_node(module.nodes, parent=None, session=session)
+def unpack_module(nodes: list[NodeDataT], session: Optional[Session]) -> Module:
+    module = unpack_node(NodeTree(nodes), parent=None, session=session)
     return module
 
 
-def pack_node(
-    root: NodeT, exclude: set[MNT] = INTERP_NODE_TYPES
-) -> tuple[NodeDataT, list[NodeDataT]]:
+def pack_node(root: NodeT, exclude: set[MNT] | None = None) -> tuple[NodeDataT, list[NodeDataT]]:
     """Pack a node and all its descendants"""
+    exclude = exclude or tuple()
     packed: dict[UUID, NodeDataT] = OrderedDict()
 
     # walk and pack until nothing is left to pack
@@ -148,14 +146,17 @@ def pack_node(
 
 
 def unpack_node(
-    nodes: list[NodeDataT], parent: Optional[NodeT], session: Optional[Session]
+    data_tree: NodeTree[NodeDataT], parent: Optional[NodeT], session: Optional[Session]
 ) -> NodeT:
     """Unpack a node and all its descendants"""
-    data_tree = NodeTree(nodes)
     unpacked_tree = NodeTree()
 
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
+        if parent is not None and node.id == parent.id:
+            unpacked_tree.add(parent)
+            continue
+
         packer = _node_packers_by_data[type(node)]
         if node.parent_id is None:
             node_parent = parent

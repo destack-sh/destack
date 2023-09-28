@@ -11,7 +11,7 @@ from asgiref.sync import sync_to_async
 from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
 from bench.language.const import ModuleReference, RunStatus, SessionMode
 from bench.language.mapping import map_value, unpack_value_flat
-from bench.language.mutate import ModuleMutation, NodeMutator
+from bench.language.mutate import ModuleMutation
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session, SessionContext
 from bench.language.wire import RunData
@@ -169,12 +169,8 @@ class WorkerNode(Monitored):
             # ignore if we don't have a worker for this module
             return
         if not msg.p.has_origin(self.client.id):
-            is_semantic = any(m.type.semantic for m in msg.p.mutations)
-            if not is_semantic:
-                # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-                return
             worker = await self._prepare_worker(msg.p.module_id)
-            await worker.interp_on_change(msg.p.mutations)
+            await worker.on_module_changed(msg.p.mutations)
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
@@ -339,8 +335,8 @@ class ModuleWorkerProcess(ModuleWriter):
         self.project_id: Optional[UUID] = None  # set in init (requires runtime fetch)
         self.ready = asyncio.Event()
 
-        self.source: wire.ModuleTreeData | None = None
         self.module: Module | None = None
+
         self.queue: asyncio.Queue[RunJob] = asyncio.PriorityQueue()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
@@ -364,9 +360,9 @@ class ModuleWorkerProcess(ModuleWriter):
         return last_run_recent or not self.queue.empty()
 
     async def start(self):
-        self.source, self.project_id = await self.node.get_module(self.module_id)
+        source, self.project_id = await self.node.get_module(self.module_id)
         try:
-            self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
+            self.module = await sync_to_async(Module.interp)(source.nodes, self.project_id)
         except Exception as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
@@ -400,12 +396,11 @@ class ModuleWorkerProcess(ModuleWriter):
                 job.terminated.set()
                 self.queue.task_done()
 
-    async def interp_on_change(self, mutations: list[ModuleMutation]):
-        self.log.debug("worker.interp", mutations=len(mutations))
-        new_source = NodeMutator(self.source, mutations).to_module()
-        self.source = new_source
-        # nocheckin @Broken: hot reload module nodes
-        self.module = await sync_to_async(Module.interp_from)(new_source, session=None)
+    async def on_module_changed(self, mutations: list[ModuleMutation]):
+        now = utcnow_with_tz()
+        self.module._apply_mutations(mutations)
+        duration = utcnow_with_tz() - now
+        self.log.info("worker.interp", mutations=len(mutations), duration=duration.total_seconds())
 
     def add_run(self, run_data: RunData, session_id: UUID) -> RunJob:
         """
@@ -462,7 +457,7 @@ class ModuleWorkerProcess(ModuleWriter):
             self.log.info("worker.run", job=job, timeout=timeout)
 
             # instantiate arguments
-            runnable = self.module.lookup(job.run_data.runnable_id)
+            runnable = self.module.resolve(job.run_data.runnable_id)
             inputs = map_value(
                 job.run_data.inputs,
                 runnable,
@@ -559,13 +554,7 @@ class ModuleWorkerProcess(ModuleWriter):
 
     async def write_module(self, mutations: list[ModuleMutation], refresh_index: bool) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-        is_semantic = any(m.type.semantic for m in mutations)
-        self.log.debug("module.write", mutations=len(mutations), is_semantic=is_semantic)
-
-        self.source = NodeMutator(self.module, mutations).to_module()
-        # nocheckin: module interp no longer needed?
-        # self.module = await sync_to_async(Module.interp_from)(self.source, session=None)
-
+        self.log.debug("module.write", mutations=len(mutations))
         req = ReqWriteModulePayload(
             module_id=self.module_id,
             mutations=mutations,

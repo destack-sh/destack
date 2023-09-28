@@ -343,7 +343,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     source = packer.pack_module(
         project_v, excluded=[models.Record, models.Trigger, models.ResolvedField, models.Issue]
     )
-    module = wire.unpack_module(source, session=None)
+    module = wire.unpack_module(source.nodes, session=None)
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
     module.add_builtin(libs.symbolx_lib.files.get("builtins"))

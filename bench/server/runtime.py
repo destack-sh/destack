@@ -3,7 +3,6 @@ import json
 import typing
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from functools import partial
 from itertools import chain
 from typing import Optional
 from uuid import UUID
@@ -16,27 +15,23 @@ from more_itertools import first
 
 from bench import models
 from bench.language import (
-    HasFields,
-    Issue,
     Module,
+    ModuleNode,
     Q,
     Query,
     QueryOp,
-    ResolvedField,
     Trigger,
     TriggerType,
     wire,
-    Statement,
 )
 from bench.language.cache import CacheAsync
-from bench.language.const import MNT, ModuleReference, RunStatus, parse_absolute_node_reference
+from bench.language.const import ModuleReference, RunStatus, parse_absolute_node_reference
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.mapping import pack_value, unpack_value
 from bench.language.model import ModelError, ModelErrorType
-from bench.language.mutate import ModuleMutation, NodeMutator
+from bench.language.mutate import ModuleMutation
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
-from bench.language.wire import NodeTree
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
@@ -86,7 +81,6 @@ from bench.opensearch.core import IndexType
 from bench.opensearch.query import encode_cursor, prepare_search
 from bench.server.observer import WorkerObserver
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.func import wrap_task
 from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
@@ -179,10 +173,10 @@ class RuntimeServer(Monitored):
 
     def __init__(self):
         self.id = UUIDT()
-        self.runtime_workers: dict[UUID, RuntimeWorker] = {}
+        self.runtimes: dict[UUID, RuntimeHost] = {}
         self.subs = []
         self.tasks = TaskManager()
-        self.user_worker_observer = WorkerObserver()
+        self.workers = WorkerObserver()
         self._ready = False
 
     async def run(self):
@@ -207,9 +201,9 @@ class RuntimeServer(Monitored):
 
         logger.info("load_modules")
         projects = await sync_to_async(_get_projects_to_manage)()
-        await asyncio.gather(*[self._prepare_worker(project.head_id) for project in projects])
+        await asyncio.gather(*[self._prepare_runtime(project.head_id) for project in projects])
 
-        await self.user_worker_observer.start()
+        await self.workers.start()
 
         logger.info("ready")
         self._ready = True
@@ -222,19 +216,19 @@ class RuntimeServer(Monitored):
     def healthy(self):
         return self.ready and self.tasks.healthy
 
-    async def _prepare_worker(self, module_id: UUID) -> "RuntimeWorker":
-        worker = self.runtime_workers.get(module_id)
-        if worker is None:
+    async def _prepare_runtime(self, module_id: UUID) -> "RuntimeHost":
+        runtime = self.runtimes.get(module_id)
+        if runtime is None:
             # start language worker if not already started
             project_version = await ProjectVersion.objects.select_related(
                 "project", "project__user", "project__organization"
             ).aget(id=module_id)
-            worker = RuntimeWorker(self.id, self.tasks, self.user_worker_observer, project_version)
-            self.runtime_workers[module_id] = worker
-            asyncio.create_task(wrap_task(worker.run(), f"worker-{module_id}"))
-        if not worker.ready.is_set():
-            await worker.ready.wait()
-        return worker
+            runtime = RuntimeHost(self.id, self.tasks, self.workers, project_version)
+            self.runtimes[module_id] = runtime
+            self.tasks.start(runtime.run(), f"worker-{module_id}")
+        if not runtime.ready.is_set():
+            await runtime.ready.wait()
+        return runtime
 
     @message_handler
     async def get_module_head(self, msg: NMessage[ReqGetModuleHeadPayload]) -> None:
@@ -255,9 +249,9 @@ class RuntimeServer(Monitored):
     async def write_module(self, msg: NMessage[ReqWriteModulePayload]) -> None:
         logger.debug("module.write", msg=msg)
         # TODO @Security!: check if msg origin has write access to module
-        worker = await self._prepare_worker(msg.p.module_id)
+        runtime = await self._prepare_runtime(msg.p.module_id)
         try:
-            await worker.write_module(
+            await runtime.write_module(
                 msg.p.mutations, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
             )
             logger.debug("module.write.done", msg=msg)
@@ -271,9 +265,9 @@ class RuntimeServer(Monitored):
     @message_handler
     async def write_session(self, msg: NMessage[ReqWriteSessionPayload]) -> None:
         logger.debug("session.write", msg=msg, client=msg.p.client)
-        worker = await self._prepare_worker(msg.p.module_id)
+        runtime = await self._prepare_runtime(msg.p.module_id)
         try:
-            await worker.write_session(
+            await runtime.write_session(
                 msg.p.session, msg.p.runs, msg.p.logs, origins=(msg.p.client,)
             )
             logger.debug("session.write.done", msg=msg)
@@ -524,7 +518,7 @@ class RuntimeServer(Monitored):
     @message_handler
     async def request_runtime(self, msg: NMessage[ReqWakeRuntimePayload]):
         logger.debug("runtime.wake", msg=msg)
-        await self._prepare_worker(msg.p.module_id)
+        await self._prepare_runtime(msg.p.module_id)
         await msg.reply(RepWakeRuntimePayload(module_id=msg.p.module_id))
 
     @message_handler
@@ -532,9 +526,8 @@ class RuntimeServer(Monitored):
         logger.debug("module.changed", msg=msg)
         if msg.p.has_origin(self.id):
             return  # ignore own changes
-        # update language worker
-        worker = await self._prepare_worker(msg.p.module_id)
-        await worker.on_module_changed(msg.p.mutations)
+        runtime = await self._prepare_runtime(msg.p.module_id)
+        await runtime.apply_mutations(msg.p.mutations)
 
     async def stop(self):
         logger.info("stop")
@@ -564,9 +557,9 @@ class ActiveTrigger:
     iter: TriggerScheduleIterator
 
 
-class RuntimeWorker:
+class RuntimeHost:
     """
-    Runtime worker for a single module.
+    Runtime host for a single module.
     Assumed to run as a singleton per module, mainly to ensure time triggers are processed
      with hopefully exactly once / definitely at least once semantics (later also OTs).
      We may separate those parts into some elected 'main' worker later for scalability.
@@ -576,12 +569,12 @@ class RuntimeWorker:
         self,
         host_id: UUID,
         tasks: TaskManager,
-        workers_state: WorkerObserver,
+        workers: WorkerObserver,
         project_version: models.ProjectVersion,
     ):
         self.server_id = host_id
         self.tasks = tasks
-        self.workers_state = workers_state
+        self.workers = workers
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
@@ -590,17 +583,14 @@ class RuntimeWorker:
             worker_id=self.server_id,
             module=self.project_version,
         )
-        # module data
-        self.source: wire.ModuleTreeData | None = None
         self.module: Optional[Module] = None
-        self.module_tree: Optional[NodeTree] = None
         # time triggers
         self.active_triggers: dict[UUID, ActiveTrigger] = {}
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
 
     @property
     def client(self) -> ClientOrigin:
-        return ClientOrigin("runtime-worker", self.server_id, None)
+        return ClientOrigin("runtime-host", self.server_id, None)
 
     @property
     def module_id(self) -> UUID:
@@ -619,7 +609,9 @@ class RuntimeWorker:
     async def run(self) -> None:
         # fetch and interp module
         source, project = await read_module(self.module_ref)
-        await self.interp(source)
+        self.module = await sync_to_async(Module.interp)(source.nodes, project.id)
+        await self._on_module_change(self.module._nodes, [])
+        self._update_local_triggers()
         self.tasks.start(self.process_time_triggers_forever())
         self.ready.set()
 
@@ -685,15 +677,15 @@ class RuntimeWorker:
 
             if runs_to_start:
                 # start worker set if not already started
-                if not self.workers_state.is_healthy(self.project_id):
+                if not self.workers.is_healthy(self.project_id):
                     # not sure what to do after timeout here... retry? panic?
-                    await self.workers_state.wake_until_healthy(self.project_id, timeout=300)
+                    await self.workers.wake_until_healthy(self.project_id, timeout=300)
 
                 logger.debug(
                     "time_triggers.fire",
                     runs_to_start=runs_to_start,
                     fired_triggers=[self.active_triggers[id].trigger for id in triggers_to_fire],
-                    worker_set=self.workers_state.get(self.project_id),
+                    worker_set=self.workers.get(self.project_id),
                 )
 
             # send out run requests (could do this in parallel but doesn't matter for now)
@@ -849,114 +841,50 @@ class RuntimeWorker:
         # re-trigger active trigger processing
         self.active_trigger_process_wait.set()
 
-    async def interp(self, new_source: wire.ModuleTreeData) -> None:
-        """Interprets the new module source, updating the interpreted state."""
+    async def _on_module_change(
+        self, changed_nodes: list[ModuleNode], mutations: list[ModuleMutation]
+    ):
+        """Handle module changes to store interp state, update triggers, etc."""
 
-        interp_mut = await asyncio.get_event_loop().run_in_executor(
-            None, partial(self._do_interp, new_source)
-        )
-        # save and notify interp changes
-        if interp_mut.mutations:
-            # TODO @Performance: ensure write resolved fields only happens if module changed
-            #  This is especially important on startup because we load all the modules.
-            await sync_to_async(write_mutations)(
-                self.project_version, self.module_tree, interp_mut.mutations, refresh_index=False
-            )
-            await publish(
-                NMessageType.MODULE_CHANGED,
-                ModuleChangedPayload(
-                    project_id=self.project_id,
-                    module_id=self.module_id,
-                    origins=(self.client,),
-                    mutations=interp_mut.mutations,
-                ),
-            )
+        if any(isinstance(n, Trigger) for n in changed_nodes):
+            self._update_local_triggers()
 
-    def _do_interp(self, new_source: wire.ModuleTreeData) -> NodeMutator:
-        """
-        Re-interpret the module from the given source in place.
-        Return any interpreted module state changes.
-        """
+        # nocheckin: update interp state
 
-        self.source = new_source
-        old_module = self.module
-        old_tree = self.module_tree
-        self.module = Module.interp_from(new_source, session=None)
-        self.module_tree = NodeTree(wire.pack_module(self.module).nodes)
-
-        # check for any interp changes
-        interp_mut = NodeMutator(new_source)
-        # resolved fields
-        interp_mut.tree.prune(wire.ResolvedFieldData)  # replace all resolved fields
-        if old_module is None:
-            interp_mut.truncate(new_source.module, MNT.ResolvedField)
-        for statement in self.module._nodes:
-            if not isinstance(statement, Statement):
-                continue
-            old_statement = old_module._tree.get(statement.id) if old_module else None
-            if old_statement is None or old_statement.resolved_fields != statement.resolved_fields:
-                if old_statement is not None:
-                    interp_mut.truncate(statement, MNT.ResolvedField)
-                for field in statement.resolved_fields:
-                    if field.field.parent != statement:
-                        interp_mut.create(field)
-        # issues
-        new_issues: dict[UUID, Issue] = {issue.id: issue for issue in self.module.issues or []}
-        old_issues: set[UUID] = (
-            {issue.id for issue in old_module.issues or []} if old_module else {}
-        )
-        if old_module is None:
-            interp_mut.truncate(new_source.module, MNT.Issue)
-        else:
-            for issue in old_module.issues or []:
-                if issue.id not in new_issues and issue.parent_id in interp_mut.tree:
-                    interp_mut.delete(issue, apply=False)  # only track, doesn't exist
-        for issue in new_issues.values():
-            if issue.id not in old_issues:
-                if old_module and issue.subject_id not in old_tree:
-                    interp_mut.truncate(issue.parent, MNT.Issue)  # clear in case of restore
-                interp_mut.create(issue)
-
-        # update triggers
-        self._update_local_triggers()
-
-        return interp_mut
-
-    async def on_module_changed(self, mutations: list[ModuleMutation]):
-        is_semantic = any(m.type.semantic for m in mutations)
-        if not is_semantic:
-            # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-            return
-        mutator = NodeMutator(self.source, mutations)
-        new_source = mutator.to_module()
-        await self.interp(new_source)
+    async def apply_mutations(self, mutations: list[ModuleMutation]) -> None:
+        """Apply external mutations to the module."""
+        self.log.debug("apply_mutations", total=len(mutations))
+        changed_nodes = self.module._apply_mutations(mutations)
+        self.log.debug("apply_mutations.done", total=len(mutations))
+        await self._on_module_change(changed_nodes, mutations)
 
     async def write_module(
         self,
-        mutations: list[ModuleMutation] | NodeMutator,
+        mutations: list[ModuleMutation],
         origins: tuple[ClientOrigin] = None,
         refresh_index: bool = False,
     ):
-        if isinstance(mutations, NodeMutator):
-            mutations = mutations.mutations
-        logger.debug(
+        self.log.debug(
             "write_module",
             mutations=mutations[:5],
             total=len(mutations),
             origins=origins,
             refresh_index=refresh_index,
         )
+
+        # apply in DB/OS
         await sync_to_async(write_mutations)(
-            self.project_version, self.module_tree, mutations, refresh_index=refresh_index
+            self.project_version, self.module._source, mutations, refresh_index=refresh_index
         )
         if not mutations:
             # mutations may be empty if we just want to trigger an index refresh
             # e.g. on record search preflight in session after a non-refresh flush happened
             return
 
-        await self.on_module_changed(mutations)
+        # apply locally
+        await self.apply_mutations(mutations)
 
-        # trim mutations to remove overhead from large database updates
+        # broadcast
         trimmed_mutations = trim_record_mutations(mutations)
         origins = (*(origins or ()), self.client)
         api_mutations = list(

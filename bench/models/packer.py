@@ -889,9 +889,8 @@ def write_mutations(
     from bench.opensearch.index import write_mutations_to_os
 
     mut = MutationBundle(mutations)
-    module_data = pack_node_flat(project_v)
 
-    for mmt, batch in mut.batched_apply(module, module_data):
+    for mmt, batch in mut.batched_apply(module, project_v.project_id, project_v.id):
         if mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MMT.TRUNCATE_RECORDS:
