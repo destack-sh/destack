@@ -386,7 +386,7 @@ class ModuleMutator:
             self.apply(mutation)
         return self
 
-    def apply(self, mut: ModuleMutation):
+    def apply(self, mut: ModuleMutation, raise_on_error: bool = True):
         from bench.language.wire import DATA_CLASS_BY_MNT
 
         try:
@@ -401,11 +401,12 @@ class ModuleMutator:
             else:
                 raise ValueError(f"unexpected mutation kind {mut}")
         except Exception as e:
-            raise ValueError(f"failed to apply {mut} to {self.tree!r}") from e
+            if raise_on_error:
+                raise ValueError(f"failed to apply {mut} to {self.tree!r}") from e
 
-    def apply_all(self, mutations: list[ModuleMutation]):
+    def apply_all(self, mutations: list[ModuleMutation], raise_on_error: bool = True):
         for mut in mutations:
-            self.apply(mut)
+            self.apply(mut, raise_on_error=raise_on_error)
 
     def truncate(
         self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
