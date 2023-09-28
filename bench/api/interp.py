@@ -28,7 +28,7 @@ class Issue(relay.Node, ModuleNode):
 
 
 @strawberry_django.type(models.ResolvedField)
-class ResolvedField:
+class ResolvedField(relay.Node, ModuleNode):
     # statement here is not actually optional but it needs to be to union with Issue
     statement: Optional[Annotated["Statement", lazy(".statement")]]
     field_ck: auto

@@ -60,11 +60,11 @@ class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
 
     def pack(self, node: NodeT) -> NodeDataT:
         """Packs the node itself into the wire format"""
-        raise NotImplementedError(f"pack not implemented for {self.__class__.__name__}")
+        raise NotImplementedError(f"pack not supported in {self.__class__.__name__}")
 
     def unpack(self, node: NodeDataT, parent: Optional[NodeT], session: Optional[Session]) -> NodeT:
         """Unpacks the node itself from the wire format (plain or instrumented into session)"""
-        raise NotImplementedError(f"unpack not implemented for {self.__class__.__name__}")
+        raise NotImplementedError(f"unpack not supported in {self.__class__.__name__}")
 
     def patch(
         self, node: NodeDataT, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
@@ -124,8 +124,10 @@ def pack_module(module: Module, exclude: set[MNT] | None = None) -> "ModuleTreeD
     return module_tree
 
 
-def unpack_module(nodes: list[NodeDataT], session: Optional[Session]) -> Module:
-    module = unpack_node(NodeTree(nodes), parent=None, session=session)
+def unpack_module(
+    nodes: list[NodeDataT], session: Optional[Session], exclude: set[MNT] | None = None
+) -> Module:
+    module = unpack_node(NodeTree(nodes), parent=None, session=session, exclude=exclude)
     return module
 
 
@@ -146,15 +148,23 @@ def pack_node(root: NodeT, exclude: set[MNT] | None = None) -> tuple[NodeDataT, 
 
 
 def unpack_node(
-    data_tree: NodeTree[NodeDataT], parent: Optional[NodeT], session: Optional[Session]
+    data_tree: NodeTree[NodeDataT],
+    parent: Optional[NodeT],
+    session: Optional[Session],
+    exclude: set[MNT] | None = None,
 ) -> NodeT:
     """Unpack a node and all its descendants"""
+    exclude = exclude or tuple()
     unpacked_tree = NodeTree()
 
     # unpack all nodes top down (breadth first)
     for node in data_tree.walk_bfs():
+        # keep parent instance if it was passed
         if parent is not None and node.id == parent.id:
             unpacked_tree.add(parent)
+            continue
+
+        if node.mnt in exclude:
             continue
 
         packer = _node_packers_by_data[type(node)]
@@ -755,7 +765,6 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             updated_at=record.updated_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_changed_at,
-            _instantiated=False,
         )
 
 

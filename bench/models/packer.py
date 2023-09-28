@@ -881,16 +881,20 @@ def write_mutations(
     module: NodeTree,
     mutations: list[ModuleMutation],
     refresh_index: bool,
+    apply: bool = True,
 ):
     """
-    Writes a series of module mutations to the database AND mutates the given module.
-    Currently only interp and record mutations are supported.
+    Writes a series of module mutations to the database.
+    If apply, also mutates a COPY of the module tree. Yeah, this seems a bit inefficient...
     """
     from bench.opensearch.index import write_mutations_to_os
 
     mut = MutationBundle(mutations)
 
-    for mmt, batch in mut.batched_apply(module, project_v.project_id, project_v.id):
+    if apply:
+        module = module.deepcopy()
+
+    for mmt, batch in mut.batched_apply(module, project_v.project_id, project_v.id, apply=apply):
         if mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MMT.TRUNCATE_RECORDS:

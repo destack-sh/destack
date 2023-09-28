@@ -7,7 +7,7 @@ import bench.opensearch.core as os
 from bench import language as lang
 from bench import models
 from bench.language import wire
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, TypeFlag
+from bench.language.const import INTERP_NODE_TYPES, RUNNABLE_STATEMENT_TYPES, TypeFlag
 from bench.language.module import NodeTree
 from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
 from bench.language.run import HasRun
@@ -343,7 +343,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     source = packer.pack_module(
         project_v, excluded=[models.Record, models.Trigger, models.ResolvedField, models.Issue]
     )
-    module = wire.unpack_module(source.nodes, session=None)
+    module = wire.unpack_module(source.nodes, exclude=INTERP_NODE_TYPES, session=None)
     for dependency in libs.DEFAULT_MODULES.values():
         module.add_dependency(dependency)
     module.add_builtin(libs.symbolx_lib.files.get("builtins"))

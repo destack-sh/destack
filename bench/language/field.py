@@ -264,11 +264,11 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
         # default to literal or string if no type is specified
         if some_type is None:
             if for_parent.tag == TypeTag.ENUM:
-                tag = TypeTag.LITERAL
+                some_type = TypeTag.LITERAL
                 if name is None:
                     name = f"Option {len(for_parent.fields) + 1}"
             else:
-                tag = TypeTag.STRING
+                some_type = TypeTag.STRING
 
         if isinstance(some_type, TypeTag):
             kwargs["tag"] = some_type
@@ -354,6 +354,10 @@ class ResolvedField(Field):
     @property
     def resolved_fields(self):
         return self.reference.resolved_fields if isinstance(self.reference, ModuleNode) else []
+
+    @property
+    def _is_foreign(self) -> bool:
+        return self.parent != self.field.parent
 
     @staticmethod
     def from_field(parent: ModuleNode, field: Field) -> "ResolvedField":

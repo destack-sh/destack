@@ -291,9 +291,9 @@ class RunCodeFrame:
         from bench.language.code_ import HasCode
 
         code_by_method: dict[str, HasCode] = {
-            symbol._transform.method_name: symbol
-            for symbol in session.module._nodes
-            if isinstance(symbol, HasCode) and symbol._transform is not None
+            node._transform.method_name: node
+            for node in session.module._nodes
+            if isinstance(node, HasCode) and node._transform is not None
         }
 
         found_start = False

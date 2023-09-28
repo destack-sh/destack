@@ -310,6 +310,20 @@ function useSyncedOps() {
           },
         },
       });
+    } else if (mutation.type == ModuleMutationType.DeleteResolvedField && mutation.statementId != null) {
+      client.cache.modify({
+        id: `Statement:${mutation.statementId}`,
+        fields: {
+          resolvedFields(existingResolvedFields = []) {
+            const resolvedField = mutation.data;
+            if (resolvedField?.__typename != "ResolvedField") return existingResolvedFields;
+            return existingResolvedFields.filter(
+              (resolvedField: any) =>
+                resolvedField.id != resolvedField?.id && resolvedField.__ref != `ResolvedField:${resolvedField?.id}`
+            );
+          },
+        },
+      });
     } else if (mutation.type == ModuleMutationType.TruncateIssues) {
       if (mutation.statementId != null) {
         client.cache.modify({

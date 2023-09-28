@@ -304,6 +304,8 @@ export const IssueContentType = graphql(/* GraphQL */ `
 
 export const ResolvedFieldContentType = graphql(/* GraphQL */ `
   fragment ResolvedFieldContent on ResolvedField {
+    id
+    ck
     statement {
       id
     }

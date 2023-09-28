@@ -470,6 +470,7 @@ export enum ModuleMutationType {
   DeleteFile = "DELETE_FILE",
   DeleteIssue = "DELETE_ISSUE",
   DeleteRecord = "DELETE_RECORD",
+  DeleteResolvedField = "DELETE_RESOLVED_FIELD",
   DeleteStatement = "DELETE_STATEMENT",
   DeleteTagging = "DELETE_TAGGING",
   DeleteTrigger = "DELETE_TRIGGER",
@@ -1749,11 +1750,15 @@ export type RequestUploadObjectInput = {
   sha512: Scalars["String"];
 };
 
-export type ResolvedField = {
-  __typename?: "ResolvedField";
-  fieldCk: Scalars["UUID"];
-  statement?: Maybe<Statement>;
-};
+export type ResolvedField = ModuleNode &
+  Node & {
+    __typename?: "ResolvedField";
+    ck: Scalars["UUID"];
+    fieldCk: Scalars["UUID"];
+    id: Scalars["GlobalID"];
+    parent?: Maybe<ModuleNode>;
+    statement?: Maybe<Statement>;
+  };
 
 export type RestartWorkerSetInput = {
   projectId: Scalars["GlobalID"];
@@ -2716,6 +2721,7 @@ export type StatementContentByIdQuery = {
           | { __typename?: "File"; id: any }
           | { __typename?: "Issue"; id: any }
           | { __typename?: "ProjectVersion"; id: any }
+          | { __typename?: "ResolvedField"; id: any }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging"; id: any }
           | { __typename?: "Trigger"; id: any };
@@ -3502,6 +3508,7 @@ export type FileHeaderFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
@@ -3529,6 +3536,7 @@ export type StatementHeaderFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
@@ -3623,6 +3631,7 @@ export type StatementContentFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
@@ -3655,6 +3664,7 @@ export type IssueContentFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any }
@@ -3663,6 +3673,8 @@ export type IssueContentFragment = {
 
 export type ResolvedFieldContentFragment = {
   __typename?: "ResolvedField";
+  id: any;
+  ck: any;
   fieldCk: any;
   statement?: { __typename?: "Statement"; id: any } | null;
 } & { " $fragmentName"?: "ResolvedFieldContentFragment" };
@@ -3682,6 +3694,7 @@ export type InterpFileFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
@@ -3712,6 +3725,7 @@ export type InterpStatementFragment = {
     | { __typename?: "File"; id: any }
     | { __typename?: "Issue"; id: any }
     | { __typename?: "ProjectVersion"; id: any }
+    | { __typename?: "ResolvedField"; id: any }
     | { __typename?: "Statement"; id: any }
     | { __typename?: "Tagging"; id: any }
     | { __typename?: "Trigger"; id: any };
@@ -3894,6 +3908,7 @@ export type CreateFileMutation = {
           | { __typename?: "File"; id: any }
           | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion"; id: any }
+          | { __typename?: "ResolvedField" }
           | { __typename?: "Statement" }
           | { __typename?: "Tagging" }
           | { __typename?: "Trigger" };
@@ -4351,6 +4366,7 @@ export type CreateStatementMutation = {
           | { __typename?: "File"; id: any }
           | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion" }
+          | { __typename?: "ResolvedField" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
           | { __typename?: "Trigger" };
@@ -4457,6 +4473,7 @@ export type MoveStatementMutation = {
           | { __typename?: "File"; id: any }
           | { __typename?: "Issue" }
           | { __typename?: "ProjectVersion" }
+          | { __typename?: "ResolvedField" }
           | { __typename?: "Statement"; id: any }
           | { __typename?: "Tagging" }
           | { __typename?: "Trigger" };
@@ -4489,6 +4506,7 @@ export type BatchMoveStatementMutation = {
             | { __typename?: "File"; id: any }
             | { __typename?: "Issue" }
             | { __typename?: "ProjectVersion" }
+            | { __typename?: "ResolvedField" }
             | { __typename?: "Statement"; id: any }
             | { __typename?: "Tagging" }
             | { __typename?: "Trigger" };
@@ -6097,6 +6115,8 @@ export const ResolvedFieldContentFragmentDoc = {
       selectionSet: {
         kind: "SelectionSet",
         selections: [
+          { kind: "Field", name: { kind: "Name", value: "id" } },
+          { kind: "Field", name: { kind: "Name", value: "ck" } },
           {
             kind: "Field",
             name: { kind: "Name", value: "statement" },
