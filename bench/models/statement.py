@@ -12,9 +12,9 @@ from django.db.models.expressions import RawSQL
 
 from bench.language import StatementType, TypeHint, TypeTag, wire
 from bench.language.const import ScheduleType, TriggerType, TypeFlag
+from bench.language.validation import MAX_NAME_LENGTH
 from bench.models.utils import NAME_VALIDATOR, CrudNode, create_models_bfs, get_choices
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import File, ProjectVersion

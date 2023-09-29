@@ -24,8 +24,9 @@ class HasReference(ModuleNode):
     reference: Union["Statement", StatementReference, None] = nproperty(default=None)
 
     def _clear_inner(self) -> None:
-        self.reference = (
-            self.reference.ck if isinstance(self.reference, ModuleNode) else self.reference
+        self._set_untracked(
+            "reference",
+            self.reference.ck if isinstance(self.reference, ModuleNode) else self.reference,
         )
 
     def _interp_inner(self, scope: ScopeNode) -> None:
@@ -37,7 +38,7 @@ class HasReference(ModuleNode):
         if resolved is None:
             self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=self.py_ident)
         else:
-            self.reference = resolved
+            self._set_untracked("reference", resolved)
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         if isinstance(self.reference, ModuleNode):

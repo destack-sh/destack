@@ -10,9 +10,9 @@ import requests
 import structlog
 from asgiref.sync import async_to_sync
 
-from bench.language.const import RemoteObjectStatus, MNT
-from bench.language.issue import ValidationHandler
-from bench.language.module import Module, ModuleNode, node, nproperty, nruntime, ninternal
+from bench.language.const import MNT, RemoteObjectStatus
+from bench.language.module import Module, ModuleNode, ninternal, node, nproperty, nruntime
+from bench.language.validation import ValidationHandler
 
 if typing.TYPE_CHECKING:
     from bench.language.session import Session

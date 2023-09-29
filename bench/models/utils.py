@@ -8,7 +8,8 @@ from typing import Any, Collection, Iterator, Optional, Type, TypeVar
 from django.core.validators import RegexValidator
 from django.db import models
 
-from bench.utils.uuidt import NAME_REGEX, UUIDT
+from bench.language.validation import NAME_REGEX
+from bench.utils.uuidt import UUIDT
 
 
 class UUIDModel(models.Model):

@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Collection
 
-from bench.language.issue import ValidationError, ValidationHandler
 from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime
+from bench.language.validation import ValidationError, ValidationHandler
 from bench.utils.proxy import proxy_value
 
 if TYPE_CHECKING:
@@ -40,7 +40,7 @@ class HasValue(ModuleNode):
 
         # should probably move instantiate into interp and only do proxying in activate?
         if self._value_unpacked:
-            self.__dict__["value"] = self._raw_value()
+            self._set_untracked("value", self._raw_value())
             self._value_unpacked = False
         # instantiate
         value = unpack_value(
@@ -48,12 +48,12 @@ class HasValue(ModuleNode):
         )
         # proxy
         value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
-        self.__dict__["value"] = value  # don't trigger write
+        self._set_untracked("value", value)
         self._value_unpacked = True
 
     def _deactivate(self) -> None:
         if self._value_unpacked:
-            self.__dict__["value"] = self._raw_value()  # don't trigger write
+            self._set_untracked("value", self._raw_value())
             self._value_unpacked = False
 
     def _raw_value(self) -> dict:

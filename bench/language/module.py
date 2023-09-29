@@ -12,7 +12,7 @@ from datetime import datetime
 from importlib import import_module
 from itertools import chain
 from logging import Logger
-from typing import TYPE_CHECKING, ClassVar, Collection, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Callable, ClassVar, Collection, Iterator, Optional, Union
 from uuid import UUID, uuid4
 
 import structlog
@@ -29,6 +29,12 @@ from bench.language.const import (
     parse_absolute_node_reference,
     parse_node_path,
 )
+from bench.language.validation import (
+    PropertyValidationHandler,
+    ValidationError,
+    ValidationHandler,
+    on_issue_raise,
+)
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
 from bench.utils.func import did_you_mean_str
@@ -36,7 +42,6 @@ from bench.utils.utils import DEBUG, IdentifierType, required_field, to_pyidenti
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
-    from bench.language.issue import ValidationHandler
     from bench.language.mutate import ModuleMutation
     from bench.language.wire import NodeData
 
@@ -89,14 +94,16 @@ class NodeProperty:
 
     name: str | None = None  # name from LHS of assignment
     component: type["ModuleNode"] | None = None  # source component class
+    is_required: bool = False
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
     parent_mnts: list[MNT] | None = None
     ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
-    default_factory: typing.Callable[[], typing.Any] | None = None
-    copy_value: typing.Callable[[typing.Any], typing.Any] | None = None
+    default_factory: Callable[[], typing.Any] | None = None
+    custom_copy: Callable[[typing.Any], typing.Any] | None = None
+    custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # for relations
     child_mnt: MNT | None = None
@@ -151,13 +158,19 @@ class NodeProperty:
     def copy(self, value: typing.Any) -> typing.Any:
         if self.is_relation:
             raise ValueError(f"cannot copy relation {self!r}")
-        elif self.copy_value is not None:
-            return self.copy_value(value)
+        elif self.custom_copy is not None:
+            return self.custom_copy(value)
         # auto-copy if it's trivial (primitives, immutable, enum, ...)
         elif isinstance(value, (type(None), bool, int, float, str, UUID, datetime, enum.Enum)):
             return value
         else:
             raise ValueError(f"cannot copy {self!r}")
+
+    def validate(self, value: typing.Any, on_issue: "PropertyValidationHandler") -> bool | None:
+        if self.custom_validate is not None:
+            return self.custom_validate(value, on_issue)
+        else:
+            return None
 
     @property
     def is_relation(self) -> bool:
@@ -167,26 +180,33 @@ class NodeProperty:
 def nproperty(
     *,
     default: typing.Any = UNSET,
-    default_factory: typing.Callable[[], typing.Any] = None,
-    copy_value: typing.Callable[[typing.Any], typing.Any] = None,
+    default_factory: Callable[[], typing.Any] = None,
+    copy: Callable[[typing.Any], typing.Any] = None,
+    validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
 ):
     """Standard user facing node property."""
-    return NodeProperty(default=default, default_factory=default_factory, copy_value=copy_value)
+    return NodeProperty(
+        default=default,
+        default_factory=default_factory,
+        custom_copy=copy,
+        custom_validate=validate,
+    )
 
 
 def ninternal(
     *,
     default: typing.Any = UNSET,
-    default_factory: typing.Callable[[], typing.Any] = None,
-    copy_value: typing.Callable[[typing.Any], typing.Any] = None,
+    default_factory: Callable[[], typing.Any] = None,
+    copy: Callable[[typing.Any], typing.Any] = None,
     is_cru: bool = False,
 ):
     """Internal only, persisted node property."""
     return NodeProperty(
         is_internal=True,
+        is_required=True,
         default=default,
         default_factory=default_factory,
-        copy_value=copy_value,
+        custom_copy=copy,
         is_cru=is_cru,
     )
 
@@ -194,16 +214,17 @@ def ninternal(
 def nruntime(
     *,
     default: typing.Any = UNSET,
-    default_factory: typing.Callable[[], typing.Any] = None,
-    copy_value: typing.Callable[[typing.Any], typing.Any] = None,
+    default_factory: Callable[[], typing.Any] = None,
+    copy: Callable[[typing.Any], typing.Any] = None,
 ) -> object:
     """Internal only, non-persisted runtime node property."""
     return NodeProperty(
         is_internal=True,
         is_runtime=True,
+        is_required=False,
         default=default,
         default_factory=default_factory,
-        copy_value=copy_value,
+        custom_copy=copy,
     )
 
 
@@ -1205,6 +1226,9 @@ class ModuleNode(abc.ABC):
     def __hash__(self):
         return hash(self.id)
 
+    def _set_untracked(self, key, value):
+        self.__dict__[key] = value
+
     def __setattr__(self, key, value):
         if self._status != NS.Tracked:
             return super().__setattr__(key, value)
@@ -1216,9 +1240,14 @@ class ModuleNode(abc.ABC):
             else:
                 return super().__setattr__(key, value)
         elif key in self.__tracked_properties__:
+            prev = getattr(self, key)
             super().__setattr__(key, value)
+            try:
+                self._validate_self([key], on_issue=on_issue_raise)
+            except ValidationError as e:  # reset on error
+                super().__setattr__(key, prev)
+                raise e
             self._session.tracer.node_update(self, [key])
-            # nocheckin: validate mutations
             return
         elif key in self.__dict__:
             return super().__setattr__(key, value)
@@ -1311,9 +1340,20 @@ class ModuleNode(abc.ABC):
         pass
 
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
-        """Validate the given properties of this node."""
-        pass  # nocheckin: validate
-        # how does this work with _interp? is it part of interp?
+        """Validate cross-property constraints given the modified properties."""
+        # since this is the root module, we also validate the properties directly
+        for name in properties:
+            prop = self.__properties__.get(name)
+            assert prop is not None, f"unknown property '{name}' on {self!r}"
+            value = getattr(self, name)
+            if value is None:
+                if prop.is_required:
+                    on_issue(self, f"{prop.name}: is required")
+            elif prop.custom_validate is not None:
+                handler = PropertyValidationHandler(self, prop, on_issue)
+                valid = prop.validate(value, handler)
+                if valid is False:
+                    on_issue(self, f"{prop.name}: invalid value")
 
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         """Visit any referenced nodes."""
@@ -1776,7 +1816,7 @@ class Module(ScopeNode):
 
         prev_session = self.module._session
         if prev_session:
-            self.module._deactivate_rec()
+            self.module._deactivate_self()
 
         self.module._clear_rec()
         self.module._tree.clear()

@@ -21,7 +21,7 @@ class HasText(ModuleNode):
     """Some instruction text with optional references."""
 
     text: str | None = nproperty(default=None)
-    _text_spans: list["TextSpan"] | None = nruntime(default=None, copy_value=lambda v: deepcopy(v))
+    _text_spans: list["TextSpan"] | None = nruntime(default=None, copy=lambda v: deepcopy(v))
 
     @property
     def text_plain(self) -> Optional[str]:

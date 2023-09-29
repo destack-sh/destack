@@ -1,28 +1,34 @@
 import abc
 import asyncio
-from collections import deque
 import contextlib
+import sys
+from collections import deque
 from concurrent.futures import Executor, ThreadPoolExecutor
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import chain
-import sys
 from typing import TYPE_CHECKING, Any, Awaitable, Callable, Coroutine, Optional, Union
 from uuid import UUID, uuid4
-from contextvars import ContextVar
 
 import asgiref.sync
 import structlog
 
 from bench.language.builtin import active_session
-from bench.language.const import ModuleOp, SessionMode, MNT
-from bench.language.module import Module, ScopeNode
-from bench.language.query import Query, Sort, SortOrder
-from bench.language.search import Search
-from bench.language.const import RunStatus, TriggerType, TypeFlag, TypeTag
+from bench.language.const import (
+    MNT,
+    ModuleOp,
+    RunStatus,
+    SessionMode,
+    TriggerType,
+    TypeFlag,
+    TypeTag,
+)
 from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
-from bench.language.module import ModuleNode
-from bench.language.run import HasRun, Run, RunError, LogEntry
+from bench.language.module import Module, ModuleNode, ScopeNode
+from bench.language.query import Query, Sort, SortOrder
+from bench.language.run import HasRun, LogEntry, Run, RunError
+from bench.language.search import Search
 from bench.language.statement import Statement
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
@@ -30,8 +36,6 @@ from bench.utils.uuidt import UUIDT
 if TYPE_CHECKING:
     from bench.language import HasFields, Trigger
     from bench.language.mutate import MMT, ModuleMutation, ModuleMutator
-    from bench.language.run import Run
-    from bench.language.statement import Statement
     from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
@@ -114,6 +118,7 @@ class Session:
         self.closed_at: Optional[datetime] = None
         self._past_flushes: list[tuple[int, set[MMT]]] = []
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
+        self._failed_flush: bool = False
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
@@ -182,6 +187,7 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.writer.write_module(mutations, refresh_index)
         if not success:
+            self._failed_flush = True
             self.module._reset_from_source()
             if len(mutations) > 10:
                 mutations_str = f"{mutations[:5]} ... {mutations[-5:]}"
@@ -200,8 +206,10 @@ class Session:
         """
         if not self.mutator.mutations and not refresh_index:
             return  # skip if no mutations and no index refresh
+
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
+        assert not self._failed_flush, f"session {self!r} is broken after failed flush"
         logger.debug(
             "session.flush",
             session=self,
@@ -228,7 +236,8 @@ class Session:
         if self.closed_at is not None:
             raise RuntimeError(f"session already closed {self}")
         self.closed_at = utcnow_with_tz()
-        await self.aflush(optimistic=True)
+        if not self._failed_flush:
+            await self.aflush(optimistic=True)
         # TODO @Robustness: flush pending mutations inside top level run (to report errors properly)
         # await all pending flushes
         pending_mutations_count = sum(count for count, _ in self._pending_flushes)
