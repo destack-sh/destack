@@ -464,6 +464,13 @@ class HasFields(SomeType, ModuleNode):
         return inputs
 
 
+@node_component
+class HasType(ModuleNode):
+    def _call_inner(self, *args, **kwargs) -> Any:
+        inputs = self._inputs_from_args(args, kwargs)
+        return TypedDict(self, inputs)
+
+
 class TypedDict(dict):
     """
     A dot dict based on a type.

@@ -122,6 +122,9 @@ class NodeProperty:
             raise ValueError(f"cannot set default for {self}")
 
     def __str__(self):
+        return f"{self.component.__name__}.{self.name}>"
+
+    def __repr__(self):
         non_default = []
         for k, v in self.__dict__.items():
             if k == "children_flags":
@@ -134,10 +137,8 @@ class NodeProperty:
                 else:
                     non_default.append(f"{k}={v}")
         attrs_str = ", ".join(non_default)
-        return f"{self.name} ({attrs_str})" if attrs_str else self.name
-
-    def __repr__(self):
-        return f"<NodeProperty {self.component.__name__}.{self}>"
+        attrs_str = f" ({attrs_str})" if attrs_str else ""
+        return f"<NodeProperty {self}{attrs_str}>"
 
     def equals_type(self, other: "NodeProperty") -> bool:
         """Compares everything but the source component."""
@@ -1384,6 +1385,8 @@ class ModuleNode(abc.ABC):
     def _visit_inner(self, visitor: "NodeVisitor") -> None:
         """Visit any referenced nodes."""
         for prop in self.__list_properties__.values():
+            if prop.children_flags & NRel.Remote:
+                continue
             for child in getattr(self, prop.name):
                 visitor.visit_child(child)
 
