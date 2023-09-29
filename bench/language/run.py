@@ -361,3 +361,24 @@ class RunError(Exception):  # can this really be a subclass of Exception?
             runnable=runnable,
             traceback=stack,
         )
+
+
+@dataclass
+class LogEntry:
+    id: UUID
+    module: Module
+    created_at: datetime
+    stream: str
+    session: "Session"
+    level: Optional[str] = None
+    logger: Optional[str] = None
+    runnable: Optional["Statement"] = None
+    run: Optional["Run"] = None
+    message: Optional[str] = None
+    value: dict[str, Any] = None
+
+    def __str__(self):
+        return f"'{self.message}' ({self.created_at})"
+
+    def __repr__(self):
+        return f"<LogEntry {self}>"

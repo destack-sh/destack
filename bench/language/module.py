@@ -1157,7 +1157,7 @@ class ModuleNode(abc.ABC):
 
     def __post_init__(self):
         if self._session is None:
-            from bench.language.session import active_session
+            from bench.language.builtin import active_session
 
             self._session = active_session.get()
         if self._status is None:
