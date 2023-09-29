@@ -25,7 +25,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
-from bench.language.module import Module, ModuleNode, ScopeNode
+from bench.language.module import Module, ModuleNode
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.run import HasRun, LogEntry, Run, RunError
 from bench.language.search import Search
@@ -109,13 +109,13 @@ class Session:
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
 
-        self.anonymous_scope = ScopeNode(parent=self.module)
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
         self.mutator = ModuleMutator(self.module._source, ctx.project_id, module.id)
         self.tracer = SessionTracer(self, mutator=self.mutator)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
+
         self._past_flushes: list[tuple[int, set[MMT]]] = []
         self._pending_flushes: list[tuple[int, Awaitable[bool]]] = []
         self._failed_flush: bool = False

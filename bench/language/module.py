@@ -102,6 +102,7 @@ class NodeProperty:
     ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
+    list_type: type["NodeListBase"] | None = None
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     annotation: typing.Any = None  # type annotation on LHS of assignment
@@ -238,9 +239,15 @@ def nancestor(mnt: MNT):
     return NodeProperty(ancestor_mnt=mnt, default=None, is_internal=True)
 
 
-def nchildren(mnt: MNT, flags: NRel = NRel.Default):
+def nchildren(mnt: MNT, flags: NRel = NRel.Default, custom_list: type["NodeListBase"] = None):
     """Computed read/write children or descendants of the given type."""
-    return NodeProperty(child_mnt=mnt, children_flags=flags, is_internal=True)
+    return NodeProperty(
+        child_mnt=mnt,
+        children_flags=flags,
+        is_internal=True,
+        is_required=True,
+        list_type=custom_list or NodeList,
+    )
 
 
 class NodeStatus(enum.IntEnum):
@@ -544,7 +551,13 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
 
     def create(self, *args, **kwargs):
         """Creates a new node in the list."""
-        raise NotImplementedError
+        node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
+        if hasattr(node_cls, "new"):
+            node = node_cls.new(*args, **kwargs, for_parent=self._parent)
+        else:
+            node = node_cls(*args, **kwargs)
+        self.append(node)
+        return node
 
     def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
         """
@@ -554,7 +567,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """
         raise NotImplementedError
 
-    def extend(self, nodes: Collection[NodeT]):
+    def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
@@ -631,15 +644,6 @@ class NodeList(NodeListBase[NodeT]):
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
-    def create(self, *args, **kwargs):
-        node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
-        if hasattr(node_cls, "new"):
-            node = node_cls.new(*args, **kwargs, for_parent=self._parent)
-        else:
-            node = node_cls(*args, **kwargs)
-        self.append(node)
-        return node
-
     def append(self, _node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
         if _node.parent is not None:  # maybe copy?
             raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
@@ -684,7 +688,7 @@ class NodeList(NodeListBase[NodeT]):
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(_node)
 
-    def extend(self, nodes: Collection[NodeT]):
+    def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
         nodes = list(nodes) if not isinstance(nodes, list) else nodes
         if nodes:
             for node in nodes:
@@ -1204,6 +1208,8 @@ class ModuleNode(abc.ABC):
             self._session = active_session.get()
         if self._status is None:
             self._status = NS.Interpreted if self._session is not None else NS.Source
+        if self.id is None and self.attached:
+            self._assign_id(self.module.id)
         self._init_self()
 
     @property
@@ -1345,7 +1351,7 @@ class ModuleNode(abc.ABC):
     def _init_inner(self) -> None:
         """Initialize this node."""
         for name, prop in self.__list_properties__.items():
-            setattr(self, name, NodeList(self, prop))
+            setattr(self, name, prop.list_type(self, prop))
 
     def _clear_inner(self) -> None:
         """Resets this node's index and interp state."""
