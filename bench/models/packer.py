@@ -878,9 +878,11 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 @transaction.atomic(savepoint=False)
 def write_mutations(
     project_v: models.ProjectVersion,
-    module: NodeTree,
+    source: NodeTree,
     mutations: list[ModuleMutation],
+    *,
     refresh_index: bool,
+    validate: bool,
     apply: bool = True,
 ):
     """
@@ -892,9 +894,9 @@ def write_mutations(
     mut = MutationBundle(mutations)
 
     if apply:
-        module = module.deepcopy()
+        source = source.deepcopy()  # copy source to not mutate it directly
 
-    for mmt, batch in mut.batched_apply(module, project_v.project_id, project_v.id, apply=apply):
+    for mmt, batch in mut.batched_apply(source, project_v.project_id, project_v.id, apply=apply):
         if mmt.kind == MMK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MMT.TRUNCATE_RECORDS:
@@ -920,7 +922,7 @@ def write_mutations(
         elif mmt.kind in (MMK.CREATE, MMK.UPDATE):
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
-            nodes = unpack_nodes(project_v, module, [m.data for m in batch])
+            nodes = unpack_nodes(project_v, source, [m.data for m in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             if mmt.kind == MMK.CREATE:
                 model_cls.objects.bulk_create(nodes)
@@ -933,10 +935,18 @@ def write_mutations(
                 # batch update
                 for properties, nodes in nodes_by_props.items():
                     properties = properties.split(";")
+                    # validate changed properties (records have no validation)
+                    if validate and mmt.mnt != MNT.Record:
+                        unchanged_properties = [
+                            f.name for f in model_cls._meta.fields if f.name not in properties
+                        ]
+                        for node in nodes:
+                            node.clean_fields(exclude=unchanged_properties)
+
                     num_updated = model_cls.objects.bulk_update(nodes, properties)
                     if num_updated != len(nodes):
                         raise ValueError(
-                            f"failed to update {len(nodes)} {model_cls} nodes to {properties}"
+                            f"failed to update {len(nodes)} {model_cls} nodes {properties} (got {num_updated})"
                         )
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch

@@ -70,7 +70,7 @@ class ProjectManager(models.Manager["Project"]):
             id=head_version_id or uuid4(), ck=project.id, project=project
         )
         if create_onboarding_files:
-            # TODO @Broken: re-implement create onboarding files
+            # TODO @UX: re-implement create onboarding files
             pass
         if create_worker_set:
             create_default_worker_set(project)

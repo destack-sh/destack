@@ -33,7 +33,7 @@ class HasValue(ModuleNode):
                 on_issue(ValidationError(self, ["value"], str(e)))
 
     def _onwrite_value(self, key: str) -> None:
-        self.session.tracer.node_update(self, key)
+        self.session.tracer.node_update(self, ["value"])
 
     def _activate_inner(self, session: "Session") -> None:
         from bench.language.mapping import unpack_value

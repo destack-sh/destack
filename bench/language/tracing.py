@@ -185,19 +185,20 @@ class SessionTracer(Tracer):
 
     #
     # Module
+    # Mutations are actually written to local source in Session._do_flush.
     #
 
     def node_create(self, *nodes: ModuleNode):
-        raise NotImplementedError
+        self.mutator.create(*nodes, apply=False)
 
     def node_update(self, node: ModuleNode, properties: list[str]):
-        raise NotImplementedError
+        self.mutator.update(node, properties=properties, apply=False)
 
     def node_delete(self, *node: ModuleNode):
-        raise NotImplementedError
+        self.mutator.delete(*node, apply=False)
 
     def node_truncate(self, node: ModuleNode, mnt: MNT):
-        raise NotImplementedError
+        self.mutator.truncate(node, mnt, apply=False)
 
     #
     # Session

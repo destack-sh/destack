@@ -445,6 +445,8 @@ class ModuleMutator:
     ) -> "ModuleMutator":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
+        assert isinstance(properties, list) or properties is None, f"invalid props: {properties}"
+
         node = pack_node_flat_if_needed(node)
         mnt = MNT_BY_DATA_CLASS[type(node)]
         mmt = MMT(f"UPDATE_{mnt.caps_name}")
@@ -516,6 +518,7 @@ class MutationBundle:
                     # merge properties
                     seen_ops[key].properties.extend(mutation.properties)
                     seen_ops[key].properties = list(set(seen_ops[key].properties))
+                continue
             seen_ops[key] = mutation
             reduced_inverse.append(mutation)
 

@@ -140,7 +140,7 @@ def read_module_node(
     Reads a module node in an optimized way (that assumes tree-shaped retrieval).
     Any nodes not in the tree will be fetched by the standard strawberry resolver.
 
-    TODO @Broken: read module node assumes default filters (i.e. deleted_at=None)
+    TODO @Cleanup: read module node assumes default filters (i.e. deleted_at=None)
     """
     logger.debug("module.read_node", node=node)
 

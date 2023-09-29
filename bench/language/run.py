@@ -11,7 +11,7 @@ from uuid import UUID
 import msgpack
 
 from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, TriggerType
-from bench.language.module import Module, ModuleNode, node_component
+from bench.language.module import NS, Module, ModuleNode, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
@@ -55,6 +55,7 @@ class HasRun(ModuleNode):
         return self.module.session.current_run
 
     def __call__(self, *args, **kwargs):
+        assert self._status == NS.Tracked, f"cannot call untracked {self!r}"
         if self._is_async:
             return self.__call_async__(*args, **kwargs)
         else:
@@ -87,6 +88,7 @@ class _RunnableProxy:  # :SyncProxy
         self._is_async = is_async
 
     def __call__(self, *args, **kwargs):
+        assert self._statement._status == NS.Tracked, f"cannot call untracked {self!r}"
         if self._is_async:
             return self.__call_async__(*args, **kwargs)
         else:

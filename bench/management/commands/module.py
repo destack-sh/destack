@@ -102,7 +102,6 @@ class Command(BaseCommand):
                 Path(module_path).write_bytes(module_bytes)
                 logger.info("dump", version=version, path=module_path, bytes=len(module_bytes))
         elif action == "load":
-            # TODO @Broken: also dump & load records
             assert path is not None, "path is required for load"
 
             paths = list(Path(path).glob("*.bench"))
