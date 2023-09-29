@@ -3,7 +3,7 @@ import asyncio
 import enum
 import random
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Optional, Self, Union
+from typing import TYPE_CHECKING, Optional, Union
 
 import structlog
 
@@ -46,7 +46,7 @@ class HasTask(ModuleNode):
         # TODO @UX @Task: interp task feasibility
         #  - check if task is possible given the fields, models & available runnables
 
-    async def __call_async__(
+    async def _call_inner_async(
         self,
         *args,
         _retries: int = None,
@@ -71,7 +71,7 @@ class HasTask(ModuleNode):
         view = ModuleView(self.module, self)
         view.collect()
         try:
-            self.session.tracer.run_enter(self, inputs)
+            self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
             if mono_model:
                 outputs = await mono_model(**inputs)
                 # trim output to own outputs
@@ -87,9 +87,6 @@ class HasTask(ModuleNode):
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
-
-    def to_async(self) -> "Self":
-        return self
 
 
 class TaskErrorType(enum.StrEnum):

@@ -103,7 +103,7 @@ class HasCode(ModuleNode):
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
             if not isinstance(resolved, HasCode) or not resolved.exported:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
-            ret = resolved.to_sync()()
+            ret = resolved()
             if name not in ret:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (no such export)")
             return ret[name]
@@ -137,14 +137,8 @@ class HasCode(ModuleNode):
     def _prep_locals(self) -> dict[str, Any]:
         """Gets the locals required for the code to run."""
         # assemble context
-        from .run import HasRun
 
         context = {**self._statement_references}
-        if not self._parse.is_async:
-            # replace any async functions with sync versions
-            for key, symbol in context.items():
-                if isinstance(symbol, HasRun) and symbol._is_async:
-                    context[key] = symbol.to_sync()
         dynamic_context = {
             "session": self.session,
             "context": {symbol.name: symbol for symbol in context.values()},  # by name
@@ -342,10 +336,10 @@ class HasCode(ModuleNode):
 
             return _test_async
 
-    async def __call_async__(self, *args, **kwargs):
+    async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         try:
-            self.session.tracer.run_enter(self, inputs)
+            self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)
@@ -354,10 +348,10 @@ class HasCode(ModuleNode):
             self.session.tracer.run_exception(self, exception)
             raise
 
-    def __call_sync__(self, *args, **kwargs):
+    def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
         try:
-            self.session.tracer.run_enter(self, inputs)
+            self.session.tracer.run_enter(self, is_async=False, inputs=inputs)
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
             self.session.tracer.run_exit(self, result if not self.exported else None)

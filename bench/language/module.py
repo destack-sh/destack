@@ -262,6 +262,10 @@ class NodeMethod(enum.Enum):
     validate = "validate"
     activate = "activate"
     deactivate = "deactivate"
+    call = "call"
+    iter = "iter"
+    aiter = "aiter"
+    len = "len"
 
     @property
     def inner(self) -> str:
@@ -649,9 +653,6 @@ class NodeList(NodeListBase[NodeT]):
         # update parent after updating ids (need to walk in the node's tree, which may differ)
         _node.parent = self._parent
 
-        # 'create' node in session if it's attached
-        if _node.attached and _create and self._parent._session:
-            self._parent._session.tracer.node_create(_node)
         # index node into parent scope (either subsume if previously detached or just add)
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
             self._parent._import_scope_tree(_node)
@@ -675,6 +676,13 @@ class NodeList(NodeListBase[NodeT]):
             # and update every affect node & list
             self._parent._trigger_update([_node])
             assert _node in self._nodes, f"node {_node} not in {self!r}"
+
+        # activate node in session
+        if self._parent._status == NS.Tracked and _node._status != NS.Tracked:
+            _node._activate_self(self._parent._session)
+        # 'create' node in session if it's attached
+        if _node.attached and _create and self._parent._session:
+            self._parent._session.tracer.node_create(_node)
 
     def extend(self, nodes: Collection[NodeT]):
         nodes = list(nodes) if not isinstance(nodes, list) else nodes
@@ -1109,7 +1117,7 @@ class DetachedNodeTree:
 def _make_self_method(
     method: NodeMethod, wraps, from_status: NodeStatus = None, to_status: NodeStatus = None
 ):
-    """Creates method that calls _method_inner for all components"""
+    """Creates method that calls _method_inner for all components in call order"""
 
     @functools.wraps(wraps)
     def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
@@ -1136,6 +1144,19 @@ def _make_self_method(
 
     self_method.__name__ = method.self
     return self_method
+
+
+def _make_inner_dunder_method(method: NodeMethod):
+    """Creates method that proxies a builtin dunder method to the first _method_inner"""
+
+    def inner_method(self: "ModuleNode", *args, **kwargs):
+        meths = _get_component_methods(self._components, method, self._concrete_cache_key)
+        if len(meths) < 2:  # includes this one
+            raise RuntimeError(f"{self!r} does not support {method.name}")
+        return meths[1](self, *args, **kwargs)
+
+    inner_method.__name__ = method.inner
+    return inner_method
 
 
 class Passthrough(enum.StrEnum):
@@ -1182,7 +1203,7 @@ class ModuleNode(abc.ABC):
 
             self._session = active_session.get()
         if self._status is None:
-            self._status = NS.Interpreted if self._session else NS.Source
+            self._status = NS.Interpreted if self._session is not None else NS.Source
         self._init_self()
 
     @property
@@ -1194,8 +1215,8 @@ class ModuleNode(abc.ABC):
         return self.__static_components__
 
     @property
-    def _dynamic_components(self) -> tuple[type["ModuleNode"]] | None:
-        return None
+    def _dynamic_components(self) -> tuple[type["ModuleNode"]]:
+        return ()
 
     @property
     def _concrete_cache_key(self) -> str:
@@ -1225,6 +1246,20 @@ class ModuleNode(abc.ABC):
 
     def __hash__(self):
         return hash(self.id)
+
+    def _trigger_update(self, changed: list["ModuleNode"]):
+        """Trigger list updates and re-interps in all relevant nodes."""
+        assert changed, f"cannot trigger update on {self} with no changed nodes"
+        # reinit children for any affected parent nodes
+        # TODO @Performance: use mark dirty in node list to avoid reinit
+        parent = self
+        affected_mnts = set([n.mnt for n in changed])
+        while parent is not None:
+            for prop in parent.__list_properties__.values():
+                if prop.child_mnt in affected_mnts:
+                    getattr(parent, prop.name)._update(parent)
+            parent = parent.parent
+        # nocheckin: also reinterp if active in session
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1293,32 +1328,17 @@ class ModuleNode(abc.ABC):
         if attr is not UNSET:
             if isinstance(attr, property):
                 return attr.fget(self)
-            elif callable(attr):
+            elif not isinstance(attr, ModuleNode) and callable(attr) and not inspect.ismethod(attr):
                 return functools.partial(attr, self)
             else:
                 return attr
 
         # report lookup error with additional info
-        candidates = {
-            **(self.__tracked_properties__ if self._status == NS.Tracked else self.__properties__),
-            **{s.name: s for s in self._scopes_by_name.values()},
-        }
+        candidates = {**self.__properties__}
+        if isinstance(self, ScopeNode):
+            candidates.update(self._scopes_by_name)
         did_you_mean = did_you_mean_str(candidates, item)
         raise AttributeError(f"{self!r} has no attribute '{item}'. {did_you_mean}")
-
-    def _trigger_update(self, changed: list["ModuleNode"]):
-        """Trigger list updates and re-interps in all relevant nodes."""
-        assert changed, f"cannot trigger update on {self} with no changed nodes"
-        # reinit children for any affected parent nodes
-        # TODO @Performance: use mark dirty in node list to avoid reinit
-        parent = self
-        affected_mnts = set([n.mnt for n in changed])
-        while parent is not None:
-            for prop in parent.__list_properties__.values():
-                if prop.child_mnt in affected_mnts:
-                    getattr(parent, prop.name)._update(parent)
-            parent = parent.parent
-        # nocheckin: also reinterp if active in session
 
     # abstract :ComponentMethods
 
@@ -1369,6 +1389,19 @@ class ModuleNode(abc.ABC):
     def _deactivate_inner(self) -> None:
         """'Deinstantiate' this object."""
         self._session = None
+
+    _call_inner = _make_inner_dunder_method(NodeMethod.call)
+    _iter_inner = _make_inner_dunder_method(NodeMethod.iter)
+    _aiter_inner = _make_inner_dunder_method(NodeMethod.aiter)
+    _len_inner = _make_inner_dunder_method(NodeMethod.len)
+
+    __call__ = _call_inner
+    __iter__ = _iter_inner
+    __aiter__ = _aiter_inner
+    __len__ = _len_inner
+
+    def __bool__(self):
+        return True  # allow truthy checks for nodes
 
     # final :ComponentMethods
 

@@ -772,6 +772,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             updated_at=record.updated_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_changed_at,
+            _session=session,
         )
 
 

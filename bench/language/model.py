@@ -73,7 +73,7 @@ class HasModel(HasFields, ModuleNode):
     def should_cache(self) -> bool:
         return not self._has_vector_io
 
-    async def __call__(self, timeout: int = None, cache: bool = None, **inputs):
+    async def _call_inner_async(self, timeout: int = None, cache: bool = None, **inputs):
         from bench.language.run import get_run_cache_subkey
 
         if cache is None:
@@ -117,7 +117,7 @@ class HasModel(HasFields, ModuleNode):
                 ReqRunInferencePayload,
             )
 
-            self.session.tracer.run_enter(self, inputs)
+            self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
                 req = ReqRunInferencePayload(
@@ -149,7 +149,7 @@ class HasModel(HasFields, ModuleNode):
         else:
             # otherwise run inference through endpoint :LibImplementation
             try:
-                self.session.tracer.run_enter(self, inputs)
+                self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
                 timeout = timeout if timeout is not None else self.session.inference_timeout
                 outputs = await asyncio.wait_for(
                     asyncio.shield(

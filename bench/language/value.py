@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Any, Collection
 
-from bench.language.module import ModuleNode, NodeVisitor, node_component, nproperty, nruntime
+from bench.language.module import NS, ModuleNode, NodeVisitor, node_component, nproperty
 from bench.language.validation import ValidationError, ValidationHandler
 from bench.utils.proxy import proxy_value
 
@@ -11,7 +11,6 @@ if TYPE_CHECKING:
 @node_component
 class HasValue(ModuleNode):
     value: Any | None = nproperty(default=None)
-    _value_unpacked: bool = nruntime(default=False)
 
     @property
     def _type_of_value(self) -> "HasFields":
@@ -39,9 +38,7 @@ class HasValue(ModuleNode):
         from bench.language.mapping import unpack_value
 
         # should probably move instantiate into interp and only do proxying in activate?
-        if self._value_unpacked:
-            self._set_untracked("value", self._raw_value())
-            self._value_unpacked = False
+        self._set_untracked("value", self._raw_value())
         # instantiate
         value = unpack_value(
             self.value or {}, self._type_of_value, ignore_array=True, ignore_outer_map=True
@@ -49,23 +46,23 @@ class HasValue(ModuleNode):
         # proxy
         value = proxy_value(value, onread=lambda *args: None, onwrite=self._onwrite_value)
         self._set_untracked("value", value)
-        self._value_unpacked = True
 
     def _deactivate(self) -> None:
-        if self._value_unpacked:
-            self._set_untracked("value", self._raw_value())
-            self._value_unpacked = False
+        self._set_untracked("value", self._raw_value())
 
-    def _raw_value(self) -> dict:
+    def _raw_value(self) -> dict | None:
         """The raw/stripped value with field keys."""
         from bench.language.mapping import pack_value
 
-        if not self._value_unpacked:
+        if self.value is None or self._status != NS.Tracked:
             return self.value
-        else:
-            return pack_value(
-                self.value, self._type_of_value, ignore_array=True, ignore_outer_map=True
-            )
+        return pack_value(
+            self.value,
+            self._type_of_value,
+            ignore_array=True,
+            ignore_outer_map=True,
+            none_if_invalid=True,
+        )
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""
@@ -76,5 +73,6 @@ class HasValue(ModuleNode):
             self,
             ignore_array=True,
             ignore_outer_map=True,
+            none_if_invalid=True,
             map_k=lambda f: (f.typed_key, f.py_ident),
         )
