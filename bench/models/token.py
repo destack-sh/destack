@@ -9,10 +9,10 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from pgcrypto import fields
 
+from bench.language.validation import MAX_NAME_LENGTH
 from bench.models.utils import UUIDModel
 from bench.settings import ACCESS_TOKEN_DIGEST_LENGTH, ACCESS_TOKEN_KEY_LENGTH, ACCESS_TOKEN_PREFIX
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.uuidt import MAX_NAME_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import Organization, User

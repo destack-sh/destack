@@ -9,13 +9,13 @@ from django.db import models, transaction
 from django.db.models import F, Q
 from django.utils.translation import gettext_lazy as _
 
+from bench.language.validation import MAX_DESCRIPTION_LENGTH
 from bench.models.organization import Organization, OrganizationMembership
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
 from bench.msg.messages import ClientData
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.utils import DEBUG, LOCAL
-from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import Project, ProjectMembership, ProjectVersion

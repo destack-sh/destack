@@ -1,18 +1,19 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from bench.language.tagging import HasTags
 from bench.language.const import MNT
 from bench.language.module import (
     Module,
     NodeList,
     NRel,
+    Passthrough,
     ScopeNode,
     nchildren,
     node,
     nparent,
     nproperty,
-    Passthrough,
 )
+from bench.language.tagging import HasTags
+from bench.language.validation import validate_name
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -22,7 +23,7 @@ if TYPE_CHECKING:
 @node(mnt=MNT.File, passthrough=(("statements", Passthrough.Scope),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
-    name: str = nproperty()
+    name: str | None = nproperty(validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = nchildren(
         MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped

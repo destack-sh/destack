@@ -32,6 +32,7 @@ from bench.language.run import HasRun
 from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
+from bench.language.validation import validate_name
 from bench.language.value import HasValue
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -96,7 +97,7 @@ class Statement(ScopeNode, HasTags):
     )
 
     type: StatementType = nproperty(default=StatementType.BLANK)
-    name: Optional[str] = nproperty(default=None)
+    name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None)

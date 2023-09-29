@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional
 
 from django.db import models, transaction
 
+from bench.language.validation import MAX_DESCRIPTION_LENGTH
 from bench.models.owner import OwnerSlug
 from bench.models.utils import UUIDModel
-from bench.utils.uuidt import MAX_DESCRIPTION_LENGTH
 
 if TYPE_CHECKING:
     from bench.models import User
