@@ -219,7 +219,7 @@ def write_mutations_to_os(
         elif m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
             mirrored = mirror.mirror_node(project_v, m.thing)
             mirrored_data = mirrored.to_dict()
-            # TODO @Broken?: should OS mutation limit update to changed properties?
+            # TODO @Robustness: limit OS mutations to changed properties?
             #  (partial update is not supported in index operation)
             ops.append({"index": {"_index": index, "_id": str(m.thing.id)}})
             ops.append(mirrored_data)

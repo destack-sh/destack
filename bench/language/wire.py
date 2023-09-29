@@ -30,7 +30,7 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
-from bench.language.module import ModuleNode, NodeTree, NodeVisitor, ScopeNode
+from bench.language.module import ModuleNode, NodeStatus, NodeTree, NodeVisitor, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -153,39 +153,44 @@ def unpack_node(
     session: Optional[Session],
     exclude: set[MNT] | None = None,
 ) -> NodeT:
-    """Unpack a node and all its descendants"""
+    """Unpack a node and all its descendants and index them"""
     exclude = exclude or tuple()
     unpacked_tree = NodeTree()
 
     # unpack all nodes top down (breadth first)
-    for node in data_tree.walk_bfs():
-        # keep parent instance if it was passed
-        if parent is not None and node.id == parent.id:
-            unpacked_tree.add(parent)
+    for data_node in data_tree.walk_bfs():
+        if data_node.mnt in exclude:
             continue
 
-        if node.mnt in exclude:
-            continue
-
-        packer = _node_packers_by_data[type(node)]
-        if node.parent_id is None:
+        packer = _node_packers_by_data[type(data_node)]
+        if data_node.parent_id is None:
             node_parent = parent
-        elif node.parent_id not in unpacked_tree.nodes_by_id:
-            if parent is not None and node.parent_id == parent.id:
+        elif data_node.parent_id not in unpacked_tree.nodes_by_id:
+            if parent is not None and data_node.parent_id == parent.id:
                 node_parent = parent
             else:
                 raise ValueError(
-                    f"node {node!r} parent {node.parent_id} not found in unpacked {unpacked_tree!r}"
+                    f"node {data_node!r} parent {data_node.parent_id} not found in unpacked {unpacked_tree!r}"
                 )
         else:
-            node_parent = unpacked_tree.nodes_by_id[node.parent_id]
-        unpacked_tree.add(packer.unpack(node, node_parent, session))
+            node_parent = unpacked_tree.nodes_by_id[data_node.parent_id]
+        node = packer.unpack(data_node, node_parent, session)
+
+        # keep parent instance if it was passed (update in place)
+        if parent is not None and node.id == parent.id:
+            for prop in parent.__properties__.values():
+                if not prop.is_runtime and not prop.is_relation:
+                    setattr(parent, prop.name, getattr(node, prop.name))
+            node = parent
+
+        unpacked_tree.add(node)
 
     # index & recover node lists
     root = unpacked_tree.root
     if isinstance(root, ScopeNode):
         root._local_root_tree.set(unpacked_tree.nodes_by_ck.values())
     for node in unpacked_tree.nodes_by_id.values():
+        node._status = NodeStatus.Source  # status is auto-set to interpreted if a session is active
         if isinstance(node, ScopeNode):
             node._update_lists(node)
 
@@ -404,7 +409,9 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
-        value = statement._raw_value() if isinstance(statement, lang.HasValue) else statement.value
+        value = (
+            statement._raw_value() if lang.HasValue in statement._components else statement.value
+        )
         return StatementData(
             id=statement.id,
             ck=statement.ck,

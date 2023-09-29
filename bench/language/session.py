@@ -176,12 +176,14 @@ class Session:
         # TODO @Robustness: auto-split mutations if not in atomic block and too large
         success = await self.writer.write_module(mutations, refresh_index)
         if not success:
-            # nocheckin: reset module to source?
+            self.module._reset_from_source()
             if len(mutations) > 10:
                 mutations_str = f"{mutations[:5]} ... {mutations[-5:]}"
             else:
                 mutations_str = str(mutations)
             raise RuntimeError(f"failed to write {len(mutations)} mutations {mutations_str}")
+        else:
+            self.module._apply_source_mutations(mutations)
         logger.debug("session.flush.done", session=self, mutator=self.mutator)
         return success
 

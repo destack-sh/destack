@@ -1,5 +1,4 @@
 import abc
-from copy import deepcopy
 import dataclasses
 import enum
 import functools
@@ -7,6 +6,7 @@ import inspect
 import typing
 import uuid
 from collections import defaultdict, deque
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from importlib import import_module
@@ -19,6 +19,7 @@ import structlog
 from cachetools import cached
 
 from bench.language.const import (
+    INTERP_NODE_TYPES,
     MNT,
     IssueKind,
     IssueType,
@@ -27,7 +28,6 @@ from bench.language.const import (
     StatementType,
     parse_absolute_node_reference,
     parse_node_path,
-    INTERP_NODE_TYPES,
 )
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
@@ -1753,20 +1753,16 @@ class Module(ScopeNode):
         """
         Applies the given external mutations to the module.
         Any changed nodes are returned.
-        TODO @Performance @UX: :HotReload apply mutations locally
+        TODO @Performance @UX: :HotReload patch mutations locally
         """
         assert self._source is not None, f"cannot apply mutations to {self!r} without source"
-        from bench.language.wire import unpack_node
 
         # update source
         old_nodes_by_ck: dict[UUID, ModuleNode] = {**self.module._tree.nodes_by_ck}
         self._apply_source_mutations(mutations)
 
-        # update self
-        self.module._clear_rec()
-        self.module._tree.clear()
-        unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
-        self.module._interp_rec()
+        # update self (this is obviously inefficient, but performs surprisingly okay)
+        self._reset_from_source()
 
         # compute change, apply interp source changes if any
         change = self._compute_change(mutations, old_nodes_by_ck)
@@ -1774,13 +1770,29 @@ class Module(ScopeNode):
             self._apply_source_mutations(change.interp_mutations)
         return change
 
+    def _reset_from_source(self):
+        """Resets the module completely from the source."""
+        from bench.language.wire import unpack_node
+
+        prev_session = self.module._session
+        if prev_session:
+            self.module._deactivate_rec()
+
+        self.module._clear_rec()
+        self.module._tree.clear()
+        unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
+        self.module._interp_rec()
+
+        if prev_session:
+            self.module._activate_rec(prev_session)
+
     def _apply_source_mutations(self, mutations: list["ModuleMutation"]) -> None:
         """Applies the mutations directly to the source without any interp."""
         from bench.language.mutate import ModuleMutator
 
         mutator = ModuleMutator(self._source, self._project_id, self.id)
         # errors are fine here since e.g. a deleted issue's parent may have disappeared
-        #  (we could filter that but it's easier this way since it's more explicit for clients)
+        #  (we could filter that, but it's easier this way since it's more explicit for clients)
         mutator.apply_all(mutations, raise_on_error=False)
 
     def _compute_change(

@@ -867,6 +867,7 @@ class RuntimeHost:
                 self.project_version,
                 self.module._source,
                 interp_mutations,
+                validate=False,
                 refresh_index=False,
                 apply=False,
             )
@@ -907,7 +908,11 @@ class RuntimeHost:
 
         # apply in DB/OS
         await sync_to_async(write_mutations)(
-            self.project_version, self.module._source, mutations, refresh_index=refresh_index
+            self.project_version,
+            self.module._source,
+            mutations,
+            validate=True,
+            refresh_index=refresh_index,
         )
         if not mutations:
             # mutations may be empty if we just want to trigger an index refresh
