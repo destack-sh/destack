@@ -70,8 +70,8 @@ class HasTask(ModuleNode):
         _randomize = _randomize if _randomize is not None else self._randomize
         view = ModuleView(self.module, self)
         view.collect()
+        self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
-            self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
             if mono_model:
                 outputs = await mono_model(**inputs)
                 # trim output to own outputs
@@ -82,11 +82,11 @@ class HasTask(ModuleNode):
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
                 outputs = await run_task(self, view, inputs, _nonce)
-            self.session.tracer.run_exit(self, outputs)
-            return outputs
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise
+        self.session.tracer.run_exit(self, outputs)
+        return outputs
 
 
 class TaskErrorType(enum.StrEnum):
@@ -175,7 +175,7 @@ async def run_task(
 
     if total_attempts == 0:
         # no models
-        raise TaskError(TaskErrorType.Incapable, task, "cannot solve task with given inputs")
+        raise TaskError(TaskErrorType.Incapable, task, "cannot solve task with given input types")
     else:
         raise TaskError(
             TaskErrorType.ExceededLimit,
