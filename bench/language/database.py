@@ -8,6 +8,7 @@ import structlog
 from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
 from bench.language.field import Field
 from bench.language.module import (
+    NS,
     Module,
     ModuleNode,
     NodeList,
@@ -26,7 +27,6 @@ from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
 from bench.language.value import HasValue
 from bench.utils.func import describe_type
-from bench.utils.proxy import unproxy_value
 from bench.utils.utils import DotList
 
 if typing.TYPE_CHECKING:
@@ -42,13 +42,13 @@ class Record(HasValue, ModuleNode):
 
     @staticmethod
     def new(*args, for_parent: "Statement", **kwargs) -> "Record":
-        from bench.language.mapping import check_type
+        from bench.language.mapping import check_type, pack_value
 
         value = {**kwargs}
         for field, arg in zip(for_parent.resolved_fields, args):
             value[field.name] = arg
-        value = unproxy_value(value)
         check_type(value, for_parent, ignore_array=True)
+        value = pack_value(value, for_parent, ignore_array=True, ignore_outer_map=True)
         return Record(value=value)
 
     def __str__(self):
@@ -180,7 +180,9 @@ class RecordSearch(Search["RecordData", Record]):
             raise RuntimeError(
                 f"parent statement {record_data.parent_id} of{record_data.id} not found"
             )
-        record = wire.unpack_node_flat(record_data, parent, self.module.session)
+        record = wire.unpack_node_flat(record_data, parent, None)
+        if self.module._session:
+            record._activate_self(self.module._session)
         return record
 
     def filter(self, query: Query) -> "RecordSearch":
@@ -282,7 +284,7 @@ class RecordSearch(Search["RecordData", Record]):
 class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     """
     Fully remote record list with no local caching. Implements NodeList protocol.
-    nocheckin: proxy this to regular NodeList for non-search in smaller databases
+    nocheckin: turn into hybrid list, use local list for non-search in smaller databases?
     """
 
     def __str__(self):
@@ -291,38 +293,35 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def create(self, *args, **kwargs) -> Record:
-        record = Record.new(*args, **kwargs)
-        self.append(record)
-        return record
-
     def append(self, record: Record, _create: bool = True, _trigger: bool = True) -> None:
-        value = unproxy_value(record.value)
-        record = Record(parent=self, value=value)
-        if _create:
-            self._parent.session.tracer.node_create(self, record)
+        record.parent = self._parent
+        if record.id is None:
+            record._assign_id(self._parent.module.id)
+        # activate in session
+        if self._parent._status == NS.Tracked and record._status != NS.Tracked:
+            record._activate_self(self._parent.session)
+        # create in session
+        if _create and self._parent.session:
+            self._parent.session.tracer.node_create(record)
 
-    def extend(self, records: typing.Iterable[Record]) -> None:
-        values = [  # remove source proxy if any
-            unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
-            for record in records
-        ]
-        records = [Record(parent=self, value=value) for value in values]
-        self._parent.session.tracer.node_create(self, records)
+    def extend(
+        self, records: typing.Iterable[Record], _create: bool = True, _trigger: bool = True
+    ) -> None:
+        for record in records:
+            self.append(record, _create=False, _trigger=False)
+        if _create and self._parent.session:
+            self._parent.session.tracer.node_create(*records)
 
     def remove(self, record: Record, _delete: bool = True, _trigger: bool = True) -> None:
-        if _delete:
+        if _delete and self._parent.session:
             self._parent.session.tracer.node_delete(self, record)
 
     def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
-        if _delete:
-            self._parent.session.tracer.node_truncate(self)
+        if _delete and self._parent.session:
+            self._parent.session.tracer.node_truncate(self._parent, MNT.Record)
 
     def __getitem__(self, item: slice):
-        if isinstance(item, slice):
-            return self.search(limit=item.stop)
-        else:
-            raise TypeError(f"index into {self} must be slice (not {type(item)})")
+        raise NotImplementedError(f"index into {self!r} not supported")
 
     def __contains__(self, obj: object) -> bool:
         return False  # lookup by id?
@@ -335,7 +334,7 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
     ) -> "RecordSearch":
         """Searches this database remotely."""
-        return RecordSearch(self.module, [self], query, sort, limit)
+        return RecordSearch(self._parent.module, [self._parent], query, sort, limit)
 
     def filter(self, query: Query) -> "RecordSearch":
         if not isinstance(query, Query):
@@ -362,9 +361,7 @@ class HasDatabase(ModuleNode):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
     views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(
-        MNT.Record, NRel.Remote
-    )  # nocheckin: use _RemoteRecordList
+    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Remote, custom_list=_RemoteRecordList)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in
