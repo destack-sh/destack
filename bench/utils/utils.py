@@ -169,6 +169,22 @@ def omit_empty(obj):
         return obj
 
 
+class frozendict(dict):
+    def __setitem__(self, key, value):
+        raise TypeError("FrozenDict does not support item assignment")
+
+    def __delitem__(self, key):
+        raise TypeError("FrozenDict does not support item deletion")
+
+
+def freeze_dict(d: dict):
+    return frozendict(d)
+
+
+def identity(a: Any) -> Any:
+    return a
+
+
 ENVIRONMENT = os.environ.get("ENVIRONMENT", "local")
 DEBUG: bool = get_from_env("DEBUG", False, type_cast=str_to_bool)
 TEST: bool = (

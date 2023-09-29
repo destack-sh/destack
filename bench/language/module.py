@@ -38,7 +38,7 @@ from bench.language.validation import (
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import DEBUG, IdentifierType, required_field, to_pyidentifier
+from bench.utils.utils import DEBUG, IdentifierType, frozendict, required_field, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
@@ -452,11 +452,13 @@ def node_component(
                     raise ValueError(f"{cls} is not ScopeNode for {prop}")
                 list_properties[prop.name] = prop
                 list_properties_by_child[prop.child_mnt].append(prop)
-        cls.__list_properties__ = list_properties
-        cls.__list_properties_by_child__ = list_properties_by_child
-        cls.__tracked_properties__ = {p.name: p for p in props if not p.is_internal}
-        cls.__ancestor_properties__ = {p.name: p for p in props if p.ancestor_mnt}
-        cls.__internal_properties__ = {p.name: p for p in props if p.is_internal}
+        f = frozendict
+        cls.__properties__ = f(properties)
+        cls.__list_properties__ = f(list_properties)
+        cls.__list_properties_by_child__ = f(list_properties_by_child)
+        cls.__tracked_properties__ = f({p.name: p for p in props if not p.is_internal})
+        cls.__ancestor_properties__ = f({p.name: p for p in props if p.ancestor_mnt})
+        cls.__internal_properties__ = f({p.name: p for p in props if p.is_internal})
 
         # register as concrete node class for mnt
         if mnt:

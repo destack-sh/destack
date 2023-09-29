@@ -34,7 +34,7 @@ from bench.language.task import HasTask
 from bench.language.text import HasText
 from bench.language.validation import validate_name
 from bench.language.value import HasValue
-from bench.utils.utils import IdentifierType, to_pyidentifier
+from bench.utils.utils import IdentifierType, identity, to_pyidentifier
 
 if TYPE_CHECKING:
     from bench.language import File, TypeHint
@@ -100,7 +100,7 @@ class Statement(ScopeNode, HasTags):
     name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
 
-    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
+    reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
     heading_level: Optional["TextHeadingLevel"] = nproperty(default=None)
     text: str | None = nproperty(default=None)
     key: str | None = nproperty(default=None)

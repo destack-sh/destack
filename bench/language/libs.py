@@ -162,7 +162,7 @@ def _type_to_json_schema(
     """Convert a Bench type to a JSON schema element."""
     fields = [
         f
-        for f in type.fields
+        for f in type.resolved_fields
         if is_output is None or bool(f.flags & TypeFlag.IsOutput) == is_output
     ]
     if type.flags & TypeFlag.IsArray and not ignore_array:
@@ -217,7 +217,7 @@ class BaseTextTaskCompiler(TaskCompiler):
     def _render_value_flat(self, value: Any, type: Union[Field, Type], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
         if type.effective_tag == TypeTag.ENUM:
-            return type.fields.get(value).name
+            return type.resolved_fields.get(value).name
         else:
             return pack_value_flat(value, type, *args, **kwargs)
 
@@ -251,11 +251,19 @@ class BaseTextTaskCompiler(TaskCompiler):
             return records_str, [r.id for r in records]
         elif statement.type == StatementType.TYPE:
             if statement.tag == TypeTag.ENUM:
-                options_str = "\n".join("  - " + self._render_field(f) for f in statement.fields)
-                return f"has options (one of):\n{options_str}", [f.id for f in statement.fields]
+                options_str = "\n".join(
+                    "  - " + self._render_field(f) for f in statement.resolved_fields
+                )
+                return f"has options (one of):\n{options_str}", [
+                    f.id for f in statement.resolved_fields
+                ]
             elif statement.tag == TypeTag.STRUCT:
-                fields_str = "\n".join("  - " + self._render_field(f) for f in statement.fields)
-                return f"has fields (all of):\n{fields_str}", [f.id for f in statement.fields]
+                fields_str = "\n".join(
+                    "  - " + self._render_field(f) for f in statement.resolved_fields
+                )
+                return f"has fields (all of):\n{fields_str}", [
+                    f.id for f in statement.resolved_fields
+                ]
         else:
             return None, []
 
@@ -275,7 +283,12 @@ class BaseTextTaskCompiler(TaskCompiler):
         """Model-friendly string describing the entire task context."""
         # ignore output types, they're covered by function schemas
         if exclude_output:
-            seen_node_ids = {n.id for o in task.outputs for n in o._walk_rec()}
+            seen_node_ids = {
+                n.id
+                for o in task.resolved_fields
+                if o.field.flags & TypeFlag.IsOutput
+                for n in o._walk_rec()
+            }
         else:
             seen_node_ids = set()
         context_strs = []

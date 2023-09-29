@@ -12,6 +12,7 @@ from bench.language.module import (
     node_component,
     nproperty,
 )
+from bench.utils.utils import identity
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
@@ -21,7 +22,7 @@ if TYPE_CHECKING:
 class HasReference(ModuleNode):
     """A reference to another statement."""
 
-    reference: Union["Statement", StatementReference, None] = nproperty(default=None)
+    reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
 
     def _clear_inner(self) -> None:
         self._set_untracked(

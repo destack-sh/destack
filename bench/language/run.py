@@ -4,7 +4,6 @@ import sys
 import traceback
 from dataclasses import dataclass, field
 from datetime import datetime
-from functools import cached_property
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -42,7 +41,7 @@ class HasRun(ModuleNode):
 
         return RunSearch.from_runnable(self)
 
-    @cached_property
+    @property
     def cache(self):
         from bench.language.cache import CacheAsync, CacheSync
 
@@ -315,7 +314,7 @@ class RunError(Exception):  # can this really be a subclass of Exception?
     traceback: list[RunCodeFrame] = None
 
     @staticmethod
-    def from_exception(e: Exception, runnable: Optional["Statement"]) -> "RunError":
+    def from_exception(e: BaseException, runnable: Optional["Statement"]) -> "RunError":
         if isinstance(e, RunError):
             return e
         stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))

@@ -316,7 +316,7 @@ class Tracer(abc.ABC):
     ):
         raise NotImplementedError
 
-    def run_exception(self, statement: HasRun, exception: Exception):
+    def run_exception(self, statement: HasRun, exception: BaseException):
         raise NotImplementedError
 
 
@@ -522,7 +522,7 @@ class SessionTracer(Tracer):
         _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
-    def run_exception(self, statement: "Statement", exception: Exception):
+    def run_exception(self, statement: "Statement", exception: BaseException):
         run = self.pop_stacktrace()
         assert run.runnable == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
         run.terminated_at = utcnow_with_tz()

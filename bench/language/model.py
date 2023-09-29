@@ -6,7 +6,7 @@ import typing
 from dataclasses import dataclass
 from datetime import datetime
 from logging import Logger
-from typing import Any, Self
+from typing import Any
 from uuid import UUID
 
 import msgpack
@@ -40,7 +40,6 @@ class ModelErrorType(enum.StrEnum):
 
 @node_component
 class HasModel(HasFields, ModuleNode):
-    _is_async: bool = nruntime(default=False)
     _remote: bool = nruntime(default=False)
     _endpoint_impl: typing.Optional[typing.Callable] = nruntime(default=None)
     _compiler_impl: typing.Optional[typing.Callable] = nruntime(default=None)
@@ -72,6 +71,10 @@ class HasModel(HasFields, ModuleNode):
     @property
     def should_cache(self) -> bool:
         return not self._has_vector_io
+
+    @property
+    def _is_async(self) -> bool:
+        return True
 
     async def _call_inner_async(self, timeout: int = None, cache: bool = None, **inputs):
         from bench.language.run import get_run_cache_subkey
@@ -240,9 +243,6 @@ class HasModel(HasFields, ModuleNode):
     @property
     def compiler(self) -> "TaskCompiler":
         return self._compiler_resolved(self)
-
-    def to_async(self) -> "Self":
-        return self
 
 
 # avoid circular import
