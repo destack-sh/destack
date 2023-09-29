@@ -284,7 +284,8 @@ class RecordSearch(Search["RecordData", Record]):
 class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     """
     Fully remote record list with no local caching. Implements NodeList protocol.
-    nocheckin: turn into hybrid list, use local list for non-search in smaller databases?
+    TODO @UX @Performance: turn record list hybrid list (:BE-352)
+     use local list for everything but search (for now) (in ~small databases only)
     """
 
     def __str__(self):

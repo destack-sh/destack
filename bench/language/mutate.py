@@ -552,13 +552,15 @@ class MutationBundle:
             yield current_type, current_batch
 
 
-def diff_modules(old_module: ModuleTreeData, new_module: ModuleTreeData) -> list[ModuleMutation]:
+def diff_modules(
+    old_module: ModuleTreeData, new_module: ModuleTreeData, project_id: UUID
+) -> list[ModuleMutation]:
     """
     Get the mutations needed to transform old_module into new_module.
     Find nodes by their id (not ck).
     """
-    mutator = ModuleMutator(old_module)
     old_tree = NodeTree(old_module.nodes)
+    mutator = ModuleMutator(old_tree, old_module.id, project_id)
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():

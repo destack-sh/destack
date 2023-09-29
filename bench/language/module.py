@@ -327,7 +327,7 @@ def _get_component_methods(
     components: list[type["ModuleNode"]], method: NodeMethod, concrete_key: str
 ) -> list[typing.Any]:
     """Get the actually implemented methods in the given components in call order."""
-    cache_key = f"{concrete_key}.{method}"
+    cache_key = f"{concrete_key}.{method.name}"
     if cache_key not in _concrete_component_methods:
         methods = []
         for component in _sort_components_in_call_order(components):
@@ -361,7 +361,8 @@ def node_component(
         static_components: list[type["ModuleNode"]] = [cls]
 
         # check that no forbidden methods are defined
-        if cls.__name__ not in ("ModuleNode", "ScopeNode"):
+        CORE_TYPES = ("ModuleNode", "ScopeNode")
+        if cls.__name__ not in CORE_TYPES:
             for name in _FORBIDDEN_NODE_METHODS:
                 meth = getattr(cls, name, None)
                 good_meth = getattr(ModuleNode, name, getattr(ScopeNode, name, None))
@@ -374,6 +375,9 @@ def node_component(
                 continue
             if hasattr(base, "__properties__"):
                 static_components.append(base)
+                for gp in base.__static_components__:
+                    if gp.__name__ not in CORE_TYPES and gp not in static_components:
+                        static_components.append(gp)
         if cls.__name__ != "ModuleNode":
             static_components.append(ModuleNode)
 
@@ -1128,19 +1132,19 @@ def _make_self_method(
 
     @functools.wraps(wraps)
     def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
-        # the status checking/coercion is a bit messy and probably belongs elsewhere
         if from_status is not None and self._status != from_status:
+            # auto coerce the node into the desired to_status if allowed and feasible
             if _coerce and self._status <= to_status:  # automatically index if needed
                 if self._status == NS.Source and to_status >= NS.Indexed:
                     self._index_self()
-                if self._status == NS.Indexed and to_status >= NS.Interpreted:
+                if self._status == NS.Indexed and to_status > NS.Interpreted:
                     self._interp_self(self)
-                if self._status == to_status:
-                    pass  # all good now
-                else:
+                if self._status < from_status:
                     raise RuntimeError(
                         f"cannot coerce {method.name} {self!r} (status={self._status.name})"
                     )
+                if self._status == to_status:
+                    return  # nothing to do
             else:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
 

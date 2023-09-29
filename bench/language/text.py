@@ -31,9 +31,12 @@ class HasText(ModuleNode):
 
     @property
     def text_spans(self) -> list["TextSpan"]:
-        if self._text_spans is None:
-            raise ValueError(f"{self} is not interpreted")
-        return self._text_spans
+        if self.text is None:
+            return []
+        elif self._text_spans is None:
+            raise RuntimeError(f"{self!r} is not interpreted")
+        else:
+            return self._text_spans
 
     @property
     def mentions(self) -> list["TextMention"]:

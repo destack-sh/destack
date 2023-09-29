@@ -109,7 +109,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
     blank_module_tree = wire.NodeTree(blank_module.nodes)
     new_module = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
-    mutations = diff_modules(blank_module, new_module)
+    mutations = diff_modules(blank_module, new_module, project_id=project.id)
     packer.write_mutations(
         project_v, blank_module_tree, mutations, validate=False, refresh_index=False
     )
@@ -118,7 +118,7 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     if sanity_check:
         # check: no issues after reload
         new_module_loaded_data = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
-        new_module_loaded = wire.unpack_module(new_module_loaded_data, session=None)
+        new_module_loaded = wire.unpack_module(new_module_loaded_data.nodes, session=None)
         if name != "symbolx.lib":
             new_module_loaded.add_dependency(symbolx_lib)
         new_module_loaded._interp_rec()
@@ -126,13 +126,13 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
             raise ValueError(f"module {new_module_loaded} has issues: {new_module_loaded.issues}")
 
         # check: no diff when generated in another process
-        _sanity_check_diff(module_name, new_module, log)
+        _sanity_check_diff(module_name, new_module, project.id, log)
 
     log.info("lib.upsert.done", nodes=len(new_module.nodes))
 
 
 def _sanity_check_diff(
-    module_name: str, new_module: wire.ModuleTreeData, log: structlog.BoundLogger
+    module_name: str, new_module: wire.ModuleTreeData, project_id: UUID, log: structlog.BoundLogger
 ) -> None:
     # start a new process, dump module, check if equal
     log.info("lib.upsert.sanity_check")
@@ -148,7 +148,7 @@ def _sanity_check_diff(
     other_module_path = _get_module_dump_path(module_name)
     other_module_bytes = Path(other_module_path).read_bytes()
     other_module_data = wire.deserialize_module(other_module_bytes)
-    diff = diff_modules(new_module, other_module_data)
+    diff = diff_modules(new_module, other_module_data, project_id=project_id)
 
     if diff:
         # get exact diff for debugging
