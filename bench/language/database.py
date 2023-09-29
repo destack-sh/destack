@@ -42,14 +42,21 @@ class Record(HasValue, ModuleNode):
 
     @staticmethod
     def new(*args, for_parent: "Statement", **kwargs) -> "Record":
+        from bench.language.mapping import check_type
+
         value = {**kwargs}
         for field, arg in zip(for_parent.resolved_fields, args):
             value[field.name] = arg
         value = unproxy_value(value)
+        check_type(value, for_parent, ignore_array=True)
         return Record(value=value)
 
     def __str__(self):
-        return f"{self.parent.path}:{self.id} {describe_type(self.value)}"
+        self_str = f"{self.id} {describe_type(self.value)}"
+        if self.parent is None:
+            return f"<detached>:{self_str}"
+        else:
+            return f"{self.parent.path}:{self_str}"
 
     def __repr__(self):
         return f"<Record {self}>"
@@ -60,6 +67,8 @@ class Record(HasValue, ModuleNode):
 
     @property
     def _type_of_value(self):
+        if self.parent is None:
+            raise RuntimeError(f"cannot use detached record {self!r}")
         return self.parent
 
     @property
@@ -99,103 +108,6 @@ class DatabaseViewField(ModuleNode):
     order_key: str | None = ninternal(default=None)
 
 
-class _RemoteRecordList(NodeListBase[Record], Search["RecordData", Record]):
-    """
-    Fully remote record list with no local caching. Implements NodeList protocol.
-    """
-
-    def __str__(self):
-        return "remote"  # can't really say anything useful here
-
-    def _update(self, scope: "ScopeNode"):
-        pass  # nothing to do, all remote
-
-    def create(self, *args, **kwargs) -> Record:
-        record = Record.new(*args, **kwargs)
-        self.append(record)
-        return record
-
-    def append(self, record: Record, _create: bool = True, _trigger: bool = True) -> None:
-        value = unproxy_value(record.value)
-        record = Record(parent=self, value=value)
-        if _create:
-            self._parent.session.tracer.node_create(self, record)
-
-    def extend(self, records: typing.Iterable[Record]) -> None:
-        values = [  # remove source proxy if any
-            unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
-            for record in records
-        ]
-        records = [Record(parent=self, value=value) for value in values]
-        self._parent.session.tracer.node_create(self, records)
-
-    def remove(self, record: Record, _delete: bool = True, _trigger: bool = True) -> None:
-        if _delete:
-            self._parent.session.tracer.node_delete(self, record)
-
-    def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
-        if _delete:
-            self._parent.session.tracer.node_truncate(self)
-
-    def __getitem__(self, item: slice):
-        if isinstance(item, slice):
-            return self.search(limit=item.stop)
-        else:
-            raise TypeError(f"index into {self} must be slice (not {type(item)})")
-
-    def __contains__(self, obj: object) -> bool:
-        return False  # lookup by id?
-
-    #
-    # Extra methods for records
-    #
-
-    def search(
-        self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
-    ) -> "RecordSearch":
-        """Searches this database remotely."""
-        return RecordSearch(self.module, [self], query, sort, limit)
-
-    def filter(self, query: Query) -> "RecordSearch":
-        if not isinstance(query, Query):
-            raise TypeError(f"cannot filter by {type(query)}")
-        return self.search(query=query)
-
-    def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
-        if isinstance(sort, Sort):
-            sort = [sort]
-        return self.search(sort=sort)
-
-    def limit(self, limit: int) -> "RecordSearch":
-        return self.search(limit=limit)
-
-    def __iter__(self):
-        return iter(self.search())
-
-    def __aiter__(self):
-        return aiter(self.search())
-
-
-@node_component
-class HasDatabase(ModuleNode):
-    # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
-    #  but it would also be weird to have it not be a component now.
-    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Default)
-
-    def _init_inner(self):
-        # this runs before HasFields because of the ordering in
-        #  (which is necessary because HasFields also sets key)
-        if self.key is None:
-            if self.versioned:
-                if self.id is not None:
-                    self.key = new_dynamic_node_key(self.id)
-                else:
-                    self.key = None
-            else:
-                self.key = new_dynamic_node_key(self.ck)
-
-
 MapFunction = typing.Callable[[Record], typing.Union[Record, dict]]
 BatchMapFunction = typing.Callable[[list[Record]], list[typing.Union[Record, dict]]]
 AmapFunction = typing.Callable[[Record], typing.Awaitable[typing.Union[Record, dict]]]
@@ -210,7 +122,7 @@ class RecordSearch(Search["RecordData", Record]):
     def __init__(
         self,
         module: Module,
-        databases: list[HasDatabase],
+        databases: list["HasDatabase"],
         query: Query,
         sort: list[Sort],
         limit: Optional[int],
@@ -269,8 +181,6 @@ class RecordSearch(Search["RecordData", Record]):
                 f"parent statement {record_data.parent_id} of{record_data.id} not found"
             )
         record = wire.unpack_node_flat(record_data, parent, self.module.session)
-        record._instantiated = False
-        record._activate_self(self.module.session)
         return record
 
     def filter(self, query: Query) -> "RecordSearch":
@@ -367,3 +277,114 @@ class RecordSearch(Search["RecordData", Record]):
                     record[key] = value[i]
         else:
             raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
+
+
+class _RemoteRecordList(NodeListBase[Record], RecordSearch):
+    """
+    Fully remote record list with no local caching. Implements NodeList protocol.
+    nocheckin: proxy this to regular NodeList for non-search in smaller databases
+    """
+
+    def __str__(self):
+        return "remote"  # can't really say anything useful here
+
+    def _update(self, scope: "ScopeNode"):
+        pass  # nothing to do, all remote
+
+    def create(self, *args, **kwargs) -> Record:
+        record = Record.new(*args, **kwargs)
+        self.append(record)
+        return record
+
+    def append(self, record: Record, _create: bool = True, _trigger: bool = True) -> None:
+        value = unproxy_value(record.value)
+        record = Record(parent=self, value=value)
+        if _create:
+            self._parent.session.tracer.node_create(self, record)
+
+    def extend(self, records: typing.Iterable[Record]) -> None:
+        values = [  # remove source proxy if any
+            unproxy_value(record.value) if isinstance(record, Record) else unproxy_value(record)
+            for record in records
+        ]
+        records = [Record(parent=self, value=value) for value in values]
+        self._parent.session.tracer.node_create(self, records)
+
+    def remove(self, record: Record, _delete: bool = True, _trigger: bool = True) -> None:
+        if _delete:
+            self._parent.session.tracer.node_delete(self, record)
+
+    def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
+        if _delete:
+            self._parent.session.tracer.node_truncate(self)
+
+    def __getitem__(self, item: slice):
+        if isinstance(item, slice):
+            return self.search(limit=item.stop)
+        else:
+            raise TypeError(f"index into {self} must be slice (not {type(item)})")
+
+    def __contains__(self, obj: object) -> bool:
+        return False  # lookup by id?
+
+    #
+    # Extra methods for records
+    #
+
+    def search(
+        self, query: Optional[Query] = None, sort: list[Sort] = None, limit: int = None
+    ) -> "RecordSearch":
+        """Searches this database remotely."""
+        return RecordSearch(self.module, [self], query, sort, limit)
+
+    def filter(self, query: Query) -> "RecordSearch":
+        if not isinstance(query, Query):
+            raise TypeError(f"cannot filter by {type(query)}")
+        return self.search(query=query)
+
+    def sort(self, sort: list[Sort] | Sort) -> "RecordSearch":
+        if isinstance(sort, Sort):
+            sort = [sort]
+        return self.search(sort=sort)
+
+    def limit(self, limit: int) -> "RecordSearch":
+        return self.search(limit=limit)
+
+    def __iter__(self):
+        return iter(self.search())
+
+    def __aiter__(self):
+        return aiter(self.search())
+
+
+@node_component
+class HasDatabase(ModuleNode):
+    # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
+    #  but it would also be weird to have it not be a component now.
+    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
+    records: NodeList["Record"] = nchildren(
+        MNT.Record, NRel.Remote
+    )  # nocheckin: use _RemoteRecordList
+
+    def _init_inner(self):
+        # this runs before HasFields because of the ordering in
+        #  (which is necessary because HasFields also sets key)
+        if self.key is None:
+            if self.versioned:
+                if self.id is not None:
+                    self.key = new_dynamic_node_key(self.id)
+                else:
+                    self.key = None
+            else:
+                self.key = new_dynamic_node_key(self.ck)
+
+    # maybe these should also go into passthrough?
+
+    def _iter_inner(self):
+        return iter(self.records)
+
+    def _aiter_inner(self):
+        return aiter(self.records)
+
+    def _len_inner(self):
+        return len(self.records)

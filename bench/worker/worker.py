@@ -512,8 +512,6 @@ class ModuleWorkerProcess(ModuleWriter):
 
         # open session
         await session.aopen()
-        if not runnable._is_async:
-            runnable = runnable.to_async()
 
         # run session
         try:

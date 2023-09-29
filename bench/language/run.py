@@ -26,7 +26,8 @@ class HasRun(ModuleNode):
     """A runnable statement"""
 
     @property
-    def _is_async(self) -> Optional[bool]:
+    def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
+        """Whether this runnable is async."""
         return None
 
     @property
@@ -54,65 +55,28 @@ class HasRun(ModuleNode):
     def current_run(self):
         return self.module.session.current_run
 
-    def __call__(self, *args, **kwargs):
+    def _call_inner(self, *args, **kwargs):
         assert self._status == NS.Tracked, f"cannot call untracked {self!r}"
-        if self._is_async:
-            return self.__call_async__(*args, **kwargs)
-        else:
-            return self.__call_sync__(*args, **kwargs)
+        is_outer_async = self.session.current_run is None or self.session.current_run._is_async
+        inner_call = self._call_inner_async if self._is_async else self._call_inner_sync
 
-    def __call_sync__(self, *args, **kwargs):
+        if is_outer_async and not self._is_async:
+            inner_call = self.session.sync_to_async(inner_call)
+        elif not is_outer_async and self._is_async:
+            inner_call = self.session.async_to_sync(inner_call)
+
+        return inner_call(*args, **kwargs)
+
+    def _call_inner_sync(self, *args, **kwargs):
         raise NotImplementedError
 
-    async def __call_async__(self, *args, **kwargs):
+    async def _call_inner_async(self, *args, **kwargs):
         raise NotImplementedError
-
-    def to_sync(self) -> "_RunnableProxy":
-        if not self._is_async:
-            return self
-        return _RunnableProxy.to_sync(self)
-
-    def to_async(self) -> "_RunnableProxy":
-        if self._is_async:
-            return self
-        return _RunnableProxy.to_async(self)
-
-
-class _RunnableProxy:  # :SyncProxy
-    """
-    A simple proxy for Statement to enable to_sync/to_async while keeping the original Statement object.
-    """
-
-    def __init__(self, statement: "HasRun", is_async: bool):
-        self._statement = statement
-        self._is_async = is_async
-
-    def __call__(self, *args, **kwargs):
-        assert self._statement._status == NS.Tracked, f"cannot call untracked {self!r}"
-        if self._is_async:
-            return self.__call_async__(*args, **kwargs)
-        else:
-            return self.__call_sync__(*args, **kwargs)
-
-    def __getattr__(self, item):
-        return getattr(self._statement, item)
-
-    @classmethod
-    def to_sync(cls, statement: "Statement") -> "_RunnableProxy":
-        proxy = cls(statement, is_async=False)
-        proxy.__call_sync__ = statement.session.async_to_sync(statement.__call_async__)
-        return proxy
-
-    @classmethod
-    def to_async(cls, statement: "Statement") -> "_RunnableProxy":
-        proxy = cls(statement, is_async=True)
-        proxy.__call_async__ = statement.session.sync_to_async(statement.__call_sync__)
-        return proxy
 
 
 @dataclass(slots=True)
 class CachedRun:
-    """A cached run of a code statement."""
+    """A cached run of a node."""
 
     generated_at: datetime
     duration: float
@@ -159,7 +123,7 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
         return f"run.{input_hash}"
 
 
-# TODO @Architecture: sessions/runs are kind of like module nodes, but also kind of not
+# TODO @Architecture: Run is like a module node, but also kind of not
 #  (have parent run/session, need revisions for value, no ck, activation, ..?)
 
 
@@ -185,6 +149,7 @@ class Run:
     updated_at: datetime = field(default_factory=utcnow_with_tz)
     children: list["Run"] = field(default_factory=list)
     _value_unpacked: bool = False
+    _is_async: bool = False
 
     def __post_init__(self):
         self.updated_at = utcnow_with_tz()
@@ -196,7 +161,7 @@ class Run:
     def __repr__(self):
         return f"<Run {self}>"
 
-    def mark_dead_if_active(self):
+    def _mark_dead_if_active(self):
         if self.active:
             self.terminated_at = utcnow_with_tz()
             self.status = RunStatus.Aborted if self.started_at else RunStatus.Cancelled
@@ -291,11 +256,12 @@ class RunCodeFrame:
         stack: list["RunCodeFrame"], from_statement: "Statement", session: "Session"
     ) -> list["RunCodeFrame"]:
         from bench.language.code_ import HasCode
+        from bench.language.statement import Statement
 
         code_by_method: dict[str, HasCode] = {
             node._transform.method_name: node
             for node in session.module._nodes
-            if isinstance(node, HasCode) and node._transform is not None
+            if isinstance(node, Statement) and getattr(node, "_transform", None)
         }
 
         found_start = False

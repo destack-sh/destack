@@ -299,7 +299,7 @@ class Tracer(abc.ABC):
 
     # session
 
-    def run_enter(self, statement: HasRun, inputs: dict):
+    def run_enter(self, statement: HasRun, is_async: bool, inputs: dict):
         raise NotImplementedError
 
     def run_exit(self, statement: HasRun, outputs: dict):
@@ -482,12 +482,13 @@ class SessionTracer(Tracer):
             self._update_cached_info()
         return run
 
-    def run_enter(self, statement: "Statement", inputs):
+    def run_enter(self, statement: "Statement", is_async: bool, inputs):
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
         run = self._create_run(
             runnable=statement,
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
+            _is_async=is_async,
         )
         self.stacktrace.append(run)
         _set_active_run(run)
@@ -580,6 +581,7 @@ class SessionTracer(Tracer):
         trace: bool = True,
         trigger_type: TriggerType | None = None,
         trigger: Union["Trigger", UUID, None] = None,
+        _is_async: bool = False,
     ):
         active_run = _get_active_run()
         if trace and active_run is not None:
@@ -612,6 +614,7 @@ class SessionTracer(Tracer):
             error=None,
             status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
             value={},
+            _is_async=_is_async,
         )
         run._activate_inner(self.session, queue_position=queue_position)
         if parent is not None:
@@ -660,7 +663,7 @@ class SessionTracer(Tracer):
         if kill_pending:
             # abort any remaining active runs
             for run in chain(runs, self.runs.values()):
-                run.mark_dead_if_active()
+                run._mark_dead_if_active()
 
         success = await self.session.writer.write_session(self.session, runs, logs)
         if not success:
