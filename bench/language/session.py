@@ -16,6 +16,7 @@ import structlog
 
 from bench.language.builtin import active_session
 from bench.language.const import (
+    INTERP_NODE_TYPES,
     MNT,
     ModuleOp,
     RunStatus,
@@ -206,10 +207,12 @@ class Session:
         """
         if not self.mutator.mutations and not refresh_index:
             return  # skip if no mutations and no index refresh
-
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
         assert not self._failed_flush, f"session {self!r} is broken after failed flush"
+
+        from bench.language.mutate import MutationBundle
+
         logger.debug(
             "session.flush",
             session=self,
@@ -217,7 +220,8 @@ class Session:
             optimistic=optimistic,
             refresh_index=refresh_index,
         )
-        mutations = self.mutator.bundle().compact()
+        mutations = [m for m in self.mutator.mutations if m.mnt not in INTERP_NODE_TYPES]
+        mutations = MutationBundle(mutations).compact()
         self.mutator.reset()
         flush = self._do_flush(mutations, refresh_index)
         if optimistic:
