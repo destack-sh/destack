@@ -70,7 +70,7 @@ class ModuleView:
             self._nodes_by_distance.append(to_visit)
             for n in to_visit:
                 seen[n.ck] = n
-                n._visit(child_visitor)
+                n._visit_self(child_visitor)
             to_visit = [
                 n
                 for n in itertools.chain(child_visitor.subtree, child_visitor.references)

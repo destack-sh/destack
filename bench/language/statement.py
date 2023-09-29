@@ -12,7 +12,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.database import HasDatabase
-from bench.language.field import HasFields
+from bench.language.field import HasFields, HasType
 from bench.language.model import HasModel
 from bench.language.module import (
     ModuleNode,
@@ -41,7 +41,7 @@ if TYPE_CHECKING:
 
 # Note that order matters as components are called in order.
 _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
-    StatementType.TYPE: (HasFields, HasText),
+    StatementType.TYPE: (HasType, HasFields, HasText),
     StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
     StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
     StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
@@ -256,9 +256,9 @@ def _make_statement_proxy(
 Blank = _make_statement_proxy(StatementType.BLANK)
 Text = _make_statement_proxy(StatementType.TEXT)
 Reference = _make_statement_proxy(StatementType.REFERENCE)
-Struct = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.STRUCT)
+Class = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.STRUCT)
 Choice = _make_statement_proxy(StatementType.TYPE, tag=TypeTag.ENUM, register=False)
-Type = Struct
+Type = Class
 Tag = _make_statement_proxy(StatementType.TAG, tag=TypeTag.STRUCT)
 Database = _make_statement_proxy(StatementType.DATABASE, tag=TypeTag.STRUCT, flags=TypeFlag.IsArray)
 Model = _make_statement_proxy(StatementType.MODEL, tag=TypeTag.FUNCTION)

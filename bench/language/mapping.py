@@ -240,7 +240,7 @@ def check_type(
             check_type(subvalue, f, get_k=get_k, on_invalid=on_invalid)
         if hasattr(value, "keys"):
             for key in value.keys():
-                _check(key in type.fields, f"extraneous field '{key}'")
+                _check(key in type.resolved_fields, f"extraneous field '{key}'")
 
 
 class TypeMapper:

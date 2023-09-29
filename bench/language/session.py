@@ -429,7 +429,7 @@ class SessionTracer(Tracer):
         return f"{len(self.stacktrace)} stack, {len(self.runs)} runs"
 
     def __repr__(self):
-        return f"<RunTracer {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     #
     # Module
@@ -498,14 +498,20 @@ class SessionTracer(Tracer):
         # pre-run validation
         try:
             if len(self.stacktrace) >= MAX_STACK_DEPTH:
-                raise RunError(f"stack depth exceeded: {MAX_STACK_DEPTH}")
+                raise RunError(f"maximum stack depth exceeded: {MAX_STACK_DEPTH}")
             check_type(inputs, statement, is_output=False)
         except BaseException as e:
-            e = RunError.from_exception(e, statement)
             self.run_exception(statement, e)
             raise e
 
     def run_exit(self, statement: "Statement", outputs):
+        # post-run validation
+        try:
+            check_type(outputs, statement, is_output=True)
+        except BaseException as e:
+            self.run_exception(statement, e)
+            raise e
+
         run = self.pop_stacktrace()
         run.terminated_at = utcnow_with_tz()
         run.outputs = _pack_and_truncate_value(
@@ -516,16 +522,9 @@ class SessionTracer(Tracer):
         _clear_active_run(run)
         logger.debug("trace.run.exit", run=run, stackdepth=len(self.stacktrace))
 
-        # post-run validation
-        try:
-            check_type(outputs, statement, is_output=False)
-        except BaseException as e:
-            e = RunError.from_exception(e, statement)
-            self.run_exception(statement, e)
-            raise e
-
     def run_exception(self, statement: "Statement", exception: Exception):
         run = self.pop_stacktrace()
+        assert run.runnable == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
         run.terminated_at = utcnow_with_tz()
         if isinstance(exception, asyncio.CancelledError):
             run.status = RunStatus.Aborted

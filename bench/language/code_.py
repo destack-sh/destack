@@ -135,19 +135,19 @@ class HasCode(ModuleNode):
         return tuple(await self._do_import_async(path, name) for name in names)
 
     def _prep_locals(self) -> dict[str, Any]:
-        """Gets the locals required for the code to run."""
-        # assemble context
+        """Gets the context ('locals') required for the code to run."""
 
-        context = {**self._statement_references}
         dynamic_context = {
+            "self": self,
+            "file": self.file,
+            "module": self.module,
             "session": self.session,
-            "context": {symbol.name: symbol for symbol in context.values()},  # by name
             "cache": self.session.cache_async if self._parse.is_async else self.session.cache_sync,
             "storage": self.session.storage,
-            **context,  # inlined
             "random": Random(self.id.hex.encode()),
-            "self": self,
-            "ximport": self._import_sync if not self._parse.is_async else self._import_async,
+            "import": self._import_sync if not self._parse.is_async else self._import_async,
+            **self._statement_references,
+            **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
         }
 
         import bench.language
@@ -338,27 +338,27 @@ class HasCode(ModuleNode):
 
     async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
+        self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
         try:
-            self.session.tracer.run_enter(self, is_async=True, inputs=inputs)
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
-            self.session.tracer.run_exit(self, result if not self.exported else None)
-            return _to_outputs_dict(self, result)
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
+        self.session.tracer.run_exit(self, result if not self.exported else None)
+        return _to_outputs_dict(self, result)
 
     def _call_inner_sync(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)
+        self.session.tracer.run_enter(self, is_async=False, inputs=inputs)
         try:
-            self.session.tracer.run_enter(self, is_async=False, inputs=inputs)
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
-            self.session.tracer.run_exit(self, result if not self.exported else None)
-            return _to_outputs_dict(self, result)
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
+        self.session.tracer.run_exit(self, result if not self.exported else None)
+        return _to_outputs_dict(self, result)
 
 
 AsyncCodeCallable = typing.Callable[..., typing.Coroutine]

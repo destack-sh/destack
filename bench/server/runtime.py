@@ -497,18 +497,14 @@ class RuntimeServer(Monitored):
             log = log.bind(cache_subkey=cache_subkey)
             cache = CacheAsync(module=None, subkey=model.ck.hex, project_id=msg.p.project_id)
             inputs = unpack_value(msg.p.inputs, model, is_output=False)
-            outputs = await asyncio.wait_for(
-                asyncio.shield(
-                    model._inference(
-                        inputs=inputs,
-                        cache_subkey=cache_subkey,
-                        log=log,
-                        cache=cache,
-                        run_id=msg.p.run_id,
-                    )
-                ),
-                msg.p.timeout,
+            inference = model._inference(
+                inputs=inputs,
+                cache_subkey=cache_subkey,
+                log=log,
+                cache=cache,
+                run_id=msg.p.run_id,
             )
+            outputs = await asyncio.wait_for(asyncio.shield(inference), msg.p.timeout)
             outputs = pack_value(outputs, model, is_output=True, ignore_outer_map=True)
             error = None
         except Exception as e:
