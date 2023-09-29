@@ -282,9 +282,6 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
             raise ValueError(f"unexpected type {some_type!r}")
         return Field(name=name, *args, **kwargs)
 
-    def _init_(self):
-        self.key = self.key or new_dynamic_node_key(self.ck)
-
     def __str__(self):
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
         return f"{name_str}{self._type_str}"
@@ -300,6 +297,9 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
         from bench.language.libs import symbolx_lib
 
         return symbolx_lib.resolve(".reflect.FieldMetadata")
+
+    def _init_inner(self):
+        self.key = self.key or new_dynamic_node_key(self.ck)
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         pass  # reference already resolved in HasReference

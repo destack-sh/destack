@@ -566,6 +566,10 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         self.append(node)
         return node
 
+    def create_many(self, *nodes: Collection[typing.Any | dict]):
+        """Creates a new node in the list."""
+        return [self.create(**n) if isinstance(n, dict) else self.create(n) for n in nodes]
+
     def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
         """
         Attaches a child node to a parent through a list. This is for users adding nodes.
@@ -1272,7 +1276,9 @@ class ModuleNode(abc.ABC):
                 if prop.child_mnt in affected_mnts:
                     getattr(parent, prop.name)._update(parent)
             parent = parent.parent
-        # nocheckin: also reinterp if active in session
+
+        # TODO @Broken @UX: reinterp local module on update (if active in session)
+        #  e.g. should probably raise if a new issue(kind=error) pops up after mutation
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value

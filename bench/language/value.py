@@ -68,7 +68,7 @@ class HasValue(ModuleNode):
 
         return map_value(
             self._raw_value(),
-            self,
+            self._type_of_value,
             ignore_array=True,
             ignore_outer_map=True,
             none_if_invalid=True,

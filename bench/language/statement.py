@@ -113,7 +113,13 @@ class Statement(ScopeNode, HasTags):
     external_name: str | None = ninternal(default=None)  # for model, to be moved into value
 
     @staticmethod
-    def new(type: StatementType = None, name: str = None, *args, **kwargs) -> "Statement":
+    def new(
+        type: StatementType = None,
+        name: str = None,
+        *args,
+        for_parent: Union["Statement", "File", None],
+        **kwargs,
+    ) -> "Statement":
         if type is None:
             raise ValueError("type must be specified")
         proxy = STATEMENT_CLASS_BY_TYPE[type]

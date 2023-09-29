@@ -528,6 +528,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             parent=parent,
             id=field.id,
             ck=field.ck,
+            order_key=field.order_key,
             name=field.name,
             key=field.key,
             tag=field.tag,
