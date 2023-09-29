@@ -469,15 +469,15 @@ class EnumMapper(TypeMapper):
         if isinstance(value, str):
             # allow string values for built-in enums
             # (that also function as regular enums in code)
-            return value in type.fields
-        return isinstance(value, Field) and value.key in type.fields
+            return value in type.resolved_fields
+        return isinstance(value, Field) and value.key in type.resolved_fields
 
     def unpack_value(self, type: HasFields, value: Any) -> Any:
-        field_ = type.fields.get(value)
+        field_ = type.resolved_fields.get(value)
         return field_.name if field_ else value
 
     def pack_value(self, type: HasFields, value: Any) -> Any:
-        field_ = type.fields.get(value) if not isinstance(value, Field) else value
+        field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
 
 

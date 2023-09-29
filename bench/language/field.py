@@ -19,9 +19,9 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.module import (
+    NS,
     ModuleNode,
     NodeList,
-    NodeStatus,
     NodeVisitor,
     NRel,
     ScopeNode,
@@ -360,14 +360,14 @@ class ResolvedField(Field):
         return self.parent != self.field.parent
 
     @staticmethod
-    def from_field(parent: ModuleNode, field: Field) -> "ResolvedField":
+    def from_field(for_parent: ModuleNode, field: Field) -> "ResolvedField":
         if isinstance(field, ResolvedField):
             field = field.field
         if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, ModuleNode):
             raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
-        ck = uuid.uuid5(parent.ck, field.ck.hex)
+        ck = uuid.uuid5(for_parent.ck, field.ck.hex)
         id = get_node_id(field.module.id, ck)
-        return ResolvedField(
+        resolved_field = ResolvedField(
             id=id,
             ck=ck,
             name=field.name,
@@ -379,9 +379,10 @@ class ResolvedField(Field):
             flags=field.flags,
             reference=field.reference,
             field=field,
-            # take same status as field, there are no lifecycle methods in ResolvedField/Field
-            _status=max(field._status, NodeStatus.Interpreted),
+            _status=NS.Source,
         )
+        resolved_field._interp_self(for_parent)
+        return resolved_field
 
 
 @node_component
@@ -390,9 +391,9 @@ class HasFields(SomeType, ModuleNode):
 
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
     resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.ResolvedField, NRel.Named | NRel.Ordered
+        MNT.ResolvedField, NRel.Named | NRel.Keyed | NRel.Ordered
     )
-    _resolved_unions: bool = nruntime(default=False)
+    _resolved_fields: bool = nruntime(default=False)
 
     def _init_inner(self):
         if self.key is None:
@@ -400,24 +401,23 @@ class HasFields(SomeType, ModuleNode):
 
     def _clear_inner(self) -> None:
         self.resolved_fields.clear()
-        self._resolved_unions = False
+        self._resolved_fields = False
 
     def _interp_inner(self, scope: ScopeNode) -> None:
-        # expand unions (recursively)
-        self._resolve_unions([])
+        self._resolve_fields([])
 
-    def _resolve_unions(self: "HasFields", path: list[SomeType]) -> None:
+    def _resolve_fields(self: "HasFields", path: list[SomeType]) -> None:
         """
         Resolves (and inlines) field references and unions.
         """
-        if self._resolved_unions:
+        if self._resolved_fields:
             return  # already resolved
 
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
             self._on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
-            self._resolved_unions = True
+            self._resolved_fields = True
             return
 
         path = path + [self]
@@ -431,7 +431,7 @@ class HasFields(SomeType, ModuleNode):
 
             if field.flags & TypeFlag.IsUnionWith:
                 # inline fields from union-ed type to resolved fields
-                field.reference._resolve_unions(path)
+                field.reference._resolve_fields(path)
                 for child in field.reference.resolved_fields:
                     existing = self.resolved_fields.get(child.py_ident)
                     # check if self is compatible if overlapping
@@ -445,7 +445,7 @@ class HasFields(SomeType, ModuleNode):
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))
         self.resolved_fields.set(resolved_fields)
-        self._resolved_unions = True
+        self._resolved_fields = True
 
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""

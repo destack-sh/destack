@@ -101,7 +101,9 @@ class HasCode(ModuleNode):
         if resolved is None:
             # fall back to code object import
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
-            if not isinstance(resolved, HasCode) or not resolved.exported:
+            if resolved is None:
+                raise ImportError(f"cannot import '{path}.{name}'->{resolved} (not found)")
+            if HasCode not in resolved._components or not resolved.exported:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = resolved()
             if name not in ret:
@@ -145,7 +147,7 @@ class HasCode(ModuleNode):
             "cache": self.session.cache_async if self._parse.is_async else self.session.cache_sync,
             "storage": self.session.storage,
             "random": Random(self.id.hex.encode()),
-            "import": self._import_sync if not self._parse.is_async else self._import_async,
+            "ximport": self._import_sync if not self._parse.is_async else self._import_async,
             **self._statement_references,
             **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
         }
@@ -168,8 +170,8 @@ class HasCode(ModuleNode):
     def _prep_func_body(self) -> tuple[str, int, int]:
         """Prepares the function body of this code with all modifications."""
         func_body_lines = ((self.code.strip() if self.code else None) or "pass").splitlines()
-        # replace real python x imports with _ximport
-        # e.g. replace `from .utils import a, b` with `a, b = _ximport(".utils", "a", "b")`
+        # replace real python x imports with Bench import
+        # e.g. replace `from .utils import a, b` with `a, b = import(".utils", "a", "b")`
         await_str = "await " if self._parse.is_async else ""
         for i, x_refs in self._parse.x_imports.items():
             x_paths = list(x_refs.values())

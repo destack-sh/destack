@@ -162,13 +162,16 @@ def get_similar_strings(candidates: dict[str, Any], needle: str) -> dict[str, An
     return {string: candidates[string] for string in similar_strings}
 
 
-def did_you_mean_str(candidates: dict[str, Any], needle: str) -> str:
+def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False) -> str:
     """
     Returns a string with a 'did you mean' suggestion.
     """
     similar_candidates = get_similar_strings(candidates, needle)
     if similar_candidates:
-        similar_candidates_strs = [f"{k} {v!r}" for k, v in similar_candidates.items()]
+        if repr:
+            similar_candidates_strs = [f"{k} {v}" for k, v in similar_candidates.items()]
+        else:
+            similar_candidates_strs = [f"‘{k}'" for k in similar_candidates.keys()]
         return f"Did you mean: {', '.join(similar_candidates_strs)}?"
     return f"Nothing similar in {len(candidates)} candidates."
 
