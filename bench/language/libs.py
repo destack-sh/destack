@@ -25,7 +25,6 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.field import Field, Key, Vector
-from bench.language.mapping import map_value, pack_value_flat
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import get_node_id
 from bench.language.reference import ModuleView
@@ -50,6 +49,7 @@ from bench.language.task import (
     TaskOutput,
 )
 from bench.language.text import TextMention
+from bench.language.typing import map_value, pack_value_flat
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
 #

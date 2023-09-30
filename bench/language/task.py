@@ -9,10 +9,10 @@ import structlog
 
 from bench.language.const import IssueType, TypeFlag
 from bench.language.field import TypedDict
-from bench.language.mapping import check_type, unpack_value
 from bench.language.model import HasModel
 from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
 from bench.language.reference import ModuleView
+from bench.language.typing import check_type, unpack_value
 
 from ..utils.func import describe_type
 

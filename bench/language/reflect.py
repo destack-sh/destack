@@ -8,7 +8,7 @@ from uuid import UUID, uuid5
 from bench.language.builtin import symbolx_lib
 from bench.language.const import BENCH_UUID_NAMESPACE, TypeTag
 from bench.language.file import File
-from bench.language.mapping import pack_value, type_from_instance_type, unpack_value
+from bench.language.typing import pack_value, type_from_instance_type, unpack_value
 
 
 def _derive_constant_key(path: str) -> UUID:
