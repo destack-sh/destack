@@ -702,7 +702,11 @@ class NodeList(NodeListBase[NodeT]):
             added = [_node]
             self._parent._local_root_tree.add(_node)
         # register node scope
-        if self._flags & NRel.Scoped and _node.name is not None:
+        if (
+            self._flags & NRel.Scoped
+            and _node.name is not None
+            and (not self._flags & NRel.Flat or _node.parent == self._parent)
+        ):
             self._parent._add_node_to_scope(_node)
 
         # assign order key to ordered nodes
@@ -1630,7 +1634,9 @@ class ScopeNode(ModuleNode):
         for prop in self.__list_properties__.values():
             if prop.children_flags & NRel.Scoped:
                 for child in getattr(self, prop.name):
-                    if child.name is not None:
+                    if child.name is not None and (
+                        not prop.children_flags & NRel.Flat or child.parent == self
+                    ):
                         self._add_node_to_scope(child)
 
     def _walk_rec(self) -> Collection["ModuleNode"]:
@@ -1658,12 +1664,14 @@ class ScopeNode(ModuleNode):
 
     @property
     def _local_root_scope(self) -> "ScopeNode":
+        """The root of the 'local' node tree (usually module, but maybe a detached root node)"""
         if self.parent is None:
             return self
         return self.parent._local_root_scope
 
     @property
     def _local_root_tree(self) -> Union["NodeTree", "DetachedNodeTree"]:
+        """The 'local' node tree (see _local_root_scope)"""
         tree = self._local_root_scope._local_tree
         assert tree is not None, f"no local tree for {self!r} in {self._local_root_scope!r}"
         return tree
