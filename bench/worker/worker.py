@@ -180,8 +180,8 @@ class WorkerNode(Monitored):
 
         try:
             # get runnable
-            runnable = worker.module.resolve(msg.p.runnable)
-            if runnable.type not in RUNNABLE_STATEMENT_TYPES:
+            runnable = worker.module.lookup(msg.p.runnable)
+            if runnable is None or runnable.type not in RUNNABLE_STATEMENT_TYPES:
                 raise RunStartError(StartRunErrorType.INVALID_RUN)
 
             # key inputs if needed
@@ -470,7 +470,7 @@ class ModuleWorkerProcess(ModuleWriter):
             inputs = map_value(
                 job.run_data.inputs,
                 runnable,
-                map_k=lambda f: (f.typed_key, f.py_ident),
+                map_k=lambda f: (f._typed_key, f.py_ident),
                 map_v=unpack_value_flat,
                 is_output=False,
             )

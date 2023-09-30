@@ -42,7 +42,7 @@ class Record(HasValue, ModuleNode):
     parent: "Statement" = nparent(MNT.Statement)
 
     @staticmethod
-    def new(*args, for_parent: "Statement", **kwargs) -> "Record":
+    def new(*args, for_parent: "Statement" = None, **kwargs) -> "Record":
         from bench.language.mapping import check_type, pack_value
 
         value = {**kwargs}
@@ -67,9 +67,7 @@ class Record(HasValue, ModuleNode):
         return self.parent.id
 
     @property
-    def _type_of_value(self):
-        if self.parent is None:
-            raise RuntimeError(f"cannot use detached record {self!r}")
+    def _type_of_value(self) -> Optional["Statement"]:
         return self.parent
 
     @property

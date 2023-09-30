@@ -51,7 +51,7 @@ class Trigger(ModuleNode):
 
     @staticmethod
     def new(
-        type: TriggerType = TriggerType.TIME, *args, for_parent: "Statement", **kwargs
+        type: TriggerType = TriggerType.TIME, *args, for_parent: "Statement" = None, **kwargs
     ) -> "Trigger":
         if type == TriggerType.TIME:
             return Trigger.time(*args, **kwargs)

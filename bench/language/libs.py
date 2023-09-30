@@ -176,7 +176,7 @@ def _type_to_json_schema(
         )
     elif type.flags & TypeFlag.IsArrayable:
         raise NotImplementedError(f"unsupported type {type}: arrayable not yet supported")
-    elif type.effective_tag == TypeTag.FUNCTION:
+    elif type._effective_tag == TypeTag.FUNCTION:
         return JsonSchemaElement(
             name=None,
             type=JsonSchemaElementType.object,
@@ -186,7 +186,7 @@ def _type_to_json_schema(
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
             ],
         )
-    elif type.effective_tag in TypeTag.STRUCT:
+    elif type._effective_tag in TypeTag.STRUCT:
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.object,
@@ -196,17 +196,17 @@ def _type_to_json_schema(
                 field.py_ident for field in fields if not (field.flags & TypeFlag.IsOptional)
             ],
         )
-    elif type.effective_tag == TypeTag.ENUM:
+    elif type._effective_tag == TypeTag.ENUM:
         return JsonSchemaElement(
             name=type.py_ident,
             type=JsonSchemaElementType.string,
             text=type.text_plain,
             enum=[value.name for value in fields],
         )
-    elif type.effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
+    elif type._effective_tag in (TypeTag.STRING, TypeTag.NUMBER, TypeTag.BOOLEAN):
         return JsonSchemaElement(
             name=type.py_ident,
-            type=_PARAM_TYPE_BY_TAG[type.effective_tag],
+            type=_PARAM_TYPE_BY_TAG[type._effective_tag],
             text=type.text_plain,
         )
     else:
@@ -216,7 +216,7 @@ def _type_to_json_schema(
 class BaseTextTaskCompiler(TaskCompiler):
     def _render_value_flat(self, value: Any, type: Union[Field, Type], *args, **kwargs) -> Any:
         """Model-friendly rendering of instantiated value."""
-        if type.effective_tag == TypeTag.ENUM:
+        if type._effective_tag == TypeTag.ENUM:
             return type.resolved_fields.get(value).name
         else:
             return pack_value_flat(value, type, *args, **kwargs)
@@ -1020,6 +1020,7 @@ for name, module in DEFAULT_MODULES.items():
     module._interp_rec()
     if module.issues:
         raise RuntimeError(f"default module {module.name} has issues: {module.issues}")
+    module._validate_rec()
 
     # extra sanity checks for debugging
     if DEBUG or LOCAL:

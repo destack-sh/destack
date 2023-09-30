@@ -13,7 +13,7 @@ from bench.language.const import (
     TypeTag,
 )
 from bench.language.database import HasDatabase
-from bench.language.field import HasFields, HasType
+from bench.language.field import HasFields, IsType, IsTyped
 from bench.language.model import HasModel
 from bench.language.module import (
     ModuleNode,
@@ -43,7 +43,7 @@ if TYPE_CHECKING:
 
 # Note that order matters as components are called in order.
 _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
-    StatementType.TYPE: (HasType, HasFields, HasText),
+    StatementType.TYPE: (IsType, HasFields, HasText),
     StatementType.CODE: (HasCode, HasRun, HasTriggers, HasFields, HasText),
     StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
     StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
@@ -108,7 +108,10 @@ class Statement(ScopeNode, HasTags):
     )
     text: str | None = nproperty(default=None)
     key: str | None = nproperty(default=None)
-    tag: Optional[TypeTag] = nproperty(default=None, validate=enum_validator(TypeTag))
+    # Statement.tag is optional, but IsTyped.tag is not - we validate this manually in init/morph.
+    tag: Optional[TypeTag] = nproperty(
+        default=None, validate=enum_validator(TypeTag), ignore_conflicts_with=(IsTyped,)
+    )
     hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
     flags: Optional[TypeFlag] = nproperty(default=0, validate=flag_validator(TypeFlag))
     code: str | None = nproperty(default=None)
@@ -121,7 +124,7 @@ class Statement(ScopeNode, HasTags):
         type: StatementType = None,
         name: str = None,
         *args,
-        for_parent: Union["Statement", "File", None],
+        for_parent: Union["Statement", "File", None] = None,
         **kwargs,
     ) -> "Statement":
         if type is None:
