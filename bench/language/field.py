@@ -3,7 +3,7 @@ import enum
 import typing
 import uuid
 from dataclasses import dataclass
-from typing import Any, Optional, Self, Union
+from typing import Any, Collection, Optional, Self, Union
 from uuid import UUID
 
 import structlog
@@ -37,6 +37,7 @@ from bench.language.module import (
 from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
 from bench.language.text import HasText
+from bench.language.validation import ValidationHandler, enum_validator, flag_validator
 from bench.language.value import HasValue
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -247,11 +248,11 @@ class SomeType(abc.ABC):
 class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.Statement)
     name: Optional[str] = nproperty(default=None)
-    tag: TypeTag = nproperty()
-    hint: Optional[TypeHint] = nproperty(default=None)
+    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
+    hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
     order_key: str | None = ninternal(default=None)
     key: str = nproperty(default=None)
-    flags: TypeFlag = nproperty(default=TypeFlag.Zero)
+    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
 
     @staticmethod
     def new(
@@ -307,6 +308,9 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
+
+    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+        pass  # nocheckin: validate tags/hint/flag
 
     @property
     def _type_str(self) -> str:

@@ -1,3 +1,4 @@
+import enum
 import re
 from typing import TYPE_CHECKING
 
@@ -74,3 +75,22 @@ MAX_TEXT_LENGTH = 2048
 
 # not used in modules right now?
 MAX_DESCRIPTION_LENGTH = 512
+
+
+def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
+    assert issubclass(t, (enum.StrEnum, enum.IntEnum)), f"invalid enum type: {t!r}"
+
+    def validate_enum(value: str, on_issue: PropertyValidationHandler):
+        if value not in t.__members__:
+            on_issue(f"invalid {t.__name__} ('{value}')")
+
+    return validate_enum
+
+
+def flag_validator(t: type[enum.IntFlag]):
+    assert issubclass(t, enum.IntFlag), f"invalid flag type: {t!r}"
+
+    def validate_flag(value: int, on_issue: PropertyValidationHandler):
+        pass  # nocheckin: validate flag
+
+    return validate_flag

@@ -25,6 +25,7 @@ from bench.language.module import (
 )
 from bench.language.query import Query, Sort
 from bench.language.search import ElementT, Search
+from bench.language.validation import enum_validator
 from bench.language.value import HasValue
 from bench.utils.func import describe_type
 from bench.utils.utils import DotList
@@ -86,7 +87,9 @@ class Record(HasValue, ModuleNode):
 class DatabaseView(ScopeNode):
     parent: "Statement" = nparent(MNT.Statement)
     name: str | None = nproperty(default=None)
-    layout: DatabaseViewLayout = nproperty(default=DatabaseViewLayout.TABLE)
+    layout: DatabaseViewLayout = nproperty(
+        default=DatabaseViewLayout.TABLE, validate=enum_validator(DatabaseViewLayout)
+    )
     query: Optional[Query] = nproperty(default=None)
     sort: Optional[list[Sort]] = nproperty(default=None)
     fields: Optional[list["DatabaseViewField"]] = nchildren(MNT.DatabaseViewField)

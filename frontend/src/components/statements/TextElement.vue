@@ -186,7 +186,8 @@ defineExpose({
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
     <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
       <div
-        class="absolute -top-[15px] z-20 ml-3 flex animate-fadein-1500 flex-row gap-1.5 whitespace-nowrap transition-opacity"
+        class="absolute -top-[15px] z-20 flex animate-fadein-1500 flex-row gap-1.5 whitespace-nowrap transition-opacity"
+        :class="[text.length == 0 ? 'ml-24' : 'ml-3' /* for 'type for text...' */]"
       >
         <button
           v-for="action in quickActions"

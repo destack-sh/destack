@@ -7,6 +7,7 @@ import {
   BASIC_CONTROL_PARTS,
   STANDALONE_ENABLED,
   STATEMENT_INTERFACES,
+  STATEMENT_RUNNABLE_TYPES,
   STATEMENT_STANDALONE_TYPES,
   type StatementElementId,
   type StatementEmitDict,
@@ -643,6 +644,10 @@ function showActionsPopover() {
 
 const sessions = useCurrentSessions();
 function run() {
+  if (!STATEMENT_RUNNABLE_TYPES.includes(statement.value.type)) {
+    console.warn(`can't run ${statement.value} of type ${statement.value.type}`);
+    return;
+  }
   if (!bench.canUse) {
     console.warn(`can't run ${statement.value} with access level ${bench.ModuleAccessLevel}`);
     return;
