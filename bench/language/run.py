@@ -259,7 +259,7 @@ class RunCodeFrame:
 
         code_by_method: dict[str, HasCode] = {
             node._transform.method_name: node
-            for node in session.module._nodes
+            for node in list(session.module._nodes)
             if isinstance(node, Statement) and getattr(node, "_transform", None)
         }
 
