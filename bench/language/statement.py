@@ -9,6 +9,7 @@ from bench.language.const import (
     StatementType,
     TextHeadingLevel,
     TypeFlag,
+    TypeHint,
     TypeTag,
 )
 from bench.language.database import HasDatabase
@@ -32,17 +33,18 @@ from bench.language.run import HasRun
 from bench.language.tagging import HasTags
 from bench.language.task import HasTask
 from bench.language.text import HasText
-from bench.language.validation import validate_name
+from bench.language.trigger import HasTriggers
+from bench.language.validation import enum_validator, flag_validator, validate_name
 from bench.language.value import HasValue
 from bench.utils.utils import IdentifierType, identity, to_pyidentifier
 
 if TYPE_CHECKING:
-    from bench.language import File, TypeHint
+    from bench.language import File
 
 # Note that order matters as components are called in order.
 _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
     StatementType.TYPE: (HasType, HasFields, HasText),
-    StatementType.CODE: (HasCode, HasRun, HasFields, HasText),
+    StatementType.CODE: (HasCode, HasRun, HasTriggers, HasFields, HasText),
     StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
     StatementType.TASK: (HasTask, HasRun, HasFields, HasText),
     StatementType.FLOW: (HasRun, HasFields, HasText),
@@ -96,17 +98,19 @@ class Statement(ScopeNode, HasTags):
         MNT.Statement, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
-    type: StatementType = nproperty(default=StatementType.BLANK)
+    type: StatementType = ninternal(default=StatementType.BLANK)
     name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
 
     reference: Union["Statement", StatementReference, None] = nproperty(default=None, copy=identity)
-    heading_level: Optional["TextHeadingLevel"] = nproperty(default=None)
+    heading_level: Optional["TextHeadingLevel"] = nproperty(
+        default=None, validate=enum_validator(TextHeadingLevel)
+    )
     text: str | None = nproperty(default=None)
     key: str | None = nproperty(default=None)
-    tag: Optional["TypeTag"] = nproperty(default=None)
-    hint: Optional["TypeHint"] = nproperty(default=None)
-    flags: Optional["TypeFlag"] = nproperty(default=0)
+    tag: Optional[TypeTag] = nproperty(default=None, validate=enum_validator(TypeTag))
+    hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
+    flags: Optional[TypeFlag] = nproperty(default=0, validate=flag_validator(TypeFlag))
     code: str | None = nproperty(default=None)
     value: Any | None = nproperty(default=None)
     versioned: bool = nproperty(default=True)

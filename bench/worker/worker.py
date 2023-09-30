@@ -9,7 +9,7 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
-from bench.language.const import ModuleReference, RunStatus, SessionMode
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, ModuleReference, RunStatus, SessionMode
 from bench.language.mapping import map_value, unpack_value_flat
 from bench.language.mutate import ModuleMutation
 from bench.language.run import RunErrorKind
@@ -181,8 +181,8 @@ class WorkerNode(Monitored):
         try:
             # get runnable
             runnable = worker.module.resolve(msg.p.runnable)
-            if runnable is None:
-                pass
+            if runnable.type not in RUNNABLE_STATEMENT_TYPES:
+                raise RunStartError(StartRunErrorType.INVALID_RUN)
 
             # key inputs if needed
             if not msg.p.keyed:
@@ -340,10 +340,10 @@ class ModuleWorkerProcess(ModuleWriter):
         self.queue: asyncio.Queue[RunJob] = asyncio.PriorityQueue()
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="worker")
         self.log = logger.bind(
-            worker_set=self.node.worker_set_id,
-            worker_node=self.node.worker_node_id,
-            worker_process=process_id,
-            module_id=self.module_id,
+            worker_set=str(self.node.worker_set_id),
+            worker_node=str(self.node.worker_node_id),
+            worker_process=str(process_id),
+            module_id=str(self.module_id),
         )
 
         self._active_runs: dict[UUID, RunJob] = {}
@@ -363,6 +363,7 @@ class ModuleWorkerProcess(ModuleWriter):
         source, self.project_id = await self.node.get_module(self.module_id)
         try:
             self.module = await sync_to_async(Module.interp)(source.nodes, self.project_id)
+            self.log = self.log.bind(module=self.module.name)
         except Exception as e:
             self.log.error("module.init.failed", exc_info=e)
             raise RuntimeError(f"failed to initialize module worker {self}")
@@ -458,6 +459,14 @@ class ModuleWorkerProcess(ModuleWriter):
 
             # instantiate arguments
             runnable = self.module.resolve(job.run_data.runnable_id)
+            if runnable.type not in RUNNABLE_STATEMENT_TYPES:
+                raise RunError(
+                    kind=RunErrorKind.Runtime,
+                    type="InvalidRunnableType",
+                    message=f"statement {runnable!r} is not runnable",
+                    runnable=runnable,
+                )
+
             inputs = map_value(
                 job.run_data.inputs,
                 runnable,

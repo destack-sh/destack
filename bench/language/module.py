@@ -185,6 +185,7 @@ def nproperty(
     default_factory: Callable[[], typing.Any] = None,
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
+    is_required: bool = False,
 ):
     """Standard user facing node property."""
     return NodeProperty(
@@ -192,6 +193,7 @@ def nproperty(
         default_factory=default_factory,
         custom_copy=copy,
         custom_validate=validate,
+        is_required=is_required,
     )
 
 
@@ -556,19 +558,30 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """Recomputes the list from the given scope."""
         raise NotImplementedError
 
-    def create(self, *args, **kwargs):
+    def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""
         node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
         if hasattr(node_cls, "new"):
             node = node_cls.new(*args, **kwargs, for_parent=self._parent)
         else:
             node = node_cls(*args, **kwargs)
-        self.append(node)
+        if _append:
+            self.append(node)
         return node
 
-    def create_many(self, *nodes: Collection[typing.Any | dict]):
+    def create_many(self, *nodes: Collection[typing.Any | dict]) -> list[NodeT]:
         """Creates a new node in the list."""
-        return [self.create(**n) if isinstance(n, dict) else self.create(n) for n in nodes]
+        created = []
+        for n in nodes:
+            if isinstance(n, dict):
+                node = self.create(**n, _append=False)
+            elif isinstance(n, tuple):
+                node = self.create(*n, _append=False)
+            else:
+                node = self.create(n, _append=False)
+            created.append(node)
+        self.extend(created)
+        return created
 
     def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
         """
@@ -1365,6 +1378,8 @@ class ModuleNode(abc.ABC):
         """Initialize this node."""
         for name, prop in self.__list_properties__.items():
             setattr(self, name, prop.list_type(self, prop))
+        if self._session is not None:
+            self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
     def _clear_inner(self) -> None:
         """Resets this node's index and interp state."""

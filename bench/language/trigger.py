@@ -1,6 +1,6 @@
 from collections import deque
 from datetime import datetime
-from typing import TYPE_CHECKING, Deque, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Collection, Deque, Mapping, Optional, Union
 from uuid import UUID
 
 import pytz
@@ -19,9 +19,17 @@ from bench.language.module import (
     nproperty,
 )
 from bench.language.run import HasRun
+from bench.language.validation import ValidationHandler, enum_validator
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
+
+# :TriggerSchedule
+TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
+TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
+TRIGGER_INTERVAL_USR_MIN = 300  # seconds :MinTriggerInterval
+TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
+TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
 @node(mnt=MNT.Trigger)
@@ -29,10 +37,12 @@ class Trigger(ModuleNode):
     """A trigger for a runnable, possibly inside a flow."""
 
     parent: "Statement" = nparent(MNT.Statement)
-    type: TriggerType = nproperty()
+    type: TriggerType = nproperty(is_required=True, validate=enum_validator(TriggerType))
     active: bool = nproperty(default=True)
     mapping: Optional[Mapping] = nproperty(default=None)
-    schedule_type: Optional[ScheduleType] = nproperty(default=None)
+    schedule_type: Optional[ScheduleType] = nproperty(
+        default=None, validate=enum_validator(ScheduleType)
+    )
     timezone: Optional[str] = nproperty(default=pytz.utc.zone)
     interval: Optional[int] = nproperty(default=None)
     cron: Optional[str] = nproperty(default=None)
@@ -40,8 +50,28 @@ class Trigger(ModuleNode):
     scope: Union["ModuleNode", UUID, None] = nproperty(default=None)
 
     @staticmethod
-    def new(*args, **kwargs) -> "Trigger":
-        return Trigger(*args, **kwargs)
+    def new(
+        type: TriggerType = TriggerType.TIME, *args, for_parent: "Statement", **kwargs
+    ) -> "Trigger":
+        if type == TriggerType.TIME:
+            return Trigger.time(*args, **kwargs)
+        else:
+            return Trigger(type=type, *args, **kwargs)
+
+    @staticmethod
+    def time(cron_or_interval: str | int) -> "Trigger":
+        if isinstance(cron_or_interval, str):
+            return Trigger(
+                type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=cron_or_interval
+            )
+        elif isinstance(cron_or_interval, int):
+            return Trigger(
+                type=TriggerType.TIME,
+                schedule_type=ScheduleType.INTERVAL,
+                interval=cron_or_interval,
+            )
+        else:
+            raise ValueError(f"invalid schedule: {cron_or_interval}")
 
     def __str__(self):
         if self.type == TriggerType.TIME:
@@ -78,19 +108,26 @@ class Trigger(ModuleNode):
             else:
                 self.scope = resolved
 
+    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+        if self.type == TriggerType.TIME:
+            if self.schedule_type == ScheduleType.CRON:
+                if not croniter.is_valid(self.cron):
+                    on_issue(self, f"cron: invalid expression ('{self.cron}')", ["cron"])
+            elif self.schedule_type == ScheduleType.INTERVAL:
+                interval = self.interval or 0
+                if interval < TRIGGER_INTERVAL_USR_MIN or interval > TRIGGER_INTERVAL_ABS_MAX:
+                    on_issue(
+                        self,
+                        f"interval: invalid ({interval} not in [{TRIGGER_INTERVAL_USR_MIN}, {TRIGGER_INTERVAL_ABS_MAX}])",
+                        ["interval"],
+                    )
+
 
 @node_component
 class HasTriggers(ModuleNode):
     """A symbol that can participate in a flow."""
 
     triggers: NodeList[Trigger] = nchildren(MNT.Trigger)
-
-
-# :TriggerSchedule
-TRIGGER_INTERVAL_ORIGIN = datetime(2022, 1, 1, 0, 0, 0, 0).replace(tzinfo=pytz.utc)
-TRIGGER_INTERVAL_ORIGIN_TIMESTAMP = TRIGGER_INTERVAL_ORIGIN.timestamp()
-TRIGGER_INTERVAL_USR_MIN = 300  # seconds :MinTriggerInterval
-TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
 class TriggerScheduleIterator:

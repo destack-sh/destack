@@ -25,7 +25,7 @@ class Tagging(HasValue, HasReference, ModuleNode):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
-    key: str = nproperty()
+    key: str = nproperty(is_required=True)
 
     @staticmethod
     def new(

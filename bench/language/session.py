@@ -441,13 +441,13 @@ class SessionTracer(Tracer):
     #
 
     def node_create(self, *nodes: ModuleNode):
-        self.mutator.create(*nodes, apply=False)
+        self.mutator.create_many(*nodes, apply=False)
 
     def node_update(self, node: ModuleNode, properties: list[str]):
         self.mutator.update(node, properties=properties, apply=False)
 
     def node_delete(self, *node: ModuleNode):
-        self.mutator.delete(*node, apply=False)
+        self.mutator.delete_many(*node, apply=False)
 
     def node_truncate(self, node: ModuleNode, mnt: MNT):
         self.mutator.truncate(node, mnt, apply=False)

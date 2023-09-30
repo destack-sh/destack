@@ -5,6 +5,7 @@ from uuid import UUID
 from bench.language import IssueType
 from bench.language.const import MNT, IssueKind
 from bench.language.module import ModuleNode, node, nparent, nproperty
+from bench.language.validation import enum_validator
 
 if TYPE_CHECKING:
     from bench.language.file import File
@@ -61,8 +62,8 @@ class BenchError(ValueError):
 @node(mnt=MNT.Issue)
 class Issue(ModuleNode):
     parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)
-    type: IssueType = nproperty()
-    kind: IssueKind = nproperty(default=None)
+    type: IssueType = nproperty(is_required=True, validate=enum_validator(IssueType))
+    kind: IssueKind = nproperty(default=None, validate=enum_validator(IssueKind))
     message: str = nproperty(default=None)
     subject: Optional[ModuleNode] = nproperty(default=None)
     path: Optional[str] = nproperty(default=None)
