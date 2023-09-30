@@ -43,7 +43,7 @@ class Record(HasValue, ModuleNode):
 
     @staticmethod
     def new(*args, for_parent: "Statement" = None, **kwargs) -> "Record":
-        from bench.language.mapping import check_type, pack_value
+        from bench.language.typing import check_type, pack_value
 
         value = {**kwargs}
         for field, arg in zip(for_parent.resolved_fields, args):

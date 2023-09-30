@@ -20,7 +20,7 @@ class HasValue(ModuleNode):
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         # type may not be ready if not attached (e.g. Record in a Database)
         if "value" in properties and self._type_of_value is not None:
-            from bench.language.mapping import check_type
+            from bench.language.typing import check_type
 
             try:
                 is_array = bool(self._type_of_value.flags & TypeFlag.IsArray)
@@ -34,10 +34,10 @@ class HasValue(ModuleNode):
     def _activate_inner(self, session: "Session") -> None:
         if self.value is None:
             return
-        from bench.language.mapping import unpack_value
+        from bench.language.typing import unpack_value
 
         def _onwrite_value(key: str) -> None:
-            from bench.language.mapping import check_type
+            from bench.language.typing import check_type
 
             is_array = bool(self._type_of_value.flags & TypeFlag.IsArray)
             check_type(self.value, self._type_of_value, ignore_array=is_array)
@@ -55,7 +55,7 @@ class HasValue(ModuleNode):
 
     def _raw_value(self) -> dict | None:
         """The raw/stripped value with field keys."""
-        from bench.language.mapping import pack_value
+        from bench.language.typing import pack_value
 
         if self.value is None or self._status != NS.Tracked:
             return self.value
@@ -70,7 +70,7 @@ class HasValue(ModuleNode):
 
     def _raw_named_value(self):
         """The raw/stripped value with field names."""
-        from bench.language.mapping import map_value
+        from bench.language.typing import map_value
 
         assert self._type_of_value is not None, f"missing type for {self!r}"
         return map_value(

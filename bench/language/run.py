@@ -167,7 +167,7 @@ class Run:
 
     def _activate_inner(self, session: "Session", **kwargs):
         from bench.language.libs import symbolx_lib
-        from bench.language.mapping import check_type, unpack_value
+        from bench.language.typing import check_type, unpack_value
 
         metatype = symbolx_lib.resolve(".reflect.RunMetadata")
 
@@ -185,7 +185,7 @@ class Run:
 
     def _raw_value(self) -> dict:
         from bench.language.libs import symbolx_lib
-        from bench.language.mapping import pack_value
+        from bench.language.typing import pack_value
 
         run_value = symbolx_lib.resolve(".reflect.RunMetadata")
 

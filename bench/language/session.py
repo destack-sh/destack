@@ -25,12 +25,12 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.mapping import check_type, map_value, pack_value, pack_value_flat
 from bench.language.module import Module, ModuleNode
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.run import HasRun, LogEntry, Run, RunError
 from bench.language.search import Search
 from bench.language.statement import Statement
+from bench.language.typing import check_type, map_value, pack_value, pack_value_flat
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.uuidt import UUIDT
 

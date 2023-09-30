@@ -33,12 +33,12 @@ from bench.language.const import (
     parse_absolute_node_reference,
 )
 from bench.language.libs import DEFAULT_MODULES
-from bench.language.mapping import pack_value, unpack_value
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import ModuleChange
 from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
+from bench.language.typing import pack_value, unpack_value
 from bench.models import Project, ProjectVersion, packer
 from bench.models.packer import write_mutations, write_session
 from bench.msg import NMessage
