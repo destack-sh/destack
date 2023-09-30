@@ -33,7 +33,7 @@ class File(ScopeNode, HasTags):
     )
 
     @staticmethod
-    def new(name: str = None, *args, for_parent: Union["File", Module], **kwargs) -> "File":
+    def new(name: str = None, *args, for_parent: Union["File", Module] = None, **kwargs) -> "File":
         return File(name=name, *args, **kwargs)
 
     def __str__(self):

@@ -359,9 +359,9 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
             if isinstance(node, HasRun):
                 for field in node.resolved_fields:
                     if field.flags & TypeFlag.IsOutput:
-                        outputs_mappings[field.typed_key] = map_to_os_field(field)
+                        outputs_mappings[field._typed_key] = map_to_os_field(field)
                     else:
-                        inputs_mappings[field.typed_key] = map_to_os_field(field)
+                        inputs_mappings[field._typed_key] = map_to_os_field(field)
     # ensure library vectors are not indexed (would be pointless waste of resources)
     for field in (*inputs_mappings.values(), *outputs_mappings.values()):
         for f in field.walk():
@@ -371,7 +371,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     # and 'static' value mappings (hard-coded)
     for value_type in (libs.symbolx_lib.resolve(".reflect.RunMetadata"),):
         for field in value_type.resolved_fields:
-            value_mappings[field.typed_key] = map_to_os_field(field)
+            value_mappings[field._typed_key] = map_to_os_field(field)
 
     # add dynamic user mappings
     for node in module._nodes:
@@ -382,14 +382,14 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
         elif node.type == lang.StatementType.DATABASE:
             # all fields go into Record.value
             for field in node.resolved_fields:
-                value_mappings[field.typed_key] = map_to_os_field(field)
+                value_mappings[field._typed_key] = map_to_os_field(field)
         elif node.type in RUNNABLE_STATEMENT_TYPES:
             # inputs into Execution.inputs, outputs into Execution.outputs
             for field in node.resolved_fields:
                 if field.flags & TypeFlag.IsOutput:
-                    outputs_mappings[field.typed_key] = map_to_os_field(field)
+                    outputs_mappings[field._typed_key] = map_to_os_field(field)
                 else:
-                    inputs_mappings[field.typed_key] = map_to_os_field(field)
+                    inputs_mappings[field._typed_key] = map_to_os_field(field)
 
     logger.info(
         "os.update_mappings.done",

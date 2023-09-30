@@ -2,6 +2,8 @@ import enum
 import re
 from typing import TYPE_CHECKING
 
+import cachetools
+
 if TYPE_CHECKING:
     from bench.language.module import ModuleNode, NodeProperty
 
@@ -77,20 +79,27 @@ MAX_TEXT_LENGTH = 2048
 MAX_DESCRIPTION_LENGTH = 512
 
 
+# note: we cache these validators not for performance but for reference equality
+
+
+@cachetools.cached({})
 def enum_validator(t: type[enum.StrEnum | enum.IntEnum]):
     assert issubclass(t, (enum.StrEnum, enum.IntEnum)), f"invalid enum type: {t!r}"
 
     def validate_enum(value: str, on_issue: PropertyValidationHandler):
-        if value not in t.__members__:
+        if not isinstance(value, t) and value not in t.__members__:
             on_issue(f"invalid {t.__name__} ('{value}')")
 
     return validate_enum
 
 
+@cachetools.cached({})
 def flag_validator(t: type[enum.IntFlag]):
     assert issubclass(t, enum.IntFlag), f"invalid flag type: {t!r}"
+    valid_mask = sum(t.__members__.values())
 
     def validate_flag(value: int, on_issue: PropertyValidationHandler):
-        pass  # nocheckin: validate flag
+        if not isinstance(value, t) and value & ~valid_mask:
+            on_issue(f"invalid {t.__name__} ({value} & ~{valid_mask})")
 
     return validate_flag

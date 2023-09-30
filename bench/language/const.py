@@ -73,6 +73,8 @@ RUNNABLE_STATEMENT_TYPES = {
 DYNAMIC_NODE_KEY_LENGTH = 8
 
 # :ModuleLimits
+MAX_STATEMENTS_PER_FILE = 256
+MAX_FILES = 64
 MODULE_RECORD_LIMIT = 25_000
 DATABASE_VERSIONED_RECORD_LIMIT = 2500
 DATABASE_GENERAL_RECORD_LIMIT = 10_000_000
@@ -253,7 +255,7 @@ class TypeStorageFormat(enum.StrEnum):
     The fundamental form of a field/type.
     Since we're using OpenSearch for our user data backend, this
     needs to be compatible with OpenSearch's field types.
-    However, be mindful of other future storage backends.
+    However, be mindful of other future storage/indexing backends.
     :TypeStorageFormat
     """
 

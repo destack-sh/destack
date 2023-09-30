@@ -1,4 +1,3 @@
-import abc
 import enum
 import typing
 import uuid
@@ -37,7 +36,12 @@ from bench.language.module import (
 from bench.language.query import FieldQueryOps
 from bench.language.reference import HasReference
 from bench.language.text import HasText
-from bench.language.validation import ValidationHandler, enum_validator, flag_validator
+from bench.language.validation import (
+    ValidationHandler,
+    enum_validator,
+    flag_validator,
+    validate_name,
+)
 from bench.language.value import HasValue
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
@@ -51,7 +55,7 @@ class TypeError(TypeError):
     def __init__(
         self,
         value: Any,
-        expected: "SomeType",
+        expected: "IsTyped",
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
@@ -59,8 +63,9 @@ class TypeError(TypeError):
         max_value_str_len = 300
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
+
         super().__init__(
-            f"{message or 'type mismatch'}: expected {expected}, got {value_str} ({type(value)})"
+            f"{message or 'type mismatch'}: expected {expected!r}, got {value_str} ({type(value)})"
         )
         self.value = value
         self.expected = expected
@@ -177,27 +182,28 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
     return STORAGE_FORMAT_BY_TYPE_TAG[tag]
 
 
-class SomeType(abc.ABC):
+@node_component
+class IsTyped(ModuleNode):
     """Abstract base for Field nas HasFields/Statement types"""
 
-    id: UUID
-    name: Optional[str]
-    key: Optional[str]
-    tag: TypeTag
-    hint: Optional[TypeHint]
-    flags: TypeFlag
-    text: Optional[str]
-    text_plain: Optional[str]
-    fields: NodeList["SomeType"]
-    resolved_fields: NodeList["SomeType"]  # resolved fields with unions and such
-    reference: Union[None, StatementReference, "HasFields"]
-    source: Optional["Statement"]
+    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
+    hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
+    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
+    key: str = nproperty(default=None)
+
+    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
+        if self.hint is not None:
+            tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
+            if self.tag != tag:
+                on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
 
     @property
-    def storage_format(self) -> TypeStorageFormat:
-        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, ModuleNode):
-            return self.reference.storage_format
-        return get_storage_format(self.tag, self.hint, self.flags)
+    def reference(self) -> Union["Statement", StatementReference, None]:
+        return None
+
+    @property
+    def resolved_fields(self) -> Collection["ResolvedField"]:
+        raise NotImplementedError
 
     @property
     def py_ident(self) -> Optional[str]:
@@ -209,25 +215,41 @@ class SomeType(abc.ABC):
             return to_pyidentifier(self.name, IdentifierType.FIELD)
 
     @property
-    def effective_type(self) -> Union["SomeType", "Statement"]:
+    def _storage_format(self) -> TypeStorageFormat:
+        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, ModuleNode):
+            return self.reference._storage_format
+        return get_storage_format(self.tag, self.hint, self.flags)
+
+    @property
+    def _effective_type(self) -> Union["IsTyped", "Statement"]:
         if isinstance(self.reference, ModuleNode):
             return self.reference
         else:
             return self
 
     @property
-    def effective_tag(self) -> TypeTag:
-        return self.effective_type.tag
+    def _type_str(self) -> str:
+        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
+        flags_str = f" ({flag_str})" if flag_str else ""
+        if self.hint:
+            return f"{self.hint}{flags_str}"
+        else:
+            return f"{self.tag}{flags_str}"
 
     @property
-    def effective_hint(self) -> Optional[TypeHint]:
-        return self.effective_type.hint
+    def _effective_tag(self) -> TypeTag:
+        return self._effective_type.tag
 
-    def is_type_equivalent(self, other: "SomeType") -> bool:
+    @property
+    def _effective_hint(self) -> Optional[TypeHint]:
+        return self._effective_type.hint
+
+    def equals_type(self, other: "IsTyped") -> bool:
         return (
-            self.effective_tag == other.effective_tag
-            and self.effective_hint == other.effective_hint
+            self._effective_tag == other._effective_tag
+            and self._effective_hint == other._effective_hint
             and self.flags == other.flags
+            and self.reference == other.reference
         )
 
     def get_field(self, some_id: str, is_output: bool = None) -> Optional["Field"]:
@@ -245,21 +267,17 @@ class SomeType(abc.ABC):
 
 
 @node(mnt=MNT.Field)
-class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
+class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     parent: Union["Statement", None] = nparent(MNT.Statement)
-    name: Optional[str] = nproperty(default=None)
-    tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
-    hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
+    name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
-    key: str = nproperty(default=None)
-    flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
 
     @staticmethod
     def new(
         name: str = None,
         some_type: Union[TypeTag, TypeHint, "Statement"] = None,
-        for_parent: "Statement" = None,
         *args,
+        for_parent: "Statement" = None,
         **kwargs,
     ) -> "Field":
         # default to literal or string if no type is specified
@@ -302,24 +320,9 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
     def _init_inner(self):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
-    def _interp_inner(self, scope: ScopeNode) -> None:
-        pass  # reference already resolved in HasReference
-
     def _visit_inner(self, visitor: NodeVisitor) -> None:
         if isinstance(self.reference, ModuleNode):
             visitor.visit_reference(self.reference)
-
-    def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
-        pass  # nocheckin: validate tags/hint/flag
-
-    @property
-    def _type_str(self) -> str:
-        flag_str = ", ".join(flag.short_name.lower() for flag in TypeFlag if self.flags & flag)
-        flags_str = f" ({flag_str})" if flag_str else ""
-        if self.hint:
-            return f"{self.hint}{flags_str}"
-        else:
-            return f"{self.tag}{flags_str}"
 
     @property
     def path(self) -> str:
@@ -335,15 +338,15 @@ class Field(HasText, HasValue, HasReference, SomeType, FieldQueryOps):
         return (self.value or {}).get("dimensions", DEFAULT_EMBEDDING_DIMENSION)
 
     @property
-    def typed_key(self) -> str:
-        if self.storage_format == TypeStorageFormat.VECTOR:
-            return f"{self.key}-{self.storage_format.value}{self.dimensions}"
+    def _typed_key(self) -> str:
+        if self._storage_format == TypeStorageFormat.VECTOR:
+            return f"{self.key}-{self._storage_format.value}{self.dimensions}"
         else:
-            return f"{self.key}-{self.storage_format.value}"
+            return f"{self.key}-{self._storage_format.value}"
 
     @property
-    def source_key(self) -> str:
-        return "value." + self.typed_key
+    def _source_key(self) -> str:
+        return "value." + self._typed_key
 
 
 @node(mnt=MNT.ResolvedField)
@@ -390,10 +393,11 @@ class ResolvedField(Field):
 
 
 @node_component
-class HasFields(SomeType, ModuleNode):
+class HasFields(IsTyped):
     """A node with fields"""
 
     fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
+
     resolved_fields: NodeList["ResolvedField"] = nchildren(
         MNT.ResolvedField, NRel.Named | NRel.Keyed | NRel.Ordered
     )
@@ -410,7 +414,7 @@ class HasFields(SomeType, ModuleNode):
     def _interp_inner(self, scope: ScopeNode) -> None:
         self._resolve_fields([])
 
-    def _resolve_fields(self: "HasFields", path: list[SomeType]) -> None:
+    def _resolve_fields(self: "HasFields", path: list[IsTyped]) -> None:
         """
         Resolves (and inlines) field references and unions.
         """
@@ -439,7 +443,7 @@ class HasFields(SomeType, ModuleNode):
                 for child in field.reference.resolved_fields:
                     existing = self.resolved_fields.get(child.py_ident)
                     # check if self is compatible if overlapping
-                    if existing is not None and not existing.is_type_equivalent(child):
+                    if existing is not None and not existing.equals_type(child):
                         self._on_issue(
                             self=IssueType.MISMATCHED_UNION, subject=self, other=existing
                         )
@@ -469,7 +473,7 @@ class HasFields(SomeType, ModuleNode):
 
 
 @node_component
-class HasType(ModuleNode):
+class IsType(ModuleNode):
     def _call_inner(self, *args, **kwargs) -> Any:
         inputs = self._inputs_from_args(args, kwargs)
         return TypedDict(self, inputs)
@@ -494,17 +498,19 @@ class TypedDict(dict):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
-            if self._type.has_field(item, is_output=self._is_output):
+            field = self._type.fields.get(item)
+            if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
                 return None
-            raise AttributeError(item)
+        raise AttributeError(item)
 
     def __setattr__(self, name, value):
         if name in TypedDict._PROPS:
             return super().__setattr__(name, value)
-        elif self._type.has_field(name, is_output=self._is_output):
+
+        field = self._type.fields.get(name)
+        if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
             return dict.__setitem__(self, name, value)
-        else:
-            raise AttributeError(name)
+        raise AttributeError(name)
 
     def to_dict(self):  # :ToDict
         return self

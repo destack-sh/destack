@@ -94,18 +94,21 @@ class NodeProperty:
 
     name: str | None = None  # name from LHS of assignment
     component: type["ModuleNode"] | None = None  # source component class
+    annotation: typing.Any = None  # type annotation on LHS of assignment
+    # config
     is_required: bool = False
     is_internal: bool = False
     is_runtime: bool = False
     is_cru: bool = False
-    parent_mnts: list[MNT] | None = None
+    parent_mnts: tuple[MNT] | None = None
     ancestor_mnt: MNT | None = None
     default: typing.Any = UNSET
     default_factory: Callable[[], typing.Any] | None = None
     list_type: type["NodeListBase"] | None = None
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
-    annotation: typing.Any = None  # type annotation on LHS of assignment
+    # for manual handling in dynamic nodes
+    ignore_conflicts_with: tuple[type["ModuleNode"]] | None = None
     # for relations
     child_mnt: MNT | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
@@ -122,16 +125,21 @@ class NodeProperty:
             raise ValueError(f"cannot set default for {self}")
 
     def __str__(self):
-        return f"{self.component.__name__}.{self.name}>"
+        return f"{self.component.__name__}.{self.name}"
 
     def __repr__(self):
         non_default = []
         for k, v in self.__dict__.items():
-            if k == "children_flags":
+            if v is UNSET or not v:
+                continue
+            elif k in ("custom_copy", "custom_validate"):
+                func_str = f"{v.__name__}@{hex(id(v))}"
+                non_default.append(f"{k}={func_str}")
+            elif k == "children_flags":
                 flags_str = ", ".join(f.name for f in NodeRelationType if v & f)
                 if flags_str:
                     non_default.append(flags_str)
-            elif k not in ("name", "annotation", "component") and v is not UNSET and v:
+            elif k not in ("name", "annotation", "component", "ignore_conflicts_with"):
                 if isinstance(v, bool):
                     non_default.append(k)
                 else:
@@ -143,7 +151,7 @@ class NodeProperty:
     def equals_type(self, other: "NodeProperty") -> bool:
         """Compares everything but the source component."""
         for k in dataclasses.fields(self):
-            if k.name == "component":
+            if k.name in ("component", "ignore_conflicts_with"):
                 continue
             if getattr(self, k.name) != getattr(other, k.name):
                 return False
@@ -186,6 +194,7 @@ def nproperty(
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     is_required: bool = False,
+    ignore_conflicts_with: tuple[type["ModuleNode"]] = None,
 ):
     """Standard user facing node property."""
     return NodeProperty(
@@ -194,6 +203,7 @@ def nproperty(
         custom_copy=copy,
         custom_validate=validate,
         is_required=is_required,
+        ignore_conflicts_with=ignore_conflicts_with,
     )
 
 
@@ -234,7 +244,7 @@ def nruntime(
 
 def nparent(*mnt: MNT):
     """The parent of a node, must be of one of the given types."""
-    return NodeProperty(parent_mnts=list(mnt), default=None, is_internal=True)
+    return NodeProperty(parent_mnts=tuple(mnt), default=None, is_internal=True)
 
 
 def nancestor(mnt: MNT):
@@ -406,12 +416,17 @@ def node_component(
         cls.__properties__ = {**properties}  # copy own properties
         for component in chain(reversed(static_components), reversed(dynamic_components)):
             for name, prop in component.__properties__.items():
-                if name not in properties or name == "parent":  # override parent with more specific
+                existing = properties.get(name, None)
+                if existing is None or name == "parent":  # override parent with more specific
                     # register all static and any non-runtime dynamic properties
                     if not prop.is_runtime or component not in dynamic_components:
                         properties[name] = prop
-                elif not prop.equals_type(properties[name]):
-                    raise ValueError(f"property conflict '{name}': {prop!r}, {properties[name]!r}")
+                elif not prop.equals_type(existing):
+                    if existing.ignore_conflicts_with and any(
+                        issubclass(component, c) for c in existing.ignore_conflicts_with
+                    ):
+                        continue
+                    raise ValueError(f"property conflict '{name}': {prop!r}, {existing !r}")
 
         # collect methods implemented in this class (specifically)
         for meth_type in NodeMethod:
@@ -1151,7 +1166,7 @@ def _make_self_method(
     def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
         if from_status is not None and self._status != from_status:
             # auto coerce the node into the desired to_status if allowed and feasible
-            if _coerce and self._status <= to_status:  # automatically index if needed
+            if _coerce:
                 if self._status == NS.Source and to_status >= NS.Indexed:
                     self._index_self()
                 if self._status == NS.Indexed and to_status > NS.Interpreted:
@@ -1160,7 +1175,7 @@ def _make_self_method(
                     raise RuntimeError(
                         f"cannot coerce {method.name} {self!r} (status={self._status.name})"
                     )
-                if self._status == to_status:
+                if self._status >= to_status:
                     return  # nothing to do
             else:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
@@ -1339,8 +1354,10 @@ class ModuleNode(abc.ABC):
             return super().__getattribute__(item)
 
         attr = UNSET
-        # prefer dynamic components own methods
-        for component in self._dynamic_components:
+        # prefer components own methods
+        for component in self._components:
+            if component is self.__class__ or component is ModuleNode:
+                continue
             attr = getattr(component, item, UNSET)
             if attr is not UNSET:
                 break
@@ -1355,7 +1372,6 @@ class ModuleNode(abc.ABC):
                     attr = target.get(item) or UNSET
                 if attr is not UNSET:
                     break
-
         # attribute be property, method, or just plain value
         if attr is not UNSET:
             if isinstance(attr, property):
@@ -1520,18 +1536,21 @@ class ModuleNode(abc.ABC):
         return self.session.logger
 
 
-def _make_rec_method(method: NodeMethod, wraps, pass_scope: bool = False):
+def _make_rec_method(
+    method: NodeMethod, wraps, custom_kwargs: Callable[["ModuleNode"], dict] = None
+):
     """Creates method that calls _method_self for self and all descendants"""
 
     @functools.wraps(wraps)
     def rec_method(self: "ScopeNode", *args, **kwargs):
         descendants = self._local_root_tree.get_descendants(self.ck, recursive=True)
         method_name = method.self
-        if pass_scope:
+        if custom_kwargs:
             for node in descendants:
-                scope = node if isinstance(node, ScopeNode) else node.parent
-                getattr(node, method_name)(scope)
-            getattr(self, method_name)(self, *args, **kwargs)
+                node_kwargs = custom_kwargs(node)
+                getattr(node, method_name)(*args, **kwargs, **node_kwargs)
+            node_kwargs = custom_kwargs(self)
+            getattr(self, method_name)(*args, **kwargs, **node_kwargs)
         else:
             for node in descendants:
                 getattr(node, method_name)(*args, **kwargs)
@@ -1561,7 +1580,19 @@ class ScopeNode(ModuleNode):
 
     _clear_rec = _make_rec_method(NodeMethod.clear, ModuleNode._clear_self)
     _index_rec = _make_rec_method(NodeMethod.index, ModuleNode._index_self)
-    _interp_rec = _make_rec_method(NodeMethod.interp, ModuleNode._interp_self, pass_scope=True)
+    _interp_rec = _make_rec_method(
+        NodeMethod.interp,
+        ModuleNode._interp_self,
+        custom_kwargs=lambda n: dict(scope=n if isinstance(n, ScopeNode) else n.parent),
+    )
+    _visit_rec = _make_rec_method(NodeMethod.visit, ModuleNode._visit_self)
+    _validate_rec = _make_rec_method(
+        NodeMethod.validate,
+        ModuleNode._validate_self,
+        custom_kwargs=lambda n: dict(
+            properties=n.__tracked_properties__.keys(), on_issue=on_issue_raise
+        ),
+    )
     _activate_rec = _make_rec_method(NodeMethod.activate, ModuleNode._activate_self)
     _deactivate_rec = _make_rec_method(NodeMethod.deactivate, ModuleNode._deactivate_self)
 
