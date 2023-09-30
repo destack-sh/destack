@@ -502,7 +502,7 @@ class SessionTracer(Tracer):
         # pre-run validation
         try:
             if len(self.stacktrace) >= MAX_STACK_DEPTH:
-                raise RunError(f"maximum stack depth exceeded: {MAX_STACK_DEPTH}")
+                raise RecursionError(f"maximum stack depth exceeded: {MAX_STACK_DEPTH}")
             check_type(inputs, statement, is_output=False)
         except BaseException as e:
             self.run_exception(statement, e)

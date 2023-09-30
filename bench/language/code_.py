@@ -199,7 +199,7 @@ class HasCode(ModuleNode):
 
         locals = self._prep_locals()
         func_body, start_offset, end_offset = self._prep_func_body()
-        func_name = self.py_ident or "_anon" + self.id.hex[:6]
+        func_name = f"{self.py_ident or '_anon'}_{self.id.hex[:6]}"
         func_params = ", ".join(
             i.py_ident + "=None" for i in self.resolved_fields if not (i.flags & TypeFlag.IsOutput)
         )

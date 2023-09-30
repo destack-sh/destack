@@ -581,9 +581,9 @@ class RuntimeHost:
         self.project_version = project_version
         self.ready = asyncio.Event()
         self.log = logger.bind(
-            module_id=self.module_id,
-            project_id=self.project_id,
-            worker_id=self.server_id,
+            module_id=str(self.module_id),
+            project_id=str(self.project_id),
+            worker_id=str(self.server_id),
             module=self.project_version,
         )
         self.module: Optional[Module] = None
@@ -847,6 +847,7 @@ class RuntimeHost:
         """Handle module changes to store interp state, update triggers, etc."""
 
         # interp state
+        start_time = utcnow_with_tz()
         if change is None:  # reset completely
             interp_mut = ModuleMutator(self.module._source, self.project_id, self.module_id)
             module_data = wire.pack_node_flat(self.module)
@@ -876,6 +877,8 @@ class RuntimeHost:
                     mutations=interp_mutations,
                 ),
             )
+        duration = (utcnow_with_tz() - start_time).total_seconds()
+        self.log.debug("runtime.interp", total=len(interp_mutations), duration=duration)
 
         # triggers
         if change is None or any(isinstance(n, Trigger) for n in change.touched):
@@ -883,9 +886,10 @@ class RuntimeHost:
 
     async def apply_mutations(self, mutations: list[ModuleMutation]) -> None:
         """Apply external mutations to the module."""
-        self.log.debug("apply_mutations", total=len(mutations))
+        start_time = utcnow_with_tz()
         change = self.module._apply_mutations(mutations)
-        self.log.debug("apply_mutations.done", total=len(mutations))
+        duration = (utcnow_with_tz() - start_time).total_seconds()
+        self.log.debug("runtime.apply_mutations", total=len(mutations), duration=duration)
         await self._on_module_changed(change)
 
     async def write_module(
