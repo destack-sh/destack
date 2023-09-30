@@ -636,7 +636,7 @@ class NodeList(NodeListBase[NodeT]):
 
     def __init__(self, parent: "ScopeNode", property: NodeProperty):
         super().__init__(parent, property)
-        self._child_t: type[NodeT] | None = None
+        self._child_mnt: MNT = property.child_mnt
         self._flags = property.children_flags
         self._nodes: list[NodeT] = []
 
@@ -654,31 +654,27 @@ class NodeList(NodeListBase[NodeT]):
         return {}
 
     def _update(self, scope: "ScopeNode"):
-        if self._child_t is None:
-            # late bind to avoid circular import when getting node class
-            self._child_t = _get_node_class(self._property.child_mnt)
-
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
         if self._flags & NRel.Cumulative:
             # all matching children of parent's descendants
             #  e.g. Module->Issue, File->Issue, ... -> all issues
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_t, recursive=True, prefilter=False
+                scope.ck, self._child_mnt, recursive=True, prefilter=False
             )
             assert not self._flags & NRel.Ordered, f"cannot order cumulative {self}"
         elif self._flags & NRel.Flat:
             # all matching descendants of matching children of parent
             #  e.g. Module->File, File->File, ... -> all files
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_t, recursive=True, prefilter=True
+                scope.ck, self._child_mnt, recursive=True, prefilter=True
             )
             if self._flags & NRel.Ordered:
                 self._nodes = _sort_nested_ordered_list(self._parent.ck, self._nodes)
         else:
             # only matching children of parent
             self._nodes = scope._local_root_tree.get_descendants(
-                scope.ck, self._child_t, recursive=False
+                scope.ck, self._child_mnt, recursive=False
             )
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
@@ -696,11 +692,14 @@ class NodeList(NodeListBase[NodeT]):
         # update parent after updating ids (need to walk in the node's tree, which may differ)
         _node.parent = self._parent
 
-        # index node into parent scope (either subsume if previously detached or just add)
+        # index node into parent scope
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
+            # subsume if previously detached
+            added = list(_node._local_tree.nodes)
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
-        else:
+        else:  # or just add
+            added = [_node]
             self._parent._local_root_tree.add(_node)
         # register node scope
         if self._flags & NRel.Scoped and _node.name is not None:
@@ -718,14 +717,14 @@ class NodeList(NodeListBase[NodeT]):
         if _trigger:
             # and update every affect node & list
             self._parent._trigger_update([_node])
-            assert _node in self._nodes, f"node {_node} not in {self!r}"
+            assert _node in self._nodes, f"node {_node!r} not in {self!r}"
 
         # activate node in session
         if self._parent._status == NS.Tracked and _node._status != NS.Tracked:
             _node._activate_self(self._parent._session)
         # 'create' node in session if it's attached
         if _node.attached and _create and self._parent._session:
-            self._parent._session.tracer.node_create(_node)
+            self._parent._session.tracer.node_create(*added)
 
     def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
         nodes = list(nodes) if not isinstance(nodes, list) else nodes
@@ -813,7 +812,7 @@ NT = typing.TypeVar("NT")
 
 
 class NodeTree(typing.Generic[NT]):
-    """An indexed tree of module nodes"""
+    """An indexed tree of module nodes. Can be either language or data nodes."""
 
     def __init__(self, nodes: list[NT] = None):
         self.nodes_by_id: dict[UUID, NT] = {}
@@ -892,9 +891,9 @@ class NodeTree(typing.Generic[NT]):
             if descendant.parent_id in self.node_id_by_parent_id:
                 self.node_id_by_parent_id[descendant.parent_id].remove(descendant.id)
 
-    def truncate(self, node: NT, t: type[NT] | None = None, recursive: bool = True):
+    def truncate(self, node: NT, mnt: MNT, recursive: bool = True):
         """Truncate descendants of a node"""
-        descendants = self.get_descendants(node.id, t, recursive=recursive)
+        descendants = self.get_descendants(node.id, mnt, recursive=recursive)
         for descendant in descendants:
             if descendant.id in self.node_id_by_parent_id:
                 self.node_id_by_parent_id.pop(descendant.id)
@@ -1001,7 +1000,7 @@ class NodeTree(typing.Generic[NT]):
     def get_descendants(
         self,
         node_id_or_ck: UUID,
-        t: type[NT] | None = None,
+        mnt: MNT | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
@@ -1016,7 +1015,7 @@ class NodeTree(typing.Generic[NT]):
         children = [
             self.nodes_by_id[child_id]
             for child_id in self.node_id_by_parent_id.get(node_id, [])
-            if t is None or not prefilter or isinstance(self.nodes_by_id[child_id], t)
+            if not mnt or not prefilter or self.nodes_by_id[child_id].mnt == mnt
         ]
         descendants = children[:]
         if recursive:
@@ -1024,21 +1023,21 @@ class NodeTree(typing.Generic[NT]):
                 if child.id not in self.node_id_by_parent_id:
                     continue
                 descendants.extend(
-                    self.get_descendants(child.id, t, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child.id, mnt, prefilter=prefilter, recursive=True)
                 )
         if include_self and node_id in self.nodes_by_id:
             descendants.append(self.nodes_by_id[node_id])
-        if not prefilter and t is not None:
-            descendants = [n for n in descendants if isinstance(n, t)]
+        if not prefilter and mnt:
+            descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
 
-    def get_ancestor(self, node_id: UUID, t: type[NT] | None = None) -> Optional["NT"]:
+    def get_ancestor(self, node_id: UUID, mnt: MNT | None = None) -> Optional["NT"]:
         """Finds the next ancestor of the given type"""
         node = self.nodes_by_id.get(node_id)
         if node is None:
-            raise ValueError(f"node {node_id} is not in {self}")
+            raise ValueError(f"node {node_id} is not in {self!r}")
         while node:
-            if t is None or isinstance(node, t):
+            if not mnt or node.mnt == mnt:
                 return node
             if node.parent_id is None:
                 return None
@@ -1048,18 +1047,18 @@ class NodeTree(typing.Generic[NT]):
     def get_ancestors(
         self,
         node_id: UUID,
-        t: type[NT] | None = None,
+        mnt: MNT | None = None,
         include_self: bool = False,
     ) -> list["NT"]:
         """Finds all ancestors of the given type"""
         ancestors = []
         node = self.nodes_by_id.get(node_id)
         if node is None:
-            raise ValueError(f"node {node_id} is not in {self}")
+            raise ValueError(f"node {node_id} is not in {self!r}")
         if include_self:
             ancestors.append(node)
         while node:
-            if t is None or isinstance(node, t):
+            if not mnt or node.mnt == mnt:
                 ancestors.append(node)
             if node.parent_id is None:
                 break
@@ -1069,7 +1068,7 @@ class NodeTree(typing.Generic[NT]):
 
 class DetachedNodeTree:
     """
-    A minimal NodeTree for working with instantiated nodes who may not have ids yet.
+    A minimal NodeTree for working with instantiated nodes that may not have ids yet.
     We have a separate tree for this because wire nodes work with ids only (for parent),
      and we don't need to support all operations since it's only for detached nodes.
     """
@@ -1131,7 +1130,7 @@ class DetachedNodeTree:
     def get_descendants(
         self,
         node_id_or_ck: UUID,
-        t: type[NT] | None = None,
+        mnt: MNT | None = None,
         recursive: bool = False,
         prefilter: bool = False,
         include_self: bool = False,
@@ -1140,7 +1139,7 @@ class DetachedNodeTree:
         children = [
             child
             for child in self.node_ck_by_parent_ck.get(node_id_or_ck, [])
-            if t is None or not prefilter or isinstance(child, t)
+            if not mnt or not prefilter or child.mnt == mnt
         ]
         descendants = children[:]
         if recursive:
@@ -1148,12 +1147,12 @@ class DetachedNodeTree:
                 if child.ck not in self.node_ck_by_parent_ck:
                     continue
                 descendants.extend(
-                    self.get_descendants(child.ck, t, prefilter=prefilter, recursive=True)
+                    self.get_descendants(child.ck, mnt, prefilter=prefilter, recursive=True)
                 )
         if include_self and node_id_or_ck in self.nodes_by_ck:
             descendants.append(self.nodes_by_ck[node_id_or_ck])
-        if not prefilter and t is not None:
-            descendants = [n for n in descendants if isinstance(n, t)]
+        if not prefilter and mnt:
+            descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
 
 
@@ -1163,7 +1162,9 @@ def _make_self_method(
     """Creates method that calls _method_inner for all components in call order"""
 
     @functools.wraps(wraps)
-    def self_method(self: "ModuleNode", *args, _coerce: bool = True, **kwargs):
+    def self_method(
+        self: "ModuleNode", *args, _coerce: bool = True, _ignore: bool = False, **kwargs
+    ):
         if from_status is not None and self._status != from_status:
             # auto coerce the node into the desired to_status if allowed and feasible
             if _coerce:
@@ -1171,12 +1172,12 @@ def _make_self_method(
                     self._index_self()
                 if self._status == NS.Indexed and to_status > NS.Interpreted:
                     self._interp_self(self)
+                if self._status >= to_status:
+                    return  # nothing to do
                 if self._status < from_status:
                     raise RuntimeError(
                         f"cannot coerce {method.name} {self!r} (status={self._status.name})"
                     )
-                if self._status >= to_status:
-                    return  # nothing to do
             else:
                 raise RuntimeError(f"cannot {method.name} {self!r} (status={self._status.name})")
 
@@ -1780,7 +1781,7 @@ class ModuleChange:
         return chain(self.added, self.updated, self.removed)
 
 
-@node(mnt=MNT.Module, passthrough=(("files", Passthrough.Scope),))
+@node(mnt=MNT.Module, passthrough=(("files", Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = nparent()
     name: str = ninternal()  # can't change this yet

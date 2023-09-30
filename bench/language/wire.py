@@ -227,6 +227,7 @@ def patch_node_flat(
 
 @dataclass
 class NodeData:
+    mnt: ClassVar[MNT]  # not great but wire data will be refactored anyway
     id: UUID
     ck: UUID
     parent_id: Optional[UUID]
@@ -263,6 +264,7 @@ class HasOrder:
 
 @dataclass
 class ModuleData(NodeData, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Module
     name: str
     committed: bool
     parent_id: Optional[UUID]
@@ -351,6 +353,7 @@ class FileData(NodeData, HasCrud):
 
 @node_packer(MNT.File, FileData, File)
 class FilePacker(NodePacker[FileData, File]):
+    mnt: ClassVar[MNT] = MNT.File
     PARENTS: ClassVar[ParentsT] = {MNT.Module}
 
     def pack(self, file: File) -> "FileData":
@@ -383,6 +386,7 @@ class FilePacker(NodePacker[FileData, File]):
 
 @dataclass
 class StatementData(NodeData, HasOrder, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Statement
     type: StatementType
     name: Optional[str]
     heading_level: Optional[TextHeadingLevel]
@@ -478,6 +482,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
 
 @dataclass
 class FieldData(NodeData, HasOrder, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Field
     name: Optional[str]
     key: str
     tag: TypeTag
@@ -555,6 +560,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
 @dataclass
 class TriggerData(NodeData, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Trigger
     type: TriggerType
     active: bool
     mapping: Optional[list[tuple[str, str]]]
@@ -624,6 +630,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
 
 @dataclass
 class TaggingData(NodeData, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Tagging
     reference_ck: Optional[UUID]
     key: str
     value: Optional[typing.Any] = None
@@ -681,6 +688,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 @dataclass
 class DatabaseViewData(NodeData, HasOrder, HasCrud):
+    mnt: ClassVar[MNT] = MNT.DatabaseView
     PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
 
     id: UUID
@@ -730,6 +738,7 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
 
 @dataclass
 class RecordData(NodeData, HasCrud):
+    mnt: ClassVar[MNT] = MNT.Record
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     parent_key: str
@@ -784,6 +793,7 @@ class ResolvedFieldData(NodeData):
 
 @node_packer(MNT.ResolvedField, ResolvedFieldData, lang.ResolvedField)
 class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
+    mnt: ClassVar[MNT] = MNT.ResolvedField
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
@@ -809,6 +819,7 @@ class IssueData(NodeData):
 
 @node_packer(MNT.Issue, IssueData, lang.Issue)
 class IssuePacker(NodePacker[IssueData, lang.Issue]):
+    mnt: ClassVar[MNT] = MNT.Issue
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
 
     def pack(self, issue: lang.Issue) -> "IssueData":

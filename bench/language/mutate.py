@@ -316,7 +316,7 @@ ModuleMutationHook = Callable[["ModuleMutator", ModuleMutation], None]
 
 class ModuleMutator:
     """
-    Create any apply mutations to a module tree.
+    Create any apply mutations to a module.
     TODO @Cleanup: split module mutator into mutation creation and application
     """
 
@@ -352,7 +352,7 @@ class ModuleMutator:
 
         if isinstance(node, wire.StatementData):
             statement_id = node.id
-            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, wire.FileData).id
+            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, MNT.File).id
         elif isinstance(node, wire.FileData):
             statement_id = None
             file_id = node.id
@@ -363,13 +363,12 @@ class ModuleMutator:
             if self.statement_id:
                 statement_id = self.statement_id
             else:
-                statement = self.tree.get_ancestor(node.parent_id, wire.StatementData)
+                statement = self.tree.get_ancestor(node.parent_id, MNT.Statement)
                 statement_id = statement.id if statement else None
             if self.file_id:
                 file_id = self.file_id
             else:
-                file = self.tree.get_ancestor(node.parent_id, wire.FileData)
-                file_id = self.file_id or file.id
+                file_id = self.tree.get_ancestor(node.parent_id, MNT.File).id
         if properties and type.kind != MMK.UPDATE:
             raise ValueError(f"properties only supported for update mutations: {properties}")
         mutation = ModuleMutation(
@@ -387,8 +386,6 @@ class ModuleMutator:
         return self
 
     def apply(self, mut: ModuleMutation, raise_on_error: bool = True):
-        from bench.language.wire import DATA_CLASS_BY_MNT
-
         try:
             if mut.type.kind == MMK.CREATE:
                 self.tree.add(mut.data)
@@ -397,7 +394,7 @@ class ModuleMutator:
             elif mut.type.kind == MMK.DELETE:
                 self.tree.remove(mut.data)
             elif mut.type.kind == MMK.TRUNCATE:
-                self.tree.truncate(mut.data, DATA_CLASS_BY_MNT[mut.mnt])
+                self.tree.truncate(mut.data, mut.mnt)
             else:
                 raise ValueError(f"unexpected mutation kind {mut}")
         except Exception as e:

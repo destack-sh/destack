@@ -112,7 +112,7 @@ class Session:
 
         self.executor = executor or ThreadPoolExecutor(max_workers=1)
         self.logger = logger.bind(session=self)
-        self.mutator = ModuleMutator(self.module._source, ctx.project_id, module.id)
+        self.mutator = ModuleMutator(self.module._local_tree, ctx.project_id, module.id)
         self.tracer = SessionTracer(self, mutator=self.mutator)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
