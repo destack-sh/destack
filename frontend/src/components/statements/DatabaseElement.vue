@@ -6,7 +6,7 @@ import FieldInterface from "@/components/interfaces/FieldInterface.vue";
 import ValueInterface from "@/components/interfaces/ValueInterface.vue";
 import { useNavigationGrid } from "@/composables/useGrid";
 import { useActiveScroll } from "@/composables/useScroll";
-import { SortOrder, ModuleMutationType, type SearchSort, type SearchRecordsQueryVariables } from "@/gql/graphql";
+import { SortOrder, EditType, type SearchSort, type SearchRecordsQueryVariables } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { usePanelContext, useElementPanelSettings, type RecordAction, type StatementAction } from "@/state/bench";
 import { useCurrentModule, type Field, newNodeIdentity, type Statement, type Record } from "@/state/module";
@@ -33,7 +33,7 @@ import { computed, nextTick, ref, watch, type Ref, onMounted, toRef } from "vue"
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { canSort, getMainSubfield } from "@/state/type";
 import { toValueRef } from "@/utils/functools";
-import { useMutationListener } from "@/state/sync";
+import { useEditListener } from "@/state/sync";
 import { DateTime } from "luxon";
 import { TypeTag } from "@/gql/graphql";
 import { XCircleIcon as XCircleIconSolid } from "@heroicons/vue/24/solid";
@@ -129,7 +129,7 @@ const recordsInView = computed(() => recordsFetched.value.filter((n) => n.delete
 
 // auto refetch when bumped (1s is the OS indexing delay)
 const refetchDebounced = useDebounceFn(refetch, 1000, { maxWait: 10000 });
-useMutationListener([ModuleMutationType.BumpStatement], props.statement.id, () => {
+useEditListener([EditType.BumpStatement], props.statement.id, () => {
   refetchDebounced();
 });
 // trigger refetch (debounced) once if just created to autoload if the database was duplicated

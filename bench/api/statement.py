@@ -15,7 +15,7 @@ from strawberry_django.fields.types import OperationInfo
 from bench import language, models
 from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
-from bench.api.sync import MMT, BatchMutationInput, tracked_db_mutation
+from bench.api.sync import MET, BatchEditInput, db_edit
 from bench.api.utils import HasCrud, ModuleNode, Revisioned, ThingBatch
 from bench.language import const
 from bench.models import ModuleAccessLevel
@@ -209,7 +209,7 @@ class StatementRestoreInput(strawberry_django.NodeInput):
 
 
 @strawberry.input
-class StatementBatchSoftDeleteInput(BatchMutationInput):
+class StatementBatchSoftDeleteInput(BatchEditInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list[StatementSoftDeleteInput]:
@@ -217,7 +217,7 @@ class StatementBatchSoftDeleteInput(BatchMutationInput):
 
 
 @strawberry.input
-class StatementBatchRestoreInput(BatchMutationInput):
+class StatementBatchRestoreInput(BatchEditInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list[StatementRestoreInput]:
@@ -225,7 +225,7 @@ class StatementBatchRestoreInput(BatchMutationInput):
 
 
 @strawberry.input
-class StatementBatchMoveInput(BatchMutationInput):
+class StatementBatchMoveInput(BatchEditInput):
     ids: list[GlobalID]
     file_id: GlobalID
     parent_ids: list[Optional[GlobalID]]
@@ -264,7 +264,7 @@ class StatementBatch(ThingBatch):
 
 @strawberry.type
 class StatementMutation:
-    @tracked_db_mutation(MMT.CREATE_STATEMENT, atomic=True)
+    @db_edit(MET.CREATE_STATEMENT, atomic=True)
     def create_statement(self, input: StatementCreateInput) -> Statement | OperationInfo:
         file = models.File.objects.get(id=input.file_id.node_id)
         parent_statement = (
@@ -291,11 +291,11 @@ class StatementMutation:
         )
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT, atomic=True)
+    @db_edit(MET.UPDATE_STATEMENT, atomic=True)
     def update_statement(self, input: StatementUpdateInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
-    @tracked_db_mutation(MMT.MORPH_STATEMENT, atomic=True)
+    @db_edit(MET.MORPH_STATEMENT, atomic=True)
     def morph_statement(self, input: StatementMorphInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.type = input.type
@@ -309,30 +309,30 @@ class StatementMutation:
             raise ValidationError("only databases can be detached")
         return statement
 
-    @tracked_db_mutation(MMT.RENAME_STATEMENT)
+    @db_edit(MET.RENAME_STATEMENT)
     def rename_statement(self, input: StatementRenameInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.name = input.name
         return statement
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True)
+    @db_edit(MET.SOFT_DELETE_STATEMENT, atomic=True)
     def soft_delete_statement(self, input: StatementSoftDeleteInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.soft_delete()
         return statement
 
-    @tracked_db_mutation(MMT.RESTORE_STATEMENT, atomic=True)
+    @db_edit(MET.RESTORE_STATEMENT, atomic=True)
     def restore_statement(self, input: StatementRestoreInput) -> Statement | OperationInfo:
         # use base manager since default manager excludes soft deleted statements
         statement = models.Statement._base_manager.get(id=input.id.node_id)
         statement.restore()
         return statement
 
-    @tracked_db_mutation(MMT.DELETE_STATEMENT)
+    @db_edit(MET.DELETE_STATEMENT)
     def delete_statement(self, input: StatementDeleteInput) -> Statement | OperationInfo:
         raise NotImplementedError("only for sync")
 
-    @tracked_db_mutation(MMT.MOVE_STATEMENT, atomic=True)
+    @db_edit(MET.MOVE_STATEMENT, atomic=True)
     def move_statement(self, input: StatementMoveInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.file_id = UUID(input.file_id.node_id)
@@ -350,7 +350,7 @@ class StatementMutation:
         statement.order_key = input.order_key
         return statement
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.SOFT_DELETE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_soft_delete_statement(
         self, input: StatementBatchSoftDeleteInput
     ) -> StatementBatch | OperationInfo:
@@ -365,7 +365,7 @@ class StatementMutation:
         statements = models.Statement._base_manager.filter(id__in=statement_ids)
         return StatementBatch(statements=list(statements))
 
-    @tracked_db_mutation(MMT.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.RESTORE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_restore_statement(
         self, input: StatementBatchRestoreInput
     ) -> StatementBatch | OperationInfo:
@@ -381,7 +381,7 @@ class StatementMutation:
         statements.update(deleted_at=None)
         return StatementBatch(statements=list(statements))
 
-    @tracked_db_mutation(MMT.MOVE_STATEMENT, atomic=True, batch=True, register=False)
+    @db_edit(MET.MOVE_STATEMENT, atomic=True, batch=True, register=False)
     def batch_move_statement(
         self, input: StatementBatchMoveInput
     ) -> StatementBatch | OperationInfo:
@@ -412,7 +412,7 @@ class StatementMutation:
         return StatementBatch(statements=list(statements))
 
     # we check auth manually here (simpler for copy/paste across projects & versions)
-    @tracked_db_mutation(MMT.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
+    @db_edit(MET.PASTE_STATEMENT, atomic=True, batch=True, skip_auth_check=True)
     def batch_paste_statement(
         self, info: Info, input: StatementBatchPasteInput
     ) -> StatementBatch | OperationInfo:
@@ -635,13 +635,13 @@ class FieldRestoreInput(strawberry_django.NodeInput):
 
 @strawberry.type
 class SymbolMutation:
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT_TEXT)
+    @db_edit(MET.UPDATE_STATEMENT_TEXT)
     def update_statement_text(self, input: StatementUpdateTextInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.text = input.text
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT_HEADING_LEVEL)
+    @db_edit(MET.UPDATE_STATEMENT_HEADING_LEVEL)
     def update_statement_heading_level(
         self, input: StatementUpdateHeadingLevelInput
     ) -> Statement | OperationInfo:
@@ -649,7 +649,7 @@ class SymbolMutation:
         statement.heading_level = input.heading_level
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_STATEMENT_REFERENCE)
+    @db_edit(MET.UPDATE_STATEMENT_REFERENCE)
     def update_statement_reference(
         self, input: StatementUpdateReferenceInput
     ) -> Statement | OperationInfo:
@@ -657,19 +657,19 @@ class SymbolMutation:
         statement.reference_ck = input.reference_ck
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_SYMBOL_CODE)
+    @db_edit(MET.UPDATE_SYMBOL_CODE)
     def update_symbol_code(self, input: SymbolUpdateCodeInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.code = input.code
         return statement
 
-    @tracked_db_mutation(MMT.UPDATE_SYMBOL_VALUE)
+    @db_edit(MET.UPDATE_SYMBOL_VALUE)
     def update_symbol_value(self, input: SymbolUpdateValueInput) -> Statement | OperationInfo:
         statement = models.Statement.objects.get(id=input.id.node_id)
         statement.value = input.value
         return statement
 
-    @tracked_db_mutation(MMT.CREATE_FIELD)
+    @db_edit(MET.CREATE_FIELD)
     def create_field(self, input: FieldCreateInput) -> Field | OperationInfo:
         field = models.Field(
             id=UUID(input.id.node_id),
@@ -687,7 +687,7 @@ class SymbolMutation:
         )
         return field
 
-    @tracked_db_mutation(MMT.UPDATE_FIELD)
+    @db_edit(MET.UPDATE_FIELD)
     def update_field(self, input: FieldUpdateInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
@@ -699,19 +699,19 @@ class SymbolMutation:
         field.value = input.value
         return field
 
-    @tracked_db_mutation(MMT.RENAME_FIELD)
+    @db_edit(MET.RENAME_FIELD)
     def update_field_name(self, input: FieldRenameInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.name = input.name
         return field
 
-    @tracked_db_mutation(MMT.UPDATE_FIELD_TEXT)
+    @db_edit(MET.UPDATE_FIELD_TEXT)
     def update_field_text(self, input: FieldUpdateTextInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.text = input.text
         return field
 
-    @tracked_db_mutation(MMT.UPDATE_FIELD_TYPE)
+    @db_edit(MET.UPDATE_FIELD_TYPE)
     def update_field_type(self, input: FieldUpdateTypeInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.tag = input.tag
@@ -720,32 +720,32 @@ class SymbolMutation:
         field.reference_ck = input.reference_ck
         return field
 
-    @tracked_db_mutation(MMT.MOVE_FIELD)
+    @db_edit(MET.MOVE_FIELD)
     def move_field(self, input: FieldMoveInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.order_key = input.order_key
         return field
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_FIELD)
+    @db_edit(MET.SOFT_DELETE_FIELD)
     def soft_delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         # use _base_manager since soft deleted type nodes are not visible
         field = models.Field._base_manager.get(id=input.id.node_id)
         field.soft_delete()
         return field
 
-    @tracked_db_mutation(MMT.DELETE_FIELD)
+    @db_edit(MET.DELETE_FIELD)
     def delete_field(self, input: FieldDeleteInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.delete()
         return field
 
-    @tracked_db_mutation(MMT.RESTORE_FIELD)
+    @db_edit(MET.RESTORE_FIELD)
     def restore_field(self, input: FieldRestoreInput) -> Field | OperationInfo:
         field = models.Field.objects.get(id=input.id.node_id)
         field.restore()
         return field
 
-    @tracked_db_mutation(MMT.CREATE_TAGGING)
+    @db_edit(MET.CREATE_TAGGING)
     def create_tagging(self, input: TaggingCreateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging(
             id=UUID(input.id.node_id),
@@ -757,31 +757,31 @@ class SymbolMutation:
         )
         return tagging
 
-    @tracked_db_mutation(MMT.UPDATE_TAGGING)
+    @db_edit(MET.UPDATE_TAGGING)
     def update_tagging(self, input: TaggingUpdateInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.value = input.value
         return tagging
 
-    @tracked_db_mutation(MMT.DELETE_TAGGING)
+    @db_edit(MET.DELETE_TAGGING)
     def delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.delete()
         return tagging
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_TAGGING)
+    @db_edit(MET.SOFT_DELETE_TAGGING)
     def soft_delete_tagging(self, input: TaggingDeleteInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.soft_delete()
         return tagging
 
-    @tracked_db_mutation(MMT.RESTORE_TAGGING)
+    @db_edit(MET.RESTORE_TAGGING)
     def restore_tagging(self, input: TaggingRestoreInput) -> Tagging | OperationInfo:
         tagging = models.Tagging.objects.get(id=input.id.node_id)
         tagging.restore()
         return tagging
 
-    @tracked_db_mutation(MMT.CREATE_TRIGGER)
+    @db_edit(MET.CREATE_TRIGGER)
     def create_trigger(self, input: TriggerCreateInput) -> Trigger | OperationInfo:
         trigger = models.Trigger(
             id=UUID(input.id.node_id),
@@ -799,7 +799,7 @@ class SymbolMutation:
         )
         return trigger
 
-    @tracked_db_mutation(MMT.UPDATE_TRIGGER)
+    @db_edit(MET.UPDATE_TRIGGER)
     def update_trigger(self, input: TriggerUpdateInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.type = input.type
@@ -813,19 +813,19 @@ class SymbolMutation:
         trigger.scope_ck = input.scope_ck
         return trigger
 
-    @tracked_db_mutation(MMT.DELETE_TRIGGER)
+    @db_edit(MET.DELETE_TRIGGER)
     def delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.delete()
         return trigger
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_TRIGGER)
+    @db_edit(MET.SOFT_DELETE_TRIGGER)
     def soft_delete_trigger(self, input: TriggerDeleteInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.soft_delete()
         return trigger
 
-    @tracked_db_mutation(MMT.RESTORE_TRIGGER)
+    @db_edit(MET.RESTORE_TRIGGER)
     def restore_trigger(self, input: TriggerRestoreInput) -> Trigger | OperationInfo:
         trigger = models.Trigger.objects.get(id=input.id.node_id)
         trigger.restore()

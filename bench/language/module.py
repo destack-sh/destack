@@ -42,7 +42,7 @@ from bench.utils.utils import DEBUG, IdentifierType, frozendict, required_field,
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
-    from bench.language.mutate import ModuleMutation
+    from bench.language.edit import Edit
     from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
@@ -840,7 +840,7 @@ class NodeTree(typing.Generic[NT]):
         return NodeTree(nodes)
 
     #
-    # Mutations
+    # Edits
     #
 
     def clear(self):
@@ -1311,7 +1311,7 @@ class ModuleNode(abc.ABC):
             parent = parent.parent
 
         # TODO @Broken @UX: reinterp local module on update (if active in session)
-        #  e.g. should probably raise if a new issue(kind=error) pops up after mutation
+        #  e.g. should probably raise if a new issue(kind=error) pops up after edit
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1778,8 +1778,8 @@ class NodeVisitor:
 
 @dataclass
 class ModuleChange:
-    source_mutations: list["ModuleMutation"]  # incoming external mutations
-    interp_mutations: list["ModuleMutation"]  # resulting interp state change
+    source_edits: list["Edit"]  # incoming external edits
+    interp_edits: list["Edit"]  # resulting interp state change
     added: list[ModuleNode]
     updated: list[ModuleNode]
     removed: list[ModuleNode]
@@ -1898,25 +1898,25 @@ class Module(ScopeNode):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
 
-    def _apply_mutations(self, mutations: list["ModuleMutation"]) -> ModuleChange:
+    def _apply_edits(self, edits: list["Edit"]) -> ModuleChange:
         """
-        Applies the given external mutations to the module.
+        Applies the given external edits to the module.
         Any changed nodes are returned.
-        TODO @Performance @UX: :HotReload patch mutations locally
+        TODO @Performance @UX: :HotReload patch edits locally
         """
-        assert self._source is not None, f"cannot apply mutations to {self!r} without source"
+        assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
         # update source
         old_nodes_by_ck: dict[UUID, ModuleNode] = {**self.module._tree.nodes_by_ck}
-        self._apply_source_mutations(mutations)
+        self._apply_source_edits(edits)
 
         # update self (this is obviously inefficient, but performs surprisingly okay)
         self._reset_from_source()
 
         # compute change, apply interp source changes if any
-        change = self._compute_change(mutations, old_nodes_by_ck)
-        if change.interp_mutations:
-            self._apply_source_mutations(change.interp_mutations)
+        change = self._compute_change(edits, old_nodes_by_ck)
+        if change.interp_edits:
+            self._apply_source_edits(change.interp_edits)
         return change
 
     def _reset_from_source(self):
@@ -1935,20 +1935,20 @@ class Module(ScopeNode):
         if prev_session:
             self.module._activate_rec(prev_session)
 
-    def _apply_source_mutations(self, mutations: list["ModuleMutation"]) -> None:
-        """Applies the mutations directly to the source without any interp."""
-        from bench.language.mutate import ModuleMutator
+    def _apply_source_edits(self, edits: list["Edit"]) -> None:
+        """Applies the edits directly to the source without any interp."""
+        from bench.language.edit import ModuleEditor
 
-        mutator = ModuleMutator(self._source, self._project_id, self.id)
+        mutator = ModuleEditor(self._source, self._project_id, self.id)
         # errors are fine here since e.g. a deleted issue's parent may have disappeared
         #  (we could filter that, but it's easier this way since it's more explicit for clients)
-        mutator.apply_all(mutations, raise_on_error=False)
+        mutator.apply_all(edits, raise_on_error=False)
 
     def _compute_change(
-        self, source_mutations: list["ModuleMutation"], old_nodes_by_ck: dict[UUID, ModuleNode]
+        self, source_edits: list["Edit"], old_nodes_by_ck: dict[UUID, ModuleNode]
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
-        from bench.language.mutate import ModuleMutator
+        from bench.language.edit import ModuleEditor
 
         new_nodes: dict[UUID, ModuleNode] = self.module._tree.nodes_by_ck
         added = []
@@ -1961,8 +1961,8 @@ class Module(ScopeNode):
                 added.append(n)
         removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
 
-        # gather interp mutations
-        mutator = ModuleMutator(self._source, self._project_id, self.id)
+        # gather interp edits
+        mutator = ModuleEditor(self._source, self._project_id, self.id)
         for node in added:
             if node.mnt in INTERP_NODE_TYPES:
                 mutator.create(node, apply=False)
@@ -1971,8 +1971,8 @@ class Module(ScopeNode):
                 mutator.delete(node, apply=False)
 
         return ModuleChange(
-            source_mutations=source_mutations,
-            interp_mutations=mutator.mutations,
+            source_edits=source_edits,
+            interp_edits=mutator.edits,
             added=added,
             updated=updated,
             removed=removed,
@@ -1993,9 +1993,9 @@ class Module(ScopeNode):
         module.add_builtin(libs.symbolx_lib.files.get("builtins"))
         module._interp_rec()
 
-        # update source with interp mutations (doesn't have them)
+        # update source with interp edits (doesn't have them)
         change = module._compute_change([], old_nodes_by_ck)
-        if change.interp_mutations:
-            module._apply_source_mutations(change.interp_mutations)
+        if change.interp_edits:
+            module._apply_source_edits(change.interp_edits)
 
         return module

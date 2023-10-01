@@ -10,7 +10,7 @@ from asgiref.sync import sync_to_async
 
 from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
 from bench.language.const import RUNNABLE_STATEMENT_TYPES, ModuleReference, RunStatus, SessionMode
-from bench.language.mutate import ModuleMutation
+from bench.language.edit import Edit
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session, SessionContext
 from bench.language.typing import map_value, unpack_value_flat
@@ -170,7 +170,7 @@ class WorkerNode(Monitored):
             return
         if not msg.p.has_origin(self.client.id):
             worker = await self._prepare_worker(msg.p.module_id)
-            await worker.on_module_changed(msg.p.mutations)
+            await worker.on_module_changed(msg.p.edits)
 
     @message_handler
     async def start_run(self, msg: NMessage[ReqStartRunPayload]):
@@ -397,11 +397,11 @@ class ModuleWorkerProcess(ModuleWriter):
                 job.terminated.set()
                 self.queue.task_done()
 
-    async def on_module_changed(self, mutations: list[ModuleMutation]):
+    async def on_module_changed(self, edits: list[Edit]):
         now = utcnow_with_tz()
-        self.module._apply_mutations(mutations)
+        self.module._apply_edits(edits)
         duration = utcnow_with_tz() - now
-        self.log.info("worker.interp", mutations=len(mutations), duration=duration.total_seconds())
+        self.log.info("worker.interp", edits=len(edits), duration=duration.total_seconds())
 
     def add_run(self, run_data: RunData, session_id: UUID) -> RunJob:
         """
@@ -559,12 +559,12 @@ class ModuleWorkerProcess(ModuleWriter):
                     logger.error("worker.flush_dirty_runs.failed", runs=len(runs))
             await asyncio.sleep(interval)
 
-    async def write_module(self, mutations: list[ModuleMutation], refresh_index: bool) -> bool:
+    async def write_module(self, edits: list[Edit], refresh_index: bool) -> bool:
         # ignore non-semantic changes (will have to be smarter when we :BumpProperly)
-        self.log.debug("module.write", mutations=len(mutations))
+        self.log.debug("module.write", edits=len(edits))
         req = ReqWriteModulePayload(
             module_id=self.module_id,
-            mutations=mutations,
+            edits=edits,
             client=self.node.client,
             refresh_index=refresh_index,
         )

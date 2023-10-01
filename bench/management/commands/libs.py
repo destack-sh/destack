@@ -12,9 +12,9 @@ from bench import models
 from bench.language import wire
 from bench.language.builtin import symbolx_lib
 from bench.language.const import INTERP_NODE_TYPES
+from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
-from bench.language.mutate import diff_modules
 from bench.models import packer
 from bench.models.packer import DEFAULT_PACK_FILTER
 from bench.utils.utils import DEBUG, LOCAL, TEST
@@ -109,10 +109,8 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
     blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
     blank_module_tree = wire.NodeTree(blank_module.nodes)
     new_module = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
-    mutations = diff_modules(blank_module, new_module, project_id=project.id)
-    packer.write_mutations(
-        project_v, blank_module_tree, mutations, validate=False, refresh_index=False
-    )
+    edits = diff_modules(blank_module, new_module, project_id=project.id)
+    packer.write_edits(project_v, blank_module_tree, edits, validate=False, refresh_index=False)
     project_v.commit()
 
     if sanity_check:

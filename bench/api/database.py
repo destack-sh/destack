@@ -11,8 +11,8 @@ from strawberry_django.fields.types import OperationInfo
 
 from bench import models
 from bench.api.auth import check_module_node_access
-from bench.api.sync import BatchMutationInput, tracked_db_mutation
-from bench.api.type import MMT
+from bench.api.sync import BatchEditInput, db_edit
+from bench.api.type import MET
 from bench.api.utils import (
     HasCrud,
     ListConnectionWithTotalCount,
@@ -103,7 +103,7 @@ class RecordRestoreInput(RecordInput, strawberry_django.NodeInput):
 
 
 @strawberry.input
-class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
+class RecordBatchSoftDeleteInput(RecordInput, BatchEditInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -111,7 +111,7 @@ class RecordBatchSoftDeleteInput(RecordInput, BatchMutationInput):
 
 
 @strawberry.input
-class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
+class RecordBatchRestoreInput(RecordInput, BatchEditInput):
     ids: list[GlobalID]
 
     def unbatch(self) -> list:
@@ -120,7 +120,7 @@ class RecordBatchRestoreInput(RecordInput, BatchMutationInput):
 
 @strawberry.type
 class DatabaseMutation:
-    @tracked_db_mutation(MMT.CREATE_RECORD)
+    @db_edit(MET.CREATE_RECORD)
     def create_record(self, input: RecordCreateInput) -> Record | OperationInfo:
         record = models.Record(
             id=UUID(input.id.node_id),
@@ -132,31 +132,31 @@ class DatabaseMutation:
         )
         return record
 
-    @tracked_db_mutation(MMT.UPDATE_RECORD)
+    @db_edit(MET.UPDATE_RECORD)
     def update_record(self, input: RecordUpdateInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
         record.value = input.value
         return record
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_RECORD)
+    @db_edit(MET.SOFT_DELETE_RECORD)
     def soft_delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
         record.soft_delete()
         return record
 
-    @tracked_db_mutation(MMT.RESTORE_RECORD)
+    @db_edit(MET.RESTORE_RECORD)
     def restore_record(self, input: RecordRestoreInput) -> Record | OperationInfo:
         record = models.Record._base_manager.get(id=UUID(input.id.node_id))
         record.restore()
         return record
 
-    @tracked_db_mutation(MMT.DELETE_RECORD)
+    @db_edit(MET.DELETE_RECORD)
     def delete_record(self, input: RecordDeleteInput) -> Record | OperationInfo:
         record = models.Record.objects.get(id=UUID(input.id.node_id))
         record.delete()
         return record
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_RECORD, batch=True, register=False)
+    @db_edit(MET.SOFT_DELETE_RECORD, batch=True, register=False)
     def batch_soft_delete_record(
         self, input: RecordBatchSoftDeleteInput
     ) -> RecordBatch | OperationInfo:
@@ -167,7 +167,7 @@ class DatabaseMutation:
         records = models.Record._base_manager.filter(id__in=record_ids)
         return RecordBatch(records=list(records))
 
-    @tracked_db_mutation(MMT.RESTORE_RECORD, batch=True, register=False)
+    @db_edit(MET.RESTORE_RECORD, batch=True, register=False)
     def batch_restore_record(self, input: RecordBatchRestoreInput) -> RecordBatch | OperationInfo:
         record_ids = [UUID(i.node_id) for i in input.ids]
         models.Record._base_manager.filter(id__in=record_ids).update(deleted_at=None)

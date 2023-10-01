@@ -15,7 +15,7 @@ from bench.api.auth import check_module_access
 from bench.api.interp import Issue, ResolvedField
 from bench.api.type import ProjectMutationType
 from bench.api.utils import asafe_subscription, to_global_id, to_uuid
-from bench.language import mutate, wire
+from bench.language import edit, wire
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import NMessage, subscribe
 from bench.msg.messages import ModuleChangedPayload, NMessageType, ProjectChangedPayload
@@ -39,15 +39,15 @@ class ProjectMutation:
 class ProjectChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
-    # individual mutations are not needed for now
+    # individual edits are not needed for now
 
 
-ModuleMutationType = strawberry.enum(sync.MMT)
+EditType = strawberry.enum(sync.MET)
 
 
 @strawberry.type
-class ModuleMutation:
-    type: ModuleMutationType
+class Edit:
+    type: EditType
     project_version_id: GlobalID
     file_id: Optional[GlobalID]
     statement_id: Optional[GlobalID]
@@ -61,14 +61,14 @@ class ModuleMutation:
 class ModuleChange(Change):
     id: UUID
     client_id: Optional[GlobalID]
-    mutations: list[ModuleMutation]
+    edits: list[Edit]
 
 
-async def unpack_module_mutations(
-    mutations: list[mutate.ModuleMutation], project_v: models.ProjectVersion
-) -> list[ModuleMutation]:
-    unpacked_mutations = []
-    for m in mutations:
+async def unpack_module_edits(
+    edits: list[edit.Edit], project_v: models.ProjectVersion
+) -> list[Edit]:
+    unpacked_edits = []
+    for m in edits:
         # :RawMutations
         if isinstance(m.data, (wire.IssueData, wire.ResolvedFieldData)):
             # unpack data (somewhat inefficiently)
@@ -82,7 +82,7 @@ async def unpack_module_mutations(
         else:  # ignore other data types
             data = None
 
-        unpacked_mutation = ModuleMutation(
+        unpacked_edit = Edit(
             type=m.type,
             project_version_id=to_global_id("ProjectVersion", m.project_version_id),
             file_id=to_global_id("File", m.file_id),
@@ -92,8 +92,8 @@ async def unpack_module_mutations(
             data=data,
             properties=m.properties,
         )
-        unpacked_mutations.append(unpacked_mutation)
-    return unpacked_mutations
+        unpacked_edits.append(unpacked_edit)
+    return unpacked_edits
 
 
 @strawberry.type
@@ -133,7 +133,7 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            # individual mutations aren't needed yet
+            # individual edits aren't needed yet
             yield ProjectChange(id=change.id, client_id=origin_id)
 
     @asafe_subscription
@@ -175,5 +175,5 @@ class MultiplayerSubscription:
                 if change.p.origin.type == "user"
                 else None
             )
-            mutations = await unpack_module_mutations(change.p.mutations, project_version)
-            yield ModuleChange(id=change.id, client_id=origin_id, mutations=mutations)
+            edits = await unpack_module_edits(change.p.edits, project_version)
+            yield ModuleChange(id=change.id, client_id=origin_id, edits=edits)

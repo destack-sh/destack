@@ -8,8 +8,8 @@ from bench import language as lang
 from bench import models
 from bench.language import wire
 from bench.language.const import INTERP_NODE_TYPES, RUNNABLE_STATEMENT_TYPES, TypeFlag
+from bench.language.edit import MEK, MET, MNT, Edit
 from bench.language.module import NodeTree
-from bench.language.mutate import MMK, MMT, MNT, ModuleMutation
 from bench.language.run import HasRun
 from bench.opensearch import mirror
 from bench.opensearch.client import os_client
@@ -143,13 +143,13 @@ def create_bench_index(project_id: UUID, name: str = None, upsert: bool = False)
     )
 
 
-OS_SEMANTIC_FIELD_MUTATIONS = {
-    MMT.CREATE_FIELD,
-    MMT.UPDATE_FIELD,
-    MMT.UPDATE_FIELD_TYPE,
-    MMT.DELETE_FIELD,
-    MMT.TRUNCATE_RESOLVED_FIELDS,
-    MMT.CREATE_RESOLVED_FIELD,
+OS_SEMANTIC_FIELD_EDIT = {
+    MET.CREATE_FIELD,
+    MET.UPDATE_FIELD,
+    MET.UPDATE_FIELD_TYPE,
+    MET.DELETE_FIELD,
+    MET.TRUNCATE_RESOLVED_FIELDS,
+    MET.CREATE_RESOLVED_FIELD,
 }
 
 BENCH_INDEXED_MNTS = (MNT.Record,)
@@ -163,17 +163,17 @@ def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
         return IndexType.GLOBAL.get_index_name()
 
 
-def write_mutations_to_os(
-    project_v: models.ProjectVersion, mutations: list[ModuleMutation], *, refresh: bool = False
+def write_edits_to_os(
+    project_v: models.ProjectVersion, edit: list[Edit], *, refresh: bool = False
 ) -> None:
     """
-    Writes/mirrors any relevant mutations to OpenSearch.
-    All regular DB mutations come this way.
+    Writes/mirrors any relevant edit to OpenSearch.
+    All regular DB edit come this way.
     """
     global_index = IndexType.GLOBAL.get_index_name()
     bench_index = IndexType.BENCH.get_index_name(project_v.project_id)
 
-    if not mutations:
+    if not edit:
         if refresh:
             # just refresh the index
             os_client.indices.refresh(index=bench_index)
@@ -186,47 +186,47 @@ def write_mutations_to_os(
     def _flush():
         if ops:
             logger.debug(
-                "os.write_mutations",
+                "os.write_edits",
                 project_version=project_v,
                 index=bench_index,
-                mutations=len(mutations),
+                edit=len(edit),
                 operations=len(ops),
             )
-            # TODO @Performance: consider bulking OS refreshes in mutations somehow
+            # TODO @Performance: consider bulking OS refreshes in edit somehow
             ret = os_client.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
-                raise RuntimeError(f"failed to write mutations to OpenSearch: {ret['items'][:5]}")
+                raise RuntimeError(f"failed to write edit to OpenSearch: {ret['items'][:5]}")
 
-        if field_mappings_dirty[0]:  # if needed, must happen before any other mutations
+        if field_mappings_dirty[0]:  # if needed, must happen before any other edit
             update_dynamic_field_mappings(project_v)
 
         ops.clear()
         field_mappings_dirty[0] = False
 
-    for m in mutations:
+    for m in edit:
         # mark field mappings as dirty if relevant mutation
-        if m.type in OS_SEMANTIC_FIELD_MUTATIONS:
+        if m.type in OS_SEMANTIC_FIELD_EDIT:
             field_mappings_dirty[0] = True
 
         index = bench_index if m.type.mnt in BENCH_INDEXED_MNTS else global_index
-        if m.type.kind == MMK.TRUNCATE and m.mnt == MNT.Record:
+        if m.type.kind == MEK.TRUNCATE and m.mnt == MNT.Record:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
                 index=index, body={"query": {"term": {"statement_key": m.data.key}}}
             )
         elif not mirror.has_mirror(m.thing):
             continue  # ignore
-        elif m.type.kind in (MMK.CREATE, MMK.UPDATE) or m.type.is_soft_delete:
+        elif m.type.kind in (MEK.CREATE, MEK.UPDATE) or m.type.is_soft_delete:
             mirrored = mirror.mirror_node(project_v, m.thing)
             mirrored_data = mirrored.to_dict()
-            # TODO @Robustness: limit OS mutations to changed properties?
+            # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
             ops.append({"index": {"_index": index, "_id": str(m.thing.id)}})
             ops.append(mirrored_data)
-        elif m.type.kind == MMK.DELETE:
+        elif m.type.kind == MEK.DELETE:
             ops.append({"delete": {"_index": index, "_id": str(m.thing.id)}})
 
-    _flush()  # flush any remaining mutations
+    _flush()  # flush any remaining edit
 
 
 def write_module_to_os(
@@ -333,7 +333,7 @@ def write_runs_to_os(runs: list[wire.RunData]) -> None:
 def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     """
     Updates *all* dynamic OpenSearch field mappings for a module
-    TODO @Performance: update OS field mappings more efficiently on field mutations
+    TODO @Performance: update OS field mappings more efficiently on field edit
       (especially for library/dependency mappings)
     """
     from bench.language import libs

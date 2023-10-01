@@ -161,6 +161,83 @@ export type DeleteObjectInput = {
   id: Scalars["GlobalID"];
 };
 
+export type Edit = {
+  __typename?: "Edit";
+  data?: Maybe<IssueResolvedField>;
+  fileId?: Maybe<Scalars["GlobalID"]>;
+  input?: Maybe<Scalars["JSON"]>;
+  projectVersionId: Scalars["GlobalID"];
+  properties?: Maybe<Array<Scalars["String"]>>;
+  revision?: Maybe<Scalars["Int"]>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
+  type: EditType;
+};
+
+export enum EditType {
+  BumpFile = "BUMP_FILE",
+  BumpStatement = "BUMP_STATEMENT",
+  CreateField = "CREATE_FIELD",
+  CreateFile = "CREATE_FILE",
+  CreateIssue = "CREATE_ISSUE",
+  CreateRecord = "CREATE_RECORD",
+  CreateResolvedField = "CREATE_RESOLVED_FIELD",
+  CreateStatement = "CREATE_STATEMENT",
+  CreateTagging = "CREATE_TAGGING",
+  CreateTrigger = "CREATE_TRIGGER",
+  DeleteField = "DELETE_FIELD",
+  DeleteFile = "DELETE_FILE",
+  DeleteIssue = "DELETE_ISSUE",
+  DeleteRecord = "DELETE_RECORD",
+  DeleteResolvedField = "DELETE_RESOLVED_FIELD",
+  DeleteStatement = "DELETE_STATEMENT",
+  DeleteTagging = "DELETE_TAGGING",
+  DeleteTrigger = "DELETE_TRIGGER",
+  MorphStatement = "MORPH_STATEMENT",
+  MoveField = "MOVE_FIELD",
+  MoveFile = "MOVE_FILE",
+  MoveStatement = "MOVE_STATEMENT",
+  MoveTagging = "MOVE_TAGGING",
+  PasteFile = "PASTE_FILE",
+  PasteStatement = "PASTE_STATEMENT",
+  RenameField = "RENAME_FIELD",
+  RenameFile = "RENAME_FILE",
+  RenameStatement = "RENAME_STATEMENT",
+  RestoreField = "RESTORE_FIELD",
+  RestoreFile = "RESTORE_FILE",
+  RestoreRecord = "RESTORE_RECORD",
+  RestoreStatement = "RESTORE_STATEMENT",
+  RestoreTagging = "RESTORE_TAGGING",
+  RestoreTrigger = "RESTORE_TRIGGER",
+  SoftDeleteField = "SOFT_DELETE_FIELD",
+  SoftDeleteFile = "SOFT_DELETE_FILE",
+  SoftDeleteRecord = "SOFT_DELETE_RECORD",
+  SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
+  SoftDeleteTagging = "SOFT_DELETE_TAGGING",
+  SoftDeleteTrigger = "SOFT_DELETE_TRIGGER",
+  TruncateIssues = "TRUNCATE_ISSUES",
+  TruncateRecords = "TRUNCATE_RECORDS",
+  TruncateResolvedFields = "TRUNCATE_RESOLVED_FIELDS",
+  UpdateField = "UPDATE_FIELD",
+  UpdateFieldMetadata = "UPDATE_FIELD_METADATA",
+  UpdateFieldText = "UPDATE_FIELD_TEXT",
+  UpdateFieldType = "UPDATE_FIELD_TYPE",
+  UpdateFile = "UPDATE_FILE",
+  UpdateRecord = "UPDATE_RECORD",
+  UpdateStatement = "UPDATE_STATEMENT",
+  UpdateStatementFlags = "UPDATE_STATEMENT_FLAGS",
+  UpdateStatementHeadingLevel = "UPDATE_STATEMENT_HEADING_LEVEL",
+  UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
+  UpdateStatementText = "UPDATE_STATEMENT_TEXT",
+  UpdateSymbolCode = "UPDATE_SYMBOL_CODE",
+  UpdateSymbolLanguage = "UPDATE_SYMBOL_LANGUAGE",
+  UpdateSymbolModifier = "UPDATE_SYMBOL_MODIFIER",
+  UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
+  UpdateSymbolText = "UPDATE_SYMBOL_text",
+  UpdateTagging = "UPDATE_TAGGING",
+  UpdateTaggingMetadata = "UPDATE_TAGGING_METADATA",
+  UpdateTrigger = "UPDATE_TRIGGER",
+}
+
 export type Environment = {
   __typename?: "Environment";
   language: Scalars["String"];
@@ -439,86 +516,9 @@ export enum ModuleAccessLevel {
 export type ModuleChange = Change & {
   __typename?: "ModuleChange";
   clientId?: Maybe<Scalars["GlobalID"]>;
+  edits: Array<Edit>;
   id: Scalars["UUID"];
-  mutations: Array<ModuleMutation>;
 };
-
-export type ModuleMutation = {
-  __typename?: "ModuleMutation";
-  data?: Maybe<IssueResolvedField>;
-  fileId?: Maybe<Scalars["GlobalID"]>;
-  input?: Maybe<Scalars["JSON"]>;
-  projectVersionId: Scalars["GlobalID"];
-  properties?: Maybe<Array<Scalars["String"]>>;
-  revision?: Maybe<Scalars["Int"]>;
-  statementId?: Maybe<Scalars["GlobalID"]>;
-  type: ModuleMutationType;
-};
-
-export enum ModuleMutationType {
-  BumpFile = "BUMP_FILE",
-  BumpStatement = "BUMP_STATEMENT",
-  CreateField = "CREATE_FIELD",
-  CreateFile = "CREATE_FILE",
-  CreateIssue = "CREATE_ISSUE",
-  CreateRecord = "CREATE_RECORD",
-  CreateResolvedField = "CREATE_RESOLVED_FIELD",
-  CreateStatement = "CREATE_STATEMENT",
-  CreateTagging = "CREATE_TAGGING",
-  CreateTrigger = "CREATE_TRIGGER",
-  DeleteField = "DELETE_FIELD",
-  DeleteFile = "DELETE_FILE",
-  DeleteIssue = "DELETE_ISSUE",
-  DeleteRecord = "DELETE_RECORD",
-  DeleteResolvedField = "DELETE_RESOLVED_FIELD",
-  DeleteStatement = "DELETE_STATEMENT",
-  DeleteTagging = "DELETE_TAGGING",
-  DeleteTrigger = "DELETE_TRIGGER",
-  MorphStatement = "MORPH_STATEMENT",
-  MoveField = "MOVE_FIELD",
-  MoveFile = "MOVE_FILE",
-  MoveStatement = "MOVE_STATEMENT",
-  MoveTagging = "MOVE_TAGGING",
-  PasteFile = "PASTE_FILE",
-  PasteStatement = "PASTE_STATEMENT",
-  RenameField = "RENAME_FIELD",
-  RenameFile = "RENAME_FILE",
-  RenameStatement = "RENAME_STATEMENT",
-  RestoreField = "RESTORE_FIELD",
-  RestoreFile = "RESTORE_FILE",
-  RestoreRecord = "RESTORE_RECORD",
-  RestoreStatement = "RESTORE_STATEMENT",
-  RestoreTagging = "RESTORE_TAGGING",
-  RestoreTrigger = "RESTORE_TRIGGER",
-  SoftDeleteField = "SOFT_DELETE_FIELD",
-  SoftDeleteFile = "SOFT_DELETE_FILE",
-  SoftDeleteRecord = "SOFT_DELETE_RECORD",
-  SoftDeleteStatement = "SOFT_DELETE_STATEMENT",
-  SoftDeleteTagging = "SOFT_DELETE_TAGGING",
-  SoftDeleteTrigger = "SOFT_DELETE_TRIGGER",
-  TruncateIssues = "TRUNCATE_ISSUES",
-  TruncateRecords = "TRUNCATE_RECORDS",
-  TruncateResolvedFields = "TRUNCATE_RESOLVED_FIELDS",
-  UpdateField = "UPDATE_FIELD",
-  UpdateFieldMetadata = "UPDATE_FIELD_METADATA",
-  UpdateFieldText = "UPDATE_FIELD_TEXT",
-  UpdateFieldType = "UPDATE_FIELD_TYPE",
-  UpdateFile = "UPDATE_FILE",
-  UpdateRecord = "UPDATE_RECORD",
-  UpdateStatement = "UPDATE_STATEMENT",
-  UpdateStatementFlags = "UPDATE_STATEMENT_FLAGS",
-  UpdateStatementHeadingLevel = "UPDATE_STATEMENT_HEADING_LEVEL",
-  UpdateStatementReference = "UPDATE_STATEMENT_REFERENCE",
-  UpdateStatementText = "UPDATE_STATEMENT_TEXT",
-  UpdateSymbolCode = "UPDATE_SYMBOL_CODE",
-  UpdateSymbolLanguage = "UPDATE_SYMBOL_LANGUAGE",
-  UpdateSymbolModifier = "UPDATE_SYMBOL_MODIFIER",
-  UpdateSymbolValue = "UPDATE_SYMBOL_VALUE",
-  UpdateSymbolText = "UPDATE_SYMBOL_text",
-  UpdateTagging = "UPDATE_TAGGING",
-  UpdateTaggingMetadata = "UPDATE_TAGGING_METADATA",
-  UpdateTrigger = "UPDATE_TRIGGER",
-}
 
 export type ModuleNode = {
   ck: Scalars["UUID"];
@@ -5505,9 +5505,9 @@ export type ModuleChangedSubscription = {
     __typename?: "ModuleChange";
     id: any;
     clientId?: any | null;
-    mutations: Array<{
-      __typename?: "ModuleMutation";
-      type: ModuleMutationType;
+    edits: Array<{
+      __typename?: "Edit";
+      type: EditType;
       fileId?: any | null;
       statementId?: any | null;
       revision?: number | null;
@@ -16713,7 +16713,7 @@ export const ModuleChangedDocument = {
                 { kind: "Field", name: { kind: "Name", value: "clientId" } },
                 {
                   kind: "Field",
-                  name: { kind: "Name", value: "mutations" },
+                  name: { kind: "Name", value: "edits" },
                   selectionSet: {
                     kind: "SelectionSet",
                     selections: [

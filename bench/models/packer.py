@@ -25,8 +25,8 @@ from bench.language.const import (
     RemoteObjectStatus,
     TriggerType,
 )
+from bench.language.edit import MEK, MET, Edit, EditBundle
 from bench.language.module import NodeTree
-from bench.language.mutate import MMK, MMT, ModuleMutation, MutationBundle
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
 
@@ -876,10 +876,10 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 
 
 @transaction.atomic(savepoint=False)
-def write_mutations(
+def write_edits(
     project_v: models.ProjectVersion,
     source: NodeTree,
-    mutations: list[ModuleMutation],
+    mutations: list[Edit],
     *,
     refresh_index: bool,
     validate: bool,
@@ -889,17 +889,17 @@ def write_mutations(
     Writes a series of module mutations to the database.
     If apply, also mutates a COPY of the module tree. Yeah, this seems a bit inefficient...
     """
-    from bench.opensearch.index import write_mutations_to_os
+    from bench.opensearch.index import write_edits_to_os
 
-    mut = MutationBundle(mutations)
+    mut = EditBundle(mutations)
 
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
 
     for mmt, batch in mut.batched_apply(source, project_v.project_id, project_v.id, apply=apply):
-        if mmt.kind == MMK.TRUNCATE:
+        if mmt.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
-            if mmt == MMT.TRUNCATE_RECORDS:
+            if mmt == MET.TRUNCATE_RECORDS:
                 statement_keys = [typing.cast(wire.StatementData, m.data).key for m in batch]
                 models.Record.objects.filter(statement_key__in=statement_keys).delete()
             else:
@@ -919,14 +919,14 @@ def write_mutations(
                         model_cls.objects.filter(parent_file_id__in=file_ids).delete()
                 else:
                     model_cls.objects.filter(project_version_id=project_v.id).delete()
-        elif mmt.kind in (MMK.CREATE, MMK.UPDATE):
+        elif mmt.kind in (MEK.CREATE, MEK.UPDATE):
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
             nodes = unpack_nodes(project_v, source, [m.data for m in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            if mmt.kind == MMK.CREATE:
+            if mmt.kind == MEK.CREATE:
                 model_cls.objects.bulk_create(nodes)
-            else:  # MMK.UPDATE
+            else:  # MEK.UPDATE
                 # different properties may be updated, so group by properties
                 nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
                 for m, node in zip(batch, nodes):
@@ -950,11 +950,11 @@ def write_mutations(
                         )
             for m, node in zip(batch, nodes):
                 m.thing = node  # keep node model for downstream indexing in opensearch
-        elif mmt.kind == MMK.DELETE:
+        elif mmt.kind == MEK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
 
-    write_mutations_to_os(project_v, mut.mutations, refresh=refresh_index)
+    write_edits_to_os(project_v, mut.edits, refresh=refresh_index)
 
 
 @transaction.atomic(savepoint=False)
