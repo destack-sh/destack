@@ -1,5 +1,5 @@
 import { graphql } from "@/gql";
-import { ModuleMutationType, type ModuleMutation, type ResolvedField } from "@/gql/graphql";
+import { EditType, type Edit, type ResolvedField } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { dedent, startStopIf, toValueRef } from "@/utils/functools";
 import type {
@@ -22,7 +22,7 @@ import { computed, onUnmounted, type Ref } from "vue";
 export const PENDING_REVISION = -1;
 
 type GqlMutation = {
-  type: ModuleMutationType; // later other change types will be supported
+  type: EditType; // later other change types will be supported
   name: string;
   fragment: DocumentNode | TypedDocumentNode;
   optimisticResponse: (vars: any) => any;
@@ -57,44 +57,44 @@ function applyGqlMutation(client: ApolloClient<any>, op: GqlMutation, vars: any,
 declare type DocumentParameter<TResult, TVariables> = DocumentNode | TypedDocumentNode<TResult, TVariables>;
 declare type OptionsParameter<TResult, TVariables> = UseMutationOptions<TResult, TVariables>;
 
-export class ModuleMutationRegistry {
-  public mutations: Partial<Record<ModuleMutationType, GqlMutation>> = {};
+export class EditRegistry {
+  public edits: Partial<Record<EditType, GqlMutation>> = {};
 
-  public merge(registry: ModuleMutationRegistry) {
-    for (const [type, op] of Object.entries(registry.mutations)) {
+  public merge(registry: EditRegistry) {
+    for (const [type, op] of Object.entries(registry.edits)) {
       // error if already registered
-      if (this.mutations[type as ModuleMutationType] != null) {
+      if (this.edits[type as EditType] != null) {
         throw new Error(`type ${type} already registered`);
       }
-      this.mutations[type as ModuleMutationType] = op;
+      this.edits[type as EditType] = op;
     }
   }
 
-  static mergeAll(registries: ModuleMutationRegistry[]) {
-    const registry = new ModuleMutationRegistry();
+  static mergeAll(registries: EditRegistry[]) {
+    const registry = new EditRegistry();
     for (const r of registries) {
       registry.merge(r);
     }
     return registry;
   }
 
-  // TODO! @Cleanup @Architecture: module mutations have substantial, opaque redundancy :BE-114
+  // TODO! @Cleanup @Architecture: module edits have substantial, opaque redundancy :BE-114
   //  For one, optimistic responses and even cache updates could be auto-generated with some relatively simple rules.
-  //  Also, because the underline mutations are currently 'opaque' to the operations system ('ops.perform(...)'), we can't simply
-  //  collect and batch multiple mutations without sending them off. This further prevents any reasonable offline support,
+  //  Also, because the underline edits are currently 'opaque' to the operations system ('ops.perform(...)'), we can't simply
+  //  collect and batch multiple edits without sending them off. This further prevents any reasonable offline support,
   //  and, coincidentally, makes it hard to walk a module node (e.g. to bump up on change, delete down).
   //
-  //  We probably want to keep GQL mutations (many reasons; they're nicely typed, debuggable and optimistic, auto-multiplayer, etc.),
-  //  but we can simplify multiplayer module mutations - some thoughts on a potential refactor:
-  //   1. useMutation passes in only the graphql mutation/fragment (no optimistic response or cache update)
-  //   2. update operation store Operation to also accept a set of native GQL mutation objects (somehow)
-  //   3. have a global way to collect mutations instead of sending them immediately (for offline, also for client-side 'transactions')
-  public defineModuleMutation<TResult = any, TVariables extends OperationVariables = OperationVariables>(
-    type: ModuleMutationType,
+  //  We probably want to keep GQL edits (many reasons; they're nicely typed, debuggable and optimistic, auto-multiplayer, etc.),
+  //  but we can simplify multiplayer module edits - some thoughts on a potential refactor:
+  //   1. useEdit passes in only the graphql edit/fragment (no optimistic response or cache update)
+  //   2. update operation store Operation to also accept a set of native GQL edit objects (somehow)
+  //   3. have a global way to collect edits instead of sending them immediately (for offline, also for client-side 'transactions')
+  public defineEdit<TResult = any, TVariables extends OperationVariables = OperationVariables>(
+    type: EditType,
     document: DocumentParameter<TResult, TVariables>,
     options?: OptionsParameter<TResult, TVariables>
   ): UseMutationReturn<TResult, TVariables> {
-    /* Registers a GQL mutation for multiplayer  */
+    /* Registers a GQL mutation as a multiplayer edit  */
 
     const operationName = (document.definitions[0] as any)?.name?.value; // fails if op could not be parsed, but this is usually obvious
     if (operationName == null) {
@@ -119,34 +119,30 @@ export class ModuleMutationRegistry {
       optimisticResponse: options?.optimisticResponse as (vars: any) => any,
       updateCache: options?.update,
     };
-    this.mutations[type] = op;
+    this.edits[type] = op;
 
     return useMutation(document, options);
   }
 }
 
-const mutationListeners: Partial<Record<string, ((mutation: ModuleMutation) => void)[]>> = {};
+const editListeners: Partial<Record<string, ((edit: Edit) => void)[]>> = {};
 
-function getMutationKey(mutation: Pick<ModuleMutation, "type" | "statementId">) {
+function getEditKey(mutation: Pick<Edit, "type" | "statementId">) {
   return `${mutation.type}:${mutation.statementId}`;
 }
 
-export function useMutationListener(
-  types: ModuleMutationType[],
-  statementId: string,
-  listener: (mutation: ModuleMutation) => void
-) {
+export function useEditListener(types: EditType[], statementId: string, listener: (edit: Edit) => void) {
   for (const type of types) {
-    const key = getMutationKey({ type, statementId });
-    if (mutationListeners[key] == null) {
-      mutationListeners[key] = [];
+    const key = getEditKey({ type, statementId });
+    if (editListeners[key] == null) {
+      editListeners[key] = [];
     }
-    mutationListeners[key]?.push(listener);
+    editListeners[key]?.push(listener);
   }
   onUnmounted(() => {
     for (const type of types) {
-      const key = getMutationKey({ type, statementId });
-      mutationListeners[key] = mutationListeners[key]?.filter((l) => l != listener);
+      const key = getEditKey({ type, statementId });
+      editListeners[key] = editListeners[key]?.filter((l) => l != listener);
     }
   });
 }
@@ -163,7 +159,7 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
         moduleChanged(projectId: $projectId, projectVersionId: $projectVersionId) {
           id
           clientId
-          mutations {
+          edits {
             type
             fileId
             statementId
@@ -199,19 +195,19 @@ export function useModuleSync(projectId: Ref<string | null>, projectVersionId: R
   onModuleChanged((result) => {
     if (result.data?.moduleChanged != null) {
       console.debug("accept sync change", result.data?.moduleChanged.clientId);
-      // apply all mutations
-      for (const mutation of result.data.moduleChanged.mutations) {
-        if (mutation.input != null) {
+      // apply all edits
+      for (const edit of result.data.moduleChanged.edits) {
+        if (edit.input != null) {
           // apply like regular input op
-          syncedOps.applyApiMutation(mutation);
+          syncedOps.applyApiEdit(edit);
         } else {
           // apply manually
-          syncedOps.applyRawMutation(mutation as ModuleMutation);
+          syncedOps.applyRawEdit(edit as Edit);
         }
-        // TODO @Broken: cascade mutation into relevant bumps
-        const key = getMutationKey(mutation);
-        for (const listener of mutationListeners[key] ?? []) {
-          listener(mutation as ModuleMutation);
+        // TODO @Broken: cascade edits into relevant bumps
+        const key = getEditKey(edit);
+        for (const listener of editListeners[key] ?? []) {
+          listener(edit as Edit);
         }
       }
     }
@@ -257,28 +253,27 @@ export function useProjectSync(projectId: Ref<string | null>) {
 function useSyncedOps() {
   const ops = useOperations();
   const { client } = useApolloClient();
-  const opRegistry = ModuleMutationRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
+  const opRegistry = EditRegistry.mergeAll([ops.statement.registry, ops.file.registry, ops.symbol.registry]);
 
-  function applyApiMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "revision" | "input">) {
-    // mutations that we just pass through to the regular op with the original input
-    const registeredOp = opRegistry.mutations[mutation.type];
+  function applyApiEdit(edit: Pick<Edit, "type" | "fileId" | "statementId" | "revision" | "input">) {
+    // edits that we just pass through to the regular op with the original input
+    const registeredOp = opRegistry.edits[edit.type];
     if (registeredOp == null) {
-      console.warn(`cannot apply unknown input mutation: ${mutation.type}`);
+      console.warn(`cannot apply unknown input edit: ${edit.type}`);
       return;
     }
-    console.debug("apply api sync mutation", mutation);
-    applyGqlMutation(client, registeredOp, mutation.input, mutation.revision as number | null);
+    console.debug("apply api sync edit", edit);
+    applyGqlMutation(client, registeredOp, edit.input, edit.revision as number | null);
   }
 
-  function applyRawMutation(mutation: Pick<ModuleMutation, "type" | "fileId" | "statementId" | "data">) {
-    console.debug("apply raw sync mutation", mutation);
-    // manual mutations (when we don't have a registered op from a standard GQL mutation)  :RawMutations
-    // TODO @Cleanup: organize 'manual' mutations better
-    // map database mutations to bumps
-    if (mutation.type == ModuleMutationType.TruncateResolvedFields) {
-      if (mutation.statementId != null) {
+  function applyRawEdit(edit: Pick<Edit, "type" | "fileId" | "statementId" | "data">) {
+    console.debug("apply raw sync edit", edit);
+    // manual edits (when we don't have a registered op from a standard GQL mutation), will be overhauled soon with edits 2.0
+    // map database edits to bumps
+    if (edit.type == EditType.TruncateResolvedFields) {
+      if (edit.statementId != null) {
         client.cache.modify({
-          id: `Statement:${mutation.statementId}`,
+          id: `Statement:${edit.statementId}`,
           fields: {
             resolvedFields(existingResolvedFields = []) {
               return [];
@@ -294,31 +289,31 @@ function useSyncedOps() {
         });
         client.cache.gc();
       }
-    } else if (mutation.type == ModuleMutationType.CreateResolvedField && mutation.statementId != null) {
+    } else if (edit.type == EditType.CreateResolvedField && edit.statementId != null) {
       client.cache.modify({
-        id: `Statement:${mutation.statementId}`,
+        id: `Statement:${edit.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
-            const resolvedField = mutation.data as ResolvedField;
+            const resolvedField = edit.data as ResolvedField;
             return [
               ...existingResolvedFields,
               {
                 __typename: "ResolvedField",
                 id: resolvedField.id,
                 ck: resolvedField.ck,
-                statement: { __ref: `Statement:${mutation.statementId}` },
+                statement: { __ref: `Statement:${edit.statementId}` },
                 fieldCk: resolvedField.fieldCk,
               },
             ];
           },
         },
       });
-    } else if (mutation.type == ModuleMutationType.DeleteResolvedField && mutation.statementId != null) {
+    } else if (edit.type == EditType.DeleteResolvedField && edit.statementId != null) {
       client.cache.modify({
-        id: `Statement:${mutation.statementId}`,
+        id: `Statement:${edit.statementId}`,
         fields: {
           resolvedFields(existingResolvedFields = []) {
-            const resolvedField = mutation.data;
+            const resolvedField = edit.data;
             if (resolvedField?.__typename != "ResolvedField") return existingResolvedFields;
             return existingResolvedFields.filter(
               (r: any) => r.id != resolvedField?.id && r.__ref != `ResolvedField:${resolvedField?.id}`
@@ -326,19 +321,19 @@ function useSyncedOps() {
           },
         },
       });
-    } else if (mutation.type == ModuleMutationType.TruncateIssues) {
-      if (mutation.statementId != null) {
+    } else if (edit.type == EditType.TruncateIssues) {
+      if (edit.statementId != null) {
         client.cache.modify({
-          id: `Statement:${mutation.statementId}`,
+          id: `Statement:${edit.statementId}`,
           fields: {
             issues(existingIssues = []) {
               return [];
             },
           },
         });
-      } else if (mutation.fileId != null) {
+      } else if (edit.fileId != null) {
         client.cache.modify({
-          id: `File:${mutation.fileId}`,
+          id: `File:${edit.fileId}`,
           fields: {
             issues(existingIssues = []) {
               return [];
@@ -354,50 +349,50 @@ function useSyncedOps() {
         });
         client.cache.gc();
       }
-    } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.statementId != null) {
+    } else if (edit.type == EditType.CreateIssue && edit.statementId != null) {
       client.cache.modify({
-        id: `Statement:${mutation.statementId}`,
+        id: `Statement:${edit.statementId}`,
         fields: {
           issues(existingIssues = []) {
-            return [...existingIssues, mutation.data];
+            return [...existingIssues, edit.data];
           },
         },
       });
-    } else if (mutation.type == ModuleMutationType.CreateIssue && mutation.fileId != null) {
+    } else if (edit.type == EditType.CreateIssue && edit.fileId != null) {
       client.cache.modify({
-        id: `File:${mutation.fileId}`,
+        id: `File:${edit.fileId}`,
         fields: {
           issues(existingIssues = []) {
-            return [...existingIssues, mutation.data];
+            return [...existingIssues, edit.data];
           },
         },
       });
-    } else if (mutation.type == ModuleMutationType.DeleteIssue && mutation.statementId != null) {
+    } else if (edit.type == EditType.DeleteIssue && edit.statementId != null) {
       client.cache.modify({
-        id: `Statement:${mutation.statementId}`,
+        id: `Statement:${edit.statementId}`,
         fields: {
           issues(existingIssues = []) {
-            const issue = mutation.data;
+            const issue = edit.data;
             if (issue?.__typename != "Issue") return existingIssues;
             return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
       });
-    } else if (mutation.type == ModuleMutationType.DeleteIssue && mutation.fileId != null) {
+    } else if (edit.type == EditType.DeleteIssue && edit.fileId != null) {
       client.cache.modify({
-        id: `File:${mutation.fileId}`,
+        id: `File:${edit.fileId}`,
         fields: {
           issues(existingIssues = []) {
-            const issue = mutation.data;
+            const issue = edit.data;
             if (issue?.__typename != "Issue") return existingIssues;
             return existingIssues.filter((i: any) => i.id != issue?.id && i.__ref != `Issue:${issue?.id}`);
           },
         },
       });
     } else {
-      console.warn(`cannot apply unknown data mutation: ${mutation.type} ${mutation.data}`);
+      console.warn(`cannot apply unknown data edit: ${edit.type} ${edit.data}`);
     }
   }
 
-  return { applyApiMutation, applyRawMutation };
+  return { applyApiEdit, applyRawEdit };
 }

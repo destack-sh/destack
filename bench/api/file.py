@@ -12,9 +12,9 @@ from strawberry_django.fields.types import OperationInfo
 from bench import models
 from bench.api.auth import check_module_access, check_module_node_access
 from bench.api.module import read_module_node
-from bench.api.sync import tracked_db_mutation
+from bench.api.sync import db_edit
 from bench.api.utils import HasCrud, ModuleNode, Revisioned
-from bench.language.mutate import MMT
+from bench.language.edit import MET
 from bench.models import ModuleAccessLevel
 
 if TYPE_CHECKING:
@@ -79,7 +79,7 @@ class FilePasteInput:
 
 @strawberry.type
 class FileMutation:
-    @tracked_db_mutation(MMT.CREATE_FILE)
+    @db_edit(MET.CREATE_FILE)
     def create_file(self, input: FileCreateInput) -> File | OperationInfo:
         id = input.id.node_id if input.id else None
         return models.File(
@@ -90,45 +90,45 @@ class FileMutation:
             parent_file_id=input.parent_id.node_id if input.parent_id else None,
         )
 
-    @tracked_db_mutation(MMT.UPDATE_FILE)
+    @db_edit(MET.UPDATE_FILE)
     def update_file(self, input: FileCreateInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @tracked_db_mutation(MMT.DELETE_FILE, atomic=True)
+    @db_edit(MET.DELETE_FILE, atomic=True)
     def delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.delete()
         return file
 
-    @tracked_db_mutation(MMT.SOFT_DELETE_FILE, atomic=True)
+    @db_edit(MET.SOFT_DELETE_FILE, atomic=True)
     def soft_delete_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.soft_delete()
         return file
 
-    @tracked_db_mutation(MMT.RESTORE_FILE, atomic=True)
+    @db_edit(MET.RESTORE_FILE, atomic=True)
     def restore_file(self, input: strawberry_django.NodeInput) -> File | OperationInfo:
         # use _base_manager since soft deleted files are not visible
         file = models.File._base_manager.get(id=input.id.node_id)
         file.restore()
         return file
 
-    @tracked_db_mutation(MMT.MOVE_FILE)
+    @db_edit(MET.MOVE_FILE)
     def move_file(self, input: FileMoveInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None
         return file
 
-    @tracked_db_mutation(MMT.RENAME_FILE)
+    @db_edit(MET.RENAME_FILE)
     def rename_file(self, input: FileRenameInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         return file
 
-    @tracked_db_mutation(MMT.PASTE_FILE, atomic=True, skip_save=True, skip_auth_check=True)
+    @db_edit(MET.PASTE_FILE, atomic=True, skip_save=True, skip_auth_check=True)
     def paste_file(self, info: Info, input: FilePasteInput) -> File | OperationInfo:
         # get and check source/target
         source_file = models.File.objects.get(id=input.source_id.node_id)

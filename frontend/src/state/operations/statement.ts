@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import {
-  ModuleMutationType,
+  EditType,
   StatementType,
   TypeTag,
   type BatchDeleteStatementsMutation,
@@ -16,7 +16,7 @@ import {
   type UpdateStatementMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
-import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
+import { EditRegistry, PENDING_REVISION } from "@/state/sync";
 import { cyrb53a } from "@/utils/functools";
 import { useMutation } from "@vue/apollo-composable";
 
@@ -46,12 +46,12 @@ export function newDynamicNodeKey(ck: string): string {
 
 export function useStatementOps() {
   const ops = useOperationsStore();
-  const registry = new ModuleMutationRegistry();
+  const registry = new EditRegistry();
 
   // yeah there's some annoying redundance here, see :BE-114
 
-  const { mutate: createStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.CreateStatement,
+  const { mutate: createStatementMut } = registry.defineEdit(
+    EditType.CreateStatement,
     graphql(/* GraphQL */ `
       mutation createStatement(
         $id: GlobalID!
@@ -321,8 +321,8 @@ export function useStatementOps() {
   }
 
   /* not used in client, just for registration as a sync op */
-  registry.defineModuleMutation(
-    ModuleMutationType.UpdateStatement,
+  registry.defineEdit(
+    EditType.UpdateStatement,
     graphql(/* GraphQL */ `
       mutation updateStatement(
         $id: GlobalID!
@@ -404,8 +404,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: morphStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.MorphStatement,
+  const { mutate: morphStatementMut } = registry.defineEdit(
+    EditType.MorphStatement,
     graphql(/* GraphQL */ `
       mutation morphStatement(
         $id: GlobalID!
@@ -525,8 +525,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: moveStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.MoveStatement,
+  const { mutate: moveStatementMut } = registry.defineEdit(
+    EditType.MoveStatement,
     graphql(/* GraphQL */ `
       mutation moveStatement($id: GlobalID!, $fileId: GlobalID!, $parentId: GlobalID, $orderKey: String!) {
         moveStatement(input: { id: $id, fileId: $fileId, parentId: $parentId, orderKey: $orderKey }) {
@@ -683,8 +683,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: renameStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.RenameStatement,
+  const { mutate: renameStatementMut } = registry.defineEdit(
+    EditType.RenameStatement,
     graphql(/* GraphQL */ `
       mutation renameStatement($id: GlobalID!, $name: String) {
         renameStatement(input: { id: $id, name: $name }) {
@@ -723,8 +723,8 @@ export function useStatementOps() {
     });
   }
 
-  const { mutate: deleteStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.DeleteStatement,
+  const { mutate: deleteStatementMut } = registry.defineEdit(
+    EditType.DeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
@@ -750,8 +750,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: softDeleteStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.SoftDeleteStatement,
+  const { mutate: softDeleteStatementMut } = registry.defineEdit(
+    EditType.SoftDeleteStatement,
     // we don't bother updating descendants here since they will be automatically hidden
     // when their parent/ancestor is deleted (and its more responsive that way on restore)
     graphql(/* GraphQL */ `
@@ -806,8 +806,8 @@ export function useStatementOps() {
     }
   );
 
-  const { mutate: restoreStatementMut } = registry.defineModuleMutation(
-    ModuleMutationType.RestoreStatement,
+  const { mutate: restoreStatementMut } = registry.defineEdit(
+    EditType.RestoreStatement,
     graphql(/* GraphQL */ `
       mutation restoreStatement($id: GlobalID!) {
         restoreStatement(input: { id: $id }) {

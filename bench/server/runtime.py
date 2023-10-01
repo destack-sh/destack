@@ -32,15 +32,15 @@ from bench.language.const import (
     RunStatus,
     parse_absolute_node_reference,
 )
+from bench.language.edit import Edit, ModuleEditor
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import ModuleChange
-from bench.language.mutate import ModuleMutation, ModuleMutator
 from bench.language.run import get_run_cache_subkey
 from bench.language.trigger import HasTriggers, TriggerScheduleIterator, is_time_trigger_equal
 from bench.language.typing import pack_value, unpack_value
 from bench.models import Project, ProjectVersion, packer
-from bench.models.packer import write_mutations, write_session
+from bench.models.packer import write_edits, write_session
 from bench.msg import NMessage
 from bench.msg.core import handle_reply, message_handler, nc_init, publish, request, subscribe
 from bench.msg.messages import (
@@ -92,7 +92,7 @@ from bench.utils.monitoring import Monitored
 from bench.utils.task import TaskManager
 from bench.utils.utils import sentry_capture
 from bench.utils.uuidt import UUIDT
-from bench.worker.mutate import get_api_mutation_from_internal, trim_record_mutations
+from bench.worker.edit import get_api_edit_from_internal, trim_record_edits
 
 logger = structlog.get_logger(__name__)
 
@@ -259,7 +259,7 @@ class RuntimeServer(Monitored):
         runtime = await self._prepare_runtime(msg.p.module_id)
         try:
             await runtime.write_module(
-                msg.p.mutations, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
+                msg.p.edits, origins=(msg.p.client,), refresh_index=msg.p.refresh_index
             )
             logger.debug("module.write.done", msg=msg)
             success = True
@@ -530,7 +530,7 @@ class RuntimeServer(Monitored):
         if msg.p.has_origin(self.id):
             return  # ignore own changes
         runtime = await self._prepare_runtime(msg.p.module_id)
-        await runtime.apply_mutations(msg.p.mutations)
+        await runtime.apply_edits(msg.p.edits)
 
     async def stop(self):
         logger.info("stop")
@@ -849,21 +849,21 @@ class RuntimeHost:
         # interp state
         start_time = utcnow_with_tz()
         if change is None:  # reset completely
-            interp_mut = ModuleMutator(self.module._source, self.project_id, self.module_id)
+            interp_mut = ModuleEditor(self.module._source, self.project_id, self.module_id)
             module_data = wire.pack_node_flat(self.module)
             for mnt in INTERP_NODE_TYPES:
                 interp_mut.truncate(module_data, mnt, apply=False)
             for node in self.module._nodes:
                 if node.mnt == MNT.Issue or isinstance(node, ResolvedField) and node._is_foreign:
                     interp_mut.create(node, apply=False)
-            interp_mutations = interp_mut.mutations
+            interp_edits = interp_mut.edits
         else:
-            interp_mutations = change.interp_mutations
-        if interp_mutations:
-            await sync_to_async(write_mutations)(
+            interp_edits = change.interp_edits
+        if interp_edits:
+            await sync_to_async(write_edits)(
                 self.project_version,
                 self.module._source,
-                interp_mutations,
+                interp_edits,
                 validate=False,
                 refresh_index=False,
                 apply=False,
@@ -874,67 +874,65 @@ class RuntimeHost:
                     project_id=self.project_id,
                     module_id=self.module_id,
                     origins=(self.client,),
-                    mutations=interp_mutations,
+                    edits=interp_edits,
                 ),
             )
         duration = (utcnow_with_tz() - start_time).total_seconds()
-        self.log.debug("runtime.interp", total=len(interp_mutations), duration=duration)
+        self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
 
         # triggers
         if change is None or any(isinstance(n, Trigger) for n in change.touched):
             self._update_local_triggers()
 
-    async def apply_mutations(self, mutations: list[ModuleMutation]) -> None:
-        """Apply external mutations to the module."""
+    async def apply_edits(self, edits: list[Edit]) -> None:
+        """Apply external edits to the module."""
         start_time = utcnow_with_tz()
-        change = self.module._apply_mutations(mutations)
+        change = self.module._apply_edits(edits)
         duration = (utcnow_with_tz() - start_time).total_seconds()
-        self.log.debug("runtime.apply_mutations", total=len(mutations), duration=duration)
+        self.log.debug("runtime.apply_edits", total=len(edits), duration=duration)
         await self._on_module_changed(change)
 
     async def write_module(
         self,
-        mutations: list[ModuleMutation],
+        edits: list[Edit],
         origins: tuple[ClientOrigin] = None,
         refresh_index: bool = False,
     ):
         self.log.debug(
             "write_module",
-            mutations=mutations[:5],
-            total=len(mutations),
+            edits=edits[:5],
+            total=len(edits),
             origins=origins,
             refresh_index=refresh_index,
         )
 
         # apply in DB/OS
-        await sync_to_async(write_mutations)(
+        await sync_to_async(write_edits)(
             self.project_version,
             self.module._source,
-            mutations,
+            edits,
             validate=True,
             refresh_index=refresh_index,
         )
-        if not mutations:
-            # mutations may be empty if we just want to trigger an index refresh
+        if not edits:
+            # edits may be empty if we just want to trigger an index refresh
             # e.g. on record search preflight in session after a non-refresh flush happened
             return
 
         # apply locally
-        await self.apply_mutations(mutations)
+        await self.apply_edits(edits)
 
         # broadcast
-        trimmed_mutations = trim_record_mutations(mutations)
+        trimmed_edits = trim_record_edits(edits)
         origins = (*(origins or ()), self.client)
-        api_mutations = list(
-            chain.from_iterable(get_api_mutation_from_internal(m) for m in trimmed_mutations)
-        )
+        api_edits = list(chain.from_iterable(get_api_edit_from_internal(m) for m in trimmed_edits))
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(
                 project_id=self.project_id,
                 module_id=self.module_id,
                 origins=origins,
-                mutations=trimmed_mutations,
+                edits=trimmed_edits,
             ),
         )
         await publish(
@@ -943,7 +941,7 @@ class RuntimeHost:
                 project_id=self.project_id,
                 module_id=self.module_id,
                 origins=origins,
-                mutations=api_mutations,
+                edits=api_edits,
             ),
         )
 

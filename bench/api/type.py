@@ -2,12 +2,12 @@ import enum
 
 import strawberry
 
-from bench.language.mutate import MMT
+from bench.language.edit import MET
 
 # module mutations are special since they're used to sync semantic changes
 # so they're defined in the language/runtime
-ModuleMutationType = strawberry.enum(MMT)
-MMT = ModuleMutationType
+EditType = strawberry.enum(MET)
+MET = EditType
 
 
 class ProjectMutationType(enum.StrEnum):

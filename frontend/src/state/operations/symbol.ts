@@ -1,6 +1,6 @@
 import { graphql } from "@/gql";
 import {
-  ModuleMutationType,
+  EditType,
   TypeHint,
   TypeTag,
   type BatchRestoreRecordMutation,
@@ -28,18 +28,18 @@ import {
   ScheduleType,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
-import { ModuleMutationRegistry, PENDING_REVISION } from "@/state/sync";
+import { EditRegistry, PENDING_REVISION } from "@/state/sync";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useSymbolContentOps() {
   const ops = useOperationsStore();
-  const registry = new ModuleMutationRegistry();
+  const registry = new EditRegistry();
 
   // symbol content mutations
   // (for the annoying redundancy see :BE-114)
 
-  const { mutate: updateStatementReferenceMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateStatementReference,
+  const { mutate: updateStatementReferenceMut } = registry.defineEdit(
+    EditType.UpdateStatementReference,
     graphql(/* GraphQL */ `
       mutation updateStatementReference($id: GlobalID!, $referenceCk: UUID) {
         updateStatementReference(input: { id: $id, referenceCk: $referenceCk }) {
@@ -85,8 +85,8 @@ export function useSymbolContentOps() {
 
   // code mutations
 
-  const { mutate: updateSymbolCodeMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateSymbolCode,
+  const { mutate: updateSymbolCodeMut } = registry.defineEdit(
+    EditType.UpdateSymbolCode,
     graphql(/* GraphQL */ `
       mutation updateSymbolCode($id: GlobalID!, $code: String) {
         updateSymbolCode(input: { id: $id, code: $code }) {
@@ -125,8 +125,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: updateStatementTextMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateStatementText,
+  const { mutate: updateStatementTextMut } = registry.defineEdit(
+    EditType.UpdateStatementText,
     graphql(/* GraphQL */ `
       mutation updateStatementText($id: GlobalID!, $text: String) {
         updateStatementText(input: { id: $id, text: $text }) {
@@ -165,8 +165,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: updateValueMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateSymbolValue,
+  const { mutate: updateValueMut } = registry.defineEdit(
+    EditType.UpdateSymbolValue,
     graphql(/* GraphQL */ `
       mutation updateSymbolValue($id: GlobalID!, $value: JSON) {
         updateSymbolValue(input: { id: $id, value: $value }) {
@@ -207,8 +207,8 @@ export function useSymbolContentOps() {
 
   // record mutations
 
-  const { mutate: createRecordMut } = registry.defineModuleMutation(
-    ModuleMutationType.CreateRecord,
+  const { mutate: createRecordMut } = registry.defineEdit(
+    EditType.CreateRecord,
     graphql(/* GraphQL */ `
       mutation createRecord(
         $id: GlobalID!
@@ -266,8 +266,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: updateRecordMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateRecord,
+  const { mutate: updateRecordMut } = registry.defineEdit(
+    EditType.UpdateRecord,
     graphql(/* GraphQL */ `
       mutation updateRecord($id: GlobalID!, $statementId: GlobalID!, $value: JSON!) {
         updateRecord(input: { id: $id, statementId: $statementId, value: $value }) {
@@ -295,8 +295,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: deleteRecordMut } = registry.defineModuleMutation(
-    ModuleMutationType.DeleteRecord,
+  const { mutate: deleteRecordMut } = registry.defineEdit(
+    EditType.DeleteRecord,
     graphql(/* GraphQL */ `
       mutation deleteRecord($id: GlobalID!, $statementId: GlobalID!) {
         deleteRecord(input: { id: $id, statementId: $statementId }) {
@@ -321,8 +321,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: softDeleteRecordMut } = registry.defineModuleMutation(
-    ModuleMutationType.SoftDeleteRecord,
+  const { mutate: softDeleteRecordMut } = registry.defineEdit(
+    EditType.SoftDeleteRecord,
     graphql(/* GraphQL */ `
       mutation softDeleteRecord($id: GlobalID!, $statementId: GlobalID!) {
         softDeleteRecord(input: { id: $id, statementId: $statementId }) {
@@ -349,8 +349,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: restoreRecordMut } = registry.defineModuleMutation(
-    ModuleMutationType.RestoreRecord,
+  const { mutate: restoreRecordMut } = registry.defineEdit(
+    EditType.RestoreRecord,
     graphql(/* GraphQL */ `
       mutation restoreRecord($id: GlobalID!, $statementId: GlobalID!) {
         restoreRecord(input: { id: $id, statementId: $statementId }) {
@@ -535,8 +535,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: createFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.CreateField,
+  const { mutate: createFieldMut } = registry.defineEdit(
+    EditType.CreateField,
     graphql(/* GraphQL */ `
       mutation createField(
         $id: GlobalID!
@@ -675,8 +675,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: deleteFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.DeleteField,
+  const { mutate: deleteFieldMut } = registry.defineEdit(
+    EditType.DeleteField,
     graphql(/* GraphQL */ `
       mutation deleteField($id: GlobalID!) {
         deleteField(input: { id: $id }) {
@@ -700,8 +700,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: softDeleteFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.SoftDeleteField,
+  const { mutate: softDeleteFieldMut } = registry.defineEdit(
+    EditType.SoftDeleteField,
     graphql(/* GraphQL */ `
       mutation softDeleteField($id: GlobalID!) {
         softDeleteField(input: { id: $id }) {
@@ -725,8 +725,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: restoreFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.RestoreField,
+  const { mutate: restoreFieldMut } = registry.defineEdit(
+    EditType.RestoreField,
     graphql(/* GraphQL */ `
       mutation restoreField($id: GlobalID!) {
         restoreField(input: { id: $id }) {
@@ -836,8 +836,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: updateFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateField,
+  const { mutate: updateFieldMut } = registry.defineEdit(
+    EditType.UpdateField,
     graphql(/* GraphQL */ `
       mutation updateField(
         $id: GlobalID!
@@ -920,8 +920,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: moveFieldMut } = registry.defineModuleMutation(
-    ModuleMutationType.MoveField,
+  const { mutate: moveFieldMut } = registry.defineEdit(
+    EditType.MoveField,
     graphql(/* GraphQL */ `
       mutation moveField($id: GlobalID!, $orderKey: String!) {
         moveField(input: { id: $id, orderKey: $orderKey }) {
@@ -958,8 +958,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: createTaggingMut } = registry.defineModuleMutation(
-    ModuleMutationType.CreateTagging,
+  const { mutate: createTaggingMut } = registry.defineEdit(
+    EditType.CreateTagging,
     graphql(/* GraphQL */ `
       mutation createTagging(
         $id: GlobalID!
@@ -1053,8 +1053,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: deleteTaggingMut } = registry.defineModuleMutation(
-    ModuleMutationType.DeleteTagging,
+  const { mutate: deleteTaggingMut } = registry.defineEdit(
+    EditType.DeleteTagging,
     graphql(/* GraphQL */ `
       mutation deleteTagging($id: GlobalID!) {
         deleteTagging(input: { id: $id }) {
@@ -1078,8 +1078,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: softDeleteTaggingMut } = registry.defineModuleMutation(
-    ModuleMutationType.SoftDeleteTagging,
+  const { mutate: softDeleteTaggingMut } = registry.defineEdit(
+    EditType.SoftDeleteTagging,
     graphql(/* GraphQL */ `
       mutation softDeleteTagging($id: GlobalID!) {
         softDeleteTagging(input: { id: $id }) {
@@ -1103,8 +1103,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: restoreTaggingMut } = registry.defineModuleMutation(
-    ModuleMutationType.RestoreTagging,
+  const { mutate: restoreTaggingMut } = registry.defineEdit(
+    EditType.RestoreTagging,
     graphql(/* GraphQL */ `
       mutation restoreTagging($id: GlobalID!) {
         restoreTagging(input: { id: $id }) {
@@ -1178,8 +1178,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: updateTaggingMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateTagging,
+  const { mutate: updateTaggingMut } = registry.defineEdit(
+    EditType.UpdateTagging,
     graphql(/* GraphQL */ `
       mutation updateTagging($id: GlobalID!, $value: JSON) {
         updateTagging(input: { id: $id, value: $value }) {
@@ -1233,8 +1233,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: createTriggerMut } = registry.defineModuleMutation(
-    ModuleMutationType.CreateTrigger,
+  const { mutate: createTriggerMut } = registry.defineEdit(
+    EditType.CreateTrigger,
     graphql(/* GraphQL */ `
       mutation createTrigger(
         $id: GlobalID!
@@ -1365,8 +1365,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: softDeleteTriggerMut } = registry.defineModuleMutation(
-    ModuleMutationType.SoftDeleteTrigger,
+  const { mutate: softDeleteTriggerMut } = registry.defineEdit(
+    EditType.SoftDeleteTrigger,
     graphql(/* GraphQL */ `
       mutation softDeleteTrigger($id: GlobalID!) {
         softDeleteTrigger(input: { id: $id }) {
@@ -1390,8 +1390,8 @@ export function useSymbolContentOps() {
     }
   );
 
-  const { mutate: restoreTriggerMut } = registry.defineModuleMutation(
-    ModuleMutationType.RestoreTrigger,
+  const { mutate: restoreTriggerMut } = registry.defineEdit(
+    EditType.RestoreTrigger,
     graphql(/* GraphQL */ `
       mutation restoreTrigger($id: GlobalID!) {
         restoreTrigger(input: { id: $id }) {
@@ -1487,8 +1487,8 @@ export function useSymbolContentOps() {
     });
   }
 
-  const { mutate: updateTriggerMut } = registry.defineModuleMutation(
-    ModuleMutationType.UpdateTrigger,
+  const { mutate: updateTriggerMut } = registry.defineEdit(
+    EditType.UpdateTrigger,
     graphql(/* GraphQL */ `
       mutation updateTrigger(
         $id: GlobalID!

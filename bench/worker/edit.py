@@ -9,8 +9,8 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
+from bench.language.edit import MET, MNT, Edit, ModuleEditor
 from bench.language.module import NodeTree
-from bench.language.mutate import MMT, MNT, ModuleMutation, ModuleMutator
 from bench.models import packer
 from bench.models.packer import INTERP_MODEL_TYPES
 from bench.opensearch import mirror
@@ -26,46 +26,46 @@ MutableThing = Union[
 MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
 
-def trim_record_mutations(
-    mutations: list[ModuleMutation],
-) -> list[ModuleMutation]:
-    """Trims record mutations into bumps if necessary."""
+def trim_record_edits(
+    edits: list[Edit],
+) -> list[Edit]:
+    """Trims record edits into bumps if necessary."""
     num_record_updates = 0
     bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
-    trimmed_mutations = []
-    for mutation in mutations:
-        if mutation.scope == MNT.Record:
+    trimmed_edits = []
+    for edit in edits:
+        if edit.scope == MNT.Record:
             num_record_updates += 1
-            bumped_statement_ids[mutation.statement_id] = mutation.file_id
+            bumped_statement_ids[edit.statement_id] = edit.file_id
             if num_record_updates < MAX_RECORD_MUTATIONS_PER_BATCH:
-                trimmed_mutations.append(mutation)
+                trimmed_edits.append(edit)
         else:
-            trimmed_mutations.append(mutation)
+            trimmed_edits.append(edit)
     # always add bumps since we don't have proper bump propagation on the frontend yet
     for statement_id, file_id in bumped_statement_ids.items():
-        trimmed_mutations.append(
-            ModuleMutation(
-                type=MMT.BUMP_STATEMENT,
-                project_version_id=mutations[0].project_version_id,
+        trimmed_edits.append(
+            Edit(
+                type=MET.BUMP_STATEMENT,
+                project_version_id=edits[0].project_version_id,
                 file_id=file_id,
                 statement_id=statement_id,
             )
         )
-    return trimmed_mutations
+    return trimmed_edits
 
 
-def map_mutation_from_api(
-    type: MMT,
+def map_edit_from_api(
+    type: MET,
     input: Any,
     thing: MutableThing,
     project_v: models.ProjectVersion,
     statement: Optional[models.Statement],
-) -> tuple[list[ModuleMutation], list[ModuleMutation]]:
+) -> tuple[list[Edit], list[Edit]]:
     """
-    Remap/create API multiplayer mutation for other clients and internals.
-    Returns both the internal and API mutations to publish.
+    Remap/create API multiplayer edit for other clients and internals.
+    Returns both the internal and API edits to publish.
     """
-    api_mutation = ModuleMutation(
+    api_edit = Edit(
         type=type,
         project_version_id=project_v.id,
         revision=thing.revision,
@@ -73,84 +73,82 @@ def map_mutation_from_api(
         thing=thing,
     )
     if statement is not None:
-        api_mutation.file_id = statement.file_id
-        api_mutation.statement_id = statement.id
+        api_edit.file_id = statement.file_id
+        api_edit.statement_id = statement.id
     elif isinstance(thing, models.File):
-        api_mutation.file_id = thing.id
-        api_mutation.statement_id = None
+        api_edit.file_id = thing.id
+        api_edit.statement_id = None
     elif isinstance(thing, models.Statement):
-        api_mutation.file_id = thing.file_id
-        api_mutation.statement_id = thing.id
+        api_edit.file_id = thing.file_id
+        api_edit.statement_id = thing.id
     elif isinstance(thing, (models.Field, models.Record, models.Tagging, models.Trigger)):
-        api_mutation.file_id = thing.statement.file_id
-        api_mutation.statement_id = thing.statement_id
+        api_edit.file_id = thing.statement.file_id
+        api_edit.statement_id = thing.statement_id
     else:
         raise TypeError(f"thing is not a project thing: {thing}")
 
-    if type in (MMT.PASTE_FILE, MMT.RESTORE_FILE, MMT.PASTE_STATEMENT, MMT.RESTORE_STATEMENT):
+    if type in (MET.PASTE_FILE, MET.RESTORE_FILE, MET.PASTE_STATEMENT, MET.RESTORE_STATEMENT):
         packed = packer.pack_node(thing, excluded=[models.Record, *INTERP_MODEL_TYPES])
         file_id = thing.file_id if isinstance(thing, models.Statement) else thing.id
-        mutator = ModuleMutator(
+        mutator = ModuleEditor(
             tree=NodeTree(),
             project_id=project_v.project_id,
             module_id=project_v.id,
             file_id=file_id,
         )
         internal = mutator.create_many(*packed.nodes_list())
-        api_mutations = list(
-            chain.from_iterable(get_api_mutation_from_internal(m) for m in internal.mutations)
-        )
-        # strip interp data from internal mutations (but keep in API, user clients need it)
-        stripped_internal_mutations = [
+        api_edits = list(chain.from_iterable(get_api_edit_from_internal(m) for m in internal.edits))
+        # strip interp data from internal edits (but keep in API, user clients need it)
+        stripped_internal_edits = [
             m
-            for m in internal.mutations
+            for m in internal.edits
             if not isinstance(packed.nodes_by_id[m.data.id], INTERP_MODEL_TYPES)
         ]
-        return stripped_internal_mutations, api_mutations
+        return stripped_internal_edits, api_edits
     else:
-        # map everything else to a simple internal mutation (CUD_X)
-        internal_type = MMT(type.kind + "_" + api_mutation.mnt.caps_name)
-        internal_mutation = ModuleMutation(
+        # map everything else to a simple internal edit (CUD_X)
+        internal_type = MET(type.kind + "_" + api_edit.mnt.caps_name)
+        internal_edit = Edit(
             type=internal_type,
-            project_version_id=api_mutation.project_version_id,
+            project_version_id=api_edit.project_version_id,
             revision=thing.revision,
             thing=thing,
         )
         if isinstance(thing, mirror.Document):  # os indexed Document
-            internal_mutation.data = mirror.pack_node_flat(thing)
+            internal_edit.data = mirror.pack_node_flat(thing)
         else:
-            internal_mutation.data = packer.pack_node_flat(thing)
-        return [internal_mutation], [api_mutation]
+            internal_edit.data = packer.pack_node_flat(thing)
+        return [internal_edit], [api_edit]
 
 
-def get_api_mutation_from_internal(mutation: ModuleMutation) -> list[ModuleMutation]:
+def get_api_edit_from_internal(edit: Edit) -> list[Edit]:
     """
-    Maps a simple internal mutation to an API multiplayer mutation.
+    Maps a simple internal edit to an API multiplayer edit.
 
-    This is conceptually the inverse of map_mutation_to_internal, but is a bit simpler
-    since all internal mutations are also valid API mutations (it's a subset).
+    This is conceptually the inverse of map_edit_to_internal, but is a bit simpler
+    since all internal edits are also valid API edits (it's a subset).
 
     The main challenge is reconstructing an "input" that is exactly the input that
-    would have caused that mutation. For some mutations, this is theoretical,
+    would have caused that edit. For some edits, this is theoretical,
     since e.g., hard deletes aren't used in the UX (only for internal synchronisation).
     """
-    if not mutation.type.simple:
-        raise ValueError(f"mutation is not a simple internal mutation: {mutation}")
-    input = get_gql_input_from_mutation(mutation)
-    api_mutation = ModuleMutation(
-        type=mutation.type,
-        project_version_id=mutation.project_version_id,
-        file_id=mutation.file_id,
-        statement_id=mutation.statement_id,
-        revision=mutation.revision,
+    if not edit.type.simple:
+        raise ValueError(f"edit is not a simple internal edit: {edit}")
+    input = get_gql_input_from_edit(edit)
+    api_edit = Edit(
+        type=edit.type,
+        project_version_id=edit.project_version_id,
+        file_id=edit.file_id,
+        statement_id=edit.statement_id,
+        revision=edit.revision,
         input=input,
     )
-    if input is None and mutation.data is not None:
-        api_mutation.data = mutation.data
-    return [api_mutation]
+    if input is None and edit.data is not None:
+        api_edit.data = edit.data
+    return [api_edit]
 
 
-# extra fields in API mutations that are not in internal module data
+# extra fields in API edits that are not in internal module data
 _EXTRA_FIELDS_BY_SCOPE = {
     MNT.File: {
         "parent_id": None,
@@ -159,34 +157,34 @@ _EXTRA_FIELDS_BY_SCOPE = {
 }
 
 
-def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
+def get_gql_input_from_edit(edit: Edit) -> Optional[dict]:
     """
-    Maps a simple internal mutation to an input that would cause the same mutation.
+    Maps a simple internal edit to an input that would cause the same edit.
     The returned input is already jsonable (not the original input class).
     """
     from bench.api.sync import INPUT_CLASS_BY_TYPE
     from bench.api.utils import to_global_id
 
-    input_cls = INPUT_CLASS_BY_TYPE.get(mutation.type)
+    input_cls = INPUT_CLASS_BY_TYPE.get(edit.type)
     if input_cls is None:
         return None
-    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(mutation.type.mnt, {})
+    extra_fields = _EXTRA_FIELDS_BY_SCOPE.get(edit.type.mnt, {})
     input_args = {}
     for field in fields(input_cls):
         if field.name == "project_version_id":
-            value = to_global_id("ProjectVersion", mutation.project_version_id)
+            value = to_global_id("ProjectVersion", edit.project_version_id)
         elif field.name == "file_id":
-            value = to_global_id("File", mutation.file_id)
+            value = to_global_id("File", edit.file_id)
         elif field.name == "statement_id":
-            value = to_global_id("Statement", mutation.statement_id)
+            value = to_global_id("Statement", edit.statement_id)
         elif field.name in ("statement_ck", "statement_key"):
-            value = None  # incorrect, but not actually used in frontend and mutations will be overhauled soon
+            value = None  # incorrect, but not actually used in frontend and edits will be overhauled soon
         elif field.name in extra_fields:
             value = extra_fields[field.name]
         else:
-            value = getattr(mutation.data, field.name, field.default)
+            value = getattr(edit.data, field.name, field.default)
             if field.name != "ck" and isinstance(value, UUID):
-                value = _map_id_field(field.name, value, mutation)
+                value = _map_id_field(field.name, value, edit)
         input_args[field.name] = value
     input = input_cls(**input_args)
     input = input_to_gql_jsonable(input)
@@ -222,24 +220,24 @@ def input_to_gql_jsonable(value: Any) -> Any:
         raise TypeError(f"unexpected value: {value}")
 
 
-def _map_id_field(key: str, value: UUID, mutation: ModuleMutation):
+def _map_id_field(key: str, value: UUID, edit: Edit):
     # map id to global id with appropriate type name
     # we can't actually know whether parent id is a file or statement id,
-    # so we check against the mutation file id... this should be fine?
+    # so we check against the edit file id... this should be fine?
     from strawberry.relay import GlobalID
 
-    if key == "parent_id" and mutation.type.mnt == MNT.Statement:
-        if value == mutation.file_id:
+    if key == "parent_id" and edit.type.mnt == MNT.Statement:
+        if value == edit.file_id:
             type_name = "File"
         else:
             type_name = "Statement"
-    elif key == "parent_id" and mutation.type.mnt == MNT.File:
+    elif key == "parent_id" and edit.type.mnt == MNT.File:
         # same as above
-        if value == mutation.project_version_id:
+        if value == edit.project_version_id:
             type_name = "ProjectVersion"
         else:
             type_name = "File"
     else:
-        type_name = mutation.type.mnt
+        type_name = edit.type.mnt
     value = GlobalID(type_name, str(value))
     return value
