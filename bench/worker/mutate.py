@@ -185,7 +185,7 @@ def get_gql_input_from_mutation(mutation: ModuleMutation) -> Optional[dict]:
             value = extra_fields[field.name]
         else:
             value = getattr(mutation.data, field.name, field.default)
-            if isinstance(value, UUID):
+            if field.name != "ck" and isinstance(value, UUID):
                 value = _map_id_field(field.name, value, mutation)
         input_args[field.name] = value
     input = input_cls(**input_args)

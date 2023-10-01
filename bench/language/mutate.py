@@ -6,7 +6,7 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Callable, Iterator, Optional, Union
+from typing import Any, Iterator, Optional, Union
 from uuid import UUID
 
 from bench.language.const import ModuleNodeType
@@ -309,9 +309,6 @@ def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
         return node
     else:
         return wire.pack_node_flat(node)
-
-
-ModuleMutationHook = Callable[["ModuleMutator", ModuleMutation], None]
 
 
 class ModuleMutator:
