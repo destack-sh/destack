@@ -4,7 +4,7 @@ from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import MNT, IssueKind
-from bench.language.module import ModuleNode, node, nparent, nproperty
+from bench.language.module import Node, node, nparent, nproperty
 from bench.language.validation import enum_validator
 
 if TYPE_CHECKING:
@@ -60,14 +60,14 @@ class BenchError(ValueError):
 
 
 @node(mnt=MNT.Issue)
-class Issue(ModuleNode):
+class Issue(Node):
     parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)
     type: IssueType = nproperty(is_required=True, validate=enum_validator(IssueType))
     kind: IssueKind = nproperty(default=None, validate=enum_validator(IssueKind))
     message: str = nproperty(default=None)
-    subject: Optional[ModuleNode] = nproperty(default=None)
+    subject: Optional[Node] = nproperty(default=None)
     path: Optional[str] = nproperty(default=None)
-    other: Optional[ModuleNode] = nproperty(default=None)
+    other: Optional[Node] = nproperty(default=None)
 
     def _init_inner(self):
         # make message

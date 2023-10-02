@@ -60,11 +60,6 @@ _symbolx_builtins = symbolx_lib.files.create("builtins")
 _symbolx_utils = symbolx_lib.files.create("utils")
 
 
-@x_tag("tool", "A tool for a bot", file=_symbolx_builtins)
-class Tool:
-    pass
-
-
 @x_tag("cache", "Cache runs", file=_symbolx_builtins)
 class Cache:
     pass

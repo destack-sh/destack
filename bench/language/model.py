@@ -14,7 +14,7 @@ import structlog
 
 from bench.language.cache import CacheAsync
 from bench.language.field import Field, HasFields, TypedDict, TypeTag
-from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
+from bench.language.module import Node, ScopeNode, node_component, nruntime
 from bench.language.typing import check_type, pack_value, unpack_value
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.func import describe_type
@@ -39,7 +39,7 @@ class ModelErrorType(enum.StrEnum):
 
 
 @node_component
-class HasModel(HasFields, ModuleNode):
+class HasModel(HasFields, Node):
     _remote: bool = nruntime(default=False)
     _endpoint_impl: typing.Optional[typing.Callable] = nruntime(default=None)
     _compiler_impl: typing.Optional[typing.Callable] = nruntime(default=None)

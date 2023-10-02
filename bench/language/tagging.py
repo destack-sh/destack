@@ -4,7 +4,7 @@ from typing import Union
 from bench.language.builtin import symbolx_lib
 from bench.language.const import MNT, StatementType
 from bench.language.module import (
-    ModuleNode,
+    Node,
     NodeList,
     NRel,
     nchildren,
@@ -21,7 +21,7 @@ if typing.TYPE_CHECKING:
 
 
 @node(mnt=MNT.Tagging)
-class Tagging(HasValue, HasReference, ModuleNode):
+class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
@@ -63,7 +63,7 @@ class Tagging(HasValue, HasReference, ModuleNode):
 
     def __str__(self):
         parent_str = self.parent.path if self.parent is not None else "<detached>"
-        if isinstance(self.reference, ModuleNode):
+        if isinstance(self.reference, Node):
             return f"{parent_str}#{self.reference.path}"
         else:
             return f"{parent_str}#{self.key}"
@@ -73,5 +73,5 @@ class Tagging(HasValue, HasReference, ModuleNode):
 
 
 @node_component
-class HasTags(ModuleNode):
+class HasTags(Node):
     tags: NodeList["Tagging"] = nchildren(MNT.Tagging, NRel.Keyed)

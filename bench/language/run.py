@@ -10,7 +10,7 @@ from uuid import UUID
 import msgpack
 
 from bench.language.const import TERMINAL_RUN_STATUSES, RunStatus, TriggerType
-from bench.language.module import NS, Module, ModuleNode, node_component
+from bench.language.module import NS, Module, Node, node_component
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.proxy import proxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier_multi
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 
 @node_component
-class HasRun(ModuleNode):
+class HasRun(Node):
     """A runnable statement"""
 
     @property

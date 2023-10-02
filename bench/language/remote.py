@@ -11,7 +11,7 @@ import structlog
 from asgiref.sync import async_to_sync
 
 from bench.language.const import MNT, RemoteObjectStatus
-from bench.language.module import Module, ModuleNode, ninternal, node, nproperty, nruntime
+from bench.language.module import Module, Node, ninternal, node, nproperty, nruntime
 from bench.language.validation import ValidationHandler
 
 if typing.TYPE_CHECKING:
@@ -24,7 +24,7 @@ REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
 @node(MNT.RemoteObject)
-class RemoteObject(ModuleNode):
+class RemoteObject(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
     :RemoteObjectType
@@ -259,7 +259,7 @@ SecretValueT = typing.TypeVar("SecretValueT")
 
 
 @node(MNT.Secret)
-class Secret(ModuleNode, typing.Generic[SecretValueT]):
+class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 
     sha512: str = nproperty()

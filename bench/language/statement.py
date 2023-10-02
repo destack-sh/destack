@@ -16,7 +16,7 @@ from bench.language.database import HasDatabase
 from bench.language.field import HasFields, IsType, IsTyped
 from bench.language.model import HasModel
 from bench.language.module import (
-    ModuleNode,
+    Node,
     NodeList,
     NRel,
     Passthrough,
@@ -42,7 +42,7 @@ if TYPE_CHECKING:
     from bench.language import File
 
 # Note that order matters as components are called in order.
-_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+_DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
     StatementType.TYPE: (IsType, HasFields, HasText),
     StatementType.CODE: (HasCode, HasRun, HasTriggers, HasFields, HasText),
     StatementType.MODEL: (HasModel, HasRun, HasFields, HasText),
@@ -58,7 +58,7 @@ _DYNAMIC_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]]
 }
 _missing_types = set(StatementType) - set(_DYNAMIC_COMPONENTS_BY_TYPE)
 assert not _missing_types, f"missing statement components for {_missing_types}"
-_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[ModuleNode]] = tuple(
+_ALL_DYNAMIC_COMPONENTS: tuple[typing.Type[Node]] = tuple(
     {c for cs in _DYNAMIC_COMPONENTS_BY_TYPE.values() for c in cs}
 )
 
@@ -137,11 +137,11 @@ class Statement(ScopeNode, HasTags):
         return Statement(type=type, name=name, *args, **kwargs)
 
     @property
-    def _components(self) -> tuple[typing.Type[ModuleNode]]:
+    def _components(self) -> tuple[typing.Type[Node]]:
         return _ALL_COMPONENTS_BY_TYPE[self.type]
 
     @property
-    def _dynamic_components(self) -> tuple[typing.Type[ModuleNode]]:
+    def _dynamic_components(self) -> tuple[typing.Type[Node]]:
         return _DYNAMIC_COMPONENTS_BY_TYPE[self.type]
 
     @property
@@ -217,7 +217,7 @@ class Statement(ScopeNode, HasTags):
 #  where for e.g. statement.type == 'X', the 'concrete' class X
 #
 
-_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[ModuleNode]]] = {
+_ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
 }
 _ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, Passthrough]]] = {

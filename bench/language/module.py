@@ -42,7 +42,7 @@ from bench.utils.utils import DEBUG, IdentifierType, frozendict, required_field,
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
-    from bench.language.edit import Edit
+    from bench.language.edit import EditData
     from bench.language.wire import NodeData
 
 logger = structlog.get_logger(__name__)
@@ -93,7 +93,7 @@ class NodeProperty:
     """A property of a module node."""
 
     name: str | None = None  # name from LHS of assignment
-    component: type["ModuleNode"] | None = None  # source component class
+    component: type["Node"] | None = None  # source component class
     annotation: typing.Any = None  # type annotation on LHS of assignment
     # config
     is_required: bool = False
@@ -108,7 +108,7 @@ class NodeProperty:
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     # for manual handling in dynamic nodes
-    ignore_conflicts_with: tuple[type["ModuleNode"]] | None = None
+    ignore_conflicts_with: tuple[type["Node"]] | None = None
     # for relations
     child_mnt: MNT | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
@@ -194,7 +194,7 @@ def nproperty(
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     is_required: bool = False,
-    ignore_conflicts_with: tuple[type["ModuleNode"]] = None,
+    ignore_conflicts_with: tuple[type["Node"]] = None,
 ):
     """Standard user facing node property."""
     return NodeProperty(
@@ -306,10 +306,10 @@ _FORBIDDEN_NODE_METHODS = (
     [m.self for m in NodeMethod] + [m.rec for m in NodeMethod] + ["__post_init__", "__del__"]
 )
 _NODE_CLASS_BY_MNT: dict[MNT, type["NodeT"]] = {}
-_COMPONENT_CLASS_BY_NAME: dict[str, type["ModuleNode"]] = {}
-_COMPONENT_METHODS: dict[[NodeMethod, type["ModuleNode"]], typing.Any] = {}
+_COMPONENT_CLASS_BY_NAME: dict[str, type["Node"]] = {}
+_COMPONENT_METHODS: dict[[NodeMethod, type["Node"]], typing.Any] = {}
 _COMPONENT_CALL_ORDER: list[str] = [
-    "ModuleNode",
+    "Node",
     "ScopeNode",
     "HasFields",  # for resolved_fields
     # the rest
@@ -318,8 +318,8 @@ _COMPONENT_CALL_ORDER: list[str] = [
 
 @cached(cache={})
 def _sort_components_in_call_order(
-    components: list[type["ModuleNode"]],
-) -> list[type["ModuleNode"]]:
+    components: list[type["Node"]],
+) -> list[type["Node"]]:
     """Sorts components by call order. Nodes without call order are left as-is."""
     sorted_components = []
     for component in components:
@@ -336,7 +336,7 @@ _concrete_component_methods: dict[str, list[typing.Any]] = {}
 
 
 def _get_component_methods(
-    components: list[type["ModuleNode"]], method: NodeMethod, concrete_key: str
+    components: list[type["Node"]], method: NodeMethod, concrete_key: str
 ) -> list[typing.Any]:
     """Get the actually implemented methods in the given components in call order."""
     cache_key = f"{concrete_key}.{method.name}"
@@ -362,7 +362,7 @@ def node_component(
     cls: Optional[typing.Type] = None,
     mnt: MNT = None,
     passthrough: tuple[tuple[str, "Passthrough"]] = (),
-    dynamic_components: tuple[type["ModuleNode"]] = (),
+    dynamic_components: tuple[type["Node"]] = (),
 ):
     """
     Mark a class as a node component (or concrete node for a MNT).
@@ -370,28 +370,28 @@ def node_component(
 
     def decorate(cls):
         properties: dict[str, NodeProperty] = {}
-        static_components: list[type["ModuleNode"]] = [cls]
+        static_components: list[type["Node"]] = [cls]
 
         # check that no forbidden methods are defined
-        CORE_TYPES = ("ModuleNode", "ScopeNode")
+        CORE_TYPES = ("Node", "ScopeNode")
         if cls.__name__ not in CORE_TYPES:
             for name in _FORBIDDEN_NODE_METHODS:
                 meth = getattr(cls, name, None)
-                good_meth = getattr(ModuleNode, name, getattr(ScopeNode, name, None))
+                good_meth = getattr(Node, name, getattr(ScopeNode, name, None))
                 if meth is not None and meth is not good_meth:
                     raise ValueError(f"forbidden method {name} defined in {cls}")
 
         # collect static components from class hierarchy
         for base in cls.__bases__:
-            if base.__name__ in ("ModuleNode", "ABC"):
+            if base.__name__ in ("Node", "ABC"):
                 continue
             if hasattr(base, "__properties__"):
                 static_components.append(base)
                 for gp in base.__static_components__:
                     if gp.__name__ not in CORE_TYPES and gp not in static_components:
                         static_components.append(gp)
-        if cls.__name__ != "ModuleNode":
-            static_components.append(ModuleNode)
+        if cls.__name__ != "Node":
+            static_components.append(Node)
 
         # collect properties from this
         for name, prop in cls.__dict__.items():
@@ -500,7 +500,7 @@ def node_component(
 def node(
     mnt: MNT,
     passthrough: tuple[tuple[str, "Passthrough"]] = (),
-    dynamic_components: tuple[type["ModuleNode"]] = (),
+    dynamic_components: tuple[type["Node"]] = (),
 ):
     def decorate(cls):
         return node_component(
@@ -510,7 +510,7 @@ def node(
     return decorate
 
 
-NodeT = typing.TypeVar("NodeT", bound="ModuleNode")
+NodeT = typing.TypeVar("NodeT", bound="Node")
 
 
 def _node_ancestor_prop(prop: NodeProperty) -> property:
@@ -647,7 +647,7 @@ class NodeList(NodeListBase[NodeT]):
     def __str__(self):
         return str(self._nodes)
 
-    def _scope(self) -> dict[str, "ModuleNode"]:
+    def _scope(self) -> dict[str, "Node"]:
         """Gets the visible scope for error reporting"""
         if self._flags & NRel.Named:
             return {n.py_ident: n for n in self._nodes}
@@ -784,7 +784,7 @@ class NodeList(NodeListBase[NodeT]):
             obj = obj.key
         if isinstance(obj, str) and (self._flags & NRel.Keyed or self._flags & NRel.Named):
             return self.get(obj) is not None
-        elif isinstance(obj, ModuleNode):
+        elif isinstance(obj, Node):
             if obj.mnt != self._property.child_mnt:
                 raise TypeError(f"{self!r} cannot contain {obj!r}")
             return obj in self._nodes
@@ -1090,8 +1090,8 @@ class DetachedNodeTree:
     """
 
     def __init__(self):
-        self.nodes_by_ck: dict[UUID, "ModuleNode"] = {}
-        self.node_ck_by_parent_ck: dict[UUID, list[ModuleNode]] = defaultdict(list)
+        self.nodes_by_ck: dict[UUID, "Node"] = {}
+        self.node_ck_by_parent_ck: dict[UUID, list[Node]] = defaultdict(list)
 
     def __str__(self):
         return f"{len(self.nodes_by_ck)} nodes"
@@ -1114,7 +1114,7 @@ class DetachedNodeTree:
         self.nodes_by_ck.clear()
         self.node_ck_by_parent_ck.clear()
 
-    def add(self, node: "ModuleNode"):
+    def add(self, node: "Node"):
         """Add a node to the tree (error if node already exists)"""
         if node.ck in self.nodes_by_ck and self.nodes_by_ck[node.ck] is not node:
             raise ValueError(f"node {node!r} (ck={node.ck}) already exists in {self!r}")
@@ -1134,7 +1134,7 @@ class DetachedNodeTree:
         for parent_ck, children in tree.node_ck_by_parent_ck.items():
             self.node_ck_by_parent_ck[parent_ck].extend(children)
 
-    def remove(self, node: "ModuleNode"):
+    def remove(self, node: "Node"):
         """Remove a node from the tree (incl. all descendants if recursive)"""
         descendants = self.get_descendants(node.ck, recursive=True, include_self=True)
         for descendant in descendants:
@@ -1178,9 +1178,7 @@ def _make_self_method(
     """Creates method that calls _method_inner for all components in call order"""
 
     @functools.wraps(wraps)
-    def self_method(
-        self: "ModuleNode", *args, _coerce: bool = True, _ignore: bool = False, **kwargs
-    ):
+    def self_method(self: "Node", *args, _coerce: bool = True, _ignore: bool = False, **kwargs):
         if from_status is not None and self._status != from_status:
             # auto coerce the node into the desired to_status if allowed and feasible
             if _coerce:
@@ -1209,7 +1207,7 @@ def _make_self_method(
 def _make_inner_dunder_method(method: NodeMethod):
     """Creates method that proxies a builtin dunder method to the first _method_inner"""
 
-    def inner_method(self: "ModuleNode", *args, **kwargs):
+    def inner_method(self: "Node", *args, **kwargs):
         meths = _get_component_methods(self._components, method, self._concrete_cache_key)
         if len(meths) < 2:  # includes this one
             raise RuntimeError(f"{self!r} does not support {method.name}")
@@ -1225,15 +1223,15 @@ class Passthrough(enum.StrEnum):
 
 
 @node_component
-class ModuleNode(abc.ABC):
+class Node(abc.ABC):
     """
     A node in a Bench module tree.
     A node has a per-version unique id (id) and a constant identifier key (ck).
     """
 
     mnt: ClassVar[MNT]  # set in @node decorator
-    __static_components__: ClassVar[tuple[type["ModuleNode"]]] = []
-    __dynamic_components__: ClassVar[tuple[type["ModuleNode"]]] = ()
+    __static_components__: ClassVar[tuple[type["Node"]]] = []
+    __dynamic_components__: ClassVar[tuple[type["Node"]]] = ()
     __properties__: ClassVar[dict[str, NodeProperty]] = {}
     __ancestor_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
@@ -1244,8 +1242,8 @@ class ModuleNode(abc.ABC):
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default_factory=uuid.uuid4)
-    parent: Optional["ModuleNode"] = nparent()
-    # prototype: Optional["ModuleNode"] / instance_of_ck: UUID
+    parent: Optional["Node"] = nparent()
+    # prototype: Optional["Node"] / instance_of_ck: UUID
     module: Optional["Module"] = nancestor(MNT.Module)
 
     created_at: datetime = ninternal(default_factory=utcnow_with_tz, is_cru=True)
@@ -1273,11 +1271,11 @@ class ModuleNode(abc.ABC):
         return self.parent.id if self.parent is not None else None
 
     @property
-    def _components(self) -> tuple[type["ModuleNode"]]:
+    def _components(self) -> tuple[type["Node"]]:
         return self.__static_components__
 
     @property
-    def _dynamic_components(self) -> tuple[type["ModuleNode"]]:
+    def _dynamic_components(self) -> tuple[type["Node"]]:
         return ()
 
     @property
@@ -1291,7 +1289,7 @@ class ModuleNode(abc.ABC):
         return self.__static_passthrough__
 
     @property
-    def _local_root(self) -> "ModuleNode":
+    def _local_root(self) -> "Node":
         parent = self
         while parent.parent is not None:
             parent = parent.parent
@@ -1309,7 +1307,7 @@ class ModuleNode(abc.ABC):
     def __hash__(self):
         return hash(self.id)
 
-    def _trigger_update(self, changed: list["ModuleNode"]):
+    def _trigger_update(self, changed: list["Node"]):
         """Trigger list updates and re-interps in all relevant nodes."""
         assert changed, f"cannot trigger update on {self} with no changed nodes"
         # reinit children for any affected parent nodes
@@ -1373,7 +1371,7 @@ class ModuleNode(abc.ABC):
         attr = UNSET
         # prefer components own methods
         for component in self._components:
-            if component is self.__class__ or component is ModuleNode:
+            if component is self.__class__ or component is Node:
                 continue
             attr = getattr(component, item, UNSET)
             if attr is not UNSET:
@@ -1393,7 +1391,7 @@ class ModuleNode(abc.ABC):
         if attr is not UNSET:
             if isinstance(attr, property):
                 return attr.fget(self)
-            elif not isinstance(attr, ModuleNode) and callable(attr) and not inspect.ismethod(attr):
+            elif not isinstance(attr, Node) and callable(attr) and not inspect.ismethod(attr):
                 return functools.partial(attr, self)
             else:
                 return attr
@@ -1494,7 +1492,7 @@ class ModuleNode(abc.ABC):
         NodeMethod.deactivate, _deactivate_inner, from_status=NS.Tracked, to_status=NS.Interpreted
     )
 
-    def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "ModuleNode":
+    def _copy_self(self, keep_parent: bool = False, reset_id: bool = True) -> "Node":
         """
         Copies this node without any descendants.
         All non-relational properties are copied using NodeProperty.copy, relations are reset.
@@ -1512,7 +1510,7 @@ class ModuleNode(abc.ABC):
         copy = self.__class__(**props)
         return copy
 
-    def _walk_rec(self) -> Collection["ModuleNode"]:
+    def _walk_rec(self) -> Collection["Node"]:
         """
         Walks this node and all descendants in breadth-first order.
         """
@@ -1521,7 +1519,7 @@ class ModuleNode(abc.ABC):
     def _on_issue(
         self,
         *,
-        subject: Optional["ModuleNode"] = None,
+        subject: Optional["Node"] = None,
         type: IssueType = None,
         message: str = None,
         **kwargs,
@@ -1553,9 +1551,7 @@ class ModuleNode(abc.ABC):
         return self.session._log
 
 
-def _make_rec_method(
-    method: NodeMethod, wraps, custom_kwargs: Callable[["ModuleNode"], dict] = None
-):
+def _make_rec_method(method: NodeMethod, wraps, custom_kwargs: Callable[["Node"], dict] = None):
     """Creates method that calls _method_self for self and all descendants"""
 
     @functools.wraps(wraps)
@@ -1578,7 +1574,7 @@ def _make_rec_method(
 
 
 @node_component
-class ScopeNode(ModuleNode):
+class ScopeNode(Node):
     """A scope for hosting and looking up nodes. Required for any node with children."""
 
     issues: NodeList["Issue"] = nchildren(MNT.Issue, NRel.Cumulative)
@@ -1595,23 +1591,23 @@ class ScopeNode(ModuleNode):
                 self._local_tree = NodeTree()
             self._local_tree.add(self)
 
-    _clear_rec = _make_rec_method(NodeMethod.clear, ModuleNode._clear_self)
-    _index_rec = _make_rec_method(NodeMethod.index, ModuleNode._index_self)
+    _clear_rec = _make_rec_method(NodeMethod.clear, Node._clear_self)
+    _index_rec = _make_rec_method(NodeMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
         NodeMethod.interp,
-        ModuleNode._interp_self,
+        Node._interp_self,
         custom_kwargs=lambda n: dict(scope=n if isinstance(n, ScopeNode) else n.parent),
     )
-    _visit_rec = _make_rec_method(NodeMethod.visit, ModuleNode._visit_self)
+    _visit_rec = _make_rec_method(NodeMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(
         NodeMethod.validate,
-        ModuleNode._validate_self,
+        Node._validate_self,
         custom_kwargs=lambda n: dict(
             properties=n.__tracked_properties__.keys(), on_issue=on_issue_raise
         ),
     )
-    _activate_rec = _make_rec_method(NodeMethod.activate, ModuleNode._activate_self)
-    _deactivate_rec = _make_rec_method(NodeMethod.deactivate, ModuleNode._deactivate_self)
+    _activate_rec = _make_rec_method(NodeMethod.activate, Node._activate_self)
+    _deactivate_rec = _make_rec_method(NodeMethod.deactivate, Node._deactivate_self)
 
     def _get_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
         if by is None and name in self._scopes_by_name or by == LookupBy.Name:
@@ -1651,10 +1647,10 @@ class ScopeNode(ModuleNode):
                     ):
                         self._add_node_to_scope(child)
 
-    def _walk_rec(self) -> Collection["ModuleNode"]:
+    def _walk_rec(self) -> Collection["Node"]:
         return self._local_root_tree.get_descendants(self.ck, recursive=True, include_self=True)
 
-    def _add_node_to_scope(self, node: ModuleNode) -> None:
+    def _add_node_to_scope(self, node: Node) -> None:
         """
         Adds a child node into this scope. Idempotent for the same node.
         """
@@ -1733,7 +1729,7 @@ class ScopeNode(ModuleNode):
     def _on_issue(
         self,
         *,
-        subject: Optional["ModuleNode"] = None,
+        subject: Optional["Node"] = None,
         type: IssueType = None,
         message: str = None,
         **kwargs,
@@ -1762,8 +1758,8 @@ class ScopeNode(ModuleNode):
 
 class NodeVisitor:
     def __init__(self):
-        self._descendant_by_ck: dict[UUID, ModuleNode] = {}
-        self._reference_by_ck: dict[UUID, ModuleNode] = {}
+        self._descendant_by_ck: dict[UUID, Node] = {}
+        self._reference_by_ck: dict[UUID, Node] = {}
 
     def __str__(self):
         return f"{len(self._descendant_by_ck)} nodes"
@@ -1772,32 +1768,32 @@ class NodeVisitor:
         return f"<NodeVisitor {str(self)}>"
 
     @property
-    def subtree(self) -> typing.Collection["ModuleNode"]:
+    def subtree(self) -> typing.Collection["Node"]:
         return self._descendant_by_ck.values()
 
     @property
-    def references(self) -> typing.Collection["ModuleNode"]:
+    def references(self) -> typing.Collection["Node"]:
         return self._reference_by_ck.values()
 
-    def visit_child(self, node: "ModuleNode"):
+    def visit_child(self, node: "Node"):
         if node.ck in self._descendant_by_ck and self._descendant_by_ck[node.ck].id != node.id:
             raise ValueError(f"cannot visit child {node} twice: {self._descendant_by_ck[node.ck]}")
         self._descendant_by_ck[node.ck] = node
 
-    def visit_reference(self, node: "ModuleNode"):
+    def visit_reference(self, node: "Node"):
         self._reference_by_ck[node.ck] = node
 
 
 @dataclass
 class ModuleChange:
-    source_edits: list["Edit"]  # incoming external edits
-    interp_edits: list["Edit"]  # resulting interp state change
-    added: list[ModuleNode]
-    updated: list[ModuleNode]
-    removed: list[ModuleNode]
+    source_edits: list["EditData"]  # incoming external edits
+    interp_edits: list["EditData"]  # resulting interp state change
+    added: list[Node]
+    updated: list[Node]
+    removed: list[Node]
 
     @property
-    def touched(self) -> typing.Iterable[ModuleNode]:
+    def touched(self) -> typing.Iterable[Node]:
         return chain(self.added, self.updated, self.removed)
 
 
@@ -1910,7 +1906,7 @@ class Module(ScopeNode):
         for builtin in self.builtins:
             self._add_node_to_scope(builtin)
 
-    def _apply_edits(self, edits: list["Edit"]) -> ModuleChange:
+    def _apply_edits(self, edits: list["EditData"]) -> ModuleChange:
         """
         Applies the given external edits to the module.
         Any changed nodes are returned.
@@ -1919,7 +1915,7 @@ class Module(ScopeNode):
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
         # update source
-        old_nodes_by_ck: dict[UUID, ModuleNode] = {**self.module._tree.nodes_by_ck}
+        old_nodes_by_ck: dict[UUID, Node] = {**self.module._tree.nodes_by_ck}
         self._apply_source_edits(edits)
 
         # update self (this is obviously inefficient, but performs surprisingly okay)
@@ -1935,6 +1931,8 @@ class Module(ScopeNode):
         """Resets the module completely from the source."""
         from bench.language.wire import unpack_node
 
+        assert self._source and self.id in self._source, f"cannot reset {self!r} without source"
+
         prev_session = self.module._session
         if prev_session:
             self.module._deactivate_self()
@@ -1947,7 +1945,7 @@ class Module(ScopeNode):
         if prev_session:
             self.module._activate_rec(prev_session)
 
-    def _apply_source_edits(self, edits: list["Edit"]) -> None:
+    def _apply_source_edits(self, edits: list["EditData"]) -> None:
         """Applies the edits directly to the source without any interp."""
         from bench.language.edit import ModuleEditor
 
@@ -1957,12 +1955,12 @@ class Module(ScopeNode):
         editor.apply_all(edits, raise_on_error=False)
 
     def _compute_change(
-        self, source_edits: list["Edit"], old_nodes_by_ck: dict[UUID, ModuleNode]
+        self, source_edits: list["EditData"], old_nodes_by_ck: dict[UUID, Node]
     ) -> ModuleChange:
         """Computes the change between the old and new module state."""
         from bench.language.edit import ModuleEditor
 
-        new_nodes: dict[UUID, ModuleNode] = self.module._tree.nodes_by_ck
+        new_nodes: dict[UUID, Node] = self.module._tree.nodes_by_ck
         added = []
         updated = []
         for n in new_nodes.values():

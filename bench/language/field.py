@@ -19,7 +19,7 @@ from bench.language.const import (
 )
 from bench.language.module import (
     NS,
-    ModuleNode,
+    Node,
     NodeList,
     NodeVisitor,
     NRel,
@@ -183,7 +183,7 @@ def get_storage_format(tag: TypeTag, hint: TypeHint, flags: TypeFlag) -> TypeSto
 
 
 @node_component
-class IsTyped(ModuleNode):
+class IsTyped(Node):
     """Abstract base for Field nas HasFields/Statement types"""
 
     tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
@@ -216,13 +216,13 @@ class IsTyped(ModuleNode):
 
     @property
     def _storage_format(self) -> TypeStorageFormat:
-        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, ModuleNode):
+        if self.tag == TypeTag.TYPE_REFERENCE and isinstance(self.reference, Node):
             return self.reference._storage_format
         return get_storage_format(self.tag, self.hint, self.flags)
 
     @property
     def _effective_type(self) -> Union["IsTyped", "Statement"]:
-        if isinstance(self.reference, ModuleNode):
+        if isinstance(self.reference, Node):
             return self.reference
         else:
             return self
@@ -303,7 +303,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             kwargs["tag"] = TypeTag.NUMBER
         elif some_type == bool:
             kwargs["tag"] = TypeTag.BOOLEAN
-        elif isinstance(some_type, ModuleNode) and some_type.mnt == MNT.Statement:
+        elif isinstance(some_type, Node) and some_type.mnt == MNT.Statement:
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
             kwargs["reference"] = some_type
         else:
@@ -330,7 +330,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         self.key = self.key or new_dynamic_node_key(self.ck)
 
     def _visit_inner(self, visitor: NodeVisitor) -> None:
-        if isinstance(self.reference, ModuleNode):
+        if isinstance(self.reference, Node):
             visitor.visit_reference(self.reference)
 
     @property
@@ -369,17 +369,17 @@ class ResolvedField(Field):
 
     @property
     def resolved_fields(self):
-        return self.reference.resolved_fields if isinstance(self.reference, ModuleNode) else []
+        return self.reference.resolved_fields if isinstance(self.reference, Node) else []
 
     @property
     def _is_foreign(self) -> bool:
         return self.parent != self.field.parent
 
     @staticmethod
-    def from_field(for_parent: ModuleNode, field: Field) -> "ResolvedField":
+    def from_field(for_parent: Node, field: Field) -> "ResolvedField":
         if isinstance(field, ResolvedField):
             field = field.field
-        if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, ModuleNode):
+        if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
             raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
         ck = uuid.uuid5(for_parent.ck, field.ck.hex)
         id = get_node_id(field.module.id, ck)
@@ -441,9 +441,9 @@ class HasFields(IsTyped):
         resolved_fields: list[ResolvedField] = []
         for field in self.fields:
             # try to resolve reference or skip this field
-            if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, ModuleNode):
+            if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
                 HasReference._interp_inner(field, self)  # resolve reference
-                if not isinstance(field.reference, ModuleNode):
+                if not isinstance(field.reference, Node):
                     continue  # ignore
 
             if field.flags & TypeFlag.IsUnionWith:
@@ -482,7 +482,7 @@ class HasFields(IsTyped):
 
 
 @node_component
-class IsType(ModuleNode):
+class IsType(Node):
     def _call_inner(self, *args, **kwargs) -> Any:
         inputs = self._inputs_from_args(args, kwargs)
         return TypedDict(self, inputs)

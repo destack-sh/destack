@@ -10,7 +10,7 @@ from bench.language.field import Field
 from bench.language.module import (
     NS,
     Module,
-    ModuleNode,
+    Node,
     NodeList,
     NodeListBase,
     NRel,
@@ -38,7 +38,7 @@ logger = structlog.get_logger(__name__)
 
 
 @node(mnt=MNT.Record, passthrough=(("value", Passthrough.Full),))
-class Record(HasValue, ModuleNode):
+class Record(HasValue, Node):
     parent: "Statement" = nparent(MNT.Statement)
 
     @staticmethod
@@ -104,7 +104,7 @@ class DatabaseView(ScopeNode):
 
 
 @node(mnt=MNT.DatabaseViewField)
-class DatabaseViewField(ModuleNode):
+class DatabaseViewField(Node):
     field: UUID | Field = nproperty()
     order_key: str | None = ninternal(default=None)
 
@@ -359,7 +359,7 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
 
 
 @node_component
-class HasDatabase(ModuleNode):
+class HasDatabase(Node):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
     views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)

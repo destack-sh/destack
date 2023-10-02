@@ -9,7 +9,7 @@ from uuid import UUID
 from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
-from bench.language.edit import MET, MNT, Edit, ModuleEditor
+from bench.language.edit import MET, MNT, EditData, ModuleEditor
 from bench.language.module import NodeTree
 from bench.models import packer
 from bench.models.packer import INTERP_MODEL_TYPES
@@ -27,8 +27,8 @@ MAX_RECORD_MUTATIONS_PER_BATCH = 15
 
 
 def trim_record_edits(
-    edits: list[Edit],
-) -> list[Edit]:
+    edits: list[EditData],
+) -> list[EditData]:
     """Trims record edits into bumps if necessary."""
     num_record_updates = 0
     bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
@@ -44,7 +44,7 @@ def trim_record_edits(
     # always add bumps since we don't have proper bump propagation on the frontend yet
     for statement_id, file_id in bumped_statement_ids.items():
         trimmed_edits.append(
-            Edit(
+            EditData(
                 type=MET.BUMP_STATEMENT,
                 project_version_id=edits[0].project_version_id,
                 file_id=file_id,
@@ -60,12 +60,12 @@ def map_edit_from_api(
     thing: MutableThing,
     project_v: models.ProjectVersion,
     statement: Optional[models.Statement],
-) -> tuple[list[Edit], list[Edit]]:
+) -> tuple[list[EditData], list[EditData]]:
     """
     Remap/create API multiplayer edit for other clients and internals.
     Returns both the internal and API edits to publish.
     """
-    api_edit = Edit(
+    api_edit = EditData(
         type=type,
         project_version_id=project_v.id,
         revision=thing.revision,
@@ -108,7 +108,7 @@ def map_edit_from_api(
     else:
         # map everything else to a simple internal edit (CUD_X)
         internal_type = MET(type.kind + "_" + api_edit.mnt.caps_name)
-        internal_edit = Edit(
+        internal_edit = EditData(
             type=internal_type,
             project_version_id=api_edit.project_version_id,
             revision=thing.revision,
@@ -121,7 +121,7 @@ def map_edit_from_api(
         return [internal_edit], [api_edit]
 
 
-def get_api_edit_from_internal(edit: Edit) -> list[Edit]:
+def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
     """
     Maps a simple internal edit to an API multiplayer edit.
 
@@ -135,7 +135,7 @@ def get_api_edit_from_internal(edit: Edit) -> list[Edit]:
     if not edit.type.simple:
         raise ValueError(f"edit is not a simple internal edit: {edit}")
     input = get_gql_input_from_edit(edit)
-    api_edit = Edit(
+    api_edit = EditData(
         type=edit.type,
         project_version_id=edit.project_version_id,
         file_id=edit.file_id,
@@ -157,7 +157,7 @@ _EXTRA_FIELDS_BY_SCOPE = {
 }
 
 
-def get_gql_input_from_edit(edit: Edit) -> Optional[dict]:
+def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:
     """
     Maps a simple internal edit to an input that would cause the same edit.
     The returned input is already jsonable (not the original input class).
@@ -220,7 +220,7 @@ def input_to_gql_jsonable(value: Any) -> Any:
         raise TypeError(f"unexpected value: {value}")
 
 
-def _map_id_field(key: str, value: UUID, edit: Edit):
+def _map_id_field(key: str, value: UUID, edit: EditData):
     # map id to global id with appropriate type name
     # we can't actually know whether parent id is a file or statement id,
     # so we check against the edit file id... this should be fine?

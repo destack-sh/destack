@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
 from bench.language.const import TypeFlag
-from bench.language.module import NS, ModuleNode, node_component, nproperty
+from bench.language.module import NS, Node, node_component, nproperty
 from bench.language.validation import ValidationHandler
 from bench.utils.proxy import proxy_value
 
@@ -10,7 +10,7 @@ if TYPE_CHECKING:
 
 
 @node_component
-class HasValue(ModuleNode):
+class HasValue(Node):
     value: Any | None = nproperty(default=None)
 
     @property

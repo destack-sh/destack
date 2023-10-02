@@ -6,18 +6,11 @@ from uuid import UUID
 
 from bench.language import IssueType
 from bench.language.const import ModuleNodeType, TypedNodeReference
-from bench.language.module import (
-    ModuleNode,
-    NodeVisitor,
-    ScopeNode,
-    node_component,
-    nproperty,
-    nruntime,
-)
+from bench.language.module import Node, NodeVisitor, ScopeNode, node_component, nproperty, nruntime
 
 
 @node_component
-class HasText(ModuleNode):
+class HasText(Node):
     """Some instruction text with optional references."""
 
     text: str | None = nproperty(default=None)
@@ -54,7 +47,7 @@ class HasText(ModuleNode):
         for span in self._text_spans:
             if not isinstance(span, TextMention):
                 continue
-            if isinstance(span.reference, ModuleNode):
+            if isinstance(span.reference, Node):
                 continue
             resolved = None
             if span.reference is not None:
@@ -70,7 +63,7 @@ class HasText(ModuleNode):
         if self._text_spans is None:
             return
         for span in self._text_spans:
-            if isinstance(span, TextMention) and isinstance(span.reference, ModuleNode):
+            if isinstance(span, TextMention) and isinstance(span.reference, Node):
                 visitor.visit_reference(span.reference)
 
 
@@ -101,7 +94,7 @@ TEXT_MENTION_TEMPLATE = (
 
 @dataclass
 class TextMention:
-    reference: Union[TypedNodeReference, ModuleNode]
+    reference: Union[TypedNodeReference, Node]
     reference_path: Optional[str]
 
     def __str__(self):
@@ -115,7 +108,7 @@ class TextMention:
 
     @property
     def reference_ck(self) -> UUID:
-        if isinstance(self.reference, ModuleNode):
+        if isinstance(self.reference, Node):
             return self.reference.ck
         else:
             return self.reference.ref

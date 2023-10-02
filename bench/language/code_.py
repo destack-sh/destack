@@ -18,7 +18,7 @@ from bench.language import IssueType
 from bench.language.builtin import symbolx_lib
 from bench.language.const import NodePath, TypeFlag
 from bench.language.field import TypedDict
-from bench.language.module import LookupBy, ModuleNode, ScopeNode, node_component, nruntime
+from bench.language.module import LookupBy, Node, ScopeNode, node_component, nruntime
 from bench.language.query import Q, Query, QueryOp, Sort, SortMode, SortOrder
 from bench.language.remote import RemoteObject, RemoteObjectStatus
 from bench.language.typing import check_type, pack_value, unpack_value
@@ -48,7 +48,7 @@ class CodeParse:
 
 
 @node_component
-class HasCode(ModuleNode):
+class HasCode(Node):
     _is_async: Optional[bool] = nruntime(default=None)
     _parse: Optional[CodeParse] = nruntime(default=None)
     _transform: Optional[CodeTransformation] = nruntime(default=None)

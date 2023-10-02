@@ -30,7 +30,7 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
-from bench.language.module import ModuleNode, NodeStatus, NodeTree, NodeVisitor, ScopeNode
+from bench.language.module import Node, NodeStatus, NodeTree, NodeVisitor, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
 from bench.language.session import LazyRun, Session
@@ -50,7 +50,7 @@ from bench.utils.serialize import from_dict, to_dict
 
 ParentsT = set[MNT]
 NodeDataT = typing.TypeVar("NodeDataT", bound="NodeData")
-NodeT = typing.TypeVar("NodeT", bound=ModuleNode)
+NodeT = typing.TypeVar("NodeT", bound=Node)
 DataT = typing.TypeVar("DataT")
 ObjectT = typing.TypeVar("ObjectT")
 
@@ -196,7 +196,7 @@ def unpack_node(
 
     if isinstance(root, ScopeNode):
         root._index_rec()
-    elif isinstance(root, ModuleNode):
+    elif isinstance(root, Node):
         root._index_self()
     else:
         raise ValueError(f"unexpected root {root} ({type(root)})")

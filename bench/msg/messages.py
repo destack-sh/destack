@@ -9,7 +9,7 @@ from typing import Optional
 from uuid import UUID
 
 from bench.language.const import ModuleReference, TriggerType, WorkerProfile, WorkerRegion
-from bench.language.edit import Edit
+from bench.language.edit import EditData
 from bench.language.model import ModelErrorType
 from bench.language.query import Query, Sort
 from bench.language.wire import (
@@ -238,12 +238,12 @@ class ProjectChangedPayload(ProjectScoped, HasOrigin, Payload):
 
 @payload(NMessageType.MODULE_CHANGED)
 class ModuleChangedPayload(ModuleScoped, HasOrigin, Payload):
-    edits: list[Edit]
+    edits: list[EditData]
 
 
 @payload(NMessageType.MODULE_INTERNAL_CHANGED)
 class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
-    edits: list[Edit]
+    edits: list[EditData]
 
 
 @payload(NMessageType.START_RUN)
@@ -332,7 +332,7 @@ class RepReadModulePayload(Payload):
 @payload(NMessageType.WRITE_MODULE)
 class ReqWriteModulePayload(Payload):
     module_id: UUID
-    edits: list[Edit]
+    edits: list[EditData]
     client: ClientOrigin
     refresh_index: bool
 
