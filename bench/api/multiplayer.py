@@ -68,29 +68,29 @@ async def unpack_module_edits(
     edits: list[edit.Edit], project_v: models.ProjectVersion
 ) -> list[Edit]:
     unpacked_edits = []
-    for m in edits:
+    for e in edits:
         # :RawMutations
-        if isinstance(m.data, (wire.IssueData, wire.ResolvedFieldData)):
+        if isinstance(e.data, (wire.IssueData, wire.ResolvedFieldData)):
             # unpack data (somewhat inefficiently)
-            if m.statement_id is not None:
-                parent = await project_v.statements.aget(id=m.statement_id)
-            elif m.file_id is not None:
-                parent = await project_v.files.aget(id=m.file_id)
+            if e.statement_id is not None:
+                parent = await project_v.statements.aget(id=e.statement_id)
+            elif e.file_id is not None:
+                parent = await project_v.files.aget(id=e.file_id)
             else:
                 parent = project_v
-            data = packer.unpack_node_flat(m.data, parent)[0]
+            data = packer.unpack_node_flat(e.data, parent)[0]
         else:  # ignore other data types
             data = None
 
         unpacked_edit = Edit(
-            type=m.type,
-            project_version_id=to_global_id("ProjectVersion", m.project_version_id),
-            file_id=to_global_id("File", m.file_id),
-            statement_id=to_global_id("Statement", m.statement_id),
-            revision=m.revision,
-            input=m.input,
+            type=e.type,
+            project_version_id=to_global_id("ProjectVersion", e.project_version_id),
+            file_id=to_global_id("File", e.file_id),
+            statement_id=to_global_id("Statement", e.statement_id),
+            revision=e.revision,
+            input=e.input,
             data=data,
-            properties=m.properties,
+            properties=e.properties,
         )
         unpacked_edits.append(unpacked_edit)
     return unpacked_edits

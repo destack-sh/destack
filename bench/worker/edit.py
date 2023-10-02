@@ -97,12 +97,12 @@ def map_edit_from_api(
             file_id=file_id,
         )
         internal = editor.create_many(*packed.nodes_list())
-        api_edits = list(chain.from_iterable(get_api_edit_from_internal(m) for m in internal.edits))
+        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in internal.edits))
         # strip interp data from internal edits (but keep in API, user clients need it)
         stripped_internal_edits = [
-            m
-            for m in internal.edits
-            if not isinstance(packed.nodes_by_id[m.data.id], INTERP_MODEL_TYPES)
+            e
+            for e in internal.edits
+            if not isinstance(packed.nodes_by_id[e.data.id], INTERP_MODEL_TYPES)
         ]
         return stripped_internal_edits, api_edits
     else:

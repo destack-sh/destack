@@ -334,10 +334,10 @@ class ModuleEditor:
         self.edits = []
 
     def __str__(self):
-        return f"mutate {len(self.edits)} {self.module_id}"
+        return f"edit {len(self.edits)} {self.module_id}"
 
     def __repr__(self):
-        return f"<Mutator {self}>"
+        return f"<{self.__class__.__name__} {self}>"
 
     def reset(self):
         self.edits = []
@@ -382,25 +382,25 @@ class ModuleEditor:
             self.apply(edit)
         return self
 
-    def apply(self, mut: Edit, raise_on_error: bool = True):
+    def apply(self, edit: Edit, raise_on_error: bool = True):
         try:
-            if mut.type.kind == MEK.CREATE:
-                self.tree.add(mut.data)
-            elif mut.type.kind == MEK.UPDATE:
-                self.tree.replace(mut.data)
-            elif mut.type.kind == MEK.DELETE:
-                self.tree.remove(mut.data)
-            elif mut.type.kind == MEK.TRUNCATE:
-                self.tree.truncate(mut.data, mut.mnt)
+            if edit.type.kind == MEK.CREATE:
+                self.tree.add(edit.data)
+            elif edit.type.kind == MEK.UPDATE:
+                self.tree.replace(edit.data)
+            elif edit.type.kind == MEK.DELETE:
+                self.tree.remove(edit.data)
+            elif edit.type.kind == MEK.TRUNCATE:
+                self.tree.truncate(edit.data, edit.mnt)
             else:
-                raise ValueError(f"unexpected edit kind {mut}")
+                raise ValueError(f"unexpected edit kind {edit}")
         except Exception as e:
             if raise_on_error:
-                raise ValueError(f"failed to apply {mut} to {self.tree!r}") from e
+                raise ValueError(f"failed to apply {edit} to {self.tree!r}") from e
 
     def apply_all(self, edits: list[Edit], raise_on_error: bool = True):
-        for mut in edits:
-            self.apply(mut, raise_on_error=raise_on_error)
+        for e in edits:
+            self.apply(e, raise_on_error=raise_on_error)
 
     def truncate(
         self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
@@ -473,7 +473,7 @@ class EditBundle:
         self.edits = edits
 
     def __str__(self):
-        return f"mut {len(self.edits)}"
+        return f"edit {len(self.edits)}"
 
     def __repr__(self):
         return f"<EditBundle {self}>"
@@ -484,7 +484,7 @@ class EditBundle:
 
     @property
     def complex_edits(self):
-        return [m for m in self.edits if m.type not in SIMPLE_EDITS]
+        return [e for e in self.edits if e.type not in SIMPLE_EDITS]
 
     # TODO @Performance: edit compaction & batching can be much smarter
     #  But we may also want to record these in full as events... compact before write only?
@@ -573,9 +573,9 @@ def diff_modules(
             editor.delete(old_node)
     # sort into delete -> create -> update
     edits = [
-        *(m for m in editor.edits if m.type.kind == MEK.DELETE),
-        *(m for m in editor.edits if m.type.kind == MEK.CREATE),
-        *(m for m in editor.edits if m.type.kind == MEK.UPDATE),
+        *(e for e in editor.edits if e.type.kind == MEK.DELETE),
+        *(e for e in editor.edits if e.type.kind == MEK.CREATE),
+        *(e for e in editor.edits if e.type.kind == MEK.UPDATE),
     ]
     return edits
 

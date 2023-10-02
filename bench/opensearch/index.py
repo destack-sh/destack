@@ -203,28 +203,28 @@ def write_edits_to_os(
         ops.clear()
         field_mappings_dirty[0] = False
 
-    for m in edit:
+    for e in edit:
         # mark field mappings as dirty if relevant mutation
-        if m.type in OS_SEMANTIC_FIELD_EDIT:
+        if e.type in OS_SEMANTIC_FIELD_EDIT:
             field_mappings_dirty[0] = True
 
-        index = bench_index if m.type.mnt in BENCH_INDEXED_MNTS else global_index
-        if m.type.kind == MEK.TRUNCATE and m.mnt == MNT.Record:
+        index = bench_index if e.type.mnt in BENCH_INDEXED_MNTS else global_index
+        if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.Record:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
-                index=index, body={"query": {"term": {"statement_key": m.data.key}}}
+                index=index, body={"query": {"term": {"statement_key": e.data.key}}}
             )
-        elif not mirror.has_mirror(m.thing):
+        elif not mirror.has_mirror(e.thing):
             continue  # ignore
-        elif m.type.kind in (MEK.CREATE, MEK.UPDATE) or m.type.is_soft_delete:
-            mirrored = mirror.mirror_node(project_v, m.thing)
+        elif e.type.kind in (MEK.CREATE, MEK.UPDATE) or e.type.is_soft_delete:
+            mirrored = mirror.mirror_node(project_v, e.thing)
             mirrored_data = mirrored.to_dict()
             # TODO @Robustness: limit OS edit to changed properties?
             #  (partial update is not supported in index operation)
-            ops.append({"index": {"_index": index, "_id": str(m.thing.id)}})
+            ops.append({"index": {"_index": index, "_id": str(e.thing.id)}})
             ops.append(mirrored_data)
-        elif m.type.kind == MEK.DELETE:
-            ops.append({"delete": {"_index": index, "_id": str(m.thing.id)}})
+        elif e.type.kind == MEK.DELETE:
+            ops.append({"delete": {"_index": index, "_id": str(e.thing.id)}})
 
     _flush()  # flush any remaining edit
 

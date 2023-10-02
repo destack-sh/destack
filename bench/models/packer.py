@@ -900,12 +900,12 @@ def write_edits(
         if mmt.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MET.TRUNCATE_RECORDS:
-                statement_keys = [typing.cast(wire.StatementData, m.data).key for m in batch]
+                statement_keys = [typing.cast(wire.StatementData, e.data).key for e in batch]
                 models.Record.objects.filter(statement_key__in=statement_keys).delete()
             else:
                 # this is a bit unwieldy...
-                statement_ids = [m.statement_id for m in batch if m.statement_id is not None]
-                file_ids = [m.file_id for m in batch if m.file_id is not None]
+                statement_ids = [e.statement_id for e in batch if e.statement_id is not None]
+                file_ids = [e.file_id for e in batch if e.file_id is not None]
                 model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
                 if statement_ids:
                     if hasattr(model_cls, "statement"):
@@ -922,15 +922,15 @@ def write_edits(
         elif mmt.kind in (MEK.CREATE, MEK.UPDATE):
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
-            nodes = unpack_nodes(project_v, source, [m.data for m in batch])
+            nodes = unpack_nodes(project_v, source, [e.data for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             if mmt.kind == MEK.CREATE:
                 model_cls.objects.bulk_create(nodes)
             else:  # MEK.UPDATE
                 # different properties may be updated, so group by properties
                 nodes_by_props: dict[str, list[NodeT]] = defaultdict(list)
-                for m, node in zip(batch, nodes):
-                    properties = ";".join(m.properties or [])
+                for e, node in zip(batch, nodes):
+                    properties = ";".join(e.properties or [])
                     nodes_by_props[properties].append(node)
                 # batch update
                 for properties, nodes in nodes_by_props.items():
@@ -948,11 +948,11 @@ def write_edits(
                         raise ValueError(
                             f"failed to update {len(nodes)} {model_cls} nodes {properties} (got {num_updated})"
                         )
-            for m, node in zip(batch, nodes):
-                m.thing = node  # keep node model for downstream indexing in opensearch
+            for e, node in zip(batch, nodes):
+                e.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MEK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            model_cls.objects.filter(id__in=[m.data.id for m in batch]).delete()
+            model_cls.objects.filter(id__in=[e.data.id for e in batch]).delete()
 
     write_edits_to_os(project_v, mut.edits, refresh=refresh_index)
 
