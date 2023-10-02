@@ -325,10 +325,10 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             del props["flags"]
         type = node.reference or node.hint or node.tag
         if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:
-            init_args = {"name": node.name, "text": node.text}
+            init_args = {"name": props["name"], "text": props.get("text")}
             init_name = "Field.literal"
         else:
-            init_args = {"name": node.name, "type": type, "text": node.text}
+            init_args = {"name": props["name"], "type": type, "text": props.get("text")}
             init_name = "Field.new"
         init_kwargs = dict_minus(props, "name", "text", "tag", "hint", "reference")
         return init_name, init_args, init_kwargs

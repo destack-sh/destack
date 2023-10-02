@@ -145,6 +145,7 @@ class Statement(ScopeNode, HasTags):
             init_name = "Choice" if node.tag == TypeTag.ENUM else "Class"
         else:
             init_name = node.type.camel_name
+        init_name = init_name + ".new"
         return init_name, {"name": node.name}, dict_minus(props, "name", "type", "tag", "flags")
 
     @property
