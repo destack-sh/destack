@@ -5,7 +5,7 @@ import re
 import sys
 import textwrap
 from dataclasses import field
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable, Generator, Optional
 
 import cachetools
 import sentry_sdk
@@ -167,6 +167,19 @@ def omit_empty(obj):
         return [omit_empty(v) for v in obj if v is not None]
     else:
         return obj
+
+
+def flatten_list(*lists: list | tuple):
+    """Flatten a list, generator, element or mixed list of those."""
+    flattened = []
+    for item in lists:
+        if isinstance(item, (list, tuple)):
+            flattened.extend(item)
+        elif isinstance(item, Generator):
+            flattened.extend(list(item))
+        else:
+            flattened.append(item)
+    return flattened
 
 
 class frozendict(dict):

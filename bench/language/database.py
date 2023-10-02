@@ -28,7 +28,7 @@ from bench.language.search import ElementT, Search
 from bench.language.validation import enum_validator
 from bench.language.value import HasValue
 from bench.utils.func import describe_type
-from bench.utils.utils import DotList
+from bench.utils.utils import DotList, flatten_list
 
 if typing.TYPE_CHECKING:
     from bench.language import Statement
@@ -306,9 +306,8 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         if _create and self._parent.session:
             self._parent.session.tracer.node_create(record)
 
-    def extend(
-        self, records: typing.Iterable[Record], _create: bool = True, _trigger: bool = True
-    ) -> None:
+    def extend(self, *records: Record, _create: bool = True, _trigger: bool = True) -> None:
+        records = flatten_list(records)
         for record in records:
             self.append(record, _create=False, _trigger=False)
         if _create and self._parent.session:

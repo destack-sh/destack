@@ -261,6 +261,9 @@ class _StatementProxy:
         kwargs["flags"] = (flags if flags is not None else self.flags) or 0
         return Statement(**kwargs)
 
+    def new(self, *args, **kwargs):
+        return Statement.new(type=self.type, tag=self.tag, flags=self.flags, *args, **kwargs)
+
     def __instancecheck__(self, instance):
         return isinstance(instance, Statement) and instance.type == self.type
 

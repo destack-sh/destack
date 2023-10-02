@@ -38,7 +38,14 @@ from bench.language.validation import (
 from bench.utils.dt import utcnow_with_tz
 from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str
-from bench.utils.utils import DEBUG, IdentifierType, frozendict, required_field, to_pyidentifier
+from bench.utils.utils import (
+    DEBUG,
+    IdentifierType,
+    flatten_list,
+    frozendict,
+    required_field,
+    to_pyidentifier,
+)
 
 if TYPE_CHECKING:
     from bench.language import File, Issue, Session
@@ -595,7 +602,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
             else:
                 node = self.create(n, _append=False)
             created.append(node)
-        self.extend(created)
+        self.extend(*created)
         return created
 
     def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
@@ -606,7 +613,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """
         raise NotImplementedError
 
-    def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
+    def extend(self, *nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
@@ -736,8 +743,8 @@ class NodeList(NodeListBase[NodeT]):
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(*added)
 
-    def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
-        nodes = list(nodes) if not isinstance(nodes, list) else nodes
+    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: bool = True):
+        nodes = flatten_list(*nodes)
         if nodes:
             # pre-assign order keys since we don't trigger between each append
             if self._flags & NRel.Ordered:

@@ -81,7 +81,7 @@ def x_task(
         task = Task(name=name, text=text)
         file.statements.append(task)
         task_type = type_from_instance_type(fn, name=None)
-        task.fields.extend([f._copy_self(reset_id=False) for f in task_type.fields])
+        task.fields.extend(f._copy_self(reset_id=False) for f in task_type.fields)
         return task
 
     return decorator
@@ -97,7 +97,7 @@ def x_tag(name: str, text: str, *, file: File) -> typing.Callable[[typing.Type],
         tag = Tag(name=name, text=text)
         file.statements.append(tag)
         tag_type = type_from_instance_type(cls, name=None)
-        tag.fields.extend([f._copy_self(reset_id=False) for f in tag_type.fields])
+        tag.fields.extend(f._copy_self(reset_id=False) for f in tag_type.fields)
         return cls
 
     return decorator
@@ -117,7 +117,7 @@ def x_model(
         model = Model(name=name, external_name=external_name, text=text)
         file.statements.append(model)
         model_type = type_from_instance_type(cls._endpoint, name=None)
-        model.fields.extend([f._copy_self(reset_id=True) for f in model_type.fields])
+        model.fields.extend(f._copy_self(reset_id=True) for f in model_type.fields)
 
         _model_impls[model.path] = cls._endpoint
         _model_compilers[model.path] = cls._compiler
