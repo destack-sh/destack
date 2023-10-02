@@ -212,7 +212,7 @@ def write_edits_to_os(
         if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.Record:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
-                index=index, body={"query": {"term": {"statement_key": e.data.key}}}
+                index=index, body={"query": {"term": {"statement_key": e.node.key}}}
             )
         elif not mirror.has_mirror(e.thing):
             continue  # ignore

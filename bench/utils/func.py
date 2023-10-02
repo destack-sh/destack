@@ -68,7 +68,7 @@ def dict_to_ordered(obj: dict[K, V]) -> OrderedDict[K, V]:
     return OrderedDict(**obj)
 
 
-def dict_minus(obj: dict[K, V], keys: Iterable[K]) -> dict[K, V]:
+def dict_minus(obj: dict[K, V], *keys: Iterable[K]) -> dict[K, V]:
     return {k: v for k, v in obj.items() if k not in keys}
 
 

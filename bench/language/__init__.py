@@ -4,10 +4,12 @@ from .const import (
     ScheduleType,
     StatementType,
     TriggerType,
+    TypeFlag,
     TypeHint,
     TypeTag,
 )
 from .database import DatabaseView, Record
+from .edit import render, render_as_python
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
 from .issue import Issue
@@ -18,6 +20,8 @@ from .run import HasRun, Run, RunError
 from .session import LogEntry, Session
 from .statement import (
     Blank,
+    Choice,
+    Class,
     Code,
     Database,
     Flow,
@@ -38,6 +42,8 @@ from .value import HasValue
 __all__ = [
     "Aggregation",
     "Blank",
+    "Class",
+    "Choice",
     "Code",
     "Database",
     "DatabaseView",
@@ -64,6 +70,8 @@ __all__ = [
     "Record",
     "Reference",
     "RemoteObject",
+    "render",
+    "render_as_python",
     "ResolvedField",
     "Run",
     "RunError",
@@ -86,5 +94,6 @@ __all__ = [
     "TypeHint",
     "TypeStorageFormat",
     "TypeTag",
+    "TypeFlag",
     "Variable",
 ]

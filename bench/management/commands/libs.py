@@ -160,7 +160,7 @@ def _sanity_check_diff(
                 path = other_module_tree.path_of(other_module_tree.nodes_by_id[n_id])
             return ".".join(n.name for n in path)
 
-        diff_str = "\n".join(f"{e.data.id} {_get_path(e.data.id)}: {e.type} {e.data}" for e in diff)
+        diff_str = "\n".join(f"{e.node.id} {_get_path(e.node.id)}: {e.type} {e.node}" for e in diff)
         raise ValueError(f"module {module_name} is not equal to dumped module:\n{diff_str}")
     else:
         log.info("lib.upsert.sanity_check.ok", bytes=len(other_module_bytes))

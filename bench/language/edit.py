@@ -6,16 +6,18 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass
 from functools import cached_property
-from typing import TYPE_CHECKING, Any, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Generator, Iterator, NamedTuple, Optional, Union
 from uuid import UUID
 
-from bench.language.const import ModuleNodeType
-from bench.language.module import Module, Node, NodeTree
-from bench.language.wire import ModuleTreeData, NodeData
+from more_itertools import first
+
+from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
+from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.utils.serialize import from_dict
 
 if TYPE_CHECKING:
     from bench.language import File, Statement
+    from bench.language.wire import ModuleTreeData, NodeData
 
 
 class EditType(enum.StrEnum):
@@ -244,7 +246,10 @@ assert set(MET) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
 
 @dataclass
 class Edit:
-    """An edit to a module/node."""
+    """
+    An edit to a module/node.
+    TODO @Cleanup @Architecture: use new Edit where possible, see :BE-114
+    """
 
     type: MET
     module: "Module"
@@ -252,7 +257,7 @@ class Edit:
     revision: Optional[int] = None  # server revision of node after edit is accepted
     file: Optional["File"] = None  # ancestor file before edit
     statement: Optional["Statement"] = None  # ancestor statement before edit
-    new_properties: dict[str, Any] | None = None
+    properties: dict[str, Any] | None = None
     old_properties: dict[str, Any] | None = None
 
     def undo(self):
@@ -286,15 +291,9 @@ class EditData:
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL edits
     properties: Optional[list[str]] = None  # for partial updates
-
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
-
-    # data as a proper union doesn't work here since the dataclasses overlap
-    # and the deserializer doesn't know which one to use (so will pick the first that fits)
-    # really annoyingly manual until we get a proper :WireFormat
-
-    _data__mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
-    _data: Optional[Any] = None  # the actual data, custom encode/decoded as union
+    _node_mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
+    _node: Optional[Any] = None  # the actual data, custom encode/decoded as union
 
     def encode_some_attrs(self):  # see serialize and :WireFormat
         # no special encoding of data here
@@ -304,22 +303,22 @@ class EditData:
     def decode_some_attrs(cls, data: dict[str, Any]) -> dict[str, Any]:
         from bench.language import wire
 
-        _data = data.get("_data")
-        if _data is not None:
-            _data_cls = wire.DATA_CLASS_BY_MNT[data["_data__mnt"]]
-            _data = from_dict(_data_cls, _data)
-        return {"_data": _data}
+        _node = data.get("_node")
+        if _node is not None:
+            _data_cls = wire.DATA_CLASS_BY_MNT[data["_node_mnt"]]
+            _node = from_dict(_data_cls, _node)
+        return {"_node": _node}
 
     @property
-    def data(self) -> Optional["NodeData"]:
-        return self._data
+    def node(self) -> Optional["NodeData"]:
+        return self._node
 
-    @data.setter
-    def data(self, value: "NodeData"):
+    @node.setter
+    def node(self, node: "NodeData"):
         from bench.language import wire
 
-        self._data__mnt = wire.MNT_BY_DATA_CLASS[type(value)]
-        self._data = value
+        self._node_mnt = wire.MNT_BY_DATA_CLASS[type(node)]
+        self._node = node
 
     @property
     def kind(self) -> EditKind:
@@ -327,15 +326,15 @@ class EditData:
 
     @property
     def scope(self) -> ModuleNodeType:
-        assert self._data__mnt is not None, f"mnt is not set on {self!r}"
-        return self._data__mnt
+        assert self._node_mnt is not None, f"mnt is not set on {self!r}"
+        return self._node_mnt
 
     @property
     def mnt(self) -> ModuleNodeType:
         return self.type.mnt
 
     def __str__(self):
-        data_str = f" {self.data}" if self.data else ""
+        data_str = f" {self.node}" if self.node else ""
         properties_str = (" [" + ", ".join(self.properties) + "]") if self.properties else ""
         return f"{self.type} {self.revision}{data_str}{properties_str}"
 
@@ -407,8 +406,6 @@ class ModuleEditor:
                 file_id = self.file_id
             else:
                 file_id = self.tree.get_ancestor(node.parent_id, MNT.File).id
-        if properties and type.kind != MEK.UPDATE:
-            raise ValueError(f"properties only supported for update edits: {properties}")
         edit = EditData(
             type=type,
             project_version_id=self.module_id,
@@ -417,7 +414,7 @@ class ModuleEditor:
             statement_id=statement_id,
             properties=properties,
         )
-        edit.data = node
+        edit.node = node
         self.edits.append(edit)
         if apply:
             self.apply(edit)
@@ -426,13 +423,13 @@ class ModuleEditor:
     def apply(self, edit: EditData, raise_on_error: bool = True):
         try:
             if edit.type.kind == MEK.CREATE:
-                self.tree.add(edit.data)
+                self.tree.add(edit.node)
             elif edit.type.kind == MEK.UPDATE:
-                self.tree.replace(edit.data)
+                self.tree.replace(edit.node)
             elif edit.type.kind == MEK.DELETE:
-                self.tree.remove(edit.data)
+                self.tree.remove(edit.node)
             elif edit.type.kind == MEK.TRUNCATE:
-                self.tree.truncate(edit.data, edit.mnt)
+                self.tree.truncate(edit.node, edit.mnt)
             else:
                 raise ValueError(f"unexpected edit kind {edit}")
         except Exception as e:
@@ -504,7 +501,7 @@ class ModuleEditor:
 class EditBundle:
     """Indexed access to a constant list of edits."""
 
-    def __init__(self, edits: list[EditData]):
+    def __init__(self, edits: list[Edit | EditData]):
         self.edits = edits
 
     def __str__(self):
@@ -523,7 +520,7 @@ class EditBundle:
 
     # TODO @Performance: edit compaction & batching can be much smarter
     #  But we may also want to record these in full as events... compact before write only?
-    def compact(self) -> list[EditData]:
+    def compact(self) -> list[Edit | EditData]:
         """
         Compact simple edits into fewer semantically identical edits.
 
@@ -538,10 +535,10 @@ class EditBundle:
             raise ValueError(f"cannot collapse complex edits: {self}")
 
         reduced_inverse = []
-        seen_ops: dict[tuple[MET, UUID], EditData] = {}
+        seen_ops: dict[tuple[MET, UUID], Edit | EditData] = {}
 
         for edit in reversed(self.edits):
-            key = (edit.type, edit.data.id)
+            key = (edit.type, edit.node.id)
             if key in seen_ops:
                 if edit.type.kind == MEK.UPDATE:
                     # merge properties
@@ -554,16 +551,11 @@ class EditBundle:
         reduced = list(reversed(reduced_inverse))
         return reduced
 
-    def batched_apply(
-        self, module: NodeTree, project_id: UUID, module_id: UUID, apply: bool = True
-    ) -> Iterator[tuple[MET, list[EditData]]]:
+    def batched(self) -> Iterator[tuple[MET, list[EditData]]]:
         """
-        Batch consecutive edits by type in order of appearance
-         AND optionally concurrently apply them to the given module tree.
-        (there may be multiple batches of the same type).
+        Batch consecutive edits by type in order of appearance.
         """
 
-        editor = ModuleEditor(module, project_id, module_id)
         current_batch: list[EditData] = []
         current_type: MET | None = None
 
@@ -574,15 +566,29 @@ class EditBundle:
                 current_type = edit.type
                 current_batch = []
             current_batch.append(edit)
-            if apply:
-                editor.apply(edit)
 
         if current_batch:
             yield current_type, current_batch
 
+    def batched_apply(
+        self, tree: NodeTree, project_id: UUID, module_id: UUID, apply: bool = True
+    ) -> Iterator[tuple[MET, list[EditData]]]:
+        """
+        Batch consecutive edits by type in order of appearance
+         AND optionally concurrently apply them to the given module tree.
+        (there may be multiple batches of the same type).
+        """
+
+        if not apply:
+            return self.batched()
+        editor = ModuleEditor(tree, project_id, module_id)
+        for type, batch in self.batched():
+            editor.apply_all(batch)
+            yield type, batch
+
 
 def diff_modules(
-    old_module: ModuleTreeData, new_module: ModuleTreeData, project_id: UUID
+    old_module: "ModuleTreeData", new_module: "ModuleTreeData", project_id: UUID
 ) -> list[EditData]:
     """
     Get the edits needed to transform old_module into new_module.
@@ -615,13 +621,217 @@ def diff_modules(
     return edits
 
 
-def create_module(module: ModuleTreeData) -> list[EditData]:
+def render(
+    *things: list[Edit] | EditBundle | list["Node"] | Node, target="python"
+) -> Optional[str]:
     """
-    Get the edits needed to create a new module.
+    Renders edits or nodes to code in a language.
+    Nodes are coerced into create edits with all descendants.
     """
-    editor = ModuleEditor(module)
-    for node in NodeTree(module.nodes).walk_bfs():
-        if node.mnt == ModuleNodeType.Module:
-            continue  # ignore module itself
-        editor.create(node)
-    return editor.edits
+
+    # coerce to edit bundle
+    things = list(things)
+    if isinstance(things, Node):
+        things = [things]
+    if isinstance(things, list):
+        if not things:
+            return None
+        if isinstance(things[0], Node):
+            nodes: list[Node] = things
+            things = []
+            seen_node_cks: set[UUID] = set()
+            for node in nodes:
+                tree = node._local_root_tree
+                descendants = list(node._walk_rec())
+                for n in descendants:
+                    if n.ck in seen_node_cks or n.mnt in INTERP_NODE_TYPES:
+                        continue
+                    seen_node_cks.add(n.ck)
+                    edit = Edit(
+                        type=EditType(f"CREATE_{n.mnt.caps_name}"),
+                        module=n.module,
+                        node=n,
+                        file=tree.get_ancestor(n.ck, MNT.File),
+                        statement=tree.get_ancestor(n.ck, MNT.Statement),
+                    )
+                    things.append(edit)
+        things = EditBundle(things)
+    if not isinstance(things, EditBundle):
+        raise ValueError(f"cannot render {things!r}")
+
+    # render
+    if target == "python":
+        return render_as_python(things)
+    else:
+        raise ValueError(f"cannot render to {target}")
+
+
+def _render_prop(value: Any) -> str:
+    """Render a non-relational prop (may be a reference, but not a parent/child relation)"""
+    if value is None:
+        return "None"
+    elif isinstance(value, UUID):
+        return f'UUID("{value}")'
+    elif isinstance(value, (enum.StrEnum, enum.IntEnum)):
+        return f"{type(value).__name__}.{value.name}"
+    elif isinstance(value, (enum.IntFlag,)):
+        return f"{type(value).__name__}({value.value})"
+    elif isinstance(value, Node):
+        return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
+    elif isinstance(value, str):
+        # escape quotes, newlines, etc.
+        return repr(value.replace('"', '\\"').replace("\n", "\\n"))
+    elif isinstance(value, (int, float, bool)):
+        return repr(value)
+    else:
+        raise ValueError(f"cannot render {value!r}")
+
+
+def _sep(*strs) -> str:
+    strs = list(strs)
+    if strs and isinstance(strs[0], Generator):
+        strs = list(strs[0])
+    if strs and isinstance(strs[0], (list, tuple)):
+        strs = list(strs[0])
+    return ", ".join(str(s) for s in strs if s)
+
+
+class _NodeInit(NamedTuple):
+    name: str
+    args: dict
+    kwargs: dict
+
+
+class _OpType(enum.StrEnum):
+    ASSIGN = "="
+    CREATE = "create"
+    APPEND = "append"
+
+
+class _Op(NamedTuple):
+    target: str
+    op: _OpType
+    nodes: list[_NodeInit]
+
+
+def render_as_python(edits: EditBundle) -> Optional[str]:
+    """
+    Generate minimal(ish) Python code that produces the given edits.
+    The returned order matches the given order of edits, i.e. no dependencies are considered.
+    (This should be fine since edits for node subtrees are produced top-down.)
+    """
+    if not edits:
+        return None
+
+    # index nodes to find roots
+    nodes_by_ck: dict[UUID, Node] = {}
+    for edit in edits.edits:
+        assert isinstance(edit, Edit), f"cannot render data {edit!r}"
+        nodes_by_ck[edit.node.ck] = edit.node
+
+    # render single edits into 'lines' (target, op, node)
+    ops: list[_Op] = []
+    for edit in edits.edits:
+        edit: Edit
+        node = edit.node
+        if edit.kind == EditKind.CREATE:
+            # get props to create
+            init_props = {
+                prop.name: _render_prop(getattr(node, prop.name))
+                for prop in node.__properties__.values()
+                if not prop.is_runtime
+                and not prop.is_relation
+                and not prop.is_cru
+                and prop.name not in ("id", "ck", "parent", "order_key", "key")
+                and getattr(node, prop.name, UNSET) is not prop.default
+            }
+
+            # simplify props
+            if hasattr(type(node), "to_python"):
+                init_name, init_args, init_kwargs = type(node).to_python(
+                    node, init_props, node.parent
+                )
+                init_args = {k: _render_prop(v) for k, v in init_args.items()}
+                init_node = _NodeInit(init_name, init_args, init_kwargs)
+            else:
+                init_node = _NodeInit(type(node).__name__, {}, init_props)
+            del init_props
+
+            # render as define (root) or create/append
+            if node.parent and node.parent.ck in nodes_by_ck:
+                attach_to_prop = first(
+                    p
+                    for p in node.parent.__list_properties_by_child__[node.mnt]
+                    if not p.children_flags & NRel.Flat
+                )
+                parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
+                if init_node.name == type(node).__name__:
+                    op = _Op(parent_str, _OpType.CREATE, [init_node])
+                else:
+                    op = _Op(parent_str, _OpType.APPEND, [init_node])
+            else:
+                op = _Op(node.py_ident, _OpType.ASSIGN, [init_node])
+        else:
+            raise ValueError(f"cannot render {edit!r}")
+        ops.append(op)
+
+    # merge successive ops (if they can be combined like create/append)
+    merged: list[_Op] = []
+    for op in ops:
+        if merged and merged[-1].target == op.target and merged[-1].op == op.op:
+            merged[-1].nodes.extend(op.nodes)
+        else:
+            merged.append(op)
+
+    # render 'ops' into code
+    lines = []
+    for target, op, nodes in merged:
+        if op == "=":
+            init_name, init_args, init_kwargs = nodes[0]
+            init_kwargs = {**init_args, **init_kwargs}
+            kwargs_str = _sep(f"{name}={value}" for name, value in init_kwargs.items())
+            lines.append(f"{target} = {init_name}({kwargs_str})")
+            continue
+
+        # stringify each node
+        nodes_strs = []
+        for node in nodes:
+            init_name, init_args, init_kwargs = node
+            # merge init_args into init_kwargs for anything other than single create
+            if not (op == "create" and init_args and len(nodes) == 1):
+                init_kwargs = {**init_args, **init_kwargs}
+                init_args.clear()
+            args_str = _sep(init_args)
+            kwargs_str = _sep(f"{name}={value}" for name, value in init_kwargs.items())
+            if op == "create" and len(nodes) == 1:
+                nodes_strs.append(f"({_sep(args_str, kwargs_str)})")
+            elif op == "create":
+                nodes_strs.append(f"dict({kwargs_str})")
+            elif op == "append" and len(nodes) == 1:
+                nodes_strs.append(f"{init_name}({_sep(args_str, kwargs_str)})")
+            elif op == "append":
+                nodes_strs.append(f"{init_name}({kwargs_str})")
+
+        # join them into merged line
+        nodes_str = _sep(nodes_strs)
+        if op == "create":
+            if len(nodes) == 1:
+                lines.append(f"{target}.create({nodes_str})")
+            else:
+                lines.append(f"{target}.create_many({nodes_str})")
+        elif op == "append":
+            if len(nodes) == 1:
+                lines.append(f"{target}.append({nodes_str})")
+            else:
+                lines.append(f"{target}.extend({nodes_str})")
+
+    # format with black
+    code = "\n".join(lines)
+    try:
+        import black
+
+        code = black.format_str(code, mode=black.Mode(line_length=100))
+    except ImportError:
+        pass
+
+    return code

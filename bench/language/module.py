@@ -108,7 +108,7 @@ class NodeProperty:
     custom_copy: Callable[[typing.Any], typing.Any] | None = None
     custom_validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] | None = None
     # for manual handling in dynamic nodes
-    ignore_conflicts_with: tuple[type["Node"]] | None = None
+    ignore_conflicts_with: tuple[type["Node"], ...] | None = None
     # for relations
     child_mnt: MNT | None = None
     children_flags: NodeRelationType = NodeRelationType.Default
@@ -194,7 +194,7 @@ def nproperty(
     copy: Callable[[typing.Any], typing.Any] = None,
     validate: Callable[[typing.Any, "PropertyValidationHandler"], bool | None] = None,
     is_required: bool = False,
-    ignore_conflicts_with: tuple[type["Node"]] = None,
+    ignore_conflicts_with: tuple[type["Node"], ...] = None,
 ):
     """Standard user facing node property."""
     return NodeProperty(
@@ -362,7 +362,7 @@ def node_component(
     cls: Optional[typing.Type] = None,
     mnt: MNT = None,
     passthrough: tuple[tuple[str, "Passthrough"]] = (),
-    dynamic_components: tuple[type["Node"]] = (),
+    dynamic_components: tuple[type["Node"], ...] = (),
 ):
     """
     Mark a class as a node component (or concrete node for a MNT).
@@ -500,7 +500,7 @@ def node_component(
 def node(
     mnt: MNT,
     passthrough: tuple[tuple[str, "Passthrough"]] = (),
-    dynamic_components: tuple[type["Node"]] = (),
+    dynamic_components: tuple[type["Node"], ...] = (),
 ):
     def decorate(cls):
         return node_component(
@@ -707,7 +707,7 @@ class NodeList(NodeListBase[NodeT]):
         # index node into parent scope
         if _node.attached and isinstance(_node, ScopeNode) and _node._local_tree is not None:
             # subsume if previously detached
-            added = list(_node._local_tree.nodes)
+            added = _node._local_tree.get_descendants(_node.ck, recursive=True, include_self=True)
             self._parent._import_scope_tree(_node)
             _node._local_tree = None
         else:  # or just add
@@ -1021,7 +1021,7 @@ class NodeTree(typing.Generic[NT]):
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
-        """Finds all children (or descendants) of the given type"""
+        """Gets all children descendants as filtered in BFS order"""
         if node_id_or_ck in self.nodes_by_id:
             node_id = node_id_or_ck
         elif node_id_or_ck in self.nodes_by_ck:
@@ -1033,7 +1033,11 @@ class NodeTree(typing.Generic[NT]):
             for child_id in self.node_id_by_parent_id.get(node_id, [])
             if not mnt or not prefilter or self.nodes_by_id[child_id].mnt == mnt
         ]
-        descendants = children[:]
+
+        descendants = []
+        if include_self:
+            descendants.append(self.nodes_by_id[node_id])
+        descendants.extend(children)
         if recursive:
             for child in children:
                 if child.id not in self.node_id_by_parent_id:
@@ -1041,17 +1045,19 @@ class NodeTree(typing.Generic[NT]):
                 descendants.extend(
                     self.get_descendants(child.id, mnt, prefilter=prefilter, recursive=True)
                 )
-        if include_self and node_id in self.nodes_by_id:
-            descendants.append(self.nodes_by_id[node_id])
         if not prefilter and mnt:
             descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
 
-    def get_ancestor(self, node_id: UUID, mnt: MNT | None = None) -> Optional["NT"]:
-        """Finds the next ancestor of the given type"""
+    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+        """Finds the next ancestor of the given type (including self)"""
+        if node_id_or_ck in self.nodes_by_id:
+            node_id = node_id_or_ck
+        elif node_id_or_ck in self.nodes_by_ck:
+            node_id = self.nodes_by_ck[node_id_or_ck].id
+        else:
+            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
         node = self.nodes_by_id.get(node_id)
-        if node is None:
-            raise ValueError(f"node {node_id} is not in {self!r}")
         while node:
             if not mnt or node.mnt == mnt:
                 return node
@@ -1151,13 +1157,16 @@ class DetachedNodeTree:
         prefilter: bool = False,
         include_self: bool = False,
     ) -> list["NT"]:
-        """Finds all children (or descendants) of the given type"""
+        """Gets all children descendants as filtered in BFS order"""
         children = [
             child
             for child in self.node_ck_by_parent_ck.get(node_id_or_ck, [])
             if not mnt or not prefilter or child.mnt == mnt
         ]
-        descendants = children[:]
+        descendants = []
+        if include_self:
+            descendants.append(self.nodes_by_ck[node_id_or_ck])
+        descendants.extend(children)
         if recursive:
             for child in children:
                 if child.ck not in self.node_ck_by_parent_ck:
@@ -1165,11 +1174,22 @@ class DetachedNodeTree:
                 descendants.extend(
                     self.get_descendants(child.ck, mnt, prefilter=prefilter, recursive=True)
                 )
-        if include_self and node_id_or_ck in self.nodes_by_ck:
-            descendants.append(self.nodes_by_ck[node_id_or_ck])
         if not prefilter and mnt:
             descendants = [n for n in descendants if n.mnt == mnt]
         return descendants
+
+    def get_ancestor(self, node_id_or_ck: UUID, mnt: MNT | None = None) -> Optional["NT"]:
+        """Finds the next ancestor of the given type (including self)"""
+        node = self.nodes_by_ck.get(node_id_or_ck)
+        if node is None:
+            raise ValueError(f"node {node_id_or_ck} is not in {self!r}")
+        while node:
+            if not mnt or node.mnt == mnt:
+                return node
+            if node.parent is None:
+                return None
+            node = node.parent
+        return None
 
 
 def _make_self_method(
@@ -1227,11 +1247,12 @@ class Node(abc.ABC):
     """
     A node in a Bench module tree.
     A node has a per-version unique id (id) and a constant identifier key (ck).
+    The id is derived from the module id, so it's only assigned when the node is attached.
     """
 
     mnt: ClassVar[MNT]  # set in @node decorator
-    __static_components__: ClassVar[tuple[type["Node"]]] = []
-    __dynamic_components__: ClassVar[tuple[type["Node"]]] = ()
+    __static_components__: ClassVar[tuple[type["Node"], ...]] = []
+    __dynamic_components__: ClassVar[tuple[type["Node"], ...]] = ()
     __properties__: ClassVar[dict[str, NodeProperty]] = {}
     __ancestor_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __list_properties__: ClassVar[dict[str, NodeProperty]] = {}
@@ -1271,11 +1292,11 @@ class Node(abc.ABC):
         return self.parent.id if self.parent is not None else None
 
     @property
-    def _components(self) -> tuple[type["Node"]]:
+    def _components(self) -> tuple[type["Node"], ...]:
         return self.__static_components__
 
     @property
-    def _dynamic_components(self) -> tuple[type["Node"]]:
+    def _dynamic_components(self) -> tuple[type["Node"], ...]:
         return ()
 
     @property
@@ -1311,7 +1332,7 @@ class Node(abc.ABC):
         """Trigger list updates and re-interps in all relevant nodes."""
         assert changed, f"cannot trigger update on {self} with no changed nodes"
         # reinit children for any affected parent nodes
-        # TODO @Performance: use mark dirty in node list to avoid reinit
+        # TODO @Performance: use mark dirty in node list to avoid reinit?
         parent = self
         affected_mnts = set([n.mnt for n in changed])
         while parent is not None:
@@ -1377,7 +1398,7 @@ class Node(abc.ABC):
             if attr is not UNSET:
                 break
         # check passthrough targets if tracked in session
-        if attr is UNSET and self._status == NS.Tracked:
+        if attr is UNSET and self._session is not None:
             for target, mode in self._passthrough_targets:
                 target = getattr(self, target)
                 if mode == Passthrough.Full:
@@ -1909,14 +1930,13 @@ class Module(ScopeNode):
     def _apply_edits(self, edits: list["EditData"]) -> ModuleChange:
         """
         Applies the given external edits to the module.
-        Any changed nodes are returned.
         TODO @Performance @UX: :HotReload patch edits locally
         """
         assert self._source is not None, f"cannot apply edits to {self!r} without source"
 
         # update source
         old_nodes_by_ck: dict[UUID, Node] = {**self.module._tree.nodes_by_ck}
-        self._apply_source_edits(edits)
+        self._apply_edits_to_source(edits)
 
         # update self (this is obviously inefficient, but performs surprisingly okay)
         self._reset_from_source()
@@ -1924,7 +1944,7 @@ class Module(ScopeNode):
         # compute change, apply interp source changes if any
         change = self._compute_change(edits, old_nodes_by_ck)
         if change.interp_edits:
-            self._apply_source_edits(change.interp_edits)
+            self._apply_edits_to_source(change.interp_edits)
         return change
 
     def _reset_from_source(self):
@@ -1945,7 +1965,7 @@ class Module(ScopeNode):
         if prev_session:
             self.module._activate_rec(prev_session)
 
-    def _apply_source_edits(self, edits: list["EditData"]) -> None:
+    def _apply_edits_to_source(self, edits: list["EditData"]) -> None:
         """Applies the edits directly to the source without any interp."""
         from bench.language.edit import ModuleEditor
 
@@ -2009,6 +2029,6 @@ class Module(ScopeNode):
         # update source with interp edits (doesn't have them)
         change = module._compute_change([], old_nodes_by_ck)
         if change.interp_edits:
-            module._apply_source_edits(change.interp_edits)
+            module._apply_edits_to_source(change.interp_edits)
 
         return module

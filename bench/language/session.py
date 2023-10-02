@@ -27,7 +27,7 @@ from bench.language.const import (
 )
 from bench.language.module import Module, Node
 from bench.language.query import Query, Sort, SortOrder
-from bench.language.run import HasRun, LogEntry, Run, RunError
+from bench.language.run import LogEntry, Run, RunError
 from bench.language.search import Search
 from bench.language.statement import Statement
 from bench.language.typing import check_type, map_value, pack_value, pack_value_flat
@@ -197,7 +197,7 @@ class Session:
                 edits_str = str(edits)
             raise RuntimeError(f"failed to write {len(edits)} edits {edits_str}")
         else:
-            self.module._apply_source_edits(edits)
+            self.module._apply_edits_to_source(edits)
         logger.debug("session.flush.done", session=self, editor=self._editor)
         return success
 
@@ -284,48 +284,6 @@ class Session:
                 asgiref.sync.async_to_sync(session.aclose)()
 
         return SyncSession()
-
-
-class Tracer(abc.ABC):
-    """
-    Trace and track everything in a module/session (runs, edits, etc.).
-    """
-
-    # module
-
-    def node_create(self, *nodes: Node):
-        raise NotImplementedError
-
-    def node_update(self, node: Node, properties: list[str]):
-        raise NotImplementedError
-
-    def node_delete(self, *node: Node):
-        raise NotImplementedError
-
-    def node_truncate(self, node: Node, mnt: MNT):
-        raise NotImplementedError
-
-    # session
-
-    def run_enter(self, statement: HasRun, is_async: bool, inputs: dict):
-        raise NotImplementedError
-
-    def run_exit(self, statement: HasRun, outputs: dict):
-        raise NotImplementedError
-
-    def run_cached(
-        self,
-        statement: HasRun,
-        inputs: dict,
-        outputs: dict,
-        generated_at: datetime,
-        generated_in: UUID,
-        duration: float,
-    ):
-        raise NotImplementedError
-
-    def run_exception(self, statement: HasRun, exception: BaseException):
-        raise NotImplementedError
 
 
 # TODO @Performance: improve performance of contextual stdout/stderr capture
@@ -417,7 +375,7 @@ LOG_CACHE_SIZE = 1000
 MAX_STACK_DEPTH = 16
 
 
-class SessionTracer(Tracer):
+class SessionTracer:
     def __init__(self, session: Session, editor: "ModuleEditor"):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)

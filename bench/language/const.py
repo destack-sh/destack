@@ -36,7 +36,7 @@ class ModuleNodeType(enum.StrEnum):
     RemoteObject = "RemoteObject"
     Secret = "Secret"
     # session
-    Run = "Run"  # ?
+    Run = "Run"
 
     @property
     def caps_name(self):
@@ -174,6 +174,10 @@ class TypeTag(enum.StrEnum):
     NULL = "null"
     ANY = "any"
     TYPE_REFERENCE = "ref"
+
+    # convenience
+    CHOICE = ENUM
+    CLASS = STRUCT
 
 
 class TypeHint(enum.StrEnum):
