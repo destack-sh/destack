@@ -925,7 +925,7 @@ class RuntimeHost:
         # broadcast
         trimmed_edits = trim_record_edits(edits)
         origins = (*(origins or ()), self.client)
-        api_edits = list(chain.from_iterable(get_api_edit_from_internal(m) for m in trimmed_edits))
+        api_edits = list(chain.from_iterable(get_api_edit_from_internal(e) for e in trimmed_edits))
         await publish(
             NMessageType.MODULE_INTERNAL_CHANGED,
             ModuleInternalChangedPayload(

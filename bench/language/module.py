@@ -1980,7 +1980,10 @@ class Module(ScopeNode):
                 editor.create(node, apply=False)
         for node in removed:
             if node.mnt in INTERP_NODE_TYPES:
-                editor.delete(node, apply=False)
+                try:
+                    editor.delete(node, apply=False)
+                except ValueError:
+                    pass  # ignore missing interp nodes, fine because parent may have been deleted
 
         return ModuleChange(
             source_edits=source_edits,

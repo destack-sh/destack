@@ -4,8 +4,6 @@ import strawberry
 
 from bench.language.edit import MET
 
-# module mutations are special since they're used to sync semantic changes
-# so they're defined in the language/runtime
 EditType = strawberry.enum(MET)
 MET = EditType
 

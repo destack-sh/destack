@@ -226,7 +226,7 @@ class Session:
             optimistic=optimistic,
             refresh_index=refresh_index,
         )
-        edits = [m for m in self._editor.edits if m.mnt not in INTERP_NODE_TYPES]
+        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]
         edits = EditBundle(edits).compact()
         self._editor.reset()
         flush = self._do_flush(edits, refresh_index)
