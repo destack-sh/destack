@@ -104,16 +104,16 @@ class Session:
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.mode = mode
-        self.writer = writer
+        self._writer = writer
 
         self.cache_sync = CacheSync(module, project_id=ctx.project_id)
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
 
-        self.executor = executor or ThreadPoolExecutor(max_workers=1)
-        self.logger = logger.bind(session=self)
-        self.mutator = ModuleEditor(self.module._local_tree, ctx.project_id, module.id)
-        self.tracer = SessionTracer(self, mutator=self.mutator)
+        self._executor = executor or ThreadPoolExecutor(max_workers=1)
+        self._log = logger.bind(session=self)
+        self._editor = ModuleEditor(self.module._local_tree, ctx.project_id, module.id)
+        self.tracer = SessionTracer(self, editor=self._editor)
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
 
@@ -123,13 +123,13 @@ class Session:
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
-        return f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self.mutator.edits)})"
+        return f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self._editor.edits)})"
 
     def __repr__(self):
         return f"<Session {self}>"
 
     def sync_to_async(self, fn: Callable) -> Callable[..., Awaitable]:
-        return asgiref.sync.sync_to_async(fn, thread_sensitive=False, executor=self.executor)  # type: ignore
+        return asgiref.sync.sync_to_async(fn, thread_sensitive=False, executor=self._executor)  # type: ignore
 
     def async_to_sync(self, fn: Awaitable | Callable | Coroutine) -> Callable:
         return asgiref.sync.async_to_sync(fn)  # type: ignore
@@ -179,12 +179,15 @@ class Session:
             # force flush and index if there are any pending database edits
             #  (or previous edits that were already flushed but didn't refresh the index)
             # TODO @Performance: force flush module for record search only if needed
-            if self.mutator.edits or self._past_flushes:
+            if self._editor.edits or self._past_flushes:
                 await self.aflush(optimistic=False, refresh_index=True)
 
     async def _do_flush(self, edits: list["Edit"], refresh_index: bool) -> bool:
+        """Flush any pending edits to the module."""
+        if not edits and not refresh_index:
+            return True  # skip if no edits and no index refresh
         # TODO @Robustness: auto-split edits if not in atomic block and too large
-        success = await self.writer.write_module(edits, refresh_index)
+        success = await self._writer.write_module(edits, refresh_index)
         if not success:
             self._failed_flush = True
             self.module._reset_from_source()
@@ -195,15 +198,20 @@ class Session:
             raise RuntimeError(f"failed to write {len(edits)} edits {edits_str}")
         else:
             self.module._apply_source_edits(edits)
-        logger.debug("session.flush.done", session=self, mutator=self.mutator)
+        logger.debug("session.flush.done", session=self, editor=self._editor)
         return success
+
+    @property
+    def _needs_flush_before_exit(self):
+        # ensure edits are flushed before we exit out of topmost run for error propagation
+        return self._editor.edits and len(self.tracer.stacktrace) == 1
 
     async def aflush(self, optimistic: bool = False, refresh_index: bool = False):
         """
         Flushes all module edits.
         If optimistic, this will return before the flush is complete (but will wait on close).
         """
-        if not self.mutator.edits and not refresh_index:
+        if not self._editor.edits and not refresh_index:
             return  # skip if no edits and no index refresh
         if self.mode == SessionMode.READ_ONLY:
             raise RuntimeError(f"cannot mutate read-only session {self}")
@@ -214,13 +222,13 @@ class Session:
         logger.debug(
             "session.flush",
             session=self,
-            mutator=self.mutator,
+            editor=self._editor,
             optimistic=optimistic,
             refresh_index=refresh_index,
         )
-        edits = [m for m in self.mutator.edits if m.mnt not in INTERP_NODE_TYPES]
+        edits = [m for m in self._editor.edits if m.mnt not in INTERP_NODE_TYPES]
         edits = EditBundle(edits).compact()
-        self.mutator.reset()
+        self._editor.reset()
         flush = self._do_flush(edits, refresh_index)
         if optimistic:
             self._pending_flushes.append((len(edits), asyncio.create_task(flush)))
@@ -229,7 +237,7 @@ class Session:
         self._past_flushes.append((len(edits), set(m.type for m in edits)))
 
     def flush(self, optimistic: bool = False):
-        if not self.mutator.edits:
+        if not self._editor.edits:
             return
         asgiref.sync.async_to_sync(self.aflush)(optimistic=optimistic)
 
@@ -252,8 +260,8 @@ class Session:
     def close(self):
         asgiref.sync.async_to_sync(self.aclose)()
 
-    def _on_mutated(self, mutator: "ModuleEditor", edit: "Edit"):
-        if len(self.mutator.edits) > SESSION_EDIT_FLUSH_WATERMARK:
+    def _on_mutated(self, editor: "ModuleEditor", edit: "Edit"):
+        if len(self._editor.edits) > SESSION_EDIT_FLUSH_WATERMARK:
             self.flush(optimistic=True)
 
     async def __aenter__(self):
@@ -351,7 +359,7 @@ class _ContextRedirectedStream:
         self.native.flush()
 
 
-def redirect_streams_if_needed():
+def _redirect_std_streams_if_needed():
     """Redirect stdout/stderr to the current context's track functions if they are set."""
     if not isinstance(sys.stdout, _ContextRedirectedStream):
         sys.stdout = _ContextRedirectedStream(sys.stdout, stdout_track)
@@ -387,7 +395,7 @@ class LogCollector:
         self.track(log_entry)
 
     def start(self):
-        redirect_streams_if_needed()
+        _redirect_std_streams_if_needed()
         if self.stream == "stderr":
             stderr_track.set(self._track)
         elif self.stream == "stdout":
@@ -410,7 +418,7 @@ MAX_STACK_DEPTH = 16
 
 
 class SessionTracer(Tracer):
-    def __init__(self, session: Session, mutator: "ModuleEditor"):
+    def __init__(self, session: Session, editor: "ModuleEditor"):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
@@ -421,7 +429,7 @@ class SessionTracer(Tracer):
         self.stdout_collector = LogCollector(self._track_log, "stdout", session)
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
         self.session = session
-        self.mutator = mutator
+        self.editor = editor
         self.stacktrace = []
         self.runs = {}
 
@@ -437,16 +445,16 @@ class SessionTracer(Tracer):
     #
 
     def node_create(self, *nodes: ModuleNode):
-        self.mutator.create_many(*nodes, apply=False)
+        self.editor.create_many(*nodes, apply=False)
 
     def node_update(self, node: ModuleNode, properties: list[str]):
-        self.mutator.update(node, properties=properties, apply=False)
+        self.editor.update(node, properties=properties, apply=False)
 
     def node_delete(self, *node: ModuleNode):
-        self.mutator.delete_many(*node, apply=False)
+        self.editor.delete_many(*node, apply=False)
 
     def node_truncate(self, node: ModuleNode, mnt: MNT):
-        self.mutator.truncate(node, mnt, apply=False)
+        self.editor.truncate(node, mnt, apply=False)
 
     #
     # Session
@@ -664,7 +672,7 @@ class SessionTracer(Tracer):
             for run in chain(runs, self.runs.values()):
                 run._mark_dead_if_active()
 
-        success = await self.session.writer.write_session(self.session, runs, logs)
+        success = await self.session._writer.write_session(self.session, runs, logs)
         if not success:
             raise RuntimeError(f"failed to write session {self.session}")
 

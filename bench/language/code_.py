@@ -74,20 +74,20 @@ class HasCode(ModuleNode):
                 self._statement_references[key] = resolved
 
         # check if code is exportable if marked as such
-        if self.exported:
+        if self._export:
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
     @property
-    def cached(self) -> bool:
+    def _cache(self) -> bool:
         return symbolx_lib.resolve(".builtins.cache") in self.tags
 
     @property
-    def exported(self) -> bool:
+    def _export(self) -> bool:
         return symbolx_lib.resolve(".builtins.export") in self.tags
 
     @property
-    def is_test(self) -> bool:
+    def _test(self) -> bool:
         return symbolx_lib.resolve(".builtins.test") in self.tags
 
     @property
@@ -103,7 +103,7 @@ class HasCode(ModuleNode):
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
             if resolved is None:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (not found)")
-            if HasCode not in resolved._components or not resolved.exported:
+            if HasCode not in resolved._components or not resolved._export:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = resolved()
             if name not in ret:
@@ -118,7 +118,7 @@ class HasCode(ModuleNode):
         if resolved is None:
             # fall back to code object import
             resolved = self.lookup(reference.path, by=LookupBy.PyIdent)
-            if not isinstance(resolved, HasCode) or not resolved.exported:
+            if not isinstance(resolved, HasCode) or not resolved._export:
                 raise ImportError(f"cannot import '{path}.{name}'->{resolved} (is it exported?)")
             ret = await resolved.to_async()()
             if name not in ret:
@@ -159,7 +159,7 @@ class HasCode(ModuleNode):
             **{k: v for k, v in bench.language.__dict__.items() if not k.startswith("_")},
         }
 
-        if self.is_test:  # very crude initial test support
+        if self._test:  # very crude initial test support
             import pytest
 
             imports["pytest"] = pytest
@@ -180,7 +180,7 @@ class HasCode(ModuleNode):
             line = f"{', '.join(x_refs)} = {await_str}ximport({path!r}, {keys_str})"
             func_body_lines[i] = line
 
-        if self.exported:
+        if self._export:
             # capture all locals at the end of the function
             # remember locals at the start of the function to exclude them
             func_body_lines.insert(0, "__locals_start = locals().copy()")
@@ -227,7 +227,7 @@ class HasCode(ModuleNode):
     def _make_callable(
         self, code_str: str, locals: dict[str, Any], func_name: str
     ) -> typing.Callable:
-        if self.is_test:
+        if self._test:
             from _pytest.assertion.rewrite import rewrite_asserts
 
             # rewrite asserts for better debugging
@@ -237,11 +237,11 @@ class HasCode(ModuleNode):
             callable = _do_exec_get_globals(co, locals)[func_name]
         else:
             callable = _do_exec_get_globals(code_str, locals)[func_name]
-        if self.exported:
+        if self._export:
             callable = self._wrap_exported(callable)
-        elif self.cached:
+        elif self._cache:
             callable = self._wrap_cached(callable)
-        if self.is_test:
+        if self._test:
             callable = self._wrap_test(callable)
         return callable
 
@@ -344,10 +344,12 @@ class HasCode(ModuleNode):
         try:
             self._prepare_callable()
             result = await self._callable_wrapped(*args, **kwargs)
+            if self.session._needs_flush_before_exit:
+                await self.session.aflush()
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
-        self.session.tracer.run_exit(self, result if not self.exported else None)
+        self.session.tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
     def _call_inner_sync(self, *args, **kwargs):
@@ -356,10 +358,12 @@ class HasCode(ModuleNode):
         try:
             self._prepare_callable()
             result = self._callable_wrapped(*args, **kwargs)
+            if self.session._needs_flush_before_exit:
+                self.session.flush()
         except BaseException as exception:
             self.session.tracer.run_exception(self, exception)
             raise
-        self.session.tracer.run_exit(self, result if not self.exported else None)
+        self.session.tracer.run_exit(self, result if not self._export else None)
         return _to_outputs_dict(self, result)
 
 

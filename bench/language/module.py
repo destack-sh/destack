@@ -1538,7 +1538,7 @@ class ModuleNode(abc.ABC):
 
     @property
     def logger(self) -> Logger:
-        return self.session.logger
+        return self.session._log
 
 
 def _make_rec_method(
@@ -1929,7 +1929,7 @@ class Module(ScopeNode):
 
         self.module._clear_rec()
         self.module._tree.clear()
-        unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
+        _ = unpack_node(self._source, parent=self, session=None, exclude=INTERP_NODE_TYPES)
         self.module._interp_rec()
 
         if prev_session:
@@ -1939,10 +1939,10 @@ class Module(ScopeNode):
         """Applies the edits directly to the source without any interp."""
         from bench.language.edit import ModuleEditor
 
-        mutator = ModuleEditor(self._source, self._project_id, self.id)
+        editor = ModuleEditor(self._source, self._project_id, self.id)
         # errors are fine here since e.g. a deleted issue's parent may have disappeared
         #  (we could filter that, but it's easier this way since it's more explicit for clients)
-        mutator.apply_all(edits, raise_on_error=False)
+        editor.apply_all(edits, raise_on_error=False)
 
     def _compute_change(
         self, source_edits: list["Edit"], old_nodes_by_ck: dict[UUID, ModuleNode]
@@ -1962,17 +1962,17 @@ class Module(ScopeNode):
         removed = [n for n in old_nodes_by_ck.values() if n.ck not in new_nodes]
 
         # gather interp edits
-        mutator = ModuleEditor(self._source, self._project_id, self.id)
+        editor = ModuleEditor(self._source, self._project_id, self.id)
         for node in added:
             if node.mnt in INTERP_NODE_TYPES:
-                mutator.create(node, apply=False)
+                editor.create(node, apply=False)
         for node in removed:
             if node.mnt in INTERP_NODE_TYPES:
-                mutator.delete(node, apply=False)
+                editor.delete(node, apply=False)
 
         return ModuleChange(
             source_edits=source_edits,
-            interp_edits=mutator.edits,
+            interp_edits=editor.edits,
             added=added,
             updated=updated,
             removed=removed,
