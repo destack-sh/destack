@@ -313,6 +313,10 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         return Field(name=name, text=text, *args, **kwargs)
 
     @staticmethod
+    def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
+        return Field(name=name, text=text, tag=TypeTag.LITERAL, *args, **kwargs)
+
+    @staticmethod
     def to_python(
         node: "Field", props: dict, for_parent: "Statement" = None
     ) -> tuple[str, dict, dict]:
@@ -322,10 +326,12 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         type = node.reference or node.hint or node.tag
         if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:
             init_args = {"name": node.name, "text": node.text}
+            init_name = "Field.literal"
         else:
             init_args = {"name": node.name, "type": type, "text": node.text}
+            init_name = "Field.new"
         init_kwargs = dict_minus(props, "name", "text", "tag", "hint", "reference")
-        return Field.__name__, init_args, init_kwargs
+        return init_name, init_args, init_kwargs
 
     def __str__(self):
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""

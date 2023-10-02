@@ -116,12 +116,12 @@ defineExpose({
       <span
         v-for="log in logsSorted"
         :key="log.id"
-        class="scroll-hidden -mx-0.5 w-full select-text overflow-y-scroll whitespace-pre-wrap rounded-sm p-0.5 font-mono focus:outline-none"
+        class="scroll-hidden -mx-0.5 w-full select-text overflow-y-scroll rounded-sm p-0.5 font-mono focus:outline-none"
         :class="[
           highlight && isHighlighted(log) ? 'bg-yellow-100' : '',
           lowlight && !isHighlighted(log) ? 'opacity-50' : '',
           expandedLogs.includes(log.id)
-            ? 'bg-orange-100 ring-1 ring-orange-600/20'
+            ? 'whitespace-pre-wrap bg-orange-100 ring-1 ring-orange-600/20 '
             : 'max-w-full truncate hover:bg-orange-50',
         ]"
         @click="() => toggleExpanded(log)"

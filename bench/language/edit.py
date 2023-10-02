@@ -679,8 +679,12 @@ def _render_prop(value: Any) -> str:
     elif isinstance(value, Node):
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
     elif isinstance(value, str):
-        # escape quotes, newlines, etc.
-        return repr(value.replace('"', '\\"').replace("\n", "\\n"))
+        # if it contains newlines transform into multiline string
+        value = value.replace('"', '\\"')
+        if "\n" in value:
+            return f'"""\n{value}\n"""'
+        else:
+            return repr(value)
     elif isinstance(value, (int, float, bool)):
         return repr(value)
     else:
@@ -737,7 +741,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         if edit.kind == EditKind.CREATE:
             # get props to create
             init_props = {
-                prop.name: _render_prop(getattr(node, prop.name))
+                prop.name: getattr(node, prop.name)
                 for prop in node.__properties__.values()
                 if not prop.is_runtime
                 and not prop.is_relation
@@ -751,13 +755,12 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 init_name, init_args, init_kwargs = type(node).to_python(
                     node, init_props, node.parent
                 )
-                init_args = {k: _render_prop(v) for k, v in init_args.items()}
                 init_node = _NodeInit(init_name, init_args, init_kwargs)
             else:
                 init_node = _NodeInit(type(node).__name__, {}, init_props)
             del init_props
 
-            # render as define (root) or create/append
+            # render as define (root) or create/append (child)
             if node.parent and node.parent.ck in nodes_by_ck:
                 attach_to_prop = first(
                     p
@@ -765,7 +768,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if init_node.name == type(node).__name__:
+                if node.mnt == MNT.Record:
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -789,7 +792,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         if op == "=":
             init_name, init_args, init_kwargs = nodes[0]
             init_kwargs = {**init_args, **init_kwargs}
-            kwargs_str = _sep(f"{name}={value}" for name, value in init_kwargs.items())
+            kwargs_str = _sep(f"{n}={_render_prop(v)}" for n, v in init_kwargs.items() if v)
             lines.append(f"{target} = {init_name}({kwargs_str})")
             continue
 
@@ -797,20 +800,18 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         nodes_strs = []
         for node in nodes:
             init_name, init_args, init_kwargs = node
-            # merge init_args into init_kwargs for anything other than single create
-            if not (op == "create" and init_args and len(nodes) == 1):
+            if op == _OpType.CREATE and len(nodes) > 1:
+                # merge args into kwargs
                 init_kwargs = {**init_args, **init_kwargs}
                 init_args.clear()
-            args_str = _sep(init_args)
-            kwargs_str = _sep(f"{name}={value}" for name, value in init_kwargs.items())
+            args_str = _sep(_render_prop(v) for v in init_args.values() if v)
+            kwargs_str = _sep(f"{k}={_render_prop(v)}" for k, v in init_kwargs.items() if v)
             if op == "create" and len(nodes) == 1:
                 nodes_strs.append(f"({_sep(args_str, kwargs_str)})")
             elif op == "create":
                 nodes_strs.append(f"dict({kwargs_str})")
-            elif op == "append" and len(nodes) == 1:
-                nodes_strs.append(f"{init_name}({_sep(args_str, kwargs_str)})")
             elif op == "append":
-                nodes_strs.append(f"{init_name}({kwargs_str})")
+                nodes_strs.append(f"{init_name}({_sep(args_str, kwargs_str)})")
 
         # join them into merged line
         nodes_str = _sep(nodes_strs)
