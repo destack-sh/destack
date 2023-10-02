@@ -36,7 +36,7 @@ from bench.language.validation import (
     on_issue_raise,
 )
 from bench.utils.dt import utcnow_with_tz
-from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between
+from bench.utils.fractional import BIGGEST_INTEGER, generate_key_between, generate_n_keys_between
 from bench.utils.func import did_you_mean_str
 from bench.utils.utils import DEBUG, IdentifierType, frozendict, required_field, to_pyidentifier
 
@@ -653,6 +653,18 @@ class NodeList(NodeListBase[NodeT]):
             return {n.py_ident: n for n in self._nodes}
         return {}
 
+    @property
+    def _last_ok(self) -> Optional[str]:
+        """Gets the last (top-level) order key in the list."""
+        assert self._flags & NRel.Ordered, f"cannot get order key for {self!r}"
+        if self._flags & NRel.Flat:  # add after last root node
+            last_ok = next(
+                (n.order_key for n in reversed(self._nodes) if n.parent == self._parent), None
+            )
+        else:
+            last_ok = self._nodes[-1].order_key if self._nodes else None
+        return last_ok
+
     def _update(self, scope: "ScopeNode"):
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
@@ -711,13 +723,7 @@ class NodeList(NodeListBase[NodeT]):
 
         # assign order key to ordered nodes
         if self._flags & NRel.Ordered and _node.order_key is None:
-            if self._flags & NRel.Flat:  # add after last root node
-                last_ok = next(
-                    (n.order_key for n in reversed(self._nodes) if n.parent == self._parent), None
-                )
-            else:
-                last_ok = self._nodes[-1].order_key if self._nodes else None
-            _node.order_key = generate_key_between(last_ok, None)
+            _node.order_key = generate_key_between(self._last_ok, None)
         if _trigger:
             # and update every affect node & list
             self._parent._trigger_update([_node])
@@ -733,6 +739,12 @@ class NodeList(NodeListBase[NodeT]):
     def extend(self, nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
         nodes = list(nodes) if not isinstance(nodes, list) else nodes
         if nodes:
+            # pre-assign order keys since we don't trigger between each append
+            if self._flags & NRel.Ordered:
+                oks = generate_n_keys_between(self._last_ok, None, len(nodes))
+                for node, ok in zip(nodes, oks):
+                    node.order_key = ok
+            # append, then trigger update
             for node in nodes:
                 self.append(node, _trigger=False)
             self._parent._trigger_update(nodes)

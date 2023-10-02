@@ -342,7 +342,7 @@ class ModuleEditor:
     def reset(self):
         self.edits = []
 
-    def do(
+    def _do(
         self, type: MET, node: "NodeData", apply: bool = True, properties: list[str] = None
     ) -> "ModuleEditor":
         from bench.language import wire
@@ -407,7 +407,7 @@ class ModuleEditor:
     ) -> "ModuleEditor":
         node = pack_node_flat_if_needed(node)
         mmt = MET(f"TRUNCATE_{mnt.caps_name}S")
-        self.do(mmt, node, apply=apply)
+        self._do(mmt, node, apply=apply)
         return self
 
     def create_many(
@@ -423,7 +423,7 @@ class ModuleEditor:
         node = pack_node_flat_if_needed(node)
         mnt = MNT_BY_DATA_CLASS[type(node)]
         mmt = MET(f"CREATE_{mnt.caps_name}")
-        self.do(mmt, node, apply=apply)
+        self._do(mmt, node, apply=apply)
         return self
 
     def update_many(
@@ -443,7 +443,7 @@ class ModuleEditor:
         node = pack_node_flat_if_needed(node)
         mnt = MNT_BY_DATA_CLASS[type(node)]
         mmt = MET(f"UPDATE_{mnt.caps_name}")
-        self.do(mmt, node, apply=apply, properties=properties)
+        self._do(mmt, node, apply=apply, properties=properties)
         return self
 
     def delete_many(
@@ -459,7 +459,7 @@ class ModuleEditor:
         node = pack_node_flat_if_needed(node)
         mnt = MNT_BY_DATA_CLASS[type(node)]
         mmt = MET(f"DELETE_{mnt.caps_name}")
-        self.do(mmt, node, apply=apply)
+        self._do(mmt, node, apply=apply)
         return self
 
     def bundle(self) -> "EditBundle":
