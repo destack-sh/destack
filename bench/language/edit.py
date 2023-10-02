@@ -12,7 +12,8 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
-from bench.language.module import UNSET, Module, Node, NodeTree, NRel
+from bench.language.module import UNSET, Module, Node, NodeProperty, NodeTree, NRel
+from bench.language.text import HasText, render_text_simple
 from bench.utils.serialize import from_dict
 
 if TYPE_CHECKING:
@@ -666,6 +667,13 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
+def _prerender_prop(prop: NodeProperty, node: Node, value: Any) -> Any:
+    if prop.name == "text" and value and HasText in node._components and node._text_spans:
+        return render_text_simple(node._text_spans)
+    else:
+        return value
+
+
 def _render_prop(value: Any) -> str:
     """Render a non-relational prop (may be a reference, but not a parent/child relation)"""
     if value is None:
@@ -701,6 +709,7 @@ def _sep(*strs) -> str:
 
 
 class _NodeInit(NamedTuple):
+    node: Node
     name: str
     args: dict
     kwargs: dict
@@ -741,7 +750,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         if edit.kind == EditKind.CREATE:
             # get props to create
             init_props = {
-                prop.name: getattr(node, prop.name)
+                prop.name: _prerender_prop(prop, node, getattr(node, prop.name))
                 for prop in node.__properties__.values()
                 if not prop.is_runtime
                 and not prop.is_relation
@@ -755,9 +764,9 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 init_name, init_args, init_kwargs = type(node).to_python(
                     node, init_props, node.parent
                 )
-                init_node = _NodeInit(init_name, init_args, init_kwargs)
+                init_node = _NodeInit(node, init_name, init_args, init_kwargs)
             else:
-                init_node = _NodeInit(type(node).__name__, {}, init_props)
+                init_node = _NodeInit(node, type(node).__name__, {}, init_props)
             del init_props
 
             # render as define (root) or create/append (child)
@@ -790,7 +799,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
     lines = []
     for target, op, nodes in merged:
         if op == "=":
-            init_name, init_args, init_kwargs = nodes[0]
+            _, init_name, init_args, init_kwargs = nodes[0]
             init_kwargs = {**init_args, **init_kwargs}
             kwargs_str = _sep(f"{n}={_render_prop(v)}" for n, v in init_kwargs.items() if v)
             lines.append(f"{target} = {init_name}({kwargs_str})")
@@ -799,7 +808,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         # stringify each node
         nodes_strs = []
         for node in nodes:
-            init_name, init_args, init_kwargs = node
+            _, init_name, init_args, init_kwargs = node
             if op == _OpType.CREATE and len(nodes) > 1:
                 # merge args into kwargs
                 init_kwargs = {**init_args, **init_kwargs}

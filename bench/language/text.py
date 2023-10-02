@@ -5,7 +5,7 @@ from typing import Optional, Union
 from uuid import UUID
 
 from bench.language import IssueType
-from bench.language.const import ModuleNodeType, TypedNodeReference
+from bench.language.const import ModuleNodeType, NodeReference, TypedNodeReference
 from bench.language.module import Node, NodeVisitor, ScopeNode, node_component, nproperty, nruntime
 
 
@@ -35,6 +35,11 @@ class HasText(Node):
     def mentions(self) -> list["TextMention"]:
         return [span for span in self.text_spans if isinstance(span, TextMention)]
 
+    def _init_inner(self) -> None:
+        if self._session is not None and self.text:
+            # parse @<path> format on init during session
+            self._set_untracked("text", render_text_html(parse_text_simple(self.text)))
+
     def _clear_inner(self) -> None:
         self._text_spans = None
 
@@ -51,7 +56,10 @@ class HasText(Node):
                 continue
             resolved = None
             if span.reference is not None:
-                resolved = scope.lookup(span.reference.ref, node_t=span.reference.type)
+                if isinstance(span.reference, TypedNodeReference):
+                    resolved = scope.lookup(span.reference.ref, node_t=span.reference.type)
+                else:
+                    resolved = scope.lookup(span.reference)
             if resolved is None:
                 self._on_issue(
                     type=IssueType.MISSING_REFERENCE, subject=self, path=span.reference_path
@@ -94,7 +102,7 @@ TEXT_MENTION_TEMPLATE = (
 
 @dataclass
 class TextMention:
-    reference: Union[TypedNodeReference, Node]
+    reference: Union[NodeReference | TypedNodeReference, Node]
     reference_path: Optional[str]
 
     def __str__(self):
@@ -188,3 +196,45 @@ def patch_text_html(text_raw: str | None, target_cks: dict[UUID, UUID]) -> str |
                 type=span.reference.type, ref=target_cks[span.reference_ck]
             )
     return render_text_html(spans)
+
+
+def parse_text_simple(text_raw: str) -> list[TextSpan]:
+    """
+    Parses text in the @<path> format.
+    """
+    SIMPLE_MENTION_REGEX = re.compile(r"@(?P<path>[a-zA-Z0-9_.]+)")
+    spans = []
+    last_end = 0
+
+    for match in SIMPLE_MENTION_REGEX.finditer(text_raw):
+        if match.start() > last_end:
+            spans.append(TextPlain(text=text_raw[last_end : match.start()]))
+
+        path = match.group("path")
+        spans.append(
+            TextMention(
+                reference=TypedNodeReference(ModuleNodeType.Statement, path), reference_path=None
+            )
+        )
+
+        last_end = match.end()
+
+    if last_end < len(text_raw):
+        spans.append(TextPlain(text=text_raw[last_end:]))
+
+    return spans
+
+
+def render_text_simple(text_spans: list[TextSpan]) -> str:
+    """
+    Renders text spans back into @<path> format.
+    """
+    spans_str = []
+    for span in text_spans:
+        if isinstance(span, TextMention):
+            # should be smarter about qualifying/scoping paths here
+            path = span.reference.py_ident if isinstance(span.reference, Node) else "???"
+            spans_str.append("@" + path)
+        else:
+            spans_str.append(span.text)
+    return "".join(spans_str)
