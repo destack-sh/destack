@@ -275,7 +275,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     @staticmethod
     def new(
         name: str = None,
-        some_type: Union[TypeTag, TypeHint, "Statement"] = None,
+        some_type: Union[TypeTag, TypeHint, "Statement", type] = None,
         *args,
         for_parent: "Statement" = None,
         **kwargs,
@@ -294,7 +294,16 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         elif isinstance(some_type, TypeHint):
             kwargs["hint"] = some_type
             kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[some_type]
-        elif isinstance(some_type, Statement):
+        elif some_type == str:
+            kwargs["tag"] = TypeTag.STRING
+        elif some_type == int:
+            kwargs["tag"] = TypeTag.NUMBER
+            kwargs["hint"] = TypeHint.INTEGER
+        elif some_type == float:
+            kwargs["tag"] = TypeTag.NUMBER
+        elif some_type == bool:
+            kwargs["tag"] = TypeTag.BOOLEAN
+        elif isinstance(some_type, ModuleNode) and some_type.mnt == MNT.Statement:
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
             kwargs["reference"] = some_type
         else:

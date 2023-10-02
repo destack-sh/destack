@@ -82,6 +82,8 @@ class HasTask(ModuleNode):
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
                 outputs = await run_task(self, view, inputs, _nonce)
+            if self.session._needs_flush_before_exit:
+                await self.session.aflush()
         except Exception as e:
             self.session.tracer.run_exception(self, e)
             raise

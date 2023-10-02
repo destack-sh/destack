@@ -405,7 +405,6 @@ class ModuleEditor:
     def truncate(
         self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
     ) -> "ModuleEditor":
-        """Truncates all records of the given statement."""
         node = pack_node_flat_if_needed(node)
         mmt = MET(f"TRUNCATE_{mnt.caps_name}S")
         self.do(mmt, node, apply=apply)
@@ -468,7 +467,7 @@ class ModuleEditor:
 
 
 class EditBundle:
-    """Indexed access to an assumed constant list of edits."""
+    """Indexed access to a constant list of edits."""
 
     def __init__(self, edits: list[Edit]):
         self.edits = edits
@@ -488,6 +487,7 @@ class EditBundle:
         return [m for m in self.edits if m.type not in SIMPLE_EDITS]
 
     # TODO @Performance: edit compaction & batching can be much smarter
+    #  But we may also want to record these in full as events... compact before write only?
     def compact(self) -> list[Edit]:
         """
         Compact simple edits into fewer semantically identical edits.
@@ -528,7 +528,7 @@ class EditBundle:
         (there may be multiple batches of the same type).
         """
 
-        mutator = ModuleEditor(module, project_id, module_id)
+        editor = ModuleEditor(module, project_id, module_id)
         current_batch: list[Edit] = []
         current_type: MET | None = None
 
@@ -540,7 +540,7 @@ class EditBundle:
                 current_batch = []
             current_batch.append(edit)
             if apply:
-                mutator.apply(edit)
+                editor.apply(edit)
 
         if current_batch:
             yield current_type, current_batch
@@ -554,28 +554,28 @@ def diff_modules(
     Find nodes by their id (not ck).
     """
     old_tree = NodeTree(old_module.nodes)
-    mutator = ModuleEditor(old_tree, old_module.id, project_id)
+    editor = ModuleEditor(old_tree, old_module.id, project_id)
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
         if new_node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
-            mutator.create(new_node)
+            editor.create(new_node)
         else:
             old_node = old_tree.nodes_by_id[new_node.id]
             if not new_node.equals_no_cru(old_node):
-                mutator.update(new_node)
+                editor.update(new_node)
     for old_node in old_tree.walk_bfs():
         if old_node.mnt == ModuleNodeType.Module:
             continue
         if old_node.id not in new_tree.nodes_by_id:
-            mutator.delete(old_node)
+            editor.delete(old_node)
     # sort into delete -> create -> update
     edits = [
-        *(m for m in mutator.edits if m.type.kind == MEK.DELETE),
-        *(m for m in mutator.edits if m.type.kind == MEK.CREATE),
-        *(m for m in mutator.edits if m.type.kind == MEK.UPDATE),
+        *(m for m in editor.edits if m.type.kind == MEK.DELETE),
+        *(m for m in editor.edits if m.type.kind == MEK.CREATE),
+        *(m for m in editor.edits if m.type.kind == MEK.UPDATE),
     ]
     return edits
 
@@ -584,9 +584,9 @@ def create_module(module: ModuleTreeData) -> list[Edit]:
     """
     Get the edits needed to create a new module.
     """
-    mutator = ModuleEditor(module)
+    editor = ModuleEditor(module)
     for node in NodeTree(module.nodes).walk_bfs():
         if node.mnt == ModuleNodeType.Module:
             continue  # ignore module itself
-        mutator.create(node)
-    return mutator.edits
+        editor.create(node)
+    return editor.edits
