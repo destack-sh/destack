@@ -10,7 +10,7 @@ import structlog
 from bench.language.const import IssueType, TypeFlag
 from bench.language.field import TypedDict
 from bench.language.model import HasModel
-from bench.language.module import ModuleNode, ScopeNode, node_component, nruntime
+from bench.language.module import Node, ScopeNode, node_component, nruntime
 from bench.language.reference import ModuleView
 from bench.language.typing import check_type, unpack_value
 
@@ -23,7 +23,7 @@ logger = structlog.get_logger(__name__)
 
 
 @node_component
-class HasTask(ModuleNode):
+class HasTask(Node):
     _root_models: list["HasModel"] | None = nruntime(default=None)
     _randomize: bool = nruntime(default=False)
 

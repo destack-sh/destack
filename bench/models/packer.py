@@ -25,7 +25,7 @@ from bench.language.const import (
     RemoteObjectStatus,
     TriggerType,
 )
-from bench.language.edit import MEK, MET, Edit, EditBundle
+from bench.language.edit import MEK, MET, EditBundle, EditData
 from bench.language.module import NodeTree
 from bench.opensearch.index import write_session_to_os
 from bench.utils.dt import utcnow_with_tz
@@ -879,7 +879,7 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 def write_edits(
     project_v: models.ProjectVersion,
     source: NodeTree,
-    mutations: list[Edit],
+    mutations: list[EditData],
     *,
     refresh_index: bool,
     validate: bool,

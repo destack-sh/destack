@@ -15,7 +15,7 @@ from bench.api.auth import has_module_node_access
 from bench.api.type import MET, PMT
 from bench.api.utils import get_client_origin_from_info, get_user_from_info, wrap_exceptions
 from bench.language import Statement
-from bench.language.edit import Edit, EditKind
+from bench.language.edit import EditData, EditKind
 from bench.models import ModuleAccessLevel, ProjectVersion
 from bench.msg.core import publish_soon
 from bench.msg.messages import (
@@ -155,7 +155,7 @@ def publish_tracked_edit(
     things: list[MutableThing],
     batch: bool,
     statement: Optional[Statement] = None,
-) -> tuple[list[Edit], list[Edit]]:
+) -> tuple[list[EditData], list[EditData]]:
     """Publish edits."""
     if type in (MET.PASTE_FILE, MET.PASTE_STATEMENT):
         inputs = [original_input] * len(things)  # not directly unbatchable

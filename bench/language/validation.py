@@ -5,13 +5,13 @@ from typing import TYPE_CHECKING
 import cachetools
 
 if TYPE_CHECKING:
-    from bench.language.module import ModuleNode, NodeProperty
+    from bench.language.module import Node, NodeProperty
 
 
 class ValidationError(ValueError):
     def __init__(
         self,
-        subject: "ModuleNode",
+        subject: "Node",
         properties: list[str] | None,
         message: str,
         cause: Exception | None = None,
@@ -26,7 +26,7 @@ class ValidationError(ValueError):
 class ValidationHandler:
     def __call__(
         self,
-        subject: "ModuleNode",
+        subject: "Node",
         message: str,
         properties: list[str] | None,
         cause: Exception | None = None,
@@ -35,7 +35,7 @@ class ValidationHandler:
 
 
 class PropertyValidationHandler:
-    def __init__(self, subject: "ModuleNode", prop: "NodeProperty", handler: ValidationHandler):
+    def __init__(self, subject: "Node", prop: "NodeProperty", handler: ValidationHandler):
         self.subject = subject
         self.handler = handler
         self.prop = prop
@@ -50,7 +50,7 @@ class PropertyValidationHandler:
 
 
 def on_issue_raise(
-    subject: "ModuleNode",
+    subject: "Node",
     message: str,
     properties: list[str] | None,
     cause: Exception | None = None,

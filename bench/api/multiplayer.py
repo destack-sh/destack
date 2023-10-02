@@ -65,7 +65,7 @@ class ModuleChange(Change):
 
 
 async def unpack_module_edits(
-    edits: list[edit.Edit], project_v: models.ProjectVersion
+    edits: list[edit.EditData], project_v: models.ProjectVersion
 ) -> list[Edit]:
     unpacked_edits = []
     for e in edits:

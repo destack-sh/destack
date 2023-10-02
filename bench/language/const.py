@@ -10,7 +10,7 @@ from bench.utils.func import cyrb53a
 from bench.utils.utils import IdentifierType, to_all_caps, to_pyidentifier
 
 if typing.TYPE_CHECKING:
-    from bench.language import ModuleNode, Statement  # noqa: F401
+    from bench.language import Node, Statement  # noqa: F401
 
 # hard-coded, do not change ever :BenchUuidNamespace
 BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
@@ -119,7 +119,7 @@ ModuleReference = typing.NamedTuple(
 )
 NodePath = NamedTuple("NodePath", [("path", str), ("name", str)])
 StatementReference = typing.Union["Statement", NodePath, UUID]
-NodeReference = typing.Union["ModuleNode", NodePath, UUID]
+NodeReference = typing.Union["Node", NodePath, UUID]
 TypedNodeReference = NamedTuple("TypedNodeReference", [("type", MNT), ("ref", UUID)])
 NODE_REFERENCE_REGEX = re.compile(
     r"^((?P<module_owner>[\w\- ]+)\.(?P<module_name>[\w\- ]+))?\.(?P<path>[\w.\- ]+)"

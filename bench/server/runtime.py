@@ -32,7 +32,7 @@ from bench.language.const import (
     RunStatus,
     parse_absolute_node_reference,
 )
-from bench.language.edit import Edit, ModuleEditor
+from bench.language.edit import EditData, ModuleEditor
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.model import ModelError, ModelErrorType
 from bench.language.module import ModuleChange
@@ -884,7 +884,7 @@ class RuntimeHost:
         if change is None or any(isinstance(n, Trigger) for n in change.touched):
             self._update_local_triggers()
 
-    async def apply_edits(self, edits: list[Edit]) -> None:
+    async def apply_edits(self, edits: list[EditData]) -> None:
         """Apply external edits to the module."""
         start_time = utcnow_with_tz()
         change = self.module._apply_edits(edits)
@@ -894,7 +894,7 @@ class RuntimeHost:
 
     async def write_module(
         self,
-        edits: list[Edit],
+        edits: list[EditData],
         origins: tuple[ClientOrigin] = None,
         refresh_index: bool = False,
     ):

@@ -25,7 +25,7 @@ from bench.language.const import (
     TypeFlag,
     TypeTag,
 )
-from bench.language.module import Module, ModuleNode
+from bench.language.module import Module, Node
 from bench.language.query import Query, Sort, SortOrder
 from bench.language.run import HasRun, LogEntry, Run, RunError
 from bench.language.search import Search
@@ -36,7 +36,7 @@ from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
     from bench.language import HasFields, Trigger
-    from bench.language.edit import MET, Edit, ModuleEditor
+    from bench.language.edit import MET, EditData, ModuleEditor
     from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
@@ -59,7 +59,7 @@ SESSION_EDIT_FLUSH_WATERMARK = 512
 class ModuleWriter(abc.ABC):
     """Base for writing module/session for type-checking."""
 
-    async def write_module(self, edits: list["Edit"], refresh_index: bool) -> bool:
+    async def write_module(self, edits: list["EditData"], refresh_index: bool) -> bool:
         raise NotImplementedError
 
     async def write_session(
@@ -69,7 +69,7 @@ class ModuleWriter(abc.ABC):
 
 
 class NoopModuleWriter(ModuleWriter):
-    async def write_module(self, edits: list["Edit"], refresh_index: bool) -> bool:
+    async def write_module(self, edits: list["EditData"], refresh_index: bool) -> bool:
         return True
 
     async def write_session(
@@ -148,11 +148,11 @@ class Session:
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
 
-    def check_can(self, op: ModuleOp, thing: ModuleNode):
+    def check_can(self, op: ModuleOp, thing: Node):
         if not self.can(op, thing):
             raise RuntimeError(f"cannot {op} {thing} in {self}")
 
-    def can(self, op: ModuleOp, thing: ModuleNode) -> bool:
+    def can(self, op: ModuleOp, thing: Node) -> bool:
         if self.mode == SessionMode.READ_ONLY:
             return op in (ModuleOp.READ, ModuleOp.READ)
         elif self.mode == SessionMode.WRITE:
@@ -182,7 +182,7 @@ class Session:
             if self._editor.edits or self._past_flushes:
                 await self.aflush(optimistic=False, refresh_index=True)
 
-    async def _do_flush(self, edits: list["Edit"], refresh_index: bool) -> bool:
+    async def _do_flush(self, edits: list["EditData"], refresh_index: bool) -> bool:
         """Flush any pending edits to the module."""
         if not edits and not refresh_index:
             return True  # skip if no edits and no index refresh
@@ -260,7 +260,7 @@ class Session:
     def close(self):
         asgiref.sync.async_to_sync(self.aclose)()
 
-    def _on_mutated(self, editor: "ModuleEditor", edit: "Edit"):
+    def _on_mutated(self, editor: "ModuleEditor", edit: "EditData"):
         if len(self._editor.edits) > SESSION_EDIT_FLUSH_WATERMARK:
             self.flush(optimistic=True)
 
@@ -293,16 +293,16 @@ class Tracer(abc.ABC):
 
     # module
 
-    def node_create(self, *nodes: ModuleNode):
+    def node_create(self, *nodes: Node):
         raise NotImplementedError
 
-    def node_update(self, node: ModuleNode, properties: list[str]):
+    def node_update(self, node: Node, properties: list[str]):
         raise NotImplementedError
 
-    def node_delete(self, *node: ModuleNode):
+    def node_delete(self, *node: Node):
         raise NotImplementedError
 
-    def node_truncate(self, node: ModuleNode, mnt: MNT):
+    def node_truncate(self, node: Node, mnt: MNT):
         raise NotImplementedError
 
     # session
@@ -444,16 +444,16 @@ class SessionTracer(Tracer):
     # Edits are actually written to local source in Session._do_flush.
     #
 
-    def node_create(self, *nodes: ModuleNode):
+    def node_create(self, *nodes: Node):
         self.editor.create_many(*nodes, apply=False)
 
-    def node_update(self, node: ModuleNode, properties: list[str]):
+    def node_update(self, node: Node, properties: list[str]):
         self.editor.update(node, properties=properties, apply=False)
 
-    def node_delete(self, *node: ModuleNode):
+    def node_delete(self, *node: Node):
         self.editor.delete_many(*node, apply=False)
 
-    def node_truncate(self, node: ModuleNode, mnt: MNT):
+    def node_truncate(self, node: Node, mnt: MNT):
         self.editor.truncate(node, mnt, apply=False)
 
     #

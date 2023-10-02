@@ -9,7 +9,7 @@ from croniter import croniter
 from bench.language import IssueType
 from bench.language.const import MNT, ScheduleType, TriggerType
 from bench.language.module import (
-    ModuleNode,
+    Node,
     NodeList,
     ScopeNode,
     nchildren,
@@ -33,7 +33,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
 @node(mnt=MNT.Trigger)
-class Trigger(ModuleNode):
+class Trigger(Node):
     """A trigger for a runnable, possibly inside a flow."""
 
     parent: "Statement" = nparent(MNT.Statement)
@@ -47,7 +47,7 @@ class Trigger(ModuleNode):
     interval: Optional[int] = nproperty(default=None)
     cron: Optional[str] = nproperty(default=None)
     runnable: Union["Statement", UUID, None] = nproperty(default=None)
-    scope: Union["ModuleNode", UUID, None] = nproperty(default=None)
+    scope: Union["Node", UUID, None] = nproperty(default=None)
 
     @staticmethod
     def new(
@@ -89,8 +89,8 @@ class Trigger(ModuleNode):
         return f"<Trigger {self}>"
 
     def _clear_inner(self) -> None:
-        self.runnable = self.runnable.id if isinstance(self.runnable, ModuleNode) else self.runnable
-        self.scope = self.scope.id if isinstance(self.scope, ModuleNode) else self.scope
+        self.runnable = self.runnable.id if isinstance(self.runnable, Node) else self.runnable
+        self.scope = self.scope.id if isinstance(self.scope, Node) else self.scope
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
         # resolve runnable
@@ -101,7 +101,7 @@ class Trigger(ModuleNode):
             else:
                 self.runnable = resolved
         # resolve scope
-        if self.scope is not None and not isinstance(self.scope, ModuleNode):
+        if self.scope is not None and not isinstance(self.scope, Node):
             resolved = scope.lookup(self.scope)
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
@@ -124,7 +124,7 @@ class Trigger(ModuleNode):
 
 
 @node_component
-class HasTriggers(ModuleNode):
+class HasTriggers(Node):
     """A symbol that can participate in a flow."""
 
     triggers: NodeList[Trigger] = nchildren(MNT.Trigger)

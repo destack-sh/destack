@@ -6,13 +6,16 @@ Maybe a better move would be to make the payload partially opaque and keep this 
 import enum
 from dataclasses import dataclass
 from functools import cached_property
-from typing import Any, Iterator, Optional, Union
+from typing import TYPE_CHECKING, Any, Iterator, Optional, Union
 from uuid import UUID
 
 from bench.language.const import ModuleNodeType
-from bench.language.module import ModuleNode, NodeTree
+from bench.language.module import Module, Node, NodeTree
 from bench.language.wire import ModuleTreeData, NodeData
 from bench.utils.serialize import from_dict
+
+if TYPE_CHECKING:
+    from bench.language import File, Statement
 
 
 class EditType(enum.StrEnum):
@@ -123,7 +126,7 @@ class EditKind(enum.StrEnum):
     BUMP = "BUMP"
 
 
-# Basic CUD edits with full (flat) data for the model
+# Basic CUD edits with full (flat) data for the node
 SIMPLE_EDITS = {
     # File
     EditType.BUMP_FILE,
@@ -239,8 +242,43 @@ _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
 assert set(MET) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
 
 
-@dataclass(repr=False, slots=True)
+@dataclass
 class Edit:
+    """An edit to a module/node."""
+
+    type: MET
+    module: "Module"
+    node: "Node"  # the node that was edited
+    revision: Optional[int] = None  # server revision of node after edit is accepted
+    file: Optional["File"] = None  # ancestor file before edit
+    statement: Optional["Statement"] = None  # ancestor statement before edit
+    new_properties: dict[str, Any] | None = None
+    old_properties: dict[str, Any] | None = None
+
+    def undo(self):
+        raise NotImplementedError
+
+    def redo(self):
+        raise NotImplementedError
+
+    @property
+    def kind(self) -> EditKind:
+        """The kind of edit (create, update, delete, truncate, bump)."""
+        return self.type.kind
+
+    @property
+    def scope(self) -> ModuleNodeType:
+        """The type of node that was edited. Usually the same as mnt except for truncate."""
+        return self.node.mnt
+
+    @property
+    def mnt(self) -> ModuleNodeType:
+        """The type of node that was edited."""
+        return self.type.mnt
+
+
+@dataclass
+class EditData:
     type: MET
     project_version_id: UUID
     file_id: Optional[UUID] = None
@@ -284,9 +322,12 @@ class Edit:
         self._data = value
 
     @property
+    def kind(self) -> EditKind:
+        return self.type.kind
+
+    @property
     def scope(self) -> ModuleNodeType:
-        if self._data__mnt is None:
-            raise ValueError(f"mnt is not set on {self}")
+        assert self._data__mnt is not None, f"mnt is not set on {self!r}"
         return self._data__mnt
 
     @property
@@ -302,7 +343,7 @@ class Edit:
         return f"<Edit {self}>"
 
 
-def pack_node_flat_if_needed(node: Union[ModuleNode, "NodeData"]) -> "NodeData":
+def pack_node_flat_if_needed(node: Union[Node, "NodeData"]) -> "NodeData":
     from bench.language import wire
 
     if isinstance(node, wire.NodeData):
@@ -368,7 +409,7 @@ class ModuleEditor:
                 file_id = self.tree.get_ancestor(node.parent_id, MNT.File).id
         if properties and type.kind != MEK.UPDATE:
             raise ValueError(f"properties only supported for update edits: {properties}")
-        edit = Edit(
+        edit = EditData(
             type=type,
             project_version_id=self.module_id,
             revision=node.revision if isinstance(node, wire.HasCrud) else None,
@@ -382,7 +423,7 @@ class ModuleEditor:
             self.apply(edit)
         return self
 
-    def apply(self, edit: Edit, raise_on_error: bool = True):
+    def apply(self, edit: EditData, raise_on_error: bool = True):
         try:
             if edit.type.kind == MEK.CREATE:
                 self.tree.add(edit.data)
@@ -398,26 +439,24 @@ class ModuleEditor:
             if raise_on_error:
                 raise ValueError(f"failed to apply {edit} to {self.tree!r}") from e
 
-    def apply_all(self, edits: list[Edit], raise_on_error: bool = True):
+    def apply_all(self, edits: list[EditData], raise_on_error: bool = True):
         for e in edits:
             self.apply(e, raise_on_error=raise_on_error)
 
     def truncate(
-        self, node: Union["NodeData", ModuleNode], mnt: MNT, apply: bool = True
+        self, node: Union["NodeData", Node], mnt: MNT, apply: bool = True
     ) -> "ModuleEditor":
         node = pack_node_flat_if_needed(node)
         mmt = MET(f"TRUNCATE_{mnt.caps_name}S")
         self._do(mmt, node, apply=apply)
         return self
 
-    def create_many(
-        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleEditor":
+    def create_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
         for obj in nodes:
             self.create(obj, apply=apply)
         return self
 
-    def create(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleEditor":
+    def create(self, node: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -426,15 +465,13 @@ class ModuleEditor:
         self._do(mmt, node, apply=apply)
         return self
 
-    def update_many(
-        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleEditor":
+    def update_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
         for obj in nodes:
             self.update(obj, apply=apply)
         return self
 
     def update(
-        self, node: Union["NodeData", ModuleNode], apply: bool = True, properties: list[str] = None
+        self, node: Union["NodeData", Node], apply: bool = True, properties: list[str] = None
     ) -> "ModuleEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
@@ -446,14 +483,12 @@ class ModuleEditor:
         self._do(mmt, node, apply=apply, properties=properties)
         return self
 
-    def delete_many(
-        self, *nodes: Union["NodeData", ModuleNode], apply: bool = True
-    ) -> "ModuleEditor":
+    def delete_many(self, *nodes: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
         for obj in nodes:
             self.delete(obj, apply=apply)
         return self
 
-    def delete(self, node: Union["NodeData", ModuleNode], apply: bool = True) -> "ModuleEditor":
+    def delete(self, node: Union["NodeData", Node], apply: bool = True) -> "ModuleEditor":
         from bench.language.wire import MNT_BY_DATA_CLASS
 
         node = pack_node_flat_if_needed(node)
@@ -469,7 +504,7 @@ class ModuleEditor:
 class EditBundle:
     """Indexed access to a constant list of edits."""
 
-    def __init__(self, edits: list[Edit]):
+    def __init__(self, edits: list[EditData]):
         self.edits = edits
 
     def __str__(self):
@@ -488,7 +523,7 @@ class EditBundle:
 
     # TODO @Performance: edit compaction & batching can be much smarter
     #  But we may also want to record these in full as events... compact before write only?
-    def compact(self) -> list[Edit]:
+    def compact(self) -> list[EditData]:
         """
         Compact simple edits into fewer semantically identical edits.
 
@@ -503,7 +538,7 @@ class EditBundle:
             raise ValueError(f"cannot collapse complex edits: {self}")
 
         reduced_inverse = []
-        seen_ops: dict[tuple[MET, UUID], Edit] = {}
+        seen_ops: dict[tuple[MET, UUID], EditData] = {}
 
         for edit in reversed(self.edits):
             key = (edit.type, edit.data.id)
@@ -521,7 +556,7 @@ class EditBundle:
 
     def batched_apply(
         self, module: NodeTree, project_id: UUID, module_id: UUID, apply: bool = True
-    ) -> Iterator[tuple[MET, list[Edit]]]:
+    ) -> Iterator[tuple[MET, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance
          AND optionally concurrently apply them to the given module tree.
@@ -529,7 +564,7 @@ class EditBundle:
         """
 
         editor = ModuleEditor(module, project_id, module_id)
-        current_batch: list[Edit] = []
+        current_batch: list[EditData] = []
         current_type: MET | None = None
 
         for edit in self.edits:
@@ -548,7 +583,7 @@ class EditBundle:
 
 def diff_modules(
     old_module: ModuleTreeData, new_module: ModuleTreeData, project_id: UUID
-) -> list[Edit]:
+) -> list[EditData]:
     """
     Get the edits needed to transform old_module into new_module.
     Find nodes by their id (not ck).
@@ -580,7 +615,7 @@ def diff_modules(
     return edits
 
 
-def create_module(module: ModuleTreeData) -> list[Edit]:
+def create_module(module: ModuleTreeData) -> list[EditData]:
     """
     Get the edits needed to create a new module.
     """

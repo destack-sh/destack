@@ -8,7 +8,7 @@ from bench import language as lang
 from bench import models
 from bench.language import wire
 from bench.language.const import INTERP_NODE_TYPES, RUNNABLE_STATEMENT_TYPES, TypeFlag
-from bench.language.edit import MEK, MET, MNT, Edit
+from bench.language.edit import MEK, MET, MNT, EditData
 from bench.language.module import NodeTree
 from bench.language.run import HasRun
 from bench.opensearch import mirror
@@ -164,7 +164,7 @@ def get_index_for_mnt(mnt: MNT, project_id: UUID) -> str:
 
 
 def write_edits_to_os(
-    project_v: models.ProjectVersion, edit: list[Edit], *, refresh: bool = False
+    project_v: models.ProjectVersion, edit: list[EditData], *, refresh: bool = False
 ) -> None:
     """
     Writes/mirrors any relevant edit to OpenSearch.
