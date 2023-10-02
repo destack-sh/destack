@@ -116,7 +116,7 @@ defineExpose({
       <span
         v-for="log in logsSorted"
         :key="log.id"
-        class="scroll-hidden -mx-0.5 w-full select-text overflow-y-scroll rounded-sm p-0.5 font-mono focus:outline-none"
+        class="scroll-hidden -mx-0.5 w-full select-text overflow-y-scroll whitespace-pre-wrap rounded-sm p-0.5 font-mono focus:outline-none"
         :class="[
           highlight && isHighlighted(log) ? 'bg-yellow-100' : '',
           lowlight && !isHighlighted(log) ? 'opacity-50' : '',
@@ -126,7 +126,7 @@ defineExpose({
         ]"
         @click="() => toggleExpanded(log)"
       >
-        <span v-if="showTimestamp" class="mr-2 select-all text-gray-400">
+        <span v-if="showTimestamp" class="mr-2 select-none text-gray-400">
           {{ DateTime.fromISO(log.createdAt).toFormat("HH:mm:ss.SSS") }}
         </span>
         <span :class="log.stream == 'stderr' ? 'text-red-600' : 'text-gray-900'">{{ log.message }}</span>

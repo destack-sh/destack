@@ -43,6 +43,7 @@ from bench.language.validation import (
     validate_name,
 )
 from bench.language.value import HasValue
+from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -275,40 +276,56 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     @staticmethod
     def new(
         name: str = None,
-        some_type: Union[TypeTag, TypeHint, "Statement", type] = None,
+        type: Union[TypeTag, TypeHint, "Statement", type] = None,
+        text: str = None,
         *args,
         for_parent: "Statement" = None,
         **kwargs,
     ) -> "Field":
         # default to literal or string if no type is specified
-        if some_type is None:
+        if type is None:
             if for_parent.tag == TypeTag.ENUM:
-                some_type = TypeTag.LITERAL
+                type = TypeTag.LITERAL
                 if name is None:
                     name = f"Option {len(for_parent.fields) + 1}"
             else:
-                some_type = TypeTag.STRING
+                type = TypeTag.STRING
 
-        if isinstance(some_type, TypeTag):
-            kwargs["tag"] = some_type
-        elif isinstance(some_type, TypeHint):
-            kwargs["hint"] = some_type
-            kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[some_type]
-        elif some_type == str:
+        if isinstance(type, TypeTag):
+            kwargs["tag"] = type
+        elif isinstance(type, TypeHint):
+            kwargs["hint"] = type
+            kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[type]
+        elif type == str:
             kwargs["tag"] = TypeTag.STRING
-        elif some_type == int:
+        elif type == int:
             kwargs["tag"] = TypeTag.NUMBER
             kwargs["hint"] = TypeHint.INTEGER
-        elif some_type == float:
+        elif type == float:
             kwargs["tag"] = TypeTag.NUMBER
-        elif some_type == bool:
+        elif type == bool:
             kwargs["tag"] = TypeTag.BOOLEAN
-        elif isinstance(some_type, Node) and some_type.mnt == MNT.Statement:
+        elif isinstance(type, Node) and type.mnt == MNT.Statement or isinstance(type, str):
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
-            kwargs["reference"] = some_type
+            kwargs["reference"] = type
         else:
-            raise ValueError(f"unexpected type {some_type!r}")
-        return Field(name=name, *args, **kwargs)
+            raise ValueError(f"unexpected type {type!r}")
+        return Field(name=name, text=text, *args, **kwargs)
+
+    @staticmethod
+    def to_python(
+        node: "Field", props: dict, for_parent: "Statement" = None
+    ) -> tuple[str, dict, dict]:
+        props = {**props}
+        if node.flags == 0:
+            del props["flags"]
+        type = node.reference or node.hint or node.tag
+        if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:
+            init_args = {"name": node.name, "text": node.text}
+        else:
+            init_args = {"name": node.name, "type": type, "text": node.text}
+        init_kwargs = dict_minus(props, "name", "text", "tag", "hint", "reference")
+        return Field.__name__, init_args, init_kwargs
 
     def __str__(self):
         name_str = f"{self.py_ident} '{self.name}' " if self.name else ""

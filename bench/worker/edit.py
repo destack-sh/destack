@@ -102,7 +102,7 @@ def map_edit_from_api(
         stripped_internal_edits = [
             e
             for e in internal.edits
-            if not isinstance(packed.nodes_by_id[e.data.id], INTERP_MODEL_TYPES)
+            if not isinstance(packed.nodes_by_id[e.node.id], INTERP_MODEL_TYPES)
         ]
         return stripped_internal_edits, api_edits
     else:
@@ -115,9 +115,9 @@ def map_edit_from_api(
             thing=thing,
         )
         if isinstance(thing, mirror.Document):  # os indexed Document
-            internal_edit.data = mirror.pack_node_flat(thing)
+            internal_edit.node = mirror.pack_node_flat(thing)
         else:
-            internal_edit.data = packer.pack_node_flat(thing)
+            internal_edit.node = packer.pack_node_flat(thing)
         return [internal_edit], [api_edit]
 
 
@@ -143,8 +143,8 @@ def get_api_edit_from_internal(edit: EditData) -> list[EditData]:
         revision=edit.revision,
         input=input,
     )
-    if input is None and edit.data is not None:
-        api_edit.data = edit.data
+    if input is None and edit.node is not None:
+        api_edit.node = edit.node
     return [api_edit]
 
 
@@ -182,7 +182,7 @@ def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:
         elif field.name in extra_fields:
             value = extra_fields[field.name]
         else:
-            value = getattr(edit.data, field.name, field.default)
+            value = getattr(edit.node, field.name, field.default)
             if field.name != "ck" and isinstance(value, UUID):
                 value = _map_id_field(field.name, value, edit)
         input_args[field.name] = value

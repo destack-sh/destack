@@ -900,7 +900,7 @@ def write_edits(
         if mmt.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MET.TRUNCATE_RECORDS:
-                statement_keys = [typing.cast(wire.StatementData, e.data).key for e in batch]
+                statement_keys = [typing.cast(wire.StatementData, e.node).key for e in batch]
                 models.Record.objects.filter(statement_key__in=statement_keys).delete()
             else:
                 # this is a bit unwieldy...
@@ -922,7 +922,7 @@ def write_edits(
         elif mmt.kind in (MEK.CREATE, MEK.UPDATE):
             # create or update nodes in place
             # (first assemble ancestor models - no queries, just unpacking)
-            nodes = unpack_nodes(project_v, source, [e.data for e in batch])
+            nodes = unpack_nodes(project_v, source, [e.node for e in batch])
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             if mmt.kind == MEK.CREATE:
                 model_cls.objects.bulk_create(nodes)
@@ -952,7 +952,7 @@ def write_edits(
                 e.thing = node  # keep node model for downstream indexing in opensearch
         elif mmt.kind == MEK.DELETE:
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
-            model_cls.objects.filter(id__in=[e.data.id for e in batch]).delete()
+            model_cls.objects.filter(id__in=[e.node.id for e in batch]).delete()
 
     write_edits_to_os(project_v, mut.edits, refresh=refresh_index)
 

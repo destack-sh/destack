@@ -59,19 +59,15 @@ class Trigger(Node):
             return Trigger(type=type, *args, **kwargs)
 
     @staticmethod
-    def time(cron_or_interval: str | int) -> "Trigger":
-        if isinstance(cron_or_interval, str):
+    def time(schedule: str | int) -> "Trigger":
+        if isinstance(schedule, str):
+            return Trigger(type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=schedule)
+        elif isinstance(schedule, int):
             return Trigger(
-                type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=cron_or_interval
-            )
-        elif isinstance(cron_or_interval, int):
-            return Trigger(
-                type=TriggerType.TIME,
-                schedule_type=ScheduleType.INTERVAL,
-                interval=cron_or_interval,
+                type=TriggerType.TIME, schedule_type=ScheduleType.INTERVAL, interval=schedule
             )
         else:
-            raise ValueError(f"invalid schedule: {cron_or_interval}")
+            raise ValueError(f"invalid schedule: {schedule}")
 
     def __str__(self):
         if self.type == TriggerType.TIME:

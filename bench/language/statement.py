@@ -36,6 +36,7 @@ from bench.language.text import HasText
 from bench.language.trigger import HasTriggers
 from bench.language.validation import enum_validator, flag_validator, validate_name
 from bench.language.value import HasValue
+from bench.utils.func import dict_minus
 from bench.utils.utils import IdentifierType, identity, to_pyidentifier
 
 if TYPE_CHECKING:
@@ -135,6 +136,16 @@ class Statement(ScopeNode, HasTags):
         if proxy.flags:
             kwargs["flags"] = proxy.flags
         return Statement(type=type, name=name, *args, **kwargs)
+
+    @staticmethod
+    def to_python(
+        node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
+    ) -> tuple[str, dict, dict]:
+        if node.type == StatementType.TYPE:
+            init_name = "Choice" if node.tag == TypeTag.ENUM else "Class"
+        else:
+            init_name = node.type.camel_name
+        return init_name, {"name": node.name}, dict_minus(props, "name", "type", "tag", "flags")
 
     @property
     def _components(self) -> tuple[typing.Type[Node]]:
