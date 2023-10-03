@@ -356,6 +356,7 @@ class ModuleEditor:
     """
     Create any apply edits to a module.
     TODO @Cleanup: split module mutator into edit creation and application
+     also @Performance: pre-filter edits to track (e.g. to exclude interp edits in worker)
     """
 
     def __init__(
@@ -776,7 +777,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if node.mnt == MNT.Record:
+                if node.mnt in (MNT.Record, MNT.Tagging, MNT.Trigger):
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -815,7 +816,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
             args_str = _sep(_render_prop(n, k, v) for k, v in init_args.items() if v)
             kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             if op == "create" and len(nodes) == 1:
-                nodes_strs.append(f"({_sep(args_str, kwargs_str)})")
+                nodes_strs.append(f"{_sep(args_str, kwargs_str)}")
             elif op == "create":
                 nodes_strs.append(f"dict({kwargs_str})")
             elif op == "append":

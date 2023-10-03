@@ -20,6 +20,7 @@ from bench.language.module import (
 )
 from bench.language.run import HasRun
 from bench.language.validation import ValidationHandler, enum_validator
+from bench.utils.func import dict_minus
 
 if TYPE_CHECKING:
     from bench.language.statement import Statement
@@ -68,6 +69,19 @@ class Trigger(Node):
             )
         else:
             raise ValueError(f"invalid schedule: {schedule}")
+
+    @staticmethod
+    def to_python(
+        node: "Trigger", props: dict, for_parent: "Statement" = None
+    ) -> tuple[str, dict, dict]:
+        if node.type == TriggerType.TIME:
+            return (
+                "Trigger.time",
+                {"schedule": node.cron or node.interval},
+                dict_minus(props, "type", "cron", "interval"),
+            )
+        else:
+            raise ValueError(f"unexpected trigger type: {node!r}")
 
     def __str__(self):
         if self.type == TriggerType.TIME:

@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 import asgiref.sync
 import structlog
 
-from bench.language.builtin import active_session
+from bench.language.builtin import _active_session
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
@@ -165,9 +165,9 @@ class Session:
         if self.opened_at is not None:
             raise RuntimeError(f"session already opened {self}")
         self.opened_at = utcnow_with_tz()
-        if active_session.get() is not None:
-            raise RuntimeError(f"another session is active: {active_session.get()}")
-        active_session.set(self)
+        if _active_session.get() is not None:
+            raise RuntimeError(f"another session is active: {_active_session.get()}")
+        _active_session.set(self)
         await self.tracer.open()
         logger.debug("session.open", session=self)
 
@@ -211,10 +211,9 @@ class Session:
         Flushes all module edits.
         If optimistic, this will return before the flush is complete (but will wait on close).
         """
-        if not self._editor.edits and not refresh_index:
+        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]
+        if not edits and not refresh_index:
             return  # skip if no edits and no index refresh
-        if self.mode == SessionMode.READ_ONLY:
-            raise RuntimeError(f"cannot mutate read-only session {self}")
         assert not self._failed_flush, f"session {self!r} is broken after failed flush"
 
         from bench.language.edit import EditBundle
@@ -226,7 +225,6 @@ class Session:
             optimistic=optimistic,
             refresh_index=refresh_index,
         )
-        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]
         edits = EditBundle(edits).compact()
         self._editor.reset()
         flush = self._do_flush(edits, refresh_index)
@@ -253,7 +251,7 @@ class Session:
         pending_edits_count = sum(count for count, _ in self._pending_flushes)
         logger.debug("session.close.pending", session=self, pending_edits_count=pending_edits_count)
         await asyncio.gather(*(task for _, task in self._pending_flushes))
-        active_session.set(None)
+        _active_session.set(None)
         await self.tracer.close()
         logger.debug("session.close", session=self)
 

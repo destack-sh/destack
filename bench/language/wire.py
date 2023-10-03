@@ -337,6 +337,7 @@ class ModulePacker(NodePacker[ModuleData, Module]):
             updated_at=module.updated_at,
             last_edited_at=module.last_edited_at,
             last_changed_at=module.last_changed_at,
+            _status=NodeStatus.Source,
         )
 
 
@@ -381,6 +382,7 @@ class FilePacker(NodePacker[FileData, File]):
             last_edited_at=file.last_edited_at,
             last_changed_at=file.last_changed_at,
             _session=session,
+            _status=NodeStatus.Source,
         )
 
 
@@ -469,6 +471,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
             updated_at=statement.updated_at,
             last_edited_at=statement.last_edited_at,
             last_changed_at=statement.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
@@ -547,6 +550,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             updated_at=field.updated_at,
             last_edited_at=field.last_edited_at,
             last_changed_at=field.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
@@ -618,6 +622,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             updated_at=trigger.updated_at,
             last_edited_at=trigger.last_edited_at,
             last_changed_at=trigger.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
@@ -677,6 +682,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             updated_at=tagging.updated_at,
             last_edited_at=tagging.last_edited_at,
             last_changed_at=tagging.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
@@ -732,6 +738,7 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
             updated_at=view.updated_at,
             last_edited_at=view.last_edited_at,
             last_changed_at=view.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
@@ -782,6 +789,7 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             updated_at=record.updated_at,
             last_edited_at=record.last_edited_at,
             last_changed_at=record.last_changed_at,
+            _status=NodeStatus.Source,
             _session=session,
         )
 
