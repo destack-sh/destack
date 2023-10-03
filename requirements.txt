@@ -252,7 +252,7 @@ monotonic==1.6
     # via posthog
 more-itertools==9.0.0
     # via -r requirements.in
-msgpack==1.0.5
+msgpack==1.0.7
     # via -r requirements.in
 multidict==6.0.4
     # via
@@ -265,7 +265,7 @@ mypy-extensions==1.0.0
     # via
     #   mypy
     #   typing-inspect
-nats-py==2.2.0
+nats-py==2.4.0
     # via -r requirements.in
 numpy==1.25.2
     # via -r requirements.in
@@ -274,9 +274,9 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
     #   social-auth-core
-openai==0.28.0
+openai==0.28.1
     # via -r requirements.in
-opensearch-py[async]==2.2.0
+opensearch-py[async]==2.3.1
     # via -r requirements.in
 opentelemetry-api==1.19.0
     # via
@@ -292,7 +292,7 @@ packaging==23.1
     #   marshmallow
 pillow==9.4.0
     # via -r requirements.in
-posthog==3.0.1
+posthog==3.0.2
     # via -r requirements.in
 prometheus-client==0.17.1
     # via django-prometheus
@@ -378,7 +378,7 @@ rsa==4.9
     # via google-auth
 s3transfer==0.6.2
     # via boto3
-sentry-sdk[django]==1.18.0
+sentry-sdk[django]==1.31.0
     # via -r requirements.in
 service-identity==23.1.0
     # via twisted
