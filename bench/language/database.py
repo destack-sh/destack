@@ -295,27 +295,28 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def append(self, record: Record, _create: bool = True, _trigger: bool = True) -> None:
-        record.parent = self._parent
-        if record.id is None:
-            record._assign_id(self._parent.module.id)
+    def append(self, node: Record, _create: bool = True, _trigger: bool = True) -> None:
+        node.parent = self._parent
+        if node.id is None:
+            node._assign_id(self._parent.module.id)
         # activate in session
-        if self._parent._status == NS.Tracked and record._status != NS.Tracked:
-            record._activate_self(self._parent.session)
+        if self._parent._status == NS.Tracked and node._status != NS.Tracked:
+            node._activate_self(self._parent.session)
         # create in session
         if _create and self._parent.session:
-            self._parent.session.tracer.node_create(record)
+            self._parent.session.tracer.node_create(node)
 
-    def extend(self, *records: Record, _create: bool = True, _trigger: bool = True) -> None:
-        records = flatten_list(records)
-        for record in records:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: bool = True) -> None:
+        nodes = flatten_list(nodes)
+        for record in nodes:
             self.append(record, _create=False, _trigger=False)
         if _create and self._parent.session:
-            self._parent.session.tracer.node_create(*records)
+            self._parent.session.tracer.node_create(*nodes)
 
-    def remove(self, record: Record, _delete: bool = True, _trigger: bool = True) -> None:
+    def remove(self, node: Record, _delete: bool = True, _trigger: bool = True) -> None:
         if _delete and self._parent.session:
-            self._parent.session.tracer.node_delete(self, record)
+            self._parent.session.tracer.node_delete(self, node)
+        node.parent = None
 
     def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
         if _delete and self._parent.session:

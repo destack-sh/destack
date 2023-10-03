@@ -15,6 +15,7 @@ import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useTags } from "@/state/statement";
 import { useElementRefs } from "@/composables/useGrid";
 import type { StatementAction } from "@/state/bench";
+import { IS_DEBUG } from "@/utils/globals";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly">>();
 const emit = defineEmits<StatementEmit>();
@@ -115,7 +116,9 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <TagIconSolid class="mt-0.5 h-4 w-4" />
-      <span class="text-orange-00 ml-0.5">{{ module.tagsByKey.value[tagging.key]?.name }}</span>
+      <span class="text-orange-00 ml-0.5">
+        {{ module.tagsByKey.value[tagging.key]?.name ?? (IS_DEBUG ? tagging.key : "???") }}
+      </span>
     </button>
     <!-- Prevent scroll and capture click outside -->
     <div v-if="addingTag" class="fixed left-0 top-0 z-40 h-full w-full overscroll-none" @click.stop="close()" />

@@ -762,9 +762,10 @@ class NodeList(NodeListBase[NodeT]):
         if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
+        _node.parent = None
 
         if _trigger:
-            self._parent._trigger_update([_node])
+            self._parent._trigger_update([self._parent, _node])
 
     def clear(self, _delete: bool = True, _trigger: bool = True):
         if self._nodes:
@@ -1523,10 +1524,13 @@ class Node(abc.ABC):
     )
 
     def _reinterp_self(self, scope: "ScopeNode") -> None:
-        """Reinterpret this node."""
+        """Reinterpret this node. If the node was active in a session"""
+        session, prev_status = self._session, self._status
         self._clear_self()
         self._index_self(_coerce=False)
         self._interp_self(scope, _coerce=False)
+        if session and prev_status == NS.Tracked:
+            self._activate_self(session)
 
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)

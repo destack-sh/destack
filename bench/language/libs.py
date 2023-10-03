@@ -70,7 +70,7 @@ class Randomize:
     pass
 
 
-@x_tag("mend", "Attempt to auto-heal on error", file=_symbolx_builtins)
+@x_tag("mend", "Attempt to auto-correct on error", file=_symbolx_builtins)
 class Mend:
     pass
 
