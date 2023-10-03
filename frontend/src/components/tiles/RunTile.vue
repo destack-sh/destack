@@ -96,7 +96,7 @@ defineExpose({
         :project-version-id="(projectVersionId as string)"
         :session-id="run.session?.id"
         :focus="{
-          runnableCks: run.runnableCk != null ? [run.runnableCk] : undefined,
+          statementCks: run.statementCk != null ? [run.statementCk] : undefined,
         }"
         lowlight
         live
@@ -104,7 +104,7 @@ defineExpose({
       />
       <ErrorTraceback
         v-else-if="activeView == 'error' && run.errorNice != null"
-        :runnable-ck="run.runnableCk"
+        :statement-ck="run.statementCk"
         :error-nice="run.errorNice"
       />
     </div>

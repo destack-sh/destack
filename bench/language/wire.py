@@ -586,14 +586,14 @@ class TriggerData(NodeData, HasCrud):
     timezone: Optional[str]
     interval: Optional[int]
     cron: Optional[str]
-    runnable_ck: Optional[UUID]
+    statement_ck: Optional[UUID]
     scope_ck: Optional[UUID]
 
 
 @node_packer(MNT.Trigger, TriggerData, lang.Trigger)
 class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
-    REMAP: ClassVar[dict[str, str]] = {"runnable": "runnable_ck", "scope": "scope_ck"}
+    REMAP: ClassVar[dict[str, str]] = {"statement": "statement_ck", "scope": "scope_ck"}
 
     def pack(self, trigger: lang.Trigger) -> "TriggerData":
         return TriggerData(
@@ -607,7 +607,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable_ck=trigger.runnable.ck if trigger.runnable else None,
+            statement_ck=trigger.statement.ck if trigger.statement else None,
             scope_ck=trigger.scope.ck if trigger.scope else None,
             revision=trigger.revision,
             created_at=trigger.created_at,
@@ -630,7 +630,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable=trigger.runnable_ck,
+            statement=trigger.statement_ck,
             scope=trigger.scope_ck,
             revision=trigger.revision,
             created_at=trigger.created_at,
@@ -644,7 +644,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
     def patch(
         self, node: TriggerData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
     ) -> None:
-        node.runnable_ck = target_cks.get(node.runnable_ck, node.runnable_ck)
+        node.statement_ck = target_cks.get(node.statement_ck, node.statement_ck)
         node.scope_ck = target_cks.get(node.scope_ck, node.scope_ck)
 
 
@@ -996,7 +996,7 @@ class RunErrorData:
     kind: RunErrorKind
     type: str
     message: Optional[str]
-    runnable_id: Optional[UUID]
+    statement_id: Optional[UUID]
     traceback: list[RunCodeFrame]
 
     @staticmethod
@@ -1005,7 +1005,7 @@ class RunErrorData:
             kind=RunErrorKind(data["kind"]),
             type=data["type"],
             message=data["message"],
-            runnable_id=data["runnable_id"],
+            statement_id=data["statement_id"],
             traceback=[RunCodeFrame.from_dict(frame) for frame in data["traceback"]],
         )
 
@@ -1014,7 +1014,7 @@ class RunErrorData:
             "kind": self.kind.value,
             "type": self.type,
             "message": self.message,
-            "runnable_id": str(self.runnable_id),
+            "statement_id": str(self.statement_id),
             "traceback": [dataclasses.asdict(frame) for frame in self.traceback or []],
         }
 
@@ -1026,9 +1026,10 @@ class RunData:
     worker_process_id: Optional[str]
     project_id: UUID
     module_id: UUID
-    runnable_id: UUID
-    runnable_ck: UUID
-    runnable_type: StatementType
+    statement_id: Optional[UUID]
+    statement_ck: Optional[UUID]
+    statement_type: StatementType
+    statement_path: Optional[str]
     session_id: Optional[UUID]
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
@@ -1054,7 +1055,7 @@ class RunPacker(DataPacker[RunData, Run]):
                 kind=run.error.kind,
                 type=run.error.type,
                 message=run.error.message,
-                runnable_id=run.runnable.id,
+                statement_id=run.statement.id,
                 traceback=run.error.traceback,
             )
         else:
@@ -1072,9 +1073,10 @@ class RunPacker(DataPacker[RunData, Run]):
             module_id=run.session.module.id,
             worker_node_id=run.session.ctx.worker_node_id,
             worker_process_id=run.session.ctx.worker_process_id,
-            runnable_id=run.runnable.id,
-            runnable_ck=run.runnable.ck,
-            runnable_type=run.runnable.type,
+            statement_id=run.statement.id,
+            statement_ck=run.statement.ck,
+            statement_type=run.statement.type,
+            statement_path=run.statement_path,
             session_id=run.session.id,
             trigger_id=trigger_id,
             trigger_type=run.trigger_type if run.trigger_type else None,
@@ -1094,8 +1096,8 @@ class RunPacker(DataPacker[RunData, Run]):
 
     def unpack(self, data: RunData, module: Module) -> Run:
         # we leave relational references that aren't in the module as None?
-        runnable = module._nodes_by_ck.get(data.runnable_ck) or MissingStatement(
-            data.runnable_id, data.runnable_type
+        statement = module._nodes_by_ck.get(data.statement_ck) or MissingStatement(
+            data.statement_id, data.statement_type
         )
         if data.error:
             error = RunError(
@@ -1103,7 +1105,7 @@ class RunPacker(DataPacker[RunData, Run]):
                 type=data.error.type,
                 message=data.error.message,
                 traceback=data.error.traceback,
-                runnable=runnable,
+                statement=statement,
             )
         else:
             error = None
@@ -1113,7 +1115,8 @@ class RunPacker(DataPacker[RunData, Run]):
             session=None,
             root=LazyRun(data.root_id) if data.root_id else None,
             parent=LazyRun(data.parent_id) if data.parent_id else None,
-            runnable=runnable,
+            statement=statement,
+            statement_path=data.statement_path,
             trigger=data.trigger_id,
             trigger_type=data.trigger_type,
             created_at=data.created_at,
@@ -1138,8 +1141,8 @@ class LogEntryData:
     logger: Optional[str]
     message: Optional[str]
     session_id: Optional[UUID]
-    runnable_id: Optional[UUID]
-    runnable_ck: Optional[UUID]
+    statement_id: Optional[UUID]
+    statement_ck: Optional[UUID]
     run_id: Optional[UUID]
     value: Optional[dict[str, Any]]
 
@@ -1156,14 +1159,14 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             logger=object.logger,
             message=object.message,
             session_id=object.session.id,
-            runnable_id=object.runnable.id if object.runnable else None,
-            runnable_ck=object.runnable.ck if object.runnable else None,
+            statement_id=object.statement.id if object.statement else None,
+            statement_ck=object.statement.ck if object.statement else None,
             run_id=object.run.id if object.run else None,
             value=object.value,
         )
 
     def unpack(self, data: LogEntryData, module: Module) -> lang.LogEntry:
-        runnable = module._tree.get(data.runnable_ck) or MissingStatement(data.runnable_id)
+        statement = module._tree.get(data.statement_ck) or MissingStatement(data.statement_id)
         run = LazyRun(data.run_id) if data.run_id else None
         return lang.LogEntry(
             id=data.id,
@@ -1174,7 +1177,7 @@ class LogEntryPacker(DataPacker[LogEntryData, lang.LogEntry]):
             level=data.level,
             logger=data.logger,
             message=data.message,
-            runnable=runnable,
+            statement=statement,
             run=run,
             value=data.value,
         )

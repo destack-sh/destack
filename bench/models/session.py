@@ -82,9 +82,10 @@ class Run(UUIDTModel, HasTriggeredBy):
     started_at = models.DateTimeField(null=True, blank=True)
     terminated_at = models.DateTimeField(null=True, blank=True)
 
-    runnable = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
-    runnable_type = models.CharField(max_length=64, null=True, blank=True)
-    runnable_ck = models.UUIDField(null=True, blank=True)
+    statement = models.ForeignKey("Statement", null=True, blank=True, on_delete=models.SET_NULL)
+    statement_type = models.CharField(max_length=64, null=True, blank=True)
+    statement_path = models.CharField(max_length=256, null=True, blank=True)
+    statement_ck = models.UUIDField(null=True, blank=True)
     inputs = models.JSONField(null=True, blank=True)
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
@@ -121,10 +122,10 @@ class Run(UUIDTModel, HasTriggeredBy):
         indexes = [
             models.Index(fields=["started_at"], name="run_started_at_idx"),
             models.Index(fields=["updated_at"], name="run_updated_at_idx"),
-            models.Index(fields=["runnable_id"], name="run_runnable_id_idx"),
+            models.Index(fields=["statement_id"], name="run_statement_id_idx"),
             models.Index(fields=["worker_node_id"], name="run_worker_node_idx"),
             models.Index(
-                fields=["runnable_id", "project_version_id"], name="run_runnable_id_scoped_idx"
+                fields=["statement_id", "project_version_id"], name="run_statement_id_scoped_idx"
             ),
         ]
 

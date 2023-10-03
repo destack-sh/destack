@@ -18,8 +18,8 @@ const props = defineProps<{
   projectId: string;
   projectVersionId?: string;
   rootOnly?: boolean;
-  runnableIds?: string[];
-  runnableCks?: string[];
+  statementIds?: string[];
+  statementCks?: string[];
   query?: SearchQuery;
   sort?: [SearchSort];
   live?: boolean;
@@ -43,8 +43,8 @@ const { runs, loading, totalCount, pageInfo } = useRuns(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
-    runnableIds: toRef(props, "runnableIds"),
-    runnableCks: toRef(props, "runnableCks"),
+    statementIds: toRef(props, "statementIds"),
+    statementCks: toRef(props, "statementCks"),
     sessionId: ref(null),
     runId: ref(null),
     rootOnly: toRef(props, "rootOnly"),
@@ -59,10 +59,10 @@ const statementsByCk: Ref<Record<string, InterpStatement | null>> = computed(() 
   const statementsByCk: Record<string, InterpStatement | null> = {};
 
   for (const run of runs.value ?? []) {
-    if (statementsByCk[run.runnableCk] != null) continue;
-    const statement = module.statementOf(run.runnableCk);
+    if (statementsByCk[run.statementCk] != null) continue;
+    const statement = module.statementOf(run.statementCk);
     if (statement != null) {
-      statementsByCk[run.runnableCk] = statement;
+      statementsByCk[run.statementCk] = statement;
     }
   }
 
@@ -105,15 +105,15 @@ defineExpose({ runs, loading, totalCount, pageInfo });
         <!-- Statement -->
         <td class="whitespace-nowrap px-2.5 py-1.5">
           <button
-            v-if="statementsByCk[run.runnableCk] != null"
+            v-if="statementsByCk[run.statementCk] != null"
             class="flex flex-row items-center underline-offset-2 hover:underline"
-            @click="nav.focusStatement(run.runnable as NodeBase)"
+            @click="nav.focusStatement(run.statement as NodeBase)"
           >
             <component
-              :is="getStatementIconSolid((statementsByCk[run.runnableCk] as InterpStatement).type)"
+              :is="getStatementIconSolid((statementsByCk[run.statementCk] as InterpStatement).type)"
               class="mr-1 h-4 w-4 text-gray-400"
             />
-            <span>{{ (statementsByCk[run.runnableCk] as InterpStatement).name }}</span>
+            <span>{{ (statementsByCk[run.statementCk] as InterpStatement).name }}</span>
           </button>
           <span v-else class="text-gray-400">(deleted)</span>
         </td>

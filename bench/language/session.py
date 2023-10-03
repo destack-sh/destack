@@ -333,10 +333,10 @@ class LogCollector:
     def _track(self, message: str) -> None:
         active_run = _get_active_run()
         if active_run:
-            runnable = active_run.runnable
+            statement = active_run.statement
             run = active_run
         else:
-            runnable = None
+            statement = None
             run = None
         log_entry = LogEntry(
             id=UUIDT(),
@@ -344,7 +344,7 @@ class LogCollector:
             created_at=utcnow_with_tz(),
             stream=self.stream,
             session=self.session,
-            runnable=runnable,
+            statement=statement,
             run=run,
             message=message,
         )
@@ -450,7 +450,7 @@ class SessionTracer:
         # we set invalid values to none here unlike in other packing places because
         #  these values may be written even if invalid
         run = self._create_run(
-            runnable=statement,
+            statement=statement,
             inputs=pack_value(inputs, statement, is_output=False, none_if_invalid=True),
             _is_async=is_async,
         )
@@ -488,7 +488,7 @@ class SessionTracer:
 
     def run_exception(self, statement: "Statement", exception: BaseException):
         run = self.pop_stacktrace()
-        assert run.runnable == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
+        assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
         run.terminated_at = utcnow_with_tz()
         if isinstance(exception, asyncio.CancelledError):
             run.status = RunStatus.Aborted
@@ -508,7 +508,7 @@ class SessionTracer:
         generated_in: UUID,
         duration: float,
     ):
-        run = self._create_run(runnable=statement, trace=True)
+        run = self._create_run(statement=statement, trace=True)
         run.terminated_at = utcnow_with_tz()
         run.inputs = _pack_and_truncate_value(
             inputs, statement, is_output=False, none_if_invalid=True
@@ -538,7 +538,7 @@ class SessionTracer:
 
     def _create_run(
         self,
-        runnable: Optional[Statement] = None,
+        statement: Optional[Statement] = None,
         inputs: dict[str, Any] | None = None,
         queue_position: int | None = None,
         trace: bool = True,
@@ -563,7 +563,8 @@ class SessionTracer:
         run = Run(
             id=self.session.ctx.first_run_id if root is None else UUIDT(),
             module=self.session.module,
-            runnable=runnable,
+            statement=statement,
+            statement_path=None,
             session=self.session,
             trigger_type=trigger_type,
             trigger=trigger,
@@ -761,13 +762,13 @@ class RunSearch(Search["RunData", "Run"]):
     def __init__(
         self,
         module: Module,
-        runnables: list["Statement"] | None,
+        statements: list["Statement"] | None,
         query: Query | None,
         sort: list[Sort] | None,
         limit: Optional[int],
     ):
         super().__init__(module, query, sort, limit)
-        self.runnables = runnables
+        self.statements = statements
 
     async def _do_search(
         self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
@@ -778,12 +779,14 @@ class RunSearch(Search["RunData", "Run"]):
 
         await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        runnables_cks = [runnable.ck for runnable in self.runnables] if self.runnables else None
+        statements_cks = (
+            [statement.ck for statement in self.statements] if self.statements else None
+        )
         rep: NMessage[RepSearchRunPayload] = await request(
             NMessageType.SEARCH_RUNS,
             ReqSearchRunsPayload(
                 module_id=self.module.id,
-                runnables_cks=runnables_cks,
+                statements_cks=statements_cks,
                 query=self._query,
                 sort=self._sort,
                 after=after,
@@ -803,20 +806,20 @@ class RunSearch(Search["RunData", "Run"]):
 
     def filter(self, query: Query) -> "RunSearch":
         combined_query = Query.and_if_set(self._query, query)
-        return RunSearch(self.module, self.runnables, combined_query, self._sort, self._limit)
+        return RunSearch(self.module, self.statements, combined_query, self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> "RunSearch":
         sort = [sort] if isinstance(sort, Sort) else sort
-        return RunSearch(self.module, self.runnables, self._query, sort, self._limit)
+        return RunSearch(self.module, self.statements, self._query, sort, self._limit)
 
     def limit(self, limit: int) -> "RunSearch":
-        return RunSearch(self.module, self.runnables, self._query, self._sort, limit)
+        return RunSearch(self.module, self.statements, self._query, self._sort, limit)
 
     @staticmethod
-    def from_runnable(runnable: "Statement") -> "RunSearch":
+    def from_statement(statement: "Statement") -> "RunSearch":
         return RunSearch(
-            module=runnable.module,
-            runnables=[runnable],
+            module=statement.module,
+            statements=[statement],
             query=None,
             sort=[Sort("created_at", SortOrder.DESCENDING)],
             limit=None,
@@ -829,13 +832,13 @@ class LogSearch(Search["LogEntryData", LogEntry]):
     def __init__(
         self,
         module: Module,
-        runnables: list["Statement"] | None,
+        statements: list["Statement"] | None,
         query: Query | None,
         sort: list[Sort] | None,
         limit: Optional[int],
     ):
         super().__init__(module, query, sort, limit)
-        self.runnables = runnables
+        self.statements = statements
 
     async def _do_search(
         self, after: list[Any] = None, limit: Optional[int] = None, count: bool = False
@@ -846,12 +849,14 @@ class LogSearch(Search["LogEntryData", LogEntry]):
 
         await self.module.session._do_search_preflight(self)
         batch_limit = min(self.RESULT_BATCH_SIZE, limit or self._limit or self.RESULT_BATCH_SIZE)
-        runnables_ids = [runnable.id for runnable in self.runnables] if self.runnables else None
+        statements_ids = (
+            [statement.id for statement in self.statements] if self.statements else None
+        )
         rep: NMessage[RepSearchLogPayload] = await request(
             NMessageType.SEARCH_LOGS,
             ReqSearchLogPayload(
                 module_id=self.module.id,
-                runnables_ids=runnables_ids,
+                statements_ids=statements_ids,
                 query=self._query,
                 sort=self._sort,
                 after=after,
@@ -871,20 +876,20 @@ class LogSearch(Search["LogEntryData", LogEntry]):
 
     def filter(self, query: Query) -> "LogSearch":
         combined_query = Query.and_if_set(self._query, query)
-        return LogSearch(self.module, self.runnables, combined_query, self._sort, self._limit)
+        return LogSearch(self.module, self.statements, combined_query, self._sort, self._limit)
 
     def sort(self, sort: list[Sort] | Sort) -> "LogSearch":
         sort = [sort] if isinstance(sort, Sort) else sort
-        return LogSearch(self.module, self.runnables, self._query, sort, self._limit)
+        return LogSearch(self.module, self.statements, self._query, sort, self._limit)
 
     def limit(self, limit: int) -> "LogSearch":
-        return LogSearch(self.module, self.runnables, self._query, self._sort, limit)
+        return LogSearch(self.module, self.statements, self._query, self._sort, limit)
 
     @staticmethod
-    def from_runnable(runnable: "Statement") -> "LogSearch":
+    def from_statement(statement: "Statement") -> "LogSearch":
         return LogSearch(
-            module=runnable.module,
-            runnables=[runnable],
+            module=statement.module,
+            statements=[statement],
             query=None,
             sort=[Sort("created_at", SortOrder.DESCENDING)],
             limit=None,

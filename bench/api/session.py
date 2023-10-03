@@ -106,7 +106,9 @@ class RunError:
     @staticmethod
     def from_dict(data: dict) -> "RunError":
         statement_id = (
-            to_global_id("Statement", data.get("runnable_id")) if data.get("runnable_id") else None
+            to_global_id("Statement", data.get("statement_id"))
+            if data.get("statement_id")
+            else None
         )
         traceback = [RunCodeFrame.from_dict(frame) for frame in data.get("traceback") or []] or None
         return RunError(
@@ -178,8 +180,8 @@ class Run(HasTriggeredBy, relay.Node):
     parent: Optional["Run"]
     children: list["Run"]
     descendants: list["Run"]
-    runnable: Optional["Statement"]
-    runnable_ck: auto
+    statement: Optional["Statement"]
+    statement_ck: auto
     created_at: auto
     updated_at: auto
     started_at: auto
@@ -210,8 +212,8 @@ class LogEntry:
     logger: Optional[str]
     message: Optional[str]
     session_id: Optional[GlobalID]
-    runnable_id: Optional[GlobalID]
-    runnable_ck: Optional[UUID]
+    statement_id: Optional[GlobalID]
+    statement_ck: Optional[UUID]
     run_id: Optional[GlobalID]
     value: Optional[JSON]
 
@@ -226,8 +228,8 @@ class LogEntry:
             logger=log_entry.logger,
             message=log_entry.message,
             session_id=to_global_id("Session", log_entry.session_id),
-            runnable_id=to_global_id("Statement", log_entry.runnable_id),
-            runnable_ck=log_entry.runnable_ck,
+            statement_id=to_global_id("Statement", log_entry.statement_id),
+            statement_ck=log_entry.statement_ck,
             run_id=to_global_id("Run", log_entry.run_id),
             value=log_entry.value,
         )
@@ -243,8 +245,8 @@ class LogEntry:
             logger=log_entry.logger,
             message=log_entry.message,
             session_id=to_global_id("Session", log_entry.session_id),
-            runnable_id=to_global_id("Statement", log_entry.runnable_id),
-            runnable_ck=log_entry.runnable_ck,
+            statement_id=to_global_id("Statement", log_entry.statement_id),
+            statement_ck=log_entry.statement_ck,
             run_id=to_global_id("Run", log_entry.run_id),
             value=log_entry.value,
         )
@@ -295,7 +297,7 @@ class RestartWorkerSetPayload:
 @strawberry.input
 class RunInput:
     project_version_id: GlobalID
-    runnable_id: Optional[GlobalID] = None
+    statement_id: Optional[GlobalID] = None
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
     inputs: Optional[JSON] = None
@@ -310,7 +312,7 @@ ModuleRunErrorType = strawberry.enum(StartRunErrorType)
 @strawberry.type
 class RunState:
     project_version_id: GlobalID
-    runnable_id: Optional[GlobalID]
+    statement_id: Optional[GlobalID]
     success: bool
     error: Optional[ModuleRunErrorType]
     run: Optional[Run]
@@ -358,20 +360,20 @@ class SessionQuery:
         project = models.Project.objects.get(id=project_id)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        runnable_statements_ids = models.Statement.objects.filter(
+        statement_statements_ids = models.Statement.objects.filter(
             deleted_at=None,
             project_version_id=project_version_id,
             type__in=RUNNABLE_STATEMENT_TYPES,
         ).values_list("id", flat=True)
 
-        # subquery to get the latest run per runnable_id
+        # subquery to get the latest run per statement_id
         latest_runs = models.Run.objects.filter(
-            runnable_id=OuterRef("pk"), project_id=project_id
+            statement_id=OuterRef("pk"), project_id=project_id
         ).order_by("-updated_at")
 
-        # get ids of the latest runs for each runnable statement
+        # get ids of the latest runs for each statement statement
         latest_run_ids = (
-            models.Statement.objects.filter(id__in=runnable_statements_ids)
+            models.Statement.objects.filter(id__in=statement_statements_ids)
             .annotate(
                 latest_run_id=Subquery(latest_runs.values("id")[:1]),
             )
@@ -426,8 +428,8 @@ class SessionQuery:
         project_version_id: GlobalID,
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
-        runnable_ids: Optional[list[GlobalID]] = None,
-        runnable_cks: Optional[list[UUID]] = None,
+        statement_ids: Optional[list[GlobalID]] = None,
+        statement_cks: Optional[list[UUID]] = None,
         root_only: Optional[bool] = None,
         query: Optional[SearchQuery] = None,
         sort: Optional[list[SearchSort]] = None,
@@ -439,7 +441,7 @@ class SessionQuery:
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
-        runnable_ids = to_uuids(runnable_ids)
+        statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
         query = query.to_dsl() if query else None
@@ -447,10 +449,10 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", session_id))
         if run_id:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", run_id))
-        if runnable_ids:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", runnable_ids))
-        if runnable_cks:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_ck", runnable_cks))
+        if statement_ids:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_id", statement_ids))
+        if statement_cks:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_ck", statement_cks))
         if root_only:
             query = Query.and_if_set(query, Q(QueryOp.DOES_NOT_EXIST, "parent_id"))
         effective_limit = min(limit or RUNS_LIMIT, RUNS_LIMIT)
@@ -495,7 +497,7 @@ class SessionQuery:
             # pres-set related fields where we know we only need the id
             run.project_version = models.ProjectVersion(id=run.project_version_id)
             run.session = models.Session(id=run.session_id) if run.session_id else None
-            run.runnable = models.Statement(id=run.runnable_id)
+            run.statement = models.Statement(id=run.statement_id)
             run.root = models.Run(id=run.root_id) if run.root_id else None
             run.parent = models.Run(id=run.parent_id) if run.parent_id else None
 
@@ -519,8 +521,8 @@ class SessionQuery:
         project_version_id: Optional[GlobalID] = None,
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
-        runnable_ids: Optional[list[GlobalID]] = None,
-        runnable_cks: Optional[list[UUID]] = None,
+        statement_ids: Optional[list[GlobalID]] = None,
+        statement_cks: Optional[list[UUID]] = None,
         query: Optional[SearchQuery] = None,
         sort: Optional[list[SearchSort]] = None,
         after: Optional[str] = None,
@@ -531,7 +533,7 @@ class SessionQuery:
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
-        runnable_ids = to_uuids(runnable_ids)
+        statement_ids = to_uuids(statement_ids)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
         sort = [s.to_dsl() for s in sort] if sort else [Sort("created_at", SortOrder.DESCENDING)]
@@ -540,10 +542,10 @@ class SessionQuery:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "session_id", str(session_id)))
         if run_id:
             query = Query.and_if_set(query, Q(QueryOp.EQUALS, "run_id", str(run_id)))
-        if runnable_ids:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_id", str(runnable_ids)))
-        if runnable_cks:
-            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "runnable_ck", runnable_cks))
+        if statement_ids:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_id", str(statement_ids)))
+        if statement_cks:
+            query = Query.and_if_set(query, Q(QueryOp.EQUALS, "statement_ck", statement_cks))
         effective_limit = min(limit or LOGS_LIMIT, LOGS_LIMIT)
         search = prepare_search(
             type=mirror.DocumentType.LOG_ENTRY,
@@ -644,7 +646,7 @@ class SessionMutation:
         run = ReqStartRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
-            runnable=to_uuid(input.runnable_id),
+            statement=to_uuid(input.statement_id),
             inputs=input.inputs,
             scheduled_at=None,
             block=input.block,
@@ -675,7 +677,7 @@ class SessionMutation:
         logs = [LogEntry.from_data(log) for log in rep.p.logs] if rep and rep.p.logs else None
         return RunState(
             project_version_id=input.project_version_id,
-            runnable_id=input.runnable_id,
+            statement_id=input.statement_id,
             success=success,
             error=error,
             run=run,
@@ -838,14 +840,14 @@ class SessionSubscription:
         project_version_id: Optional[GlobalID] = None,
         session_id: Optional[GlobalID] = None,
         run_id: Optional[GlobalID] = None,
-        runnable_ids: Optional[list[GlobalID]] = None,
-        runnable_cks: Optional[list[UUID]] = None,
+        statement_ids: Optional[list[GlobalID]] = None,
+        statement_cks: Optional[list[UUID]] = None,
     ) -> AsyncGenerator[LogChange, None]:
         project_id = to_uuid(project_id)
         project_version_id = to_uuid(project_version_id)
         session_id = to_uuid(session_id)
         run_id = to_uuid(run_id)
-        runnable_ids = to_uuids(runnable_ids)
+        statement_ids = to_uuids(statement_ids)
         user = get_user_from_info(info)
         log = logger.bind(project_id=project_id, project_version_id=project_version_id, user=user)
         try:
@@ -861,9 +863,9 @@ class SessionSubscription:
                 return False
             if run_id and log.run_id != run_id:
                 return False
-            if runnable_ids and log.runnable_id not in runnable_ids:
+            if statement_ids and log.statement_id not in statement_ids:
                 return False
-            if runnable_cks and log.runnable_ck not in runnable_cks:
+            if statement_cks and log.statement_ck not in statement_cks:
                 return False
             return True
 

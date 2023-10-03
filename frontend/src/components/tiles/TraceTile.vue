@@ -50,7 +50,7 @@ type OrderedNode = {
   durationFraction: number;
   durationSelf: number;
   durationSelfFraction: number;
-  runnable?: Statement;
+  statement?: Statement;
   ancestors: OrderedNode[];
   children: OrderedNode[];
   depth: number;
@@ -75,7 +75,7 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
   const metaNonceKey = module.runMetadataKey("nonce") ?? "";
 
   function _walk(run: Run, ancestors: OrderedNode[]): OrderedNode {
-    const runnable = module.statementOf(run.runnableCk);
+    const statement = module.statementOf(run.statementCk);
     const terminated = TERMINAL_RUN_STATUSES.includes(run.status);
     const duration = terminated
       ? run.duration ?? 0
@@ -87,7 +87,7 @@ const orderedNodes: Ref<OrderedNode[]> = computed(() => {
       terminated,
       duration,
       durationFraction: duration / rootDuration,
-      runnable,
+      statement,
       ancestors,
       depth: ancestors.length,
       children: [] as OrderedNode[],
@@ -155,7 +155,7 @@ function openRun(run: Run) {
           />
           <!-- Runnable -->
           <span class="ml-1 max-w-full truncate font-semibold">
-            {{ node.name ?? node.runnable?.name ?? "???" }}
+            {{ node.name ?? node.statement?.name ?? "???" }}
           </span>
           <!-- Duration -->
           <span class="ml-1 flex flex-row items-center">

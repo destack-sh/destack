@@ -24,13 +24,13 @@ const activeRuns = sessions.activeRoots;
 const activeRunsAsc = computed(() => activeRuns.value.slice().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
 const activeRunsDesc = computed(() => activeRuns.value.slice().sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
 
-const runnables = module.statementsLike({
+const statements = module.statementsLike({
   types: [StatementType.Code, StatementType.Task, StatementType.Flow],
 });
 const suggestedPreviewLength = ref(5);
 const suggestedRunnables = computed(() => {
   // sort by most recently edited but put those in the current focused file first
-  let candidates = runnables.value
+  let candidates = statements.value
     .filter((n) => (n.name ?? "").trim().length > 0)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
   if (bench.focusedFileCk != null) {
@@ -113,9 +113,9 @@ function runOrLaunch(statement: InterpStatement) {
               <!-- Statement -->
               <span
                 class="ml-1 cursor-pointer truncate text-gray-900 decoration-gray-700 underline-offset-2 hover:underline"
-                @click="nav.focusStatement(run.runnableCk)"
+                @click="nav.focusStatement(run.statementCk)"
               >
-                {{ module.statementOf(run.runnableCk)?.name ?? "unnamed" }}
+                {{ module.statementOf(run.statementCk)?.name ?? "unnamed" }}
               </span>
               <!-- Run id -->
               <span
@@ -137,7 +137,7 @@ function runOrLaunch(statement: InterpStatement) {
         <div v-else class="mt-2">
           <span class="text-gray-400">No active runs.</span>
         </div>
-        <!-- Suggested runnables -->
+        <!-- Suggested statements -->
         <div class="mt-2 text-xs font-semibold text-gray-500">Suggested</div>
         <div class="flex flex-col gap-0.5" v-if="suggestedRunnables.length > 0">
           <div
@@ -182,7 +182,7 @@ function runOrLaunch(statement: InterpStatement) {
           </div>
         </div>
         <div v-else>
-          <span class="text-gray-400">No runnable statements yet.</span>
+          <span class="text-gray-400">No statement statements yet.</span>
         </div>
       </PopoverPanel>
     </FadeTransition>

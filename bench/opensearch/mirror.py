@@ -469,9 +469,9 @@ class Run(os.Document):
     trigger_type: Optional[str] = os.field(os.FT.KEYWORD)
     root_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     parent_id: Optional[UUID] = os.field(os.FT.KEYWORD)
-    runnable_id: UUID = os.field(os.FT.KEYWORD)
-    runnable_ck: UUID = os.field(os.FT.KEYWORD)
-    runnable_type: str = os.field(os.FT.KEYWORD)
+    statement_id: UUID = os.field(os.FT.KEYWORD)
+    statement_ck: UUID = os.field(os.FT.KEYWORD)
+    statement_type: str = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     updated_at: datetime = os.field(os.FT.DATE)
     scheduled_at: Optional[datetime] = os.field(os.FT.DATE)
@@ -488,7 +488,9 @@ class Run(os.Document):
 @packer(models.Run, Run, wire.RunData)
 class RunPacker(Packer[models.Run, Run, wire.RunData]):
     def pack(self, mirror: Run) -> wire.RunData:
-        runnable_type = wire.StatementType(mirror.runnable_type) if mirror.runnable_type else None
+        statement_type = (
+            wire.StatementType(mirror.statement_type) if mirror.statement_type else None
+        )
         return wire.RunData(
             id=mirror.id,
             project_id=mirror.project_id,
@@ -500,9 +502,9 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             trigger_id=None,  # not stored
             root_id=mirror.root_id,
             parent_id=mirror.parent_id,
-            runnable_id=mirror.runnable_id,
-            runnable_ck=mirror.runnable_ck,
-            runnable_type=runnable_type,
+            statement_id=mirror.statement_id,
+            statement_ck=mirror.statement_ck,
+            statement_type=statement_type,
             created_at=mirror.created_at,
             updated_at=mirror.updated_at,
             scheduled_at=mirror.scheduled_at,
@@ -530,9 +532,9 @@ class RunPacker(Packer[models.Run, Run, wire.RunData]):
             trigger_type=data.trigger_type,
             root_id=data.root_id,
             parent_id=data.parent_id,
-            runnable_id=data.runnable_id,
-            runnable_ck=data.runnable_ck,
-            runnable_type=data.runnable_type,
+            statement_id=data.statement_id,
+            statement_ck=data.statement_ck,
+            statement_type=data.statement_type,
             created_at=data.created_at,
             updated_at=data.updated_at,
             scheduled_at=data.scheduled_at,
@@ -552,8 +554,8 @@ class LogEntry(os.Document):
     project_version_id: UUID = os.field(os.FT.KEYWORD)
     session_id: Optional[UUID] = os.field(os.FT.KEYWORD)
     run_id: Optional[UUID] = os.field(os.FT.KEYWORD)
-    runnable_id: Optional[UUID] = os.field(os.FT.KEYWORD)
-    runnable_ck: Optional[UUID] = os.field(os.FT.KEYWORD)
+    statement_id: Optional[UUID] = os.field(os.FT.KEYWORD)
+    statement_ck: Optional[UUID] = os.field(os.FT.KEYWORD)
     created_at: datetime = os.field(os.FT.DATE)
     stream: str = os.field(os.FT.KEYWORD)
     level: Optional[str] = os.field(os.FT.KEYWORD)
@@ -570,8 +572,8 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             module_id=mirror.project_version_id,
             session_id=mirror.session_id,
             run_id=mirror.run_id,
-            runnable_id=mirror.runnable_id,
-            runnable_ck=mirror.runnable_ck,
+            statement_id=mirror.statement_id,
+            statement_ck=mirror.statement_ck,
             created_at=mirror.created_at,
             stream=mirror.stream,
             level=mirror.level,
@@ -588,8 +590,8 @@ class LogEntryPacker(Packer[LogEntry, LogEntry, wire.LogEntryData]):
             project_version_id=project_v.id,
             session_id=data.session_id,
             run_id=data.run_id,
-            runnable_id=data.runnable_id,
-            runnable_ck=data.runnable_ck,
+            statement_id=data.statement_id,
+            statement_ck=data.statement_ck,
             created_at=data.created_at,
             stream=data.stream,
             level=data.level,

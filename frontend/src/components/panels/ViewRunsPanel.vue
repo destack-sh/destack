@@ -71,7 +71,7 @@ const { gridStepX, gridStepY, getTileWidth, baseTilePositionX } = useTiling(prop
         <!-- Title & source -->
         <h1 class="text-3xl font-bold text-gray-900">Runs</h1>
       </div>
-      <!-- TODO @UX: runs panel filters (status/runnable/query/etc.) -->
+      <!-- TODO @UX: runs panel filters (status/statement/query/etc.) -->
       <!-- Runs grid -->
       <ContainerTile
         :label="runsTileRef?.totalCount == null ? `Runs` : `${humanizeNumber(runsTileRef.totalCount)} runs`"

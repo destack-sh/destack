@@ -44,7 +44,7 @@ class HasTask(Node):
         if not any(f.flags & TypeFlag.IsOutput for f in self.resolved_fields):
             self._on_issue(subject=self, type=IssueType.TASK_MISSING_IO)
         # TODO @UX @Task: interp task feasibility
-        #  - check if task is possible given the fields, models & available runnables
+        #  - check if task is possible given the fields, models & available statements
 
     async def _call_inner_async(
         self,
@@ -147,7 +147,7 @@ async def run_task(
             run_name = f"{task.name} #{step_attempts}"
             with task.session.tracer.value(retry=step_attempts, nonce=nonce, name=run_name):
                 step = await compiler.run(model, compiled)
-            if step.runnable is not None:
+            if step.statement is not None:
                 raise NotImplementedError(":TaskFunctions not supported yet")
 
             # done, terminate
@@ -194,14 +194,14 @@ class TaskError(RunError):
     def __init__(
         self,
         type: TaskErrorType,
-        runnable: "Statement",
+        statement: "Statement",
         message: str = None,
         path: str = None,
     ):
         super().__init__(
             kind=RunErrorKind.Runtime,
             type=type.name,
-            runnable=runnable,
+            statement=statement,
             message=f"{type.value}: {message}",
         )
         self.type = type
@@ -238,10 +238,10 @@ class CompiledInput(abc.ABC):
 class TaskOutput(abc.ABC):
     """
     Output of a basic task run.
-    If runnable is given, it's a function call, otherwise it terminates."""
+    If statement is given, it's a function call, otherwise it terminates."""
 
     result_raw: dict  # raw (i.e. not instantiated) result
-    runnable: Optional["HasRun"] = None
+    statement: Optional["HasRun"] = None
 
 
 class TaskCompiler(abc.ABC):

@@ -264,9 +264,9 @@ class Document:
         We convert top level fields to JSON-able types - inner fields are left as is,
          as they are all user-defined and thus already JSON-able.
         """
-        d = {}
+        serialized = {}
         if self.__type__ is not None and self.__store_type__:
-            d[TYPE_DISCRIMINATOR_KEY] = self.__type__
+            serialized[TYPE_DISCRIMINATOR_KEY] = self.__type__
         for name, field in self.__fields__.items():
             if not field.can_set_directly:
                 continue
@@ -279,15 +279,15 @@ class Document:
                 value = str(value)
             elif isinstance(value, enum.Enum):
                 value = value.value
-            d[name] = value
-        return d
+            serialized[name] = value
+        return serialized
 
     @classmethod
     def from_dict(cls, d: dict[str, Any], id: str) -> "Document":
         """
         Convert a dict wireable from OpenSearch to a document, converting to pythonic types.
         """
-        d = {**d, "id": UUID(id)}
+        deserialized = {"id": UUID(id)}
         if TYPE_DISCRIMINATOR_KEY in d:
             d.pop(TYPE_DISCRIMINATOR_KEY)
         for name, field in cls.__fields__.items():
@@ -305,8 +305,8 @@ class Document:
                 value = UUID(value)
             elif field.type == FT.TEXT:
                 value = value
-            d[name] = value
-        return cls(**d)
+            deserialized[name] = value
+        return cls(**deserialized)
 
 
 _DocumentT = typing.TypeVar("_DocumentT", bound=Document)

@@ -93,7 +93,7 @@ class TriggerManager(models.Manager["Trigger"]):
 
 class Trigger(CrudNode):
     """
-    A trigger to a runnable.
+    A trigger to a statement.
     """
 
     statement = models.ForeignKey("Statement", on_delete=models.CASCADE, related_name="triggers")
@@ -106,7 +106,7 @@ class Trigger(CrudNode):
     timezone = models.CharField(max_length=64, null=True, blank=True)
     interval = models.IntegerField(null=True, blank=True)
     cron = models.CharField(max_length=64, null=True, blank=True)
-    runnable_ck = models.UUIDField(null=True, blank=True)
+    statement_ck = models.UUIDField(null=True, blank=True)
     scope_ck = models.UUIDField(null=True, blank=True)
     # internal
     processed_up_to = models.DateTimeField(null=True, blank=True)

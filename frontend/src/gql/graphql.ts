@@ -478,9 +478,9 @@ export type LogEntry = {
   message?: Maybe<Scalars["String"]>;
   projectVersionId: Scalars["GlobalID"];
   runId?: Maybe<Scalars["GlobalID"]>;
-  runnableCk?: Maybe<Scalars["UUID"]>;
-  runnableId?: Maybe<Scalars["GlobalID"]>;
   sessionId?: Maybe<Scalars["GlobalID"]>;
+  statementCk?: Maybe<Scalars["UUID"]>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
   stream: Scalars["String"];
   value?: Maybe<Scalars["JSON"]>;
 };
@@ -1568,10 +1568,10 @@ export type QuerySearchLogsArgs = {
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   query?: InputMaybe<SearchQuery>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type QuerySearchRecordsArgs = {
@@ -1592,10 +1592,10 @@ export type QuerySearchRunsArgs = {
   query?: InputMaybe<SearchQuery>;
   rootOnly?: InputMaybe<Scalars["Boolean"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   sort?: InputMaybe<Array<SearchSort>>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type QuerySecretArgs = {
@@ -1792,10 +1792,10 @@ export type Run = HasTriggeredBy &
     parent?: Maybe<Run>;
     projectVersion: ProjectVersion;
     root?: Maybe<Run>;
-    runnable?: Maybe<Statement>;
-    runnableCk?: Maybe<Scalars["UUID"]>;
     session?: Maybe<Session>;
     startedAt?: Maybe<Scalars["DateTime"]>;
+    statement?: Maybe<Statement>;
+    statementCk?: Maybe<Scalars["UUID"]>;
     status: RunStatus;
     terminatedAt?: Maybe<Scalars["DateTime"]>;
     trigger?: Maybe<Trigger>;
@@ -1849,8 +1849,8 @@ export type RunInput = {
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
   runId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
 };
 
@@ -1860,7 +1860,7 @@ export type RunState = {
   logs?: Maybe<Array<LogEntry>>;
   projectVersionId: Scalars["GlobalID"];
   run?: Maybe<Run>;
-  runnableId?: Maybe<Scalars["GlobalID"]>;
+  statementId?: Maybe<Scalars["GlobalID"]>;
   success: Scalars["Boolean"];
 };
 
@@ -2203,9 +2203,9 @@ export type SubscriptionLogsChangedArgs = {
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]>>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]>>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]>>;
 };
 
 export type SubscriptionModuleChangedArgs = {
@@ -2307,9 +2307,9 @@ export type Trigger = HasCrud &
     mapping?: Maybe<Scalars["JSON"]>;
     parent: Statement;
     revision: Scalars["Int"];
-    runnableCk?: Maybe<Scalars["UUID"]>;
     scheduleType: ScheduleType;
     scopeCk?: Maybe<Scalars["UUID"]>;
+    statementCk?: Maybe<Scalars["UUID"]>;
     timezone?: Maybe<Scalars["String"]>;
     type: TriggerType;
     updatedAt: Scalars["DateTime"];
@@ -2322,9 +2322,9 @@ export type TriggerCreateInput = {
   id: Scalars["GlobalID"];
   interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
-  runnableCk?: InputMaybe<Scalars["UUID"]>;
   scheduleType?: InputMaybe<ScheduleType>;
   scopeCk?: InputMaybe<Scalars["UUID"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]>;
   statementId: Scalars["GlobalID"];
   timezone?: InputMaybe<Scalars["String"]>;
   type: TriggerType;
@@ -2362,9 +2362,9 @@ export type TriggerUpdateInput = {
   id: Scalars["GlobalID"];
   interval?: InputMaybe<Scalars["Int"]>;
   mapping?: InputMaybe<Scalars["JSON"]>;
-  runnableCk?: InputMaybe<Scalars["UUID"]>;
   scheduleType?: InputMaybe<ScheduleType>;
   scopeCk?: InputMaybe<Scalars["UUID"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]>;
   timezone?: InputMaybe<Scalars["String"]>;
   type: TriggerType;
 };
@@ -3594,7 +3594,7 @@ export type TriggerContentFragment = {
   scheduleType: ScheduleType;
   interval?: number | null;
   cron?: string | null;
-  runnableCk?: any | null;
+  statementCk?: any | null;
   scopeCk?: any | null;
   createdAt: any;
   updatedAt: any;
@@ -4263,7 +4263,7 @@ export type RestartWorkerSetMutation = {
 
 export type StartRunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
-  runnableId?: InputMaybe<Scalars["GlobalID"]>;
+  statementId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   inputs?: InputMaybe<Scalars["JSON"]>;
@@ -4279,7 +4279,7 @@ export type StartRunMutation = {
     | {
         __typename?: "RunState";
         projectVersionId: any;
-        runnableId?: any | null;
+        statementId?: any | null;
         success: boolean;
         error?: StartRunErrorType | null;
         run?: ({ __typename?: "Run" } & { " $fragmentRefs"?: { RunContentFragment: RunContentFragment } }) | null;
@@ -5025,7 +5025,7 @@ export type CreateTriggerMutationVariables = Exact<{
   timezone?: InputMaybe<Scalars["String"]>;
   interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
-  runnableCk?: InputMaybe<Scalars["UUID"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]>;
   scopeCk?: InputMaybe<Scalars["UUID"]>;
 }>;
 
@@ -5047,7 +5047,7 @@ export type CreateTriggerMutation = {
         timezone?: string | null;
         interval?: number | null;
         cron?: string | null;
-        runnableCk?: any | null;
+        statementCk?: any | null;
         scopeCk?: any | null;
         createdAt: any;
         updatedAt: any;
@@ -5094,7 +5094,7 @@ export type UpdateTriggerMutationVariables = Exact<{
   timezone?: InputMaybe<Scalars["String"]>;
   interval?: InputMaybe<Scalars["Int"]>;
   cron?: InputMaybe<Scalars["String"]>;
-  runnableCk?: InputMaybe<Scalars["UUID"]>;
+  statementCk?: InputMaybe<Scalars["UUID"]>;
   scopeCk?: InputMaybe<Scalars["UUID"]>;
 }>;
 
@@ -5116,7 +5116,7 @@ export type UpdateTriggerMutation = {
         timezone?: string | null;
         interval?: number | null;
         cron?: string | null;
-        runnableCk?: any | null;
+        statementCk?: any | null;
         scopeCk?: any | null;
       };
 };
@@ -5269,12 +5269,12 @@ export type RunHeaderFragment = {
   terminatedAt?: any | null;
   duration?: number | null;
   status: RunStatus;
-  runnableCk?: any | null;
+  statementCk?: any | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
   root?: { __typename?: "Run"; id: any } | null;
   parent?: { __typename?: "Run"; id: any } | null;
-  runnable?: { __typename?: "Statement"; id: any; name?: string | null } | null;
+  statement?: { __typename?: "Statement"; id: any; name?: string | null } | null;
 } & { " $fragmentName"?: "RunHeaderFragment" };
 
 export type RunContentFragment = {
@@ -5289,7 +5289,7 @@ export type RunContentFragment = {
   inputs?: any | null;
   outputs?: any | null;
   value?: any | null;
-  runnableCk?: any | null;
+  statementCk?: any | null;
   triggerType?: TriggerType | null;
   projectVersion: { __typename?: "ProjectVersion"; id: any; tag?: string | null; name?: string | null };
   session?: { __typename?: "Session"; id: any } | null;
@@ -5309,7 +5309,7 @@ export type RunContentFragment = {
       locals?: any | null;
     }> | null;
   } | null;
-  runnable?: { __typename?: "Statement"; id: any } | null;
+  statement?: { __typename?: "Statement"; id: any } | null;
   trigger?: { __typename?: "Trigger"; id: any; type: TriggerType } | null;
   triggerUser?: { __typename?: "User"; id: any; username: string; name: string } | null;
   triggerAccessToken?: { __typename?: "AccessToken"; id: any; name?: string | null } | null;
@@ -5321,8 +5321,8 @@ export type LogEntryContentFragment = {
   createdAt: any;
   projectVersionId: any;
   sessionId?: any | null;
-  runnableId?: any | null;
-  runnableCk?: any | null;
+  statementId?: any | null;
+  statementCk?: any | null;
   runId?: any | null;
   stream: string;
   level?: string | null;
@@ -5395,8 +5395,8 @@ export type RefetchProjectWorkerSetsQuery = {
 export type SearchRunsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   rootOnly: Scalars["Boolean"];
@@ -5444,8 +5444,8 @@ export type RunByIdQuery = {
 export type SearchLogsQueryVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId?: InputMaybe<Scalars["GlobalID"]>;
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   query?: InputMaybe<SearchQuery>;
@@ -5478,8 +5478,8 @@ export type SearchLogsQuery = {
 export type LogsChangedSubscriptionVariables = Exact<{
   projectId: Scalars["GlobalID"];
   projectVersionId: Scalars["GlobalID"];
-  runnableIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
-  runnableCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
+  statementIds?: InputMaybe<Array<Scalars["GlobalID"]> | Scalars["GlobalID"]>;
+  statementCks?: InputMaybe<Array<Scalars["UUID"]> | Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
 }>;
@@ -6050,7 +6050,7 @@ export const TriggerContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "scheduleType" } },
           { kind: "Field", name: { kind: "Name", value: "interval" } },
           { kind: "Field", name: { kind: "Name", value: "cron" } },
-          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -6515,7 +6515,7 @@ export const RunHeaderFragmentDoc = {
           },
           {
             kind: "Field",
-            name: { kind: "Name", value: "runnable" },
+            name: { kind: "Name", value: "statement" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [
@@ -6524,7 +6524,7 @@ export const RunHeaderFragmentDoc = {
               ],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
         ],
       },
     },
@@ -6614,13 +6614,13 @@ export const RunContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "value" } },
           {
             kind: "Field",
-            name: { kind: "Name", value: "runnable" },
+            name: { kind: "Name", value: "statement" },
             selectionSet: {
               kind: "SelectionSet",
               selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
             },
           },
-          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "triggerType" } },
           {
             kind: "Field",
@@ -6675,8 +6675,8 @@ export const LogEntryContentFragmentDoc = {
           { kind: "Field", name: { kind: "Name", value: "createdAt" } },
           { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
           { kind: "Field", name: { kind: "Name", value: "sessionId" } },
-          { kind: "Field", name: { kind: "Name", value: "runnableId" } },
-          { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+          { kind: "Field", name: { kind: "Name", value: "statementId" } },
+          { kind: "Field", name: { kind: "Name", value: "statementCk" } },
           { kind: "Field", name: { kind: "Name", value: "runId" } },
           { kind: "Field", name: { kind: "Name", value: "stream" } },
           { kind: "Field", name: { kind: "Name", value: "level" } },
@@ -11421,7 +11421,7 @@ export const StartRunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
         {
@@ -11475,8 +11475,8 @@ export const StartRunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableId" } },
+                      name: { kind: "Name", value: "statementId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
                     },
                     {
                       kind: "ObjectField",
@@ -11522,7 +11522,7 @@ export const StartRunDocument = {
                     kind: "SelectionSet",
                     selections: [
                       { kind: "Field", name: { kind: "Name", value: "projectVersionId" } },
-                      { kind: "Field", name: { kind: "Name", value: "runnableId" } },
+                      { kind: "Field", name: { kind: "Name", value: "statementId" } },
                       { kind: "Field", name: { kind: "Name", value: "success" } },
                       { kind: "Field", name: { kind: "Name", value: "error" } },
                       {
@@ -15053,7 +15053,7 @@ export const CreateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
@@ -15127,8 +15127,8 @@ export const CreateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableCk" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+                      name: { kind: "Name", value: "statementCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15166,7 +15166,7 @@ export const CreateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
                       { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
-                      { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+                      { kind: "Field", name: { kind: "Name", value: "statementCk" } },
                       { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
                       { kind: "Field", name: { kind: "Name", value: "createdAt" } },
                       { kind: "Field", name: { kind: "Name", value: "updatedAt" } },
@@ -15371,7 +15371,7 @@ export const UpdateTriggerDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
@@ -15435,8 +15435,8 @@ export const UpdateTriggerDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "runnableCk" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "runnableCk" } },
+                      name: { kind: "Name", value: "statementCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "statementCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -15466,7 +15466,7 @@ export const UpdateTriggerDocument = {
                       { kind: "Field", name: { kind: "Name", value: "timezone" } },
                       { kind: "Field", name: { kind: "Name", value: "interval" } },
                       { kind: "Field", name: { kind: "Name", value: "cron" } },
-                      { kind: "Field", name: { kind: "Name", value: "runnableCk" } },
+                      { kind: "Field", name: { kind: "Name", value: "statementCk" } },
                       { kind: "Field", name: { kind: "Name", value: "scopeCk" } },
                     ],
                   },
@@ -16168,7 +16168,7 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
@@ -16176,7 +16176,7 @@ export const SearchRunsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
@@ -16245,13 +16245,13 @@ export const SearchRunsDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+                name: { kind: "Name", value: "statementIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableCks" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+                name: { kind: "Name", value: "statementCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
               },
               {
                 kind: "Argument",
@@ -16406,7 +16406,7 @@ export const SearchLogsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
@@ -16414,7 +16414,7 @@ export const SearchLogsDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
@@ -16478,13 +16478,13 @@ export const SearchLogsDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+                name: { kind: "Name", value: "statementIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableCks" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+                name: { kind: "Name", value: "statementCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
               },
               {
                 kind: "Argument",
@@ -16586,7 +16586,7 @@ export const LogsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
@@ -16594,7 +16594,7 @@ export const LogsChangedDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
           type: {
             kind: "ListType",
             type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } } },
@@ -16630,13 +16630,13 @@ export const LogsChangedDocument = {
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableIds" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableIds" } },
+                name: { kind: "Name", value: "statementIds" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementIds" } },
               },
               {
                 kind: "Argument",
-                name: { kind: "Name", value: "runnableCks" },
-                value: { kind: "Variable", name: { kind: "Name", value: "runnableCks" } },
+                name: { kind: "Name", value: "statementCks" },
+                value: { kind: "Variable", name: { kind: "Name", value: "statementCks" } },
               },
               {
                 kind: "Argument",

@@ -86,11 +86,11 @@ export const RunHeaderType = graphql(/* GraphQL */ `
     parent {
       id
     }
-    runnable {
+    statement {
       id
       name
     }
-    runnableCk
+    statementCk
   }
 `);
 
@@ -132,10 +132,10 @@ export const RunContentType = graphql(/* GraphQL */ `
       }
     }
     value
-    runnable {
+    statement {
       id
     }
-    runnableCk
+    statementCk
     # trigger
     triggerType
     trigger {
@@ -160,8 +160,8 @@ export const LogEntryContentType = graphql(/* GraphQL */ `
     createdAt
     projectVersionId
     sessionId
-    runnableId
-    runnableCk
+    statementId
+    statementCk
     runId
     stream
     level
@@ -284,7 +284,7 @@ export function _useSessions(
         }
       }
     });
-    // TODO @Performance @Robustness: periodically purge stale runs (that are inactive and not the latest for any runnable in the module)
+    // TODO @Performance @Robustness: periodically purge stale runs (that are inactive and not the latest for any statement in the module)
   }
 
   function onRunChange(subscriber: (run: Run) => void): () => void {
@@ -445,7 +445,7 @@ export function _useSessions(
   // running
 
   function run(
-    runnable: { id: string; ck: string },
+    statement: { id: string; ck: string },
     options?: { sessionId?: string; runId?: string; inputs?: any; block?: number; keyed?: boolean }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -459,8 +459,8 @@ export function _useSessions(
       updatedAt: new Date().toISOString(),
       duration: null,
       inputs: options?.inputs ?? {},
-      runnable,
-      runnableCk: runnable.ck,
+      statement,
+      statementCk: statement.ck,
       outputs: null,
       value: null,
       error: null,
@@ -473,7 +473,7 @@ export function _useSessions(
     } as Run;
     currentRuns.value[runId] = run;
     localRunsIds.add(runId);
-    console.debug("run.start", run.id, run.runnable?.name, run.runnableCk, Object.keys(run.inputs));
+    console.debug("run.start", run.id, run.statement?.name, run.statementCk, Object.keys(run.inputs));
 
     function _discardRun() {
       delete currentRuns.value[runId];
@@ -482,7 +482,7 @@ export function _useSessions(
 
     function doRunWithLogs() {
       return sessionOps
-        .run(runnable.id, run.id, run.session?.id, run.inputs, {
+        .run(statement.id, run.id, run.session?.id, run.inputs, {
           block: options?.block,
           keyed: options?.keyed,
         })
@@ -566,7 +566,7 @@ export function _useSessions(
   function runsOf(statement: { ck: string }) {
     return computed(() =>
       Object.values(currentRuns.value)
-        .filter((run) => run.runnableCk === statement.ck)
+        .filter((run) => run.statementCk === statement.ck)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     );
   }
@@ -632,7 +632,7 @@ function _useCurrentSessions() {
 export const useCurrentSessions = createSharedComposable(_useCurrentSessions);
 
 export type RunsQuery = {
-  runnableIds?: string[];
+  statementIds?: string[];
   sessionId?: string;
   runId?: string;
   rootOnly?: boolean;
@@ -643,8 +643,8 @@ export function useRuns(
   filter: {
     projectId: Ref<string | null>;
     projectVersionId: Ref<string | null | undefined>;
-    runnableIds: Ref<string[] | null | undefined>;
-    runnableCks: Ref<string[] | null | undefined>;
+    statementIds: Ref<string[] | null | undefined>;
+    statementCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null>;
     runId: Ref<string | null>;
     rootOnly: Ref<boolean>;
@@ -666,8 +666,8 @@ export function useRuns(
   const combinedVariables: Ref<SearchRunsQueryVariables> = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
-    runnableIds: filter.runnableIds.value,
-    runnableCks: filter.runnableCks.value,
+    statementIds: filter.statementIds.value,
+    statementCks: filter.statementCks.value,
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     rootOnly: filter.rootOnly.value,
@@ -681,8 +681,8 @@ export function useRuns(
     query searchRuns(
       $projectId: GlobalID!
       $projectVersionId: GlobalID!
-      $runnableIds: [GlobalID!]
-      $runnableCks: [UUID!]
+      $statementIds: [GlobalID!]
+      $statementCks: [UUID!]
       $sessionId: GlobalID
       $runId: GlobalID
       $rootOnly: Boolean!
@@ -695,8 +695,8 @@ export function useRuns(
       searchRuns(
         projectId: $projectId
         projectVersionId: $projectVersionId
-        runnableIds: $runnableIds
-        runnableCks: $runnableCks
+        statementIds: $statementIds
+        statementCks: $statementCks
         sessionId: $sessionId
         runId: $runId
         rootOnly: $rootOnly
@@ -733,8 +733,8 @@ export function useRuns(
     const unsub = sessions.onRunChange((run) => {
       if (
         (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
-        (filter.runnableIds.value != null && !filter.runnableIds.value.includes(run.runnable?.id ?? "")) ||
-        (filter.runnableCks.value != null && !filter.runnableCks.value.includes(run.runnableCk ?? "")) ||
+        (filter.statementIds.value != null && !filter.statementIds.value.includes(run.statement?.id ?? "")) ||
+        (filter.statementCks.value != null && !filter.statementCks.value.includes(run.statementCk ?? "")) ||
         (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value)
       ) {
         return;
@@ -865,7 +865,7 @@ export function useRun(rootId: Ref<string | null>, options?: { live?: boolean })
 }
 
 export type LogsQuery = {
-  runnableIds?: string[] | null | undefined;
+  statementIds?: string[] | null | undefined;
   sessionId?: string | null | undefined;
   runId?: string | null | undefined;
   query?: SearchQuery | null | undefined;
@@ -875,8 +875,8 @@ export function useLogs(
   filter: {
     projectId: Ref<string>;
     projectVersionId: Ref<string | null | undefined>;
-    runnableIds: Ref<string[] | null | undefined>;
-    runnableCks: Ref<string[] | null | undefined>;
+    statementIds: Ref<string[] | null | undefined>;
+    statementCks: Ref<string[] | null | undefined>;
     sessionId: Ref<string | null | undefined>;
     runId: Ref<string | null | undefined>;
     query: Ref<SearchQuery | null | undefined>;
@@ -893,8 +893,8 @@ export function useLogs(
   const combinedVariables: Ref<SearchLogsQueryVariables> = computed(() => ({
     projectId: filter.projectId.value,
     projectVersionId: filter.projectVersionId.value,
-    runnableIds: filter.runnableIds.value,
-    runnableCks: filter.runnableCks.value,
+    statementIds: filter.statementIds.value,
+    statementCks: filter.statementCks.value,
     sessionId: filter.sessionId.value,
     runId: filter.runId.value,
     query: filter.query.value,
@@ -907,8 +907,8 @@ export function useLogs(
     query searchLogs(
       $projectId: GlobalID!
       $projectVersionId: GlobalID
-      $runnableIds: [GlobalID!]
-      $runnableCks: [UUID!]
+      $statementIds: [GlobalID!]
+      $statementCks: [UUID!]
       $sessionId: GlobalID
       $runId: GlobalID
       $query: SearchQuery
@@ -920,8 +920,8 @@ export function useLogs(
       searchLogs(
         projectId: $projectId
         projectVersionId: $projectVersionId
-        runnableIds: $runnableIds
-        runnableCks: $runnableCks
+        statementIds: $statementIds
+        statementCks: $statementCks
         sessionId: $sessionId
         runId: $runId
         query: $query
@@ -955,16 +955,16 @@ export function useLogs(
         subscription logsChanged(
           $projectId: GlobalID!
           $projectVersionId: GlobalID!
-          $runnableIds: [GlobalID!]
-          $runnableCks: [UUID!]
+          $statementIds: [GlobalID!]
+          $statementCks: [UUID!]
           $sessionId: GlobalID
           $runId: GlobalID
         ) {
           logsChanged(
             projectId: $projectId
             projectVersionId: $projectVersionId
-            runnableIds: $runnableIds
-            runnableCks: $runnableCks
+            statementIds: $statementIds
+            statementCks: $statementCks
             sessionId: $sessionId
             runId: $runId
           ) {

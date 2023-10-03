@@ -22,24 +22,24 @@ if TYPE_CHECKING:
 
 @node_component
 class HasRun(Node):
-    """A runnable statement"""
+    """A statement statement"""
 
     @property
     def _is_async(self) -> Optional[bool]:  # set in supporting components e.g. HasCode
-        """Whether this runnable is async."""
+        """Whether this statement is async."""
         return None
 
     @property
     def logs(self) -> "LogSearch":
         from bench.language.session import LogSearch
 
-        return LogSearch.from_runnable(self)
+        return LogSearch.from_statement(self)
 
     @property
     def runs(self) -> "RunSearch":
         from bench.language.session import RunSearch
 
-        return RunSearch.from_runnable(self)
+        return RunSearch.from_statement(self)
 
     @property
     def cache(self):
@@ -129,7 +129,8 @@ def get_run_cache_subkey(inputs_raw: Any, content_id: Optional[str] = None):
 @dataclass
 class Run:
     id: UUID
-    runnable: "Statement"
+    statement: Optional["Statement"]
+    statement_path: Optional[str]
     module: Module
     session: Optional["Session"]
     root: Optional["Run"]
@@ -155,7 +156,7 @@ class Run:
 
     def __str__(self):
         value_keys_str = ", ".join(self.value.keys()) if self.value else ""
-        return f"{self.runnable} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
+        return f"{self.statement} ({self.status}, value={value_keys_str or '<none>'}, {self.id})"
 
     def __repr__(self):
         return f"<Run {self}>"
@@ -312,20 +313,20 @@ class RunError(Exception):  # can this really be a subclass of Exception?
     kind: RunErrorKind
     type: str
     message: Optional[str] = None
-    runnable: Optional["Statement"] = None
+    statement: Optional["Statement"] = None
     traceback: list[RunCodeFrame] = None
 
     @staticmethod
-    def from_exception(e: BaseException, runnable: Optional["Statement"]) -> "RunError":
+    def from_exception(e: BaseException, statement: Optional["Statement"]) -> "RunError":
         if isinstance(e, RunError):
             return e
         stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
-        stack = RunCodeFrame.clean(stack, runnable, runnable.session)
+        stack = RunCodeFrame.clean(stack, statement, statement.session)
         return RunError(
             kind=RunErrorKind.Runtime,
             type=type(e).__name__,
             message=str(e),
-            runnable=runnable,
+            statement=statement,
             traceback=stack,
         )
 
@@ -339,7 +340,7 @@ class LogEntry:
     session: "Session"
     level: Optional[str] = None
     logger: Optional[str] = None
-    runnable: Optional["Statement"] = None
+    statement: Optional["Statement"] = None
     run: Optional["Run"] = None
     message: Optional[str] = None
     value: dict[str, Any] = None

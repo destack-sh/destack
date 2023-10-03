@@ -489,7 +489,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable_ck=trigger.runnable_ck,
+            statement_ck=trigger.statement_ck,
             scope_ck=trigger.scope_ck,
             revision=trigger.revision,
             created_at=trigger.created_at,
@@ -510,7 +510,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
             timezone=data.timezone,
             interval=data.interval,
             cron=data.cron,
-            runnable_ck=data.runnable_ck,
+            statement_ck=data.statement_ck,
             scope_ck=data.scope_ck,
         )
 
@@ -783,9 +783,10 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             trigger_id=model.trigger_id,
             root_id=model.root_id,
             parent_id=model.parent_id,
-            runnable_id=model.runnable_id,
-            runnable_ck=model.runnable_ck,
-            runnable_type=StatementType(model.runnable_type) if model.runnable_type else None,
+            statement_id=model.statement_id,
+            statement_ck=model.statement_ck,
+            statement_type=StatementType(model.statement_type) if model.statement_type else None,
+            statement_path=model.statement_path,
             created_at=model.created_at,
             updated_at=model.updated_at,
             scheduled_at=model.scheduled_at,
@@ -822,9 +823,10 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             trigger_id=trigger_id,
             root_id=data.root_id,
             parent_id=data.parent_id,
-            runnable_id=data.runnable_id,
-            runnable_ck=data.runnable_ck,
-            runnable_type=data.runnable_type.value,
+            statement_id=data.statement_id,
+            statement_ck=data.statement_ck,
+            statement_type=data.statement_type.value,
+            statement_path=data.statement_path,
             created_at=data.created_at,
             updated_at=utcnow_with_tz(),
             scheduled_at=data.scheduled_at,
@@ -879,19 +881,19 @@ class WorkerSetPacker(DataPacker[wire.WorkerSetData, models.WorkerSet]):
 def write_edits(
     project_v: models.ProjectVersion,
     source: NodeTree,
-    mutations: list[EditData],
+    edits: list[EditData],
     *,
     refresh_index: bool,
     validate: bool,
     apply: bool = True,
 ):
     """
-    Writes a series of module mutations to the database.
+    Writes a series of module edits to the database.
     If apply, also mutates a COPY of the module tree. Yeah, this seems a bit inefficient...
     """
     from bench.opensearch.index import write_edits_to_os
 
-    mut = EditBundle(mutations)
+    mut = EditBundle(edits)
 
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
