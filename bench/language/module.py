@@ -1285,9 +1285,9 @@ class Node(abc.ABC):
 
     def __post_init__(self):
         if self._session is None:
-            from bench.language.builtin import active_session
+            from bench.language.builtin import _active_session
 
-            self._session = active_session.get()
+            self._session = _active_session.get()
         if self._status is None:
             self._status = NS.Interpreted if self._session is not None else NS.Source
         if self.id is None and self.attached:
@@ -1437,7 +1437,7 @@ class Node(abc.ABC):
         """Initialize this node."""
         for name, prop in self.__list_properties__.items():
             setattr(self, name, prop.list_type(self, prop))
-        if self._session is not None:
+        if self._status >= NS.Interpreted and self._session is not None:
             self._validate_self(self.__tracked_properties__.keys(), on_issue=on_issue_raise)
 
     def _clear_inner(self) -> None:
@@ -1455,6 +1455,10 @@ class Node(abc.ABC):
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         """Validate cross-property constraints given the modified properties."""
         # since this is the root module, we also validate the properties directly
+        from bench.language.builtin import _should_validate
+
+        if DEBUG and not _should_validate():
+            return  # escape hatch for testing
         for name in properties:
             prop = self.__properties__.get(name)
             assert prop is not None, f"unknown property '{name}' on {self!r}"

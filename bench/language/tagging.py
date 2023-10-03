@@ -15,6 +15,7 @@ from bench.language.module import (
 )
 from bench.language.reference import HasReference
 from bench.language.value import HasValue
+from bench.utils.func import dict_minus
 
 if typing.TYPE_CHECKING:
     from bench.language import Field, File, HasFields, Statement
@@ -54,6 +55,18 @@ class Tagging(HasValue, HasReference, Node):
             raise TypeError(f"cannot use {reference!r} as a tag")
 
         return Tagging(reference=reference, key=key, *args, **kwargs)
+
+    @staticmethod
+    def to_python(
+        node: "Tagging", props: dict, for_parent: Union["File", "Statement", "Field"] = None
+    ) -> tuple[str, dict, dict]:
+        assert node.reference is not None, f"missing reference for {node!r}"
+        if isinstance(node.reference, Node) and node.reference.mnt == MNT.Statement:
+            reference = node.reference.name
+        else:
+            reference = node.reference
+        init_args = {"reference": reference}
+        return Tagging.__name__, init_args, dict_minus(props, "reference")
 
     @property
     def _type_of_value(self) -> "HasFields":
