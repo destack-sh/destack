@@ -210,6 +210,8 @@ def input_to_gql_jsonable(value: Any) -> Any:
         return [input_to_gql_jsonable(item) for item in value]
     elif isinstance(value, dict):  # JSON
         return value
+    elif isinstance(value, enum.IntFlag):
+        return int(value)  # flag enums just use the value
     elif isinstance(value, enum.Enum):
         return value.name  # GQL enums use the name
     elif isinstance(value, (int, float, str, bool, type(None))):

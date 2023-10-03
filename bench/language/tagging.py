@@ -8,10 +8,10 @@ from bench.language.module import (
     NodeList,
     NRel,
     nchildren,
+    ninternal,
     node,
     node_component,
     nparent,
-    nproperty,
 )
 from bench.language.reference import HasReference
 from bench.language.value import HasValue
@@ -26,7 +26,7 @@ class Tagging(HasValue, HasReference, Node):
     """An association between a tag and a statement (with optional value)."""
 
     parent: Union["File", "Statement", "Field"] | None = nparent(MNT.File, MNT.Statement, MNT.Field)
-    key: str = nproperty(is_required=True)
+    key: str = ninternal()
 
     @staticmethod
     def new(

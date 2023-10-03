@@ -339,7 +339,10 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         node: "Field", props: dict, for_parent: "Statement" = None
     ) -> tuple[str, dict, dict]:
         props = {**props}
-        if node.flags == 0:
+        implicit_optional = (
+            node.flags == TypeFlag.IsOptional and for_parent and for_parent.tag != TypeTag.FUNCTION
+        )
+        if node.flags == 0 or implicit_optional:
             del props["flags"]
         type = node.reference or node.hint or node.tag
         if for_parent and for_parent.tag == TypeTag.ENUM and node.tag == TypeTag.LITERAL:

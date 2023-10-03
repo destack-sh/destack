@@ -683,12 +683,14 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
     elif isinstance(value, (enum.StrEnum, enum.IntEnum)):
         return f"{type(value).__name__}.{value.name}"
     elif isinstance(value, (enum.IntFlag,)):
-        return f"{type(value).__name__}({value.value})"
+        # reconstitute flags as a | b | c
+        return " | ".join(f"{type(value).__name__}.{v.name}" for v in type(value) if value & v)
     elif isinstance(value, Node):
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
     elif isinstance(value, (int, float, bool)):
         return repr(value)
     # TODO @Broken: render & parse in-value references properly (e.g. secret, file, node)
+    #   Related: figure out good way to set/'coerce' secrets, files, etc. as values
     elif isinstance(value, str):
         # render 'text' in simple form
         if prop and prop.name == "text" and value and node._text_spans:

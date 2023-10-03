@@ -659,7 +659,7 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
             parent_id=tagging.parent_id,
             reference_ck=reference,
             key=tagging.key,
-            value=tagging.value,
+            value=tagging._raw_value(),
             revision=tagging.revision,
             created_at=tagging.created_at,
             updated_at=tagging.updated_at,
