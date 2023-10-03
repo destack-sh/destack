@@ -426,7 +426,7 @@ more-itertools==9.0.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
-msgpack==1.0.5
+msgpack==1.0.7
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -448,7 +448,7 @@ mypy-extensions==1.0.0
     #   black
     #   mypy
     #   typing-inspect
-nats-py==2.2.0
+nats-py==2.4.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -466,11 +466,11 @@ oauthlib==3.2.2
     #   kubernetes
     #   requests-oauthlib
     #   social-auth-core
-openai==0.28.0
+openai==0.28.1
     # via
     #   -c requirements.txt
     #   -r requirements.in
-opensearch-py[async]==2.2.0
+opensearch-py[async]==2.3.1
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -509,7 +509,7 @@ platformdirs==3.10.0
     #   virtualenv
 pluggy==1.3.0
     # via pytest
-posthog==3.0.1
+posthog==3.0.2
     # via
     #   -c requirements.txt
     #   -r requirements.in
@@ -664,7 +664,7 @@ s3transfer==0.6.2
     # via
     #   -c requirements.txt
     #   boto3
-sentry-sdk[django]==1.18.0
+sentry-sdk[django]==1.31.0
     # via
     #   -c requirements.txt
     #   -r requirements.in
