@@ -148,13 +148,15 @@ class TaggingMetadata:
 
 @reflect_struct("RunMetadata", "Default metadata for any run")
 class RunMetadata:
-    name: Optional[str]
     test: Optional[bool]
     internal: Optional[bool]
     queue_position: Optional[int]
     cached_at: Optional[datetime]
     cached_in: Optional[UUID]
     cached_duration: Optional[float]
+    name: Optional[str]
+    bot: Optional[str]
+    code: Optional[str]
     progress: Optional[float]
     retries: Optional[int]
     retry: Optional[int]

@@ -371,10 +371,10 @@ class RuntimeServer(Monitored):
         logger.debug("search.database", msg=msg)
         # TODO @Security!: check if msg origin has read access to database
         extra_queries = []
-        if msg.p.runnables_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
-        if msg.p.runnables_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "runnable_ck", msg.p.runnables_cks))
+        if msg.p.statements_ids:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statements_ids))
+        if msg.p.statements_cks:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statements_cks))
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
             project_v=project_v,
@@ -391,10 +391,10 @@ class RuntimeServer(Monitored):
     async def search_log(self, msg: NMessage[ReqSearchLogPayload]) -> None:
         logger.debug("search.log", msg=msg)
         extra_queries = []
-        if msg.p.runnables_ids:
-            extra_queries.append(Q(QueryOp.EQUALS, "runnable_id", msg.p.runnables_ids))
-        if msg.p.runnables_cks:
-            extra_queries.append(Q(QueryOp.EQUALS, "runnable_ck", msg.p.runnables_cks))
+        if msg.p.statements_ids:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_id", msg.p.statements_ids))
+        if msg.p.statements_cks:
+            extra_queries.append(Q(QueryOp.EQUALS, "statement_ck", msg.p.statements_cks))
         # TODO @Security!: check if msg origin has read access to database
         project_v = await ProjectVersion.objects.aget(id=msg.p.module_id)
         rep = await sync_to_async(self._do_search)(
@@ -697,7 +697,7 @@ class RuntimeHost:
                     module_id=run.module_id,
                     session_id=run.session_id,
                     run_id=run.id,
-                    runnable=run.runnable_id,
+                    statement=run.statement_id,
                     inputs=run.inputs,
                     block=None,
                     keyed=True,
@@ -774,16 +774,16 @@ class RuntimeHost:
         now = utcnow_with_tz()
         for trigger_id in triggers_to_fire:
             fired_trigger = triggers[trigger_id]
-            runnable = fired_trigger.trigger.parent
+            statement = fired_trigger.trigger.parent
             run = wire.RunData(
                 id=UUIDT(),
                 project_id=self.project_id,
                 module_id=self.module.id,
                 worker_node_id=None,
                 worker_process_id=None,
-                runnable_id=runnable.id,
-                runnable_type=runnable.type,
-                runnable_ck=runnable.ck,
+                statement_id=statement.id,
+                statement_type=statement.type,
+                statement_ck=statement.ck,
                 session_id=None,
                 trigger_type=fired_trigger.trigger.type,
                 trigger_id=fired_trigger.trigger.id,

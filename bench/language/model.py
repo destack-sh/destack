@@ -253,14 +253,14 @@ class ModelError(RunError):
     def __init__(
         self,
         type: ModelErrorType,
-        runnable: "Statement",
+        statement: "Statement",
         message: str = None,
         path: str = None,
     ):
         super().__init__(
             kind=RunErrorKind.Runtime,
             type=type.name,
-            runnable=runnable,
+            statement=statement,
             message=f"{type.value}: {message}",
         )
         self.type = type

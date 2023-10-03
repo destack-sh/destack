@@ -8,7 +8,7 @@ import { computed, type Ref } from "vue";
 
 const props = defineProps<{
   run?: Run;
-  runnable?: { id: string; ck: string };
+  statement?: { id: string; ck: string };
   inputs?: any;
   hide?: ActionId[];
 }>();
@@ -37,10 +37,10 @@ const actions: Ref<Action[]> = computed(() => [
     label: "Run",
     icon: PlayIcon,
     active: runActive.value,
-    disabled: !bench.canUse || runActive.value || props.runnable == null,
+    disabled: !bench.canUse || runActive.value || props.statement == null,
     action: () => {
-      if (props.runnable == null) throw new Error("runnable not set");
-      const { run } = sessions.run(props.runnable, { inputs: props.inputs ?? {}, keyed: true });
+      if (props.statement == null) throw new Error("statement not set");
+      const { run } = sessions.run(props.statement, { inputs: props.inputs ?? {}, keyed: true });
       emit("run", run);
     },
   },
@@ -48,14 +48,14 @@ const actions: Ref<Action[]> = computed(() => [
     id: "rerun",
     label: "Rerun",
     icon: ForwardIcon,
-    disabled: !bench.canUse || props.run == null || props.runnable == null,
+    disabled: !bench.canUse || props.run == null || props.statement == null,
     action: () => {
-      if (props.run == null || props.runnable == null) throw new Error("run not set");
+      if (props.run == null || props.statement == null) throw new Error("run not set");
       if (runActive.value) {
         sessions.kill(props.run);
         emit("kill");
       }
-      const { run: newRun } = sessions.run(props.runnable, { inputs: props.run.inputs ?? {}, keyed: true });
+      const { run: newRun } = sessions.run(props.statement, { inputs: props.run.inputs ?? {}, keyed: true });
       emit("rerun", newRun);
     },
   },

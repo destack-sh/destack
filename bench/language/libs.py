@@ -497,7 +497,7 @@ class OpenAIChatInput(CompiledInput):
     settings: OpenAIChatSettings
     messages: list[OpenAIChatMessage]
     functions: list[OpenAIFunction]
-    runnables_by_name: dict[str, HasRun]
+    statements_by_name: dict[str, HasRun]
 
     def __str__(self):
         return f"{self.tokens} tokens"
@@ -553,9 +553,9 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         else:
             return OpenAIChatMessage(
                 role=OpenAIChatRole.function,
-                name=run.runnable.py_ident,
+                name=run.statement.py_ident,
                 content=json.dumps(
-                    map_value(run.outputs, run.runnable, map_v=self._render_value_flat), indent=2
+                    map_value(run.outputs, run.statement, map_v=self._render_value_flat), indent=2
                 ),
             )
 
@@ -660,7 +660,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             settings=settings,
             messages=messages,
             functions=functions,
-            runnables_by_name=user_functions_by_name,
+            statements_by_name=user_functions_by_name,
         )
 
     def can_run(self, model: "Statement", input: OpenAIChatInput) -> bool:
@@ -704,13 +704,13 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             return TaskOutput(result_raw=arguments)
 
         # handle other function calls
-        if function_call not in input.runnables_by_name:
+        if function_call not in input.statements_by_name:
             raise TaskError(
                 TaskErrorType.InvalidFormat,
                 model,
                 f"unknown function {function_call}",
             )
-        function = input.runnables_by_name[function_call]
+        function = input.statements_by_name[function_call]
         return TaskOutput(result_raw=arguments, function=function)
 
 
@@ -852,12 +852,12 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             return self._compile_error(run)
         else:
             run_inputs_str = json.dumps(
-                map_value(run.inputs, run.runnable, map_v=self._render_value_flat), indent=2
+                map_value(run.inputs, run.statement, map_v=self._render_value_flat), indent=2
             )
             run_outputs_str = json.dumps(
-                map_value(run.outputs, run.runnable, map_v=self._render_value_flat), indent=2
+                map_value(run.outputs, run.statement, map_v=self._render_value_flat), indent=2
             )
-            return f"Previous result for '{run.runnable.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
+            return f"Previous result for '{run.statement.py_ident}' given '{run_inputs_str}':\n {run_outputs_str}"
 
     def _compile_error(self, error: RunError | TaskError) -> str:
         return f"Avoid previous error: {self._render_error(error)}"

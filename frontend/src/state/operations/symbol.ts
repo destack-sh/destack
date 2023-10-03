@@ -1247,7 +1247,7 @@ export function useSymbolContentOps() {
         $timezone: String
         $interval: Int
         $cron: String
-        $runnableCk: UUID
+        $statementCk: UUID
         $scopeCk: UUID
       ) {
         createTrigger(
@@ -1262,7 +1262,7 @@ export function useSymbolContentOps() {
             timezone: $timezone
             interval: $interval
             cron: $cron
-            runnableCk: $runnableCk
+            statementCk: $statementCk
             scopeCk: $scopeCk
           }
         ) {
@@ -1280,7 +1280,7 @@ export function useSymbolContentOps() {
             timezone
             interval
             cron
-            runnableCk
+            statementCk
             scopeCk
             # crud
             createdAt
@@ -1310,7 +1310,7 @@ export function useSymbolContentOps() {
         timezone: string | null;
         interval: number | null;
         cron: string | null;
-        runnableCk: string | null;
+        statementCk: string | null;
         scopeCk: string | null;
       }) =>
         ({
@@ -1331,7 +1331,7 @@ export function useSymbolContentOps() {
             timezone: vars.timezone ?? null,
             interval: vars.interval ?? null,
             cron: vars.cron ?? null,
-            runnableCk: vars.runnableCk,
+            statementCk: vars.statementCk,
             scopeCk: vars.scopeCk,
             // crud
             createdAt: new Date().toISOString(),
@@ -1429,7 +1429,7 @@ export function useSymbolContentOps() {
       | "interval"
       | "timezone"
       | "cron"
-      | "runnableCk"
+      | "statementCk"
       | "scopeCk"
     >
   ) {
@@ -1448,7 +1448,7 @@ export function useSymbolContentOps() {
           timezone: trigger.timezone ?? null,
           interval: trigger.interval ?? null,
           cron: trigger.cron ?? null,
-          runnableCk: trigger.runnableCk ?? null,
+          statementCk: trigger.statementCk ?? null,
           scopeCk: trigger.scopeCk ?? null,
         });
       },
@@ -1499,7 +1499,7 @@ export function useSymbolContentOps() {
         $timezone: String
         $interval: Int
         $cron: String
-        $runnableCk: UUID
+        $statementCk: UUID
         $scopeCk: UUID
       ) {
         updateTrigger(
@@ -1512,7 +1512,7 @@ export function useSymbolContentOps() {
             timezone: $timezone
             interval: $interval
             cron: $cron
-            runnableCk: $runnableCk
+            statementCk: $statementCk
             scopeCk: $scopeCk
           }
         ) {
@@ -1527,7 +1527,7 @@ export function useSymbolContentOps() {
             timezone
             interval
             cron
-            runnableCk
+            statementCk
             scopeCk
           }
           ...OperationInfoContent
@@ -1544,7 +1544,7 @@ export function useSymbolContentOps() {
         timezone: string | null;
         interval: number | null;
         cron: string | null;
-        runnableCk: string | null;
+        statementCk: string | null;
         scopeCk: string | null;
       }) =>
         ({
@@ -1560,7 +1560,7 @@ export function useSymbolContentOps() {
             timezone: vars.timezone ?? null,
             interval: vars.interval ?? null,
             cron: vars.cron ?? null,
-            runnableCk: vars.runnableCk ?? null,
+            statementCk: vars.statementCk ?? null,
             scopeCk: vars.scopeCk ?? null,
           },
         } as any),
@@ -1578,13 +1578,13 @@ export function useSymbolContentOps() {
       | "timezone"
       | "interval"
       | "cron"
-      | "runnableCk"
+      | "statementCk"
       | "scopeCk"
     >
   ) {
     return {
       ...input,
-      runnableCk: input.runnableCk ?? null,
+      statementCk: input.statementCk ?? null,
       scopeCk: input.scopeCk ?? null,
     };
   }
@@ -1601,7 +1601,7 @@ export function useSymbolContentOps() {
       | "timezone"
       | "interval"
       | "cron"
-      | "runnableCk"
+      | "statementCk"
       | "scopeCk"
     >,
     newTrigger: Pick<
@@ -1614,7 +1614,7 @@ export function useSymbolContentOps() {
       | "timezone"
       | "interval"
       | "cron"
-      | "runnableCk"
+      | "statementCk"
       | "scopeCk"
     >
   ) {

@@ -179,14 +179,14 @@ class WorkerNode(Monitored):
         run_id = msg.p.run_id or UUIDT()
 
         try:
-            # get runnable
-            runnable = worker.module.lookup(msg.p.runnable)
-            if runnable is None or runnable.type not in RUNNABLE_STATEMENT_TYPES:
+            # get statement
+            statement = worker.module.lookup(msg.p.statement)
+            if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
                 raise RunStartError(StartRunErrorType.INVALID_RUN)
 
             # key inputs if needed
             if not msg.p.keyed:
-                inputs = map_value(msg.p.inputs, runnable, map_k=lambda f: (f.key, f.py_ident))
+                inputs = map_value(msg.p.inputs, statement, map_k=lambda f: (f.key, f.py_ident))
             else:
                 inputs = msg.p.inputs
 
@@ -200,9 +200,10 @@ class WorkerNode(Monitored):
                 module_id=msg.p.module_id,
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
-                runnable_id=runnable.id,
-                runnable_type=runnable.type,
-                runnable_ck=runnable.ck,
+                statement_id=statement.id,
+                statement_type=statement.type,
+                statement_ck=statement.ck,
+                statement_path=None,
                 session_id=None,
                 trigger_type=msg.p.trigger_type,
                 trigger_id=msg.p.trigger_id,
@@ -458,18 +459,18 @@ class ModuleWorkerProcess(ModuleWriter):
             self.log.info("worker.run", job=job, timeout=timeout)
 
             # instantiate arguments
-            runnable = self.module.resolve(job.run_data.runnable_id)
-            if runnable.type not in RUNNABLE_STATEMENT_TYPES:
+            statement = self.module.resolve(job.run_data.statement_id)
+            if statement.type not in RUNNABLE_STATEMENT_TYPES:
                 raise RunError(
                     kind=RunErrorKind.Runtime,
                     type="InvalidRunnableType",
-                    message=f"statement {runnable!r} is not runnable",
-                    runnable=runnable,
+                    message=f"statement {statement!r} is not statement",
+                    statement=statement,
                 )
 
             inputs = map_value(
                 job.run_data.inputs,
-                runnable,
+                statement,
                 map_k=lambda f: (f._typed_key, f.py_ident),
                 map_v=unpack_value_flat,
                 is_output=False,
@@ -506,7 +507,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 await asyncio.sleep(delay)
 
             # run
-            job.task = asyncio.create_task(self._do_run_in_session(job.session, runnable, inputs))
+            job.task = asyncio.create_task(self._do_run_in_session(job.session, statement, inputs))
             self._active_runs[job.run_data.id] = job
             self._last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
@@ -516,18 +517,21 @@ class ModuleWorkerProcess(ModuleWriter):
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 
-    async def _do_run_in_session(self, session: Session, runnable: HasRun, inputs: dict) -> None:
-        """Actually runs the runnable in the session"""
+    async def _do_run_in_session(self, session: Session, statement: HasRun, inputs: dict) -> None:
+        """Actually runs the statement in the session"""
 
         # open session
         await session.aopen()
 
         # run session
         try:
-            await runnable(**inputs)
+            await statement(**inputs)
         except BaseException as e:
             raise RunError(
-                kind=RunErrorKind.Runtime, type=type(e).__name__, message=str(e), runnable=runnable
+                kind=RunErrorKind.Runtime,
+                type=type(e).__name__,
+                message=str(e),
+                statement=statement,
             ) from e
         finally:
             # remove root run from our own dirty runs (for queue/schedule) to avoid race condition

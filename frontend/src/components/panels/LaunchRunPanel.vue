@@ -206,7 +206,7 @@ defineExpose({
         <!-- Run controls -->
         <RunControlsTile
           :run="currentRun"
-          :runnable="statement"
+          :statement="statement"
           :inputs="panel.inputs"
           @rerun="onRun"
           @run="onRun"
@@ -261,7 +261,7 @@ defineExpose({
           sublabel-position="opposite"
           :style="{ ...baseTilePositionX }"
         >
-          <ErrorTraceback :runnable-ck="panel.statementCk" :error-nice="panel.lastError" class="p-1" />
+          <ErrorTraceback :statement-ck="panel.statementCk" :error-nice="panel.lastError" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
         <ContainerTile v-if="panel.lastRunId" label="Trace" :style="{ ...baseTilePositionX }">
@@ -302,7 +302,7 @@ defineExpose({
             ref="runsTileRef"
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
-            :runnable-cks="[panel.statementCk]"
+            :statement-cks="[panel.statementCk]"
             live
             :limit="RUNS_HISTORY_LIMIT"
             class="max-w-full overflow-x-auto"

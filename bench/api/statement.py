@@ -76,7 +76,7 @@ class Trigger(HasCrud, ModuleNode, Revisioned, relay.Node):
     timezone: auto
     interval: auto
     cron: auto
-    runnable_ck: auto
+    statement_ck: auto
     scope_ck: auto
 
 
@@ -541,7 +541,7 @@ class TriggerCreateInput:
     timezone: Optional[str] = None
     interval: Optional[int] = None
     cron: Optional[str] = None
-    runnable_ck: Optional[UUID] = None
+    statement_ck: Optional[UUID] = None
     scope_ck: Optional[UUID] = None
 
 
@@ -554,7 +554,7 @@ class TriggerUpdateInput(strawberry_django.NodeInput):
     timezone: Optional[str] = None
     interval: Optional[int] = None
     cron: Optional[str] = None
-    runnable_ck: Optional[UUID] = None
+    statement_ck: Optional[UUID] = None
     scope_ck: Optional[UUID] = None
 
 
@@ -794,7 +794,7 @@ class SymbolMutation:
             timezone=input.timezone,
             interval=input.interval,
             cron=input.cron,
-            runnable_ck=input.runnable_ck,
+            statement_ck=input.statement_ck,
             scope_ck=input.scope_ck,
         )
         return trigger
@@ -809,7 +809,7 @@ class SymbolMutation:
         trigger.timezone = input.timezone
         trigger.interval = input.interval
         trigger.cron = input.cron
-        trigger.runnable_ck = input.runnable_ck
+        trigger.statement_ck = input.statement_ck
         trigger.scope_ck = input.scope_ck
         return trigger
 

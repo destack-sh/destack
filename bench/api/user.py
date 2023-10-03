@@ -243,7 +243,7 @@ class UserMutation:
             input.project_version_id.node_id if input.project_version_id else None
         )
         client.file_id = input.file_id.node_id if input.file_id else None
-        client.runnable_id = input.statement_id.node_id if input.statement_id else None
+        client.statement_id = input.statement_id.node_id if input.statement_id else None
         client.field_id = input.field_id.node_id if input.field_id else None
         client.record_id = input.record_id.node_id if input.record_id else None
         client.name = input.path

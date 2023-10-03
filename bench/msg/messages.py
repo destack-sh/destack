@@ -250,7 +250,7 @@ class ModuleInternalChangedPayload(ModuleScoped, HasOrigin, Payload):
 class ReqStartRunPayload(ModuleScoped, Payload):
     run_id: Optional[UUID]
     session_id: Optional[UUID]
-    runnable: Optional[UUID | str]
+    statement: Optional[UUID | str]
     scheduled_at: Optional[datetime]
     trigger_type: TriggerType
     trigger_id: Optional[UUID]
@@ -388,8 +388,8 @@ class RepSearchRecordsPayload(RepSearch, Payload):
 @payload(NMessageType.SEARCH_RUNS)
 class ReqSearchRunsPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
-    runnables_ids: Optional[list[UUID]] = None
-    runnables_cks: Optional[list[UUID]] = None
+    statements_ids: Optional[list[UUID]] = None
+    statements_cks: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.SEARCH_RUNS_REP)
@@ -400,8 +400,8 @@ class RepSearchRunPayload(RepSearch, Payload):
 @payload(NMessageType.SEARCH_LOGS)
 class ReqSearchLogPayload(ReqSearch, Payload):
     module_id: UUID = required_field()
-    runnables_ids: Optional[list[UUID]] = None
-    runnables_cks: Optional[list[UUID]] = None
+    statements_ids: Optional[list[UUID]] = None
+    statements_cks: Optional[list[UUID]] = None
 
 
 @payload(NMessageType.SEARCH_LOGS_REP)

@@ -220,7 +220,7 @@ export const TriggerContentType = graphql(/* GraphQL */ `
     scheduleType
     interval
     cron
-    runnableCk
+    statementCk
     scopeCk
     # crud
     createdAt

@@ -451,8 +451,8 @@ type LogEntry {
   logger: String
   message: String
   sessionId: GlobalID
-  runnableId: GlobalID
-  runnableCk: UUID
+  statementId: GlobalID
+  statementCk: UUID
   runId: GlobalID
   value: JSON
 }
@@ -1106,8 +1106,8 @@ type Query {
   ): Run
   currentRuns(projectId: GlobalID!, projectVersionId: GlobalID!): SessionStateOperationInfo!
   environment(projectId: GlobalID!): EnvironmentOperationInfo!
-  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
-  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
+  searchRuns(projectId: GlobalID!, projectVersionId: GlobalID!, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, rootOnly: Boolean = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): RunConnection!
+  searchLogs(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null, query: SearchQuery = null, sort: [SearchSort!] = null, after: String = null, limit: Int = null, count: Boolean = null): LogEntryConnection!
   clients(
     projectId: GlobalID = null
     projectVersionId: GlobalID = null
@@ -1354,8 +1354,8 @@ type Run implements HasTriggeredBy & Node {
   parent: Run
   children: [Run!]!
   descendants: [Run!]!
-  runnable: Statement
-  runnableCk: UUID
+  statement: Statement
+  statementCk: UUID
   createdAt: DateTime!
   updatedAt: DateTime!
   startedAt: DateTime
@@ -1406,7 +1406,7 @@ type RunError {
 
 input RunInput {
   projectVersionId: GlobalID!
-  runnableId: GlobalID = null
+  statementId: GlobalID = null
   runId: GlobalID = null
   sessionId: GlobalID = null
   inputs: JSON = null
@@ -1417,7 +1417,7 @@ input RunInput {
 
 type RunState {
   projectVersionId: GlobalID!
-  runnableId: GlobalID
+  statementId: GlobalID
   success: Boolean!
   error: StartRunErrorType
   run: Run
@@ -1728,7 +1728,7 @@ type Subscription {
   projectChanged(projectId: GlobalID!): ProjectChange!
   moduleChanged(projectId: GlobalID!, projectVersionId: GlobalID!): ModuleChange!
   sessionsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null): SessionChangeRunsChangeWorkerChange!
-  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, runnableIds: [GlobalID!] = null, runnableCks: [UUID!] = null): LogChange!
+  logsChanged(projectId: GlobalID!, projectVersionId: GlobalID = null, sessionId: GlobalID = null, runId: GlobalID = null, statementIds: [GlobalID!] = null, statementCks: [UUID!] = null): LogChange!
 }
 
 input SymbolUpdateCodeInput {
@@ -1813,7 +1813,7 @@ type Trigger implements HasCrud & ModuleNode & Node {
   timezone: String
   interval: Int
   cron: String
-  runnableCk: UUID
+  statementCk: UUID
   scopeCk: UUID
 }
 
@@ -1828,7 +1828,7 @@ input TriggerCreateInput {
   timezone: String = null
   interval: Int = null
   cron: String = null
-  runnableCk: UUID = null
+  statementCk: UUID = null
   scopeCk: UUID = null
 }
 
@@ -1867,7 +1867,7 @@ input TriggerUpdateInput {
   timezone: String = null
   interval: Int = null
   cron: String = null
-  runnableCk: UUID = null
+  statementCk: UUID = null
   scopeCk: UUID = null
 }
 

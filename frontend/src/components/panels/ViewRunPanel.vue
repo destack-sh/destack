@@ -48,7 +48,7 @@ const { run: remoteRun, loading: remoteLoading } = useRun(
 const localRun = computed(() => sessions.activeRuns.value.find((r) => r.id == panel.value.runId));
 const run = computed(() => (remoteRun.value != null ? remoteRun.value : localRun.value));
 const loading = computed(() => localRun.value == null && remoteLoading.value);
-const statement = computed(() => (run.value?.runnableCk != null ? module.statementOf(run.value.runnableCk) : null));
+const statement = computed(() => (run.value?.statementCk != null ? module.statementOf(run.value.statementCk) : null));
 const inputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && !(t.flags & TypeFlag.IsOutput)) ?? []
 );
@@ -126,7 +126,7 @@ defineExpose({
         <h1 class="text-3xl font-bold text-gray-900">Run #{{ runUuid.slice(-7, -1) }}&nbsp;</h1>
         <RunControlsTile
           :run="(run as Run | undefined)"
-          :runnable="statement ?? undefined"
+          :statement="statement ?? undefined"
           :hide="['run']"
           @rerun="bench.openViewRun($event, { group: panel.group, focus: true })"
         />
@@ -144,7 +144,7 @@ defineExpose({
             <button
               v-if="statement != null"
               class="flex flex-row items-center whitespace-nowrap underline-offset-2 hover:underline"
-              @click="nav.focusStatement(run.runnable as NodeBase)"
+              @click="nav.focusStatement(run.statement as NodeBase)"
             >
               <component
                 :is="getStatementIconSolid((statement as InterpStatement).type)"
@@ -248,7 +248,7 @@ defineExpose({
         </ContainerTile>
         <!-- Error -->
         <ContainerTile v-else-if="run.errorNice != null" label="Error" :style="{ ...baseTilePositionX }">
-          <ErrorTraceback :runnable-ck="run.runnableCk" :error-nice="run.errorNice" class="p-1" />
+          <ErrorTraceback :statement-ck="run.statementCk" :error-nice="run.errorNice" class="p-1" />
         </ContainerTile>
         <!-- Trace -->
         <!-- TODO @Performance: pass in run to trace tiles (they all use the same data) -->

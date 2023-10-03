@@ -35,7 +35,7 @@ TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 @node(mnt=MNT.Trigger)
 class Trigger(Node):
-    """A trigger for a runnable, possibly inside a flow."""
+    """A trigger for a statement, possibly inside a flow."""
 
     parent: "Statement" = nparent(MNT.Statement)
     type: TriggerType = nproperty(is_required=True, validate=enum_validator(TriggerType))
@@ -47,7 +47,7 @@ class Trigger(Node):
     timezone: Optional[str] = nproperty(default=pytz.utc.zone)
     interval: Optional[int] = nproperty(default=None)
     cron: Optional[str] = nproperty(default=None)
-    runnable: Union["Statement", UUID, None] = nproperty(default=None)
+    statement: Union["Statement", UUID, None] = nproperty(default=None)
     scope: Union["Node", UUID, None] = nproperty(default=None)
 
     @staticmethod
@@ -99,17 +99,17 @@ class Trigger(Node):
         return f"<Trigger {self}>"
 
     def _clear_inner(self) -> None:
-        self.runnable = self.runnable.id if isinstance(self.runnable, Node) else self.runnable
+        self.statement = self.statement.id if isinstance(self.statement, Node) else self.statement
         self.scope = self.scope.id if isinstance(self.scope, Node) else self.scope
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
-        # resolve runnable
-        if self.runnable is not None and not isinstance(self.runnable, HasRun):
-            resolved = scope.lookup(self.runnable)
+        # resolve statement
+        if self.statement is not None and not isinstance(self.statement, HasRun):
+            resolved = scope.lookup(self.statement)
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
             else:
-                self.runnable = resolved
+                self.statement = resolved
         # resolve scope
         if self.scope is not None and not isinstance(self.scope, Node):
             resolved = scope.lookup(self.scope)

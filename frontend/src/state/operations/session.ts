@@ -83,7 +83,7 @@ export function useSessionOps() {
     graphql(/* GraphQL */ `
       mutation startRun(
         $projectVersionId: GlobalID!
-        $runnableId: GlobalID
+        $statementId: GlobalID
         $runId: GlobalID
         $sessionId: GlobalID
         $inputs: JSON
@@ -94,7 +94,7 @@ export function useSessionOps() {
         run(
           input: {
             projectVersionId: $projectVersionId
-            runnableId: $runnableId
+            statementId: $statementId
             runId: $runId
             sessionId: $sessionId
             inputs: $inputs
@@ -105,7 +105,7 @@ export function useSessionOps() {
         ) {
           ... on RunState {
             projectVersionId
-            runnableId
+            statementId
             success
             error
             run {
@@ -121,7 +121,7 @@ export function useSessionOps() {
   );
 
   async function run(
-    runnableId: string,
+    statementId: string,
     runId?: string,
     sessionId?: string,
     inputs?: Record<string, any>,
@@ -129,12 +129,12 @@ export function useSessionOps() {
   ) {
     return await ops.perform({
       type: "runtime.run",
-      key: runnableId,
+      key: statementId,
       stateless: true,
       do: async () => {
         return await startRunMut({
           projectVersionId: bench.projectVersionId,
-          runnableId,
+          statementId,
           runId,
           sessionId,
           inputs: inputs,

@@ -275,7 +275,7 @@ class RemoteObjectStatus(enum.StrEnum):
 
 
 class TriggerType(enum.StrEnum):
-    """Triggers for runnables (for both actual runs and pre-defined triggers)."""
+    """Triggers for statements (for both actual runs and pre-defined triggers)."""
 
     INVOKE = "invoke"
     TIME = "time"
@@ -287,7 +287,7 @@ class TriggerType(enum.StrEnum):
 
 
 class ScheduleType(enum.StrEnum):
-    """Schedules for runnables."""
+    """Schedules for statements."""
 
     INTERVAL = "interval"
     CRON = "cron"

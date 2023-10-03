@@ -9,8 +9,8 @@ import { computed, ref, toRef, watch, watchEffect } from "vue";
 const props = defineProps<{
   projectId: string;
   projectVersionId: string;
-  runnableIds?: string[];
-  runnableCks?: string[];
+  statementIds?: string[];
+  statementCks?: string[];
   runId?: string;
   sessionId?: string;
   query?: SearchQuery;
@@ -18,8 +18,8 @@ const props = defineProps<{
   live?: boolean;
   limit?: number;
   focus?: {
-    runnableIds?: string[];
-    runnableCks?: string[];
+    statementIds?: string[];
+    statementCks?: string[];
     runId?: string;
     sessionId?: string;
   };
@@ -32,8 +32,8 @@ const { logs, loading, addLogs } = useLogs(
   {
     projectId: toRef(props, "projectId"),
     projectVersionId: toRef(props, "projectVersionId"),
-    runnableIds: toRef(props, "runnableIds"),
-    runnableCks: toRef(props, "runnableCks"),
+    statementIds: toRef(props, "statementIds"),
+    statementCks: toRef(props, "statementCks"),
     sessionId: toRef(props, "sessionId"),
     runId: toRef(props, "runId"),
     query: toRef(props, "query"),
@@ -51,8 +51,8 @@ const logsSorted = computed(() => logs.value?.slice().sort((a, b) => a.createdAt
 function isHighlighted(log: LogEntry): boolean {
   return (
     hasFocus.value &&
-    (props.focus?.runnableIds == null || props.focus.runnableIds.includes(log.runnableId)) &&
-    (props.focus?.runnableCks == null || props.focus.runnableCks.includes(log.runnableCk)) &&
+    (props.focus?.statementIds == null || props.focus.statementIds.includes(log.statementId)) &&
+    (props.focus?.statementCks == null || props.focus.statementCks.includes(log.statementCk)) &&
     (props.focus?.runId == null || props.focus.runId == log.runId) &&
     (props.focus?.sessionId == null || props.focus.sessionId == log.sessionId)
   );
