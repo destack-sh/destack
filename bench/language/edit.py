@@ -15,6 +15,7 @@ from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
 from bench.language.module import UNSET, Module, Node, NodeTree, NRel
 from bench.language.text import render_text_simple
 from bench.utils.serialize import from_dict
+from bench.utils.utils import omit_empty
 
 if TYPE_CHECKING:
     from bench.language import File, Statement
@@ -670,6 +671,10 @@ def render(
 
 def _render_prop(node: Node, name: str, value: Any) -> str:
     """Render a non-relational prop (may be a reference, but not a parent/child relation)"""
+    from bench.language.remote import RemoteObject, Secret
+    from bench.language.typing import pack_value
+    from bench.language.value import HasValue
+
     prop = node.__properties__.get(name)
     if value is None:
         return "None"
@@ -681,6 +686,9 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         return f"{type(value).__name__}({value.value})"
     elif isinstance(value, Node):
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
+    elif isinstance(value, (int, float, bool)):
+        return repr(value)
+    # TODO @Broken: render & parse in-value references properly (e.g. secret, file, node)
     elif isinstance(value, str):
         # render 'text' in simple form
         if prop and prop.name == "text" and value and node._text_spans:
@@ -693,8 +701,17 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         else:
             value = value.replace('"', '\\"')
             return repr(value)
-    elif isinstance(value, (int, float, bool)):
-        return repr(value)
+    elif prop and prop.name == "value" and HasValue in node._components:
+        value = pack_value(
+            value,
+            node._type_of_value,
+            map_k=lambda f: (f.py_ident, f.py_ident),
+            filter_v=lambda v: not isinstance(v, (Secret, RemoteObject)),
+            ignore_array=True,
+            ignore_outer_map=True,
+            none_if_invalid=True,
+        )
+        return omit_empty(value)
     else:
         raise ValueError(f"cannot render {value!r}")
 

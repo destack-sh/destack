@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Collection, Optional
 
 from bench.language.const import TypeFlag
@@ -11,7 +12,7 @@ if TYPE_CHECKING:
 
 @node_component
 class HasValue(Node):
-    value: Any | None = nproperty(default=None)
+    value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
 
     @property
     def _type_of_value(self) -> Optional["HasFields"]:
@@ -41,7 +42,8 @@ class HasValue(Node):
 
             is_array = bool(self._type_of_value.flags & TypeFlag.IsArray)
             check_type(self.value, self._type_of_value, ignore_array=is_array)
-            self.session.tracer.node_update(self, ["value"])
+            if self.attached:
+                self.session.tracer.node_update(self, ["value"])
 
         assert self._type_of_value is not None, f"missing type for {self!r}"
         value = unpack_value(

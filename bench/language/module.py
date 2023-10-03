@@ -583,10 +583,11 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""
         node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
+        # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):
-            node = node_cls.new(*args, **kwargs, for_parent=self._parent)
+            node = node_cls.new(*args, **kwargs, for_parent=self._parent, _status=NS.Source)
         else:
-            node = node_cls(*args, **kwargs)
+            node = node_cls(*args, **kwargs, _status=NS.Source)
         if _append:
             self.append(node)
         return node
@@ -1293,6 +1294,8 @@ class Node(abc.ABC):
         if self.id is None and self.attached:
             self._assign_id(self.module.id)
         self._init_self()
+        if self._status == NS.Interpreted and self._session is not None:
+            self._activate_self(self._session)
 
     @property
     def parent_id(self) -> Optional[UUID]:
@@ -1348,8 +1351,10 @@ class Node(abc.ABC):
                     getattr(parent, prop.name)._update(parent)
             parent = parent.parent
 
-        # TODO @Broken @UX: reinterp local module on update (if active in session)
+        # TODO @Broken @UX: reinterp local module properly on edit
         #  e.g. should probably raise if a new issue(kind=error) pops up after edit
+        if self._status >= NS.Tracked:
+            self._reinterp_self(self)
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1372,7 +1377,8 @@ class Node(abc.ABC):
             except ValidationError as e:  # reset on error
                 super().__setattr__(key, prev)
                 raise e
-            self._session.tracer.node_update(self, [key])
+            if self.attached:
+                self._session.tracer.node_update(self, [key])
             return
         elif key in self.__dict__:
             return super().__setattr__(key, value)
@@ -1515,6 +1521,13 @@ class Node(abc.ABC):
         from_status=NS.Indexed,
         to_status=NS.Interpreted,
     )
+
+    def _reinterp_self(self, scope: "ScopeNode") -> None:
+        """Reinterpret this node."""
+        self._clear_self()
+        self._index_self(_coerce=False)
+        self._interp_self(scope, _coerce=False)
+
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
     _activate_self = _make_self_method(

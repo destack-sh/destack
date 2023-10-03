@@ -42,7 +42,7 @@ class Record(HasValue, Node):
     parent: "Statement" = nparent(MNT.Statement)
 
     @staticmethod
-    def new(*args, for_parent: "Statement" = None, **kwargs) -> "Record":
+    def new(*args, for_parent: "Statement" = None, _status: NS = None, **kwargs) -> "Record":
         from bench.language.typing import check_type, pack_value
 
         value = {**kwargs}
@@ -50,7 +50,7 @@ class Record(HasValue, Node):
             value[field.name] = arg
         check_type(value, for_parent, ignore_array=True)
         value = pack_value(value, for_parent, ignore_array=True, ignore_outer_map=True)
-        return Record(value=value)
+        return Record(value=value, _status=_status)
 
     def __str__(self):
         self_str = f"{self.id} {describe_type(self.value)}"

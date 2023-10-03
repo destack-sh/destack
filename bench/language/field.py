@@ -44,6 +44,7 @@ from bench.language.validation import (
 )
 from bench.language.value import HasValue
 from bench.utils.func import dict_minus
+from bench.utils.proxy import ProxyDict, ProxyList, unproxy_value
 from bench.utils.utils import IdentifierType, to_pyidentifier
 
 if typing.TYPE_CHECKING:
@@ -60,13 +61,23 @@ class TypeError(TypeError):
         message: str = None,
         suberrors: list["TypeError"] = None,
     ):
+        if isinstance(value, (ProxyDict, ProxyList)):
+            value = unproxy_value(value)
         value_str = repr(value)
         max_value_str_len = 300
         if len(value_str) > max_value_str_len:
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
 
+        if isinstance(expected, Field) and not expected.resolved_fields:
+            expected_str = f"field {expected.py_ident} ({expected._type_str})"
+        else:
+            expected_fields_str = ", ".join(
+                f"{f.py_ident} ({f._type_str})" for f in expected.resolved_fields
+            )
+            expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
+
         super().__init__(
-            f"{message or 'type mismatch'}: expected {expected!r}, got {value_str} ({type(value)})"
+            f"{message or 'type mismatch'}: expected {expected_str}, got {value_str} ({type(value)})"
         )
         self.value = value
         self.expected = expected
@@ -280,6 +291,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         text: str = None,
         *args,
         for_parent: "Statement" = None,
+        flags: TypeFlag = TypeFlag.Zero,
         **kwargs,
     ) -> "Field":
         # default to literal or string if no type is specified
@@ -291,6 +303,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             else:
                 type = TypeTag.STRING
 
+        # coerce type
         if isinstance(type, TypeTag):
             kwargs["tag"] = type
         elif isinstance(type, TypeHint):
@@ -310,7 +323,12 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
             kwargs["reference"] = type
         else:
             raise ValueError(f"unexpected type {type!r}")
-        return Field(name=name, text=text, *args, **kwargs)
+
+        # default to optional if parent is not a function
+        if not (for_parent and for_parent.tag == TypeTag.FUNCTION):
+            flags |= TypeFlag.IsOptional
+
+        return Field(name=name, text=text, flags=flags, *args, **kwargs)
 
     @staticmethod
     def literal(name: str, text: str = None, *args, **kwargs) -> "Field":
@@ -405,7 +423,7 @@ class ResolvedField(Field):
         if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
             raise RuntimeError(f"unresolved reference {field.reference} in {field!r}")
         ck = uuid.uuid5(for_parent.ck, field.ck.hex)
-        id = get_node_id(field.module.id, ck)
+        id = get_node_id(field.module.id, ck) if field.module else None
         resolved_field = ResolvedField(
             id=id,
             ck=ck,
