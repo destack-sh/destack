@@ -150,6 +150,7 @@ class TaggingMetadata:
 class RunMetadata:
     name: Optional[str]
     test: Optional[bool]
+    internal: Optional[bool]
     queue_position: Optional[int]
     cached_at: Optional[datetime]
     cached_in: Optional[UUID]
