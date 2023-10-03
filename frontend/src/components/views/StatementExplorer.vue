@@ -28,16 +28,25 @@ const orderedStatements = computed(() => {
   );
 });
 
-function getStatementName(statement: {
-  id: string;
-  type: StatementType;
-  name?: string | null;
-  referenceCk?: string | null;
-}): string | null | undefined {
+function getStatementName(
+  statement: {
+    id: string;
+    type: StatementType;
+    name?: string | null;
+    referenceCk?: string | null;
+  },
+  defaultName: string
+): string | null | undefined {
+  let name;
   if (statement.type == StatementType.Reference) {
-    return module.statementOf(statement.referenceCk ?? "")?.name ?? (statement.referenceCk == null ? "..." : "???");
+    name = module.statementOf(statement.referenceCk ?? "")?.name ?? (statement.referenceCk == null ? "..." : "???");
   } else {
-    return statement.name;
+    name = statement.name;
+  }
+  if ((name ?? "")?.trim().length == 0) {
+    return defaultName;
+  } else {
+    return name;
   }
 }
 
@@ -123,6 +132,7 @@ defineExpose({
         />
       </span>
       <!-- 'Name' -->
+      <!-- Blank statement is only shown if it has descendants -->
       <span v-if="o.statement.type == StatementType.Blank" class="text-gray-400">(Blank)</span>
       <!-- Show text for unnamed statements -->
       <AnnotatedText
@@ -141,7 +151,7 @@ defineExpose({
         ]"
       />
       <!-- Default to proper name -->
-      <span class="truncate" v-else>{{ getStatementName(o.statement) ?? "(Unnamed)" }}</span>
+      <span class="truncate" v-else>{{ getStatementName(o.statement, "(Unnamed)") }}</span>
     </li>
   </ul>
   <div v-else class="my-2 px-3">

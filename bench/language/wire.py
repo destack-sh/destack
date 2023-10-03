@@ -58,6 +58,10 @@ ObjectT = typing.TypeVar("ObjectT")
 class NodePacker(abc.ABC, typing.Generic[NodeDataT, NodeT]):
     """Module node packer"""
 
+    mnt: ClassVar[MNT]
+    PARENTS: ClassVar[ParentsT]
+    REMAP: ClassVar[dict[str, str]] = {}
+
     def pack(self, node: NodeT) -> NodeDataT:
         """Packs the node itself into the wire format"""
         raise NotImplementedError(f"pack not supported in {self.__class__.__name__}")
@@ -225,6 +229,12 @@ def patch_node_flat(
     return node
 
 
+def remap_properties(mnt: MNT, properties: list[str]):
+    packer = _node_packers_by_data[DATA_CLASS_BY_MNT[mnt]]
+    properties = [packer.REMAP.get(p, p) for p in properties]
+    return properties
+
+
 @dataclass
 class NodeData:
     mnt: ClassVar[MNT]  # not great but wire data will be refactored anyway
@@ -306,6 +316,7 @@ class ModuleTreeData(ModuleData):
 @node_packer(MNT.Module, ModuleData, Module)
 class ModulePacker(NodePacker[ModuleData, Module]):
     PARENTS: ClassVar[ParentsT] = set()
+    REMAP: ClassVar[dict[str, str]] = {}
 
     def pack(self, module: Module) -> ModuleData:
         return ModuleData(
@@ -356,6 +367,7 @@ class FileData(NodeData, HasCrud):
 class FilePacker(NodePacker[FileData, File]):
     mnt: ClassVar[MNT] = MNT.File
     PARENTS: ClassVar[ParentsT] = {MNT.Module}
+    REMAP: ClassVar[dict[str, str]] = {}
 
     def pack(self, file: File) -> "FileData":
         return FileData(
@@ -413,6 +425,7 @@ class StatementData(NodeData, HasOrder, HasCrud):
 @node_packer(MNT.Statement, StatementData, lang.Statement)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
+    REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
         value = (
@@ -506,6 +519,7 @@ class FieldData(NodeData, HasOrder, HasCrud):
 @node_packer(MNT.Field, FieldData, lang.Field)
 class FieldPacker(NodePacker[FieldData, lang.Field]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, field: lang.Field) -> "FieldData":
         reference = field.reference.ck if isinstance(field.reference, lang.Statement) else None
@@ -579,6 +593,7 @@ class TriggerData(NodeData, HasCrud):
 @node_packer(MNT.Trigger, TriggerData, lang.Trigger)
 class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    REMAP: ClassVar[dict[str, str]] = {"runnable": "runnable_ck", "scope": "scope_ck"}
 
     def pack(self, trigger: lang.Trigger) -> "TriggerData":
         return TriggerData(
@@ -592,8 +607,8 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
             timezone=trigger.timezone,
             interval=trigger.interval,
             cron=trigger.cron,
-            runnable_ck=trigger.runnable.id if trigger.runnable else None,
-            scope_ck=trigger.scope.id if trigger.scope else None,
+            runnable_ck=trigger.runnable.ck if trigger.runnable else None,
+            scope_ck=trigger.scope.ck if trigger.scope else None,
             revision=trigger.revision,
             created_at=trigger.created_at,
             updated_at=trigger.updated_at,
@@ -650,6 +665,7 @@ class TaggingData(NodeData, HasCrud):
 @node_packer(MNT.Tagging, TaggingData, lang.Tagging)
 class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
     PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
+    REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, tagging: lang.Tagging) -> "TaggingData":
         reference = tagging.reference.ck if isinstance(tagging.reference, lang.Statement) else None
@@ -706,6 +722,7 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
 @node_packer(MNT.DatabaseView, DatabaseViewData, lang.DatabaseView)
 class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
     PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    REMAP: ClassVar[dict[str, str]] = {}
 
     def pack(self, view: lang.DatabaseView) -> "DatabaseViewData":
         return DatabaseViewData(
@@ -732,7 +749,6 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
             source=parent,
             query=view.query,
             sort=view.sort,
-            reference=view.reference_ck,
             revision=view.revision,
             created_at=view.created_at,
             updated_at=view.updated_at,

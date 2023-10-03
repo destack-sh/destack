@@ -8,6 +8,7 @@ from django.core.exceptions import PermissionDenied
 from strawberry.relay import GlobalID
 from strawberry.scalars import JSON
 from strawberry.types import Info
+from strawberry.utils.str_converters import to_camel_case
 
 from bench import models
 from bench.api import sync
@@ -54,7 +55,7 @@ class Edit:
     revision: Optional[int]
     input: Optional[JSON]
     data: Union[Issue, ResolvedField, None]
-    properties: Optional[list[str]]
+    properties: Optional[list[str]]  # by API name
 
 
 @strawberry.type
@@ -82,6 +83,8 @@ async def unpack_module_edits(
         else:  # ignore other data types
             data = None
 
+        properties = wire.remap_properties(e.type.mnt, e.properties)
+        properties = [to_camel_case(p) for p in properties]
         unpacked_edit = Edit(
             type=e.type,
             project_version_id=to_global_id("ProjectVersion", e.project_version_id),
@@ -90,7 +93,7 @@ async def unpack_module_edits(
             revision=e.revision,
             input=e.input,
             data=data,
-            properties=e.properties,
+            properties=properties,
         )
         unpacked_edits.append(unpacked_edit)
     return unpacked_edits

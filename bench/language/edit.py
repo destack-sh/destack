@@ -18,7 +18,7 @@ from bench.utils.serialize import from_dict
 from bench.utils.utils import omit_empty
 
 if TYPE_CHECKING:
-    from bench.language import File, Statement
+    from bench.language import File, Run, Statement
     from bench.language.wire import ModuleTreeData, NodeData
 
 
@@ -250,7 +250,8 @@ assert set(MET) == set(_MODULE_EDIT_MAP.keys()), "not all edits are mapped"
 class Edit:
     """
     An edit to a module/node.
-    TODO @Cleanup @Architecture: use new Edit where possible, see :BE-114
+    TODO @Cleanup @Architecture: use new :Edit where possible (see :BE-114)
+     also track Edit.edited_by (for Run to enable undo)
     """
 
     type: MET
@@ -259,8 +260,9 @@ class Edit:
     revision: Optional[int] = None  # server revision of node after edit is accepted
     file: Optional["File"] = None  # ancestor file before edit
     statement: Optional["Statement"] = None  # ancestor statement before edit
-    properties: dict[str, Any] | None = None
-    old_properties: dict[str, Any] | None = None
+    properties: dict[str, Any] | None = None  # changed properties (by language name)
+    old_properties: dict[str, Any] | None = None  # if edit or hard delete
+    edited_by: Optional["Run"] = None
 
     def undo(self):
         raise NotImplementedError
@@ -292,7 +294,7 @@ class EditData:
     statement_id: Optional[UUID] = None
     revision: Optional[int] = None
     input: Optional[dict[str, Any]] = None  # for GQL edits
-    properties: Optional[list[str]] = None  # for partial updates
+    properties: Optional[list[str]] = None  # changed properties (by language name), see :Edit
     thing: Optional[Any] = None  # in-memory object that was mutated, not serialized
     _node_mnt: Optional[ModuleNodeType] = None  # discriminator for 'union'
     _node: Optional[Any] = None  # the actual data, custom encode/decoded as union
