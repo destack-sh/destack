@@ -935,6 +935,8 @@ def write_edits(
                 # batch update
                 for properties, nodes in nodes_by_props.items():
                     properties = properties.split(";")
+                    # need to remap properties since edit data uses language names (see :Edit)
+                    properties = wire.remap_properties(mmt.mnt, properties)
                     # validate changed properties (records have no validation)
                     if validate and mmt.mnt != MNT.Record:
                         unchanged_properties = [

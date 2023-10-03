@@ -39,6 +39,7 @@ from .text import HasText
 from .trigger import HasTriggers, Trigger
 from .value import HasValue
 
+# Note that all these imports are auto-imported as prelude in user code.
 __all__ = [
     "Aggregation",
     "Blank",
