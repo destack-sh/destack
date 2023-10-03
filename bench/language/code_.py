@@ -144,10 +144,10 @@ class HasCode(Node):
             "file": self.file,
             "module": self.module,
             "session": self.session,
-            "cache": self.session.cache_async if self._parse.is_async else self.session.cache_sync,
+            "cache": self.session.cache_async if self._is_async else self.session.cache_sync,
             "storage": self.session.storage,
             "random": Random(self.id.hex.encode()),
-            "ximport": self._import_sync if not self._parse.is_async else self._import_async,
+            "ximport": self._import_sync if not self._is_async else self._import_async,
             **self._statement_references,
             **{s.py_ident: s for s in symbolx_lib.files.builtins.statements},
         }
@@ -172,8 +172,8 @@ class HasCode(Node):
         func_body_lines = ((self.code.strip() if self.code else None) or "pass").splitlines()
         # replace real python x imports with Bench import
         # e.g. replace `from .utils import a, b` with `a, b = import(".utils", "a", "b")`
-        await_str = "await " if self._parse.is_async else ""
-        for i, x_refs in self._parse.x_imports.items():
+        await_str = "await " if self._is_async else ""
+        for i, x_refs in self._parse.x_imports.items() if self._parse else []:
             x_paths = list(x_refs.values())
             path = x_paths[0].path
             keys_str = ", ".join(repr(k) for k in x_refs)

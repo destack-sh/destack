@@ -12,8 +12,8 @@ from uuid import UUID
 from more_itertools import first
 
 from bench.language.const import INTERP_NODE_TYPES, ModuleNodeType
-from bench.language.module import UNSET, Module, Node, NodeProperty, NodeTree, NRel
-from bench.language.text import HasText, render_text_simple
+from bench.language.module import UNSET, Module, Node, NodeTree, NRel
+from bench.language.text import render_text_simple
 from bench.utils.serialize import from_dict
 
 if TYPE_CHECKING:
@@ -667,15 +667,9 @@ def render(
         raise ValueError(f"cannot render to {target}")
 
 
-def _prerender_prop(prop: NodeProperty, node: Node, value: Any) -> Any:
-    if prop.name == "text" and value and HasText in node._components and node._text_spans:
-        return render_text_simple(node._text_spans)
-    else:
-        return value
-
-
-def _render_prop(value: Any) -> str:
+def _render_prop(node: Node, name: str, value: Any) -> str:
     """Render a non-relational prop (may be a reference, but not a parent/child relation)"""
+    prop = node.__properties__.get(name)
     if value is None:
         return "None"
     elif isinstance(value, UUID):
@@ -687,11 +681,16 @@ def _render_prop(value: Any) -> str:
     elif isinstance(value, Node):
         return f"'{value.name}'"  # this isn't quite right, may be shadowed/scoped
     elif isinstance(value, str):
+        # render 'text' in simple form
+        if prop and prop.name == "text" and value and node._text_spans:
+            value = render_text_simple(node._text_spans)
         # if it contains newlines transform into multiline string
-        value = value.replace('"', '\\"')
         if "\n" in value:
-            return f'"""\n{value}\n"""'
+            lines = [line.replace("\\", "\\\\").replace('"', '\\"') for line in value.splitlines()]
+            value = "\n".join(f'"{line}\\n"' for line in lines)
+            return f"(\n{value}\n)"
         else:
+            value = value.replace('"', '\\"')
             return repr(value)
     elif isinstance(value, (int, float, bool)):
         return repr(value)
@@ -750,7 +749,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         if edit.kind == EditKind.CREATE:
             # get props to create
             init_props = {
-                prop.name: _prerender_prop(prop, node, getattr(node, prop.name))
+                prop.name: getattr(node, prop.name)
                 for prop in node.__properties__.values()
                 if not prop.is_runtime
                 and not prop.is_relation
@@ -799,22 +798,22 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
     lines = []
     for target, op, nodes in merged:
         if op == "=":
-            _, init_name, init_args, init_kwargs = nodes[0]
+            n, init_name, init_args, init_kwargs = nodes[0]
             init_kwargs = {**init_args, **init_kwargs}
-            kwargs_str = _sep(f"{n}={_render_prop(v)}" for n, v in init_kwargs.items() if v)
+            kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             lines.append(f"{target} = {init_name}({kwargs_str})")
             continue
 
         # stringify each node
         nodes_strs = []
         for node in nodes:
-            _, init_name, init_args, init_kwargs = node
+            n, init_name, init_args, init_kwargs = node
             if op == _OpType.CREATE and len(nodes) > 1:
                 # merge args into kwargs
                 init_kwargs = {**init_args, **init_kwargs}
                 init_args.clear()
-            args_str = _sep(_render_prop(v) for v in init_args.values() if v)
-            kwargs_str = _sep(f"{k}={_render_prop(v)}" for k, v in init_kwargs.items() if v)
+            args_str = _sep(_render_prop(n, k, v) for k, v in init_args.items() if v)
+            kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             if op == "create" and len(nodes) == 1:
                 nodes_strs.append(f"({_sep(args_str, kwargs_str)})")
             elif op == "create":
@@ -841,7 +840,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
         import black
 
         code = black.format_str(code, mode=black.Mode(line_length=100))
-    except ImportError:
-        pass
+    except Exception as e:
+        raise ValueError(f"rendered bad code:\n {code!r}") from e
 
     return code

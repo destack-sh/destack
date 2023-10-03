@@ -37,6 +37,7 @@ class HasText(Node):
 
     def _init_inner(self) -> None:
         if self._session is not None and self.text:
+            # TODO @Broken: text should be re-parsed (+interped) when attached and on every set
             # parse @<path> format on init during session
             self._set_untracked("text", render_text_html(parse_text_simple(self.text)))
 
@@ -141,7 +142,7 @@ def parse_text_html(text_raw: str) -> list[TextSpan]:
     :TextFormat
 
     e.g. "Hello <span data-reference-ck="02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a" data-reference-type="Statement" data-reference-path="a.b.c"></span>!"
-     -> [text("Hello "), mMention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Statement", "a.b.c"), TextSpan("!")]
+     -> [text("Hello "), Mention("02d1e2e0-7f6a-4b0e-3b0a-2b0a2b0a2b0a", "Statement", "a.b.c"), TextSpan("!")]
     """
     spans = []
     last_end = 0
