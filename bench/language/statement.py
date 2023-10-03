@@ -1,4 +1,5 @@
 import typing
+from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Optional, Union
 from uuid import UUID
 
@@ -116,7 +117,7 @@ class Statement(ScopeNode, HasTags):
     hint: Optional[TypeHint] = nproperty(default=None, validate=enum_validator(TypeHint))
     flags: Optional[TypeFlag] = nproperty(default=0, validate=flag_validator(TypeFlag))
     code: str | None = nproperty(default=None)
-    value: Any | None = nproperty(default=None)
+    value: Any | None = nproperty(default_factory=dict, copy=deepcopy)
     versioned: bool = nproperty(default=True)
     external_name: str | None = ninternal(default=None)  # for model, to be moved into value
 
@@ -180,7 +181,8 @@ class Statement(ScopeNode, HasTags):
     def morph(self, to_type: StatementType):
         self.type = to_type
         Statement._init_inner(self)
-        self._session.tracer.node_update(self, ["type"])
+        if self.attached:
+            self._session.tracer.node_update(self, ["type"])
         # what else to do? trigger re-interp of everything?
         raise NotImplementedError(f"{self!r} does not support morphing yet")
 

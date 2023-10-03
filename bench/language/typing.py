@@ -750,13 +750,24 @@ def pack_value(
     none_if_invalid: bool = False,
     is_output: bool = None,
     map_k: Callable[[Field], tuple[str, str]] = None,
+    filter_v: Callable[[Any], bool] = None,
 ):
     """Packs/serializes the given value into a JSON-able representation."""
+    if filter_v:
+
+        def _filtered_pack_value(value: Any, type: IsTyped, *args, **kwargs) -> Any:
+            if not filter_v(value):
+                return None
+            return pack_value_flat(value, type, *args, **kwargs)
+
+        map_v = _filtered_pack_value
+    else:
+        map_v = pack_value_flat
     return map_value(
         value=value,
         type=type,
         map_k=map_k or (lambda f: (f.py_ident, f._typed_key)),
-        map_v=pack_value_flat,
+        map_v=map_v,
         ignore_array=ignore_array,
         ignore_outer_map=ignore_outer_map,
         ignore_empty=ignore_empty,

@@ -521,7 +521,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
             flags=field.flags,
             text=field.text,
             reference_ck=reference,
-            value=field.value,
+            value=field._raw_value(),
             revision=field.revision,
             created_at=field.created_at,
             updated_at=field.updated_at,
