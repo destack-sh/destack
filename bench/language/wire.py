@@ -229,7 +229,9 @@ def patch_node_flat(
     return node
 
 
-def remap_properties(mnt: MNT, properties: list[str]):
+def remap_properties(mnt: MNT, properties: list[str] | None) -> list[str] | None:
+    if properties is None:
+        return None
     packer = _node_packers_by_data[DATA_CLASS_BY_MNT[mnt]]
     properties = [packer.REMAP.get(p, p) for p in properties]
     return properties

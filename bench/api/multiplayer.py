@@ -84,7 +84,7 @@ async def unpack_module_edits(
             data = None
 
         properties = wire.remap_properties(e.type.mnt, e.properties)
-        properties = [to_camel_case(p) for p in properties]
+        properties = [to_camel_case(p) for p in properties] if properties is not None else None
         unpacked_edit = Edit(
             type=e.type,
             project_version_id=to_global_id("ProjectVersion", e.project_version_id),

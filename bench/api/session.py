@@ -298,6 +298,8 @@ class RestartWorkerSetPayload:
 class RunInput:
     project_version_id: GlobalID
     statement_id: Optional[GlobalID] = None
+    file_id: Optional[GlobalID] = None
+    code: Optional[str] = None
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
     inputs: Optional[JSON] = None
@@ -643,10 +645,12 @@ class SessionMutation:
         project_version = await models.ProjectVersion.objects.aget(id=project_version_id)
         await sync_to_async(check_module_access)(info, project_version, ModuleAccessLevel.Use)
 
-        run = ReqStartRunPayload(
+        req = ReqStartRunPayload(
             project_id=project_version.project_id,
             module_id=project_version_id,
             statement=to_uuid(input.statement_id),
+            file=to_uuid(input.file_id),
+            code=input.code,
             inputs=input.inputs,
             scheduled_at=None,
             block=input.block,
@@ -659,7 +663,7 @@ class SessionMutation:
         try:
             rep: NMessage[RepStartRunPayload] = await request(
                 NMessageType.START_RUN,
-                run,
+                req,
                 reply_t=RepStartRunPayload,
                 timeout=input.timeout_seconds,
                 retry=2,

@@ -585,7 +585,7 @@ class EditBundle:
         """
 
         if not apply:
-            return self.batched()
+            yield from self.batched()
         editor = ModuleEditor(tree, project_id, module_id)
         for type, batch in self.batched():
             editor.apply_all(batch)

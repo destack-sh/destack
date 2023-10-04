@@ -76,7 +76,7 @@ defineExpose({
 </script>
 <template>
   <!-- Base types -->
-  <div class="flex flex-row">
+  <div class="flex flex-row gap-1.5">
     <!-- Existing bases -->
     <button
       v-for="(base, i) in baseTypes"

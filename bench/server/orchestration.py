@@ -109,10 +109,11 @@ class OrchestrationServer(Monitored):
             if k8_deployments_to_kill:
                 await k8.delete_deployments(k8_deployments_to_kill)
 
-            # and re-deploy as needed
+            # re-deploy as needed, start listening
             await self._update_last_active_from_redis()
             await self._mark_tired_worker_sets()
             await self._save_and_notify_worker_sets(self.worker_sets)
+            self.tasks.start(self._watch_worker_sets_in_k8_forever(k8_revision_mark))
             await self._deploy_worker_sets(self.worker_sets)
         else:  # mark local as deadish (just started)
             dead_worker_node_ids = {"local"}
@@ -132,8 +133,6 @@ class OrchestrationServer(Monitored):
             await self._mark_runs_dead(project_id=None, worker_node_ids=dead_worker_node_ids)
 
         # start for real
-        if KUBERNETES_ENABLED:
-            self.tasks.start(self._watch_worker_sets_in_k8_forever(k8_revision_mark))
         self.tasks.start(self._manage_worker_lifecycle_forever())
         self.subs = [
             await handle_reply(NMessageType.CONFIGURE_WORKER_SET, self.configure_worker_set),
