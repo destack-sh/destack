@@ -576,7 +576,12 @@ class EditBundle:
             yield current_type, current_batch
 
     def batched_apply(
-        self, tree: NodeTree, project_id: UUID, module_id: UUID, apply: bool = True
+        self,
+        tree: NodeTree,
+        project_id: UUID,
+        module_id: UUID,
+        apply: bool = True,
+        raise_on_error: bool = True,
     ) -> Iterator[tuple[MET, list[EditData]]]:
         """
         Batch consecutive edits by type in order of appearance
@@ -586,9 +591,10 @@ class EditBundle:
 
         if not apply:
             yield from self.batched()
+            return
         editor = ModuleEditor(tree, project_id, module_id)
         for type, batch in self.batched():
-            editor.apply_all(batch)
+            editor.apply_all(batch, raise_on_error=raise_on_error)
             yield type, batch
 
 

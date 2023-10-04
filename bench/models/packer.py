@@ -886,6 +886,7 @@ def write_edits(
     refresh_index: bool,
     validate: bool,
     apply: bool = True,
+    raise_on_error: bool = True,
 ):
     """
     Writes a series of module edits to the database.
@@ -898,7 +899,9 @@ def write_edits(
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
 
-    for mmt, batch in edits.batched_apply(source, project_v.project_id, project_v.id, apply=apply):
+    for mmt, batch in edits.batched_apply(
+        source, project_v.project_id, project_v.id, apply=apply, raise_on_error=raise_on_error
+    ):
         if mmt.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MET.TRUNCATE_RECORDS:
