@@ -100,6 +100,7 @@ export function useTextMentions(
   options?: {
     query?: Ref<string | null>;
     searching?: Ref<boolean>;
+    file?: Ref<{ ck: string } | undefined>; // not used yet, should affect ranking
     statement?: Ref<{ ck: string } | undefined>;
   }
 ) {

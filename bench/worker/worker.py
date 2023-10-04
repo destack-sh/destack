@@ -8,8 +8,8 @@ from uuid import UUID
 import structlog
 from asgiref.sync import sync_to_async
 
-from bench.language import HasRun, LogEntry, Module, Run, RunError, wire
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, ModuleReference, RunStatus, SessionMode
+from bench.language import Code, LogEntry, Module, Run, RunError, Statement, wire
+from bench.language.const import RUNNABLE_STATEMENT_TYPES, ModuleReference, RunStatus
 from bench.language.edit import EditData
 from bench.language.run import RunErrorKind
 from bench.language.session import ModuleWriter, Session, SessionContext
@@ -180,12 +180,15 @@ class WorkerNode(Monitored):
 
         try:
             # get statement
-            statement = worker.module.lookup(msg.p.statement)
-            if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
-                raise RunStartError(StartRunErrorType.INVALID_RUN)
+            if msg.p.statement:
+                statement = worker.module.lookup(msg.p.statement)
+                if statement is None or statement.type not in RUNNABLE_STATEMENT_TYPES:
+                    raise RunStartError(StartRunErrorType.INVALID_RUN)
+            else:
+                statement = None
 
             # key inputs if needed
-            if not msg.p.keyed:
+            if not msg.p.keyed and statement:
                 inputs = map_value(msg.p.inputs, statement, map_k=lambda f: (f.key, f.py_ident))
             else:
                 inputs = msg.p.inputs
@@ -200,9 +203,9 @@ class WorkerNode(Monitored):
                 module_id=msg.p.module_id,
                 worker_node_id=self.worker_node_id,
                 worker_process_id=None,
-                statement_id=statement.id,
-                statement_type=statement.type,
-                statement_ck=statement.ck,
+                statement_id=statement.id if statement else None,
+                statement_type=statement.type if statement else None,
+                statement_ck=statement.ck if statement else None,
                 statement_path=None,
                 session_id=None,
                 trigger_type=msg.p.trigger_type,
@@ -218,7 +221,8 @@ class WorkerNode(Monitored):
                 inputs=inputs,
                 outputs=None,
                 error=None,
-                value=None,
+                value=msg.p.root_value,
+                access_level=msg.p.access_level,
             )
 
             # store session id separately from run because we write the run data directly
@@ -237,6 +241,13 @@ class WorkerNode(Monitored):
                 await asyncio.wait_for(job.terminated.wait(), timeout=msg.p.block)
             except asyncio.TimeoutError:
                 pass  # ignore
+            # job can fail to start even once successfully queued (e.g. maybe statement is invalid)
+            if (
+                isinstance(job.exception, RunError)
+                and job.exception.type == StartRunErrorType.INVALID_RUN
+            ):
+                await msg.reply(RepStartRunPayload(error=job.exception.type))
+                return
 
         # update job's run_data from session
         # (this doesn't feel like the right place for this, but we always need to do it to reply)
@@ -305,6 +316,7 @@ class RunJob:
     session: Optional[Session] = None
     started: asyncio.Event = field(default_factory=asyncio.Event)
     terminated: asyncio.Event = field(default_factory=asyncio.Event)
+    exception: Optional[Exception] = None
 
     def __lt__(self, other: "RunJob"):
         return self.priority < other.priority
@@ -387,7 +399,6 @@ class ModuleWorkerProcess(ModuleWriter):
             if job.run_data.status != RunStatus.Queued:
                 continue
 
-            job.started.set()
             try:
                 await self._do_run_job(job, WORKER_RUN_TIMEOUT)
             except RunError as e:
@@ -395,7 +406,6 @@ class ModuleWorkerProcess(ModuleWriter):
             except Exception as e:
                 self.log.error("run.failed.internal", job=job, sentry=sentry_capture(e), exc_info=e)
             finally:
-                job.terminated.set()
                 self.queue.task_done()
 
     async def on_module_changed(self, edits: list[EditData]):
@@ -459,14 +469,25 @@ class ModuleWorkerProcess(ModuleWriter):
             self.log.info("worker.run", job=job, timeout=timeout)
 
             # instantiate arguments
-            statement = self.module.resolve(job.run_data.statement_id)
-            if statement.type not in RUNNABLE_STATEMENT_TYPES:
-                raise RunError(
-                    kind=RunErrorKind.Runtime,
-                    type="InvalidRunnableType",
-                    message=f"statement {statement!r} is not statement",
-                    statement=statement,
-                )
+            if job.run_data.statement_id:
+                statement = self.module.resolve(job.run_data.statement_id)
+                if statement.type not in RUNNABLE_STATEMENT_TYPES:
+                    raise RunError(
+                        kind=RunErrorKind.Runtime,
+                        type=StartRunErrorType.INVALID_RUN,
+                        message=f"statement {statement!r} cannot be run",
+                        statement=statement,
+                    )
+            else:
+                code = (job.run_data.value or {}).get("code")
+                if code is None:
+                    raise RunError(
+                        kind=RunErrorKind.Runtime,
+                        type=StartRunErrorType.INVALID_RUN,
+                        message="missing code for anonymous run",
+                        statement=None,
+                    )
+                statement = Code(code=code)
 
             inputs = map_value(
                 job.run_data.inputs,
@@ -491,7 +512,7 @@ class ModuleWorkerProcess(ModuleWriter):
                 writer=self,
                 ctx=session_ctx,
                 id=job.session_id,
-                mode=SessionMode.WRITE,
+                access=job.run_data.access_level,
             )
 
             # run in active session
@@ -511,13 +532,23 @@ class ModuleWorkerProcess(ModuleWriter):
             self._active_runs[job.run_data.id] = job
             self._last_run_job = job
             await asyncio.wait_for(job.task, timeout=timeout)
+        except BaseException as e:
+            job.exception = e
+            raise
         finally:
+            # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
+            #  (where a queued run may be saved after a fast run has completed and flushed)
+            if job.run_data.id in self._dirty_dangling_runs:
+                del self._dirty_dangling_runs[job.run_data.id]
+
             job.terminated.set()
             self.module._deactivate_rec()
             if job.run_data.id in self._active_runs:
                 del self._active_runs[job.run_data.id]
 
-    async def _do_run_in_session(self, session: Session, statement: HasRun, inputs: dict) -> None:
+    async def _do_run_in_session(
+        self, session: Session, statement: Statement, inputs: dict
+    ) -> None:
         """Actually runs the statement in the session"""
 
         # open session
@@ -534,11 +565,6 @@ class ModuleWorkerProcess(ModuleWriter):
                 statement=statement,
             ) from e
         finally:
-            # remove root run from our own dirty runs (for queue/schedule) to avoid race condition
-            #  (where a queued run may be saved after a fast run has completed and flushed)
-            if session.ctx.first_run_id in self._dirty_dangling_runs:
-                del self._dirty_dangling_runs[session.ctx.first_run_id]
-
             # always close session
             await session.aclose()
 

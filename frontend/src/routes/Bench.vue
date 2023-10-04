@@ -586,10 +586,13 @@ onBeforeUnmount(() => {
         <!-- Bench-global controls -->
         <FadeTransition>
           <div v-if="versionLoaded && project != null" class="flex h-full flex-row items-center space-x-2">
-            <button class="rounded-sm p-0.5 hover:bg-orange-100" @click="bench.openTerminal()">
+            <CurrentRunsPopover />
+            <button
+              class="rounded-sm p-1 hover:bg-orange-100"
+              @click="bench.openTerminal({ group: bench.focusedGroup, opposite: true, focus: true })"
+            >
               <CommandLineIcon class="h-5 w-5 text-orange-600" />
             </button>
-            <CurrentRunsPopover />
             <SharingPopover :project="(project as any as Project)" />
             <NotificationPopover @show="bench.showBenchHeader = true" />
             <OmniCreate @show="bench.showBenchHeader = true" />

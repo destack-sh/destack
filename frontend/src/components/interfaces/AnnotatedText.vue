@@ -16,9 +16,10 @@ import { v4 as uuidv4 } from "uuid";
 
 const props = defineProps<{
   modelValue: string;
-  readonly: boolean;
+  readonly?: boolean;
   supportedAnnotations?: ModuleObjectTypename[];
   minimalMentions?: boolean;
+  file?: { ck: string };
   statement?: { ck: string };
 }>();
 
@@ -56,6 +57,7 @@ const {
 } = useTextMentions(spans, {
   query: mentionQuery,
   searching: computed(() => !props.readonly && insertingMentionAt.value != null),
+  file: toRef(props, "file"),
   statement: toRef(props, "statement"),
 });
 

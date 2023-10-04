@@ -22,7 +22,7 @@ import {
   type Theme,
 } from "@/state/appearance";
 import { getNodeIdFromCkMaybe, type ModuleIndex, type NodeBase } from "@/state/module";
-import type { LogsQuery, RunsQuery } from "@/state/session";
+import { SessionAccessLevel, type LogsQuery, type RunsQuery } from "@/state/session";
 import { getUUIDFromGlobalID, randomHexString, toGlobalId } from "@/utils/functools";
 import {
   ArrowLeftIcon,
@@ -123,7 +123,7 @@ export type PanelType =
   | "view-logs"
   | "terminal";
 
-const BENCH_STATE_VERSION = 8;
+const BENCH_STATE_VERSION = 9;
 
 export function prettifySlug(path: string) {
   // replace non-URL friendly characters with dashes
@@ -181,6 +181,10 @@ export abstract class Panel {
   }
 
   get hasWhiteBackground() {
+    return true;
+  }
+
+  get hasScrollY() {
     return true;
   }
 
@@ -1298,6 +1302,10 @@ export class ViewLogsPanel extends Panel {
 
 export class TerminalPanel extends Panel {
   type = "terminal" as const;
+  input = "";
+  inputMode: "code" | "text" = "code";
+  runMode: "approve" | "immediate" = "approve";
+  accessLevel: SessionAccessLevel = SessionAccessLevel.Update;
 
   constructor() {
     super("terminal", "terminal-" + randomHexString(), "Terminal", "Terminal");
@@ -1307,11 +1315,19 @@ export class TerminalPanel extends Panel {
     this.id = "terminal-" + randomHexString();
   }
 
+  toggleInputMode() {
+    this.inputMode = this.inputMode == "code" ? "text" : "code";
+  }
+
   static parsePath(path: string, module: ModuleIndex): Panel | null {
     return null;
   }
 
   get hasWhiteBackground() {
+    return false;
+  }
+
+  get hasScrollY() {
     return false;
   }
 }

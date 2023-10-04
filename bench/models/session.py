@@ -8,7 +8,7 @@ from django.db.models import Model
 from django.db.models.expressions import RawSQL
 from strawberry_django.descriptors import model_property
 
-from bench.language.const import RunStatus, TriggerType
+from bench.language.const import RunStatus, SessionAccessLevel, TriggerType
 from bench.models.utils import UUIDTModel, get_choices
 from bench.utils.dt import utcnow_with_tz
 
@@ -90,6 +90,9 @@ class Run(UUIDTModel, HasTriggeredBy):
     outputs = models.JSONField(null=True, blank=True)
     error = models.JSONField(null=True, blank=True)
     value = models.JSONField(null=True, blank=True)
+    access_level = models.CharField(
+        max_length=32, null=True, blank=True, choices=get_choices(SessionAccessLevel)
+    )
 
     @model_property(only=["started_at", "terminated_at"])
     def duration(self) -> Optional[float]:

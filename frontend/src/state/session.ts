@@ -15,7 +15,7 @@ import {
 } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
-import { newRunId, newSessionId } from "@/state/module";
+import { newRunId, newSessionId, useCurrentModule } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
@@ -454,6 +454,7 @@ export function _useSessions(
       inputs?: any;
       block?: number;
       keyed?: boolean;
+      value?: any;
     }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -469,11 +470,12 @@ export function _useSessions(
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       duration: null,
-      inputs: options?.inputs ?? {},
       statement,
       statementCk: statement?.ck,
+      // should these be keyed?
+      inputs: options?.inputs ?? {},
       outputs: null,
-      value: null,
+      value: options?.value ?? null,
       error: null,
       session: {
         __typename: "Session",
@@ -589,6 +591,19 @@ export function _useSessions(
     return { runs, currentRun, currentRunActive };
   }
 
+  const auth = useAuth();
+  const module = useCurrentModule();
+  const botLabelKey = computed(() => module.runMetadataKey("bot"));
+  const myTerminalRuns = computed(() =>
+    // :TerminalRuns
+    Object.values(currentRuns.value).filter(
+      (run) =>
+        run.parent == null &&
+        (run.value?.[botLabelKey.value ?? ""] ?? run.value?.["bot"]) === "terminal" &&
+        run.triggerUser?.id === auth.me.value?.id
+    )
+  );
+
   const now = useNow(100);
   function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
@@ -615,6 +630,7 @@ export function _useSessions(
     workerSetReady,
     currentRuns,
     currentRoots,
+    myTerminalRuns,
     localRunsIds,
     activeRuns,
     activeRoots,
@@ -1011,6 +1027,22 @@ export function useLogs(
   };
 }
 
+export enum SessionAccessLevel { // :SessionAccessLevel
+  None = 0,
+  Read = 1,
+  Create = 2,
+  Update = 3,
+  Delete = 4,
+  Full = 4,
+}
+
+export const SESSION_ACCESS_LEVELS = [
+  SessionAccessLevel.Read,
+  SessionAccessLevel.Create,
+  SessionAccessLevel.Update,
+  SessionAccessLevel.Delete,
+];
+
 export function getRunStatusIconOutline(status: RunStatus) {
   return RUN_STATUS_ICON_OUTLINE[status];
 }
@@ -1092,3 +1124,23 @@ export const WORKER_STATUS_TITLE = {
   [WorkerSetStatus.Sleeping]: "Sleeping",
   [WorkerSetStatus.Unknown]: "Unknown",
 };
+
+export function useTerminal() {
+  const session = useCurrentSessions();
+
+  function runText(text: string) {
+    throw new Error("nocheckin: not implemented yet");
+  }
+
+  function runCode(code: string): Run {
+    // :TerminalRuns
+    const { run } = session.run(code, { value: { name: "terminal", bot: "terminal", code: code } });
+    return run;
+  }
+
+  return {
+    runs: session.myTerminalRuns,
+    runText,
+    runCode,
+  };
+}

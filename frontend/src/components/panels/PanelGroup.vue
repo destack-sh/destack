@@ -197,13 +197,13 @@ async function createFileInPanelGroup() {
       <TabPanels :style="panelSize">
         <!-- Only file panels have a white background :FileBackground -->
         <TabPanel
-          :ref="(el: any) => panelRefs.registerRef(e.id, el)"
-          as="div"
-          class="overflow-y-scroll outline-none"
-          :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50']"
-          :style="panelSize"
           v-for="e in group.panels"
           :key="e.id"
+          :ref="(el: any) => panelRefs.registerRef(e.id, el)"
+          as="div"
+          class="outline-none"
+          :class="[e.hasWhiteBackground ? 'bg-white' : 'bg-gray-50', e.hasScrollY ? 'overflow-y-scroll ' : '']"
+          :style="panelSize"
           unmount
         >
           <PanelInterface :panel="e" :container-el="panelRefs.getRef(e.id)?.$el ?? null" />

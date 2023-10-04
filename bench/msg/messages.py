@@ -8,7 +8,13 @@ from enum import StrEnum
 from typing import Optional
 from uuid import UUID
 
-from bench.language.const import ModuleReference, TriggerType, WorkerProfile, WorkerRegion
+from bench.language.const import (
+    ModuleReference,
+    SessionAccessLevel,
+    TriggerType,
+    WorkerProfile,
+    WorkerRegion,
+)
 from bench.language.edit import EditData
 from bench.language.model import ModelErrorType
 from bench.language.query import Query, Sort
@@ -259,6 +265,9 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     inputs: dict[str, typing.Any]
     block: Optional[float]
     keyed: bool
+    root_value: Optional[dict[str, typing.Any]]
+    global_value: Optional[dict[str, typing.Any]]
+    access_level: Optional[SessionAccessLevel]
 
 
 class StartRunErrorType(enum.StrEnum):

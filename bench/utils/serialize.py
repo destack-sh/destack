@@ -125,7 +125,10 @@ def from_dict(
             raise TypeError(f"expected bool, got {type(data)} in {data}")
         return data
     elif isinstance(cls, type) and issubclass(cls, enum.Enum):
-        return cls(data)
+        if issubclass(cls, enum.IntEnum):
+            return cls(int(data))
+        else:
+            return cls(data)
     elif typing.get_origin(cls) is typing.Union:
         args = typing.get_args(cls)
         if len(args) == 2 and args[1] is type(None):  # noqa
