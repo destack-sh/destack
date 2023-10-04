@@ -704,6 +704,7 @@ class RuntimeHost:
                     session_id=run.session_id,
                     run_id=run.id,
                     statement=run.statement_id,
+                    scope=None,
                     inputs=run.inputs,
                     block=None,
                     keyed=True,

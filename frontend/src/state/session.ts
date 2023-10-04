@@ -448,13 +448,14 @@ export function _useSessions(
     statementOrCode: { id: string; ck: string } | string,
     options?: {
       statementId?: string;
-      fileId?: string;
+      scope?: string;
       sessionId?: string;
       runId?: string;
       inputs?: any;
       block?: number;
       keyed?: boolean;
-      value?: any;
+      rootValue?: any;
+      globalValue?: any;
     }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -475,7 +476,7 @@ export function _useSessions(
       // should these be keyed?
       inputs: options?.inputs ?? {},
       outputs: null,
-      value: options?.value ?? null,
+      value: options?.rootValue ?? null,
       error: null,
       session: {
         __typename: "Session",
@@ -495,9 +496,11 @@ export function _useSessions(
 
     function doRunWithLogs() {
       return sessionOps
-        .run(statement?.id ?? options?.statementId, options?.fileId, code, run.id, run.session?.id, run.inputs, {
+        .run(statement?.id ?? options?.statementId, options?.scope, code, run.id, run.session?.id, run.inputs, {
           block: options?.block,
           keyed: options?.keyed,
+          globalValue: options?.globalValue,
+          rootValue: options?.rootValue,
         })
         .then((r) => {
           if (
@@ -591,19 +594,6 @@ export function _useSessions(
     return { runs, currentRun, currentRunActive };
   }
 
-  const auth = useAuth();
-  const module = useCurrentModule();
-  const botLabelKey = computed(() => module.runMetadataKey("bot"));
-  const myTerminalRuns = computed(() =>
-    // :TerminalRuns
-    Object.values(currentRuns.value).filter(
-      (run) =>
-        run.parent == null &&
-        (run.value?.[botLabelKey.value ?? ""] ?? run.value?.["bot"]) === "terminal" &&
-        run.triggerUser?.id === auth.me.value?.id
-    )
-  );
-
   const now = useNow(100);
   function getDurationSeconds(run: Pick<Run, "createdAt" | "startedAt" | "terminatedAt" | "duration">): number {
     if (run.duration != null) return run.duration;
@@ -630,7 +620,6 @@ export function _useSessions(
     workerSetReady,
     currentRuns,
     currentRoots,
-    myTerminalRuns,
     localRunsIds,
     activeRuns,
     activeRoots,
@@ -1043,6 +1032,14 @@ export const SESSION_ACCESS_LEVELS = [
   SessionAccessLevel.Delete,
 ];
 
+export const SESSION_ACCESS_LEVEL_NAME: Record<SessionAccessLevel, string> = {
+  [SessionAccessLevel.None]: "None",
+  [SessionAccessLevel.Read]: "Read",
+  [SessionAccessLevel.Create]: "Create",
+  [SessionAccessLevel.Update]: "Update",
+  [SessionAccessLevel.Delete]: "Delete",
+};
+
 export function getRunStatusIconOutline(status: RunStatus) {
   return RUN_STATUS_ICON_OUTLINE[status];
 }
@@ -1127,19 +1124,37 @@ export const WORKER_STATUS_TITLE = {
 
 export function useTerminal() {
   const session = useCurrentSessions();
+  const auth = useAuth();
+  const module = useCurrentModule();
+  const botLabelKey = computed(() => module.runMetadataKey("bot"));
 
-  function runText(text: string) {
+  // nocheckin: fetch terminl runs (filter runs where label == terminal and trigger user == self)
+  const runs = computed(() =>
+    // :TerminalRuns
+    Object.values(session.currentRuns.value).filter(
+      (run) =>
+        run.parent == null &&
+        (run.value?.[botLabelKey.value ?? ""] ?? run.value?.["bot"]) === "terminal" &&
+        run.triggerUser?.id === auth.me.value?.id
+    )
+  );
+
+  function runText(text: string, runMode: "approve" | "immediate" = "approve"): string {
     throw new Error("nocheckin: not implemented yet");
   }
 
-  function runCode(code: string): Run {
+  function runCode(code: string, scope?: string): Run {
     // :TerminalRuns
-    const { run } = session.run(code, { value: { name: "terminal", bot: "terminal", code: code } });
+    const { run } = session.run(code, {
+      scope,
+      rootValue: { name: "terminal", bot: "terminal", code: code },
+      globalValue: { bot: "terminal" },
+    });
     return run;
   }
 
   return {
-    runs: session.myTerminalRuns,
+    runs,
     runText,
     runCode,
   };

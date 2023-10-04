@@ -148,20 +148,26 @@ class TaggingMetadata:
 
 @reflect_struct("RunMetadata", "Default metadata for any run")
 class RunMetadata:
+    # core
     test: Optional[bool]
     internal: Optional[bool]
     queue_position: Optional[int]
     cached_at: Optional[datetime]
     cached_in: Optional[UUID]
     cached_duration: Optional[float]
+    # tasks
+    retries: Optional[int]
+    retry: Optional[int]
+    keys: Optional[list[str]]
+    batch_size: Optional[int]
+    nonce: Optional[str]
+    verdict: Optional[str]
+    verdict_reason: Optional[str]
+    # common
     name: Optional[str]
     bot: Optional[str]
     code: Optional[str]
     progress: Optional[float]
-    retries: Optional[int]
-    retry: Optional[int]
-    batch_size: Optional[int]
-    nonce: Optional[str]
-    keys: Optional[list[str]]
-    verdict: Optional[str]
-    verdict_reason: Optional[str]
+    # for terminal
+    generated_in: Optional[UUID]
+    generated_from: Optional[str]

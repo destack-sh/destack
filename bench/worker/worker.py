@@ -9,10 +9,15 @@ import structlog
 from asgiref.sync import sync_to_async
 
 from bench.language import Code, LogEntry, Module, Run, RunError, Statement, wire
-from bench.language.const import RUNNABLE_STATEMENT_TYPES, ModuleReference, RunStatus
+from bench.language.const import (
+    RUNNABLE_STATEMENT_TYPES,
+    ModuleReference,
+    RunStatus,
+    RunTrackingLevel,
+)
 from bench.language.edit import EditData
 from bench.language.run import RunErrorKind
-from bench.language.session import ModuleWriter, Session, SessionContext
+from bench.language.session import ModuleWriter, Session
 from bench.language.typing import map_value, unpack_value_flat
 from bench.language.wire import RunData
 from bench.msg.core import NMessage, handle_reply, message_handler, nc_init, request, subscribe
@@ -487,7 +492,10 @@ class ModuleWorkerProcess(ModuleWriter):
                         message="missing code for anonymous run",
                         statement=None,
                     )
-                statement = Code(code=code)
+                # nocheckin: scope anonymous code properly
+                statement = Code(code=code, parent=self.module)
+                statement._interp_self(self.module)
+                statement._track = RunTrackingLevel.ANONYMOUS
 
             inputs = map_value(
                 job.run_data.inputs,
@@ -498,25 +506,23 @@ class ModuleWorkerProcess(ModuleWriter):
             )
 
             # create session
-            session_ctx = SessionContext(
-                module_id=self.module_id,
-                project_id=self.project_id,
+            job.session = Session(
+                module=self.module,
+                writer=self,
+                access=job.run_data.access_level,
                 worker_node_id=self.node.worker_node_id,
                 worker_process_id=None,
                 trigger_type=job.run_data.trigger_type,
                 trigger_id=job.run_data.trigger_id,
-                first_run_id=job.run_data.id,
-            )
-            job.session = Session(
-                module=self.module,
-                writer=self,
-                ctx=session_ctx,
+                root_run_id=job.run_data.id,
+                root_run_value=job.run_data.value,
                 id=job.session_id,
-                access=job.run_data.access_level,
             )
 
             # run in active session
             self.module._activate_rec(job.session)
+            if statement._track == RunTrackingLevel.ANONYMOUS:
+                statement._activate_self(job.session)
 
             # wait out remaining schedule delay if needed (should be very short)
             now = utcnow_with_tz()

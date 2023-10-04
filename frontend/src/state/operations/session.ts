@@ -84,7 +84,7 @@ export function useSessionOps() {
       mutation startRun(
         $projectVersionId: GlobalID!
         $statementId: GlobalID
-        $fileId: GlobalID
+        $scopeId: GlobalID
         $code: String
         $runId: GlobalID
         $sessionId: GlobalID
@@ -92,12 +92,14 @@ export function useSessionOps() {
         $keyed: Boolean
         $block: Float
         $timeoutSeconds: Int
+        $rootValue: JSON
+        $globalValue: JSON
       ) {
         run(
           input: {
             projectVersionId: $projectVersionId
             statementId: $statementId
-            fileId: $fileId
+            scopeId: $scopeId
             code: $code
             runId: $runId
             sessionId: $sessionId
@@ -105,6 +107,8 @@ export function useSessionOps() {
             keyed: $keyed
             block: $block
             timeoutSeconds: $timeoutSeconds
+            rootValue: $rootValue
+            globalValue: $globalValue
           }
         ) {
           ... on RunState {
@@ -126,12 +130,12 @@ export function useSessionOps() {
 
   async function run(
     statementId?: string,
-    fileId?: string,
+    scopeId?: string,
     code?: string,
     runId?: string,
     sessionId?: string,
     inputs?: Record<string, any>,
-    options?: { block?: number; keyed?: boolean; timeoutSeconds?: number }
+    options?: { block?: number; keyed?: boolean; timeoutSeconds?: number; rootValue?: any; globalValue?: any }
   ) {
     return await ops.perform({
       type: "runtime.run",
@@ -141,11 +145,13 @@ export function useSessionOps() {
         return await startRunMut({
           projectVersionId: bench.projectVersionId,
           statementId,
-          fileId,
+          scopeId,
           code,
           runId,
           sessionId,
           inputs: inputs,
+          rootValue: options?.rootValue,
+          globalValue: options?.globalValue,
           keyed: options?.keyed,
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,

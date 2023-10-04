@@ -1889,6 +1889,11 @@ class Module(ScopeNode):
         return self.py_ident
 
     @property
+    def project_id(self):
+        assert self._project_id is not None, f"no project id set in {self!r}"
+        return self._project_id
+
+    @property
     def py_ident(self) -> str:
         return to_pyidentifier(self.name, IdentifierType.PATH)
 
