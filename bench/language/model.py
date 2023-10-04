@@ -124,7 +124,7 @@ class HasModel(HasFields, Node):
             timeout = timeout if timeout is not None else self.session.inference_timeout
             try:
                 req = ReqRunInferencePayload(
-                    project_id=self.module.session.ctx.project_id,
+                    project_id=self.module.project_id,
                     model_path=self.path,
                     inputs=inputs_raw,
                     timeout=timeout,

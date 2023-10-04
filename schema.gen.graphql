@@ -1407,7 +1407,7 @@ type RunError {
 input RunInput {
   projectVersionId: GlobalID!
   statementId: GlobalID = null
-  fileId: GlobalID = null
+  scopeId: GlobalID = null
   code: String = null
   runId: GlobalID = null
   sessionId: GlobalID = null

@@ -6,7 +6,7 @@ import { useTimeFromNow } from "@/composables/useNow";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, TerminalPanel } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
-import { SESSION_ACCESS_LEVELS, useTerminal } from "@/state/session";
+import { SESSION_ACCESS_LEVELS, SESSION_ACCESS_LEVEL_NAME, SessionAccessLevel, useTerminal } from "@/state/session";
 import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 import { ArrowRightIcon, PlayIcon } from "@heroicons/vue/24/solid";
@@ -27,7 +27,7 @@ const terminal = useTerminal();
 const now = useTimeFromNow();
 
 const input: Ref<string> = ref(panel.value.input ?? "");
-syncProperty({
+const inputSync = syncProperty({
   read: () => (input.value = panel.value.input ?? ""),
   write: () => (panel.value.input = input.value),
   debounceMs: 500,
@@ -40,7 +40,7 @@ function focus(f: "first" | "last" = "last") {
 
 function run() {
   if (panel.value.inputMode == "code") {
-    terminal.runCode(input.value);
+    terminal.runCode(input.value, undefined);
   } else {
     terminal.runText(input.value);
   }
@@ -84,7 +84,12 @@ defineExpose({
             <span class="ml-0.5 font-semibold text-orange-600">{{ module.path.value }}</span>
             <!-- Access level -->
             <button
-              class="hover ml-2 rounded-sm bg-emerald-100 px-1.5 text-emerald-900 ring-1 ring-inset ring-emerald-600/20 hover:bg-emerald-200"
+              class="hover ml-2 rounded-sm px-1.5 ring-1 ring-inset"
+              :class="[
+                panel.accessLevel < SessionAccessLevel.Delete
+                  ? 'bg-emerald-100 text-emerald-900  ring-emerald-600/20 hover:bg-emerald-200'
+                  : 'bg-red-100 font-semibold text-red-900 ring-red-600/20 hover:bg-red-200',
+              ]"
               @click="
                 () => {
                   const levels = SESSION_ACCESS_LEVELS;
@@ -92,7 +97,7 @@ defineExpose({
                 }
               "
             >
-              can {{ panel.accessLevel.toLowerCase() }}
+              can {{ SESSION_ACCESS_LEVEL_NAME[panel.accessLevel]?.toLowerCase() }}
             </button>
           </div>
           <!-- Body -->
@@ -111,9 +116,11 @@ defineExpose({
                 v-else
                 ref="inputRef"
                 v-model="input"
+                @update:model-value="inputSync.onLocalWrite"
                 :focused="panel.focused"
                 language="python"
                 hide-line-numbers
+                enter-is-execute
                 @click.stop
                 @execute="run"
               />
@@ -125,7 +132,7 @@ defineExpose({
           </div>
         </div>
         <!-- Run -->
-        <button class="rounded-sm px-1.5 py-1 hover:bg-orange-100" @click="run">
+        <button class="self-start rounded-sm px-1.5 py-1 hover:bg-orange-100" @click="run">
           <PlayIcon class="h-6 w-6 text-orange-600" />
         </button>
       </div>

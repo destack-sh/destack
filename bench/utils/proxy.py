@@ -67,6 +67,10 @@ class ProxyDict(Mapping):
         self._onread(key)
         return self._inner[key]
 
+    def update(self, other: dict) -> None:
+        for key, value in other.items():
+            self[key] = value
+
     def __setitem__(self, key: str, value: Any) -> None:
         value = proxy_value(value, _curry_path(self._onread, key), _curry_path(self._onwrite, key))
         self._inner[key] = value

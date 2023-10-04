@@ -298,7 +298,7 @@ class RestartWorkerSetPayload:
 class RunInput:
     project_version_id: GlobalID
     statement_id: Optional[GlobalID] = None
-    file_id: Optional[GlobalID] = None
+    scope_id: Optional[GlobalID] = None
     code: Optional[str] = None
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
@@ -365,7 +365,7 @@ class SessionQuery:
         project = models.Project.objects.get(id=project_id)
         check_module_access(info, project, ModuleAccessLevel.Read)
 
-        statement_statements_ids = models.Statement.objects.filter(
+        statements_ids = models.Statement.objects.filter(
             deleted_at=None,
             project_version_id=project_version_id,
             type__in=RUNNABLE_STATEMENT_TYPES,
@@ -376,9 +376,9 @@ class SessionQuery:
             statement_id=OuterRef("pk"), project_id=project_id
         ).order_by("-updated_at")
 
-        # get ids of the latest runs for each statement statement
+        # get ids of the latest runs for each statement
         latest_run_ids = (
-            models.Statement.objects.filter(id__in=statement_statements_ids)
+            models.Statement.objects.filter(id__in=statements_ids)
             .annotate(
                 latest_run_id=Subquery(latest_runs.values("id")[:1]),
             )
@@ -652,7 +652,7 @@ class SessionMutation:
             project_id=project_version.project_id,
             module_id=project_version_id,
             statement=to_uuid(input.statement_id),
-            file=to_uuid(input.file_id),
+            scope=to_uuid(input.scope_id),
             code=input.code,
             inputs=input.inputs,
             scheduled_at=None,

@@ -19,6 +19,7 @@ from bench.language.const import (
     ModuleNodeType,
     RemoteObjectStatus,
     RunStatus,
+    RunTrackingLevel,
     ScheduleType,
     SessionAccessLevel,
     StatementType,
@@ -983,14 +984,14 @@ class SessionData:
 
 @data_packer(SessionData, lang.Session)
 class SessionPacker(DataPacker[SessionData, lang.Session]):
-    def pack(self, object: lang.Session) -> SessionData:
+    def pack(self, session: lang.Session) -> SessionData:
         return SessionData(
-            id=object.id,
-            module_id=object.module.id,
-            opened_at=object.opened_at,
-            closed_at=object.closed_at,
-            trigger_id=object.ctx.trigger_id,
-            trigger_type=object.ctx.trigger_type,
+            id=session.id,
+            module_id=session.module.id,
+            opened_at=session.opened_at,
+            closed_at=session.closed_at,
+            trigger_id=session.trigger_id,
+            trigger_type=session.trigger_type,
         )
 
 
@@ -1054,12 +1055,13 @@ class RunData:
 @data_packer(RunData, Run)
 class RunPacker(DataPacker[RunData, Run]):
     def pack(self, run: Run) -> RunData:
+        track_statement = run.statement._track >= RunTrackingLevel.FULL
         if run.error:
             error = RunErrorData(
                 kind=run.error.kind,
                 type=run.error.type,
                 message=run.error.message,
-                statement_id=run.statement.id,
+                statement_id=run.statement.id if track_statement else None,
                 traceback=run.error.traceback,
             )
         else:
@@ -1073,13 +1075,13 @@ class RunPacker(DataPacker[RunData, Run]):
         )
         return RunData(
             id=run.id,
-            project_id=run.session.ctx.project_id,
-            module_id=run.session.module.id,
-            worker_node_id=run.session.ctx.worker_node_id,
-            worker_process_id=run.session.ctx.worker_process_id,
-            statement_id=run.statement.id,
-            statement_ck=run.statement.ck,
-            statement_type=run.statement.type,
+            project_id=run.module.project_id,
+            module_id=run.module.id,
+            worker_node_id=run.session.worker_node_id,
+            worker_process_id=run.session.worker_process_id,
+            statement_id=run.statement.id if track_statement else None,
+            statement_ck=run.statement.ck if track_statement else None,
+            statement_type=run.statement.type if track_statement else None,
             statement_path=run.statement_path,
             session_id=run.session.id,
             trigger_id=trigger_id,

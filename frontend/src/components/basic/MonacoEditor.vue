@@ -12,6 +12,7 @@ const props = defineProps<{
   focused: boolean;
   readonly?: boolean;
   hideLineNumbers?: boolean;
+  enterIsExecute?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -164,10 +165,16 @@ function initMonaco(monaco: Monaco) {
     if (editor.value == null) return;
 
     // handle key events (delete if empty, navigate up/down if top/bottom, etc.)
-    editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => emit("enter"));
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("openActions"));
+    if (props.enterIsExecute) {
+      editor.value.addCommand(monaco.KeyCode.Enter, () => emit("execute"));
+    } else {
+      editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
+        emit("enter");
+      });
+    }
     editor.value.onKeyDown((e) => {
       if (e.keyCode === monaco.KeyCode.Backspace) {
         if (editor.value?.getValue() === "") {
@@ -194,13 +201,8 @@ function initMonaco(monaco: Monaco) {
         }
       }
     });
-    // overwrite undo/redo to use our own undo/redo
-    // update: actually, this is really annoying, so we don't do it anymore
-    // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyZ, () => opsStore.undo());
-    // editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyMod.Shift | monaco.KeyCode.KeyZ, () => opsStore.redo());
-    // suppress cmd+s
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, () => {
-      // no op
+      // suppress default save to file
     });
   }
 

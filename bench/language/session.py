@@ -19,7 +19,6 @@ from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
     RunStatus,
-    RunTrackingLevel,
     SessionAccessLevel,
     TriggerType,
     TypeFlag,
@@ -40,18 +39,6 @@ if TYPE_CHECKING:
     from bench.language.wire import LogEntryData, RunData
 
 logger = structlog.get_logger(__name__)
-
-
-@dataclass(slots=True)
-class SessionContext:
-    module_id: UUID
-    project_id: UUID
-    worker_node_id: str
-    worker_process_id: Optional[str]
-    trigger_type: TriggerType
-    trigger_id: Optional[UUID]
-    first_run_id: Optional[UUID] = None
-
 
 SESSION_EDIT_FLUSH_WATERMARK = 512
 
@@ -86,8 +73,14 @@ class Session:
         module: Module,
         writer: ModuleWriter,
         access: SessionAccessLevel,
+        worker_node_id: str,
+        worker_process_id: Optional[str],
+        trigger_type: TriggerType,
+        trigger_id: Optional[UUID] = None,
         id: UUID = None,
-        ctx: SessionContext | None = None,
+        root_run_id: Optional[UUID] = None,
+        root_run_value: dict = None,
+        global_run_value: dict = None,
         cache_inferences: bool = True,
         inference_timeout: int = 300,
         inference_retries: int = 5,
@@ -97,22 +90,31 @@ class Session:
         from bench.language.remote import Storage
 
         self.id = id or uuid4()
-        self.ctx = ctx
         self.module = module
+        self.worker_node_id = worker_node_id
+        self.worker_process_id = worker_process_id
+        self.trigger_type = trigger_type
+        self.trigger_id = trigger_id
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
         self.access_level = access
         self._writer = writer
 
-        self.cache_sync = CacheSync(module, project_id=ctx.project_id)
-        self.cache_async = CacheAsync(module, project_id=ctx.project_id)
+        self.cache_sync = CacheSync(module)
+        self.cache_async = CacheAsync(module)
         self.storage = Storage(module)
 
         self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
-        self._editor = ModuleEditor(self.module._local_tree, ctx.project_id, module.id)
-        self.tracer = SessionTracer(self, editor=self._editor)
+        self._editor = ModuleEditor(self.module._local_tree, module.project_id, module.id)
+        self.tracer = SessionTracer(
+            self,
+            editor=self._editor,
+            root_run_id=root_run_id,
+            root_run_value=root_run_value,
+            global_run_value=global_run_value,
+        )
         self.opened_at: Optional[datetime] = None
         self.closed_at: Optional[datetime] = None
 
@@ -378,13 +380,23 @@ class PermissionError(Exception):
 
 
 class SessionTracer:
-    def __init__(self, session: Session, editor: "ModuleEditor"):
+    def __init__(
+        self,
+        session: Session,
+        editor: "ModuleEditor",
+        root_run_id: UUID = None,
+        root_run_value: dict = None,
+        global_run_value: dict = None,
+    ):
         self.session = session
         self._cached_logs: deque[LogEntry] = deque(maxlen=LOG_CACHE_SIZE)
         self._pending_logs: list[LogEntry] = []
         self._pending_runs: dict[UUID, Run] = {}
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
+        self._root_run_id = root_run_id
+        self._root_run_value = root_run_value
+        self._global_run_value = global_run_value
 
         self.stdout_collector = LogCollector(self._track_log, "stdout", session)
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
@@ -559,8 +571,6 @@ class SessionTracer:
         trigger: Union["Trigger", UUID, None] = None,
         _is_async: bool = False,
     ):
-        if statement and statement._track != RunTrackingLevel.FULL:
-            statement = None
         active_run = _get_active_run()
         if trace and active_run is not None:
             root = active_run.root or active_run
@@ -573,10 +583,10 @@ class SessionTracer:
         if not trigger_type and root is None:
             # inherit trigger type from session if we're not nested
             # (this will be wrong once we process other triggers within a session)
-            trigger_type = self.session.ctx.trigger_type
-            trigger = self.session.ctx.trigger_id
+            trigger_type = self.session.trigger_type
+            trigger = self.session.trigger_id
         run = Run(
-            id=self.session.ctx.first_run_id if root is None else UUIDT(),
+            id=self._root_run_id if root is None else UUIDT(),
             module=self.session.module,
             statement=statement,
             statement_path=None,
@@ -592,15 +602,19 @@ class SessionTracer:
             outputs=None,
             error=None,
             status=RunStatus.Queued if queue_position is not None else RunStatus.Running,
-            value={},
+            value=(self._root_run_value or {}) if root is None else {},
             _is_async=_is_async,
         )
         run._activate_inner(self.session, queue_position=queue_position)
         if parent is not None:
             parent.children.append(run)
         custom_value = _custom_value.get()
-        for k, v in (custom_value or {}).items():
-            run.value[k] = v
+        if root is None and self._root_run_value:
+            run.value.update(self._root_run_value)
+        if custom_value:
+            run.value.update(custom_value)
+        if self._global_run_value:
+            run.value.update(self._global_run_value)
         return run
 
     @contextlib.contextmanager
