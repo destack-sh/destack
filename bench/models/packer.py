@@ -893,12 +893,12 @@ def write_edits(
     """
     from bench.opensearch.index import write_edits_to_os
 
-    mut = EditBundle(edits)
+    edits = EditBundle(edits)
 
     if apply:
         source = source.deepcopy()  # copy source to not mutate it directly
 
-    for mmt, batch in mut.batched_apply(source, project_v.project_id, project_v.id, apply=apply):
+    for mmt, batch in edits.batched_apply(source, project_v.project_id, project_v.id, apply=apply):
         if mmt.kind == MEK.TRUNCATE:
             # remove descendants of a certain type by scope
             if mmt == MET.TRUNCATE_RECORDS:
@@ -958,7 +958,7 @@ def write_edits(
             model_cls = BASE_MODEL_CLASS_BY_MNT[mmt.mnt]
             model_cls.objects.filter(id__in=[e.node.id for e in batch]).delete()
 
-    write_edits_to_os(project_v, mut.edits, refresh=refresh_index)
+    write_edits_to_os(project_v, edits.edits, refresh=refresh_index)
 
 
 @transaction.atomic(savepoint=False)

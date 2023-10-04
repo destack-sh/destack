@@ -1845,6 +1845,8 @@ export type RunError = {
 
 export type RunInput = {
   block?: Scalars["Float"];
+  code?: InputMaybe<Scalars["String"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]>;
   inputs?: InputMaybe<Scalars["JSON"]>;
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];

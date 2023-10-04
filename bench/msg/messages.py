@@ -251,6 +251,8 @@ class ReqStartRunPayload(ModuleScoped, Payload):
     run_id: Optional[UUID]
     session_id: Optional[UUID]
     statement: Optional[UUID | str]
+    file: Optional[UUID | str]
+    code: Optional[str]
     scheduled_at: Optional[datetime]
     trigger_type: TriggerType
     trigger_id: Optional[UUID]

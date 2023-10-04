@@ -591,6 +591,12 @@ class RuntimeHost:
         self.active_triggers: dict[UUID, ActiveTrigger] = {}
         self.active_trigger_process_wait: asyncio.Event = asyncio.Event()
 
+    def __str__(self):
+        return f"{self.project_version.project.path} {self.project_version.id}"
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self}"
+
     @property
     def client(self) -> ClientOrigin:
         return ClientOrigin("runtime-host", self.server_id, None)
@@ -877,8 +883,8 @@ class RuntimeHost:
                     edits=interp_edits,
                 ),
             )
-        duration = (utcnow_with_tz() - start_time).total_seconds()
-        self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
+            duration = (utcnow_with_tz() - start_time).total_seconds()
+            self.log.debug("runtime.interp", total=len(interp_edits), duration=duration)
 
         # triggers
         if change is None or any(isinstance(n, Trigger) for n in change.touched):

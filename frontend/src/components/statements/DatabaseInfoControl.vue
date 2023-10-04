@@ -15,7 +15,7 @@ const infoButtonRef = ref<HTMLButtonElement | null>(null);
 
 const actions = computed(() => [
   {
-    label: props.statement.versioned ? "Promote to standalone" : "Turn into inline",
+    label: props.statement.versioned ? "Promote to global" : "Turn into inline",
     groupId: "edit",
     icon: GlobeAltIconOutline,
     disabled: props.readonly,
@@ -62,14 +62,14 @@ defineExpose({
       @keydown.down.exact.prevent="emit('navigateDown')"
     >
       <component :is="statement.versioned ? ClockIconOutline : GlobeAltIconSolid" class="mr-0.5 mt-0.5 h-4 w-4" />
-      <span v-if="!statement.versioned">standalone</span>
+      <span v-if="!statement.versioned">global</span>
       <!-- Label popover -->
       <span
         v-if="!readonly"
         class="pointer-events-none absolute left-3 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-500 text-gray-700 opacity-0 transition delay-in-500 duration-150 group-hover:opacity-100 group-focus:opacity-100"
       >
-        <span class="font-semibold">{{ statement.versioned ? "Inline" : "Standalone" }} database</span>:
-        {{ statement.versioned ? "records are isolated per version" : "records are shared everywhere" }}
+        <span class="font-semibold">{{ statement.versioned ? "Inline" : "Global" }} database</span>:
+        {{ statement.versioned ? "records are tied to Bench version" : "records are shared across Bench versions" }}
       </span>
     </button>
   </div>
