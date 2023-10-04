@@ -84,6 +84,8 @@ export function useSessionOps() {
       mutation startRun(
         $projectVersionId: GlobalID!
         $statementId: GlobalID
+        $fileId: GlobalID
+        $code: String
         $runId: GlobalID
         $sessionId: GlobalID
         $inputs: JSON
@@ -95,6 +97,8 @@ export function useSessionOps() {
           input: {
             projectVersionId: $projectVersionId
             statementId: $statementId
+            fileId: $fileId
+            code: $code
             runId: $runId
             sessionId: $sessionId
             inputs: $inputs
@@ -121,7 +125,9 @@ export function useSessionOps() {
   );
 
   async function run(
-    statementId: string,
+    statementId?: string,
+    fileId?: string,
+    code?: string,
     runId?: string,
     sessionId?: string,
     inputs?: Record<string, any>,
@@ -135,6 +141,8 @@ export function useSessionOps() {
         return await startRunMut({
           projectVersionId: bench.projectVersionId,
           statementId,
+          fileId,
+          code,
           runId,
           sessionId,
           inputs: inputs,

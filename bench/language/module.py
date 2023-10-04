@@ -724,7 +724,7 @@ class NodeList(NodeListBase[NodeT]):
         # register node scope
         if (
             self._flags & NRel.Scoped
-            and _node.name is not None
+            and _node.name
             and (not self._flags & NRel.Flat or _node.parent == self._parent)
         ):
             self._parent._add_node_to_scope(_node)
@@ -1573,6 +1573,7 @@ class Node(abc.ABC):
         message: str = None,
         **kwargs,
     ):
+        # only scope nodes can host issues, forward to parent
         self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
 
     @property
@@ -1691,9 +1692,7 @@ class ScopeNode(Node):
         for prop in self.__list_properties__.values():
             if prop.children_flags & NRel.Scoped:
                 for child in getattr(self, prop.name):
-                    if child.name is not None and (
-                        not prop.children_flags & NRel.Flat or child.parent == self
-                    ):
+                    if child.name and (not prop.children_flags & NRel.Flat or child.parent == self):
                         self._add_node_to_scope(child)
 
     def _walk_rec(self) -> Collection["Node"]:

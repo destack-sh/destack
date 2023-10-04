@@ -35,12 +35,14 @@ import {
   XCircleIcon,
   WindowIcon as WindowIconOutline,
   ArrowUturnLeftIcon,
+  CommandLineIcon as CommandLineIconOutline,
 } from "@heroicons/vue/24/outline";
 import {
   CodeBracketIcon as CodeBracketIconSolid,
   PlayIcon as PlayIconSolid,
   Bars4Icon as Bars4IconSolid,
   WindowIcon as WindowIconSolid,
+  CommandLineIcon as CommandLineIconSolid,
 } from "@heroicons/vue/24/solid";
 import { useElementBounding } from "@vueuse/core";
 import { defineStore } from "pinia";
@@ -112,7 +114,14 @@ export type StatementHeader = Pick<
 
 export type ViewId = "explorer" | "search" | "history" | "issues" | "environment" | "tests" | "comments";
 
-export type PanelType = "edit-file" | "edit-statement" | "launch-run" | "view-run" | "view-runs" | "view-logs";
+export type PanelType =
+  | "edit-file"
+  | "edit-statement"
+  | "launch-run"
+  | "view-run"
+  | "view-runs"
+  | "view-logs"
+  | "terminal";
 
 const BENCH_STATE_VERSION = 8;
 
@@ -581,6 +590,14 @@ export const useBenchState = defineStore("bench", {
       return this._openMaybeCreate(
         (p) => p.type == "view-run" && (p as ViewRunPanel).runId == run.id,
         () => new ViewRunPanel(run),
+        options
+      );
+    },
+
+    openTerminal(options?: PanelOpenOptions): Panel {
+      return this._openMaybeCreate(
+        (p) => p.type == "terminal",
+        () => new TerminalPanel(),
         options
       );
     },
@@ -1279,6 +1296,26 @@ export class ViewLogsPanel extends Panel {
   }
 }
 
+export class TerminalPanel extends Panel {
+  type = "terminal" as const;
+
+  constructor() {
+    super("terminal", "terminal-" + randomHexString(), "Terminal", "Terminal");
+  }
+
+  resetId(): void {
+    this.id = "terminal-" + randomHexString();
+  }
+
+  static parsePath(path: string, module: ModuleIndex): Panel | null {
+    return null;
+  }
+
+  get hasWhiteBackground() {
+    return false;
+  }
+}
+
 export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   "edit-file": EditFilePanel as any,
   "edit-statement": EditStatementPanel as any,
@@ -1286,6 +1323,7 @@ export const PANEL_INSTANCE_TYPES: Record<PanelType, typeof Panel> = {
   "view-runs": ViewRunsPanel as any,
   "view-run": ViewRunPanel as any,
   "view-logs": ViewLogsPanel as any,
+  terminal: TerminalPanel as any,
 };
 
 export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
@@ -1295,6 +1333,7 @@ export const PANEL_ICONS_OUTLINE: Record<PanelType, any> = {
   "view-runs": PlayIconOutline,
   "view-run": PlayIconOutline,
   "view-logs": Bars4IconOutline,
+  terminal: CommandLineIconOutline,
 };
 
 export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
@@ -1304,6 +1343,7 @@ export const PANEL_ICONS_SOLID: Record<PanelType, any> = {
   "view-runs": PlayIconSolid,
   "view-run": PlayIconSolid,
   "view-logs": Bars4IconSolid,
+  terminal: CommandLineIconSolid,
 };
 
 function instantiate(panelData: any, bench: ReturnType<typeof useBenchState>): Panel {

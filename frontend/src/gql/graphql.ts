@@ -4266,6 +4266,8 @@ export type RestartWorkerSetMutation = {
 export type StartRunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   statementId?: InputMaybe<Scalars["GlobalID"]>;
+  fileId?: InputMaybe<Scalars["GlobalID"]>;
+  code?: InputMaybe<Scalars["String"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   inputs?: InputMaybe<Scalars["JSON"]>;
@@ -11428,6 +11430,16 @@ export const StartRunDocument = {
         },
         {
           kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "code" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "String" } },
+        },
+        {
+          kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "runId" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
         },
@@ -11479,6 +11491,16 @@ export const StartRunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "statementId" },
                       value: { kind: "Variable", name: { kind: "Name", value: "statementId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "fileId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "fileId" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "code" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "code" } },
                     },
                     {
                       kind: "ObjectField",

@@ -169,7 +169,7 @@ class HasCode(Node):
 
     def _prep_func_body(self) -> tuple[str, int, int]:
         """Prepares the function body of this code with all modifications."""
-        func_body_lines = ((self.code.strip() if self.code else None) or "pass").splitlines()
+        func_body_lines = (self.code.strip() if self.code else "").splitlines() + ["pass"]
         # replace real python x imports with Bench import
         # e.g. replace `from .utils import a, b` with `a, b = import(".utils", "a", "b")`
         await_str = "await " if self._is_async else ""
@@ -237,6 +237,8 @@ class HasCode(Node):
             callable = _do_exec_get_globals(co, locals)[func_name]
         else:
             callable = _do_exec_get_globals(code_str, locals)[func_name]
+
+        # wrap for tests (this will probably be generalized later)
         if self._export:
             callable = self._wrap_exported(callable)
         elif self._cache:
@@ -246,6 +248,7 @@ class HasCode(Node):
         return callable
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        """Wraps a callable with caching for #cache tag."""
         from bench.language.run import CachedRun, get_run_cache_subkey
 
         def _get_cached_output(inputs: dict, cached_run: bytes) -> Optional[dict]:
@@ -302,6 +305,8 @@ class HasCode(Node):
         return _cached_async if self._parse.is_async else _cached_sync
 
     def _wrap_exported(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        """'Exports' definitions of a callable for #export tag."""
+
         def _exported_sync(*args, **kwargs):
             if self._cached_exports is not None:
                 return self._cached_exports
@@ -319,6 +324,7 @@ class HasCode(Node):
         return _exported_async if self._parse.is_async else _exported_sync
 
     def _wrap_test(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        """Marks a callable as a test for #test tag."""
         if not self._parse.is_async:
 
             def _test_sync(*args, **kwargs):

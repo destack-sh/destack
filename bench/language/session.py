@@ -477,6 +477,7 @@ class SessionTracer:
             raise e
 
         run = self.pop_stacktrace()
+        assert run.statement == statement, f"bad stack in {self!r}: {run!r} got {statement!r}"
         run.terminated_at = utcnow_with_tz()
         run.outputs = _pack_and_truncate_value(
             outputs, statement, is_output=True, none_if_invalid=True

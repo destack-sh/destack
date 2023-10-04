@@ -445,11 +445,22 @@ export function _useSessions(
   // running
 
   function run(
-    statement: { id: string; ck: string },
-    options?: { sessionId?: string; runId?: string; inputs?: any; block?: number; keyed?: boolean }
+    statementOrCode: { id: string; ck: string } | string,
+    options?: {
+      statementId?: string;
+      fileId?: string;
+      sessionId?: string;
+      runId?: string;
+      inputs?: any;
+      block?: number;
+      keyed?: boolean;
+    }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
     const sessionId = options?.sessionId ?? newSessionId();
+    const code = typeof statementOrCode === "string" ? statementOrCode : undefined;
+    const statement = typeof statementOrCode === "string" ? undefined : statementOrCode;
+
     const run = {
       __typename: "Run",
       id: runId,
@@ -460,7 +471,7 @@ export function _useSessions(
       duration: null,
       inputs: options?.inputs ?? {},
       statement,
-      statementCk: statement.ck,
+      statementCk: statement?.ck,
       outputs: null,
       value: null,
       error: null,
@@ -482,7 +493,7 @@ export function _useSessions(
 
     function doRunWithLogs() {
       return sessionOps
-        .run(statement.id, run.id, run.session?.id, run.inputs, {
+        .run(statement?.id ?? options?.statementId, options?.fileId, code, run.id, run.session?.id, run.inputs, {
           block: options?.block,
           keyed: options?.keyed,
         })
