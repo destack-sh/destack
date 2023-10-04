@@ -2,6 +2,7 @@ from .const import (
     DatabaseViewLayout,
     IssueType,
     ScheduleType,
+    SessionAccessLevel,
     StatementType,
     TriggerType,
     TypeFlag,
@@ -12,12 +13,12 @@ from .database import DatabaseView, Record
 from .edit import render, render_as_python
 from .field import Field, HasFields, ResolvedField, TypeStorageFormat
 from .file import File
-from .issue import Issue
+from .issue import BenchError, Issue
 from .module import Module, Node, NodeVisitor, ScopeNode
 from .query import Aggregation, Q, Query, QueryOp, Sort, SortMode, SortOrder
 from .remote import RemoteObject, Secret
 from .run import HasRun, Run, RunError
-from .session import LogEntry, Session
+from .session import LogEntry, PermissionError, Session
 from .statement import (
     Blank,
     Choice,
@@ -42,9 +43,10 @@ from .value import HasValue
 # Note that all these imports are auto-imported as prelude in user code.
 __all__ = [
     "Aggregation",
+    "BenchError",
     "Blank",
-    "Class",
     "Choice",
+    "Class",
     "Code",
     "Database",
     "DatabaseView",
@@ -65,6 +67,7 @@ __all__ = [
     "Module",
     "Node",
     "NodeVisitor",
+    "PermissionError",
     "Q",
     "Query",
     "QueryOp",
@@ -80,6 +83,7 @@ __all__ = [
     "ScopeNode",
     "Secret",
     "Session",
+    "SessionAccessLevel",
     "Sort",
     "SortMode",
     "SortOrder",
@@ -92,9 +96,9 @@ __all__ = [
     "Trigger",
     "TriggerType",
     "Type",
+    "TypeFlag",
     "TypeHint",
     "TypeStorageFormat",
     "TypeTag",
-    "TypeFlag",
     "Variable",
 ]

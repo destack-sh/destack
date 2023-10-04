@@ -1844,12 +1844,15 @@ export type RunError = {
 };
 
 export type RunInput = {
+  accessLevel?: Scalars["Int"];
   block?: Scalars["Float"];
   code?: InputMaybe<Scalars["String"]>;
   fileId?: InputMaybe<Scalars["GlobalID"]>;
+  globalValue?: InputMaybe<Scalars["JSON"]>;
   inputs?: InputMaybe<Scalars["JSON"]>;
   keyed?: Scalars["Boolean"];
   projectVersionId: Scalars["GlobalID"];
+  rootValue?: InputMaybe<Scalars["JSON"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   statementId?: InputMaybe<Scalars["GlobalID"]>;

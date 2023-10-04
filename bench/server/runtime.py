@@ -647,7 +647,7 @@ class RuntimeHost:
                 # should we ignore backfill here if just edited (updated_at > processed_up_to)?
                 triggers_to_fire.add(trigger.trigger.id)
 
-        # TODO @Broken: backfill scheduled runs into runs_to_start
+        # TODO @Broken: backfill previously scheduled runs into runs_to_start
 
         self.log.debug("time_triggers.process_forever", initial_triggers_to_fire=triggers_to_fire)
 
@@ -710,6 +710,10 @@ class RuntimeHost:
                     trigger_type=run.trigger_type,
                     trigger_id=run.trigger_id,
                     scheduled_at=run.scheduled_at,
+                    metadata=None,
+                    root_value=run.value,
+                    global_value=None,
+                    access_level=run.access_level,
                 )
                 try:
                     rep: NMessage[RepStartRunPayload] = await request(

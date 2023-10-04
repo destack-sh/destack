@@ -795,8 +795,9 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             status=model.status,
             inputs=model.inputs,
             outputs=model.outputs,
-            value=model.value,
             error=wire.RunErrorData.from_dict(model.error) if model.error else None,
+            value=model.value,
+            access_level=model.access_level,
         )
 
     def unpack(self, data: wire.RunData) -> models.Run:
@@ -825,7 +826,7 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             parent_id=data.parent_id,
             statement_id=data.statement_id,
             statement_ck=data.statement_ck,
-            statement_type=data.statement_type.value,
+            statement_type=data.statement_type.value if data.statement_type else None,
             statement_path=data.statement_path,
             created_at=data.created_at,
             updated_at=utcnow_with_tz(),
@@ -835,8 +836,9 @@ class RunPacker(DataPacker[wire.RunData, models.Run]):
             status=data.status,
             inputs=data.inputs,
             outputs=data.outputs,
-            value=data.value,
             error=data.error.to_dict() if data.error else None,
+            value=data.value,
+            access_level=data.access_level.value if data.access_level else None,
         )
 
 

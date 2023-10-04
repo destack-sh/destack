@@ -1415,6 +1415,9 @@ input RunInput {
   block: Float! = 1
   keyed: Boolean! = false
   timeoutSeconds: Int = null
+  rootValue: JSON = null
+  globalValue: JSON = null
+  accessLevel: Int! = 4
 }
 
 type RunState {

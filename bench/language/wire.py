@@ -20,6 +20,7 @@ from bench.language.const import (
     RemoteObjectStatus,
     RunStatus,
     ScheduleType,
+    SessionAccessLevel,
     StatementType,
     TextHeadingLevel,
     TriggerType,
@@ -1047,6 +1048,7 @@ class RunData:
     outputs: Optional[Any]
     error: Optional[RunErrorData]
     value: Optional[dict[str, Any]]
+    access_level: Optional[SessionAccessLevel]
 
 
 @data_packer(RunData, Run)
@@ -1094,6 +1096,7 @@ class RunPacker(DataPacker[RunData, Run]):
             outputs=run.outputs,
             error=error,
             value=run._raw_value(),
+            access_level=run.access_level,
         )
 
     def unpack(self, data: RunData, module: Module) -> Run:
@@ -1130,6 +1133,7 @@ class RunPacker(DataPacker[RunData, Run]):
             outputs=data.outputs,
             error=error,
             value=data.value,
+            access_level=data.access_level,
         )
 
 

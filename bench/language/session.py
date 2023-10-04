@@ -3,7 +3,7 @@ import asyncio
 import contextlib
 import sys
 from collections import deque
-from concurrent.futures import Executor, ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor
 from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import datetime
@@ -18,9 +18,9 @@ from bench.language.builtin import _active_session
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
-    ModuleOp,
     RunStatus,
-    SessionMode,
+    RunTrackingLevel,
+    SessionAccessLevel,
     TriggerType,
     TypeFlag,
     TypeTag,
@@ -85,13 +85,12 @@ class Session:
         self,
         module: Module,
         writer: ModuleWriter,
+        access: SessionAccessLevel,
         id: UUID = None,
         ctx: SessionContext | None = None,
         cache_inferences: bool = True,
         inference_timeout: int = 300,
         inference_retries: int = 5,
-        mode: SessionMode = SessionMode.READ_ONLY,
-        executor: Executor = None,
     ):
         from bench.language.cache import CacheAsync, CacheSync
         from bench.language.edit import ModuleEditor
@@ -103,14 +102,14 @@ class Session:
         self.cache_inferences = cache_inferences
         self.inference_timeout = inference_timeout
         self.inference_retries = inference_retries
-        self.mode = mode
+        self.access_level = access
         self._writer = writer
 
         self.cache_sync = CacheSync(module, project_id=ctx.project_id)
         self.cache_async = CacheAsync(module, project_id=ctx.project_id)
         self.storage = Storage(module)
 
-        self._executor = executor or ThreadPoolExecutor(max_workers=1)
+        self._executor = ThreadPoolExecutor(max_workers=1)
         self._log = logger.bind(session=self)
         self._editor = ModuleEditor(self.module._local_tree, ctx.project_id, module.id)
         self.tracer = SessionTracer(self, editor=self._editor)
@@ -123,7 +122,7 @@ class Session:
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
-        return f"{self.module.name} {self.id} ({self.mode}, {status}, {len(self._editor.edits)})"
+        return f"{self.module.name} {self.id} ({self.access_level}, {status}, {len(self._editor.edits)})"
 
     def __repr__(self):
         return f"<Session {self}>"
@@ -141,24 +140,25 @@ class Session:
     def capture_runs(self) -> "_RunCapture":
         return self.tracer.start_capture()
 
-    def run_value(self, **kwargs):
+    def bind_run_value(self, **kwargs):
         return self.tracer.value(**kwargs)
+
+    @contextlib.contextmanager
+    def bind_access_level(self, access: SessionAccessLevel):
+        if access > self.access_level:
+            raise PermissionError(
+                f"cannot increase access level from {self.access_level} to {access}"
+            )
+        old_access = self.access_level
+        self.access_level = access
+        try:
+            yield
+        finally:
+            self.access_level = old_access
 
     @property
     def is_open(self) -> bool:
         return self.opened_at is not None and self.closed_at is None
-
-    def check_can(self, op: ModuleOp, thing: Node):
-        if not self.can(op, thing):
-            raise RuntimeError(f"cannot {op} {thing} in {self}")
-
-    def can(self, op: ModuleOp, thing: Node) -> bool:
-        if self.mode == SessionMode.READ_ONLY:
-            return op in (ModuleOp.READ, ModuleOp.READ)
-        elif self.mode == SessionMode.WRITE:
-            return True
-        else:
-            raise RuntimeError(f"unknown session mode {self.mode}")
 
     async def aopen(self):
         """Opens the session for execution and modification."""
@@ -373,6 +373,10 @@ LOG_CACHE_SIZE = 1000
 MAX_STACK_DEPTH = 16
 
 
+class PermissionError(Exception):
+    pass
+
+
 class SessionTracer:
     def __init__(self, session: Session, editor: "ModuleEditor"):
         self.session = session
@@ -401,15 +405,23 @@ class SessionTracer:
     #
 
     def node_create(self, *nodes: Node):
+        if self.session.access_level < SessionAccessLevel.Create:
+            raise PermissionError(f"{self.session!r} does not have create access")
         self.editor.create_many(*nodes, apply=False)
 
     def node_update(self, node: Node, properties: list[str]):
+        if self.session.access_level < SessionAccessLevel.Update:
+            raise PermissionError(f"{self.session!r} does not have update access")
         self.editor.update(node, properties=properties, apply=False)
 
     def node_delete(self, *node: Node):
+        if self.session.access_level < SessionAccessLevel.Delete:
+            raise PermissionError(f"{self.session!r} does not have delete access")
         self.editor.delete_many(*node, apply=False)
 
     def node_truncate(self, node: Node, mnt: MNT):
+        if self.session.access_level < SessionAccessLevel.Delete:
+            raise PermissionError(f"{self.session!r} does not have delete access")
         self.editor.truncate(node, mnt, apply=False)
 
     #
@@ -547,6 +559,8 @@ class SessionTracer:
         trigger: Union["Trigger", UUID, None] = None,
         _is_async: bool = False,
     ):
+        if statement and statement._track != RunTrackingLevel.FULL:
+            statement = None
         active_run = _get_active_run()
         if trace and active_run is not None:
             root = active_run.root or active_run

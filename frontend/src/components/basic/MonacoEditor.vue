@@ -11,6 +11,7 @@ const props = defineProps<{
   language: "json" | "jsonl" | "csv" | "python" | "markdown" | "btl";
   focused: boolean;
   readonly?: boolean;
+  hideLineNumbers?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -73,7 +74,7 @@ const BENCH_THEME_COLORS = {
 function initMonaco(monaco: Monaco) {
   if (!editorContainer.value) {
     // can happen when component is unmounted again before initMonaco is called
-    console.error("editor container not found");
+    console.debug("editor container not found");
     return;
   }
   if (editor.value !== null) {
@@ -119,11 +120,13 @@ function initMonaco(monaco: Monaco) {
     },
     readOnly: props.readonly,
     scrollBeyondLastLine: false,
-    lineDecorationsWidth: 8,
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
-    lineNumbersMinChars: 2,
+    lineNumbers: props.hideLineNumbers ? "off" : "on",
+    lineDecorationsWidth: props.hideLineNumbers ? 0 : 8,
+    lineNumbersMinChars: props.hideLineNumbers ? 0 : 2,
+    folding: false,
     // set font to same mono from tailwind config
     fontSize: 14,
     fontFamily: "Druid Sans Mono, monospace",

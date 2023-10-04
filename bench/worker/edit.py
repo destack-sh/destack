@@ -183,7 +183,7 @@ def get_gql_input_from_edit(edit: EditData) -> Optional[dict]:
             value = extra_fields[field.name]
         else:
             value = getattr(edit.node, field.name, field.default)
-            if field.name != "ck" and isinstance(value, UUID):
+            if field.name != "ck" and not field.name.endswith("_ck") and isinstance(value, UUID):
                 value = _map_id_field(field.name, value, edit)
         input_args[field.name] = value
     input = input_cls(**input_args)

@@ -97,17 +97,19 @@ def new_dynamic_node_key(ck_or_id: UUID) -> str:
     return key
 
 
-class ModuleOp(enum.StrEnum):
-    READ = "read"
-    CREATE = "create"
-    UPDATE = "update"
-    DELETE = "delete"
-    RUN = "run"
+class RunTrackingLevel(enum.IntEnum):
+    NONE = 0
+    ANONYMOUS = 1
+    FULL = 2
 
 
-class SessionMode(enum.StrEnum):
-    READ_ONLY = "ro"
-    WRITE = "w"
+class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
+    Zero = 0
+    Read = 1
+    Create = 2
+    Update = 3
+    Delete = 4
+    Full = Delete
 
 
 MNT = ModuleNodeType

@@ -33,7 +33,7 @@ from bench.api.utils import (
     to_uuids,
 )
 from bench.language import Q, Query, Sort, SortOrder, wire
-from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
+from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES, SessionAccessLevel
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
 from bench.msg.messages import (
@@ -306,6 +306,9 @@ class RunInput:
     block: float = 1.0
     keyed: bool = False
     timeout_seconds: Optional[int] = None
+    root_value: Optional[JSON] = None
+    global_value: Optional[JSON] = None
+    access_level: int = SessionAccessLevel.Full
 
 
 ModuleRunErrorType = strawberry.enum(StartRunErrorType)
@@ -659,6 +662,9 @@ class SessionMutation:
             run_id=to_uuid(input.run_id),
             session_id=to_uuid(input.session_id),
             keyed=input.keyed,
+            root_value=input.root_value,
+            global_value=input.global_value,
+            access_level=input.access_level,
         )
         try:
             rep: NMessage[RepStartRunPayload] = await request(
