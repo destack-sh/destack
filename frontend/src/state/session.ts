@@ -979,7 +979,17 @@ export function useLogs(
       }
     }
   `);
-  const { loading: initialLoading, result: logs } = useQuery(LOGS_QUERY, combinedVariables, {});
+  const { loading: initialLoading, result: logs, onResult } = useQuery(LOGS_QUERY, combinedVariables, {});
+
+  // we temporarily remember logs that were added live/manually to restore them in case the loading took longer
+  // the whole log syncing situation is a bit messy because of sync issues like this...
+  const preAddedLogs: LogEntry[] = [];
+  onResult((logs) => {
+    if (preAddedLogs.length > 0) {
+      addLogs(preAddedLogs);
+      preAddedLogs.length = 0;
+    }
+  });
 
   if (options?.live) {
     // use useSubscription because subscribeToMore doesn't work properly if the query is not enabled
@@ -1012,8 +1022,10 @@ export function useLogs(
     onLogsAdded((logs) => addLogs(logs.data?.logsChanged?.logs?.map((l) => useFragment(LogEntryContentType, l)) ?? []));
   }
 
-  function addLogs(logs: LogEntry[]) {
-    console.debug("logs.add", logs.length);
+  function addLogs(newLogs: LogEntry[]) {
+    if (logs.value == null) {
+      preAddedLogs.push(...newLogs);
+    }
     client.client.cache.updateQuery(
       {
         query: LOGS_QUERY,
@@ -1021,7 +1033,7 @@ export function useLogs(
       },
       (prev) => {
         return {
-          searchLogs: getUpdatedConnectionQueryMany(logs, prev?.searchLogs as Connection<LogEntry> | undefined),
+          searchLogs: getUpdatedConnectionQueryMany(newLogs, prev?.searchLogs as Connection<LogEntry> | undefined),
         } as SearchLogsQuery;
       }
     );
@@ -1189,7 +1201,7 @@ function _useTerminal() {
       count: true,
       live: true,
       insertAt: "start",
-      queryAsFilter: (run) => run.value[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL,
+      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL,
     }
   );
   const terminalRuns = computed(() =>

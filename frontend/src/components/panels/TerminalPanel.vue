@@ -47,6 +47,7 @@ const inputSync = syncProperty({
   debounceMs: 500,
 });
 const inputRef: Ref<InstanceType<typeof MonacoEditor | typeof AnnotatedText> | null> = ref(null);
+const logsTileRefs = ref<Record<string, InstanceType<typeof LogsTile> | null>>({});
 const scopePath = computed(() => (bench.lastActiveFileCk == null ? "" : module.pathOf(bench.lastActiveFileCk)));
 const focusedRunId = ref<string | null>(null);
 const expandedRunIds = ref<string[]>([]);
@@ -99,6 +100,7 @@ function run() {
       scope: bench.lastActiveFileCk ?? undefined,
       accessLevel: panel.value.accessLevel,
     });
+    result.then((r) => logsTileRefs.value[run.id]?.addLogs(r.logs ?? []));
     focusedRunId.value = null;
     expandedRunIds.value.push(run.id); // always show full run if it was made here
     panel.value.lastRunId = run.id;
@@ -186,17 +188,26 @@ defineExpose({
         <!-- Body -->
         <div class="flex w-full flex-col pl-10 pr-4">
           <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
-          <ErrorTraceback v-if="run.errorNice != null" hide-preamble :error-nice="run.errorNice" class="mt-1" />
-          <!-- nocheckin: fix logs not showing properly -->
           <LogsTile
             v-if="expandedRunIds.includes(run.id)"
+            :ref="(ref: any) => (logsTileRefs[run.id] = ref)"
             :project-id="(bench.projectId as string)"
             :project-version-id="(bench.projectVersionId as string)"
             :run-id="run.id"
             :session-id="run.session?.id"
             hide-if-empty
             hide-metadata
+            always-expand
             :live="run.terminatedAt == null"
+            :class="[
+              (logsTileRefs[run.id]?.logs?.length ?? 0) > 0 ? 'mt-1 border-t border-orange-900/[15%] py-0.5' : '',
+            ]"
+          />
+          <ErrorTraceback
+            v-if="run.errorNice != null"
+            hide-preamble
+            :error-nice="run.errorNice"
+            class="mt-1 border-t border-orange-900/[15%] py-0.5"
           />
         </div>
       </div>
