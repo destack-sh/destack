@@ -359,7 +359,8 @@ class ModuleEditor:
     """
     Create any apply edits to a module.
     TODO @Cleanup: split module mutator into edit creation and application
-     also @Performance: pre-filter edits to track (e.g. to exclude interp edits in worker)
+     also @Performance: pre-filter edits to track
+      (e.g. to exclude interp edits in worker, see :InterpFilter)
     """
 
     def __init__(

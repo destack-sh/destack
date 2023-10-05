@@ -339,7 +339,7 @@ export function _useSessions(
   );
 
   async function _refetchWorkerSets() {
-    console.debug("refetching stale worker sets");
+    console.debug("workerSet.refetch");
     const { data } = await client.query({
       query: graphql(/* GraphQL */ `
         query refetchProjectWorkerSets($projectId: GlobalID!) {
@@ -360,7 +360,6 @@ export function _useSessions(
           subscriber(ws as WorkerSet);
         }
       }
-      console.debug("refetched worker sets", workerSets.value, workerSet.value);
     }
   }
 
@@ -462,6 +461,7 @@ export function _useSessions(
       keyed?: boolean;
       rootValue?: any;
       globalValue?: any;
+      accessLevel?: number;
     }
   ): { run: Run; result: Promise<{ run: Run; logs?: LogEntry[] }> } {
     const runId = options?.runId ?? newRunId();
@@ -507,6 +507,7 @@ export function _useSessions(
           keyed: options?.keyed,
           globalValue: options?.globalValue,
           rootValue: options?.rootValue,
+          accessLevel: options?.accessLevel,
         })
         .then((r) => {
           if (
@@ -611,6 +612,11 @@ export function _useSessions(
     return formatDuration(getDurationSeconds(run) * 1000);
   }
 
+  function isActive(run: { id: string }) {
+    const currentRun = currentRuns.value[run.id];
+    return (currentRun != null && ACTIVE_RUN_STATUSES.includes(currentRun.status)) || killingRunsIds.has(run.id);
+  }
+
   function isKilling(run: { id: string }) {
     return killingRunsIds.has(run.id);
   }
@@ -634,6 +640,7 @@ export function _useSessions(
     onWorkerSetChange,
     runsOf,
     currentRunOf,
+    isActive,
     isKilling,
     run,
     pause,
@@ -678,6 +685,9 @@ export function useRuns(
     live?: boolean;
     limit?: number;
     count?: boolean;
+    insertAt?: "start" | "end";
+    // we don't parse & apply the query locally, therefore filters must be checked manually
+    queryAsFilter?: (run: Run) => boolean;
   }
 ) {
   /**
@@ -757,7 +767,8 @@ export function useRuns(
         (filter.projectVersionId.value != null && run.projectVersion?.id !== filter.projectVersionId.value) ||
         (filter.statementIds.value != null && !filter.statementIds.value.includes(run.statement?.id ?? "")) ||
         (filter.statementCks.value != null && !filter.statementCks.value.includes(run.statementCk ?? "")) ||
-        (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value)
+        (filter.sessionId.value != null && run.session?.id !== filter.sessionId.value) ||
+        (options?.queryAsFilter != null && !options.queryAsFilter(run))
       ) {
         return;
       }
@@ -772,7 +783,7 @@ export function useRuns(
               run,
               prev?.searchRuns as Connection<Run> | undefined,
               options?.limit,
-              "start"
+              options?.insertAt ?? "start"
             ) as any,
           };
         }
@@ -1002,6 +1013,7 @@ export function useLogs(
   }
 
   function addLogs(logs: LogEntry[]) {
+    console.debug("logs.add", logs.length);
     client.client.cache.updateQuery(
       {
         query: LOGS_QUERY,
@@ -1133,10 +1145,10 @@ export type TerminalRun = {
   code: string;
   run: Run;
 };
+export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
 
-export function useTerminal() {
+function _useTerminal() {
   const session = useCurrentSessions();
-  const auth = useAuth();
   const bench = useBenchState();
   const module = useCurrentModule();
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
@@ -1159,14 +1171,26 @@ export function useTerminal() {
           {
             op: QueryOp.Equals,
             key: "value." + botLabelKey.value,
-            value: "terminal",
+            value: TERMINAL_BOT_LABEL,
+          },
+          // past 72h
+          {
+            op: QueryOp.GreaterThan,
+            key: "created_at",
+            value: DateTime.local().minus({ days: 3 }).toISO(),
           },
         ],
       })),
       sort: ref([{ key: "created_at", order: SortOrder.Descending }]),
       after: ref(null),
     },
-    { limit: 16, count: true, live: true }
+    {
+      limit: 100,
+      count: true,
+      live: true,
+      insertAt: "start",
+      queryAsFilter: (run) => run.value[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL,
+    }
   );
   const terminalRuns = computed(() =>
     runs.value?.map((r) => ({
@@ -1175,16 +1199,21 @@ export function useTerminal() {
     }))
   );
 
-  function runText(text: string, runMode: "approve" | "immediate" = "approve"): string {
+  function runText(
+    text: string,
+    options: { scope?: string; runMode: "approve" | "immediate"; accessLevel?: SessionAccessLevel } = {
+      runMode: "approve",
+    }
+  ): string {
     throw new Error("nocheckin: text->bench code task");
   }
 
-  function runCode(code: string, scope?: string) {
+  function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel }) {
     return session.run(code, {
-      scope,
-      // :TerminalRuns
-      rootValue: { name: "terminal", bot: "terminal", code: code },
-      globalValue: { bot: "terminal" },
+      scope: options.scope,
+      rootValue: { name: "terminal", bot: TERMINAL_BOT_LABEL, code, scope: options.scope },
+      globalValue: { bot: TERMINAL_BOT_LABEL },
+      accessLevel: options.accessLevel,
     });
   }
 
@@ -1196,3 +1225,5 @@ export function useTerminal() {
     runCode,
   };
 }
+
+export const useTerminal = createSharedComposable(_useTerminal);

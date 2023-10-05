@@ -1853,7 +1853,7 @@ export type RunInput = {
   projectVersionId: Scalars["GlobalID"];
   rootValue?: InputMaybe<Scalars["JSON"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
   statementId?: InputMaybe<Scalars["GlobalID"]>;
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
@@ -4269,7 +4269,7 @@ export type RestartWorkerSetMutation = {
 export type StartRunMutationVariables = Exact<{
   projectVersionId: Scalars["GlobalID"];
   statementId?: InputMaybe<Scalars["GlobalID"]>;
-  scopeId?: InputMaybe<Scalars["GlobalID"]>;
+  scopeCk?: InputMaybe<Scalars["UUID"]>;
   code?: InputMaybe<Scalars["String"]>;
   runId?: InputMaybe<Scalars["GlobalID"]>;
   sessionId?: InputMaybe<Scalars["GlobalID"]>;
@@ -4279,6 +4279,7 @@ export type StartRunMutationVariables = Exact<{
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
   rootValue?: InputMaybe<Scalars["JSON"]>;
   globalValue?: InputMaybe<Scalars["JSON"]>;
+  accessLevel?: InputMaybe<Scalars["Int"]>;
 }>;
 
 export type StartRunMutation = {
@@ -11435,8 +11436,8 @@ export const StartRunDocument = {
         },
         {
           kind: "VariableDefinition",
-          variable: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+          variable: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "UUID" } },
         },
         {
           kind: "VariableDefinition",
@@ -11483,6 +11484,11 @@ export const StartRunDocument = {
           variable: { kind: "Variable", name: { kind: "Name", value: "globalValue" } },
           type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
         },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "accessLevel" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+        },
       ],
       selectionSet: {
         kind: "SelectionSet",
@@ -11509,8 +11515,8 @@ export const StartRunDocument = {
                     },
                     {
                       kind: "ObjectField",
-                      name: { kind: "Name", value: "scopeId" },
-                      value: { kind: "Variable", name: { kind: "Name", value: "scopeId" } },
+                      name: { kind: "Name", value: "scopeCk" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "scopeCk" } },
                     },
                     {
                       kind: "ObjectField",
@@ -11556,6 +11562,11 @@ export const StartRunDocument = {
                       kind: "ObjectField",
                       name: { kind: "Name", value: "globalValue" },
                       value: { kind: "Variable", name: { kind: "Name", value: "globalValue" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "accessLevel" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "accessLevel" } },
                     },
                   ],
                 },

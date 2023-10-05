@@ -14,6 +14,7 @@ from bench.language.const import (
     ModuleReference,
     RunStatus,
     RunTrackingLevel,
+    SessionAccessLevel,
 )
 from bench.language.edit import EditData
 from bench.language.run import RunErrorKind
@@ -227,7 +228,7 @@ class WorkerNode(Monitored):
                 outputs=None,
                 error=None,
                 value=msg.p.root_value,
-                access_level=msg.p.access_level,
+                access_level=msg.p.access_level or SessionAccessLevel.Read,
             )
 
             # store session id separately from run because we write the run data directly
@@ -492,9 +493,13 @@ class ModuleWorkerProcess(ModuleWriter):
                         message="missing code for anonymous run",
                         statement=None,
                     )
-                # nocheckin: scope anonymous code properly
-                statement = Code(code=code, parent=self.module)
-                statement._interp_self(self.module)
+                scope = (job.run_data.value or {}).get("scope")
+                if scope is not None:
+                    scope = self.module.resolve(UUID(scope))
+                else:
+                    scope = self.module
+                statement = Code(code=code, parent=scope)
+                statement._interp_self(scope)
                 statement._track = RunTrackingLevel.ANONYMOUS
 
             inputs = map_value(

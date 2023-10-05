@@ -582,6 +582,8 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
 
     def create(self, *args, _append: bool = True, **kwargs) -> NodeT:
         """Creates a new node in the list."""
+        if len(args) == 1 and isinstance(args[0], Node):
+            raise ValueError(f"cannot create {args[0]!r}, use append for existing nodes")
         node_cls = _NODE_CLASS_BY_MNT[self._property.child_mnt]
         # set new node status to source to prevent activation before it's appended
         if hasattr(node_cls, "new"):

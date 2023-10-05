@@ -33,7 +33,7 @@ from bench.api.utils import (
     to_uuids,
 )
 from bench.language import Q, Query, Sort, SortOrder, wire
-from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES, SessionAccessLevel
+from bench.language.const import PENDING_RUN_STATUSES, RUNNABLE_STATEMENT_TYPES
 from bench.models import ModuleAccessLevel, packer
 from bench.msg.core import MessagingError, NMessage, publish, request, subscribe, subscribe_many
 from bench.msg.messages import (
@@ -298,7 +298,7 @@ class RestartWorkerSetPayload:
 class RunInput:
     project_version_id: GlobalID
     statement_id: Optional[GlobalID] = None
-    scope_id: Optional[GlobalID] = None
+    scope_ck: Optional[UUID] = None
     code: Optional[str] = None
     run_id: Optional[GlobalID] = None
     session_id: Optional[GlobalID] = None
@@ -308,7 +308,7 @@ class RunInput:
     timeout_seconds: Optional[int] = None
     root_value: Optional[JSON] = None
     global_value: Optional[JSON] = None
-    access_level: int = SessionAccessLevel.Full
+    access_level: int = None
 
 
 ModuleRunErrorType = strawberry.enum(StartRunErrorType)
@@ -652,7 +652,7 @@ class SessionMutation:
             project_id=project_version.project_id,
             module_id=project_version_id,
             statement=to_uuid(input.statement_id),
-            scope=to_uuid(input.scope_id),
+            scope=input.scope_ck,
             code=input.code,
             inputs=input.inputs,
             scheduled_at=None,

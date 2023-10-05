@@ -424,13 +424,6 @@ function onClickContainer(e: MouseEvent) {
   }
 }
 
-function insertStatementOnClick(e: MouseEvent) {
-  onClickContainer(e);
-  (e.altKey ? magic.insertAbove : magic.insertBelow)(true);
-  e.preventDefault();
-  e.stopPropagation();
-}
-
 // drag & drop
 const capturingDrag = computed(() => Object.values(partsRefs.value).find((e) => e?.capturingDrag === true));
 const {
