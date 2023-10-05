@@ -80,10 +80,8 @@ export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): st
 }
 
 export function formatDuration(durationMs: number): string {
-  if (durationMs < 10) {
+  if (durationMs < 100) {
     return `${Math.round(durationMs)}ms`;
-  } else if (durationMs < 10000) {
-    return `${(durationMs / 1000).toFixed(1)}s`;
   } else if (durationMs < 60000) {
     return `${(durationMs / 1000).toFixed(1)}s`;
   } else {

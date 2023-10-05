@@ -23,6 +23,7 @@ const emit = defineEmits<{
   (e: "enter"): void;
   (e: "openActions"): void;
   (e: "execute"): void;
+  (e: "toggleLanguage"): void;
 }>();
 
 const editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null);
@@ -168,6 +169,8 @@ function initMonaco(monaco: Monaco) {
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("openActions"));
+    editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Space, () => emit("toggleLanguage"));
+    editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Space, () => emit("toggleLanguage"));
     if (!props.enterIsExecute) {
       editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
         emit("enter");

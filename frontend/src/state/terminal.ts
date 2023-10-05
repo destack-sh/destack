@@ -1,10 +1,11 @@
-import { QueryOp, SortOrder, type Run } from "@/gql/graphql";
+import { QueryOp, SortOrder, type Run, RunStatus } from "@/gql/graphql";
 import { useBenchState } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session";
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef } from "vue";
+import { getTypedKey } from "@/";
 
 export type TerminalRun = {
   text?: string;
@@ -12,7 +13,7 @@ export type TerminalRun = {
   run: Run;
 };
 export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
-const TERMINAL_TEXT_TO_CODE_TASK = "5bf4d3d6-be36-4224-9ea4-7e0d5c1612fc"; // nocheckin: use task from std (maybe configurable for debugging)
+const TERMINAL_TEXT_TO_CODE_TASK = "6d6ae26f-959b-4482-a0a3-74b88577701d"; // nocheckin: use task from std (maybe configurable for debugging)
 
 function _useTerminal() {
   const session = useCurrentSessions();
@@ -21,6 +22,11 @@ function _useTerminal() {
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
   const codeKey = computed(() => module.runMetadataKey("code"));
   const textToCodeTask = computed(() => module.statementOf(TERMINAL_TEXT_TO_CODE_TASK));
+  const codeOutputKey = computed(() => {
+    const field = textToCodeTask.value?.fields?.find((f) => f.name == "code");
+    if (field == null) return null;
+    return module.getTypedKey(field);
+  });
 
   const { runs, loading, totalCount } = useRuns(
     {
@@ -78,12 +84,18 @@ function _useTerminal() {
       inputs: { text },
       globalValue: { bot: TERMINAL_BOT_LABEL },
       accessLevel: SessionAccessLevel.Read,
+      keyed: false,
+      block: 60,
+      timeoutSeconds: 60,
     });
     const { run } = await result;
-    // const code = run.outputs?.code;
-    const code = "# nocheckin: replace with actually returned code";
+    const code = run?.outputs?.[codeOutputKey.value ?? ""];
+    if (run?.status != RunStatus.Completed || code == null) {
+      console.warn("run failed", run);
+      throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
+    }
     if (options?.runMode == "immediate") {
-      throw new Error("nocheckin?: immediate run mode not implemented");
+      throw new Error("immediate run mode not supported yet?");
     }
     return { code };
   }

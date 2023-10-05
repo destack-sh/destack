@@ -6,6 +6,7 @@ import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import PanelHeader from "@/components/panels/PanelHeader.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
+import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, TerminalPanel } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
@@ -16,6 +17,7 @@ import {
   getRunStatusIconSolid,
   getRunStatusColor,
   useCurrentSessions,
+  ACTIVE_RUN_STATUSES,
 } from "@/state/session";
 import { useTerminal } from "@/state/terminal";
 import { IdentifierType, getUUIDFromGlobalID, toPyIdentifier } from "@/utils/functools";
@@ -23,7 +25,7 @@ import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 import { ArrowRightIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { Bars3BottomLeftIcon, CodeBracketIcon } from "@heroicons/vue/24/solid";
-import { nextTick, computed, ref, type Ref } from "vue";
+import { nextTick, computed, ref, type Ref, watch } from "vue";
 
 const props = defineProps<{ panel: PanelContext<TerminalPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -60,6 +62,7 @@ const expandedRunIds = ref<string[]>([]);
 const lastRunActive = computed(() =>
   panel.value.lastRunId == null ? false : session.isActive({ id: panel.value.lastRunId })
 );
+const convertingText = ref(false);
 
 function focus(f: "first" | "last" = "last") {
   inputRef.value?.focus?.("last");
@@ -70,11 +73,37 @@ function onInputWrite() {
   focusedRunId.value = null;
 }
 
+function toggleLanguage() {
+  inputSync.onLocalWrite();
+  if (panel.value.inputMode == "code") {
+    panel.value.inputMode = "text";
+  } else {
+    panel.value.inputMode = "code";
+  }
+  nextTick(() => {
+    // nocheckin: focus code (from text) doesn't work in toggle
+    inputRef.value?.focus?.("last");
+  });
+}
+
+// toggle language depending on input
+watch(
+  () => [panel.value.inputMode, input.value],
+  () => {
+    if (panel.value.inputMode == "code" && input.value.startsWith("# ") && input.value.split("\n").length == 1) {
+      input.value = input.value.slice(2);
+      toggleLanguage();
+    } else if (panel.value.inputMode == "text" && input.value.startsWith("`")) {
+      input.value = input.value.slice(1);
+      toggleLanguage();
+    }
+  }
+);
+
 function navigateInputUp() {
   // scroll backwards to last input
   if (!terminal.runs.value) return;
   const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
-  console.trace("nocheckin up", currentRunIndex, terminal.runs.value.length, focusedRunId.value);
   if (currentRunIndex < terminal.runs.value.length - 1) {
     const nextRun = terminal.runs.value[currentRunIndex + 1];
     focusedRunId.value = nextRun.run.id;
@@ -87,7 +116,6 @@ function navigateInputDown() {
   // scroll forwards to next input / clear
   if (!terminal.runs.value) return;
   const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
-  console.trace("nocheckin down", currentRunIndex, terminal.runs.value.length, focusedRunId.value);
   if (currentRunIndex > 0) {
     const nextRun = terminal.runs.value[currentRunIndex - 1];
     focusedRunId.value = nextRun.run.id;
@@ -99,7 +127,7 @@ function navigateInputDown() {
   nextTick(() => focus("last"));
 }
 
-function run() {
+async function run() {
   if ((input.value.trim() ?? "").length == 0) {
     return; // nothing to run
   }
@@ -115,10 +143,18 @@ function run() {
     input.value = "";
     inputSync.onLocalWrite();
   } else {
-    terminal.runText(input.value, {
-      runMode: "approve",
-      accessLevel: panel.value.accessLevel,
-    });
+    convertingText.value = true;
+    try {
+      const { code } = await terminal.runText(input.value, {
+        runMode: "approve",
+        accessLevel: panel.value.accessLevel,
+      });
+      input.value = `# ${input.value}\n${code}`;
+      panel.value.inputMode = "code";
+      nextTick(() => focus("last"));
+    } finally {
+      convertingText.value = false;
+    }
   }
 }
 
@@ -155,29 +191,19 @@ defineExpose({
       <div
         v-for="{ run, code } in terminal.runs.value"
         :key="run.id"
-        class="flex flex-col border-t border-orange-900/[15%] bg-white py-2"
+        class="flex flex-col border-l-4 border-t border-orange-900/[15%] py-2"
+        :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
       >
         <!-- Header -->
-        <div class="flex flex-row items-start justify-between pl-4 pr-6" :class="[getRunStatusColor(run.status)]">
+        <div class="flex flex-row items-start justify-between pl-3 pr-6 font-mono text-gray-400">
           <div class="flex flex-row">
-            <!-- Status -->
+            <!-- Icon -->
             <span class="py-0.5">
-              <component
-                :is="getRunStatusIconSolid(run.status)"
-                class="h-4 w-4"
-                :class="[getRunStatusIconSolid(run.status) == BusySpinnerIcon ? 'animate-spin' : '']"
-              />
+              <ChevronDoubleRightIcon class="h-4 w-4" />
             </span>
             <!-- Scope -->
-            <span class="ml-2">{{ module.path.value }}</span>
-            <!-- Duration -->
-            <span v-if="run.startedAt != null" class="ml-1">
-              {{ run.terminatedAt != null ? "in" : "for" }}
-              {{
-                run.duration != null
-                  ? formatDuration(run.duration * 1000)
-                  : now.getTimeFromNowString(run.startedAt, { useNow: false })
-              }}
+            <span class="ml-2">
+              {{ module.path.value }}
             </span>
           </div>
           <!-- Extra info & controls -->
@@ -186,15 +212,23 @@ defineExpose({
             <button
               class="font-mono underline-offset-2 hover:underline"
               @click="bench.openViewRun(run, { focus: true })"
+              :class="[
+                !ACTIVE_RUN_STATUSES.includes(run.status) && run.status != RunStatus.Completed
+                  ? getRunStatusColor(run.status)
+                  : '',
+              ]"
             >
-              #{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}
+              <!-- Duration -->
+              <span v-if="run.startedAt != null" class="">
+                {{ session.getDurationFormatted(run) }}
+              </span>
+              <!-- From -->
+              <span class="ml-1">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
             </button>
-            <!-- From -->
-            <span class="text-gray-400">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
           </div>
         </div>
         <!-- Body -->
-        <div class="flex w-full flex-col pl-10 pr-4">
+        <div class="flex w-full flex-col pl-9 pr-4">
           <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
           <LogsTile
             v-if="expandedRunIds.includes(run.id)"
@@ -226,7 +260,7 @@ defineExpose({
       >
         <div class="flex w-full flex-1 flex-col">
           <!-- Header -->
-          <div class="flex flex-row items-start text-gray-500">
+          <div class="flex flex-row items-start font-mono text-gray-500">
             <span class="px-1 py-0.5">
               <ChevronDoubleRightIcon class="h-4 w-4" />
             </span>
@@ -267,9 +301,12 @@ defineExpose({
                 v-if="panel.inputMode == 'text'"
                 ref="inputRef"
                 v-model="input"
+                @update:model-value="onInputWrite"
                 @click.stop="emit('focus')"
                 @enter="run"
                 @enter-right="run"
+                @toggle-language="toggleLanguage"
+                @illegal="toggleLanguage"
               />
               <MonacoEditor
                 v-else
@@ -284,6 +321,7 @@ defineExpose({
                 @execute="run"
                 @navigate-up="navigateInputUp()"
                 @navigate-down="navigateInputDown()"
+                @toggle-language="toggleLanguage"
               />
             </div>
           </div>
@@ -292,8 +330,10 @@ defineExpose({
         <button
           class="self-start rounded-sm px-1.5 py-1 text-orange-600 hover:bg-orange-100"
           @click="lastRunActive && panel.lastRunId != null ? session.kill({ id: panel.lastRunId }) : run()"
+          :disabled="convertingText"
         >
-          <PlayIcon v-if="!lastRunActive" class="h-6 w-6" />
+          <BusySpinnerIcon v-if="convertingText" class="h-6 w-6 animate-spin text-white" />
+          <PlayIcon v-else-if="!lastRunActive" class="h-6 w-6" />
           <StopIcon v-else class="h-6 w-6" />
         </button>
       </div>
