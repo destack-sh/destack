@@ -1407,7 +1407,7 @@ type RunError {
 input RunInput {
   projectVersionId: GlobalID!
   statementId: GlobalID = null
-  scopeId: GlobalID = null
+  scopeCk: UUID = null
   code: String = null
   runId: GlobalID = null
   sessionId: GlobalID = null
@@ -1417,7 +1417,7 @@ input RunInput {
   timeoutSeconds: Int = null
   rootValue: JSON = null
   globalValue: JSON = null
-  accessLevel: Int! = 4
+  accessLevel: Int!
 }
 
 type RunState {

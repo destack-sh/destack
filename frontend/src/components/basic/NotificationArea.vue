@@ -1,11 +1,12 @@
 <script lang="ts" setup>
 import { useNotifications, type DisplayNotification } from "@/state/notifications";
+import { XMarkIcon } from "@heroicons/vue/24/outline";
 import { CheckCircleIcon, ExclamationCircleIcon, InformationCircleIcon, XCircleIcon } from "@heroicons/vue/24/solid";
 import { computed } from "vue";
 
 const notifications = useNotifications();
 
-const MAX_NOTIFICATIONS = 4;
+const MAX_NOTIFICATIONS = 3;
 
 const shownNotifications = computed(() => notifications.shownNotifications.value.slice(0, MAX_NOTIFICATIONS));
 
@@ -29,8 +30,8 @@ function freezeNotification(notification: DisplayNotification) {
 </script>
 
 <template>
-  <div class="pointer-events-none fixed inset-0 z-40 flex items-start px-4 py-6 sm:p-6">
-    <div class="flex h-full w-full flex-col-reverse items-center gap-y-4 transition">
+  <div class="pointer-events-none fixed inset-0 z-40 flex items-start px-4 py-2 sm:px-6 sm:py-3">
+    <div class="flex h-full w-full flex-col items-center gap-y-1.5 transition">
       <transition-group
         move-class="transition-all"
         enter-active-class="transition duration-100 ease-out transform"
@@ -45,48 +46,41 @@ function freezeNotification(notification: DisplayNotification) {
         <div
           v-for="notification in shownNotifications"
           :key="notification.localId"
-          class="pointer-events-auto flex w-[400px] flex-row overflow-hidden rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-[12%]"
+          class="pointer-events-auto flex w-[400px] flex-row overflow-hidden rounded-sm bg-white px-3 shadow-md ring-1 ring-orange-900 ring-opacity-[12%]"
           @mouseenter="freezeNotification(notification)"
         >
-          <!-- Icon -->
-          <div class="m-3">
-            <component
-              :is="getIcon(notification)"
-              class="h-5 w-5"
+          <!-- Main message -->
+          <div class="my-2.5 flex max-w-full flex-1 flex-row truncate text-sm">
+            <h3
+              class="text-sm font-semibold"
               :class="{
                 'text-green-700': notification.kind === 'success',
-                'text-gray-400': notification.kind === 'notice',
+                'text-gray-700': notification.kind === 'notice',
                 'text-red-600': notification.kind === 'error',
                 'text-yellow-600': notification.kind === 'warning',
               }"
-            />
-          </div>
-          <!-- Main message -->
-          <div class="m-3 ml-0 flex max-w-full flex-1 flex-col">
-            <h3 class="text-sm font-semibold text-gray-900">{{ notification.message }}</h3>
-            <p v-if="notification.description" class="min-w-0 max-w-full pt-0.5 text-sm text-gray-500">
+            >
+              {{ notification.message }}
+            </h3>
+            <span v-if="notification.description" class="ml-1.5 truncate text-gray-400">
               {{ notification.description }}
-            </p>
+            </span>
           </div>
           <!-- Actions -->
-          <div
+          <button
             v-if="notification.action"
-            class="flex flex-shrink-0 flex-col border-l border-orange-900 border-opacity-[12%]"
+            class="h-full min-w-0 flex-shrink-0 self-center rounded-r-sm px-3 py-1 text-sm font-medium text-orange-500 hover:bg-orange-100 hover:decoration-gray-900 focus:outline-none"
+            @click="() => (notification.action?.(), notifications.dismiss(notification.localId))"
           >
-            <button
-              class="h-full min-w-0 self-center rounded-r-sm px-3 py-1 text-sm font-medium text-orange-500 hover:bg-orange-100 hover:decoration-gray-900 focus:outline-none"
-              @click="() => (notification.action?.(), notifications.dismiss(notification.localId))"
-            >
-              {{ notification.actionText }}
-            </button>
-            <!-- Dismiss? -->
-            <!-- <button
-              class="h-full min-w-0 self-center rounded-r-sm text-sm text-gray-500"
-              @click="notifications.store.dismiss(notification.id as string)"
-            >
-              Dismiss
-            </button> -->
-          </div>
+            {{ notification.actionText }}
+          </button>
+          <!-- Dismiss -->
+          <button
+            class="h-full min-w-0 flex-shrink-0 self-center rounded-r-sm text-sm text-gray-400"
+            @click="notifications.store.dismiss(notification.id as string)"
+          >
+            <XMarkIcon class="h-4 w-4" />
+          </button>
         </div>
       </transition-group>
     </div>

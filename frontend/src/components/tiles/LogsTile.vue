@@ -27,6 +27,7 @@ const props = defineProps<{
   lowlight?: boolean;
   containerHeight?: number;
   hideIfEmpty?: boolean;
+  hideMetadata?: boolean;
 }>();
 
 const { logs, loading, addLogs } = useLogs(
@@ -66,7 +67,6 @@ const logsBounding = useElementBounding(logsRef);
 const hasFocus = computed(() => props.focus != null);
 const autoscroll = ref(true);
 const lastScrollY = ref(0);
-const showTimestamp = true;
 const expandedLogs = ref<string[]>([]);
 
 function toggleExpanded(log: LogEntry) {
@@ -127,14 +127,14 @@ defineExpose({
         ]"
         @click="() => toggleExpanded(log)"
       >
-        <span v-if="showTimestamp" class="mr-2 select-none text-gray-400">
+        <span v-if="!hideMetadata" class="mr-2 select-none text-gray-400">
           {{ DateTime.fromISO(log.createdAt).toFormat("HH:mm:ss.SSS") }}
         </span>
         <span :class="log.stream == 'stderr' ? 'text-red-600' : 'text-gray-900'">{{ log.message }}</span>
       </span>
     </div>
     <!-- Loading -->
-    <div v-if="loading" class="h-4 w-full animate-pulse rounded-sm bg-gray-200 opacity-80" />
+    <div v-if="loading && !hideIfEmpty" class="h-4 w-full animate-pulse rounded-sm bg-gray-200 opacity-80" />
     <!-- Empty indicator -->
     <div v-else-if="logsSorted.length == 0 && !hideIfEmpty" class="w-full text-center text-gray-400">No logs</div>
     <!-- Autoscroll toggle/indicator on bottom right -->

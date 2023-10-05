@@ -366,6 +366,22 @@ export const useBenchState = defineStore("bench", {
       if (this.focusedPanel?.groupId == null) return undefined;
       return this.group(this.focusedPanel?.groupId);
     },
+    lastActiveNodeCk(): string | null {
+      const panels = this.panels
+        .filter((e) => e.type == "edit-file")
+        .sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1));
+      if (panels.length == 0) return null;
+      const panel = panels[0] as EditFilePanel;
+      return panel.activeStatementCk ?? panel.fileCk;
+    },
+    lastActiveFileCk(): string | null {
+      const panels = this.panels
+        .filter((e) => e.type == "edit-file")
+        .sort((a, b) => ((a.lastActiveAt ?? "") > (b.lastActiveAt ?? "") ? -1 : 1));
+      if (panels.length == 0) return null;
+      const panel = panels[0] as EditFilePanel;
+      return panel.fileCk;
+    },
     // appearance
     appearance() {
       return useAppearanceState();
@@ -1305,6 +1321,7 @@ export class TerminalPanel extends Panel {
   input = "";
   inputMode: "code" | "text" = "code";
   runMode: "approve" | "immediate" = "approve";
+  lastRunId?: string;
   accessLevel: SessionAccessLevel = SessionAccessLevel.Update;
 
   constructor() {

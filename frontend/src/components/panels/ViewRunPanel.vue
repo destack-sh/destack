@@ -23,6 +23,7 @@ import StructInterface from "@/components/interfaces/StructInterface.vue";
 import PanelStatusNotice from "@/components/panels/PanelStatusNotice.vue";
 import RunCacheInfo from "@/components/tiles/RunCacheInfo.vue";
 import RunControlsTile from "@/components/tiles/RunControlsTile.vue";
+import MonacoEditor from "@/components/basic/MonacoEditor.vue";
 
 const props = defineProps<{ panel: PanelContext<ViewRunPanel>; focused: boolean }>();
 const emit = defineEmits<{
@@ -35,11 +36,12 @@ const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const now = useTimeFromNow(1000);
 const nav = useNavigation();
+const module = useCurrentModule();
+const sessions = useCurrentSessions();
+const codeKey = computed(() => module.runMetadataKey("code"));
 
 // state
 
-const module = useCurrentModule();
-const sessions = useCurrentSessions();
 const runUuid = getUUIDFromGlobalID(panel.value.runId);
 const { run: remoteRun, loading: remoteLoading } = useRun(
   computed(() => panel.value.runId),
@@ -220,6 +222,17 @@ defineExpose({
             </span>
           </div>
         </div>
+        <!-- Code (if available) -->
+        <ContainerTile v-if="run.value[codeKey ?? ''] != null" label="Code" :style="{ ...baseTilePositionX }">
+          <MonacoEditor
+            :model-value="run.value[codeKey ?? '']"
+            readonly
+            hide-line-numbers
+            language="python"
+            :focused="false"
+            class="px-1"
+          />
+        </ContainerTile>
         <!-- Input -->
         <ContainerTile v-if="statement != null" label="Input" :style="{ ...baseTilePositionX }">
           <span v-if="inputFields?.length == 0" class="w-full text-center text-gray-400">No inputs</span>

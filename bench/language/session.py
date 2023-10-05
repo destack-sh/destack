@@ -14,7 +14,7 @@ from uuid import UUID, uuid4
 import asgiref.sync
 import structlog
 
-from bench.language.builtin import _active_session
+from bench.language.builtin import _active_session, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
     MNT,
@@ -124,7 +124,7 @@ class Session:
 
     def __str__(self):
         status = "open" if self.opened_at else ("closed" if self.closed_at else "pending")
-        return f"{self.module.name} {self.id} ({self.access_level}, {status}, {len(self._editor.edits)})"
+        return f"{self.module.name} ({self.access_level.name}, {status}, {len(self._editor.edits)} pending edits)"
 
     def __repr__(self):
         return f"<Session {self}>"
@@ -213,7 +213,7 @@ class Session:
         Flushes all module edits.
         If optimistic, this will return before the flush is complete (but will wait on close).
         """
-        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]
+        edits = [e for e in self._editor.edits if e.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
         if not edits and not refresh_index:
             return  # skip if no edits and no index refresh
         assert not self._failed_flush, f"session {self!r} is broken after failed flush"
@@ -395,8 +395,16 @@ class SessionTracer:
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
         self._root_run_id = root_run_id
-        self._root_run_value = root_run_value
-        self._global_run_value = global_run_value
+
+        from bench.language.typing import unpack_value
+
+        RunMetadata = symbolx_lib.resolve(".reflect.RunMetadata")
+        self._root_run_value = unpack_value(
+            root_run_value, RunMetadata, map_k=lambda f: (f.py_ident, f.py_ident)
+        )
+        self._global_run_value = unpack_value(
+            global_run_value, RunMetadata, map_k=lambda f: (f.py_ident, f.py_ident)
+        )
 
         self.stdout_collector = LogCollector(self._track_log, "stdout", session)
         self.stderr_collector = LogCollector(self._track_log, "stderr", session)
@@ -414,26 +422,33 @@ class SessionTracer:
     #
     # Module
     # Edits are actually written to local source in Session._do_flush.
+    # We don't track interp edits here because they're manually handled in runtime.
     #
 
     def node_create(self, *nodes: Node):
-        if self.session.access_level < SessionAccessLevel.Create:
-            raise PermissionError(f"{self.session!r} does not have create access")
+        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
+        if nodes and self.session.access_level < SessionAccessLevel.Create:
+            raise PermissionError(f"{self.session!r} may not create {nodes!r}")
         self.editor.create_many(*nodes, apply=False)
 
     def node_update(self, node: Node, properties: list[str]):
+        if node.mnt in INTERP_NODE_TYPES:  # :InterpFilter
+            return
         if self.session.access_level < SessionAccessLevel.Update:
-            raise PermissionError(f"{self.session!r} does not have update access")
+            raise PermissionError(f"{self.session!r} may not update {node!r}")
         self.editor.update(node, properties=properties, apply=False)
 
-    def node_delete(self, *node: Node):
-        if self.session.access_level < SessionAccessLevel.Delete:
-            raise PermissionError(f"{self.session!r} does not have delete access")
-        self.editor.delete_many(*node, apply=False)
+    def node_delete(self, *nodes: Node):
+        nodes = [n for n in nodes if n.mnt not in INTERP_NODE_TYPES]  # :InterpFilter
+        if nodes and self.session.access_level < SessionAccessLevel.Delete:
+            raise PermissionError(f"{self.session!r} may not delete {nodes!r}")
+        self.editor.delete_many(*nodes, apply=False)
 
     def node_truncate(self, node: Node, mnt: MNT):
+        if node.mnt in INTERP_NODE_TYPES:  # :InterpFilter
+            return
         if self.session.access_level < SessionAccessLevel.Delete:
-            raise PermissionError(f"{self.session!r} does not have delete access")
+            raise PermissionError(f"{self.session!r} may not truncate {node!r}")
         self.editor.truncate(node, mnt, apply=False)
 
     #

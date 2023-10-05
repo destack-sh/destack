@@ -59,6 +59,7 @@ defineExpose({
     :panel="(context as PanelContext<any>)"
     :focused="focused"
     @close="bench.closePanel(panel)"
+    @focus="bench.focusPanel(panel)"
   />
   <div v-else class="h-full w-full text-center">
     <span class="text-red-600">cannot render editor of type {{ panel.type }}</span>

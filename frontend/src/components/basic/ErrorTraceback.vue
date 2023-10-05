@@ -13,8 +13,7 @@ const statementName = computed(() => (props.statementCk == null ? null : module.
 </script>
 <template>
   <div class="relative w-full font-mono text-red-600">
-    <span v-if="!hidePreamble">{{ statementName ?? "run" }} failed:</span>
-    <span class="whitespace-pre-wrap font-bold">{{ errorNice?.message }}</span>
+    <span class="whitespace-pre-wrap font-bold">{{ errorNice?.type }}: {{ errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->
       <li

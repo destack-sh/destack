@@ -16,26 +16,29 @@ import {
   useTerminal,
   getRunStatusIconSolid,
   getRunStatusColor,
+  useCurrentSessions,
 } from "@/state/session";
 import { getUUIDFromGlobalID } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
-import { ArrowRightIcon, PlayIcon } from "@heroicons/vue/24/solid";
+import { ArrowRightIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { Bars3BottomLeftIcon, CodeBracketIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref } from "vue";
 
 const props = defineProps<{ panel: PanelContext<TerminalPanel>; focused: boolean }>();
 const emit = defineEmits<{
   (e: "close"): void;
+  (e: "focus"): void;
 }>();
 
 const bench = useBenchState();
 const module = useCurrentModule();
+const session = useCurrentSessions();
 const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const terminal = useTerminal();
-const now = useTimeFromNow();
+const now = useTimeFromNow(1000);
 
 const input: Ref<string> = ref(panel.value.input ?? "");
 const inputSync = syncProperty({
@@ -44,8 +47,12 @@ const inputSync = syncProperty({
   debounceMs: 500,
 });
 const inputRef: Ref<InstanceType<typeof MonacoEditor | typeof AnnotatedText> | null> = ref(null);
+const scopePath = computed(() => (bench.lastActiveFileCk == null ? "" : module.pathOf(bench.lastActiveFileCk)));
 const focusedRunId = ref<string | null>(null);
 const expandedRunIds = ref<string[]>([]);
+const lastRunActive = computed(() =>
+  panel.value.lastRunId == null ? false : session.isActive({ id: panel.value.lastRunId })
+);
 
 function focus(f: "first" | "last" = "last") {
   inputRef.value?.focus?.("last");
@@ -65,6 +72,7 @@ function navigateInputUp() {
     focusedRunId.value = nextRun.run.id;
     input.value = nextRun.code;
   }
+  nextTick(() => focus("last"));
 }
 
 function navigateInputDown() {
@@ -79,6 +87,7 @@ function navigateInputDown() {
     focusedRunId.value = null;
     input.value = "";
   }
+  nextTick(() => focus("last"));
 }
 
 function run() {
@@ -86,14 +95,20 @@ function run() {
     return; // nothing to run
   }
   if (panel.value.inputMode == "code") {
-    const { run, result } = terminal.runCode(input.value, undefined);
-    expandedRunIds.value.push(run.id); // always show full run if it was made here
-    result.then(() => {
-      input.value = "";
-      inputSync.onLocalWrite();
+    const { run, result } = terminal.runCode(input.value, {
+      scope: bench.lastActiveFileCk ?? undefined,
+      accessLevel: panel.value.accessLevel,
     });
+    focusedRunId.value = null;
+    expandedRunIds.value.push(run.id); // always show full run if it was made here
+    panel.value.lastRunId = run.id;
+    input.value = "";
+    inputSync.onLocalWrite();
   } else {
-    terminal.runText(input.value);
+    terminal.runText(input.value, {
+      runMode: "approve",
+      accessLevel: panel.value.accessLevel,
+    });
   }
 }
 
@@ -102,7 +117,7 @@ defineExpose({
 });
 </script>
 <template>
-  <div class="relative flex flex-col" :style="{ minHeight: panelSize.height + 'px' }">
+  <div class="relative flex flex-col" :style="{ height: panelSize.height + 'px' }">
     <PanelHeader
       class="border-b border-orange-900 border-opacity-[12%] bg-gray-50"
       :editing="false"
@@ -113,7 +128,7 @@ defineExpose({
     />
     <!-- History -->
     <div
-      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto pt-8 text-sm"
+      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto pt-5 text-sm"
       :class="
         terminal.loading.value || terminal.totalCount.value == 0
           ? 'flex-col items-center justify-center'
@@ -158,7 +173,10 @@ defineExpose({
           <!-- Extra info & controls -->
           <div class="flex select-none flex-row gap-1.5 text-gray-400">
             <!-- Run ID -->
-            <button class="font-mono underline-offset-2 hover:underline" @click="bench.openViewRun(run.id)">
+            <button
+              class="font-mono underline-offset-2 hover:underline"
+              @click="bench.openViewRun(run, { focus: true })"
+            >
               #{{ getUUIDFromGlobalID(run.id).slice(-7, -1) }}
             </button>
             <!-- From -->
@@ -168,16 +186,18 @@ defineExpose({
         <!-- Body -->
         <div class="flex w-full flex-col pl-10 pr-4">
           <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
-          <ErrorTraceback v-if="run.errorNice != null" hide-preamble :error-nice="run.errorNice" class="" />
-          <div v-if="expandedRunIds.includes(run.id)">
-            <LogsTile
-              :project-id="(bench.projectId as string)"
-              :project-version-id="(bench.projectVersionId as string)"
-              :run-id="run.id"
-              :session-id="run.session?.id"
-              hide-if-empty
-            />
-          </div>
+          <ErrorTraceback v-if="run.errorNice != null" hide-preamble :error-nice="run.errorNice" class="mt-1" />
+          <!-- nocheckin: fix logs not showing properly -->
+          <LogsTile
+            v-if="expandedRunIds.includes(run.id)"
+            :project-id="(bench.projectId as string)"
+            :project-version-id="(bench.projectVersionId as string)"
+            :run-id="run.id"
+            :session-id="run.session?.id"
+            hide-if-empty
+            hide-metadata
+            :live="run.terminatedAt == null"
+          />
         </div>
       </div>
     </div>
@@ -194,13 +214,13 @@ defineExpose({
               <ChevronDoubleRightIcon class="h-4 w-4" />
             </span>
             <!-- Current context/path & mode -->
-            <span class="ml-0.5">{{ module.path.value }}</span>
+            <span class="ml-0.5">{{ module.path.value }}.{{ scopePath }}</span>
             <!-- Access level -->
             <button
-              class="hover rounded-sm px-1.5"
+              class="hover ml-0.5 rounded-sm px-0.5"
               :class="[
                 panel.accessLevel < SessionAccessLevel.Delete
-                  ? '   ring-gray-600/10 hover:bg-orange-100'
+                  ? 'ring-gray-600/10 hover:bg-orange-100'
                   : 'bg-red-100 font-semibold text-red-900  hover:bg-red-200',
               ]"
               @click="
@@ -210,7 +230,7 @@ defineExpose({
                 }
               "
             >
-              can {{ SESSION_ACCESS_LEVEL_NAME[panel.accessLevel]?.toLowerCase() }}
+              (can {{ SESSION_ACCESS_LEVEL_NAME[panel.accessLevel]?.toLowerCase() }})
             </button>
           </div>
           <!-- Body -->
@@ -224,7 +244,13 @@ defineExpose({
             </button>
             <!-- Input -->
             <div class="relative ml-0.5 min-h-[22px] w-full">
-              <AnnotatedText v-if="panel.inputMode == 'text'" ref="inputRef" v-model="input" @click.stop @enter="run" />
+              <AnnotatedText
+                v-if="panel.inputMode == 'text'"
+                ref="inputRef"
+                v-model="input"
+                @click.stop="emit('focus')"
+                @enter="run"
+              />
               <MonacoEditor
                 v-else
                 ref="inputRef"
@@ -234,7 +260,7 @@ defineExpose({
                 language="python"
                 hide-line-numbers
                 enter-is-execute
-                @click.stop
+                @click.stop="emit('focus')"
                 @execute="run"
                 @navigate-up="navigateInputUp()"
                 @navigate-down="navigateInputDown()"
@@ -243,8 +269,12 @@ defineExpose({
           </div>
         </div>
         <!-- Run -->
-        <button class="self-start rounded-sm px-1.5 py-1 hover:bg-orange-100" @click="run">
-          <PlayIcon class="h-6 w-6 text-orange-600" />
+        <button
+          class="self-start rounded-sm px-1.5 py-1 text-orange-600 hover:bg-orange-100"
+          @click="lastRunActive && panel.lastRunId != null ? session.kill({ id: panel.lastRunId }) : run()"
+        >
+          <PlayIcon v-if="!lastRunActive" class="h-6 w-6" />
+          <StopIcon v-else class="h-6 w-6" />
         </button>
       </div>
     </div>

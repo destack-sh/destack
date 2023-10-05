@@ -84,7 +84,7 @@ export function useSessionOps() {
       mutation startRun(
         $projectVersionId: GlobalID!
         $statementId: GlobalID
-        $scopeId: GlobalID
+        $scopeCk: UUID
         $code: String
         $runId: GlobalID
         $sessionId: GlobalID
@@ -94,12 +94,13 @@ export function useSessionOps() {
         $timeoutSeconds: Int
         $rootValue: JSON
         $globalValue: JSON
+        $accessLevel: Int
       ) {
         run(
           input: {
             projectVersionId: $projectVersionId
             statementId: $statementId
-            scopeId: $scopeId
+            scopeCk: $scopeCk
             code: $code
             runId: $runId
             sessionId: $sessionId
@@ -109,6 +110,7 @@ export function useSessionOps() {
             timeoutSeconds: $timeoutSeconds
             rootValue: $rootValue
             globalValue: $globalValue
+            accessLevel: $accessLevel
           }
         ) {
           ... on RunState {
@@ -130,12 +132,19 @@ export function useSessionOps() {
 
   async function run(
     statementId?: string,
-    scopeId?: string,
+    scopeCk?: string,
     code?: string,
     runId?: string,
     sessionId?: string,
     inputs?: Record<string, any>,
-    options?: { block?: number; keyed?: boolean; timeoutSeconds?: number; rootValue?: any; globalValue?: any }
+    options?: {
+      block?: number;
+      keyed?: boolean;
+      timeoutSeconds?: number;
+      rootValue?: any;
+      globalValue?: any;
+      accessLevel?: number;
+    }
   ) {
     return await ops.perform({
       type: "runtime.run",
@@ -145,7 +154,7 @@ export function useSessionOps() {
         return await startRunMut({
           projectVersionId: bench.projectVersionId,
           statementId,
-          scopeId,
+          scopeCk,
           code,
           runId,
           sessionId,
@@ -155,6 +164,7 @@ export function useSessionOps() {
           keyed: options?.keyed,
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,
+          accessLevel: options?.accessLevel,
         });
       },
     });

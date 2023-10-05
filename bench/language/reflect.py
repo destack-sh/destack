@@ -169,5 +169,6 @@ class RunMetadata:
     code: Optional[str]
     progress: Optional[float]
     # for terminal
+    scope: Optional[UUID]
     generated_in: Optional[UUID]
     generated_from: Optional[str]

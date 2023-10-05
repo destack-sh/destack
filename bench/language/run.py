@@ -272,7 +272,7 @@ class RunCodeFrame:
             for node in list(session.module._nodes)
             if isinstance(node, Statement) and getattr(node, "_transform", None)
         }
-        if hasattr(from_statement, "_transform"):
+        if getattr(from_statement, "_transform", None):
             # from statement may not be in module (e.g. if detached when running anonymous code)
             code_by_method[from_statement._transform.method_name] = from_statement
 
@@ -336,10 +336,14 @@ class RunError(Exception):  # can this really be a subclass of Exception?
             return e
         stack = RunCodeFrame.from_stack(traceback.extract_tb(e.__traceback__))
         stack = RunCodeFrame.clean(stack, statement, statement.session)
+        if isinstance(e, SyntaxError):  # ignore (..., line x) because it's not useful
+            err_str = e.msg
+        else:
+            err_str = str(e)
         return RunError(
             kind=RunErrorKind.Runtime,
             type=type(e).__name__,
-            message=str(e),
+            message=err_str,
             statement=statement,
             traceback=stack,
         )
