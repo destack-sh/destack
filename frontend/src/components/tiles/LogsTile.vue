@@ -28,6 +28,7 @@ const props = defineProps<{
   containerHeight?: number;
   hideIfEmpty?: boolean;
   hideMetadata?: boolean;
+  alwaysExpand?: boolean;
 }>();
 
 const { logs, loading, addLogs } = useLogs(
@@ -121,9 +122,8 @@ defineExpose({
         :class="[
           highlight && isHighlighted(log) ? 'bg-yellow-100' : '',
           lowlight && !isHighlighted(log) ? 'opacity-50' : '',
-          expandedLogs.includes(log.id)
-            ? 'whitespace-pre-wrap bg-orange-100 ring-1 ring-orange-600/20 '
-            : 'max-w-full truncate hover:bg-orange-50',
+          alwaysExpand || expandedLogs.includes(log.id) ? 'whitespace-pre-wrap' : 'max-w-full truncate',
+          expandedLogs.includes(log.id) ? 'bg-orange-100 ring-1 ring-orange-600/20 ' : 'hover:bg-orange-50',
         ]"
         @click="() => toggleExpanded(log)"
       >
