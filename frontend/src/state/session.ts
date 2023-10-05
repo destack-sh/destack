@@ -12,6 +12,8 @@ import {
   type CurrentRunsQueryVariables,
   type SearchLogsQueryVariables,
   type LogsChangedSubscriptionVariables,
+  QueryOp,
+  SortOrder,
 } from "@/gql/graphql";
 import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
@@ -40,7 +42,7 @@ import {
 import { useApolloClient, useQuery, useSubscription } from "@vue/apollo-composable";
 import { createSharedComposable, useDebounceFn } from "@vueuse/core";
 import { DateTime } from "luxon";
-import { computed, onBeforeUnmount, reactive, ref, watch, type Ref } from "vue";
+import { computed, onBeforeUnmount, reactive, ref, watch, type Ref, toRef } from "vue";
 
 export const TERMINAL_RUN_STATUSES = [RunStatus.Cancelled, RunStatus.Aborted, RunStatus.Failed, RunStatus.Completed];
 export const ACTIVE_RUN_STATUSES = [RunStatus.Queued, RunStatus.Running, RunStatus.Aborting]; // scheduled doesn't count as active
@@ -269,9 +271,7 @@ export function _useSessions(
         for (const run of result.data.sessionsChanged.runs.map((r) => useFragment(RunContentType, r))) {
           console.debug("run.change", run);
           currentRuns.value[run.id] = run as Run;
-          for (const subscriber of onRunChangeSubscribers.value) {
-            subscriber(run as Run);
-          }
+          _notifyRunChange(run as Run);
         }
       }
       if (result.data?.sessionsChanged?.__typename == "WorkerChange") {
@@ -285,6 +285,12 @@ export function _useSessions(
       }
     });
     // TODO @Performance @Robustness: periodically purge stale runs (that are inactive and not the latest for any statement in the module)
+  }
+
+  function _notifyRunChange(run: Run) {
+    for (const subscriber of onRunChangeSubscribers.value) {
+      subscriber(run as Run);
+    }
   }
 
   function onRunChange(subscriber: (run: Run) => void): () => void {
@@ -1122,39 +1128,70 @@ export const WORKER_STATUS_TITLE = {
   [WorkerSetStatus.Unknown]: "Unknown",
 };
 
+export type TerminalRun = {
+  text?: string;
+  code: string;
+  run: Run;
+};
+
 export function useTerminal() {
   const session = useCurrentSessions();
   const auth = useAuth();
+  const bench = useBenchState();
   const module = useCurrentModule();
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
+  const codeKey = computed(() => module.runMetadataKey("code"));
+  const generatedInKey = computed(() => module.runMetadataKey("generated_in"));
+  const generatedFromKey = computed(() => module.runMetadataKey("generated_from"));
 
-  // nocheckin: fetch terminl runs (filter runs where label == terminal and trigger user == self)
-  const runs = computed(() =>
-    // :TerminalRuns
-    Object.values(session.currentRuns.value).filter(
-      (run) =>
-        run.parent == null &&
-        (run.value?.[botLabelKey.value ?? ""] ?? run.value?.["bot"]) === "terminal" &&
-        run.triggerUser?.id === auth.me.value?.id
-    )
+  const { runs, loading, totalCount } = useRuns(
+    {
+      projectId: toRef(bench, "projectId"),
+      projectVersionId: toRef(bench, "projectVersionId"),
+      statementIds: ref(null),
+      statementCks: ref(null),
+      rootOnly: ref(true),
+      sessionId: ref(null),
+      runId: ref(null),
+      query: computed(() => ({
+        op: QueryOp.And,
+        queries: [
+          {
+            op: QueryOp.Equals,
+            key: "value." + botLabelKey.value,
+            value: "terminal",
+          },
+        ],
+      })),
+      sort: ref([{ key: "created_at", order: SortOrder.Descending }]),
+      after: ref(null),
+    },
+    { limit: 16, count: true, live: true }
+  );
+  const terminalRuns = computed(() =>
+    runs.value?.map((r) => ({
+      code: r.value[codeKey.value ?? ""] ?? r.value["code"],
+      run: r,
+    }))
   );
 
   function runText(text: string, runMode: "approve" | "immediate" = "approve"): string {
-    throw new Error("nocheckin: not implemented yet");
+    throw new Error("nocheckin: text->bench code task");
   }
 
-  function runCode(code: string, scope?: string): Run {
-    // :TerminalRuns
-    const { run } = session.run(code, {
+  function runCode(code: string, scope?: string) {
+    return session.run(code, {
       scope,
+      // :TerminalRuns
       rootValue: { name: "terminal", bot: "terminal", code: code },
       globalValue: { bot: "terminal" },
     });
-    return run;
   }
 
   return {
-    runs,
+    runs: terminalRuns,
+    loading,
+    totalCount,
     runText,
     runCode,
   };
