@@ -35,6 +35,7 @@ const emit = defineEmits<{
   (e: "escape"): void;
   (e: "deleteLeft"): void;
   (e: "illegal", char: string): void;
+  (e: "toggleLanguage"): void;
 }>();
 
 const spans = ref(parseTextHtml(props.modelValue));
@@ -409,6 +410,8 @@ defineExpose({
         @keydown.enter.exact.prevent="onEnter(span, i, $event as KeyboardEvent)"
         @keydown.backspace.exact="onDelete(span, i, $event as KeyboardEvent)"
         @input="onInput(span, i, $event as InputEvent)"
+        @keydown.meta.enter.prevent="emit('toggleLanguage')"
+        @keydown.alt.enter.prevent="emit('toggleLanguage')"
       >
         {{ span.text }}
       </span>
@@ -425,6 +428,8 @@ defineExpose({
         @keydown.right="onNavigateRight(span, i, $event)"
         @keydown.escape.prevent="emit('escape')"
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
+        @keydown.meta.enter.prevent="emit('toggleLanguage')"
+        @keydown.alt.enter.prevent="emit('toggleLanguage')"
         class="relative inline whitespace-nowrap rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
         :class="[
           minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  ',

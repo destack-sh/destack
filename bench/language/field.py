@@ -69,7 +69,9 @@ class TypeError(TypeError):
             value_str = value_str[: max_value_str_len - 100] + "..." + value_str[-100:]
 
         if isinstance(expected, Field) and not expected.resolved_fields:
-            expected_str = f"field {expected.py_ident} ({expected._type_str})"
+            expected_str = (
+                f"field {expected.py_ident} ({expected._type_str}, from {expected.parent!r})"
+            )
         else:
             expected_fields_str = ", ".join(
                 f"{f.py_ident} ({f._type_str})" for f in expected.resolved_fields
@@ -77,7 +79,7 @@ class TypeError(TypeError):
             expected_str = f"fields {expected_fields_str or '<empty>'} from {expected!r}"
 
         super().__init__(
-            f"{message or 'type mismatch'}: expected {expected_str}, got {value_str} ({type(value)})"
+            f"{message or 'type mismatch'}: expected {expected_str}, got {value_str} ({type(value).__name__})"
         )
         self.value = value
         self.expected = expected

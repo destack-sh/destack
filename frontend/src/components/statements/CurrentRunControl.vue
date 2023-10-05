@@ -57,8 +57,8 @@ const preparingWorkers = computed(
           currentRun?.updatedAt ? 'opacity-100' : 'opacity-0',
         ]"
       >
-        {{ now.getTimeFromNowString(currentRun?.updatedAt) }}</span
-      >
+        {{ now.getTimeFromNowString(currentRun?.updatedAt) }}
+      </span>
     </span>
     <!-- Cache info -->
     <RunCacheInfo v-if="currentRun != null" :run="currentRun" class="relative mr-0.5 py-1" />

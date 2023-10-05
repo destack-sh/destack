@@ -195,7 +195,12 @@ class WorkerNode(Monitored):
 
             # key inputs if needed
             if not msg.p.keyed and statement:
-                inputs = map_value(msg.p.inputs, statement, map_k=lambda f: (f.key, f.py_ident))
+                inputs = map_value(
+                    msg.p.inputs,
+                    statement,
+                    map_k=lambda f: (f.py_ident, f._typed_key),
+                    is_output=False,
+                )
             else:
                 inputs = msg.p.inputs
 
