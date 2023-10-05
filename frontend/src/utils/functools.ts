@@ -142,3 +142,43 @@ export function cyrb53a(str: string, seed = 0): number {
   h2 ^= h1 >>> 16;
   return 2097152 * (h2 >>> 0) + (h1 >>> 11);
 }
+
+// :IdentifierStrings
+
+export enum IdentifierType {
+  METHOD = "method",
+  TYPE = "type",
+  CONSTANT = "constant",
+  PATH = "path",
+  VARIABLE = "variable",
+  FIELD = "field",
+}
+
+export function toPyIdentifier(name: string, type: IdentifierType): string {
+  const stripAlphaNum = (name: string): string => {
+    return name
+      .replace(/^_+|_+$|[^a-zA-Z0-9]+/g, "")
+      .replace(/__+/g, "_")
+      .replace(/^[0-9]+/, "");
+  };
+
+  if ([IdentifierType.METHOD, IdentifierType.VARIABLE, IdentifierType.FIELD, IdentifierType.PATH].includes(type)) {
+    name = name.replace(/[^a-zA-Z0-9_]/g, "_");
+    return stripAlphaNum(name).toLowerCase();
+  } else if (type === IdentifierType.TYPE || type === IdentifierType.CONSTANT) {
+    if (/^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+/.test(name)) return name;
+    name = name.replace(/[^a-zA-Z0-9]/g, " ").replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+    return stripAlphaNum(name).replace(/\s+/g, " ").trim().replace(/\s/g, "");
+  } else {
+    throw new Error(`unexpected identifier type: ${type}`);
+  }
+}
+
+function toAllCaps(name: string): string {
+  name = name.replace(/[^a-zA-Z0-9]/g, " ").replace(/([a-z])([A-Z0-9])/g, "$1 $2");
+  return stripAlphaNum(name).replace(/\s+/g, " ").trim().replace(/\s/g, "_").toUpperCase();
+}
+
+function stripAlphaNum(name: string): string {
+  return name.replace(/^_+|_+$|__+/g, "").replace(/^[0-9]+/, "");
+}

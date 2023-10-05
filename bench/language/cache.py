@@ -82,11 +82,11 @@ class CacheSync:
 class CacheAsync:
     """Cache for a Bench (async)."""
 
-    def __init__(self, module: Optional[Module], subkey: str = None):
+    def __init__(self, module: Optional[Module], subkey: str = None, project_id: UUID = None):
         self.module = module
-        if module is None:
+        if module is None and project_id is None:
             raise ValueError("project_id must be provided if module is None")
-        self.project_id = module.project_id
+        self.project_id = project_id or module.project_id
         self.scope_key = _get_scope_key(self.project_id)
         if subkey is not None:
             self.scope_key = f"{self.scope_key}.{subkey}"

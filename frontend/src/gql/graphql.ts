@@ -1844,7 +1844,7 @@ export type RunError = {
 };
 
 export type RunInput = {
-  accessLevel?: Scalars["Int"];
+  accessLevel: Scalars["Int"];
   block?: Scalars["Float"];
   code?: InputMaybe<Scalars["String"]>;
   globalValue?: InputMaybe<Scalars["JSON"]>;
@@ -4279,13 +4279,15 @@ export type StartRunMutationVariables = Exact<{
   timeoutSeconds?: InputMaybe<Scalars["Int"]>;
   rootValue?: InputMaybe<Scalars["JSON"]>;
   globalValue?: InputMaybe<Scalars["JSON"]>;
-  accessLevel?: InputMaybe<Scalars["Int"]>;
+  accessLevel: Scalars["Int"];
 }>;
 
 export type StartRunMutation = {
   __typename?: "Mutation";
   run:
-    | { __typename?: "OperationInfo" }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      })
     | {
         __typename?: "RunState";
         projectVersionId: any;
@@ -11487,7 +11489,7 @@ export const StartRunDocument = {
         {
           kind: "VariableDefinition",
           variable: { kind: "Variable", name: { kind: "Name", value: "accessLevel" } },
-          type: { kind: "NamedType", name: { kind: "Name", value: "Int" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "Int" } } },
         },
       ],
       selectionSet: {
@@ -11604,6 +11606,7 @@ export const StartRunDocument = {
                     ],
                   },
                 },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
               ],
             },
           },
@@ -11612,6 +11615,7 @@ export const StartRunDocument = {
     },
     ...RunContentFragmentDoc.definitions,
     ...LogEntryContentFragmentDoc.definitions,
+    ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<StartRunMutation, StartRunMutationVariables>;
 export const KillDocument = {

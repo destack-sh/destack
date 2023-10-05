@@ -70,30 +70,28 @@ export function useTimeFromNow(updateInterval = 60000) {
   return { now, getTimeFromNow, getTimeFromNowLong, getTimeFromNowString, getTimeFromNowLongString };
 }
 
-export function formatDiffSeconds(fromStr: string, toStr: string | DateTime, options?: { millis?: boolean }): string {
+export function formatDiffSeconds(fromStr: string, toStr: string | DateTime): string {
   // format runtime diff into smallest reasonable unit
   // like 1723.4ms -> 1.7s, 22.47ms -> 22ms, 0.0002ms -> <1ms, 72000ms -> 1.1min
   const from = DateTime.fromISO(fromStr);
   const to = typeof toStr == "string" ? DateTime.fromISO(toStr) : toStr;
   const diffMs = to.diff(from).as("milliseconds");
-  return formatDuration(diffMs, options);
+  return formatDuration(diffMs);
 }
 
-export function formatDuration(diffMs: number, options?: { millis?: boolean }): string {
-  if (diffMs < 10) {
-    return `${Math.round(diffMs)}ms`;
-  } else if (diffMs < 100 && !options?.millis) {
-    return "<0.1s";
-  } else if (diffMs < 10000 && options?.millis) {
-    return `${Math.round(diffMs)}ms`;
-  } else if (diffMs < 60000) {
-    return `${(diffMs / 1000).toFixed(1)}s`;
+export function formatDuration(durationMs: number): string {
+  if (durationMs < 10) {
+    return `${Math.round(durationMs)}ms`;
+  } else if (durationMs < 10000) {
+    return `${(durationMs / 1000).toFixed(1)}s`;
+  } else if (durationMs < 60000) {
+    return `${(durationMs / 1000).toFixed(1)}s`;
   } else {
-    return `${(diffMs / 60000).toFixed(1)}min`;
+    return `${(durationMs / 60000).toFixed(1)}min`;
   }
 }
 
-export function humanizeNumber(num: number, options?: { round?: boolean }): string {
+export function humanizeNumber(num: number): string {
   // format numbers into their highest 3-exponent of 10 (k, m, b)
   // like 57 -> 57, 7207 -> 7.2k, 2000000 -> 2m
   if (num < 1000) {

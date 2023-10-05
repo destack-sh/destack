@@ -822,7 +822,7 @@ class RuntimeHost:
         # collect new (i.e. current) module's triggers
         new_active_triggers = {}
         for node in self.module._nodes:
-            if isinstance(node, HasTriggers) and not node.errors:
+            if HasTriggers in node._components and not node.errors:
                 for trigger in node.triggers:
                     if trigger.active and trigger.type == TriggerType.TIME:
                         new_active_triggers[trigger.id] = trigger

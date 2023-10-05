@@ -18,7 +18,6 @@ from bench.language.module import (
     nparent,
     nproperty,
 )
-from bench.language.run import HasRun
 from bench.language.validation import ValidationHandler, enum_validator
 from bench.utils.func import dict_minus
 
@@ -104,7 +103,7 @@ class Trigger(Node):
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
         # resolve statement
-        if self.statement is not None and not isinstance(self.statement, HasRun):
+        if self.statement is not None and not isinstance(self.statement, Node):
             resolved = scope.lookup(self.statement)
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")

@@ -1,6 +1,7 @@
 import { graphql } from "@/gql";
 import { useBenchState } from "@/state/bench";
 import { useOperationsStore } from "@/state/operations";
+import { SessionAccessLevel } from "@/state/session";
 import { useMutation } from "@vue/apollo-composable";
 
 export function useSessionOps() {
@@ -94,7 +95,7 @@ export function useSessionOps() {
         $timeoutSeconds: Int
         $rootValue: JSON
         $globalValue: JSON
-        $accessLevel: Int
+        $accessLevel: Int!
       ) {
         run(
           input: {
@@ -125,6 +126,7 @@ export function useSessionOps() {
               ...LogEntryContent
             }
           }
+          ...OperationInfoContent
         }
       }
     `)
@@ -164,7 +166,7 @@ export function useSessionOps() {
           keyed: options?.keyed,
           block: options?.block,
           timeoutSeconds: options?.timeoutSeconds,
-          accessLevel: options?.accessLevel,
+          accessLevel: options?.accessLevel ?? SessionAccessLevel.Read,
         });
       },
     });

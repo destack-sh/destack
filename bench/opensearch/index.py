@@ -356,7 +356,7 @@ def update_dynamic_field_mappings(project_v: models.ProjectVersion) -> None:
     # get library mappings
     for lib in libs.DEFAULT_MODULES.values():
         for node in lib._nodes:
-            if isinstance(node, HasRun):
+            if HasRun in node._components:
                 for field in node.resolved_fields:
                     if field.flags & TypeFlag.IsOutput:
                         outputs_mappings[field._typed_key] = map_to_os_field(field)

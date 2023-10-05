@@ -13,12 +13,12 @@ import {
   SESSION_ACCESS_LEVELS,
   SESSION_ACCESS_LEVEL_NAME,
   SessionAccessLevel,
-  useTerminal,
   getRunStatusIconSolid,
   getRunStatusColor,
   useCurrentSessions,
 } from "@/state/session";
-import { getUUIDFromGlobalID } from "@/utils/functools";
+import { useTerminal } from "@/state/terminal";
+import { IdentifierType, getUUIDFromGlobalID, toPyIdentifier } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 import { ArrowRightIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
@@ -34,7 +34,6 @@ const emit = defineEmits<{
 const bench = useBenchState();
 const module = useCurrentModule();
 const session = useCurrentSessions();
-const appearance = useAppearance();
 const panel = computed(() => props.panel.panel.value);
 const panelSize = computed(() => props.panel.size.value);
 const terminal = useTerminal();
@@ -48,7 +47,14 @@ const inputSync = syncProperty({
 });
 const inputRef: Ref<InstanceType<typeof MonacoEditor | typeof AnnotatedText> | null> = ref(null);
 const logsTileRefs = ref<Record<string, InstanceType<typeof LogsTile> | null>>({});
-const scopePath = computed(() => (bench.lastActiveFileCk == null ? "" : module.pathOf(bench.lastActiveFileCk)));
+const scopePath = computed(() => {
+  if (bench.lastActiveFileCk == null) return null;
+  const nodePath = module.nodePathOf(bench.lastActiveFileCk);
+  if (nodePath?.some((n) => (n.name ?? "").trim().length == 0)) {
+    return null;
+  }
+  return nodePath?.map((n) => toPyIdentifier(n.name ?? "", IdentifierType.PATH)).join(".");
+});
 const focusedRunId = ref<string | null>(null);
 const expandedRunIds = ref<string[]>([]);
 const lastRunActive = computed(() =>
@@ -68,6 +74,7 @@ function navigateInputUp() {
   // scroll backwards to last input
   if (!terminal.runs.value) return;
   const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
+  console.trace("nocheckin up", currentRunIndex, terminal.runs.value.length, focusedRunId.value);
   if (currentRunIndex < terminal.runs.value.length - 1) {
     const nextRun = terminal.runs.value[currentRunIndex + 1];
     focusedRunId.value = nextRun.run.id;
@@ -80,6 +87,7 @@ function navigateInputDown() {
   // scroll forwards to next input / clear
   if (!terminal.runs.value) return;
   const currentRunIndex = terminal.runs.value.findIndex((r) => r.run.id == focusedRunId.value);
+  console.trace("nocheckin down", currentRunIndex, terminal.runs.value.length, focusedRunId.value);
   if (currentRunIndex > 0) {
     const nextRun = terminal.runs.value[currentRunIndex - 1];
     focusedRunId.value = nextRun.run.id;
@@ -199,15 +207,13 @@ defineExpose({
             hide-metadata
             always-expand
             :live="run.terminatedAt == null"
-            :class="[
-              (logsTileRefs[run.id]?.logs?.length ?? 0) > 0 ? 'mt-1 border-t border-orange-900/[15%] py-0.5' : '',
-            ]"
+            :class="[(logsTileRefs[run.id]?.logs?.length ?? 0) > 0 ? 'mt-1 border-t border-orange-900/[15%] py-1' : '']"
           />
           <ErrorTraceback
             v-if="run.errorNice != null"
             hide-preamble
             :error-nice="run.errorNice"
-            class="mt-1 border-t border-orange-900/[15%] py-0.5"
+            class="mt-1 border-t border-orange-900/[15%] py-1"
           />
         </div>
       </div>
@@ -225,7 +231,9 @@ defineExpose({
               <ChevronDoubleRightIcon class="h-4 w-4" />
             </span>
             <!-- Current context/path & mode -->
-            <span class="ml-0.5">{{ module.path.value }}.{{ scopePath }}</span>
+            <span class="ml-0.5"
+              >{{ module.path.value }}<template v-if="scopePath">.{{ scopePath }}</template>
+            </span>
             <!-- Access level -->
             <button
               class="hover ml-0.5 rounded-sm px-0.5"
@@ -261,6 +269,7 @@ defineExpose({
                 v-model="input"
                 @click.stop="emit('focus')"
                 @enter="run"
+                @enter-right="run"
               />
               <MonacoEditor
                 v-else

@@ -30,11 +30,14 @@ def trim_record_edits(
     edits: list[EditData],
 ) -> list[EditData]:
     """Trims record edits into bumps if necessary."""
+    has_record_edits = any(e.scope == MNT.Record or e.mnt == MNT.Record for e in edits)
+    if not has_record_edits:
+        return edits
     num_record_updates = 0
     bumped_statement_ids: dict[UUID, UUID] = {}  # statement_id -> file_id
     trimmed_edits = []
     for edit in edits:
-        if edit.scope == MNT.Record:
+        if edit.scope == MNT.Record or edit.mnt == MNT.Record:
             num_record_updates += 1
             bumped_statement_ids[edit.statement_id] = edit.file_id
             if num_record_updates < MAX_RECORD_MUTATIONS_PER_BATCH:

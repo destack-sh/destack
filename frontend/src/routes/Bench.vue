@@ -379,7 +379,6 @@ watch(
         type: "runtime.disconnected",
         kind: "warning",
         message: "Disconnected",
-        description: "Bench has disconnected.",
       });
       disconnected.value = true;
     } else if (WS_CONNECTED.value && disconnected.value) {
@@ -388,7 +387,6 @@ watch(
         type: "runtime.reconnected",
         kind: "success",
         message: "Reconnected",
-        description: "Bench has reconnected.",
       });
       notifications.dismissIf({ type: "runtime.disconnected" });
     }
