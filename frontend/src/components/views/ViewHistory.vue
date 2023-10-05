@@ -131,7 +131,7 @@ async function doSnapshot(c: {
       type: "snapshot.success",
       kind: "success",
       message: `Snapshot created`,
-      description: `${c.name ?? "Snapshot"} is safe in the archives.`,
+      description: `${c.name ?? "That snapshot"} is archived.`,
     });
   }
   snapshotting.value = false;

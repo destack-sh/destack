@@ -75,6 +75,9 @@ def get_method_source(method) -> str:
     return textwrap.dedent("".join(cleaned_lines))
 
 
+# :IdentifierStrings
+
+
 class IdentifierType(enum.StrEnum):
     METHOD = "method"
     TYPE = "type"

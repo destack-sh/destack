@@ -551,7 +551,7 @@ class TypedDict(dict):
         try:
             return dict.__getitem__(self, item)
         except KeyError:
-            field = self._type.fields.get(item)
+            field = self._type.resolved_fields.get(item)
             if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
                 return None
         raise AttributeError(item)
@@ -560,7 +560,7 @@ class TypedDict(dict):
         if name in TypedDict._PROPS:
             return super().__setattr__(name, value)
 
-        field = self._type.fields.get(name)
+        field = self._type.resolved_fields.get(name)
         if self._is_output is None or bool(field.flags & TypeFlag.IsOutput) == self._is_output:
             return dict.__setitem__(self, name, value)
         raise AttributeError(name)

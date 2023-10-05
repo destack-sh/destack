@@ -168,9 +168,7 @@ function initMonaco(monaco: Monaco) {
     editor.value.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.WinCtrl | monaco.KeyCode.Enter, () => emit("execute"));
     editor.value.addCommand(monaco.KeyMod.Alt | monaco.KeyCode.Enter, () => emit("openActions"));
-    if (props.enterIsExecute) {
-      editor.value.addCommand(monaco.KeyCode.Enter, () => emit("execute"));
-    } else {
+    if (!props.enterIsExecute) {
       editor.value.addCommand(monaco.KeyMod.Shift | monaco.KeyCode.Enter, () => {
         emit("enter");
       });
@@ -182,6 +180,8 @@ function initMonaco(monaco: Monaco) {
         }
       } else if (e.keyCode === monaco.KeyCode.UpArrow) {
         if (!e.shiftKey && !e.altKey && editor.value?.getPosition()?.lineNumber === 1 && !hasInnerWindowOpen()) {
+          e.stopPropagation();
+          e.preventDefault();
           emit("navigateUp");
         }
       } else if (e.keyCode === monaco.KeyCode.DownArrow) {
@@ -191,13 +191,23 @@ function initMonaco(monaco: Monaco) {
           editor.value?.getPosition()?.lineNumber === editor.value?.getModel()?.getLineCount() &&
           !hasInnerWindowOpen()
         ) {
+          e.stopPropagation();
+          e.preventDefault();
           emit("navigateDown");
         }
       } else if (e.keyCode == monaco.KeyCode.Escape) {
         // trigger outer escape if no widget is open and visible
         if (!hasInnerWindowOpen()) {
+          e.stopPropagation();
+          e.preventDefault();
           emit("escape");
           (document.activeElement as HTMLElement)?.blur?.();
+        }
+      } else if (e.keyCode == monaco.KeyCode.Enter && !e.shiftKey) {
+        if (props.enterIsExecute && !hasInnerWindowOpen()) {
+          e.stopPropagation();
+          e.preventDefault();
+          emit("execute");
         }
       }
     });

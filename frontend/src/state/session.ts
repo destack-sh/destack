@@ -12,16 +12,14 @@ import {
   type CurrentRunsQueryVariables,
   type SearchLogsQueryVariables,
   type LogsChangedSubscriptionVariables,
-  QueryOp,
-  SortOrder,
+  StartRunErrorType,
 } from "@/gql/graphql";
-import { useAuth } from "@/state/auth";
 import { useBenchState } from "@/state/bench";
-import { newRunId, newSessionId, useCurrentModule } from "@/state/module";
+import { newRunId, newSessionId } from "@/state/module";
 import { useNotifications } from "@/state/notifications";
 import { useSessionOps } from "@/state/operations/session";
 import { getUpdatedConnectionQueryMany, type Connection, getUpdatedConnectionQuery } from "@/utils/connection";
-import { toValueRef, wrapValueRefs } from "@/utils/functools";
+import { wrapValueRefs } from "@/utils/functools";
 import {
   CheckCircleIcon as CheckCircleIconOutline,
   ClockIcon as ClockIconOutline,
@@ -507,7 +505,7 @@ export function _useSessions(
           keyed: options?.keyed,
           globalValue: options?.globalValue,
           rootValue: options?.rootValue,
-          accessLevel: options?.accessLevel,
+          accessLevel: options?.accessLevel ?? SessionAccessLevel.Full,
         })
         .then((r) => {
           if (
@@ -515,11 +513,19 @@ export function _useSessions(
             (r?.data?.run?.__typename == "RunState" && (!r?.data?.run?.success || r?.data?.run.run == null))
           ) {
             delete currentRuns.value[runId];
+            let message;
+            if (r?.data?.run?.__typename == "OperationInfo") {
+              message = "Could not connect.";
+            } else if (r?.data?.run?.error == StartRunErrorType.Unavailable) {
+              message = "Workers are unavailable.";
+            } else {
+              message = "Invalid request.";
+            }
             notifications.show({
               kind: "error",
               type: "run.failed",
               message: "Run could not start",
-              description: "Your workers are unavailable.",
+              description: message,
             });
             throw new Error("run could not start");
           } else if (r?.data?.run.__typename == "RunState") {
@@ -1151,91 +1157,3 @@ export const WORKER_STATUS_TITLE = {
   [WorkerSetStatus.Sleeping]: "Sleeping",
   [WorkerSetStatus.Unknown]: "Unknown",
 };
-
-export type TerminalRun = {
-  text?: string;
-  code: string;
-  run: Run;
-};
-export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
-
-function _useTerminal() {
-  const session = useCurrentSessions();
-  const bench = useBenchState();
-  const module = useCurrentModule();
-  const botLabelKey = computed(() => module.runMetadataKey("bot"));
-  const codeKey = computed(() => module.runMetadataKey("code"));
-  const generatedInKey = computed(() => module.runMetadataKey("generated_in"));
-  const generatedFromKey = computed(() => module.runMetadataKey("generated_from"));
-
-  const { runs, loading, totalCount } = useRuns(
-    {
-      projectId: toRef(bench, "projectId"),
-      projectVersionId: toRef(bench, "projectVersionId"),
-      statementIds: ref(null),
-      statementCks: ref(null),
-      rootOnly: ref(true),
-      sessionId: ref(null),
-      runId: ref(null),
-      query: computed(() => ({
-        op: QueryOp.And,
-        queries: [
-          {
-            op: QueryOp.Equals,
-            key: "value." + botLabelKey.value,
-            value: TERMINAL_BOT_LABEL,
-          },
-          // past 72h
-          {
-            op: QueryOp.GreaterThan,
-            key: "created_at",
-            value: DateTime.local().minus({ days: 3 }).toISO(),
-          },
-        ],
-      })),
-      sort: ref([{ key: "created_at", order: SortOrder.Descending }]),
-      after: ref(null),
-    },
-    {
-      limit: 100,
-      count: true,
-      live: true,
-      insertAt: "start",
-      queryAsFilter: (run) => run.value?.[botLabelKey.value ?? ""] == TERMINAL_BOT_LABEL,
-    }
-  );
-  const terminalRuns = computed(() =>
-    runs.value?.map((r) => ({
-      code: r.value[codeKey.value ?? ""] ?? r.value["code"],
-      run: r,
-    }))
-  );
-
-  function runText(
-    text: string,
-    options: { scope?: string; runMode: "approve" | "immediate"; accessLevel?: SessionAccessLevel } = {
-      runMode: "approve",
-    }
-  ): string {
-    throw new Error("nocheckin: text->bench code task");
-  }
-
-  function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel }) {
-    return session.run(code, {
-      scope: options.scope,
-      rootValue: { name: "terminal", bot: TERMINAL_BOT_LABEL, code, scope: options.scope },
-      globalValue: { bot: TERMINAL_BOT_LABEL },
-      accessLevel: options.accessLevel,
-    });
-  }
-
-  return {
-    runs: terminalRuns,
-    loading,
-    totalCount,
-    runText,
-    runCode,
-  };
-}
-
-export const useTerminal = createSharedComposable(_useTerminal);
