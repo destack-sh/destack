@@ -1929,7 +1929,9 @@ class Module(ScopeNode):
         elif isinstance(path, str) and path.startswith("."):
             resolved = ScopeNode.lookup(self, path, node_t=node_t, by=by)
         else:
-            module_name, localized_path = parse_absolute_node_reference(path)
+            if not isinstance(path, NodePath):
+                path = parse_absolute_node_reference(path)
+            module_name, sub_path = path
             if module_name == self.name:
                 dependency = self
             else:
@@ -1937,7 +1939,7 @@ class Module(ScopeNode):
             if dependency is None:
                 resolved = None
             else:
-                resolved = dependency.lookup(localized_path, node_t=node_t, by=by)
+                resolved = dependency.lookup(sub_path, node_t=node_t, by=by)
 
         # cache result
         if self.committed:

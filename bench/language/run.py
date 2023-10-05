@@ -272,6 +272,9 @@ class RunCodeFrame:
             for node in list(session.module._nodes)
             if isinstance(node, Statement) and getattr(node, "_transform", None)
         }
+        if hasattr(from_statement, "_transform"):
+            # from statement may not be in module (e.g. if detached when running anonymous code)
+            code_by_method[from_statement._transform.method_name] = from_statement
 
         found_start = False
         cleaned_stack = []
@@ -287,7 +290,9 @@ class RunCodeFrame:
                     elif not found_start:
                         continue  # ignore
                     frame.filename = to_pyidentifier_multi(
-                        from_statement.file.name or "<unnamed>",
+                        from_statement.file.name or "<unnamed>"
+                        if from_statement.file
+                        else "<detached>",
                         from_statement.name or "<unnamed>",
                         type=IdentifierType.PATH,
                     )

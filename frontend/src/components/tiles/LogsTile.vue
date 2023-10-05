@@ -26,6 +26,7 @@ const props = defineProps<{
   highlight?: boolean;
   lowlight?: boolean;
   containerHeight?: number;
+  hideIfEmpty?: boolean;
 }>();
 
 const { logs, loading, addLogs } = useLogs(
@@ -135,7 +136,7 @@ defineExpose({
     <!-- Loading -->
     <div v-if="loading" class="h-4 w-full animate-pulse rounded-sm bg-gray-200 opacity-80" />
     <!-- Empty indicator -->
-    <div v-else-if="logsSorted.length == 0" class="w-full text-center text-gray-400">No logs</div>
+    <div v-else-if="logsSorted.length == 0 && !hideIfEmpty" class="w-full text-center text-gray-400">No logs</div>
     <!-- Autoscroll toggle/indicator on bottom right -->
     <button
       v-if="!loading"

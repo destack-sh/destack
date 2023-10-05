@@ -5,14 +5,15 @@ import { computed } from "vue";
 
 const props = defineProps<{
   errorNice: RunError;
-  statementCk: string;
+  statementCk?: string;
+  hidePreamble?: boolean;
 }>();
 const module = useCurrentModule();
-const statementName = computed(() => module.statementOf(props.statementCk)?.name);
+const statementName = computed(() => (props.statementCk == null ? null : module.statementOf(props.statementCk)?.name));
 </script>
 <template>
   <div class="relative w-full font-mono text-red-600">
-    {{ statementName ?? "run" }} failed:
+    <span v-if="!hidePreamble">{{ statementName ?? "run" }} failed:</span>
     <span class="whitespace-pre-wrap font-bold">{{ errorNice?.message }}</span>
     <ul class="mt-1 flex flex-col gap-2">
       <!-- Error traceback -->

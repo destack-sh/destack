@@ -92,7 +92,10 @@ function removeSort(sort: { key: string }) {
   properties.sorts = properties.sorts?.filter((s) => !s.key.includes(sort.key));
 }
 const sort: Ref<SearchSort[] | null> = computed(() => {
-  if (properties.sorts == null || properties.sorts.length == 0) return null;
+  if (properties.sorts == null || properties.sorts.length == 0) {
+    // default to sort by created at
+    return [{ key: "created_at", order: SortOrder.Descending }];
+  }
   return properties.sorts;
 });
 
