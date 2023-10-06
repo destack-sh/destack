@@ -566,7 +566,7 @@ class StructTypeMapper(TypeMapper):
         return isinstance(value, Mapping) or is_dataclass(value)
 
     def unpack_value(self, type: IsTyped, value: Any) -> Any:
-        return TypedDict(type, value) if not isinstance(value, TypedDict) else value
+        return TypedDict(value, type) if not isinstance(value, TypedDict) else value
 
     def pack_value(self, type: IsTyped, value: Any) -> Any:
         return {TYPENAME_SENTINEL: type.key, **value}

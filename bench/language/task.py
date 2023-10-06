@@ -17,7 +17,7 @@ from bench.language.typing import check_type, unpack_value
 from ..utils.func import describe_type
 
 if TYPE_CHECKING:
-    from bench.language import HasRun, Model, Run, Statement
+    from bench.language import Model, Run, Statement
 
 logger = structlog.get_logger(__name__)
 
@@ -78,7 +78,7 @@ class HasTask(Node):
                 if isinstance(outputs, dict):
                     outputs = {k: v for k, v in outputs.items() if k in self.fields}
                 if not isinstance(outputs, TypedDict):
-                    outputs = TypedDict(self, outputs, is_output=True)
+                    outputs = TypedDict(outputs, self, is_output=True)
             else:
                 _nonce = _nonce or (str(random.randint(0, 2**16)) if _randomize else None)
                 outputs = await run_task(self, view, inputs, _nonce)
@@ -116,7 +116,12 @@ async def run_task(
     step_attempts = 0
     models = [
         task.module.resolve(m)
-        for m in ("openai.lib.chat.gpt4", "openai.lib.chat.gpt3", "anthropic.lib.text.claude-2")
+        for m in (
+            "anthropic.lib.text.claude-instant-1",
+            "openai.lib.chat.gpt4",
+            "anthropic.lib.text.claude-2",
+            "openai.lib.chat.gpt3",
+        )
     ]  # in priority order
     model_idx = 0
     log = logger.bind(task=task, inputs=describe_type(inputs), nonce=nonce, models=models)
@@ -145,18 +150,16 @@ async def run_task(
         try:
             log.debug("task.run", model=model, compiled=compiled, attempt=step_attempts)
             run_name = f"{task.name} #{step_attempts}"
-            with task.session.tracer.value(retry=step_attempts, nonce=nonce, name=run_name):
-                step = await compiler.run(model, compiled)
-            if step.statement is not None:
-                raise NotImplementedError(":TaskFunctions not supported yet")
+            with task.session.bind_run_value(retry=step_attempts, nonce=nonce, name=run_name):
+                outputs = await compiler.run(model, compiled)
 
             # done, terminate
             # unpack -> check is not ideal since it doesn't let us collect unpack errors nicely
             outputs = unpack_value(
-                step.result_raw, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
+                outputs, task, is_output=True, map_k=lambda f: (f.py_ident, f.py_ident)
             )
             check_type(outputs, task, is_output=True)
-            return TypedDict(task, outputs, is_output=True)
+            return TypedDict(outputs, task, is_output=True)
         except Exception as e:
             e = TaskError.from_exception(task, e)
             last_error = e
@@ -234,16 +237,6 @@ class CompiledInput(abc.ABC):
     task: HasTask
 
 
-@dataclass
-class TaskOutput(abc.ABC):
-    """
-    Output of a basic task run.
-    If statement is given, it's a function call, otherwise it terminates."""
-
-    result_raw: dict  # raw (i.e. not instantiated) result
-    statement: Optional["HasRun"] = None
-
-
 class TaskCompiler(abc.ABC):
     async def compile(
         self,
@@ -258,5 +251,5 @@ class TaskCompiler(abc.ABC):
     def can_run(self, model: "Model", input: CompiledInput) -> bool:
         raise NotImplementedError
 
-    async def run(self, model: "Model", input: CompiledInput) -> TaskOutput:
+    async def run(self, model: "Model", input: CompiledInput) -> dict:
         raise NotImplementedError

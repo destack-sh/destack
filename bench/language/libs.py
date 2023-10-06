@@ -46,7 +46,6 @@ from bench.language.task import (
     TaskCompiler,
     TaskError,
     TaskErrorType,
-    TaskOutput,
 )
 from bench.language.text import TextMention
 from bench.language.typing import map_value, pack_value_flat
@@ -626,7 +625,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
             ),
         )
 
-        # task functions (not supported yet :TaskFunctions)
+        # task functions (not supported yet, will be parsed from input/output types :TaskFunctions)
         available_functions = []
         user_function_prefix = "_"
         user_functions_by_name: dict[str, HasRun] = {
@@ -675,7 +674,7 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         self,
         model: OpenAIChatCompletionModel,
         input: OpenAIChatInput,
-    ) -> TaskOutput:
+    ) -> dict:
         rep = await model(
             messages=input.messages, functions=input.functions, settings=input.settings
         )
@@ -701,17 +700,8 @@ class OpenAIChatCompiler(BaseTextTaskCompiler):
         if function_call == "panic":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
         elif function_call == "complete":
-            return TaskOutput(result_raw=arguments)
-
-        # handle other function calls
-        if function_call not in input.statements_by_name:
-            raise TaskError(
-                TaskErrorType.InvalidFormat,
-                model,
-                f"unknown function {function_call}",
-            )
-        function = input.statements_by_name[function_call]
-        return TaskOutput(result_raw=arguments, function=function)
+            return arguments
+        raise UnreachableError(f"unexpected function call {function_call}")
 
 
 @x_struct(
@@ -944,7 +934,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
         }[model.name]
         return input.tokens <= context_window
 
-    async def run(self, model: "Model", input: AnthropicTextInput) -> TaskOutput:
+    async def run(self, model: "Model", input: AnthropicTextInput) -> dict:
         rep: AnthropicTextCompletion = await model(prompt=input.prompt, settings=input.settings)
 
         try:
@@ -976,7 +966,7 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
                 )
 
         if action == "COMPLETE":
-            return TaskOutput(result_raw=arguments)
+            return arguments
         elif action == "PANIC":
             raise TaskError(TaskErrorType.Incapable, arguments["reason"])
         elif action == "CALL_FUNCTION":

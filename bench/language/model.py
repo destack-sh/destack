@@ -106,7 +106,7 @@ class HasModel(HasFields, Node):
                         generated_in=inference.generated_in,
                         duration=inference.duration,
                     )
-                    return TypedDict(self, outputs, is_output=True)
+                    return TypedDict(outputs, self, is_output=True)
                 except Exception as e:
                     log.warning("inference.cache.error", e=e, exc_info=e)
                     # ignore and continue, will be overwritten
@@ -141,7 +141,7 @@ class HasModel(HasFields, Node):
                 outputs = unpack_value(rep.p.outputs, self, is_output=True)
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.remote.exit", output=describe_type(outputs))
-                return TypedDict(self, outputs, is_output=True)
+                return TypedDict(outputs, self, is_output=True)
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.remote.error", e=e, exc_info=e)
@@ -168,7 +168,7 @@ class HasModel(HasFields, Node):
                 )
                 self.session.tracer.run_exit(self, outputs)
                 log.debug("inference.exit", output=describe_type(outputs))
-                return TypedDict(self, outputs, is_output=True)
+                return TypedDict(outputs, self, is_output=True)
             except Exception as e:
                 self.session.tracer.run_exception(self, e)
                 log.warning("inference.error", e=e, exc_info=e)

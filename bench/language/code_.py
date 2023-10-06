@@ -264,7 +264,7 @@ class HasCode(Node):
                 self.session.tracer.run_cached(
                     self, inputs, outputs, run.generated_at, run.duration
                 )
-                return TypedDict(self, outputs)
+                return TypedDict(outputs, self)
             except (ValueError, TypeError, JSONDecodeError) as e:
                 logger.exception("code.cache.error", e=e, excinfo=e)
                 # ignore, will be overwritten on success
@@ -611,9 +611,9 @@ def _to_outputs_dict(code: "HasCode", result: Any) -> TypedDict:
     if isinstance(result, TypedDict):
         return result
     elif result is None:
-        return TypedDict(code, {}, is_output=True)
+        return TypedDict({}, code, is_output=True)
     else:
-        return TypedDict(code, result, is_output=True)
+        return TypedDict(result, code, is_output=True)
 
 
 _PYTHON_BUILTINS = {

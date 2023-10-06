@@ -49,7 +49,7 @@ class HasValue(Node):
         value = unpack_value(
             self.value, self._type_of_value, ignore_array=True, ignore_outer_map=True
         )
-        value = TypedDict(self._type_of_value, value)
+        value = TypedDict(value, self._type_of_value)
         value = proxy_value(value, onread=lambda *args: None, onwrite=_onwrite_value)
         self._set_untracked("value", value)
 
