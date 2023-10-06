@@ -205,6 +205,10 @@ class Run:
             return pack_value(self.value, run_value, ignore_array=True, ignore_outer_map=True)
 
     @property
+    def statement_id(self):
+        return self.statement.id if self.statement else None
+
+    @property
     def active(self) -> bool:
         return self.status not in TERMINAL_RUN_STATUSES
 

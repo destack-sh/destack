@@ -230,6 +230,7 @@ class Session:
         )
         edits = EditBundle(edits).compact()
         self._editor.reset()
+        self.tracer._new_statement_ids.clear()
         flush = self._do_flush(edits, refresh_index)
         if optimistic:
             self._pending_flushes.append((len(edits), asyncio.create_task(flush)))
@@ -396,6 +397,7 @@ class SessionTracer:
         self._flush_cancel: asyncio.Event | None = None
         self._flush_task: asyncio.Task | None = None
         self._root_run_id = root_run_id
+        self._new_statement_ids: set[UUID] = set()
 
         from bench.language.typing import unpack_value
 
@@ -431,6 +433,9 @@ class SessionTracer:
         if nodes and self.session.access_level < SessionAccessLevel.Create:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
         self.editor.create_many(*nodes, apply=False)
+        for n in nodes:
+            if n.mnt == MNT.Statement:
+                self._new_statement_ids.add(n.id)
 
     def node_update(self, node: Node, properties: list[str]):
         if node.mnt in INTERP_NODE_TYPES:  # :InterpFilter
@@ -673,6 +678,11 @@ class SessionTracer:
             # abort any remaining active runs
             for run in chain(runs, self.runs.values()):
                 run._mark_dead_if_active()
+
+        # force flush module as well if a new statement was run
+        #  (since we need those field mappings, lest OS errors)
+        if any(r.statement_id in self._new_statement_ids for r in runs):
+            await self.session.aflush(optimistic=False, refresh_index=False)
 
         success = await self.session._writer.write_session(self.session, runs, logs)
         if not success:

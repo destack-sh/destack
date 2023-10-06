@@ -168,17 +168,9 @@ defineExpose({
 </script>
 <template>
   <div class="relative flex flex-col" :style="{ height: panelSize.height + 'px' }">
-    <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%] bg-gray-50"
-      :editing="false"
-      :thing="null"
-      :actions="[]"
-      :path="[]"
-      :self="-1"
-    />
     <!-- History -->
     <div
-      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto pt-5 text-sm"
+      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto text-sm"
       :class="
         terminal.loading.value || terminal.totalCount.value == 0
           ? 'flex-col items-center justify-center'
