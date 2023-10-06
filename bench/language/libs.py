@@ -26,7 +26,7 @@ from bench.language.const import (
 )
 from bench.language.field import Field, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
-from bench.language.module import get_node_id
+from bench.language.module import ScopeNode, get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
     _derive_constant_key,
@@ -997,7 +997,7 @@ for name, module in DEFAULT_MODULES.items():
     assert module.name == name
 
     # assign stable cks / versioned ids
-    nodes = list(module._walk_rec())
+    nodes = [n for n in module._walk_rec() if n.mnt not in INTERP_NODE_TYPES]
     for node in nodes:
         if isinstance(node, Module):
             continue  # already assigned in builtin
@@ -1014,7 +1014,7 @@ for name, module in DEFAULT_MODULES.items():
     module._clear_self()
     module._local_tree.set(nodes)
     for node in nodes:
-        if isinstance(node, Statement):
+        if isinstance(node, ScopeNode):
             node._update_lists(node)  # we re-init above to reset the key, so manually update lists
     module._index_rec()
     module._interp_rec()

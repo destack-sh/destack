@@ -138,6 +138,8 @@ def parse_absolute_node_reference(path: str) -> tuple[str, str]:
 
 
 def parse_node_path(node_path: str) -> "NodePath":
+    if "." not in node_path:
+        return NodePath(".", node_path)
     path, name = node_path.rsplit(".", 1)
     return NodePath(path, name)
 

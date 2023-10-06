@@ -18,12 +18,14 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.module import (
+    _NU,
     NS,
     Node,
     NodeList,
     NodeVisitor,
     NRel,
     ScopeNode,
+    _NodeUpdate,
     get_node_id,
     nchildren,
     ninternal,
@@ -357,7 +359,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         return init_name, init_args, init_kwargs
 
     def __str__(self):
-        name_str = f"{self.py_ident} '{self.name}' " if self.name else ""
+        name_str = f"{self.path} '{self.name}' " if self.name else ""
         return f"{name_str}{self._type_str}"
 
     def __repr__(self):
@@ -456,15 +458,15 @@ class HasFields(IsTyped):
     resolved_fields: NodeList["ResolvedField"] = nchildren(
         MNT.ResolvedField, NRel.Named | NRel.Keyed | NRel.Ordered
     )
-    _resolved_fields: bool = nruntime(default=False)
+    _did_resolve_fields: bool = nruntime(default=False)
 
     def _init_inner(self):
         if self.key is None:
             self.key = new_dynamic_node_key(self.ck)
 
     def _clear_inner(self) -> None:
-        self.resolved_fields.clear()
-        self._resolved_fields = False
+        self.resolved_fields.clear(_trigger=_NU.UpdateLists)
+        self._did_resolve_fields = False
 
     def _interp_inner(self, scope: ScopeNode) -> None:
         self._resolve_fields([])
@@ -473,14 +475,14 @@ class HasFields(IsTyped):
         """
         Resolves (and inlines) field references and unions.
         """
-        if self._resolved_fields:
+        if self._did_resolve_fields:
             return  # already resolved
 
         if any(f.id == self.id for f in path):
             # circular panic
             path = "->".join(n.name for n in path + [self])
             self._on_issue(type=IssueType.CIRCULAR_UNION, subject=self, path=path)
-            self._resolved_fields = True
+            self._did_resolve_fields = True
             return
 
         path = path + [self]
@@ -507,8 +509,8 @@ class HasFields(IsTyped):
             else:
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))
-        self.resolved_fields.set(resolved_fields)
-        self._resolved_fields = True
+        self.resolved_fields.set(resolved_fields, _trigger=_NodeUpdate.UpdateLists)
+        self._did_resolve_fields = True
 
     def extend_type(self, *bases: "Type") -> "Self":
         """Adds the fields of another type to this one"""

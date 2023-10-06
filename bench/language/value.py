@@ -35,7 +35,7 @@ class HasValue(Node):
     def _activate_inner(self, session: "Session") -> None:
         if self.value is None:
             return
-        from bench.language.typing import unpack_value
+        from bench.language.typing import TypedDict, unpack_value
 
         def _onwrite_value(key: str) -> None:
             from bench.language.typing import check_type
@@ -49,6 +49,7 @@ class HasValue(Node):
         value = unpack_value(
             self.value, self._type_of_value, ignore_array=True, ignore_outer_map=True
         )
+        value = TypedDict(self._type_of_value, value)
         value = proxy_value(value, onread=lambda *args: None, onwrite=_onwrite_value)
         self._set_untracked("value", value)
 

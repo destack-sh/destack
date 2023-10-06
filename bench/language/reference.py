@@ -31,6 +31,9 @@ class HasReference(Node):
             resolved = scope.lookup(self.reference)
         if resolved is None:
             self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path=self.py_ident)
+        elif isinstance(self.reference, str):
+            # user code set a string reference, need to track change
+            self.reference = resolved
         else:
             self._set_untracked("reference", resolved)
 

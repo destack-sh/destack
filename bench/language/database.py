@@ -8,14 +8,15 @@ import structlog
 from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
 from bench.language.field import Field
 from bench.language.module import (
+    _NU,
     NS,
     Module,
     Node,
     NodeList,
     NodeListBase,
     NRel,
-    Passthrough,
     ScopeNode,
+    _Passthrough,
     nchildren,
     ninternal,
     node,
@@ -37,7 +38,7 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(mnt=MNT.Record, passthrough=(("value", Passthrough.Full),))
+@node(mnt=MNT.Record, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
     parent: "Statement" = nparent(MNT.Statement)
 
@@ -295,7 +296,7 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def append(self, node: Record, _create: bool = True, _trigger: bool = True) -> None:
+    def append(self, node: Record, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         node.parent = self._parent
         if node.id is None:
             node._assign_id(self._parent.module.id)
@@ -306,19 +307,21 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         if _create and self._parent.session:
             self._parent.session.tracer.node_create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: bool = True) -> None:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         nodes = flatten_list(nodes)
         for record in nodes:
-            self.append(record, _create=False, _trigger=False)
+            self.append(record, _create=False, _trigger=_NU.Ignore)
         if _create and self._parent.session:
             self._parent.session.tracer.node_create(*nodes)
+        if _trigger:
+            self._parent._trigger(_trigger)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: bool = True) -> None:
+    def remove(self, node: Record, _delete: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         if _delete and self._parent.session:
             self._parent.session.tracer.node_delete(self, node)
         node.parent = None
 
-    def clear(self, _delete: bool = True, _trigger: bool = True) -> None:
+    def clear(self, _delete: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         if _delete and self._parent.session:
             self._parent.session.tracer.node_truncate(self._parent, MNT.Record)
 

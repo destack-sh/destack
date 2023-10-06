@@ -368,7 +368,7 @@ def _get_node_class(mnt: MNT):
 def node_component(
     cls: Optional[typing.Type] = None,
     mnt: MNT = None,
-    passthrough: tuple[tuple[str, "Passthrough"]] = (),
+    passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
 ):
     """
@@ -506,7 +506,7 @@ def node_component(
 
 def node(
     mnt: MNT,
-    passthrough: tuple[tuple[str, "Passthrough"]] = (),
+    passthrough: tuple[tuple[str, "_Passthrough"]] = (),
     dynamic_components: tuple[type["Node"], ...] = (),
 ):
     def decorate(cls):
@@ -564,6 +564,17 @@ def _sort_nested_ordered_list(root_ck: UUID, nodes: list[NodeT]) -> list[NodeT]:
     return ordered
 
 
+class _NodeUpdate(enum.IntEnum):
+    """The level of update to trigger in a node."""
+
+    Ignore = 0
+    UpdateLists = 1
+    Reinterp = 2
+
+
+_NU = _NodeUpdate
+
+
 class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
     """
     Base node list for custom implementation (right now just for database).
@@ -608,7 +619,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         self.extend(*created)
         return created
 
-    def append(self, node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
+    def append(self, node: NodeT, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         """
         Attaches a child node to a parent through a list. This is for users adding nodes.
         A node may be 'append'-ed to a list at most once,
@@ -616,22 +627,27 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         """
         raise NotImplementedError
 
-    def extend(self, *nodes: Collection[NodeT], _create: bool = True, _trigger: bool = True):
+    def extend(
+        self,
+        *nodes: Collection[NodeT],
+        _create: bool = True,
+        _trigger: _NU = _NU.Reinterp,
+    ):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
-    def remove(self, node: NodeT, _delete: bool = True, _trigger: bool = True):
+    def remove(self, node: NodeT, _delete: bool = True, _trigger: _NU = _NU.Reinterp):
         """Removes a child node from a parent. See append for reverse."""
         raise NotImplementedError
 
-    def clear(self, _delete: bool = True, _trigger: bool = True):
+    def clear(self, _delete: bool = True, _trigger: _NU = _NU.Reinterp):
         """Removes all child nodes from a parent. See append for reverse."""
         raise NotImplementedError
 
-    def set(self, nodes: Collection[NodeT]):
+    def set(self, nodes: Collection[NodeT], _trigger: _NU = _NU.Reinterp):
         """Replaces all child nodes of a parent."""
-        self.clear(_trigger=False)
-        self.extend(nodes)
+        self.clear(_trigger=_NU.Ignore)
+        self.extend(nodes, _trigger=_trigger)
 
     def get(self, some_id: str) -> Optional[NodeT]:
         """Gets a node by some id (as determined by the logic of the list)."""
@@ -676,6 +692,7 @@ class NodeList(NodeListBase[NodeT]):
         return last_ok
 
     def _update(self, scope: "ScopeNode"):
+        """Updates this computed NodeList."""
         # _children is effectively a computed property which is replaced wholesale,
         # we don't do diff updates to keep it simple with all the relation types.
         if self._flags & NRel.Cumulative:
@@ -701,7 +718,7 @@ class NodeList(NodeListBase[NodeT]):
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
-    def append(self, _node: NodeT, _create: bool = True, _trigger: bool = True) -> None:
+    def append(self, _node: NodeT, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
         if _node.parent is not None:  # maybe copy?
             raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
 
@@ -735,8 +752,8 @@ class NodeList(NodeListBase[NodeT]):
         if self._flags & NRel.Ordered and _node.order_key is None:
             _node.order_key = generate_key_between(self._last_ok, None)
         if _trigger:
-            # and update every affect node & list
-            self._parent._trigger_update([_node])
+            # and update every affected node (to list/interp as needed)
+            self._parent._trigger_update([_node], _trigger)
             assert _node in self._nodes, f"node {_node!r} not in {self!r}"
 
         # activate node in session
@@ -746,22 +763,28 @@ class NodeList(NodeListBase[NodeT]):
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(*added)
 
-    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: bool = True):
+    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: _NU = _NU.Reinterp):
         nodes = flatten_list(*nodes)
-        if nodes:
-            # pre-assign order keys since we don't trigger between each append
-            if self._flags & NRel.Ordered:
-                oks = generate_n_keys_between(self._last_ok, None, len(nodes))
-                for node, ok in zip(nodes, oks):
-                    node.order_key = ok
-            # append, then trigger update
-            for node in nodes:
-                self.append(node, _trigger=False)
-            if _trigger:
-                self._parent._trigger_update(nodes)
-            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
+        if not nodes:
+            return
+        # pre-assign order keys since we don't trigger between appends (meaning last_ok is wrong)
+        if self._flags & NRel.Ordered:
+            oks = generate_n_keys_between(self._last_ok, None, len(nodes))
+            for node, ok in zip(nodes, oks):
+                node.order_key = ok
 
-    def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
+        # as above but batched: append, trigger, create
+        #  (can we merge them somehow to simplify)?
+        for node in nodes:
+            self.append(node, _create=False, _trigger=_NU.Ignore)
+        if _trigger:
+            self._parent._trigger_update(nodes, _trigger)
+            assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
+        if self._parent.attached and _create and self._parent._session:
+            added = flatten_list(*(node._walk_rec() for node in nodes))
+            self._parent._session.tracer.node_create(*added)
+
+    def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NU = _NU.Reinterp):
         if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(_node)
         self._parent._local_root_tree.remove(_node)
@@ -769,13 +792,17 @@ class NodeList(NodeListBase[NodeT]):
 
         if _trigger:
             self._parent._trigger_update([self._parent, _node])
+            assert _node not in self._nodes, f"node {_node!r} still in {self!r}"
 
-    def clear(self, _delete: bool = True, _trigger: bool = True):
+    def clear(self, _delete: bool = True, _trigger: _NU = _NU.Reinterp):
         if self._nodes:
             removed = list(self._nodes)
             for _node in removed:
-                self.remove(_node, _delete=_delete, _trigger=False)
-            self._parent._trigger_update(removed)
+                self.remove(_node, _delete=_delete, _trigger=_NU.Ignore)
+
+            if _trigger:
+                self._parent._trigger_update(removed, _trigger)
+                assert not self._nodes, f"{self!r} is not empty"
 
     def get(self, some_id: str) -> Optional[NodeT]:
         if not (self._flags & NRel.Keyed) and not (self._flags & NRel.Named):
@@ -880,7 +907,7 @@ class NodeTree(typing.Generic[NT]):
         if node.id in self.nodes_by_id:
             existing = self.nodes_by_id[node.id]
             raise ValueError(
-                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r}"
+                f"node {node!r} (id={node.id}) already exists in {self!r}: {existing!r} (id={existing.id})"
             )
         self.nodes_by_id[node.id] = node
         self.nodes_by_ck[node.ck] = node
@@ -1121,6 +1148,10 @@ class DetachedNodeTree:
     def nodes(self) -> Collection[NT]:
         return self.nodes_by_ck.values()
 
+    def get(self, node_ck: UUID) -> Optional[NT]:
+        """Gets a node by id"""
+        return self.nodes_by_ck.get(node_ck)
+
     def __getitem__(self, item):
         return self.nodes_by_ck.get(item)
 
@@ -1158,8 +1189,10 @@ class DetachedNodeTree:
         for descendant in descendants:
             if descendant.ck in self.node_ck_by_parent_ck:
                 self.node_ck_by_parent_ck.pop(descendant.ck)
-            if descendant.parent.ck in self.node_ck_by_parent_ck:
+            if descendant.parent and descendant.parent.ck in self.node_ck_by_parent_ck:
                 self.node_ck_by_parent_ck[descendant.parent.ck].remove(descendant)
+            if descendant.ck in self.nodes_by_ck:
+                self.nodes_by_ck.pop(descendant.ck)
 
     def get_descendants(
         self,
@@ -1249,7 +1282,7 @@ def _make_inner_dunder_method(method: NodeMethod):
     return inner_method
 
 
-class Passthrough(enum.StrEnum):
+class _Passthrough(enum.StrEnum):
     Full = "full"
     Scope = "scope"
 
@@ -1271,7 +1304,7 @@ class Node(abc.ABC):
     __list_properties_by_child__: ClassVar[dict[MNT, list[NodeProperty]]] = defaultdict(list)
     __tracked_properties__: ClassVar[dict[str, NodeProperty]] = {}
     __internal_properties__: ClassVar[dict[str, NodeProperty]] = {}
-    __static_passthrough__: ClassVar[tuple[tuple[str, Passthrough]]] = ()
+    __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
 
     id: UUID = ninternal(default=None)
     ck: UUID = ninternal(default_factory=uuid.uuid4)
@@ -1319,7 +1352,7 @@ class Node(abc.ABC):
         return type(self).__name__
 
     @property
-    def _passthrough_targets(self) -> tuple[tuple[str, Passthrough]] | None:
+    def _passthrough_targets(self) -> tuple[tuple[str, _Passthrough]] | None:
         """Pass through __getattr__/__setattr__ properties (before defaulting to usual)"""
         return self.__static_passthrough__
 
@@ -1337,28 +1370,58 @@ class Node(abc.ABC):
         self.id = get_node_id(module_id, self.ck)
 
     def __eq__(self, other):
-        return isinstance(other, self.__class__) and self.id == other.id
+        return isinstance(other, self.__class__) and self.id == other.id and self.ck == other.ck
 
     def __hash__(self):
         return hash(self.id)
 
-    def _trigger_update(self, changed: list["Node"]):
-        """Trigger list updates and re-interps in all relevant nodes."""
-        assert changed, f"cannot trigger update on {self} with no changed nodes"
-        # reinit children for any affected parent nodes
-        # TODO @Performance: use mark dirty in node list to avoid reinit?
-        parent = self
-        affected_mnts = set([n.mnt for n in changed])
-        while parent is not None:
-            for prop in parent.__list_properties__.values():
-                if prop.child_mnt in affected_mnts:
-                    getattr(parent, prop.name)._update(parent)
-            parent = parent.parent
+    def _trigger_update(self, changed_children: list["Node"], level: _NU):
+        """
+        Trigger list updates and re-interps in all relevant nodes.
 
-        # TODO @Broken @UX: reinterp local module properly on edit
-        #  e.g. should probably raise if a new issue(kind=error) pops up after edit
-        if self._status >= NS.Tracked:
-            self._reinterp_self(self)
+        """
+        assert changed_children, f"cannot trigger update on {self} without changed nodes"
+
+        if level >= _NU.UpdateLists:
+            # reinit children for any affected parent nodes
+            # TODO @Performance: use mark dirty in _trigger_update to avoid reinit?
+            ancestors = []
+            parent = self
+            affected_mnts = set([n.mnt for n in changed_children])
+            while parent is not None:
+                ancestors.append(parent)
+                for prop in parent.__list_properties__.values():
+                    if prop.child_mnt in affected_mnts:
+                        getattr(parent, prop.name)._update(parent)
+                parent = parent.parent
+        else:
+            return
+
+        if level >= _NU.Reinterp:
+            # TODO @UX: reinterp local module properly on edit
+            #  e.g. raise if a new issue(kind=error) pops up after edit
+            # reinterp our ancestors and descendants of all changed children
+            session, prev_status = self._session, self._status
+            affected_nodes: list[Node] = ancestors[:]
+            for child in changed_children:
+                affected_nodes.extend(
+                    self._local_root_tree.get_descendants(
+                        child.ck, recursive=True, include_self=True
+                    )
+                )
+            # filter out interp types
+            affected_nodes = [n for n in affected_nodes if n.mnt not in INTERP_NODE_TYPES]
+            # then batch index, batch interp (plus deactivate/activate if needed)
+            for _node in affected_nodes:
+                if _node._session and _node._status == NS.Tracked:
+                    _node._deactivate_self()
+            for _node in affected_nodes:
+                _node._clear_self()
+                _node._index_self(_coerce=False)
+            for _node in affected_nodes:
+                _node._interp_self(_node.scope, _coerce=False)
+                if session and prev_status == NS.Tracked:
+                    _node._activate_self(session)
 
     def _set_untracked(self, key, value):
         self.__dict__[key] = value
@@ -1390,7 +1453,7 @@ class Node(abc.ABC):
         # try first full passthrough target (if any)
         for target, mode in self._passthrough_targets:
             target = getattr(self, target)
-            if mode == Passthrough.Full:
+            if mode == _Passthrough.Full:
                 setattr(target, key, value)
                 return  # success
 
@@ -1418,9 +1481,9 @@ class Node(abc.ABC):
         if attr is UNSET and self._session is not None:
             for target, mode in self._passthrough_targets:
                 target = getattr(self, target)
-                if mode == Passthrough.Full:
+                if mode == _Passthrough.Full:
                     attr = getattr(target, item, UNSET)
-                elif mode == Passthrough.Scope:
+                elif mode == _Passthrough.Scope:
                     assert isinstance(target, NodeList), f"invalid scope passthrough: {attr!r}"
                     attr = target.get(item) or UNSET
                 if attr is not UNSET:
@@ -1526,15 +1589,6 @@ class Node(abc.ABC):
         to_status=NS.Interpreted,
     )
 
-    def _reinterp_self(self, scope: "ScopeNode") -> None:
-        """Reinterpret this node. If the node was active in a session"""
-        session, prev_status = self._session, self._status
-        self._clear_self()
-        self._index_self(_coerce=False)
-        self._interp_self(scope, _coerce=False)
-        if session and prev_status == NS.Tracked:
-            self._activate_self(session)
-
     _visit_self = _make_self_method(NodeMethod.visit, _visit_inner)
     _validate_self = _make_self_method(NodeMethod.validate, _validate_inner)
     _activate_self = _make_self_method(
@@ -1574,7 +1628,11 @@ class Node(abc.ABC):
 
     @property
     def attached(self) -> bool:
-        return self.module is not None
+        return self.parent is not None and self.module is not None
+
+    @property
+    def scope(self) -> Optional["ScopeNode"]:
+        return self.parent
 
     @property
     def path(self) -> str:
@@ -1629,6 +1687,10 @@ class ScopeNode(Node):
     # the local tree is maintained at the local root (usually module, maybe a detached root node)
     _local_tree: Union["NodeTree", "DetachedNodeTree", None] = nruntime(default=None)
 
+    @property
+    def scope(self) -> "ScopeNode":
+        return self
+
     def _init_inner(self) -> None:
         if self.parent is None:
             if not isinstance(self, Module):
@@ -1640,9 +1702,7 @@ class ScopeNode(Node):
     _clear_rec = _make_rec_method(NodeMethod.clear, Node._clear_self)
     _index_rec = _make_rec_method(NodeMethod.index, Node._index_self)
     _interp_rec = _make_rec_method(
-        NodeMethod.interp,
-        Node._interp_self,
-        custom_kwargs=lambda n: dict(scope=n if isinstance(n, ScopeNode) else n.parent),
+        NodeMethod.interp, Node._interp_self, custom_kwargs=lambda n: dict(scope=n.scope)
     )
     _visit_rec = _make_rec_method(NodeMethod.visit, Node._visit_self)
     _validate_rec = _make_rec_method(
@@ -1667,14 +1727,12 @@ class ScopeNode(Node):
     def _find_scope(self, name: str, by: Optional[LookupBy]) -> Union["ScopeNode", None]:
         scope = self._get_scope(name, by)
         if scope is not None:
+            # check that we're not resolving something from an out-of-sync cache
+            assert scope.attached == self.attached, f"{scope!r} isn't in the same tree as {self!r}"
             return scope
         if self.parent is not None:
             return self.parent._find_scope(name, by=by)
         return None
-
-    def _find_node(self, name: str, by: Optional[LookupBy] = None) -> NodeT | None:
-        """Find the node recursively in this scope and its parents."""
-        return self._find_scope(name, by)
 
     def _update_lists(self, scope: "ScopeNode"):
         for prop in self.__list_properties__.values():
@@ -1739,15 +1797,16 @@ class ScopeNode(Node):
         it can be a name (lookup upwards) or a full relative/absolute path.
         """
         if isinstance(path, UUID):
-            return self._local_root_scope.lookup(path, by=by, node_t=node_t)
-        elif isinstance(path, str):
-            if "." not in path:
-                return self._find_node(path, by=by)
+            if self._local_tree is not None:
+                return self._local_tree.get(path)
+            else:
+                return self._local_root_scope.lookup(path, by=by, node_t=node_t)
+
+        if isinstance(path, str):
             path = parse_node_path(path)
         if path.path == ".":
-            return self._find_node(path.name, by=by)
-        # strip leading . in path
-        if path.path.startswith("."):
+            return self._find_scope(path.name, by)
+        elif path.path.startswith("."):
             path = NodePath(path.path[1:], path.name)
         parts = path.path.split(".", 2)
         if len(parts) > 1:
@@ -1782,7 +1841,7 @@ class ScopeNode(Node):
             subject = subject.parent  # fields don't have issues (yet)
         issue = Issue(id=issue_id, ck=issue_ck, type=type, parent=None, **kwargs)
         if issue not in subject.issues:  # dedup
-            subject.issues.append(issue)
+            subject.issues.append(issue, _trigger=_NU.UpdateLists)
 
     @property
     def errors(self) -> list["Issue"]:
@@ -1836,7 +1895,7 @@ class ModuleChange:
         return chain(self.added, self.updated, self.removed)
 
 
-@node(mnt=MNT.Module, passthrough=(("files", Passthrough.Full),))
+@node(mnt=MNT.Module, passthrough=(("files", _Passthrough.Full),))
 class Module(ScopeNode):
     parent: None = nparent()
     name: str = ninternal()  # can't change this yet
@@ -1932,6 +1991,7 @@ class Module(ScopeNode):
             else:
                 resolved = dependency.lookup(sub_path, node_t=node_t, by=by)
 
+        assert resolved.attached, f"resolved {path} to detached {resolved!r} (index out of sync?)"
         # cache result
         if self.committed:
             self._lookup_cache[path] = resolved

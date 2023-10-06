@@ -461,6 +461,13 @@ const actions = computed(() => {
 
 const recordActions: RecordAction[] = [
   {
+    label: "Insert",
+    icon: PlusIcon,
+    action: () => {
+      insertRecord();
+    },
+  },
+  {
     label: "Duplicate",
     icon: Square2StackIcon,
     action: (record: any) =>
@@ -633,7 +640,7 @@ defineExpose({
           <!-- Record actions -->
           <div class="absolute -left-0.5 mt-1">
             <div class="relative">
-              <div class="absolute right-0.5 flex flex-row-reverse items-center gap-0.5">
+              <div class="absolute right-0.5">
                 <!-- Standard actions -->
                 <ActionPopover
                   v-if="!readonly"
@@ -653,14 +660,6 @@ defineExpose({
                     <EllipsisVerticalIcon class="h-4 w-4" />
                   </div>
                 </ActionPopover>
-                <!-- Insert record -->
-                <button
-                  v-if="!readonly"
-                  class="rounded-sm p-0.5 text-gray-400 opacity-0 transition duration-150 hover:bg-orange-100 hover:text-gray-700 group-focus-within/record:opacity-100 group-hover/record:opacity-100"
-                  @click="() => insertRecord({ belowRecordId: record.id })"
-                >
-                  <PlusIcon class="h-4 w-4" />
-                </button>
               </div>
             </div>
           </div>

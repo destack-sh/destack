@@ -78,6 +78,9 @@ class HasCode(Node):
             if len(self.fields) > 0:
                 self._on_issue(type=IssueType.CODE_NOT_EXPORTABLE, subject=self)
 
+    def _deactivate_inner(self) -> None:
+        self._callable_wrapped = None  # locals are bound to session
+
     @property
     def _cache(self) -> bool:
         return symbolx_lib.resolve(".builtins.cache") in self.tags

@@ -59,12 +59,17 @@ class Trigger(Node):
             return Trigger(type=type, *args, **kwargs)
 
     @staticmethod
-    def time(schedule: str | int) -> "Trigger":
+    def time(schedule: str | int, **kwargs) -> "Trigger":
         if isinstance(schedule, str):
-            return Trigger(type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=schedule)
+            return Trigger(
+                type=TriggerType.TIME, schedule_type=ScheduleType.CRON, cron=schedule, **kwargs
+            )
         elif isinstance(schedule, int):
             return Trigger(
-                type=TriggerType.TIME, schedule_type=ScheduleType.INTERVAL, interval=schedule
+                type=TriggerType.TIME,
+                schedule_type=ScheduleType.INTERVAL,
+                interval=schedule,
+                **kwargs,
             )
         else:
             raise ValueError(f"invalid schedule: {schedule}")
@@ -98,8 +103,10 @@ class Trigger(Node):
         return f"<Trigger {self}>"
 
     def _clear_inner(self) -> None:
-        self.statement = self.statement.id if isinstance(self.statement, Node) else self.statement
-        self.scope = self.scope.id if isinstance(self.scope, Node) else self.scope
+        self._set_untracked(
+            "statement", self.statement.id if isinstance(self.statement, Node) else self.statement
+        )
+        self._set_untracked("scope", self.scope.id if isinstance(self.scope, Node) else self.scope)
 
     def _interp_inner(self, scope: "ScopeNode") -> None:
         # resolve statement
@@ -108,14 +115,14 @@ class Trigger(Node):
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
             else:
-                self.statement = resolved
+                self._set_untracked("statement", resolved)
         # resolve scope
         if self.scope is not None and not isinstance(self.scope, Node):
             resolved = scope.lookup(self.scope)
             if resolved is None:
                 self._on_issue(type=IssueType.MISSING_REFERENCE, subject=self, path="<root>")
             else:
-                self.scope = resolved
+                self._set_untracked("scope", resolved)
 
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         if self.type == TriggerType.TIME:
@@ -134,8 +141,6 @@ class Trigger(Node):
 
 @node_component
 class HasTriggers(Node):
-    """A symbol that can participate in a flow."""
-
     triggers: NodeList[Trigger] = nchildren(MNT.Trigger)
 
 

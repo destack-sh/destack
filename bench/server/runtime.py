@@ -930,9 +930,6 @@ class RuntimeHost:
             # e.g. on record search preflight in session after a non-refresh flush happened
             return
 
-        # apply locally
-        await self.apply_edits(edits)
-
         # broadcast
         trimmed_edits = trim_record_edits(edits)
         origins = (*(origins or ()), self.client)
@@ -955,6 +952,9 @@ class RuntimeHost:
                 edits=api_edits,
             ),
         )
+
+        # apply locally (after broadcast to ensure interp edits are delivered after source edits)
+        await self.apply_edits(edits)
 
     async def write_session(
         self,
