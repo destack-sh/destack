@@ -169,10 +169,13 @@ def did_you_mean_str(candidates: dict[str, Any], needle: str, repr: bool = False
     similar_candidates = get_similar_strings(candidates, needle)
     if similar_candidates:
         if repr:
-            similar_candidates_strs = [f"{k} {v}" for k, v in similar_candidates.items()]
+            similar_strs = [f"{k} {v}" for k, v in similar_candidates.items()]
         else:
-            similar_candidates_strs = [f"‘{k}'" for k in similar_candidates.keys()]
-        return f"Did you mean: {', '.join(similar_candidates_strs)}?"
+            similar_strs = [f"‘{k}'" for k in similar_candidates.keys()]
+        # use , or for last item
+        if len(similar_strs) > 1:
+            similar_strs[-1] = f"or {similar_strs[-1]}"
+        return f"Did you mean: {', '.join(similar_strs)}?"
     return f"Nothing similar in {len(candidates)} candidates."
 
 

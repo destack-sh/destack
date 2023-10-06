@@ -5,8 +5,8 @@ from bench.language.module import (
     Module,
     NodeList,
     NRel,
-    Passthrough,
     ScopeNode,
+    _Passthrough,
     nchildren,
     node,
     nparent,
@@ -20,7 +20,7 @@ if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(mnt=MNT.File, passthrough=(("statements", Passthrough.Full),))
+@node(mnt=MNT.File, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
     parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
     name: str | None = nproperty(validate=validate_name)

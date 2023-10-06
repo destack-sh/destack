@@ -20,8 +20,8 @@ from bench.language.module import (
     Node,
     NodeList,
     NRel,
-    Passthrough,
     ScopeNode,
+    _Passthrough,
     nancestor,
     nchildren,
     ninternal,
@@ -77,18 +77,18 @@ _IDENTIFIER_BY_TYPE: dict[StatementType, IdentifierType] = {
     StatementType.TEXT: IdentifierType.VARIABLE,
     StatementType.BLANK: IdentifierType.VARIABLE,
 }
-_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, Passthrough]]] = {
-    StatementType.VARIABLE: (("value", Passthrough.Full),),
-    StatementType.DATABASE: (("records", Passthrough.Full), ("fields", Passthrough.Scope)),
-    StatementType.TAG: (("fields", Passthrough.Scope),),
-    StatementType.TYPE: (("fields", Passthrough.Full),),
+_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] = {
+    StatementType.VARIABLE: (("value", _Passthrough.Full),),
+    StatementType.DATABASE: (("records", _Passthrough.Full), ("fields", _Passthrough.Scope)),
+    StatementType.TAG: (("fields", _Passthrough.Scope),),
+    StatementType.TYPE: (("fields", _Passthrough.Full),),
 }
-_STATIC_PASSTHROUGH: tuple[tuple[str, Passthrough]] = (("children", Passthrough.Scope),)
+_STATIC_PASSTHROUGH: tuple[tuple[str, _Passthrough]] = (("children", _Passthrough.Scope),)
 
 
 @node(
     MNT.Statement,
-    passthrough=(("children", Passthrough.Scope),),
+    passthrough=(("children", _Passthrough.Scope),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
@@ -162,7 +162,7 @@ class Statement(ScopeNode, HasTags):
         return self.type
 
     @property
-    def _passthrough_targets(self) -> tuple[tuple[str, Passthrough]] | None:
+    def _passthrough_targets(self) -> tuple[tuple[str, _Passthrough]] | None:
         return _ALL_PASSTHROUGH_BY_TYPE[self.type]
 
     def __str__(self):
@@ -234,7 +234,7 @@ class Statement(ScopeNode, HasTags):
 _ALL_COMPONENTS_BY_TYPE: dict[StatementType, tuple[typing.Type[Node]]] = {
     t: _DYNAMIC_COMPONENTS_BY_TYPE[t] + Statement.__static_components__ for t in StatementType
 }
-_ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, Passthrough]]] = {
+_ALL_PASSTHROUGH_BY_TYPE: dict[StatementType, tuple[tuple[str, _Passthrough]]] = {
     # custom passthrough + default passthrough
     t: _PASSTHROUGH_BY_TYPE.get(t, tuple()) + Statement.__static_passthrough__
     for t in StatementType

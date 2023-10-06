@@ -309,7 +309,7 @@ class RunCodeFrame:
                 if python_version in frame.filename:
                     frame.filename = frame.filename.split(python_version)[-1][1:]  # skip slash
                 cleaned_stack.append(frame)
-        return cleaned_stack
+        return [f for f in cleaned_stack if f.line]
 
 
 class RunErrorKind(enum.StrEnum):

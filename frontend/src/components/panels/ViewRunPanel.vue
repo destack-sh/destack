@@ -223,7 +223,7 @@ defineExpose({
           </div>
         </div>
         <!-- Code (if available) -->
-        <ContainerTile v-if="run.value[codeKey ?? ''] != null" label="Code" :style="{ ...baseTilePositionX }">
+        <ContainerTile v-if="run.value?.[codeKey ?? ''] != null" label="Code" :style="{ ...baseTilePositionX }">
           <MonacoEditor
             :model-value="run.value[codeKey ?? '']"
             readonly
