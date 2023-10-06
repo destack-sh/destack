@@ -533,7 +533,7 @@ class HasFields(IsTyped):
 class IsType(Node):
     def _call_inner(self, *args, **kwargs) -> Any:
         inputs = self._inputs_from_args(args, kwargs)
-        return TypedDict(self, inputs)
+        return TypedDict(inputs, self)
 
 
 class TypedDict(dict):
@@ -544,7 +544,7 @@ class TypedDict(dict):
 
     _PROPS = ("_type", "_is_output")
 
-    def __init__(self, type: "HasFields", d: dict, is_output: bool = None):
+    def __init__(self, d: dict, type: "HasFields", is_output: bool = None):
         super().__init__(**d)
         self._type = type
         self._is_output = is_output
