@@ -125,6 +125,8 @@ const documents = {
     types.RestoreFileDocument,
   "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.RenameFileDocument,
+  "\n      mutation updateFile($id: GlobalID!, $name: String!, $parentId: GlobalID) {\n        updateFile(input: { id: $id, name: $name, parentId: $parentId }) {\n          ... on File {\n            id\n            name\n            revision\n            parent {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
+    types.UpdateFileDocument,
   "\n      mutation pasteFile(\n        $sourceId: GlobalID!\n        $targetId: GlobalID!\n        $targetCk: UUID!\n        $targetVersionId: GlobalID!\n        $parentId: GlobalID\n      ) {\n        pasteFile(\n          input: {\n            sourceId: $sourceId\n            targetId: $targetId\n            targetCk: $targetCk\n            targetVersionId: $targetVersionId\n            parentId: $parentId\n          }\n        ) {\n          ... on File {\n            # :fileContentById\n            id\n            ck\n            projectVersion {\n              id\n            }\n            ...FileHeader\n            # :InterpFile :InterpStatement\n            issues {\n              ...IssueContent\n            }\n            statements(filters: { isVisible: true }) {\n              ...StatementContent\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
     types.PasteFileDocument,
   "\n      mutation requestUploadObject(\n        $projectId: GlobalID!\n        $name: String\n        $contentType: String!\n        $contentLength: Int!\n        $sha512: String!\n      ) {\n        requestUploadObject(\n          input: {\n            projectId: $projectId\n            name: $name\n            contentType: $contentType\n            contentLength: $contentLength\n            sha512: $sha512\n          }\n        ) {\n          ... on RemoteObject {\n            id\n            status\n            name\n            contentType\n            contentLength\n            sha512\n            presignedPost\n            presignedGet\n          }\n          ...OperationInfoContent\n        }\n      }\n    ":
@@ -629,6 +631,12 @@ export function graphql(
 export function graphql(
   source: "\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
 ): typeof documents["\n      mutation renameFile($id: GlobalID!, $name: String!) {\n        renameFile(input: { id: $id, name: $name }) {\n          ... on File {\n            id\n            name\n            revision\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(
+  source: "\n      mutation updateFile($id: GlobalID!, $name: String!, $parentId: GlobalID) {\n        updateFile(input: { id: $id, name: $name, parentId: $parentId }) {\n          ... on File {\n            id\n            name\n            revision\n            parent {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "
+): typeof documents["\n      mutation updateFile($id: GlobalID!, $name: String!, $parentId: GlobalID) {\n        updateFile(input: { id: $id, name: $name, parentId: $parentId }) {\n          ... on File {\n            id\n            name\n            revision\n            parent {\n              id\n            }\n          }\n          ...OperationInfoContent\n        }\n      }\n    "];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

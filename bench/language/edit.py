@@ -617,7 +617,7 @@ def diff_modules(
             editor.create(new_node)
         else:
             old_node = old_tree.nodes_by_id[new_node.id]
-            if not new_node.equals_no_cru(old_node):
+            if not new_node.equals_content(old_node):
                 editor.update(new_node)
     for old_node in old_tree.walk_bfs():
         if old_node.mnt == ModuleNodeType.Module:
@@ -707,7 +707,10 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         # if it contains newlines transform into multiline string
         if "\n" in value:
             lines = [line.replace("\\", "\\\\").replace('"', '\\"') for line in value.splitlines()]
-            value = "\n".join(f'"{line}\\n"' for line in lines)
+            value = "\n".join(
+                f'"{line}"' if i == len(lines) - 1 else f'"{line}\\n"'
+                for i, line in enumerate(lines)
+            )
             return f"(\n{value}\n)"
         else:
             value = value.replace('"', '\\"')

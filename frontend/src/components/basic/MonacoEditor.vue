@@ -1,9 +1,8 @@
 <script lang="ts" setup>
-import { useOperations, useOperationsStore } from "@/state/operations";
 import { cyrb53a } from "@/utils/functools";
 import loader, { type Monaco } from "@monaco-editor/loader";
 import { useElementSize } from "@vueuse/core";
-import type * as monaco from "monaco-editor";
+import * as monaco from "monaco-editor";
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch, type Ref } from "vue";
 
 const props = defineProps<{
@@ -30,9 +29,19 @@ const editor: Ref<monaco.editor.IStandaloneCodeEditor | null> = shallowRef(null)
 const focused: Ref<boolean> = ref(false);
 
 function getEditorHeight(code: string) {
-  let lines = code.split("\n").length;
-  if (lines == 0) lines = 1;
-  return lines * 21; // TODO @Robustness: compute monaco line height automatically
+  // TODO @UX: calculate monaco editor height with proper line height, word wrapping, etc.
+  if (editorContainer.value == null || editor.value == null) return 0;
+  const lineHeight = 21;
+  const lines = code.split("\n");
+  let numLines = lines.length;
+  const maxCharsPerLine = Math.floor((editorContainer.value.clientWidth - 35) / 8.4);
+  for (const line of lines) {
+    const actualLines = Math.ceil(line.length / maxCharsPerLine);
+    if (actualLines > 1) {
+      numLines += actualLines - 1;
+    }
+  }
+  return numLines * lineHeight;
 }
 
 function updateEditorHeight(container: HTMLElement, code: string) {
@@ -46,7 +55,6 @@ function onResize() {
   }
 }
 
-const opsStore = useOperationsStore();
 const editorContainer: Ref<HTMLElement | null> = ref(null);
 const { width: editorContainerWidth } = useElementSize(editorContainer);
 // resize editor when container width changes
@@ -125,6 +133,7 @@ function initMonaco(monaco: Monaco) {
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
+    wordWrap: "on",
     lineNumbers: props.hideLineNumbers ? "off" : "on",
     lineDecorationsWidth: props.hideLineNumbers ? 0 : 8,
     lineNumbersMinChars: props.hideLineNumbers ? 0 : 2,

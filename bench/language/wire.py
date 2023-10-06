@@ -250,7 +250,7 @@ class NodeData:
     def mnt(self) -> ModuleNodeType:
         return MNT_BY_DATA_CLASS[type(self)]
 
-    def equals_no_cru(self, other: "NodeData") -> bool:
+    def equals_content(self, other: "NodeData") -> bool:
         for field in dataclasses.fields(self):
             if field.name in CRUD_PROPERTIES:
                 continue

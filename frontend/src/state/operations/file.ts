@@ -6,6 +6,7 @@ import {
   type RenameFileMutation,
   type RestoreFileMutation,
   type SoftDeleteFileMutation,
+  type UpdateFileMutation,
 } from "@/gql/graphql";
 import { useOperationsStore, type Transaction } from "@/state/operations";
 import { EditRegistry } from "@/state/sync";
@@ -302,6 +303,41 @@ export function useFileOps() {
       },
     });
   }
+
+  const { mutate: updateFileMut } = registry.defineEdit(
+    EditType.UpdateFile,
+    graphql(/* GraphQL */ `
+      mutation updateFile($id: GlobalID!, $name: String!, $parentId: GlobalID) {
+        updateFile(input: { id: $id, name: $name, parentId: $parentId }) {
+          ... on File {
+            id
+            name
+            revision
+            parent {
+              id
+            }
+          }
+          ...OperationInfoContent
+        }
+      }
+    `),
+    {
+      optimisticResponse: (vars: { id: string; name: string; parentId: string | null }) =>
+        ({
+          __typename: "Mutation",
+          updateFile: {
+            __typename: "File",
+            id: vars.id,
+            name: vars.name,
+            parent:
+              vars.parentId == null || atob(vars.parentId).startsWith("ProjectVersion")
+                ? { __typename: "ProjectVersion", id: vars.parentId }
+                : { __typename: "File", id: vars.parentId },
+            revision: -1,
+          },
+        } as UpdateFileMutation),
+    }
+  );
 
   const { mutate: pasteFileMut } = useMutation(
     graphql(/* GraphQL */ `

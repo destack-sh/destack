@@ -109,7 +109,7 @@ class Statement(ScopeNode, HasTags):
         default=None, validate=enum_validator(TextHeadingLevel)
     )
     text: str | None = nproperty(default=None)
-    key: str | None = nproperty(default=None)
+    key: str | None = ninternal(default=None)
     # Statement.tag is optional, but IsTyped.tag is not - we validate this manually in init/morph.
     tag: Optional[TypeTag] = nproperty(
         default=None, validate=enum_validator(TypeTag), ignore_conflicts_with=(IsTyped,)
@@ -132,7 +132,7 @@ class Statement(ScopeNode, HasTags):
         if type is None:
             raise ValueError("type must be specified")
         proxy = STATEMENT_CLASS_BY_TYPE[type]
-        if proxy.tag:
+        if proxy.tag and "tag" not in kwargs:
             kwargs["tag"] = proxy.tag
         if proxy.flags:
             kwargs["flags"] = proxy.flags
@@ -265,7 +265,7 @@ class _StatementProxy:
         return Statement(**kwargs)
 
     def new(self, *args, **kwargs):
-        return Statement.new(type=self.type, tag=self.tag, flags=self.flags, *args, **kwargs)
+        return Statement.new(self.type, *args, tag=self.tag, flags=self.flags, **kwargs)
 
     def __instancecheck__(self, instance):
         return isinstance(instance, Statement) and instance.type == self.type

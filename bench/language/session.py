@@ -31,6 +31,7 @@ from bench.language.search import Search
 from bench.language.statement import Statement
 from bench.language.typing import check_type, map_value, pack_value, pack_value_flat
 from bench.utils.dt import utcnow_with_tz
+from bench.utils.utils import DEBUG
 from bench.utils.uuidt import UUIDT
 
 if TYPE_CHECKING:
@@ -372,7 +373,7 @@ class LogCollector:
 
 SESSION_FLUSH_INTERVAL = 0.1
 LOG_CACHE_SIZE = 1000
-MAX_STACK_DEPTH = 16
+MAX_STACK_DEPTH = 8 if DEBUG else 16
 
 
 class PermissionError(Exception):
