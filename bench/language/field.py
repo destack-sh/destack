@@ -203,7 +203,7 @@ class IsTyped(Node):
     tag: TypeTag = nproperty(is_required=True, validate=enum_validator(TypeTag))
     hint: TypeHint | None = nproperty(default=None, validate=enum_validator(TypeHint))
     flags: TypeFlag = nproperty(default=TypeFlag.Zero, validate=flag_validator(TypeFlag))
-    key: str = nproperty(default=None)
+    key: str = ninternal(default=None)
 
     def _validate_inner(self, properties: Collection[str], on_issue: "ValidationHandler") -> None:
         if self.hint is not None:

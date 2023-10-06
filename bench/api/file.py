@@ -54,6 +54,12 @@ class FileCreateInput:
 
 
 @strawberry.input
+class FileUpdateInput(strawberry_django.NodeInput):
+    name: str
+    parent_id: Optional[GlobalID] = None
+
+
+@strawberry.input
 class FileDeleteInput(strawberry_django.NodeInput):
     pass
 
@@ -91,7 +97,7 @@ class FileMutation:
         )
 
     @db_edit(MET.UPDATE_FILE)
-    def update_file(self, input: FileCreateInput) -> File | OperationInfo:
+    def update_file(self, input: FileUpdateInput) -> File | OperationInfo:
         file = models.File.objects.get(id=input.id.node_id)
         file.name = input.name
         file.parent_file_id = input.parent_id.node_id if input.parent_id else None

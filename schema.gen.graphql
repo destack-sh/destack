@@ -366,6 +366,12 @@ input FileRenameInput {
   name: String!
 }
 
+input FileUpdateInput {
+  id: GlobalID!
+  name: String!
+  parentId: GlobalID = null
+}
+
 """
 The `ID` scalar type represents a unique identifier, often used to refetch an object or as key for a cache. The ID type appears in a JSON response as a String; however, it is not intended to be human-readable. When expected as an input type, any string (such as `"4"`) or integer (such as `4`) input value will be accepted as an ID.
 """
@@ -570,7 +576,7 @@ type Mutation {
   batchSoftDeleteRecord(input: RecordBatchSoftDeleteInput!): RecordBatchOperationInfo!
   batchRestoreRecord(input: RecordBatchRestoreInput!): RecordBatchOperationInfo!
   createFile(input: FileCreateInput!): FileOperationInfo!
-  updateFile(input: FileCreateInput!): FileOperationInfo!
+  updateFile(input: FileUpdateInput!): FileOperationInfo!
   deleteFile(input: NodeInput!): FileOperationInfo!
   softDeleteFile(input: NodeInput!): FileOperationInfo!
   restoreFile(input: NodeInput!): FileOperationInfo!

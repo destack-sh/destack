@@ -5,7 +5,6 @@ import { SessionAccessLevel, useCurrentSessions, useRuns } from "@/state/session
 import { createSharedComposable } from "@vueuse/core";
 import { DateTime } from "luxon";
 import { computed, ref, toRef } from "vue";
-import { getTypedKey } from "@/";
 
 export type TerminalRun = {
   text?: string;
@@ -45,11 +44,11 @@ function _useTerminal() {
             key: "value." + botLabelKey.value,
             value: TERMINAL_BOT_LABEL,
           },
-          // past 72h
+          // past week
           {
             op: QueryOp.GreaterThan,
             key: "created_at",
-            value: DateTime.local().minus({ days: 3 }).toISO(),
+            value: DateTime.local().minus({ days: 7 }).toISO(),
           },
         ],
       })),
@@ -57,7 +56,7 @@ function _useTerminal() {
       after: ref(null),
     },
     {
-      limit: 100,
+      limit: 128,
       count: true,
       live: true,
       insertAt: "start",

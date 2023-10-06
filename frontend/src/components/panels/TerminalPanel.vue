@@ -14,7 +14,6 @@ import {
   SESSION_ACCESS_LEVELS,
   SESSION_ACCESS_LEVEL_NAME,
   SessionAccessLevel,
-  getRunStatusIconSolid,
   getRunStatusColor,
   useCurrentSessions,
   ACTIVE_RUN_STATUSES,
@@ -24,7 +23,7 @@ import { IdentifierType, getUUIDFromGlobalID, toPyIdentifier } from "@/utils/fun
 import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
 import { ArrowRightIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
-import { Bars3BottomLeftIcon, CodeBracketIcon } from "@heroicons/vue/24/solid";
+import { Bars3BottomLeftIcon, CodeBracketSquareIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 
 const props = defineProps<{ panel: PanelContext<TerminalPanel>; focused: boolean }>();
@@ -90,7 +89,11 @@ function toggleLanguage() {
 watch(
   () => [panel.value.inputMode, input.value],
   () => {
-    if (panel.value.inputMode == "code" && input.value.startsWith("# ") && input.value.split("\n").length == 1) {
+    if (
+      panel.value.inputMode == "code" &&
+      (input.value.startsWith("# ") || input.value.startsWith("// ")) &&
+      input.value.split("\n").length == 1
+    ) {
       input.value = input.value.slice(2);
       toggleLanguage();
     } else if (panel.value.inputMode == "text" && input.value.startsWith("`")) {
@@ -141,7 +144,7 @@ async function run() {
     expandedRunIds.value.push(run.id); // always show full run if it was made here
     panel.value.lastRunId = run.id;
     input.value = "";
-    inputSync.onLocalWrite();
+    inputSync.flushNow();
   } else {
     convertingText.value = true;
     try {
@@ -150,6 +153,7 @@ async function run() {
         accessLevel: panel.value.accessLevel,
       });
       input.value = `# ${input.value}\n${code}`;
+      inputSync.onLocalWrite();
       panel.value.inputMode = "code";
       nextTick(() => focus("last"));
     } finally {
@@ -260,12 +264,12 @@ defineExpose({
       >
         <div class="flex w-full flex-1 flex-col">
           <!-- Header -->
-          <div class="flex flex-row items-start font-mono text-gray-500">
+          <div class="flex flex-row items-start font-mono text-orange-600">
             <span class="px-1 py-0.5">
               <ChevronDoubleRightIcon class="h-4 w-4" />
             </span>
             <!-- Current context/path & mode -->
-            <span class="ml-0.5"
+            <span class="ml-0.5 font-semibold"
               >{{ module.path.value }}<template v-if="scopePath">.{{ scopePath }}</template>
             </span>
             <!-- Access level -->
@@ -293,7 +297,10 @@ defineExpose({
               @click="panel.toggleInputMode()"
               class="flex h-fit flex-row rounded-sm px-1 py-[2px] text-orange-600 hover:bg-orange-100"
             >
-              <component :is="panel.inputMode == 'code' ? CodeBracketIcon : Bars3BottomLeftIcon" class="h-4 w-4" />
+              <component
+                :is="panel.inputMode == 'code' ? CodeBracketSquareIcon : Bars3BottomLeftIcon"
+                class="h-4 w-4"
+              />
             </button>
             <!-- Input -->
             <div class="relative ml-0.5 min-h-[22px] w-full">

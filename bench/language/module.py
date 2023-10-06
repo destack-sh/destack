@@ -757,7 +757,8 @@ class NodeList(NodeListBase[NodeT]):
             # append, then trigger update
             for node in nodes:
                 self.append(node, _trigger=False)
-            self._parent._trigger_update(nodes)
+            if _trigger:
+                self._parent._trigger_update(nodes)
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
 
     def remove(self, _node: NodeT, _delete: bool = True, _trigger: bool = True):
@@ -1567,14 +1568,7 @@ class Node(abc.ABC):
         """
         return [self]
 
-    def _on_issue(
-        self,
-        *,
-        subject: Optional["Node"] = None,
-        type: IssueType = None,
-        message: str = None,
-        **kwargs,
-    ):
+    def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs) -> None:
         # only scope nodes can host issues, forward to parent
         self.parent._on_issue(subject=self, type=type, message=message, **kwargs)
 
@@ -1776,17 +1770,12 @@ class ScopeNode(Node):
             raise LookupError(f"{path} not found in {self!r}")
         return result
 
-    def _on_issue(
-        self,
-        *,
-        subject: Optional["Node"] = None,
-        type: IssueType = None,
-        message: str = None,
-        **kwargs,
-    ):
+    def _on_issue(self, subject: "Node", type: IssueType, message: str = None, **kwargs):
         from bench.language import File, Statement
         from bench.language.issue import Issue
 
+        if not subject.attached:
+            return  # no way to derive issue id, so just ignore?
         issue_ck = uuid.uuid5(subject.id, (type.value + (message or "")))
         issue_id = issue_ck  # not sure?
         if not isinstance(subject, (Statement, File)):

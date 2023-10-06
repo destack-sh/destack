@@ -399,6 +399,12 @@ export type FileRenameInput = {
   name: Scalars["String"];
 };
 
+export type FileUpdateInput = {
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+};
+
 export type HasCrud = {
   createdAt: Scalars["DateTime"];
   createdBy?: Maybe<User>;
@@ -885,7 +891,7 @@ export type MutationUpdateFieldTypeArgs = {
 };
 
 export type MutationUpdateFileArgs = {
-  input: FileCreateInput;
+  input: FileUpdateInput;
 };
 
 export type MutationUpdateOrganizationArgs = {
@@ -3982,6 +3988,35 @@ export type RenameFileMutation = {
   __typename?: "Mutation";
   renameFile:
     | { __typename?: "File"; id: any; name: string; revision: number }
+    | ({ __typename?: "OperationInfo" } & {
+        " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
+      });
+};
+
+export type UpdateFileMutationVariables = Exact<{
+  id: Scalars["GlobalID"];
+  name: Scalars["String"];
+  parentId?: InputMaybe<Scalars["GlobalID"]>;
+}>;
+
+export type UpdateFileMutation = {
+  __typename?: "Mutation";
+  updateFile:
+    | {
+        __typename?: "File";
+        id: any;
+        name: string;
+        revision: number;
+        parent:
+          | { __typename?: "Field"; id: any }
+          | { __typename?: "File"; id: any }
+          | { __typename?: "Issue"; id: any }
+          | { __typename?: "ProjectVersion"; id: any }
+          | { __typename?: "ResolvedField"; id: any }
+          | { __typename?: "Statement"; id: any }
+          | { __typename?: "Tagging"; id: any }
+          | { __typename?: "Trigger"; id: any };
+      }
     | ({ __typename?: "OperationInfo" } & {
         " $fragmentRefs"?: { OperationInfoContentFragment: OperationInfoContentFragment };
       });
@@ -10164,6 +10199,95 @@ export const RenameFileDocument = {
     ...OperationInfoContentFragmentDoc.definitions,
   ],
 } as unknown as DocumentNode<RenameFileMutation, RenameFileMutationVariables>;
+export const UpdateFileDocument = {
+  kind: "Document",
+  definitions: [
+    {
+      kind: "OperationDefinition",
+      operation: "mutation",
+      name: { kind: "Name", value: "updateFile" },
+      variableDefinitions: [
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "id" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "name" } },
+          type: { kind: "NonNullType", type: { kind: "NamedType", name: { kind: "Name", value: "String" } } },
+        },
+        {
+          kind: "VariableDefinition",
+          variable: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+          type: { kind: "NamedType", name: { kind: "Name", value: "GlobalID" } },
+        },
+      ],
+      selectionSet: {
+        kind: "SelectionSet",
+        selections: [
+          {
+            kind: "Field",
+            name: { kind: "Name", value: "updateFile" },
+            arguments: [
+              {
+                kind: "Argument",
+                name: { kind: "Name", value: "input" },
+                value: {
+                  kind: "ObjectValue",
+                  fields: [
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "id" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "id" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "name" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "name" } },
+                    },
+                    {
+                      kind: "ObjectField",
+                      name: { kind: "Name", value: "parentId" },
+                      value: { kind: "Variable", name: { kind: "Name", value: "parentId" } },
+                    },
+                  ],
+                },
+              },
+            ],
+            selectionSet: {
+              kind: "SelectionSet",
+              selections: [
+                {
+                  kind: "InlineFragment",
+                  typeCondition: { kind: "NamedType", name: { kind: "Name", value: "File" } },
+                  selectionSet: {
+                    kind: "SelectionSet",
+                    selections: [
+                      { kind: "Field", name: { kind: "Name", value: "id" } },
+                      { kind: "Field", name: { kind: "Name", value: "name" } },
+                      { kind: "Field", name: { kind: "Name", value: "revision" } },
+                      {
+                        kind: "Field",
+                        name: { kind: "Name", value: "parent" },
+                        selectionSet: {
+                          kind: "SelectionSet",
+                          selections: [{ kind: "Field", name: { kind: "Name", value: "id" } }],
+                        },
+                      },
+                    ],
+                  },
+                },
+                { kind: "FragmentSpread", name: { kind: "Name", value: "OperationInfoContent" } },
+              ],
+            },
+          },
+        ],
+      },
+    },
+    ...OperationInfoContentFragmentDoc.definitions,
+  ],
+} as unknown as DocumentNode<UpdateFileMutation, UpdateFileMutationVariables>;
 export const PasteFileDocument = {
   kind: "Document",
   definitions: [
