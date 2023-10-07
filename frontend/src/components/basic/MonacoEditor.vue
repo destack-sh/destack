@@ -12,6 +12,7 @@ const props = defineProps<{
   readonly?: boolean;
   hideLineNumbers?: boolean;
   enterIsExecute?: boolean;
+  wrap?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "update:modelValue", value: string): void;
@@ -34,13 +35,17 @@ function getEditorHeight(code: string) {
   const lineHeight = 21;
   const lines = code.split("\n");
   let numLines = lines.length;
-  const maxCharsPerLine = Math.floor((editorContainer.value.clientWidth - 35) / 8.45);
-  for (const line of lines) {
-    const actualLines = Math.ceil(line.length / maxCharsPerLine);
-    if (actualLines > 1) {
-      numLines += actualLines - 1;
+
+  if (props.wrap) {
+    const maxCharsPerLine = Math.floor((editorContainer.value.clientWidth - 35) / 8.45);
+    for (const line of lines) {
+      const actualLines = Math.ceil(line.length / maxCharsPerLine);
+      if (actualLines > 1) {
+        numLines += actualLines - 1;
+      }
     }
   }
+
   return numLines * lineHeight;
 }
 
@@ -133,7 +138,7 @@ function initMonaco(monaco: Monaco) {
     hideCursorInOverviewRuler: true,
     overviewRulerBorder: false,
     overviewRulerLanes: 0,
-    wordWrap: "on",
+    wordWrap: props.wrap ? "on" : "off",
     lineNumbers: props.hideLineNumbers ? "off" : "on",
     lineDecorationsWidth: props.hideLineNumbers ? 0 : 8,
     lineNumbersMinChars: props.hideLineNumbers ? 0 : 2,

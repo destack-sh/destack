@@ -300,7 +300,7 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
     ) -> "Field":
         # default to literal or string if no type is specified
         if type is None:
-            if for_parent.tag == TypeTag.ENUM:
+            if for_parent and for_parent.tag == TypeTag.ENUM:
                 type = TypeTag.LITERAL
                 if name is None:
                     name = f"Option {len(for_parent.fields) + 1}"

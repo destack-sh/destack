@@ -613,8 +613,10 @@ function getStatementBounding(statementId: string): { top: number; right: number
     </div>
     <!-- Terminal popover -->
     <TerminalPopover
+      v-if="fileHeader != null"
       ref="terminalPopoverRef"
       class="fixed z-50"
+      :file-ck="fileHeader?.ck"
       :style="{
         right: window.width.value - (props.panel.pos.value?.left + props.panel.size.value?.width) + 24 + 'px',
         bottom: window.height.value - (props.panel.pos.value?.top + props.panel.size.value?.height) + 32 + 'px',

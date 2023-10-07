@@ -49,7 +49,6 @@ defineExpose({
   <div class="relative">
     <MonacoEditor
       ref="monacoRef"
-      :hide-line-numbers="false"
       v-model="code"
       @update:model-value="codeSync.onLocalWrite"
       @navigate-up="emit('navigateUp')"
@@ -60,6 +59,7 @@ defineExpose({
       @execute="emit('run')"
       @toggle-actions="emit('openActions')"
       language="python"
+      wrap
       :focused="focused"
       :readonly="readonly"
       class="-mx-1 mt-0.5 min-h-[32px] rounded-t-sm border border-orange-900 border-opacity-[15%] px-1 pb-1.5 pt-1 transition-colors duration-150"

@@ -70,12 +70,7 @@ function _useTerminal() {
     }))
   );
 
-  async function runText(
-    text: string,
-    options: { scope?: string; runMode: "approve" | "immediate"; accessLevel?: SessionAccessLevel } = {
-      runMode: "approve",
-    }
-  ): Promise<{ code: string; run?: Run }> {
+  async function runText(text: string): Promise<{ code: string; run?: Run }> {
     if (textToCodeTask.value == null) {
       throw new Error("text to code task not found");
     }
@@ -92,9 +87,6 @@ function _useTerminal() {
     if (run?.status != RunStatus.Completed || code == null) {
       console.warn("run failed", run);
       throw new Error(`run failed: ${run?.errorNice?.kind} ${run?.errorNice?.message}`);
-    }
-    if (options?.runMode == "immediate") {
-      throw new Error("immediate run mode not supported yet?");
     }
     return { code };
   }

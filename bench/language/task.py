@@ -117,8 +117,8 @@ async def run_task(
     models = [
         task.module.resolve(m)
         for m in (
-            "anthropic.lib.text.claude-instant-1",
             "openai.lib.chat.gpt4",
+            "anthropic.lib.text.claude-instant-1",
             "anthropic.lib.text.claude-2",
             "openai.lib.chat.gpt3",
         )

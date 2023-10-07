@@ -148,10 +148,7 @@ async function run() {
   } else {
     convertingText.value = true;
     try {
-      const { code } = await terminal.runText(input.value, {
-        runMode: "approve",
-        accessLevel: panel.value.accessLevel,
-      });
+      const { code } = await terminal.runText(input.value);
       input.value = `# ${input.value}\n${code}`;
       inputSync.onLocalWrite();
       panel.value.inputMode = "code";
