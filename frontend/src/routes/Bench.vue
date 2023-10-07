@@ -479,7 +479,7 @@ onBeforeUnmount(() => {
           <FadeTransition>
             <div
               v-if="versionToViewId != projectHead?.id && version != null"
-              class="ml-1.5 flex flex-row rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
+              class="ml-1.5 flex flex-row rounded-sm border border-orange-900/[12%] bg-orange-100 px-2 py-0.5 text-sm text-gray-900"
             >
               <span class="relative">
                 <ClockIconOutline class="absolute top-0 h-5 w-5 text-gray-900" />
@@ -509,7 +509,7 @@ onBeforeUnmount(() => {
           <!-- Read-only project notice -->
           <div
             v-if="bench.ModuleAccessLevel != null && !bench.canEdit"
-            class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 px-2 py-0.5 text-sm"
+            class="ml-1.5 flex flex-row gap-2 rounded-sm border border-orange-900/[12%] bg-orange-100 px-2 py-0.5 text-sm"
           >
             <span class="relative flex flex-row gap-1 text-gray-900">
               <EyeIconSolid class="top-0.0 absolute h-5 w-5 text-gray-500" />
@@ -616,7 +616,7 @@ onBeforeUnmount(() => {
         <!-- View buttons -->
         <!-- inset 1px above to hide border bottom from top bar (experimental design tweak) -->
         <div
-          class="-mt-[1px] flex h-full min-h-0 flex-col border-r border-orange-900 border-opacity-[12%] bg-white pt-[1px]"
+          class="-mt-[1px] flex h-full min-h-0 flex-col border-r border-orange-900/[12%] bg-white pt-[1px]"
           v-show="bench.showViewSelection"
         >
           <!-- Top of sidebar: view selection -->

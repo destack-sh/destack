@@ -78,7 +78,7 @@ const actions: Ref<Action[]> = computed(() => [
     <button
       v-for="action in actions.filter((a) => !props.hide?.includes(a.id))"
       :key="action.label"
-      class="flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 shadow-sm"
+      class="flex flex-row items-center rounded-sm border border-orange-900/[12%] bg-white px-2 py-1 shadow-sm"
       :class="[action.disabled ? 'focus:border-opacity-40' : 'hover:bg-orange-100 focus:bg-orange-100']"
       :disabled="action.disabled"
       @click="action.action"

@@ -635,7 +635,7 @@ defineExpose({
         <div
           v-for="(record, y) in recordsInView"
           :key="record.id"
-          class="group/record relative flex flex-row self-start border-b border-orange-900 border-opacity-[12%] align-top"
+          class="group/record relative flex flex-row self-start border-b border-orange-900/[12%] align-top"
         >
           <!-- Record actions -->
           <div class="absolute -left-0.5 mt-1">
@@ -700,7 +700,7 @@ defineExpose({
             <div
               class="h-full overflow-hidden"
               :class="[
-                verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900 border-opacity-[12%]' : '',
+                verticalBorders && columnWidths.length > 1 ? 'border-l border-orange-900/[12%]' : '',
               ]"
               :style="{
                 minHeight: minRowHeight + 'px',
@@ -716,7 +716,7 @@ defineExpose({
         <!-- Failed to load -->
         <button
           v-if="!loading && recordsError != null"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-red-600 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-red-600 outline-none transition duration-75 hover:bg-orange-100 hover:text-red-600 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
           :style="{ minHeight: minRowHeight + 'px' }"
           @click.stop="refetch()"
         >
@@ -727,7 +727,7 @@ defineExpose({
         <button
           v-if="pageInfo?.hasNextPage"
           ref="loadMoreRef"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
           :class="[loading ? 'text-gray-400' : 'text-gray-300 ']"
           :style="{ height: minRowHeight + 'px' }"
           @click.stop="loadMore()"
@@ -749,7 +749,7 @@ defineExpose({
         <button
           v-if="!readonly || recordsInView.length == 0"
           ref="addRecordRef"
-          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900 border-opacity-[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
+          class="flex w-full select-none flex-row items-center gap-0.5 rounded-sm border-b border-orange-900/[12%] px-1 py-1 text-gray-300 outline-none transition duration-75 hover:bg-orange-100 hover:text-gray-700 focus:bg-orange-100 group-focus-within/statement:text-gray-400"
           :style="{ height: minRowHeight + 'px' }"
           @click.stop="readonly || insertRecordAtEnd()"
           @keydown.enter.prevent="readonly || insertRecordAtEnd()"

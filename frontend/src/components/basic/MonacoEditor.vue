@@ -314,7 +314,7 @@ function blur() {
   // no op?
 }
 
-defineExpose({ focus, blur, focused, markPosition });
+defineExpose({ focus, blur, focused, markPosition, width: editorContainerWidth });
 </script>
 
 <template>

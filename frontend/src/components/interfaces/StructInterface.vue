@@ -150,7 +150,7 @@ defineExpose({
       </td>
       <td
         class="w-full p-0"
-        :class="[appearance.verticalBorders && y > 0 ? 'border-t border-orange-900 border-opacity-[12%]' : '']"
+        :class="[appearance.verticalBorders && y > 0 ? 'border-t border-orange-900/[12%]' : '']"
       >
         <!-- should probably separate the 'minimal fields' out, but not sure what becomes of that yet -->
         <div class="w-full px-1" v-if="appearance.minimalFields">

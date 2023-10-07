@@ -101,7 +101,7 @@ async function createFileInPanelGroup() {
       (happens if there are multiple active editor groups)  -->
       <TabList
         ref="tabListRef"
-        class="scroll-hidden flex w-full max-w-full flex-shrink-0 divide-x divide-orange-900 divide-opacity-[12%] overflow-x-scroll border-b border-orange-900 border-opacity-[12%] bg-gray-50"
+        class="scroll-hidden flex w-full max-w-full flex-shrink-0 divide-x divide-orange-900 divide-opacity-[12%] overflow-x-scroll border-b border-orange-900/[12%] bg-gray-50"
         v-show="bench.showPanelTabs"
       >
         <!-- Editor tab -->
@@ -178,7 +178,7 @@ async function createFileInPanelGroup() {
             class="w-full"
             :class="[
               i > 0 && contextMenuActions[i - 1].groupId != action.groupId
-                ? 'mt-0.5 border-t border-orange-900 border-opacity-[12%] pt-0.5'
+                ? 'mt-0.5 border-t border-orange-900/[12%] pt-0.5'
                 : '',
             ]"
             @click.prevent.stop="action.action((contextMenuPanel ?? group) as any), closeContextMenu()"

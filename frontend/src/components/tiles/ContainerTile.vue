@@ -20,7 +20,7 @@ const props = defineProps<{
       </span>
     </div>
     <div
-      class="flex h-full w-full flex-1 flex-col rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-2 shadow-sm"
+      class="flex h-full w-full flex-1 flex-col rounded-sm border border-orange-900/[12%] bg-white p-2 shadow-sm"
     >
       <!-- Content -->
       <slot />

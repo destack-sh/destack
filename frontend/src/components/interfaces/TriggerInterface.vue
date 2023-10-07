@@ -114,7 +114,7 @@ function update(properties: Partial<Trigger>) {
       <div class="flex flex-row items-center gap-2">
         <!-- Type -->
         <button
-          class="inline-flex flex-row items-center rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 hover:bg-orange-100 focus:outline-none focus:ring-0"
+          class="inline-flex flex-row items-center rounded-sm border border-orange-900/[12%] px-2 py-1 hover:bg-orange-100 focus:outline-none focus:ring-0"
           @click="toggleScheduleType()"
         >
           <span class="text-gray-900">
@@ -129,7 +129,7 @@ function update(properties: Partial<Trigger>) {
             type="number"
             min="1"
             max="60"
-            class="w-full max-w-full flex-grow scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 px-1 text-right text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="w-full max-w-full flex-grow scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 px-1 text-right text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
             :value="(props.modelValue.interval ?? 0) / INTERVAL_UNITS[intervalDisplayUnit]"
             @input="update({ interval: ($event.target as any)?.value * INTERVAL_UNITS[intervalDisplayUnit] })"
           />
@@ -142,7 +142,7 @@ function update(properties: Partial<Trigger>) {
           >
             <ListboxButton
               ref="intervalUnitRef"
-              class="w-full flex-grow rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 text-left font-bold text-gray-900 hover:bg-orange-100"
+              class="w-full flex-grow rounded-sm border border-orange-900/[12%] px-2 py-1 text-left font-bold text-gray-900 hover:bg-orange-100"
             >
               {{ intervalDisplayUnit }}s
             </ListboxButton>
@@ -167,12 +167,12 @@ function update(properties: Partial<Trigger>) {
           <input
             ref="cronInputRef"
             type="text"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 px-1 text-center text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 px-1 text-center text-sm font-bold text-gray-900 focus:border-orange-200 focus:bg-orange-100 focus:outline-none focus:ring-0"
             v-model="cron"
           />
         </template>
         <!-- Timezone -->
-        <span class="rounded-sm border border-orange-900 border-opacity-[12%] px-2 py-1 text-gray-900">UTC</span>
+        <span class="rounded-sm border border-orange-900/[12%] px-2 py-1 text-gray-900">UTC</span>
       </div>
       <!-- Human readable -->
       <div class="mt-1.5 px-1 py-1 text-center" v-if="scheduleType == ScheduleType.Cron">

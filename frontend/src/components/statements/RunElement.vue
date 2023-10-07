@@ -32,6 +32,7 @@ defineExpose({
         label: currentRunActive.value ? "Stop" : "Run",
         groupId: "run",
         disabled: !bench.canUse,
+        hideInline: true, // already have on left-hand side
         icon: currentRunActive.value ? StopIcon : PlayIcon,
         action: () => {
           if (currentRunActive.value) {
@@ -59,7 +60,7 @@ defineExpose({
   <RunTile
     v-if="currentRun != null"
     ref="runTileRef"
-    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-orange-900 border-opacity-[12%] px-3 py-1.5 transition duration-150"
+    class="relative -mx-1 mb-0.5 w-full rounded-b-sm border border-orange-900/[12%] px-3 py-1.5 transition duration-150"
     :class="[props.statement.type == StatementType.Code ? 'border-t-0' : 'mt-1.5']"
     :project-id="(bench.projectId as string)"
     :project-version-id="(bench.projectVersionId as string)"

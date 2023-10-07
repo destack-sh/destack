@@ -28,7 +28,7 @@ const isMostlyCached = computed(
     <BoltIcon class="h-3 w-3 text-orange-500" />
     <span
       v-if="run.duration != null && cachedDuration != null"
-      class="invisible absolute z-10 -ml-1 mt-1 w-fit whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover:visible"
+      class="invisible absolute z-10 -ml-1 mt-1 w-fit whitespace-nowrap rounded-sm border border-orange-900/[12%] bg-white px-2 py-1 text-xs text-gray-700 group-hover:visible"
     >
       Cached
       {{ now.getTimeFromNowString(cachedGeneratedAt) }} ago<br />

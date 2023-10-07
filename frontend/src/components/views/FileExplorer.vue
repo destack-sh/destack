@@ -155,7 +155,7 @@ defineExpose({
           class="w-full"
           :class="[
             i > 0 && contextMenuActions[i - 1].groupId != action.groupId
-              ? 'mt-0.5 border-t border-orange-900 border-opacity-[12%] pt-0.5'
+              ? 'mt-0.5 border-t border-orange-900/[12%] pt-0.5'
               : '',
           ]"
           @click.prevent.stop="action.action(contextMenuFile), closeContextMenu()"

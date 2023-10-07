@@ -172,7 +172,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
     </div>
 
     <table
-      class="mt-3 min-w-full divide-y divide-orange-900 divide-opacity-[12%] rounded-sm border border-orange-900 border-opacity-[12%] bg-white"
+      class="mt-3 min-w-full divide-y divide-orange-900 divide-opacity-[12%] rounded-sm border border-orange-900/[12%] bg-white"
     >
       <thead>
         <tr>

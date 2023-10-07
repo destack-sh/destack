@@ -329,7 +329,7 @@ defineExpose({
             v-model="name"
             @update:model-value="nameSync.onLocalWrite"
             :readonly="readonly"
-            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100"
+            class="w-full max-w-full scroll-m-0 overflow-x-hidden rounded-sm border border-orange-900/[12%] p-1 text-gray-900 focus:bg-orange-100"
             @navigate-right="typeButtonRef?.focus()"
             @navigate-down="textRef?.focus()"
             @enter="close(false), emit('enter')"
@@ -346,7 +346,7 @@ defineExpose({
               <button
                 ref="typeButtonRef"
                 :disabled="readonly"
-                class="rounded-sm border border-orange-900 border-opacity-[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
+                class="rounded-sm border border-orange-900/[12%] p-1 text-gray-900 focus:bg-orange-100 focus:outline-none focus:ring-0"
                 :class="readonly ? '' : 'hover:bg-orange-100'"
                 @keydown.left.stop.prevent="nameRef?.focus()"
                 @keydown.down.stop.prevent="actionRefs.focus(actions[0].label)"
@@ -382,7 +382,7 @@ defineExpose({
             <div
               v-else
               ref="typeButtonRef"
-              class="rounded-sm border border-orange-900 border-opacity-[12%] p-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
+              class="rounded-sm border border-orange-900/[12%] p-2 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none focus:ring-0"
             >
               <svg class="h-3 w-3" :style="{ fill: getEnumColor(value) }" viewBox="0 0 6 6" aria-hidden="true">
                 <rect x="0" y="0" width="6" height="6" />
@@ -420,7 +420,7 @@ defineExpose({
             class="flex w-full flex-row items-center gap-2.5 rounded-sm px-1 py-1 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
             :class="[
               i > 0 && actions[i - 1].groupId != action.groupId
-                ? 'mt-1 border-t border-orange-900 border-opacity-[12%] pt-2'
+                ? 'mt-1 border-t border-orange-900/[12%] pt-2'
                 : '',
               action.disabled ? 'cursor-not-allowed opacity-50' : '',
             ]"

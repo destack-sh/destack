@@ -406,7 +406,7 @@ export const STATEMENT_TYPE_DESCRIPTIONS: Record<StatementType, string> = {
   [StatementType.Type]: "A class, choice or union type",
   [StatementType.Database]: "Examples, state, feedback: any records",
   [StatementType.Code]: "Connect, test & customize with Python",
-  [StatementType.Task]: "Structured prompt with I/O fields",
+  [StatementType.Task]: "Structured AI model function.",
   [StatementType.Variable]: "Common values for configuration or secrets",
   [StatementType.Reference]: "Reuse another statement",
   [StatementType.Flow]: "Connect code and tasks with triggers",
