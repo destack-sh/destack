@@ -94,6 +94,10 @@ class HasCode(Node):
         return symbolx_lib.resolve(".builtins.test") in self.tags
 
     @property
+    def _mend(self):
+        return symbolx_lib.resolve(".builtins.mend") in self.tags
+
+    @property
     def _code_hash(self) -> str:
         return hashlib.sha256(self.code.encode("utf-8")).hexdigest()
 
@@ -248,6 +252,8 @@ class HasCode(Node):
             callable = self._wrap_cached(callable)
         if self._test:
             callable = self._wrap_test(callable)
+        if self._mend:
+            callable = self._wrap_mend(callable)
         return callable
 
     def _wrap_cached(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
@@ -346,6 +352,21 @@ class HasCode(Node):
                 return ret
 
             return _test_async
+
+    def _wrap_mend(self, callable: AsyncCodeCallable | SyncCodeCallable) -> typing.Callable:
+        """Automatically mend this code on error (nocheckin: implement this)"""
+        if not self._parse.is_async:
+
+            def _mend_sync(*args, **kwargs):
+                return callable(*args, **kwargs)
+
+            return _mend_sync
+        else:
+
+            async def _mend_async(*args, **kwargs):
+                return await callable(*args, **kwargs)
+
+            return _mend_async
 
     async def _call_inner_async(self, *args, **kwargs):
         inputs = self._inputs_from_args(args, kwargs)

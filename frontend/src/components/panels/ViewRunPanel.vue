@@ -227,6 +227,7 @@ defineExpose({
           <MonacoEditor
             :model-value="run.value[codeKey ?? '']"
             readonly
+            wrap
             hide-line-numbers
             language="python"
             :focused="false"

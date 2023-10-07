@@ -45,7 +45,9 @@ async function run() {
   discard();
   generating.value = true;
   try {
-    generatedFrom.value = inputText.value;
+    // nocheckin: allow cancel task here and in terminal panel
+    // clear input text from span references (ignore content)
+    generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
     const { code } = await terminal.runText(inputText.value);
     generatedCode.value = code;
   } finally {
@@ -146,7 +148,7 @@ defineExpose({
       <!-- Show in terminal -->
       <span
         v-if="expanded"
-        class="absolute -bottom-5 right-0 flex flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 hover:cursor-pointer hover:underline"
+        class="absolute -bottom-5 right-0 flex animate-fadein-500 flex-row items-center gap-0.5 text-xs text-gray-400 underline-offset-2 transition-opacity duration-150 hover:cursor-pointer hover:underline"
         @click="bench.openTerminal({ group: panel.panel.value.group, focus: true, opposite: true })"
       >
         <CommandLineIcon class="h-4 w-4" /> Terminal

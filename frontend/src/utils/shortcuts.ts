@@ -47,7 +47,7 @@ export function applyShortcuts() {
 
       // bind shortcuts
       Object.entries(actionsByShortcut).forEach(([shortcut, actions]) => {
-        Mousetrap.bind(shortcut, () => {
+        Mousetrap.bind(shortcut, (e) => {
           const enabledActions = actionsIndex.all.filter((a) => a.enabled && actions.includes(a.id));
           enabledActions.forEach((action) => action.apply());
           return enabledActions.length == 0;
@@ -89,7 +89,7 @@ export function applyShortcuts() {
       element.tagName == "INPUT" ||
       element.tagName == "SELECT" ||
       element.tagName == "TEXTAREA" ||
-      (element.contentEditable && element.contentEditable == "true")
+      (element.contentEditable && (element.contentEditable == "true" || element.contentEditable == "plaintext-only"))
     );
   };
 }
