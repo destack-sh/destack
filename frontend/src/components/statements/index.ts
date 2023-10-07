@@ -117,6 +117,7 @@ export type StatementEmitDict = {
   focus: (partId: StatementPartId) => void;
   hide: (partId: StatementPartId) => void;
   openActions: () => void;
+  launchAssist: (text: string) => void;
   illegal: (char: string) => void;
 };
 

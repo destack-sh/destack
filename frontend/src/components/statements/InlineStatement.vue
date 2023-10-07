@@ -228,6 +228,7 @@ function handleStatementPartEvents(kind: "control" | "element", partId: Statemen
     },
     escape: () => (panel.panel.value as EditFilePanel).stopEditingElement(statement.value),
     openActions: showActionsPopover,
+    launchAssist: (text: string) => emit("launchAssist", text, [statement.value]),
     illegal: (char: string) => {
       if (char == "#" && partId == "declaration") {
         actions.value.find((a) => a.label == "Add tag")?.action(statement.value);

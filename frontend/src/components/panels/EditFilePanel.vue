@@ -30,7 +30,7 @@ import { useOperations } from "@/state/operations";
 import { syncProperty } from "@/utils/sync";
 import { ArrowUturnRightIcon, DocumentDuplicateIcon, PencilSquareIcon, TrashIcon } from "@heroicons/vue/24/outline";
 import { useQuery } from "@vue/apollo-composable";
-import { useMouse, whenever } from "@vueuse/core";
+import { useMouse, useWindowSize, whenever } from "@vueuse/core";
 import { computed, nextTick, onBeforeUnmount, ref, watch, type Ref, watchEffect } from "vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
 import { useCurrentClients } from "@/state/client";
@@ -38,6 +38,7 @@ import UserAvatar from "@/components/basic/UserAvatar.vue";
 import { useNotifications } from "@/state/notifications";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
 import TerminalPopover from "@/components/interfaces/TerminalPopover.vue";
+import type { State } from "monaco-languageclient/.";
 
 const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -48,6 +49,7 @@ const actions = useActions();
 const panel = computed(() => props.panel.panel.value);
 const scroll = computed(() => props.panel.scroll.value);
 const ops = useOperations();
+const window = useWindowSize();
 
 // file state
 
@@ -437,7 +439,7 @@ function updateDragSelectMaybe(e: { clientX: number; clientY: number }) {
   const scrollMargin = 100;
   if (e.clientY - appearance.panelHeaderHeight < scrollMargin) {
     props.panel.container.value?.scrollTo({ left: scroll.value.x, top: scroll.value.y - 10 });
-  } else if (e.clientY > window.innerHeight - scrollMargin) {
+  } else if (e.clientY > window.height.value - scrollMargin) {
     props.panel.container.value?.scrollTo({ left: scroll.value.y, top: scroll.value.y + 10 });
   }
 }
@@ -478,6 +480,12 @@ onBeforeUnmount(() => clearInterval(updateDragInterval));
 
 function stopDragSelect() {
   dragSelectStart.value = null;
+}
+
+// assist
+const terminalPopoverRef: Ref<InstanceType<typeof TerminalPopover> | null> = ref(null);
+function launchAssist(text: string, selection: StatementHeader[] | undefined, from: Statement) {
+  terminalPopoverRef.value?.open(text, selection, from);
 }
 
 // other clients
@@ -590,6 +598,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
           :ancestors="positioned.ancestors.map((ancestorId) => (context?.statementsById[ancestorId] as Statement))"
           :standalone="false"
           :shown="statementsLoaded"
+          @launch-assist="(text, selection) => launchAssist(text, selection, positioned.statement as Statement)"
           class="w-full"
         />
       </div>
@@ -603,7 +612,14 @@ function getStatementBounding(statementId: string): { top: number; right: number
       />
     </div>
     <!-- Terminal popover -->
-    <TerminalPopover class="fixed right-20 top-32 z-50" />
+    <TerminalPopover
+      ref="terminalPopoverRef"
+      class="fixed z-50"
+      :style="{
+        right: window.width.value - (props.panel.pos.value?.left + props.panel.size.value?.width) + 24 + 'px',
+        bottom: window.height.value - (props.panel.pos.value?.top + props.panel.size.value?.height) + 32 + 'px',
+      }"
+    />
 
     <!-- Client indicators next to statements -->
     <!-- TODO @UX: cleanup client presence indicators
