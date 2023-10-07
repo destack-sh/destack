@@ -123,7 +123,7 @@ class Statement(ScopeNode, HasTags):
 
     @staticmethod
     def new(
-        type: StatementType = None,
+        type: Union[StatementType, "_StatementProxy"] = None,
         name: str = None,
         *args,
         for_parent: Union["Statement", "File", None] = None,
@@ -131,6 +131,8 @@ class Statement(ScopeNode, HasTags):
     ) -> "Statement":
         if type is None:
             raise ValueError("type must be specified")
+        if isinstance(type, _StatementProxy):
+            type = type.type
         proxy = STATEMENT_CLASS_BY_TYPE[type]
         if proxy.tag and "tag" not in kwargs:
             kwargs["tag"] = proxy.tag
@@ -146,8 +148,11 @@ class Statement(ScopeNode, HasTags):
             init_name = "Choice" if node.tag == TypeTag.ENUM else "Class"
         else:
             init_name = node.type.camel_name
-        init_name = init_name + ".new"
-        return init_name, {"name": node.name}, dict_minus(props, "name", "type", "tag", "flags")
+        return (
+            "Statement",
+            {"type": init_name, "name": node.name},
+            dict_minus(props, "name", "type", "tag", "flags"),
+        )
 
     @property
     def _components(self) -> tuple[typing.Type[Node]]:
