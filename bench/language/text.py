@@ -35,12 +35,6 @@ class HasText(Node):
     def mentions(self) -> list["TextMention"]:
         return [span for span in self.text_spans if isinstance(span, TextMention)]
 
-    def _init_inner(self) -> None:
-        if self._session is not None and self.text:
-            # TODO @Broken: text should be re-parsed (+interped) when attached and on every set
-            # parse @<path> format on init during session
-            self._set_untracked("text", render_text_html(parse_text_simple(self.text)))
-
     def _clear_inner(self) -> None:
         self._text_spans = None
 
@@ -50,6 +44,7 @@ class HasText(Node):
         self._text_spans = parse_text_html(self.text)
 
         # resolve references
+        changed_references = False
         for span in self._text_spans:
             if not isinstance(span, TextMention):
                 continue
@@ -66,7 +61,13 @@ class HasText(Node):
                     type=IssueType.MISSING_REFERENCE, subject=self, path=span.reference_path
                 )
                 continue
+            if isinstance(span.reference, str):
+                # user code set a string reference, need to track change
+                changed_references = True
             span.reference = resolved  # success
+
+        if changed_references:
+            self.text = render_text_html(self._text_spans)
 
     def _visit_inner(self, visitor: NodeVisitor) -> None:
         if self._text_spans is None:

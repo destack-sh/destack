@@ -131,7 +131,7 @@ defineExpose({
         <div class="mt-2 flex w-full flex-col">
           <span class="text-gray-700">Name & tag</span>
           <div
-            class="flex w-full flex-row rounded-sm border border-orange-900 border-opacity-[12%] focus-within:border-orange-600"
+            class="flex w-full flex-row rounded-sm border border-orange-900/[12%] focus-within:border-orange-600"
           >
             <input
               ref="nameRef"
@@ -170,7 +170,7 @@ defineExpose({
           <textarea
             ref="descriptionRef"
             v-model="description"
-            class="resize-none rounded-sm border border-orange-900 border-opacity-[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
+            class="resize-none rounded-sm border border-orange-900/[12%] py-1 text-sm placeholder:text-gray-400 focus:border-orange-600 focus:bg-orange-100 focus:outline-none focus:ring-0"
             spellcheck="false"
             rows="3"
             placeholder="Optional details for future you."

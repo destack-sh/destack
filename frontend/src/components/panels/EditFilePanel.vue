@@ -37,6 +37,7 @@ import { useCurrentClients } from "@/state/client";
 import UserAvatar from "@/components/basic/UserAvatar.vue";
 import { useNotifications } from "@/state/notifications";
 import { INTEGER_ZERO, generateKeyBetween } from "@/utils/fractional";
+import TerminalPopover from "@/components/interfaces/TerminalPopover.vue";
 
 const props = defineProps<{ panel: PanelContext<EditFilePanel>; focused: boolean }>();
 const emit = defineEmits<{ (e: "close"): void }>();
@@ -501,7 +502,7 @@ function getStatementBounding(statementId: string): { top: number; right: number
   <!-- Only files have a white background :FileBackground -->
   <div class="relative overflow-x-hidden bg-white">
     <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%] bg-white"
+      class="border-b border-orange-900/[12%] bg-white"
       :thing="file"
       :actions="fileActions"
       :editing="panel.editing"
@@ -601,8 +602,12 @@ function getStatementBounding(statementId: string): { top: number; right: number
         @click="bench.readonly || insertOrFocusStatementEnd()"
       />
     </div>
-    <!-- TODO @UX: client indicators next to statements -->
-    <!-- (these move smoothly as the other client moves but instantly as we scroll...) -->
+    <!-- Terminal popover -->
+    <TerminalPopover class="fixed right-20 top-32 z-50" />
+
+    <!-- Client indicators next to statements -->
+    <!-- TODO @UX: cleanup client presence indicators
+      (they're jumpy, ugly, move smoothly as the other client moves but instantly as we scroll...) -->
     <div
       v-for="client in localClients"
       :key="client.id"

@@ -122,12 +122,12 @@ const { getTimeFromNowLongString } = useTimeFromNow();
       <!-- Profile info -->
       <div class="flex w-80 flex-col gap-2">
         <!-- Name / username -->
-        <div class="border-b-2 border-orange-900 border-opacity-[12%] pb-2">
+        <div class="border-b-2 border-orange-900/[12%] pb-2">
           <h1 class="flex max-w-full flex-row items-center gap-2 text-gray-900">
             <span class="flex flex-row items-center gap-2">
               <span class="truncate text-2xl font-bold">{{ user?.name || organization?.name }}</span>
               <span
-                class="rounded-md border border-orange-900 border-opacity-[12%] bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900"
+                class="rounded-md border border-orange-900/[12%] bg-yellow-100 px-1.5 py-0.5 text-sm font-bold text-yellow-900"
               >
                 {{ profile.__typename == "User" ? (user?.bot ? "AI" : "Human") : "Organization" }}
               </span>
@@ -162,7 +162,7 @@ const { getTimeFromNowLongString } = useTimeFromNow();
           <router-link
             v-for="project of benches"
             :key="project.id"
-            class="group flex h-28 flex-col justify-between rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-3 shadow-sm ring-0 ring-orange-900 ring-opacity-10 transition-colors duration-75 hover:border-orange-600"
+            class="group flex h-28 flex-col justify-between rounded-sm border border-orange-900/[12%] bg-white p-3 shadow-sm ring-0 ring-orange-900 ring-opacity-10 transition-colors duration-75 hover:border-orange-600"
             :to="`/${props.owner}/${project.slug}`"
           >
             <div class="flex max-w-full flex-row items-center justify-between gap-2">

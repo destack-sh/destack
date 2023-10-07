@@ -96,6 +96,7 @@ export type StatementEmit = {
   (e: "focus", partId: StatementPartId): void;
   (e: "hide", partId: StatementPartId): void;
   (e: "openActions"): void;
+  (e: "launchAssist", text: string): void;
   (e: "illegal", char: string): void;
 };
 

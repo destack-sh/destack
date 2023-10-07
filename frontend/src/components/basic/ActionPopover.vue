@@ -11,11 +11,12 @@ import {
   PopoverButton,
   PopoverPanel,
 } from "@headlessui/vue";
-import { ChevronRightIcon, EllipsisVerticalIcon } from "@heroicons/vue/24/outline";
+import { ChevronRightIcon, EllipsisVerticalIcon, SparklesIcon } from "@heroicons/vue/24/outline";
 import { computed, nextTick, ref, watch, type Ref, shallowRef } from "vue";
 import uFuzzy from "@leeoniya/ufuzzy";
 import FadeTransition from "@/components/basic/FadeTransition.vue";
 import { useActiveScroll } from "@/composables/useScroll";
+import { levenshteinDistance } from "@/utils/functools";
 
 const props = defineProps<{
   actions: Action<any>[];
@@ -23,6 +24,7 @@ const props = defineProps<{
   anchor: "left" | "right";
   hideSearch?: boolean;
   small?: boolean;
+  allowFreeform?: boolean;
 }>();
 const emit = defineEmits<{
   (e: "mousedown", v: MouseEvent): void;
@@ -30,6 +32,7 @@ const emit = defineEmits<{
   (e: "click", v: MouseEvent): void;
   (e: "open"): void;
   (e: "close"): void;
+  (e: "freeform", v: string): void;
 }>();
 
 const popoverPanelRef: Ref<InstanceType<typeof PopoverPanel> | null> = ref(null);
@@ -61,7 +64,7 @@ const filteredActions = computed(() => {
   if (idxs && order) {
     return order.map((i) => actions[idxs[i]]);
   }
-  return actions;
+  return [];
 });
 const closed = ref(false);
 const nestedComponent = shallowRef<{ component: InstanceType<any> | null; props: any } | null>(null);
@@ -95,8 +98,11 @@ function openComponent(action: Action<any>) {
   nestedActionIndex.value = props.actions.findIndex((a) => a.label == action.label);
 }
 
-function selectAction(action: Action<any>, close: () => void) {
-  if (action.component != null) {
+function selectAction(action: Action<any> | "freeform", close: () => void) {
+  if (action == "freeform") {
+    emit("freeform", query.value);
+    close();
+  } else if (action.component != null) {
     openComponent(action);
   } else {
     doActionIfOpen(action);
@@ -153,7 +159,7 @@ defineExpose({
         ref="popoverPanelRef"
         as="div"
         class="z-50 flex flex-col gap-2 rounded-sm bg-white shadow-md ring-1 ring-orange-900 ring-opacity-40"
-        :class="[popoverPinned ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-64 p-2 ']"
+        :class="[popoverPinned ? '' : 'absolute ' + anchor, small ? 'w-40 p-1' : 'w-72 p-2 ']"
         unmount
       >
         <span ref="popoverOpenRef" class="hidden" />
@@ -164,13 +170,13 @@ defineExpose({
             v-if="!small && !hideSearch"
             as="input"
             ref="inputRef"
-            class="w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+            class="w-full rounded-sm border border-orange-900/[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 placeholder:text-gray-400 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
             :class="{
               ...appearance.baseClass,
             }"
             @change="query = $event.target.value"
             :display-value="(el: any) => ''"
-            placeholder="Search actions..."
+            :placeholder="allowFreeform ? 'Search or describe...' : 'Search actions...'"
             spellcheck="false"
             @keydown.enter.prevent.stop="close"
           />
@@ -196,7 +202,7 @@ defineExpose({
               class="flex flex-row items-center justify-between"
               :class="[
                 i > 0 && filteredActions[i - 1].groupId != action.groupId
-                  ? ' border-t border-orange-900 border-opacity-[12%] ' + (small ? 'mt-0.5 pt-0.5' : 'mt-1 pt-1')
+                  ? ' border-t border-orange-900/[12%] ' + (small ? 'mt-0.5 pt-0.5' : 'mt-1 pt-1')
                   : '',
               ]"
             >
@@ -220,7 +226,22 @@ defineExpose({
                 <ChevronRightIcon class="h-4 w-4" />
               </div>
             </ComboboxOption>
-            <div v-if="filteredActions.length == 0" class="pt-1 text-center">
+            <!-- Freeform -->
+            <ComboboxOption
+              v-if="allowFreeform && query.length > 0"
+              :value="'freeform'"
+              :class="filteredActions.length > 0 ? 'mt-1 border-t border-orange-900/[12%] pt-1' : ''"
+              v-slot="{ active }"
+            >
+              <button
+                class="flex w-full flex-row items-center gap-2.5 px-1 py-1"
+                :class="[active ? 'bg-orange-100' : '']"
+              >
+                <SparklesIcon class="h-4 w-4" />
+                <span class="truncate text-gray-700">{{ query }}</span>
+              </button>
+            </ComboboxOption>
+            <div v-if="filteredActions.length == 0 && !allowFreeform" class="pt-1 text-center">
               <span class="text-gray-400">No results</span>
             </div>
           </ComboboxOptions>

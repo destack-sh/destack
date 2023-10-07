@@ -29,7 +29,7 @@ import {
   type FileHeader,
 } from "@/state/bench";
 import { useMagicActions, useNavigationContext, type NavigationContext } from "@/state/file";
-import { useCurrentModule, type Statement, TypeFlag } from "@/state/module";
+import { useCurrentModule, type Statement, TypeFlag, type InterpStatement } from "@/state/module";
 import { useOperations } from "@/state/operations";
 import { useCurrentSessions } from "@/state/session";
 import { STATEMENT_TYPE_LABELS, useFieldsState } from "@/state/statement";
@@ -47,6 +47,7 @@ import {
   EllipsisHorizontalIcon,
   EllipsisVerticalIcon,
   PlusIcon,
+  SparklesIcon,
   Square2StackIcon,
   TrashIcon,
 } from "@heroicons/vue/24/outline";
@@ -61,6 +62,9 @@ const props = defineProps<{
   ancestors: Statement[];
   readonly: boolean;
   shown?: boolean;
+}>();
+const emit = defineEmits<{
+  (e: "launchAssist", text: string, selection?: StatementHeader[]): void;
 }>();
 const file = toRef(props, "file");
 const statement = toRef(props, "statement");
@@ -589,6 +593,14 @@ const defaultActions: Ref<StatementAction[]> = computed(() => {
   });
   actions.push({
     groupId: "edit-core",
+    label: "Assist",
+    icon: SparklesIcon,
+    action: () => {
+      emit("launchAssist", "", [props.statement]);
+    },
+  });
+  actions.push({
+    groupId: "edit-core",
     label: "Delete",
     hideInline: true,
     disabled: props.readonly,
@@ -626,8 +638,25 @@ const actions: Ref<StatementAction[]> = computed(() => {
 function orderActions(actions: StatementAction[], order: string[]) {
   return actions.slice().sort((a, b) => order.indexOf(a.groupId ?? "other") - order.indexOf(b.groupId ?? "other"));
 }
-const actionsPopoverOrder = computed(() => orderActions(actions.value, ["run", "edit", "edit-core", "nav", "other"]));
 const actionsInlineOrder = computed(() => orderActions(actions.value, ["edit", "nav", "other", "edit-core"]));
+const actionsPopoverOrder = computed(() => {
+  if (isInSelection.value) {
+    // add assist to selection actions
+    return [
+      {
+        groupId: "edit-core",
+        label: "Assist",
+        icon: SparklesIcon,
+        action: () => {
+          emit("launchAssist", "", nav?.value?.getSelectedRoots() ?? [statement.value]);
+        },
+      },
+      ...(nav?.value?.selectionActions ?? []),
+    ];
+  } else {
+    return orderActions(actions.value, ["run", "edit", "edit-core", "nav", "other"]);
+  }
+});
 
 function showActionsPopover() {
   actionPopoverRef.value?.show();
@@ -716,8 +745,10 @@ defineExpose({
               ref="actionPopoverRef"
               anchor="right"
               :thing="isInSelection ? null : statement"
-              :actions="isInSelection ? nav?.selectionActions ?? [] : actionsPopoverOrder"
+              :actions="actionsPopoverOrder"
               v-slot="{ open }"
+              :allow-freeform="bench.canEdit"
+              @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
               @click.stop
               @close="nav?.panel?.focusElement(statement)"
               @mouseup="containerRef?.setAttribute('draggable', 'false')"
@@ -844,9 +875,10 @@ defineExpose({
             <!-- All actions popover (same as on other side for convenience) -->
             <ActionPopover
               anchor="right"
-              hide-search
-              :thing="statement"
+              :thing="isInSelection ? null : statement"
               :actions="actionsPopoverOrder"
+              :allow-freeform="bench.canEdit"
+              @freeform="emit('launchAssist', $event, nav?.getSelectedRoots() ?? [statement])"
               @click.stop
               @close="nav?.panel?.focusElement(statement)"
             >
@@ -945,7 +977,7 @@ defineExpose({
         </button>
         <!-- Preview on hover -->
         <div
-          class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900 border-opacity-[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
+          class="invisible absolute right-0 top-5 z-10 flex w-fit min-w-[200px] max-w-3xl flex-col gap-1 whitespace-normal rounded-sm border border-orange-900/[12%] bg-white p-1 shadow-sm group-hover/issues:visible"
         >
           <span
             v-for="issue in issues"

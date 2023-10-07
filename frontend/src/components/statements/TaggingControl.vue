@@ -135,7 +135,7 @@ defineExpose({
           <ComboboxInput
             as="input"
             ref="inputRef"
-            class="mt-1 w-full rounded-sm border border-orange-900 border-opacity-[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
+            class="mt-1 w-full rounded-sm border border-orange-900/[12%] bg-orange-100 p-1 text-gray-900 outline-none ring-0 hover:bg-orange-100 focus:border-orange-900 focus:border-opacity-[12%] focus:ring-0"
             @change="query = $event.target.value"
             @keydown.enter.prevent.stop="close"
             @keydown.escape.prevent.stop="close"

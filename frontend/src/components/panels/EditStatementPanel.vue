@@ -70,7 +70,7 @@ const statementPath = computed(() => module.nodePathOf(statement.value?.id));
 <template>
   <div class="overflow-x-hidden bg-white">
     <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%] bg-white"
+      class="border-b border-orange-900/[12%] bg-white"
       :thing="statement"
       :actions="statementComponentRef?.actions ?? []"
       :editing="false /* not sure */"

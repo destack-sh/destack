@@ -81,7 +81,7 @@ defineExpose({
   <div class="relative flex flex-col" :style="{ minHeight: panelSize.height + 'px' }">
     <!-- Fixed inline header -->
     <PanelHeader
-      class="border-b border-orange-900 border-opacity-[12%] bg-gray-50"
+      class="border-b border-orange-900/[12%] bg-gray-50"
       :editing="false"
       :thing="run"
       :actions="terminalActions"

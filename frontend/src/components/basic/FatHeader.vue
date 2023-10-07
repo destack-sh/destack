@@ -8,7 +8,7 @@
   -->
   <!-- 36 == :GlobalHeaderHeight -->
   <header
-    class="static mx-auto flex w-full grid-cols-3 flex-row justify-between gap-8 overflow-y-visible border-b border-orange-900 border-opacity-[12%] bg-white 2xl:grid"
+    class="static mx-auto flex w-full grid-cols-3 flex-row justify-between gap-8 overflow-y-visible border-b border-orange-900/[12%] bg-white 2xl:grid"
   >
     <!-- Left side -->
     <div class="static flex items-center">

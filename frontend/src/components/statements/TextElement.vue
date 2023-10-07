@@ -2,12 +2,15 @@
 import AnnotatedText from "@/components/interfaces/AnnotatedText.vue";
 import type { StatementEmit, StatementProps } from "@/components/statements";
 import { useElementRefs } from "@/composables/useGrid";
+import { useNow } from "@/composables/useNow";
 import { StatementType } from "@/gql/graphql";
 import { useOperations } from "@/state/operations";
 import { newDynamicNodeKey } from "@/state/operations/statement";
 import { getStatementIconSolid } from "@/state/statement";
 import { syncProperty } from "@/utils/sync";
+import { SparklesIcon } from "@heroicons/vue/24/solid";
 import { AtSymbolIcon } from "@heroicons/vue/24/solid";
+import { DateTime } from "luxon";
 import { computed, nextTick, ref, watch, type Ref, type Component } from "vue";
 
 const props = defineProps<Pick<StatementProps, "statement" | "readonly" | "focused" | "editing">>();
@@ -72,18 +75,38 @@ type QuickAction = {
   label: string;
   icon: Component;
   action: () => void;
+  description?: string;
+  fat?: boolean;
+  highlight?: boolean;
 };
+const now = useNow(10000);
 const quickActions = computed(() => {
   if (
     !props.focused ||
     props.statement.type != StatementType.Text ||
-    (props.statement.headingLevel ?? 0) != 0 ||
     props.statement.name != null ||
     props.readonly ||
     textRef.value?.open
   )
     return [];
   const actions: QuickAction[] = [];
+  actions.push({
+    id: "implement",
+    label: "Assist",
+    description: "Draft this for me",
+    icon: SparklesIcon,
+    fat: true,
+    action: () => {
+      emit("launchAssist", "Continue from here");
+    },
+    // highlight if statement was just created (<1min ago)
+    highlight:
+      props.statement.createdAt != null &&
+      now.value.diff(DateTime.fromISO(props.statement.createdAt)).as("minutes") < 10,
+  });
+  if ((props.statement.headingLevel ?? 0) > 0) {
+    return actions; // no other actions for headings
+  }
   if (props.statement.name == null) {
     actions.push({
       id: "name",
@@ -186,28 +209,38 @@ defineExpose({
     <!-- TODO @UX: inline actions don't wrap properly when text overflows -->
     <div v-if="quickActions.length > 0 && focused && editing" class="relative inline-block">
       <div
-        class="absolute -top-[15px] z-20 flex animate-fadein-1500 flex-row gap-1.5 whitespace-nowrap transition-opacity"
+        class="absolute -bottom-[7px] z-20 flex animate-fadein-1000 flex-row gap-1.5 whitespace-nowrap text-sm font-normal transition-opacity"
         :class="[text.length == 0 ? 'ml-24' : 'ml-3' /* for 'type for text...' */]"
       >
         <button
           v-for="action in quickActions"
           :key="action.id"
           :ref="(ref: any) => quickActionsRefs.registerRef(action.id, ref)"
-          class="group relative flex h-fit max-h-fit flex-row items-center rounded-sm px-1 py-0.5 transition-colors duration-150 hover:bg-orange-100 focus:bg-orange-100 focus:outline-none"
+          class="group relative flex h-fit max-h-fit flex-row rounded-sm px-1 py-0.5 transition-colors duration-150 focus:outline-none"
+          :class="[
+            action.fat
+              ? ''
+              : 'text-gray-300 hover:bg-orange-100 hover:text-gray-500 focus:bg-orange-100 focus:text-gray-500',
+            action.fat && action.highlight
+              ? 'bg-orange-600 text-white ring-orange-600 hover:bg-orange-500 focus:bg-orange-500 '
+              : '',
+            action.fat && !action.highlight ? 'bg-gray-100 text-gray-400 hover:bg-orange-100 focus:bg-orange-100' : '',
+          ]"
           @click="action.action"
           @keydown.right.stop.prevent="quickActionsRefs.navigateRight(action.id)"
           @keydown.left.stop.prevent="quickActionsRefs.navigateLeft(action.id)"
         >
-          <component
-            :is="action.icon"
-            class="h-4 w-4 text-gray-300 transition-colors duration-150 group-hover:text-gray-500 group-focus:text-gray-500"
-          />
-          <!-- <span class="ml-2">{{ action.id }}</span> -->
+          <span class="mt-0.5">
+            <component :is="action.icon" class="h-4 w-4 transition-colors duration-150" />
+          </span>
+          <span v-if="action.fat" class="ml-1">
+            {{ action.label }}
+          </span>
           <!-- Label popover -->
           <span
             class="pointer-events-none absolute -left-1/2 top-6 z-10 whitespace-nowrap rounded-sm border border-orange-900 border-opacity-[15%] bg-white px-2 py-0.5 text-center text-xs text-gray-700 opacity-0 transition duration-150 group-focus-within:opacity-100 group-hover:opacity-100"
           >
-            {{ action.label }}
+            {{ action.description ?? action.label }}
           </span>
         </button>
       </div>

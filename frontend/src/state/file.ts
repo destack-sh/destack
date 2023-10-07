@@ -675,6 +675,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
 
   const selectionActions: Action<void>[] = [
     {
+      groupId: "edit-core",
       label: "Copy",
       icon: DocumentDuplicateIcon,
       hideInline: true,
@@ -684,6 +685,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       },
     },
     {
+      groupId: "edit-core",
       label: "Duplicate",
       icon: DocumentDuplicateIcon,
       hideInMenu: bench.readonly,
@@ -694,6 +696,7 @@ export function provideNavigationContext(file: Ref<FileContext | null>) {
       },
     },
     {
+      groupId: "edit-core",
       label: "Delete",
       icon: TrashIcon,
       hideInMenu: bench.readonly,
