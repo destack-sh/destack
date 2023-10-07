@@ -44,7 +44,7 @@ const inputFields = computed(
 const outputFields = computed(
   () => statement.value?.fields?.filter((t) => t.deletedAt == null && t.flags & TypeFlag.IsOutput) ?? []
 );
-const terminalActions = computed(() => {
+const actions = computed(() => {
   const actions: StatementAction[] = [
     {
       label: "Run",
@@ -182,7 +182,7 @@ defineExpose({
       class="border-b border-orange-900/[12%] bg-gray-50"
       :editing="false"
       :thing="statement"
-      :actions="terminalActions"
+      :actions="actions"
       :path="statementPath ?? []"
       :self="(statementPath?.length ?? 0) - 1"
     />

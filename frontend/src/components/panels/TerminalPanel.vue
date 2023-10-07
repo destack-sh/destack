@@ -8,7 +8,7 @@ import LogsTile from "@/components/tiles/LogsTile.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
 import { useAppearance } from "@/state/appearance";
-import { useBenchState, type PanelContext, TerminalPanel } from "@/state/bench";
+import { useBenchState, type PanelContext, TerminalPanel, type PanelAction } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import {
   SESSION_ACCESS_LEVELS,
@@ -167,7 +167,7 @@ defineExpose({
   <div class="relative flex flex-col" :style="{ height: panelSize.height + 'px' }">
     <!-- History -->
     <div
-      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto text-sm"
+      class="mx-auto flex max-h-full w-full max-w-full flex-1 overflow-y-auto overflow-x-hidden text-sm"
       :class="
         terminal.loading.value || terminal.totalCount.value == 0
           ? 'flex-col items-center justify-center'
@@ -180,13 +180,15 @@ defineExpose({
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
+      <!-- nocheckin: show text -> code task runs too -->
+      <!-- nocheckin: put text and code on separate lines/fields? -->
       <div
         v-for="{ run, code } in terminal.runs.value"
         :key="run.id"
         class="border-l-4 border-t border-orange-900/[15%] py-1.5"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
       >
-        <div class="mx-auto flex flex-col" :style="{ ...panel.contentWidthAsFixed }">
+        <div class="mx-auto flex flex-col" :style="{ ...panel.contentWidthAsMaxWidth }">
           <!-- Header -->
           <div class="flex flex-row items-start justify-between pl-3 pr-6 font-mono text-gray-400">
             <div class="flex flex-row">
@@ -221,8 +223,15 @@ defineExpose({
             </div>
           </div>
           <!-- Body -->
-          <div class="flex w-full flex-col pl-9 pr-4">
-            <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
+          <div class="flex w-full max-w-full flex-col pl-9 pr-4">
+            <MonacoEditor
+              :model-value="code"
+              wrap
+              readonly
+              hide-line-numbers
+              language="python"
+              :focused="panel.focused"
+            />
             <LogsTile
               v-if="expandedRunIds.includes(run.id)"
               :ref="(ref: any) => (logsTileRefs[run.id] = ref)"
@@ -312,6 +321,7 @@ defineExpose({
                 :focused="panel.focused"
                 language="python"
                 hide-line-numbers
+                wrap
                 enter-is-execute
                 @click.stop="emit('focus')"
                 @execute="run"

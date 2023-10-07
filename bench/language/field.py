@@ -212,6 +212,18 @@ class IsTyped(Node):
             tag = TYPE_TAG_BY_TYPE_HINT[self.hint]
             if self.tag != tag:
                 on_issue(self, f"expected {tag} for {self.hint} ({self.tag})", ["tag", "hint"])
+        if self.flags & TypeFlag.IsUnionWith:
+            if self.tag != TypeTag.TYPE_REFERENCE:
+                on_issue(
+                    self,
+                    f"expected reference for IsUnionWith ({self.tag})",
+                    ["tag", "reference", "flags"],
+                )
+        if self.flags & TypeFlag.IsSecret:
+            if self.hint != TypeHint.SECRET:
+                on_issue(
+                    self, f"expected secret hint for IsSecret ({self.hint})", ["hint", "flags"]
+                )
 
     @property
     def reference(self) -> Union["Statement", StatementReference, None]:
@@ -492,9 +504,11 @@ class HasFields(IsTyped):
             if field.tag == TypeTag.TYPE_REFERENCE and not isinstance(field.reference, Node):
                 HasReference._interp_inner(field, self)  # resolve reference
                 if not isinstance(field.reference, Node):
-                    continue  # ignore
+                    continue  # interp error, ignore
 
             if field.flags & TypeFlag.IsUnionWith:
+                if not isinstance(field.reference, Node):
+                    continue  # validation error, ignore
                 # inline fields from union-ed type to resolved fields
                 field.reference._resolve_fields(path)
                 for child in field.reference.resolved_fields:

@@ -92,6 +92,7 @@ function _useTerminal() {
   }
 
   function runCode(code: string, options: { scope?: string; accessLevel: SessionAccessLevel }) {
+    // nocheckin: run anonymous code with 'mend' tag (pass custom tags)
     return session.run(code, {
       scope: options.scope,
       rootValue: { name: "terminal", bot: TERMINAL_BOT_LABEL, code, scope: options.scope },
