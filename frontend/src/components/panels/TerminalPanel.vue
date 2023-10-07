@@ -22,7 +22,7 @@ import { useTerminal } from "@/state/terminal";
 import { IdentifierType, getUUIDFromGlobalID, toPyIdentifier } from "@/utils/functools";
 import { syncProperty } from "@/utils/sync";
 import { ChevronDoubleRightIcon, ChevronRightIcon } from "@heroicons/vue/24/outline";
-import { ArrowRightIcon, PlayIcon, StopIcon } from "@heroicons/vue/24/solid";
+import { ArrowRightIcon, PlayIcon, SparklesIcon, StopIcon } from "@heroicons/vue/24/solid";
 import { Bars3BottomLeftIcon, CodeBracketSquareIcon } from "@heroicons/vue/24/solid";
 import { nextTick, computed, ref, type Ref, watch } from "vue";
 
@@ -176,7 +176,6 @@ defineExpose({
           ? 'flex-col items-center justify-center'
           : 'flex-col-reverse'
       "
-      :style="{ ...panel.contentWidthAsFixed }"
     >
       <!-- Loading / empty state -->
       <div v-if="terminal.loading.value || terminal.totalCount.value == 0" class="self-center justify-self-center">
@@ -187,64 +186,68 @@ defineExpose({
       <div
         v-for="{ run, code } in terminal.runs.value"
         :key="run.id"
-        class="flex flex-col border-l-4 border-t border-orange-900/[15%] py-2"
+        class="border-l-4 border-t border-orange-900/[15%] py-1.5"
         :class="[run.status == RunStatus.Failed ? 'border-l-red-300 bg-red-100' : 'border-l-white bg-white']"
       >
-        <!-- Header -->
-        <div class="flex flex-row items-start justify-between pl-3 pr-6 font-mono text-gray-400">
-          <div class="flex flex-row">
-            <!-- Icon -->
-            <span class="py-0.5">
-              <ChevronDoubleRightIcon class="h-4 w-4" />
-            </span>
-            <!-- Scope -->
-            <span class="ml-2">
-              {{ module.path.value }}
-            </span>
-          </div>
-          <!-- Extra info & controls -->
-          <div class="flex select-none flex-row gap-1.5 text-gray-400">
-            <!-- Run ID -->
-            <button
-              class="font-mono underline-offset-2 hover:underline"
-              @click="bench.openViewRun(run, { focus: true })"
-              :class="[
-                !ACTIVE_RUN_STATUSES.includes(run.status) && run.status != RunStatus.Completed
-                  ? getRunStatusColor(run.status)
-                  : '',
-              ]"
-            >
-              <!-- Duration -->
-              <span v-if="run.startedAt != null" class="">
-                {{ session.getDurationFormatted(run) }}
+        <div class="mx-auto flex flex-col" :style="{ ...panel.contentWidthAsFixed }">
+          <!-- Header -->
+          <div class="flex flex-row items-start justify-between pl-3 pr-6 font-mono text-gray-400">
+            <div class="flex flex-row">
+              <!-- Icon -->
+              <span class="py-0.5">
+                <ChevronDoubleRightIcon class="h-4 w-4" />
               </span>
-              <!-- From -->
-              <span class="ml-1">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
-            </button>
+              <!-- Scope -->
+              <span class="ml-2">
+                {{ module.path.value }}
+              </span>
+            </div>
+            <!-- Extra info & controls -->
+            <div class="flex select-none flex-row gap-1.5 text-gray-400">
+              <!-- Run ID -->
+              <button
+                class="font-mono underline-offset-2 hover:underline"
+                @click="bench.openViewRun(run, { focus: true })"
+                :class="[
+                  !ACTIVE_RUN_STATUSES.includes(run.status) && run.status != RunStatus.Completed
+                    ? getRunStatusColor(run.status)
+                    : '',
+                ]"
+              >
+                <!-- Duration -->
+                <span v-if="run.startedAt != null" class="">
+                  {{ session.getDurationFormatted(run) }}
+                </span>
+                <!-- From -->
+                <span class="ml-1">{{ now.getTimeFromNowString(run.startedAt ?? run.createdAt) }}</span>
+              </button>
+            </div>
           </div>
-        </div>
-        <!-- Body -->
-        <div class="flex w-full flex-col pl-9 pr-4">
-          <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
-          <LogsTile
-            v-if="expandedRunIds.includes(run.id)"
-            :ref="(ref: any) => (logsTileRefs[run.id] = ref)"
-            :project-id="(bench.projectId as string)"
-            :project-version-id="(bench.projectVersionId as string)"
-            :run-id="run.id"
-            :session-id="run.session?.id"
-            hide-if-empty
-            hide-metadata
-            always-expand
-            :live="run.terminatedAt == null"
-            :class="[(logsTileRefs[run.id]?.logs?.length ?? 0) > 0 ? 'mt-1 border-t border-orange-900/[15%] py-1' : '']"
-          />
-          <ErrorTraceback
-            v-if="run.errorNice != null"
-            hide-preamble
-            :error-nice="run.errorNice"
-            class="mt-1 border-t border-orange-900/[15%] py-1"
-          />
+          <!-- Body -->
+          <div class="flex w-full flex-col pl-9 pr-4">
+            <MonacoEditor :model-value="code" readonly hide-line-numbers language="python" :focused="panel.focused" />
+            <LogsTile
+              v-if="expandedRunIds.includes(run.id)"
+              :ref="(ref: any) => (logsTileRefs[run.id] = ref)"
+              :project-id="(bench.projectId as string)"
+              :project-version-id="(bench.projectVersionId as string)"
+              :run-id="run.id"
+              :session-id="run.session?.id"
+              hide-if-empty
+              hide-metadata
+              always-expand
+              :live="run.terminatedAt == null"
+              :class="[
+                (logsTileRefs[run.id]?.logs?.length ?? 0) > 0 ? 'mt-1 border-t border-orange-900/[15%] py-1' : '',
+              ]"
+            />
+            <ErrorTraceback
+              v-if="run.errorNice != null"
+              hide-preamble
+              :error-nice="run.errorNice"
+              class="mt-1 border-t border-orange-900/[15%] py-1"
+            />
+          </div>
         </div>
       </div>
     </div>
@@ -289,10 +292,7 @@ defineExpose({
               @click="panel.toggleInputMode()"
               class="flex h-fit flex-row rounded-sm px-1 py-[2px] text-orange-600 hover:bg-orange-100"
             >
-              <component
-                :is="panel.inputMode == 'code' ? CodeBracketSquareIcon : Bars3BottomLeftIcon"
-                class="h-4 w-4"
-              />
+              <component :is="panel.inputMode == 'code' ? CodeBracketSquareIcon : SparklesIcon" class="h-4 w-4" />
             </button>
             <!-- Input -->
             <div class="relative ml-0.5 min-h-[22px] w-full">

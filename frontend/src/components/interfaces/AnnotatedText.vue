@@ -18,6 +18,7 @@ const props = defineProps<{
   modelValue: string;
   readonly?: boolean;
   supportedAnnotations?: ModuleObjectTypename[];
+  suppressShortcuts?: boolean;
   minimalMentions?: boolean;
   file?: { ck: string };
   statement?: { ck: string };
@@ -387,6 +388,7 @@ defineExpose({
   focusIfUnfocused,
   open: computed(() => insertingMentionAt.value != null),
   blur,
+  spans,
 });
 </script>
 <template>
@@ -401,7 +403,8 @@ defineExpose({
         :contenteditable="((readonly ? 'false' : 'plaintext-only') as any)"
         tabindex="-1"
         spellcheck="false"
-        class="mousetrap outline-none"
+        class="outline-none"
+        :class="suppressShortcuts ? '' : 'mousetrap'"
         @keydown.up.exact.prevent="onNavigateUp(span, i)"
         @keydown.down.exact.prevent="onNavigateDown(span, i)"
         @keydown.left="onNavigateLeft(span, i, $event)"
@@ -430,7 +433,7 @@ defineExpose({
         @keydown.backspace.prevent="onDelete(span, i, $event as KeyboardEvent)"
         @keydown.meta.enter.prevent="emit('toggleLanguage')"
         @keydown.alt.enter.prevent="emit('toggleLanguage')"
-        class="relative inline whitespace-nowrap rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
+        class="relative inline rounded-sm underline decoration-gray-300 underline-offset-4 ring-inset transition-colors duration-150 focus:border-0 focus:outline-none focus:ring-1"
         :class="[
           minimalMentions ? '' : '-my-0.5 mx-[1px] py-0.5  ',
           minimalMentions ? '' : 'hover:cursor-pointer',
@@ -452,11 +455,13 @@ defineExpose({
           class="absolute left-[1px] top-0.5 h-4 w-4"
           :class="[resolvedMentions[i].node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
         />
-        <span class="" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
+        <span class="max-w-full truncate" :class="[!minimalMentions && resolvedMentions[i] != null ? 'ml-[21px]' : '']">
           {{ resolvedMentions[i]?.name ?? "???" }}
         </span>
       </div>
     </template>
+
+    <!-- Popover -->
     <!-- Prevent scroll and capture click outside -->
     <div
       v-if="insertingMentionAt != null"
@@ -502,7 +507,7 @@ defineExpose({
               class="mr-2 h-4 w-4"
               :class="[mention.node.__typename == 'Field' ? 'text-yellow-500' : 'text-orange-600']"
             />
-            <span class="text-gray-900">{{ mention.name }}</span>
+            <span class="truncate text-gray-900">{{ mention.name }}</span>
           </span>
           <span class="truncate text-gray-400">{{ mention.path ?? "(builtin)" }}</span>
         </li>

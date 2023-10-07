@@ -118,7 +118,7 @@ defineExpose({
       class="h-full w-full select-none items-center group-hover:opacity-100"
     >
       <span class="text-gray-400" v-if="!editing"><EllipsisHorizontalIcon class="h-4 w-4" /></span>
-      <span class="text-gray-400" v-else>Press '/' for commands, type for text...</span>
+      <span class="text-gray-400" v-else>Press '/' for commands or just type...</span>
     </div>
     <!-- Command selection -->
     <Combobox

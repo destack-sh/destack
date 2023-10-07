@@ -5,6 +5,7 @@ import { computed, nextTick, ref, watch } from "vue";
 
 const props = defineProps<{
   modelValue: string;
+  suppressShortcuts?: boolean;
   readonly: boolean;
   regex?: string | RegExp | "name" | "description";
 }>();
@@ -192,7 +193,8 @@ defineExpose({
     ref="spanRef"
     tabindex="-1"
     spellcheck="false"
-    class="mousetrap outline-none"
+    class="outline-none"
+    :class="suppressShortcuts ? '' : 'mousetrap'"
     :contenteditable="(readonly ? 'false' : 'plaintext-only' as any)"
     @keydown.up.exact.prevent="emit('navigateUp')"
     @keydown.down.exact.prevent="emit('navigateDown')"

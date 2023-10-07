@@ -13,7 +13,7 @@ import { getStatementIconOutline, getStatementIconSolid } from "@/state/statemen
 import { CodeBracketIcon as CodeBracketIconOutline } from "@heroicons/vue/24/outline";
 import { CodeBracketIcon as CodeBracketIconSolid } from "@heroicons/vue/24/solid";
 import { StatementType, TypeTag } from "@/gql/graphql";
-import { EditFilePanel, useBenchState, type NavElement } from "@/state/bench";
+import { EditFilePanel, useBenchState, type NavElement, type StatementHeader } from "@/state/bench";
 
 export type TextMention = {
   type: "mention";
@@ -31,6 +31,23 @@ export type TextPlain = {
 };
 
 export type TextSpan = TextMention | TextPlain;
+
+export function makeTextMention(node: MentionableNode): TextMention {
+  return {
+    type: "mention",
+    id: uuidv4(),
+    referenceCk: node.ck,
+    referenceType: node.__typename as ModuleObjectTypename,
+  };
+}
+
+export function makeTextPlain(text: string): TextPlain {
+  return {
+    type: "text",
+    id: uuidv4(),
+    text,
+  };
+}
 
 // :TextFormat
 export const TEXT_MENTION_REGEX =
@@ -86,7 +103,7 @@ export function renderTextHtml(spans: TextSpan[]): string {
     .join("");
 }
 
-export type MentionableNode = Statement | File | Field;
+export type MentionableNode = StatementHeader | File | Field;
 
 export type Mentionable = {
   node: MentionableNode;
@@ -113,10 +130,21 @@ export function useTextMentions(
       if (span.type != "mention") continue;
       const reference = module.nodeOf(span.referenceCk) as MentionableNode | undefined;
       if (reference == null) continue;
+
+      // prefer actual name, but use text for statements if not set
+      let name = reference.name;
+      if (!name) {
+        if (reference.__typename == "Statement") {
+          name = reference.text?.replace(/<[^>]*>/g, "");
+        } else {
+          name = reference.__typename;
+        }
+      }
+
       mentions[i] = {
         node: reference,
         icon: getIconSolid(reference),
-        name: reference.name ?? undefined,
+        name: name ?? undefined,
         path: getPath(reference),
       };
     }
