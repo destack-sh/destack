@@ -302,6 +302,7 @@ defineExpose({
             </button>
             <!-- Input -->
             <div class="relative ml-0.5 min-h-[22px] w-full">
+              <!-- nocheckin: allow all text characters for 'rich text' tag (with mentions) -->
               <AnnotatedText
                 v-if="panel.inputMode == 'text'"
                 ref="inputRef"
