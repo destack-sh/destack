@@ -21,12 +21,14 @@ import { syncProperty } from "@/utils/sync";
 import { computed, nextTick, ref, watch, type Ref } from "vue";
 import VectorInput from "@/components/inputs/VectorInput.vue";
 import BusySpinnerIcon from "@/components/basic/BusySpinnerIcon.vue";
+import CodeInput from "@/components/inputs/CodeInput.vue";
 
 const INTERFACES: Record<string, any> = {
   "boolean.checkbox": CheckboxInput,
   "boolean.toggle": ToggleInput,
   "boolean.thumbs": ThumbsInput,
   string: StringInput,
+  "string.code": CodeInput,
   "string.short": ShortStringInput,
   number: NumberInput,
   "number.rating": RatingInput,

@@ -31,6 +31,7 @@ from bench.language.field import (
     IsTyped,
     Json,
     Key,
+    RichText,
     TypedDict,
     TypeError,
     Vector,
@@ -480,6 +481,13 @@ class EnumMapper(TypeMapper):
     def pack_value(self, type: HasFields, value: Any) -> Any:
         field_ = type.resolved_fields.get(value) if not isinstance(value, Field) else value
         return field_.key if field_ else value
+
+
+class RichTextMapper(TypeMapper):
+    def is_instance_type(self, py_type: type) -> bool:
+        return py_type is RichText
+
+    # nocheckin: implement rich text (with mentions, resolve in module?)
 
 
 class RemoteObjectMapper(TypeMapper):

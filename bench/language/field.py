@@ -102,6 +102,7 @@ DEFAULT_EMBEDDING_DIMENSION = 1536  # currently only support :FixedEmbeddingDime
 Vector = typing.NewType("Vector", list[float])
 Json = typing.NewType("Json", dict)
 Key = typing.NewType("Key", str)
+RichText = typing.NewType("RichText", str)
 
 
 @dataclass
