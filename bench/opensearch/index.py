@@ -196,7 +196,7 @@ def write_edits_to_os(
             ret = os_client.bulk(ops, refresh="" if refresh else False)
             if ret.get("errors"):
                 bad_items = [i for i in ret["items"] if i.get("index", {}).get("error")]
-                raise RuntimeError(f"failed to write edit to OpenSearch: {bad_items['items'][:5]}")
+                raise RuntimeError(f"failed to write edit to OpenSearch: {bad_items[:5]}")
 
         if field_mappings_dirty[0]:  # if needed, must happen before any other edit
             update_dynamic_field_mappings(project_v)
