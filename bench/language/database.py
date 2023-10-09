@@ -301,7 +301,7 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         node.parent = self._parent
         if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
@@ -312,7 +312,7 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         if _create and self._parent._session:
             self._parent.session.tracer.node_create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten_list(nodes)
         for record in nodes:
             self.append(record, _create=False, _trigger=_NC.Ignore)
@@ -321,12 +321,12 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         if _trigger:
             _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(self, node)
         node.parent = None
 
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete and self._parent.session:
             self._parent.session.tracer.node_truncate(self._parent, MNT.RECORD)
 

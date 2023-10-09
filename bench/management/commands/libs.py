@@ -16,7 +16,7 @@ from bench.language.edit import diff_modules
 from bench.language.libs import DEFAULT_MODULES
 from bench.language.module import NodeTree
 from bench.models import packer
-from bench.models.packer import DEFAULT_PACK_FILTER
+from bench.models.packer import DEFAULT_EXCLUDED, DEFAULT_PACK_FILTER, INTERP_MODEL_TYPES
 from bench.utils.utils import DEBUG, LOCAL, TEST
 
 logger = structlog.get_logger(__name__)
@@ -108,14 +108,16 @@ def _upsert_module(module_name: str, version: str, sanity_check: bool):
 
     blank_module = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
     blank_module_tree = wire.NodeTree(blank_module.nodes)
-    new_module = wire.pack_module(module, exclude=INTERP_NODE_TYPES)
+    new_module = wire.pack_module(module, exclude=set())
     edits = diff_modules(blank_module, new_module, project_id=project.id)
     packer.write_edits(project_v, blank_module_tree, edits, validate=False, refresh_index=False)
     project_v.commit()
 
     if sanity_check:
         # check: no issues after reload
-        new_module_loaded_data = packer.pack_module(project_v, filter=DEFAULT_PACK_FILTER)
+        new_module_loaded_data = packer.pack_module(
+            project_v, filter=DEFAULT_PACK_FILTER, excluded=DEFAULT_EXCLUDED + INTERP_MODEL_TYPES
+        )
         new_module_loaded = wire.unpack_module(new_module_loaded_data.nodes, session=None)
         if name != "symbolx.lib":
             new_module_loaded.add_dependency(symbolx_lib)
@@ -147,6 +149,7 @@ def _sanity_check_diff(
     other_module_bytes = Path(other_module_path).read_bytes()
     other_module_data = wire.deserialize_module(other_module_bytes)
     diff = diff_modules(new_module, other_module_data, project_id=project_id)
+    diff = [e for e in diff if e.mnt not in INTERP_NODE_TYPES]
 
     if diff:
         # get exact diff for debugging

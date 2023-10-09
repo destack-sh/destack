@@ -1027,36 +1027,10 @@ def _generate_symbolx_bench_file():
             text="Add text to describe non-trivial nodes, elaborate/simplify the input text with clear and concise language  ",
         ),
     )
-    generate_bench_code = Statement.new(
-        type=StatementType.TASK,
-        name="generate bench code",
-        text="Generate Python code to implement the given request in Bench",
-    )
-    generate_bench_code.children.extend(
-        Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
-        Statement.new(
-            StatementType.TEXT,
-            text="Check out the @sample_bench_code for syntax, but don't just copy it",
-        ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Keep it short and concise, but feel free to add additional useful stuff for broad requests",
-        ),
-        Statement.new(
-            StatementType.TEXT,
-            text="Append everything you create somewhere (with append or extend)",
-        ),
-        Statement.new(StatementType.TEXT, text="For top-level statements append to self.file"),
-    )
-    generate_bench_code.fields.extend(
-        Field.new("text", TypeTag.STRING, "user input"),
-        Field.new(
-            "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
-        ),
-    )
+
     sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
     sample_bench_code.fields.append(
-        Field.new(name=None, type=generate_bench_code, flags=TypeFlag.IsUnionWith)
+        Field.new(name=None, type="generate_bench_code", flags=TypeFlag.IsUnionWith)
     )
     sample_bench_code.records.extend(
         Record.new(
@@ -1196,6 +1170,33 @@ def _generate_symbolx_bench_file():
                 ")\n"
                 "self.file.extend(Entity, EntityType, extract_entities)"
             ),
+        ),
+    )
+    generate_bench_code = Statement.new(
+        type=StatementType.TASK,
+        name="generate bench code",
+        text="Generate Python code to implement the given request in Bench",
+    )
+    generate_bench_code.children.extend(
+        Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
+        Statement.new(
+            StatementType.TEXT,
+            text="Check out the @sample_bench_code for syntax, but don't just copy it",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Keep it short and concise, but feel free to add additional useful stuff for broad requests",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Append everything you create somewhere (with append or extend)",
+        ),
+        Statement.new(StatementType.TEXT, text="For top-level statements append to self.file"),
+    )
+    generate_bench_code.fields.extend(
+        Field.new("text", TypeTag.STRING, "user input"),
+        Field.new(
+            "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
         ),
     )
     file = File.new("bench")

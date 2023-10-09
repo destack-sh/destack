@@ -125,6 +125,7 @@ class Statement(ScopeNode, HasTags):
     def new(
         type: Union[str, StatementType, "_StatementProxy"] = None,
         name: str = None,
+        tag: TypeTag = None,
         *args,
         for_parent: Union["Statement", "File", None] = None,
         **kwargs,
@@ -136,9 +137,8 @@ class Statement(ScopeNode, HasTags):
         if not isinstance(type, StatementType):
             type = StatementType(type.lower())
         proxy = STATEMENT_CLASS_BY_TYPE[type]
-        if proxy.tag and "tag" not in kwargs:
-            kwargs["tag"] = proxy.tag
-        if proxy.flags:
+        kwargs["tag"] = tag or proxy.tag
+        if proxy.flags and "flags" not in kwargs:
             kwargs["flags"] = proxy.flags
         return Statement(type=type, name=name, *args, **kwargs)
 
@@ -147,12 +147,12 @@ class Statement(ScopeNode, HasTags):
         node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
     ) -> tuple[str, dict, dict]:
         if node.type == StatementType.TYPE:
-            init_name = Choice if node.tag == TypeTag.ENUM else Class
+            extra_kwargs = {"tag": node.tag}
         else:
-            init_name = node.type
+            extra_kwargs = {}
         return (
             "Statement.new",
-            {"type": init_name, "name": node.name},
+            {"type": node.type, "name": node.name, **extra_kwargs},
             dict_minus(props, "name", "type", "tag", "flags"),
         )
 
