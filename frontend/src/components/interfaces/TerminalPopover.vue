@@ -45,7 +45,7 @@ async function run() {
   discard();
   generating.value = true;
   try {
-    // nocheckin: allow cancel task here and in terminal panel
+    // nocheckin: allow cancel task in terminal popover/panel
     // clear input text from span references (ignore content)
     generatedFrom.value = inputText.value.replace(/<span.*?>/g, "").replace(/<\/span>/g, "");
     const { code } = await terminal.runText(inputText.value);

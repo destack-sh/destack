@@ -172,74 +172,74 @@ MNT = ModuleNodeType
 
 _MODULE_EDIT_MAP: dict[MET, tuple[MEK, MNT]] = {
     # Files
-    MET.BUMP_FILE: (MEK.BUMP, MNT.File),
-    MET.PASTE_FILE: (MEK.CREATE, MNT.File),
-    MET.CREATE_FILE: (MEK.CREATE, MNT.File),
-    MET.SOFT_DELETE_FILE: (MEK.DELETE, MNT.File),
-    MET.RESTORE_FILE: (MEK.CREATE, MNT.File),
-    MET.RENAME_FILE: (MEK.UPDATE, MNT.File),
-    MET.MOVE_FILE: (MEK.UPDATE, MNT.File),
-    MET.UPDATE_FILE: (MEK.UPDATE, MNT.File),
-    MET.DELETE_FILE: (MEK.DELETE, MNT.File),
+    MET.BUMP_FILE: (MEK.BUMP, MNT.FILE),
+    MET.PASTE_FILE: (MEK.CREATE, MNT.FILE),
+    MET.CREATE_FILE: (MEK.CREATE, MNT.FILE),
+    MET.SOFT_DELETE_FILE: (MEK.DELETE, MNT.FILE),
+    MET.RESTORE_FILE: (MEK.CREATE, MNT.FILE),
+    MET.RENAME_FILE: (MEK.UPDATE, MNT.FILE),
+    MET.MOVE_FILE: (MEK.UPDATE, MNT.FILE),
+    MET.UPDATE_FILE: (MEK.UPDATE, MNT.FILE),
+    MET.DELETE_FILE: (MEK.DELETE, MNT.FILE),
     # Statements
-    MET.BUMP_STATEMENT: (MEK.BUMP, MNT.Statement),
-    MET.PASTE_STATEMENT: (MEK.CREATE, MNT.Statement),
-    MET.CREATE_STATEMENT: (MEK.CREATE, MNT.Statement),
-    MET.SOFT_DELETE_STATEMENT: (MEK.DELETE, MNT.Statement),
-    MET.RESTORE_STATEMENT: (MEK.CREATE, MNT.Statement),
-    MET.MORPH_STATEMENT: (MEK.UPDATE, MNT.Statement),
-    MET.MOVE_STATEMENT: (MEK.UPDATE, MNT.Statement),
-    MET.RENAME_STATEMENT: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_STATEMENT: (MEK.UPDATE, MNT.Statement),
-    MET.DELETE_STATEMENT: (MEK.DELETE, MNT.Statement),
-    MET.UPDATE_STATEMENT_TEXT: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_STATEMENT_FLAGS: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_STATEMENT_HEADING_LEVEL: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_STATEMENT_REFERENCE: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_SYMBOL_text: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_SYMBOL_CODE: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_SYMBOL_MODIFIER: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_SYMBOL_LANGUAGE: (MEK.UPDATE, MNT.Statement),
-    MET.UPDATE_SYMBOL_VALUE: (MEK.UPDATE, MNT.Statement),
+    MET.BUMP_STATEMENT: (MEK.BUMP, MNT.STATEMENT),
+    MET.PASTE_STATEMENT: (MEK.CREATE, MNT.STATEMENT),
+    MET.CREATE_STATEMENT: (MEK.CREATE, MNT.STATEMENT),
+    MET.SOFT_DELETE_STATEMENT: (MEK.DELETE, MNT.STATEMENT),
+    MET.RESTORE_STATEMENT: (MEK.CREATE, MNT.STATEMENT),
+    MET.MORPH_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.MOVE_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.RENAME_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_STATEMENT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.DELETE_STATEMENT: (MEK.DELETE, MNT.STATEMENT),
+    MET.UPDATE_STATEMENT_TEXT: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_STATEMENT_FLAGS: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_STATEMENT_HEADING_LEVEL: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_STATEMENT_REFERENCE: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_SYMBOL_text: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_SYMBOL_CODE: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_SYMBOL_MODIFIER: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_SYMBOL_LANGUAGE: (MEK.UPDATE, MNT.STATEMENT),
+    MET.UPDATE_SYMBOL_VALUE: (MEK.UPDATE, MNT.STATEMENT),
     # Taggings
-    MET.CREATE_TAGGING: (MEK.CREATE, MNT.Tagging),
-    MET.UPDATE_TAGGING: (MEK.UPDATE, MNT.Tagging),
-    MET.DELETE_TAGGING: (MEK.DELETE, MNT.Tagging),
-    MET.SOFT_DELETE_TAGGING: (MEK.DELETE, MNT.Tagging),
-    MET.RESTORE_TAGGING: (MEK.CREATE, MNT.Tagging),
-    MET.MOVE_TAGGING: (MEK.UPDATE, MNT.Tagging),
-    MET.UPDATE_TAGGING_METADATA: (MEK.UPDATE, MNT.Tagging),
+    MET.CREATE_TAGGING: (MEK.CREATE, MNT.TAGGING),
+    MET.UPDATE_TAGGING: (MEK.UPDATE, MNT.TAGGING),
+    MET.DELETE_TAGGING: (MEK.DELETE, MNT.TAGGING),
+    MET.SOFT_DELETE_TAGGING: (MEK.DELETE, MNT.TAGGING),
+    MET.RESTORE_TAGGING: (MEK.CREATE, MNT.TAGGING),
+    MET.MOVE_TAGGING: (MEK.UPDATE, MNT.TAGGING),
+    MET.UPDATE_TAGGING_METADATA: (MEK.UPDATE, MNT.TAGGING),
     # Triggers
-    MET.CREATE_TRIGGER: (MEK.CREATE, MNT.Trigger),
-    MET.UPDATE_TRIGGER: (MEK.UPDATE, MNT.Trigger),
-    MET.DELETE_TRIGGER: (MEK.DELETE, MNT.Trigger),
-    MET.SOFT_DELETE_TRIGGER: (MEK.DELETE, MNT.Trigger),
-    MET.RESTORE_TRIGGER: (MEK.CREATE, MNT.Trigger),
+    MET.CREATE_TRIGGER: (MEK.CREATE, MNT.TRIGGER),
+    MET.UPDATE_TRIGGER: (MEK.UPDATE, MNT.TRIGGER),
+    MET.DELETE_TRIGGER: (MEK.DELETE, MNT.TRIGGER),
+    MET.SOFT_DELETE_TRIGGER: (MEK.DELETE, MNT.TRIGGER),
+    MET.RESTORE_TRIGGER: (MEK.CREATE, MNT.TRIGGER),
     # Fields
-    MET.CREATE_FIELD: (MEK.CREATE, MNT.Field),
-    MET.UPDATE_FIELD: (MEK.UPDATE, MNT.Field),
-    MET.RENAME_FIELD: (MEK.UPDATE, MNT.Field),
-    MET.UPDATE_FIELD_TEXT: (MEK.UPDATE, MNT.Field),
-    MET.UPDATE_FIELD_TYPE: (MEK.UPDATE, MNT.Field),
-    MET.UPDATE_FIELD_METADATA: (MEK.UPDATE, MNT.Field),
-    MET.MOVE_FIELD: (MEK.UPDATE, MNT.Field),
-    MET.DELETE_FIELD: (MEK.DELETE, MNT.Field),
-    MET.SOFT_DELETE_FIELD: (MEK.DELETE, MNT.Field),
-    MET.RESTORE_FIELD: (MEK.CREATE, MNT.Field),
+    MET.CREATE_FIELD: (MEK.CREATE, MNT.FIELD),
+    MET.UPDATE_FIELD: (MEK.UPDATE, MNT.FIELD),
+    MET.RENAME_FIELD: (MEK.UPDATE, MNT.FIELD),
+    MET.UPDATE_FIELD_TEXT: (MEK.UPDATE, MNT.FIELD),
+    MET.UPDATE_FIELD_TYPE: (MEK.UPDATE, MNT.FIELD),
+    MET.UPDATE_FIELD_METADATA: (MEK.UPDATE, MNT.FIELD),
+    MET.MOVE_FIELD: (MEK.UPDATE, MNT.FIELD),
+    MET.DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
+    MET.SOFT_DELETE_FIELD: (MEK.DELETE, MNT.FIELD),
+    MET.RESTORE_FIELD: (MEK.CREATE, MNT.FIELD),
     # Records
-    MET.TRUNCATE_RECORDS: (MEK.TRUNCATE, MNT.Record),
-    MET.CREATE_RECORD: (MEK.CREATE, MNT.Record),
-    MET.UPDATE_RECORD: (MEK.UPDATE, MNT.Record),
-    MET.DELETE_RECORD: (MEK.DELETE, MNT.Record),
-    MET.SOFT_DELETE_RECORD: (MEK.DELETE, MNT.Record),
-    MET.RESTORE_RECORD: (MEK.CREATE, MNT.Record),
+    MET.TRUNCATE_RECORDS: (MEK.TRUNCATE, MNT.RECORD),
+    MET.CREATE_RECORD: (MEK.CREATE, MNT.RECORD),
+    MET.UPDATE_RECORD: (MEK.UPDATE, MNT.RECORD),
+    MET.DELETE_RECORD: (MEK.DELETE, MNT.RECORD),
+    MET.SOFT_DELETE_RECORD: (MEK.DELETE, MNT.RECORD),
+    MET.RESTORE_RECORD: (MEK.CREATE, MNT.RECORD),
     # Interp
-    MET.TRUNCATE_ISSUES: (MEK.TRUNCATE, MNT.Issue),
-    MET.CREATE_ISSUE: (MEK.CREATE, MNT.Issue),
-    MET.DELETE_ISSUE: (MEK.DELETE, MNT.Issue),
-    MET.TRUNCATE_RESOLVED_FIELDS: (MEK.TRUNCATE, MNT.ResolvedField),
-    MET.CREATE_RESOLVED_FIELD: (MEK.CREATE, MNT.ResolvedField),
-    MET.DELETE_RESOLVED_FIELD: (MEK.DELETE, MNT.ResolvedField),
+    MET.TRUNCATE_ISSUES: (MEK.TRUNCATE, MNT.ISSUE),
+    MET.CREATE_ISSUE: (MEK.CREATE, MNT.ISSUE),
+    MET.DELETE_ISSUE: (MEK.DELETE, MNT.ISSUE),
+    MET.TRUNCATE_RESOLVED_FIELDS: (MEK.TRUNCATE, MNT.RESOLVED_FIELD),
+    MET.CREATE_RESOLVED_FIELD: (MEK.CREATE, MNT.RESOLVED_FIELD),
+    MET.DELETE_RESOLVED_FIELD: (MEK.DELETE, MNT.RESOLVED_FIELD),
 }
 
 # assert that all edits are in the map
@@ -395,7 +395,7 @@ class ModuleEditor:
 
         if isinstance(node, wire.StatementData):
             statement_id = node.id
-            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, MNT.File).id
+            file_id = self.file_id or self.tree.get_ancestor(node.parent_id, MNT.FILE).id
         elif isinstance(node, wire.FileData):
             statement_id = None
             file_id = node.id
@@ -406,12 +406,12 @@ class ModuleEditor:
             if self.statement_id:
                 statement_id = self.statement_id
             else:
-                statement = self.tree.get_ancestor(node.parent_id, MNT.Statement)
+                statement = self.tree.get_ancestor(node.parent_id, MNT.STATEMENT)
                 statement_id = statement.id if statement else None
             if self.file_id:
                 file_id = self.file_id
             else:
-                file_id = self.tree.get_ancestor(node.parent_id, MNT.File).id
+                file_id = self.tree.get_ancestor(node.parent_id, MNT.FILE).id
         edit = EditData(
             type=type,
             project_version_id=self.module_id,
@@ -611,7 +611,7 @@ def diff_modules(
     new_tree = NodeTree(new_module.nodes)
 
     for new_node in new_tree.walk_bfs():
-        if new_node.mnt == ModuleNodeType.Module:
+        if new_node.mnt == ModuleNodeType.MODULE:
             continue  # ignore module itself
         if new_node.id not in old_tree.nodes_by_id:
             editor.create(new_node)
@@ -620,7 +620,7 @@ def diff_modules(
             if not new_node.equals_content(old_node):
                 editor.update(new_node)
     for old_node in old_tree.walk_bfs():
-        if old_node.mnt == ModuleNodeType.Module:
+        if old_node.mnt == ModuleNodeType.MODULE:
             continue
         if old_node.id not in new_tree.nodes_by_id:
             editor.delete(old_node)
@@ -634,12 +634,14 @@ def diff_modules(
 
 
 def render(
-    *things: list[Edit] | EditBundle | list["Node"] | Node, target="python"
+    *things: list[Edit] | EditBundle | list["Node"] | Node, target="python", record_limit: int = 100
 ) -> Optional[str]:
     """
     Renders edits or nodes to code in a language.
     Nodes are coerced into create edits with all descendants.
     """
+    from bench.language.database import HasDatabase
+    from bench.language.statement import Statement
 
     # coerce to edit bundle
     things = list(things)
@@ -655,6 +657,16 @@ def render(
             for node in nodes:
                 tree = node._local_root_tree
                 descendants = list(node._walk_rec())
+                # add records to descendants for databases
+                if HasDatabase in node._components:
+                    descendants.extend(node.records.limit(record_limit))
+                # descendants share file id
+                if isinstance(node, Statement):
+                    file = node.file.id
+                    statement = node.id
+                else:
+                    file = None
+                    statement = None
                 for n in descendants:
                     if n.ck in seen_node_cks or n.mnt in INTERP_NODE_TYPES:
                         continue
@@ -663,8 +675,8 @@ def render(
                         type=EditType(f"CREATE_{n.mnt.caps_name}"),
                         module=n.module,
                         node=n,
-                        file=tree.get_ancestor(n.ck, MNT.File),
-                        statement=tree.get_ancestor(n.ck, MNT.Statement),
+                        file=file or tree.get_ancestor(n.ck, MNT.FILE),
+                        statement=statement or tree.get_ancestor(n.ck, MNT.STATEMENT),
                     )
                     things.append(edit)
         things = EditBundle(things)
@@ -679,7 +691,10 @@ def render(
 
 
 def _render_prop(node: Node, name: str, value: Any) -> str:
-    """Render a non-relational prop (may be a reference, but not a parent/child relation)"""
+    """
+    Render a non-relational prop (may be a reference, but not a parent/child relation).
+    TODO @Broken: _render_prop recursively (see typing)
+    """
     from bench.language.remote import RemoteObject, Secret
     from bench.language.typing import pack_value
     from bench.language.value import HasValue
@@ -808,7 +823,7 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                     if not p.children_flags & NRel.Flat
                 )
                 parent_str = f"{node.parent.py_ident}.{attach_to_prop.name}"
-                if node.mnt in (MNT.Record, MNT.Tagging, MNT.Trigger):
+                if node.mnt in (MNT.RECORD, MNT.TAGGING, MNT.TRIGGER):
                     op = _Op(parent_str, _OpType.CREATE, [init_node])
                 else:
                     op = _Op(parent_str, _OpType.APPEND, [init_node])
@@ -844,23 +859,27 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 # merge args into kwargs
                 init_kwargs = {**init_args, **init_kwargs}
                 init_args.clear()
+
+            # inline record value (see Record.new)
+            if n.mnt == MNT.RECORD:
+                kwargs_str = _sep(
+                    f"{k}={_render_prop(n._type_of_value, k, v)}" for k, v in n.value.items() if v
+                )
+                nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
+                continue
+
             args_str = _sep(_render_prop(n, k, v) for k, v in init_args.items() if v)
             kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
-            if op == "create" and len(nodes) == 1:
+            if op == _OpType.CREATE and len(nodes) == 1:
                 nodes_strs.append(f"{_sep(args_str, kwargs_str)}")
-            elif op == "create":
-                nodes_strs.append(f"dict({kwargs_str})")
-            elif op == "append":
+            else:
                 nodes_strs.append(f"{init_name}({_sep(args_str, kwargs_str)})")
 
         # join them into merged line
         nodes_str = _sep(nodes_strs)
-        if op == "create":
-            if len(nodes) == 1:
-                lines.append(f"{target}.create({nodes_str})")
-            else:
-                lines.append(f"{target}.create_many({nodes_str})")
-        elif op == "append":
+        if op == _OpType.CREATE and len(nodes) == 1:
+            lines.append(f"{target}.create({nodes_str})")
+        else:
             if len(nodes) == 1:
                 lines.append(f"{target}.append({nodes_str})")
             else:

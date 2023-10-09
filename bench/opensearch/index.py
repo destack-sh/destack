@@ -152,7 +152,7 @@ OS_SEMANTIC_FIELD_EDIT = {
     MET.CREATE_RESOLVED_FIELD,
 }
 
-BENCH_INDEXED_MNTS = (MNT.Record,)
+BENCH_INDEXED_MNTS = (MNT.RECORD,)
 BENCH_INDEXED_MODELS = (models.Record,)
 
 
@@ -209,7 +209,7 @@ def write_edits_to_os(
             field_mappings_dirty[0] = True
 
         index = bench_index if e.type.mnt in BENCH_INDEXED_MNTS else global_index
-        if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.Record:
+        if e.type.kind == MEK.TRUNCATE and e.mnt == MNT.RECORD:
             _flush()  # unfortunately can't be batched with the other operations
             os_client.delete_by_query(
                 index=index, body={"query": {"term": {"statement_key": e.node.key}}}

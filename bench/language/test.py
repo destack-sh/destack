@@ -24,9 +24,9 @@ def test_pyident():
 def test_parse_text():
     spans = [
         TextPlain(text="Hello "),
-        TextMention.from_reference(TypedNodeReference(MNT.Field, uuid4())),
+        TextMention.from_reference(TypedNodeReference(MNT.FIELD, uuid4())),
         TextPlain(text=", it's "),
-        TextMention.from_reference(TypedNodeReference(MNT.Statement, uuid4()), path=".xyz"),
+        TextMention.from_reference(TypedNodeReference(MNT.STATEMENT, uuid4()), path=".xyz"),
         TextPlain(text="!"),
     ]
     rendered = render_text_html(spans)
@@ -38,9 +38,9 @@ def test_patch_text():
     statement_ck = uuid4()
     spans = [
         TextPlain(text="Hello "),
-        TextMention.from_reference(TypedNodeReference(MNT.Field, uuid4())),
+        TextMention.from_reference(TypedNodeReference(MNT.FIELD, uuid4())),
         TextPlain(text=", it's "),
-        TextMention.from_reference(TypedNodeReference(MNT.Statement, statement_ck), path=".xyz"),
+        TextMention.from_reference(TypedNodeReference(MNT.STATEMENT, statement_ck), path=".xyz"),
         TextPlain(text="!"),
     ]
     new_statement_ck = uuid4()

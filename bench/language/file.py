@@ -20,16 +20,16 @@ if TYPE_CHECKING:
     from bench.language.statement import Statement
 
 
-@node(mnt=MNT.File, passthrough=(("statements", _Passthrough.Full),))
+@node(mnt=MNT.FILE, passthrough=(("statements", _Passthrough.Full),))
 class File(ScopeNode, HasTags):
-    parent: Union["File", Module] = nparent(MNT.File, MNT.Module)
+    parent: Union["File", Module] = nparent(MNT.FILE, MNT.MODULE)
     name: str | None = nproperty(validate=validate_name)
 
     children: NodeList[Union["File", "Statement"]] = nchildren(
-        MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
+        MNT.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named | NRel.Scoped
     )
     statements: NodeList["Statement"] = nchildren(
-        MNT.Statement, NRel.Flat | NRel.Ordered | NRel.Named
+        MNT.STATEMENT, NRel.Flat | NRel.Ordered | NRel.Named
     )
 
     @staticmethod
@@ -49,7 +49,7 @@ class File(ScopeNode, HasTags):
         elif isinstance(self.parent, File):
             return f"{self.parent.path}.{self.py_ident}"
         else:
-            return self.py_ident  # detached file
+            return f"<detached>.{self.py_ident}"
 
     @property
     def py_ident(self) -> Optional[str]:

@@ -215,7 +215,7 @@ def parse_text_simple(text_raw: str) -> list[TextSpan]:
         path = match.group("path")
         spans.append(
             TextMention(
-                reference=TypedNodeReference(ModuleNodeType.Statement, path), reference_path=None
+                reference=TypedNodeReference(ModuleNodeType.STATEMENT, path), reference_path=None
             )
         )
 

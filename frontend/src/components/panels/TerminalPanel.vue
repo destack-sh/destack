@@ -7,7 +7,6 @@ import PanelHeader from "@/components/panels/PanelHeader.vue";
 import LogsTile from "@/components/tiles/LogsTile.vue";
 import { formatDuration, useTimeFromNow } from "@/composables/useNow";
 import { RunStatus } from "@/gql/graphql";
-import { useAppearance } from "@/state/appearance";
 import { useBenchState, type PanelContext, TerminalPanel, type PanelAction } from "@/state/bench";
 import { useCurrentModule } from "@/state/module";
 import {
@@ -180,8 +179,8 @@ defineExpose({
         <span v-else class="text-gray-500">No terminal history</span>
       </div>
       <!-- Previous runs -->
-      <!-- nocheckin: show text -> code task runs too -->
-      <!-- nocheckin: put text and code on separate lines/fields? -->
+      <!-- TODO @UX: show text -> code task runs too -->
+      <!-- TODO @UX: put text and code on separate lines/fields? -->
       <div
         v-for="{ run, code } in terminal.runs.value"
         :key="run.id"

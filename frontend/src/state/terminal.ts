@@ -12,7 +12,7 @@ export type TerminalRun = {
   run: Run;
 };
 export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
-const TERMINAL_TEXT_TO_CODE_TASK = "6d6ae26f-959b-4482-a0a3-74b88577701d"; // nocheckin: use task from std (maybe configurable for debugging)
+const TERMINAL_TEXT_TO_CODE_TASK = "e60b4b11-cb6b-4aca-9f4f-d9fcc001b743"; // nocheckin: use task from std (maybe configurable for debugging)
 
 function _useTerminal() {
   const session = useCurrentSessions();

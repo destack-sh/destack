@@ -14,19 +14,20 @@ from uuid import UUID
 import anthropic
 import openai
 
-from bench.language import HasRun, HasText, Module, Run, RunError
+from bench.language import File, HasRun, HasText, Module, Record, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
     RunStatus,
     StatementType,
     TypeFlag,
+    TypeHint,
     TypeTag,
     new_dynamic_node_key,
 )
 from bench.language.field import Field, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
-from bench.language.module import ScopeNode, get_node_id
+from bench.language.module import Node, ScopeNode, get_node_id
 from bench.language.reference import ModuleView
 from bench.language.reflect import (
     _derive_constant_key,
@@ -39,7 +40,7 @@ from bench.language.reflect import (
     x_task,
 )
 from bench.language.remote import RemoteObject
-from bench.language.statement import Model, Statement, Task, Type
+from bench.language.statement import Blank, Model, Statement, Task, Type
 from bench.language.task import (
     CompiledInput,
     IncapableError,
@@ -975,6 +976,243 @@ class AnthropicTextCompiler(BaseTextTaskCompiler):
             raise TaskError(TaskErrorType.InvalidFormat, model, f"unknown action {action}")
 
 
+def _generate_symbolx_bench_file():
+    """
+    Generated from flotothemoon/bench.
+    TODO @Cleanup @Architecture: move symbolx.lib.bench into Bench proper
+     (can't right now because all libs are wholly generated from code here)
+    """
+    bench_description = Statement.new(
+        type=StatementType.TEXT,
+        name="Bench description",
+        text="Bench is a development platform for bots",
+    )
+    bench_description.children.extend(
+        Statement.new(
+            StatementType.TEXT,
+            text="All components of a Bench bot use common building blocks, mainly Statements",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc. and are organized into Files",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Users typically build bots to automate information extraction, analysis and integration",
+        ),
+    )
+    idiomatic_bench = Statement.new(
+        type=StatementType.TEXT,
+        name="Idiomatic Bench",
+        text="Use existing Bench features as an idiomatic, senior Bench developer",
+    )
+    idiomatic_bench.children.extend(
+        Statement.new(
+            StatementType.TEXT,
+            text="Use tasks for any ML tasks (no libraries!), and non-trivial extraction, analysis or processing",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Use code when there's something procedural or commonly done in code (incl. to call code/tasks)",
+        ),
+        Statement.new(
+            StatementType.TEXT, text="Use Class and Choice types for reusable type system"
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text='Pass references directly if they\'re already defined, by name string (\\"Reference\\") otherwise',
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Add text to describe non-trivial nodes, elaborate/simplify the input text with clear and concise language  ",
+        ),
+    )
+    generate_bench_code = Statement.new(
+        type=StatementType.TASK,
+        name="generate bench code",
+        text="Generate Python code to implement the given request in Bench",
+    )
+    generate_bench_code.children.extend(
+        Statement.new(StatementType.TEXT, text="See @bench_description and @idiomatic_bench"),
+        Statement.new(
+            StatementType.TEXT,
+            text="Check out the @sample_bench_code for syntax, but don't just copy it",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Keep it short and concise, but feel free to add additional useful stuff for broad requests",
+        ),
+        Statement.new(
+            StatementType.TEXT,
+            text="Append everything you create somewhere (with append or extend)",
+        ),
+        Statement.new(StatementType.TEXT, text="For top-level statements append to self.file"),
+    )
+    generate_bench_code.fields.extend(
+        Field.new("text", TypeTag.STRING, "user input"),
+        Field.new(
+            "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
+        ),
+    )
+    sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
+    sample_bench_code.fields.append(
+        Field.new(name=None, type=generate_bench_code, flags=TypeFlag.IsUnionWith)
+    )
+    sample_bench_code.records.extend(
+        Record.new(
+            text="extract PDFs",
+            code=(
+                'DocumentPage = Statement.new(Class, name="DocumentPage")\n'
+                "DocumentPage.fields.extend(\n"
+                '    Field.new("number", TypeTag.NUMBER),\n'
+                '    Field.new("text", TypeTag.STRING, "raw text from a specific page"),\n'
+                ")\n"
+                "extract_paper_pages = Statement.new(\n"
+                "    type=StatementType.CODE,\n"
+                '    name="extract paper pages",\n'
+                "    code=(\n"
+                '        "from pypdf import PdfReader\\n"\n'
+                '        "\\n"\n'
+                '        "reader = PdfReader(paper.io())\\n"\n'
+                '        "pages = []\\n"\n'
+                '        "for i, page in enumerate(reader.pages):\\n"\n'
+                '        "    text = page.extract_text()\\n"\n'
+                '        "    pages.append(DocumentPage(text=text, number=i))\\n"\n'
+                '        "return dict(pages=pages)\\n"\n'
+                "    ),\n"
+                ")\n"
+                "extract_paper_pages.fields.extend(\n"
+                '    Field.new("paper", TypeTag.FILE),\n'
+                "    Field.new(\n"
+                '        "pages", "DocumentPage", flags=TypeFlag.IsOutput | TypeFlag.IsArray\n'
+                "    ),\n"
+                ")\n"
+                "self.file.extend(DocumentPage, extract_paper_pages)"
+            ),
+        ),
+        Record.new(
+            text="create variable (for config/secret)",
+            code=(
+                'config = Statement.new(StatementType.VARIABLE, name="config", value={"email": "florian@symbolx.com"})\n'
+                "config.fields.extend(\n"
+                '    Field.new("email", TypeHint.EMAIL),\n'
+                '    Field.new("producthunt token", TypeHint.SECRET, flags=TypeFlag.IsOptional | TypeFlag.IsSecret),\n'
+                '    Field.new("gh token", TypeHint.SECRET, flags=TypeFlag.IsOptional | TypeFlag.IsSecret),\n'
+                '    Field.new("last fetched", TypeHint.DATETIME),\n'
+                '    Field.new("last sent", TypeHint.DATETIME),\n'
+                ")\n"
+                "self.file.extend(config)"
+            ),
+        ),
+        Record.new(
+            text="add to current file",
+            code=(
+                "Entity = ...\n"
+                "classify_entity = ...\n"
+                "self.file.statements.extend(Entity, classify_entity)"
+            ),
+        ),
+        Record.new(
+            text="schedule code with a trigger",
+            code=(
+                "code.triggers.append(Trigger.time('0 */2 * * *'))\n"
+                "# or\n"
+                "code.triggers.append(Trigger.time(60*60*2))"
+            ),
+        ),
+        Record.new(
+            text="bot idea generator",
+            code=(
+                'BotIdea = Statement.new(Class, name="BotIdea", text="An idea for a Bench bot :)")\n'
+                "BotIdea.fields.extend(\n"
+                '    Field.new("name", TypeHint.NAME),\n'
+                '    Field.new("description", TypeTag.STRING, "1-2 line concise description"),\n'
+                ")\n"
+                'example_bots = Statement.new(Database, name="example bots")\n'
+                "example_bots.fields.append(Field.new(BotIdea, flags=TypeFlag.IsUnionWith))\n"
+                "generate_bot_ideas = Statement.new(\n"
+                "    type=Task,\n"
+                '    name="generate bot ideas", \n'
+                '    text="Generate 3 bot ideas for someone to build with Bench"\n'
+                ")\n"
+                "generate_bot_ideas.children.extend(\n"
+                "    Text.new(\n"
+                '        text="See the @example_bots for inspiration",\n'
+                "    ),\n"
+                '    Text.new(text="Feel free to be inspired but don\'t just copy from the @example_bots"),\n'
+                "    Text.new(text=\"Keep it concise and don't include 'bot' in the @name \"),\n"
+                '    Text.new(text="The bots should be specific and useful (or at least funny)"),\n'
+                ")\n"
+                "generate_bot_ideas.fields.extend(\n"
+                '    Field.new("notes", TypeTag.STRING, "any additional info by the user"),\n'
+                '    Field.new("ideas", "BotIdea", flags=TypeFlag.IsOutput | TypeFlag.IsArray),\n'
+                ")\n"
+                'generate_bot_ideas.tags.create("randomize")\n'
+                "self.file.extend(BotIdea, example_bots, generate_bot_ideas)\n"
+            ),
+        ),
+        Record.new(
+            text="use variable / secret",
+            code=(
+                "# use a variable like \n"
+                "config.email\n"
+                "# or\n"
+                "config.value.email\n"
+                "\n"
+                "# and for secrets\n"
+                "config.gh_token.reveal()\n"
+                "\n"
+                "# and for files\n"
+                "config.file.read()"
+            ),
+        ),
+        Record.new(
+            text="classic NER",
+            code=(
+                'Entity = Statement.new(Class, name="Entity")\n'
+                "Entity.fields.extend(\n"
+                '    Field.new("name", TypeHint.NAME, "the canonical name"), Field.new("entity type", "EntityType")\n'
+                ")\n"
+                'EntityType = Statement.new(Choice, name="EntityType", text="A classic @Entity type")\n'
+                "EntityType.fields.extend(\n"
+                '    Field.literal("Organization"),\n'
+                '    Field.literal("Person", "real or fictional"),\n'
+                '    Field.literal("Product"),\n'
+                '    Field.literal("Company", "prefer @Company if the @Organization is commercial"),\n'
+                '    Field.literal("Location", "including but not limited to physical/geographic"),\n'
+                '    Field.literal("Date", "or time"),\n'
+                '    Field.literal("Other", "if nothing else makes sense"),\n'
+                ")\n"
+                "extract_entities = Statement.new(\n"
+                "    type=Task,\n"
+                '    name="extract entities",\n'
+                '    text="Extract any relevant @Entity instances mentioned in the text (deduplicated)",\n'
+                ")\n"
+                "extract_entities.fields.extend(\n"
+                '    Field.new("text", TypeTag.STRING),\n'
+                "    Field.new(\n"
+                '        "entities", Entity, flags=TypeFlag.IsOutput | TypeFlag.IsArray\n'
+                "    ),\n"
+                ")\n"
+                "self.file.extend(Entity, EntityType, extract_entities)"
+            ),
+        ),
+    )
+    file = File.new("bench")
+    file.statements.extend(
+        bench_description,
+        idiomatic_bench,
+        Blank.new(),
+        sample_bench_code,
+        Blank.new(),
+        generate_bench_code,
+    )
+    return file
+
+
+_symbolx_bench = _generate_symbolx_bench_file()
+symbolx_lib.files.append(_symbolx_bench)
+
 DEFAULT_MODULES: dict[str, Module] = {
     "symbolx.lib": symbolx_lib,
     "openai.lib": openai_lib,
@@ -988,10 +1226,18 @@ for name, module in DEFAULT_MODULES.items():
 
     # assign stable cks / versioned ids
     nodes = [n for n in module._walk_rec() if n.mnt not in INTERP_NODE_TYPES]
+    node_by_path: dict[str, Node] = {}
     for node in nodes:
         if isinstance(node, Module):
             continue  # already assigned in builtin
-        node.ck = _derive_constant_key(node.path)
+        if not node.name:
+            path = node.parent.path + ":" + node.order_key
+        else:
+            path = node.path
+        if path in node_by_path:
+            raise ValueError(f"node path conflict for '{path}': {node!r} vs {node_by_path[path]!r}")
+        node.ck = _derive_constant_key(path)
+        node_by_path[path] = node
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, Field):
             node.key = new_dynamic_node_key(node.ck)

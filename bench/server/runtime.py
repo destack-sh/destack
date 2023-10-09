@@ -865,7 +865,7 @@ class RuntimeHost:
             for mnt in INTERP_NODE_TYPES:
                 interp_mut.truncate(module_data, mnt, apply=False)
             for node in self.module._nodes:
-                if node.mnt == MNT.Issue or isinstance(node, ResolvedField) and node._is_foreign:
+                if node.mnt == MNT.ISSUE or isinstance(node, ResolvedField) and node._is_foreign:
                     interp_mut.create(node, apply=False)
             interp_edits = interp_mut.edits
         else:

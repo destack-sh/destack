@@ -310,7 +310,7 @@ def unpack_node_flat(data: NodeDataT, parent: Optional[NodeT] = None) -> list[No
     return unpacked
 
 
-@node_packer(MNT.Module, wire.ModuleData, models.ProjectVersion)
+@node_packer(MNT.MODULE, wire.ModuleData, models.ProjectVersion)
 class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
     def walk(self, nodes: list[models.ProjectVersion], tree: PackContext) -> list[QuerySet[Model]]:
         return [models.File.objects.filter(project_version__in=nodes)]
@@ -330,7 +330,7 @@ class ModulePacker(NodePacker[wire.ModuleData, models.ProjectVersion]):
         )
 
 
-@node_packer(MNT.File, wire.FileData, models.File)
+@node_packer(MNT.FILE, wire.FileData, models.File)
 class FilePacker(NodePacker[wire.FileData, models.File]):
     def walk(self, nodes: list[models.File], tree: PackContext) -> list[QuerySet[Model]]:
         return [
@@ -367,7 +367,7 @@ class FilePacker(NodePacker[wire.FileData, models.File]):
         )
 
 
-@node_packer(MNT.Statement, wire.StatementData, models.Statement)
+@node_packer(MNT.STATEMENT, wire.StatementData, models.Statement)
 class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
     def walk(self, nodes: list[models.Statement], tree: "PackContext") -> list[QuerySet[Model]]:
         return [
@@ -435,7 +435,7 @@ class StatementPacker(NodePacker[wire.StatementData, models.Statement]):
         )
 
 
-@node_packer(MNT.Field, wire.FieldData, models.Field)
+@node_packer(MNT.FIELD, wire.FieldData, models.Field)
 class FieldPacker(NodePacker[wire.FieldData, models.Field]):
     def pack(self, field: models.Field) -> wire.FieldData:
         return wire.FieldData(
@@ -475,7 +475,7 @@ class FieldPacker(NodePacker[wire.FieldData, models.Field]):
         )
 
 
-@node_packer(MNT.Trigger, wire.TriggerData, models.Trigger)
+@node_packer(MNT.TRIGGER, wire.TriggerData, models.Trigger)
 class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
     def pack(self, trigger: models.Trigger) -> wire.TriggerData:
         return wire.TriggerData(
@@ -515,7 +515,7 @@ class TriggerPacker(NodePacker[wire.TriggerData, models.Trigger]):
         )
 
 
-@node_packer(MNT.Tagging, wire.TaggingData, models.Tagging)
+@node_packer(MNT.TAGGING, wire.TaggingData, models.Tagging)
 class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
     def pack(self, tagging: models.Tagging) -> wire.TaggingData:
         return wire.TaggingData(
@@ -543,7 +543,7 @@ class TaggingPacker(NodePacker[wire.TaggingData, models.Tagging]):
         )
 
 
-@node_packer(MNT.Record, wire.RecordData, models.Record)
+@node_packer(MNT.RECORD, wire.RecordData, models.Record)
 class RecordPacker(NodePacker[wire.RecordData, models.Record]):
     def pack(self, record: models.Record) -> wire.RecordData:
         return wire.RecordData(
@@ -577,7 +577,7 @@ class RecordPacker(NodePacker[wire.RecordData, models.Record]):
 # interp module data
 
 
-@node_packer(MNT.Issue, wire.IssueData, models.Issue)
+@node_packer(MNT.ISSUE, wire.IssueData, models.Issue)
 class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
     def pack(self, issue: models.Issue) -> wire.IssueData:
         return wire.IssueData(
@@ -618,7 +618,7 @@ class IssuePacker(NodePacker[wire.IssueData, models.Issue]):
         )
 
 
-@node_packer(MNT.ResolvedField, wire.ResolvedFieldData, models.ResolvedField)
+@node_packer(MNT.RESOLVED_FIELD, wire.ResolvedFieldData, models.ResolvedField)
 class ResolvedFieldPacker(NodePacker[wire.ResolvedFieldData, models.ResolvedField]):
     def pack(self, resolved_field: models.ResolvedField) -> wire.ResolvedFieldData:
         return wire.ResolvedFieldData(
@@ -945,7 +945,7 @@ def write_edits(
                     # need to remap properties since edit data uses language names (see :Edit)
                     properties = wire.remap_properties(mmt.mnt, properties)
                     # validate changed properties (records have no validation)
-                    if validate and mmt.mnt != MNT.Record:
+                    if validate and mmt.mnt != MNT.RECORD:
                         unchanged_properties = [
                             f.name for f in model_cls._meta.fields if f.name not in properties
                         ]

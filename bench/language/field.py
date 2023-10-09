@@ -18,14 +18,14 @@ from bench.language.const import (
     new_dynamic_node_key,
 )
 from bench.language.module import (
-    _NU,
+    _NC,
     NS,
     Node,
     NodeList,
     NodeVisitor,
     NRel,
     ScopeNode,
-    _NodeUpdate,
+    _NodeChange,
     get_node_id,
     nchildren,
     ninternal,
@@ -295,16 +295,16 @@ class IsTyped(Node):
         return self.get_field(some_id, is_output=is_output) is not None
 
 
-@node(mnt=MNT.Field)
+@node(mnt=MNT.FIELD)
 class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
-    parent: Union["Statement", None] = nparent(MNT.Statement)
+    parent: Union["Statement", None] = nparent(MNT.STATEMENT)
     name: str | None = nproperty(default=None, validate=validate_name)
     order_key: str | None = ninternal(default=None)
 
     @staticmethod
     def new(
         name: str = None,
-        type: Union[TypeTag, TypeHint, "Statement", type] = None,
+        type: Union[TypeTag, TypeHint, "Statement", str, type] = None,
         text: str = None,
         *args,
         for_parent: "Statement" = None,
@@ -326,16 +326,16 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         elif isinstance(type, TypeHint):
             kwargs["hint"] = type
             kwargs["tag"] = TYPE_TAG_BY_TYPE_HINT[type]
-        elif type == str:
+        elif type is str:
             kwargs["tag"] = TypeTag.STRING
-        elif type == int:
+        elif type is int:
             kwargs["tag"] = TypeTag.NUMBER
             kwargs["hint"] = TypeHint.INTEGER
-        elif type == float:
+        elif type is float:
             kwargs["tag"] = TypeTag.NUMBER
-        elif type == bool:
+        elif type is bool:
             kwargs["tag"] = TypeTag.BOOLEAN
-        elif isinstance(type, Node) and type.mnt == MNT.Statement or isinstance(type, str):
+        elif isinstance(type, Node) and type.mnt == MNT.STATEMENT or isinstance(type, str):
             kwargs["tag"] = TypeTag.TYPE_REFERENCE
             kwargs["reference"] = type
         else:
@@ -419,9 +419,9 @@ class Field(HasText, HasValue, HasReference, IsTyped, FieldQueryOps):
         return "value." + self._typed_key
 
 
-@node(mnt=MNT.ResolvedField)
+@node(mnt=MNT.RESOLVED_FIELD)
 class ResolvedField(Field):
-    parent: "Statement" = nparent(MNT.Statement)
+    parent: "Statement" = nparent(MNT.STATEMENT)
     field: Field = ninternal()
 
     @property
@@ -466,10 +466,10 @@ class ResolvedField(Field):
 class HasFields(IsTyped):
     """A node with fields"""
 
-    fields: NodeList["Field"] = nchildren(MNT.Field, NRel.Named | NRel.Scoped | NRel.Ordered)
+    fields: NodeList["Field"] = nchildren(MNT.FIELD, NRel.Named | NRel.Scoped | NRel.Ordered)
 
     resolved_fields: NodeList["ResolvedField"] = nchildren(
-        MNT.ResolvedField, NRel.Named | NRel.Keyed | NRel.Ordered
+        MNT.RESOLVED_FIELD, NRel.Named | NRel.Keyed | NRel.Ordered
     )
     _did_resolve_fields: bool = nruntime(default=False)
 
@@ -478,7 +478,7 @@ class HasFields(IsTyped):
             self.key = new_dynamic_node_key(self.ck)
 
     def _clear_inner(self) -> None:
-        self.resolved_fields.clear(_trigger=_NU.UpdateLists)
+        self.resolved_fields.clear(_trigger=_NC.UpdateLists)
         self._did_resolve_fields = False
 
     def _interp_inner(self, scope: ScopeNode) -> None:
@@ -524,7 +524,7 @@ class HasFields(IsTyped):
             else:
                 # just a normal field
                 resolved_fields.append(ResolvedField.from_field(self, field))
-        self.resolved_fields.set(resolved_fields, _trigger=_NodeUpdate.UpdateLists)
+        self.resolved_fields.set(resolved_fields, _trigger=_NodeChange.UpdateLists)
         self._did_resolve_fields = True
 
     def extend_type(self, *bases: "Type") -> "Self":

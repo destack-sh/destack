@@ -434,7 +434,7 @@ class SessionTracer:
             raise PermissionError(f"{self.session!r} may not create {nodes!r}")
         self.editor.create_many(*nodes, apply=False)
         for n in nodes:
-            if n.mnt == MNT.Statement:
+            if n.mnt == MNT.STATEMENT:
                 self._new_statement_ids.add(n.id)
 
     def node_update(self, node: Node, properties: list[str]):

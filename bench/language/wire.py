@@ -278,7 +278,7 @@ class HasOrder:
 
 @dataclass
 class ModuleData(NodeData, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Module
+    mnt: ClassVar[MNT] = MNT.MODULE
     name: str
     committed: bool
     parent_id: Optional[UUID]
@@ -317,7 +317,7 @@ class ModuleTreeData(ModuleData):
         return {"nodes": nodes}
 
 
-@node_packer(MNT.Module, ModuleData, Module)
+@node_packer(MNT.MODULE, ModuleData, Module)
 class ModulePacker(NodePacker[ModuleData, Module]):
     PARENTS: ClassVar[ParentsT] = set()
     REMAP: ClassVar[dict[str, str]] = {}
@@ -367,10 +367,10 @@ class FileData(NodeData, HasCrud):
         return f"<File {str(self)}>"
 
 
-@node_packer(MNT.File, FileData, File)
+@node_packer(MNT.FILE, FileData, File)
 class FilePacker(NodePacker[FileData, File]):
-    mnt: ClassVar[MNT] = MNT.File
-    PARENTS: ClassVar[ParentsT] = {MNT.Module}
+    mnt: ClassVar[MNT] = MNT.FILE
+    PARENTS: ClassVar[ParentsT] = {MNT.MODULE}
     REMAP: ClassVar[dict[str, str]] = {}
 
     def pack(self, file: File) -> "FileData":
@@ -404,7 +404,7 @@ class FilePacker(NodePacker[FileData, File]):
 
 @dataclass
 class StatementData(NodeData, HasOrder, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Statement
+    mnt: ClassVar[MNT] = MNT.STATEMENT
     type: StatementType
     name: Optional[str]
     heading_level: Optional[TextHeadingLevel]
@@ -426,9 +426,9 @@ class StatementData(NodeData, HasOrder, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MNT.Statement, StatementData, lang.Statement)
+@node_packer(MNT.STATEMENT, StatementData, lang.Statement)
 class StatementPacker(NodePacker[StatementData, lang.Statement]):
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement, MNT.File}
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT, MNT.FILE}
     REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, statement: lang.Statement) -> "StatementData":
@@ -502,7 +502,7 @@ class StatementPacker(NodePacker[StatementData, lang.Statement]):
 
 @dataclass
 class FieldData(NodeData, HasOrder, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Field
+    mnt: ClassVar[MNT] = MNT.FIELD
     name: Optional[str]
     key: str
     tag: TypeTag
@@ -520,9 +520,9 @@ class FieldData(NodeData, HasOrder, HasCrud):
         return f"<Field {str(self)}>"
 
 
-@node_packer(MNT.Field, FieldData, lang.Field)
+@node_packer(MNT.FIELD, FieldData, lang.Field)
 class FieldPacker(NodePacker[FieldData, lang.Field]):
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, field: lang.Field) -> "FieldData":
@@ -582,7 +582,7 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
 @dataclass
 class TriggerData(NodeData, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Trigger
+    mnt: ClassVar[MNT] = MNT.TRIGGER
     type: TriggerType
     active: bool
     mapping: Optional[list[tuple[str, str]]]
@@ -594,9 +594,9 @@ class TriggerData(NodeData, HasCrud):
     scope_ck: Optional[UUID]
 
 
-@node_packer(MNT.Trigger, TriggerData, lang.Trigger)
+@node_packer(MNT.TRIGGER, TriggerData, lang.Trigger)
 class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {"statement": "statement_ck", "scope": "scope_ck"}
 
     def pack(self, trigger: lang.Trigger) -> "TriggerData":
@@ -654,7 +654,7 @@ class TriggerPacker(NodePacker[TriggerData, lang.Trigger]):
 
 @dataclass
 class TaggingData(NodeData, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Tagging
+    mnt: ClassVar[MNT] = MNT.TAGGING
     reference_ck: Optional[UUID]
     key: str
     value: Optional[typing.Any] = None
@@ -666,9 +666,9 @@ class TaggingData(NodeData, HasCrud):
         return f"<Tagging {self}>"
 
 
-@node_packer(MNT.Tagging, TaggingData, lang.Tagging)
+@node_packer(MNT.TAGGING, TaggingData, lang.Tagging)
 class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
+    PARENTS: ClassVar[ParentsT] = {MNT.FILE, MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {"reference": "reference_ck"}
 
     def pack(self, tagging: lang.Tagging) -> "TaggingData":
@@ -714,8 +714,8 @@ class TaggingPacker(NodePacker[TaggingData, lang.Tagging]):
 
 @dataclass
 class DatabaseViewData(NodeData, HasOrder, HasCrud):
-    mnt: ClassVar[MNT] = MNT.DatabaseView
-    PARENTS: ClassVar[ParentsT] = {MNT.File, MNT.Statement}
+    mnt: ClassVar[MNT] = MNT.DATABASE_VIEW
+    PARENTS: ClassVar[ParentsT] = {MNT.FILE, MNT.STATEMENT}
 
     id: UUID
     name: str
@@ -723,9 +723,9 @@ class DatabaseViewData(NodeData, HasOrder, HasCrud):
     sort: Optional[list[Sort]] = None
 
 
-@node_packer(MNT.DatabaseView, DatabaseViewData, lang.DatabaseView)
+@node_packer(MNT.DATABASE_VIEW, DatabaseViewData, lang.DatabaseView)
 class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
     REMAP: ClassVar[dict[str, str]] = {}
 
     def pack(self, view: lang.DatabaseView) -> "DatabaseViewData":
@@ -765,8 +765,8 @@ class DatabaseViewPacker(NodePacker[DatabaseViewData, lang.DatabaseView]):
 
 @dataclass
 class RecordData(NodeData, HasCrud):
-    mnt: ClassVar[MNT] = MNT.Record
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    mnt: ClassVar[MNT] = MNT.RECORD
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
     parent_key: str
     value: Optional[typing.Any] = None
@@ -778,9 +778,9 @@ class RecordData(NodeData, HasCrud):
         return f"<{self.__class__.__name__} {str(self)}>"
 
 
-@node_packer(MNT.Record, RecordData, lang.Record)
+@node_packer(MNT.RECORD, RecordData, lang.Record)
 class RecordPacker(NodePacker[RecordData, lang.Record]):
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
     def pack(self, record: lang.Record) -> "RecordData":
         return RecordData(
@@ -819,10 +819,10 @@ class ResolvedFieldData(NodeData):
     field_ck: UUID
 
 
-@node_packer(MNT.ResolvedField, ResolvedFieldData, lang.ResolvedField)
+@node_packer(MNT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
 class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
-    mnt: ClassVar[MNT] = MNT.ResolvedField
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    mnt: ClassVar[MNT] = MNT.RESOLVED_FIELD
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
     def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
         return ResolvedFieldData(
@@ -845,10 +845,10 @@ class IssueData(NodeData):
     message: Optional[str]
 
 
-@node_packer(MNT.Issue, IssueData, lang.Issue)
+@node_packer(MNT.ISSUE, IssueData, lang.Issue)
 class IssuePacker(NodePacker[IssueData, lang.Issue]):
-    mnt: ClassVar[MNT] = MNT.Issue
-    PARENTS: ClassVar[ParentsT] = {MNT.Statement}
+    mnt: ClassVar[MNT] = MNT.ISSUE
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
 
     def pack(self, issue: lang.Issue) -> "IssueData":
         return IssueData(

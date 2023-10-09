@@ -59,9 +59,9 @@ class BenchError(ValueError):
         self.issue = issue
 
 
-@node(mnt=MNT.Issue)
+@node(mnt=MNT.ISSUE)
 class Issue(Node):
-    parent: Union["Statement", "File", None] = nparent(MNT.Statement, MNT.File)
+    parent: Union["Statement", "File", None] = nparent(MNT.STATEMENT, MNT.FILE)
     type: IssueType = nproperty(is_required=True, validate=enum_validator(IssueType))
     kind: IssueKind = nproperty(default=None, validate=enum_validator(IssueKind))
     message: str = nproperty(default=None)

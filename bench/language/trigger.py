@@ -32,11 +32,11 @@ TRIGGER_INTERVAL_ABS_MAX = 60 * 60 * 24 * 365  # seconds :MaxTriggerInterval
 TRIGGER_INTERVAL_ABS_MIN = 60  # seconds :MinTriggerInterval
 
 
-@node(mnt=MNT.Trigger)
+@node(mnt=MNT.TRIGGER)
 class Trigger(Node):
     """A trigger for a statement, possibly inside a flow."""
 
-    parent: "Statement" = nparent(MNT.Statement)
+    parent: "Statement" = nparent(MNT.STATEMENT)
     type: TriggerType = nproperty(is_required=True, validate=enum_validator(TriggerType))
     active: bool = nproperty(default=True)
     mapping: Optional[Mapping] = nproperty(default=None)
@@ -141,7 +141,7 @@ class Trigger(Node):
 
 @node_component
 class HasTriggers(Node):
-    triggers: NodeList[Trigger] = nchildren(MNT.Trigger)
+    triggers: NodeList[Trigger] = nchildren(MNT.TRIGGER)
 
 
 class TriggerScheduleIterator:

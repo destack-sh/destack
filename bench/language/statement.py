@@ -87,17 +87,17 @@ _STATIC_PASSTHROUGH: tuple[tuple[str, _Passthrough]] = (("children", _Passthroug
 
 
 @node(
-    MNT.Statement,
+    MNT.STATEMENT,
     passthrough=(("children", _Passthrough.Scope),),
     dynamic_components=_ALL_DYNAMIC_COMPONENTS,
 )
 class Statement(ScopeNode, HasTags):
     """A Bench statement."""
 
-    file: Optional["File"] = nancestor(MNT.File)
-    parent: Union["Statement", "File"] = nparent(MNT.Statement, MNT.File)
+    file: Optional["File"] = nancestor(MNT.FILE)
+    parent: Union["Statement", "File"] = nparent(MNT.STATEMENT, MNT.FILE)
     children: NodeList["Statement"] = nchildren(
-        MNT.Statement, NRel.Ordered | NRel.Named | NRel.Scoped
+        MNT.STATEMENT, NRel.Ordered | NRel.Named | NRel.Scoped
     )
 
     type: StatementType = ninternal(default=StatementType.BLANK)
@@ -123,7 +123,7 @@ class Statement(ScopeNode, HasTags):
 
     @staticmethod
     def new(
-        type: Union[StatementType, "_StatementProxy"] = None,
+        type: Union[str, StatementType, "_StatementProxy"] = None,
         name: str = None,
         *args,
         for_parent: Union["Statement", "File", None] = None,
@@ -133,6 +133,8 @@ class Statement(ScopeNode, HasTags):
             raise ValueError("type must be specified")
         if isinstance(type, _StatementProxy):
             type = type.type
+        if not isinstance(type, StatementType):
+            type = StatementType(type.lower())
         proxy = STATEMENT_CLASS_BY_TYPE[type]
         if proxy.tag and "tag" not in kwargs:
             kwargs["tag"] = proxy.tag
@@ -145,11 +147,11 @@ class Statement(ScopeNode, HasTags):
         node: "Statement", props: dict, for_parent: Union["Statement", "File", None] = None
     ) -> tuple[str, dict, dict]:
         if node.type == StatementType.TYPE:
-            init_name = "Choice" if node.tag == TypeTag.ENUM else "Class"
+            init_name = Choice if node.tag == TypeTag.ENUM else Class
         else:
-            init_name = node.type.camel_name
+            init_name = node.type
         return (
-            "Statement",
+            "Statement.new",
             {"type": init_name, "name": node.name},
             dict_minus(props, "name", "type", "tag", "flags"),
         )
@@ -203,7 +205,7 @@ class Statement(ScopeNode, HasTags):
     @property
     def path(self) -> str:
         if self.file is None:
-            return f"<detached>:{self.infile_path}"
+            return f"<detached>.{self.infile_path}"
         else:
             return self.file.path + "." + str(self.infile_path)
 
@@ -211,15 +213,13 @@ class Statement(ScopeNode, HasTags):
     def infile_path(self) -> str:
         parent = self.parent
         ancestor_parts = [self.py_ident or "<anon>"]
-        seen_ids = [self.id]
+        seen_ids = [self.ck]
         while isinstance(parent, Statement):
             if parent.id in seen_ids:
-                # :CircularAncestry
-                # circuit breaker: ignore here because this is an error in indexing
                 ancestor_parts.append("<!loop>")
                 break
             ancestor_parts.append(parent.py_ident or "<anon>")
-            seen_ids.append(parent.id)
+            seen_ids.append(parent.ck)
             parent = parent.parent
         return ".".join(reversed(ancestor_parts))
 
