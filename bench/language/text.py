@@ -41,10 +41,16 @@ class HasText(Node):
     def _interp_inner(self, scope: ScopeNode) -> None:
         if self.text is None:
             return
-        self._text_spans = parse_text_html(self.text)
+
+        if self._new:
+            # crude way of parsing out simple @mentions for new stuff
+            # TODO @Cleanup @Architecture: institutionalize post-user-set special interp (value coerce/clean)
+            self._text_spans = parse_text_simple(self.text)
+        else:
+            self._text_spans = parse_text_html(self.text)
 
         # resolve references
-        changed_references = False
+        parsed_string_references = False
         for span in self._text_spans:
             if not isinstance(span, TextMention):
                 continue
@@ -61,12 +67,13 @@ class HasText(Node):
                     type=IssueType.MISSING_REFERENCE, subject=self, path=span.reference_path
                 )
                 continue
-            if isinstance(span.reference, str):
+            if isinstance(span.reference, str) or isinstance(span.reference.ref, str):
                 # user code set a string reference, need to track change
-                changed_references = True
+                parsed_string_references = True
             span.reference = resolved  # success
 
-        if changed_references:
+        if parsed_string_references:
+            # update text with resolved references
             self.text = render_text_html(self._text_spans)
 
     def _visit_inner(self, visitor: NodeVisitor) -> None:
@@ -175,11 +182,15 @@ def render_text_html(text_spans: list[TextSpan]) -> str:
     spans_str = []
     for span in text_spans:
         if isinstance(span, TextMention):
-            spans_str.append(
-                TEXT_MENTION_TEMPLATE.format(
+            if isinstance(span.reference, Node):
+                ref = TEXT_MENTION_TEMPLATE.format(
+                    type=span.reference.mnt, ck=span.reference.ck, path=None
+                )
+            else:
+                ref = TEXT_MENTION_TEMPLATE.format(
                     type=span.reference.type, ck=span.reference.ref, path=span.reference_path or ""
                 )
-            )
+            spans_str.append(ref)
         else:
             spans_str.append(span.text)
     return "".join(spans_str)

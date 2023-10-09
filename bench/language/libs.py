@@ -18,6 +18,7 @@ from bench.language import File, HasRun, HasText, Module, Record, Run, RunError
 from bench.language.builtin import anthropic_lib, openai_lib, symbolx_lib
 from bench.language.const import (
     INTERP_NODE_TYPES,
+    MNT,
     RunStatus,
     StatementType,
     TypeFlag,
@@ -49,7 +50,7 @@ from bench.language.task import (
     TaskError,
     TaskErrorType,
 )
-from bench.language.text import TextMention
+from bench.language.text import TextMention, patch_text_html
 from bench.language.typing import map_value, pack_value_flat
 from bench.utils.utils import DEBUG, LOCAL, UnreachableError, omit_empty
 
@@ -1234,6 +1235,7 @@ for name, module in DEFAULT_MODULES.items():
     # assign stable cks / versioned ids
     nodes = [n for n in module._walk_rec() if n.mnt not in INTERP_NODE_TYPES]
     node_by_path: dict[str, Node] = {}
+    target_cks: dict[UUID, UUID] = {}
     for node in nodes:
         if isinstance(node, Module):
             continue  # already assigned in builtin
@@ -1243,7 +1245,9 @@ for name, module in DEFAULT_MODULES.items():
             path = node.path
         if path in node_by_path:
             raise ValueError(f"node path conflict for '{path}': {node!r} vs {node_by_path[path]!r}")
-        node.ck = _derive_constant_key(path)
+        new_ck = _derive_constant_key(path)
+        target_cks[node.ck] = new_ck
+        node.ck = new_ck
         node_by_path[path] = node
         node.id = get_node_id(module.id, node.ck)
         if isinstance(node, Field):
@@ -1264,6 +1268,12 @@ for name, module in DEFAULT_MODULES.items():
     for node in nodes:
         if isinstance(node, ScopeNode):
             node._update_lists(node)  # we re-init above to reset the key, so manually update lists
+    # patch references
+    for node in nodes:
+        # TODO @Broken: use same reference patching as in wire (and share with hot reload, etc.)
+        if node.mnt == MNT.STATEMENT and HasText in node._components:
+            # only doing text is fine? (wait, why does this even work - shouldn't we patch all refs?)
+            node.text = patch_text_html(node.text, target_cks)
     module._index_rec()
     module._interp_rec()
     if module.issues:
@@ -1286,9 +1296,11 @@ for name, module in DEFAULT_MODULES.items():
                 f"module {module_reloaded} has flaky issues: {module_reloaded.issues}"
             )
 
-# manually pack records into source format since we're outside a session
-for record in _symbolx_bench.statements.sample_bench_code.records:
-    record._set_untracked("value", record._raw_value(_force=True))
+    # manually 'deactivate session' for module since we're outside a session
+    for node in module._nodes:
+        if node.mnt == MNT.STATEMENT and HasDatabase in node._components:
+            for record in node.records:
+                record._set_untracked("value", record._raw_value(_force=True))
 
 
 def lookup_model_impl(path: str) -> Optional[typing.Callable]:
