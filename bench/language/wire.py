@@ -581,6 +581,31 @@ class FieldPacker(NodePacker[FieldData, lang.Field]):
 
 
 @dataclass
+class ResolvedFieldData(NodeData):
+    field_ck: UUID
+
+
+@node_packer(MNT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
+class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
+    mnt: ClassVar[MNT] = MNT.RESOLVED_FIELD
+    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
+
+    def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
+        FieldPacker.pack(self, resolved_field)
+        return ResolvedFieldData(
+            id=resolved_field.id,
+            ck=resolved_field.ck,
+            parent_id=resolved_field.parent_id,
+            field_ck=resolved_field.field_ck,
+        )
+
+    def patch(
+        self, node: ResolvedFieldData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
+    ) -> None:
+        node.field_ck = target_cks.get(node.field_ck, node.field_ck)
+
+
+@dataclass
 class TriggerData(NodeData, HasCrud):
     mnt: ClassVar[MNT] = MNT.TRIGGER
     type: TriggerType
@@ -812,30 +837,6 @@ class RecordPacker(NodePacker[RecordData, lang.Record]):
             _status=NodeStatus.Source,
             _session=session,
         )
-
-
-@dataclass
-class ResolvedFieldData(NodeData):
-    field_ck: UUID
-
-
-@node_packer(MNT.RESOLVED_FIELD, ResolvedFieldData, lang.ResolvedField)
-class ResolvedFieldPacker(NodePacker[ResolvedFieldData, lang.ResolvedField]):
-    mnt: ClassVar[MNT] = MNT.RESOLVED_FIELD
-    PARENTS: ClassVar[ParentsT] = {MNT.STATEMENT}
-
-    def pack(self, resolved_field: lang.ResolvedField) -> "ResolvedFieldData":
-        return ResolvedFieldData(
-            id=resolved_field.id,
-            ck=resolved_field.ck,
-            parent_id=resolved_field.parent_id,
-            field_ck=resolved_field.field_ck,
-        )
-
-    def patch(
-        self, node: ResolvedFieldData, target_cks: dict[UUID, UUID], target_keys: dict[str, str]
-    ) -> None:
-        node.field_ck = target_cks.get(node.field_ck, node.field_ck)
 
 
 @dataclass

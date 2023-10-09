@@ -1,5 +1,4 @@
 import abc
-import contextlib
 import dataclasses
 import enum
 import functools
@@ -572,7 +571,7 @@ class _NodeChange(enum.IntFlag):
     UpdateLists = 2**0
     Detach = 2**1
     Attach = 2**2
-    Reinterp = UpdateLists | Detach | Attach
+    Full = UpdateLists | Detach | Attach
 
 
 _NC = _NodeChange
@@ -634,8 +633,8 @@ class _ChangeEffect:
             affected_nodes = None
 
         return _ChangeEffect(
-            prev_session=from_parent._session if from_parent else None,
-            prev_status=from_parent._status if from_parent else None,
+            prev_session=to_parent._session if to_parent else None,
+            prev_status=to_parent._status if to_parent else None,
             affected_mnts=affected_mnts,
             ancestors=ancestors,
             affected=affected_nodes,
@@ -663,24 +662,6 @@ class _ChangeEffect:
                 _node._interp_self(_node.scope, _coerce=False)
                 if self.prev_session and self.prev_status == NS.Tracked:
                     _node._activate_self(self.prev_session)
-
-
-@contextlib.contextmanager
-def _change_effect(
-    from_parent: Optional["Node"],
-    to_parent: Optional["Node"],
-    changed_children: list["Node"],
-    level: _NC,
-):
-    if not level:
-        yield
-        return
-
-    change = _ChangeEffect._collect(from_parent, to_parent, changed_children, level)
-    # detach must happen in old context
-    change._effect(level & ~_NC.Attach)
-    yield
-    change._effect(level & ~_NC.Detach)
 
 
 class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
@@ -727,7 +708,7 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         self.extend(*created)
         return created
 
-    def append(self, node: NodeT, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def append(self, node: NodeT, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         """
         Attaches a child node to a parent through a list. This is for users adding nodes.
         A node may be 'append'-ed to a list at most once,
@@ -739,20 +720,20 @@ class NodeListBase(abc.ABC, Collection, typing.Generic[NodeT]):
         self,
         *nodes: Collection[NodeT],
         _create: bool = True,
-        _trigger: _NC = _NC.Reinterp,
+        _trigger: _NC = _NC.Full,
     ):
         """Attaches a list of child nodes to a parent. See append."""
         raise NotImplementedError
 
-    def remove(self, node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Reinterp):
+    def remove(self, node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
         """Removes a child node from a parent. See append for reverse."""
         raise NotImplementedError
 
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Reinterp):
+    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
         """Removes all child nodes from a parent. See append for reverse."""
         raise NotImplementedError
 
-    def set(self, nodes: Collection[NodeT], _trigger: _NC = _NC.Reinterp):
+    def set(self, nodes: Collection[NodeT], _trigger: _NC = _NC.Full):
         """Replaces all child nodes of a parent."""
         self.clear(_trigger=_NC.Ignore)
         self.extend(nodes, _trigger=_trigger)
@@ -826,7 +807,7 @@ class NodeList(NodeListBase[NodeT]):
             if self._flags & NRel.Ordered:
                 self._nodes.sort(key=lambda n: n.order_key or BIGGEST_INTEGER)
 
-    def append(self, _node: NodeT, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+    def append(self, _node: NodeT, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         assert isinstance(_node, Node), f"cannot append {_node!r} to {self!r}"
         if _node.parent is not None:
             raise ValueError(f"cannot append {_node!r} to {self}!r: has parent {_node.parent!r}")
@@ -874,7 +855,7 @@ class NodeList(NodeListBase[NodeT]):
         if _node.attached and _create and self._parent._session:
             self._parent._session.tracer.node_create(*added)
 
-    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: _NC = _NC.Reinterp):
+    def extend(self, *nodes: NodeT, _create: bool = True, _trigger: _NC = _NC.Full):
         nodes = flatten_list(*nodes)
         if not nodes:
             return
@@ -886,32 +867,36 @@ class NodeList(NodeListBase[NodeT]):
 
         # as above in append but batched: append, trigger, create
         #  (can we merge them somehow to simplify)?
-        with _change_effect(None, self._parent, nodes, _trigger):
-            for node in nodes:
-                self.append(node, _create=False, _trigger=_NC.Ignore)
+        change = _ChangeEffect._collect(None, self._parent, nodes, _trigger)
+        change._effect(_trigger & ~_NC.Attach)
+        for node in nodes:
+            self.append(node, _create=False, _trigger=_NC.Ignore)
+        change._effect(_trigger & ~_NC.Detach)
         if _trigger & _NC.UpdateLists:
             assert all(n in self._nodes for n in nodes), f"nodes {nodes} not in {self!r}"
         if self._parent.attached and _create and self._parent._session:
             added = flatten_list(*(node._walk_rec() for node in nodes))
             self._parent._session.tracer.node_create(*added)
 
-    def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Reinterp):
-        with _change_effect(self._parent, None, [_node], _trigger):
-            if _delete and self._parent._session:
-                self._parent.session.tracer.node_delete(_node)
-            self._parent._local_root_tree.remove(_node)
-            _node.parent = None
+    def remove(self, _node: NodeT, _delete: bool = True, _trigger: _NC = _NC.Full):
+        change = _ChangeEffect._collect(self._parent, None, [_node], _trigger)
+        if _delete and self._parent._session:
+            self._parent.session.tracer.node_delete(_node)
+        self._parent._local_root_tree.remove(_node)
+        _node.parent = None
+        change._effect(_trigger)
         if _trigger & _NC.UpdateLists:
             assert _node not in self._nodes, f"node {_node!r} still in {self!r}"
 
-    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Reinterp):
+    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full):
         if not self._nodes:
             return
-        with _change_effect(self._parent, None, self._nodes, _trigger):
-            removed = list(self._nodes)
-            for _node in removed:
-                self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
-        if _trigger >= _NC.UpdateLists:
+        change = _ChangeEffect._collect(self._parent, None, self._nodes, _trigger)
+        removed = list(self._nodes)
+        for _node in removed:
+            self.remove(_node, _delete=_delete, _trigger=_NC.Ignore)
+        change._effect(_trigger)
+        if _trigger & _NC.UpdateLists:
             assert not self._nodes, f"{self!r} is not empty"
 
     def get(self, some_id: str) -> Optional[NodeT]:

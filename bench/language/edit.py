@@ -742,7 +742,7 @@ def _render_prop(node: Node, name: str, value: Any) -> str:
         )
         return omit_empty(value)
     else:
-        raise ValueError(f"cannot render {value!r}")
+        raise ValueError(f"cannot render {value!r} (for {node!r}->{name})")
 
 
 def _sep(*strs) -> str:
