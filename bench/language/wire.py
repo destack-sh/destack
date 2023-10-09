@@ -32,6 +32,7 @@ from bench.language.const import (
     WorkerRegion,
     WorkerSetStatus,
 )
+from bench.language.database import HasDatabase
 from bench.language.module import Node, NodeStatus, NodeTree, NodeVisitor, ScopeNode
 from bench.language.query import Query, Sort
 from bench.language.run import Run, RunCodeFrame, RunError, RunErrorKind
@@ -144,11 +145,23 @@ def pack_node(root: NodeT, exclude: set[MNT] | None = None) -> tuple[NodeDataT, 
 
     # walk and pack until nothing is left to pack
     to_pack = root._local_root_tree.get_descendants(root.ck, include_self=True, recursive=True)
-    for node in to_pack:
-        if node.mnt in exclude:
-            continue
-        packer = _node_packers_by_node[type(node)]
-        packed[node.id] = packer.pack(node)
+    while to_pack:
+        next_pack = []
+        for node in to_pack:
+            if node.mnt in exclude:
+                continue
+            packer = _node_packers_by_node[type(node)]
+            packed[node.id] = packer.pack(node)
+
+            # records are not part of regular node tree
+            if (
+                node.mnt == MNT.STATEMENT
+                and HasDatabase in node._components
+                and node.versioned
+                and MNT.RECORD not in exclude
+            ):
+                next_pack.extend(node.records)
+        to_pack = next_pack
 
     return packed[root.id], list(packed.values())
 

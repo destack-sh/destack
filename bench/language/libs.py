@@ -25,6 +25,7 @@ from bench.language.const import (
     TypeTag,
     new_dynamic_node_key,
 )
+from bench.language.database import HasDatabase
 from bench.language.field import Field, Key, Vector
 from bench.language.model import HasModel, ModelError, ModelErrorType
 from bench.language.module import Node, ScopeNode, get_node_id
@@ -994,8 +995,9 @@ def _generate_symbolx_bench_file():
         ),
         Statement.new(
             StatementType.TEXT,
-            text="Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc. and are organized into Files",
+            text="Statements (like Task, Code, Database, Text) have Fields, Triggers, Records, etc.",
         ),
+        Statement.new(StatementType.TEXT, text="Statements are organized into Files"),
         Statement.new(
             StatementType.TEXT,
             text="Users typically build bots to automate information extraction, analysis and integration",
@@ -1027,16 +1029,15 @@ def _generate_symbolx_bench_file():
             text="Add text to describe non-trivial nodes, elaborate/simplify the input text with clear and concise language  ",
         ),
     )
-
     sample_bench_code = Statement.new(type=StatementType.DATABASE, name="sample bench code")
     sample_bench_code.fields.append(
-        Field.new(name=None, type="generate_bench_code", flags=TypeFlag.IsUnionWith)
+        Field.new("", "generate bench code", flags=TypeFlag.IsUnionWith)
     )
     sample_bench_code.records.extend(
         Record.new(
             text="extract PDFs",
             code=(
-                'DocumentPage = Statement.new(Class, name="DocumentPage")\n'
+                'DocumentPage = Statement.new(StatementType.TYPE, tag=TypeTag.STUCT, name="DocumentPage")\n'
                 "DocumentPage.fields.extend(\n"
                 '    Field.new("number", TypeTag.NUMBER),\n'
                 '    Field.new("text", TypeTag.STRING, "raw text from a specific page"),\n'
@@ -1070,12 +1071,9 @@ def _generate_symbolx_bench_file():
                 'config = Statement.new(StatementType.VARIABLE, name="config", value={"email": "florian@symbolx.com"})\n'
                 "config.fields.extend(\n"
                 '    Field.new("email", TypeHint.EMAIL),\n'
-                '    Field.new("producthunt token", TypeHint.SECRET, flags=TypeFlag.IsOptional | TypeFlag.IsSecret),\n'
                 '    Field.new("gh token", TypeHint.SECRET, flags=TypeFlag.IsOptional | TypeFlag.IsSecret),\n'
-                '    Field.new("last fetched", TypeHint.DATETIME),\n'
                 '    Field.new("last sent", TypeHint.DATETIME),\n'
-                ")\n"
-                "self.file.extend(config)"
+                ")"
             ),
         ),
         Record.new(
@@ -1097,25 +1095,25 @@ def _generate_symbolx_bench_file():
         Record.new(
             text="bot idea generator",
             code=(
-                'BotIdea = Statement.new(Class, name="BotIdea", text="An idea for a Bench bot :)")\n'
+                'BotIdea = Statement.new(StatementType.TYPE, tag=TypeTag.STRUCT, name="BotIdea", text="An idea for a Bench bot :)")\n'
                 "BotIdea.fields.extend(\n"
                 '    Field.new("name", TypeHint.NAME),\n'
                 '    Field.new("description", TypeTag.STRING, "1-2 line concise description"),\n'
                 ")\n"
-                'example_bots = Statement.new(Database, name="example bots")\n'
+                'example_bots = Statement.new(StatementType.DATABASE, name="example bots")\n'
                 "example_bots.fields.append(Field.new(BotIdea, flags=TypeFlag.IsUnionWith))\n"
                 "generate_bot_ideas = Statement.new(\n"
-                "    type=Task,\n"
+                "    type=StatementType.TASK,\n"
                 '    name="generate bot ideas", \n'
                 '    text="Generate 3 bot ideas for someone to build with Bench"\n'
                 ")\n"
                 "generate_bot_ideas.children.extend(\n"
-                "    Text.new(\n"
+                "    Statement.new(\n"
+                "        type=StatementType.TEXT,\n"
                 '        text="See the @example_bots for inspiration",\n'
                 "    ),\n"
-                '    Text.new(text="Feel free to be inspired but don\'t just copy from the @example_bots"),\n'
+                '    Statement.new(type=StatementType.TEXT, text="Feel free to be inspired but don\'t just copy from the @example_bots"),\n'
                 "    Text.new(text=\"Keep it concise and don't include 'bot' in the @name \"),\n"
-                '    Text.new(text="The bots should be specific and useful (or at least funny)"),\n'
                 ")\n"
                 "generate_bot_ideas.fields.extend(\n"
                 '    Field.new("notes", TypeTag.STRING, "any additional info by the user"),\n'
@@ -1123,6 +1121,7 @@ def _generate_symbolx_bench_file():
                 ")\n"
                 'generate_bot_ideas.tags.create("randomize")\n'
                 "self.file.extend(BotIdea, example_bots, generate_bot_ideas)\n"
+                "self.file.extend(BotIdea, example_bots, generate_bot_ideas)"
             ),
         ),
         Record.new(
@@ -1130,12 +1129,10 @@ def _generate_symbolx_bench_file():
             code=(
                 "# use a variable like \n"
                 "config.email\n"
-                "# or\n"
+                "# or through value\n"
                 "config.value.email\n"
-                "\n"
                 "# and for secrets\n"
                 "config.gh_token.reveal()\n"
-                "\n"
                 "# and for files\n"
                 "config.file.read()"
             ),
@@ -1143,22 +1140,21 @@ def _generate_symbolx_bench_file():
         Record.new(
             text="classic NER",
             code=(
-                'Entity = Statement.new(Class, name="Entity")\n'
+                'Entity = Statement.new(StatementType.TYPE, tag=TypeTag.STRUCT, name="Entity")\n'
                 "Entity.fields.extend(\n"
                 '    Field.new("name", TypeHint.NAME, "the canonical name"), Field.new("entity type", "EntityType")\n'
                 ")\n"
-                'EntityType = Statement.new(Choice, name="EntityType", text="A classic @Entity type")\n'
+                'EntityType = Statement.new(StatementType.TYPE, tag=TypeTag.ENUM, name="EntityType", text="A classic @Entity type")\n'
                 "EntityType.fields.extend(\n"
                 '    Field.literal("Organization"),\n'
                 '    Field.literal("Person", "real or fictional"),\n'
                 '    Field.literal("Product"),\n'
-                '    Field.literal("Company", "prefer @Company if the @Organization is commercial"),\n'
                 '    Field.literal("Location", "including but not limited to physical/geographic"),\n'
                 '    Field.literal("Date", "or time"),\n'
                 '    Field.literal("Other", "if nothing else makes sense"),\n'
                 ")\n"
                 "extract_entities = Statement.new(\n"
-                "    type=Task,\n"
+                "    type=StatementType.TASK,\n"
                 '    name="extract entities",\n'
                 '    text="Extract any relevant @Entity instances mentioned in the text (deduplicated)",\n'
                 ")\n"
@@ -1199,6 +1195,16 @@ def _generate_symbolx_bench_file():
             "code", TypeHint.CODE, "valid Python code to modify Bench", flags=TypeFlag.IsOutput
         ),
     )
+    mend_bench_code = Statement.new(
+        type=StatementType.TASK, name="mend bench code", text="Fixes the given bench code"
+    )
+    mend_bench_code.fields.extend(
+        Field.new("code", TypeHint.CODE),
+        Field.new("error", TypeTag.STRING, flags=TypeFlag.IsOptional),
+        Field.new("logs", TypeTag.STRING, flags=TypeFlag.IsOptional),
+        Field.new("edited code", TypeHint.CODE, flags=TypeFlag.IsOutput),
+    )
+    Statement.new(type=StatementType.CODE, name="mend", code="# nocheckin: implement this")
     file = File.new("bench")
     file.statements.extend(
         bench_description,
@@ -1244,7 +1250,12 @@ for name, module in DEFAULT_MODULES.items():
             node.key = new_dynamic_node_key(node.ck)
         elif isinstance(node, Statement):
             node.key = None
+            # 'remote' records are only stored locally in 'hybrid' list... :BE-352)
+            if HasDatabase in node._components:
+                records = list(node.records)
             node._init_self()  # reset key (everything else is already set)
+            if HasDatabase in node._components:
+                node.records.extend(*records)
     # hard re-index everything (ids changed)
     for node in nodes:  # clear resets references to their ids, so run after assigning all ids
         node._clear_self()
@@ -1274,6 +1285,10 @@ for name, module in DEFAULT_MODULES.items():
             raise RuntimeError(
                 f"module {module_reloaded} has flaky issues: {module_reloaded.issues}"
             )
+
+# manually pack records into source format since we're outside a session
+for record in _symbolx_bench.statements.sample_bench_code.records:
+    record._set_untracked("value", record._raw_value(_force=True))
 
 
 def lookup_model_impl(path: str) -> Optional[typing.Callable]:

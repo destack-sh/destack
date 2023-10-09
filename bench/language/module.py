@@ -1420,7 +1420,7 @@ class Node(abc.ABC):
     __static_passthrough__: ClassVar[tuple[tuple[str, _Passthrough]]] = ()
 
     id: UUID = ninternal(default=None)
-    ck: UUID = ninternal(default_factory=uuid.uuid4)
+    ck: UUID = ninternal(default=None)
     parent: Optional["Node"] = nparent()
     # prototype: Optional["Node"] / instance_of_ck: UUID
     module: Optional["Module"] = nancestor(MNT.MODULE)
@@ -1433,6 +1433,7 @@ class Node(abc.ABC):
 
     _session: Optional["Session"] = nruntime(default=None)
     _status: NodeStatus = nruntime(default=None)
+    _new: bool = nruntime(default=True)
 
     def __post_init__(self):
         if self._session is None:
@@ -1441,6 +1442,9 @@ class Node(abc.ABC):
             self._session = _active_session.get()
         if self._status is None:
             self._status = NS.Interpreted if self._session is not None else NS.Source
+        if self.ck is None:
+            self.ck = uuid4()
+            self._new = True
         if self.id is None and self.attached:
             self._assign_id(self.module.id)
         self._init_self()
@@ -2056,6 +2060,8 @@ class Module(ScopeNode):
             else:
                 resolved = dependency.lookup(sub_path, node_t=node_t, by=by)
 
+        if not resolved:
+            return resolved
         assert resolved.attached, f"resolved {path} to detached {resolved!r} (index out of sync?)"
         # cache result
         if self.committed:

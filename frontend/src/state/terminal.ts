@@ -12,7 +12,7 @@ export type TerminalRun = {
   run: Run;
 };
 export const TERMINAL_BOT_LABEL = "symbolx.bench.terminal";
-const TERMINAL_TEXT_TO_CODE_TASK = "e60b4b11-cb6b-4aca-9f4f-d9fcc001b743"; // nocheckin: use task from std (maybe configurable for debugging)
+export const STDLIB_TEXT_TO_CODE_TASK_CK = "0c8e5c97-7433-51e6-8d2f-61893fc48d04";
 
 function _useTerminal() {
   const session = useCurrentSessions();
@@ -20,7 +20,7 @@ function _useTerminal() {
   const module = useCurrentModule();
   const botLabelKey = computed(() => module.runMetadataKey("bot"));
   const codeKey = computed(() => module.runMetadataKey("code"));
-  const textToCodeTask = computed(() => module.statementOf(TERMINAL_TEXT_TO_CODE_TASK));
+  const textToCodeTask = computed(() => module.statementOf("0c8e5c97-7433-51e6-8d2f-61893fc48d04"));
   const codeOutputKey = computed(() => {
     const field = textToCodeTask.value?.fields?.find((f) => f.name == "code");
     if (field == null) return null;

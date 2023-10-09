@@ -5,7 +5,12 @@ from uuid import UUID
 
 import structlog
 
-from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
+from bench.language.const import (
+    DATABASE_VERSIONED_RECORD_LIMIT,
+    MNT,
+    DatabaseViewLayout,
+    new_dynamic_node_key,
+)
 from bench.language.field import Field
 from bench.language.module import (
     _NC,
@@ -14,6 +19,7 @@ from bench.language.module import (
     Node,
     NodeList,
     NodeListBase,
+    NodeProperty,
     NRel,
     ScopeNode,
     _ChangeEffect,
@@ -288,18 +294,32 @@ class RecordSearch(Search["RecordData", Record]):
             raise TypeError(f"batch map function returned {ret} instead of list or dict of lists")
 
 
-class _RemoteRecordList(NodeListBase[Record], RecordSearch):
+LOCAL_RECORD_CACHE_LIMIT = DATABASE_VERSIONED_RECORD_LIMIT
+
+
+class HybridRecordList(NodeListBase[Record], RecordSearch):
     """
-    Fully remote record list with no local caching. Implements NodeList protocol.
-    TODO @UX @Performance: turn record list hybrid list (:BE-352)
+    Implements NodeList protocol for remote records with a local cache.
+    TODO @UX @Performance: turn record list into proper hybrid list (:BE-352)
      use local list for everything but search (for now) (in ~small databases only)
+     need to fetch initial state on first read, use cache in RecordSearch, watermarks, etc.
     """
+
+    def __init__(self, parent: "ScopeNode", property: NodeProperty):
+        super().__init__(parent, property)
+        self._cached_records_by_ck: dict[UUID, Record] | None = None
+        if parent._new:
+            # right now we only use the cache for new databases to avoid cache complexity (see above)
+            self._cached_records_by_ck = {}
 
     def __str__(self):
-        return "remote"  # can't really say anything useful here
+        if self._cached_records_by_ck is None:
+            return "remote"  # can't really say anything useful here
+        else:
+            return str(self._cached_records_by_ck.values())
 
     def _update(self, scope: "ScopeNode"):
-        pass  # nothing to do, all remote
+        pass  # nothing to do, not part of regular tree
 
     def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         node.parent = self._parent
@@ -311,6 +331,9 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         # create in session
         if _create and self._parent._session:
             self._parent.session.tracer.node_create(node)
+        # update cache
+        if self._cached_records_by_ck is not None:
+            self._cached_records_by_ck[node.ck] = node  # not quite right, see :BE-352
 
     def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Full) -> None:
         nodes = flatten_list(nodes)
@@ -325,10 +348,14 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
         if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(self, node)
         node.parent = None
+        if self._cached_records_by_ck is not None and node.ck in self._cached_records_by_ck:
+            del self._cached_records_by_ck[node.ck]
 
     def clear(self, _delete: bool = True, _trigger: _NC = _NC.Full) -> None:
         if _delete and self._parent.session:
             self._parent.session.tracer.node_truncate(self._parent, MNT.RECORD)
+        if self._cached_records_by_ck is not None:
+            self._cached_records_by_ck.clear()
 
     def __getitem__(self, item: slice):
         raise NotImplementedError(f"index into {self!r} not supported")
@@ -359,8 +386,17 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def limit(self, limit: int) -> "RecordSearch":
         return self.search(limit=limit)
 
+    def __len__(self):
+        if self._cached_records_by_ck is not None:
+            return len(self._cached_records_by_ck)
+        else:
+            return self.search(count=True)
+
     def __iter__(self):
-        return iter(self.search())
+        if self._cached_records_by_ck is not None:
+            return iter(self._cached_records_by_ck.values())
+        else:
+            return iter(self.search())
 
     def __aiter__(self):
         return aiter(self.search())
@@ -371,7 +407,7 @@ class HasDatabase(Node):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
     views: NodeList["DatabaseView"] = nchildren(MNT.DATABASE_VIEW, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=_RemoteRecordList)
+    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=HybridRecordList)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in

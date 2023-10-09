@@ -115,7 +115,7 @@ async def run_task(
     total_attempts = 0
     step_attempts = 0
     models = [
-        task.module.resolve(m)
+        task.session.module.resolve(m)
         for m in (
             "openai.lib.chat.gpt4",
             "anthropic.lib.text.claude-instant-1",
