@@ -868,7 +868,12 @@ def render_as_python(edits: EditBundle) -> Optional[str]:
                 nodes_strs.append(f"Record.new({_sep(kwargs_str)})")
                 continue
 
-            args_str = _sep(_render_prop(n, k, v) for k, v in init_args.items() if v)
+            # render args strs in reverse as soon as a value is set
+            args_strs = []
+            for k, v in reversed(init_args.items()):
+                if v or args_strs:
+                    args_strs.append(_render_prop(n, k, v))
+            args_str = _sep(*reversed(args_strs))
             kwargs_str = _sep(f"{k}={_render_prop(n, k, v)}" for k, v in init_kwargs.items() if v)
             if op == _OpType.CREATE and len(nodes) == 1:
                 nodes_strs.append(f"{_sep(args_str, kwargs_str)}")

@@ -56,11 +56,11 @@ class HasValue(Node):
     def _deactivate_inner(self) -> None:
         self._set_untracked("value", self._raw_value())
 
-    def _raw_value(self) -> dict | None:
+    def _raw_value(self, _force: bool = False) -> dict | None:
         """The raw/stripped value with field keys."""
         from bench.language.typing import pack_value
 
-        if self.value is None or self._status != NS.Tracked:
+        if self.value is None or self._status != NS.Tracked and not _force:
             return self.value
         assert self._type_of_value is not None, f"missing type for {self!r}"
         return pack_value(
