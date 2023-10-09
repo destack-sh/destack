@@ -8,7 +8,7 @@ import structlog
 from bench.language.const import MNT, DatabaseViewLayout, new_dynamic_node_key
 from bench.language.field import Field
 from bench.language.module import (
-    _NU,
+    _NC,
     NS,
     Module,
     Node,
@@ -16,6 +16,7 @@ from bench.language.module import (
     NodeListBase,
     NRel,
     ScopeNode,
+    _ChangeEffect,
     _Passthrough,
     nchildren,
     ninternal,
@@ -38,19 +39,23 @@ if typing.TYPE_CHECKING:
 logger = structlog.get_logger(__name__)
 
 
-@node(mnt=MNT.Record, passthrough=(("value", _Passthrough.Full),))
+@node(mnt=MNT.RECORD, passthrough=(("value", _Passthrough.Full),))
 class Record(HasValue, Node):
-    parent: "Statement" = nparent(MNT.Statement)
+    parent: "Statement" = nparent(MNT.STATEMENT)
 
     @staticmethod
     def new(*args, for_parent: "Statement" = None, _status: NS = None, **kwargs) -> "Record":
         from bench.language.typing import check_type, pack_value
 
+        if not for_parent and args:
+            raise TypeError(f"cannot create record with args {args} without for_parent")
+
         value = {**kwargs}
-        for field, arg in zip(for_parent.resolved_fields, args):
-            value[field.name] = arg
-        check_type(value, for_parent, ignore_array=True)
-        value = pack_value(value, for_parent, ignore_array=True, ignore_outer_map=True)
+        if for_parent:
+            for field, arg in zip(for_parent.resolved_fields, args):
+                value[field.name] = arg
+            check_type(value, for_parent, ignore_array=True)
+            value = pack_value(value, for_parent, ignore_array=True, ignore_outer_map=True)
         return Record(value=value, _status=_status)
 
     def __str__(self):
@@ -82,16 +87,16 @@ class Record(HasValue, Node):
         self.value[key] = value
 
 
-@node(mnt=MNT.DatabaseView)
+@node(mnt=MNT.DATABASE_VIEW)
 class DatabaseView(ScopeNode):
-    parent: "Statement" = nparent(MNT.Statement)
+    parent: "Statement" = nparent(MNT.STATEMENT)
     name: str | None = nproperty(default=None)
     layout: DatabaseViewLayout = nproperty(
         default=DatabaseViewLayout.TABLE, validate=enum_validator(DatabaseViewLayout)
     )
     query: Optional[Query] = nproperty(default=None)
     sort: Optional[list[Sort]] = nproperty(default=None)
-    fields: Optional[list["DatabaseViewField"]] = nchildren(MNT.DatabaseViewField)
+    fields: Optional[list["DatabaseViewField"]] = nchildren(MNT.DATABASE_VIEW_FIELD)
 
     def __str__(self):
         return f"{self.parent.path}:{self.name} ({self.layout})"
@@ -104,7 +109,7 @@ class DatabaseView(ScopeNode):
         return f"{self.parent.path}.{self.name}"
 
 
-@node(mnt=MNT.DatabaseViewField)
+@node(mnt=MNT.DATABASE_VIEW_FIELD)
 class DatabaseViewField(Node):
     field: UUID | Field = nproperty()
     order_key: str | None = ninternal(default=None)
@@ -296,34 +301,34 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
     def _update(self, scope: "ScopeNode"):
         pass  # nothing to do, all remote
 
-    def append(self, node: Record, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
+    def append(self, node: Record, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
         node.parent = self._parent
-        if node.id is None:
+        if node.id is None and self._parent.attached:
             node._assign_id(self._parent.module.id)
         # activate in session
         if self._parent._status == NS.Tracked and node._status != NS.Tracked:
             node._activate_self(self._parent.session)
         # create in session
-        if _create and self._parent.session:
+        if _create and self._parent._session:
             self._parent.session.tracer.node_create(node)
 
-    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
+    def extend(self, *nodes: Record, _create: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
         nodes = flatten_list(nodes)
         for record in nodes:
-            self.append(record, _create=False, _trigger=_NU.Ignore)
-        if _create and self._parent.session:
+            self.append(record, _create=False, _trigger=_NC.Ignore)
+        if _create and self._parent._session:
             self._parent.session.tracer.node_create(*nodes)
         if _trigger:
-            self._parent._trigger(_trigger)
+            _ChangeEffect._collect(None, self._parent, nodes, _trigger)._effect(_trigger)
 
-    def remove(self, node: Record, _delete: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
-        if _delete and self._parent.session:
+    def remove(self, node: Record, _delete: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
+        if _delete and self._parent._session:
             self._parent.session.tracer.node_delete(self, node)
         node.parent = None
 
-    def clear(self, _delete: bool = True, _trigger: _NU = _NU.Reinterp) -> None:
+    def clear(self, _delete: bool = True, _trigger: _NC = _NC.Reinterp) -> None:
         if _delete and self._parent.session:
-            self._parent.session.tracer.node_truncate(self._parent, MNT.Record)
+            self._parent.session.tracer.node_truncate(self._parent, MNT.RECORD)
 
     def __getitem__(self, item: slice):
         raise NotImplementedError(f"index into {self!r} not supported")
@@ -365,8 +370,8 @@ class _RemoteRecordList(NodeListBase[Record], RecordSearch):
 class HasDatabase(Node):
     # note that HasDatabase doesn't feel like component like the others (HasCode, HasText, etc.)
     #  but it would also be weird to have it not be a component now.
-    views: NodeList["DatabaseView"] = nchildren(MNT.DatabaseView, NRel.Named | NRel.Ordered)
-    records: NodeList["Record"] = nchildren(MNT.Record, NRel.Remote, custom_list=_RemoteRecordList)
+    views: NodeList["DatabaseView"] = nchildren(MNT.DATABASE_VIEW, NRel.Named | NRel.Ordered)
+    records: NodeList["Record"] = nchildren(MNT.RECORD, NRel.Remote, custom_list=_RemoteRecordList)
 
     def _init_inner(self):
         # this runs before HasFields because of the ordering in

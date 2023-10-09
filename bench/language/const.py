@@ -18,25 +18,26 @@ BENCH_UUID_NAMESPACE = UUID("d822dab7-41ad-4706-a9c8-4379e15b2ed0")
 
 class ModuleNodeType(enum.StrEnum):
     # source
-    Module = "Module"
-    File = "File"
-    Statement = "Statement"
-    Trigger = "Trigger"
-    Tagging = "Tagging"
-    Field = "Field"
-    Record = "Record"
-    DatabaseView = "DatabaseView"
-    DatabaseViewField = "DatabaseViewField"
+    MODULE = "Module"
+    FILE = "File"
+    STATEMENT = "Statement"
+    TRIGGER = "Trigger"
+    TAGGING = "Tagging"
+    FIELD = "Field"
+    RECORD = "Record"
+    DATABASE_VIEW = "DatabaseView"
+    DATABASE_VIEW_FIELD = "DatabaseViewField"
     # interp
-    Issue = "Issue"
-    ResolvedField = "ResolvedField"
+    ISSUE = "Issue"
+    RESOLVED_FIELD = "ResolvedField"
     # user
-    Comment = "Comment"
+    COMMENT = "Comment"
+    ACCESS = "Access"
     # remote
-    RemoteObject = "RemoteObject"
-    Secret = "Secret"
+    REMOTE_OBJECT = "RemoteObject"
+    SECRET = "Secret"
     # session
-    Run = "Run"
+    RUN = "Run"
 
     @property
     def caps_name(self):
@@ -114,7 +115,7 @@ class SessionAccessLevel(enum.IntEnum):  # SessionAccessLevel
 
 MNT = ModuleNodeType
 MNT_CAPS_CASE: dict[MNT, str] = {mnt: to_all_caps(mnt) for mnt in MNT}
-INTERP_NODE_TYPES = {MNT.Issue, MNT.ResolvedField}
+INTERP_NODE_TYPES = {MNT.ISSUE, MNT.RESOLVED_FIELD}
 
 ModuleReference = typing.NamedTuple(
     "ModuleReference", [("name", str), ("version", str), ("id", typing.Optional[UUID])]

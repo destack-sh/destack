@@ -16,7 +16,7 @@ class ValidationError(ValueError):
         message: str,
         cause: Exception | None = None,
     ):
-        super().__init__(message)
+        super().__init__(f"{subject!r}: {message} at {properties}")
         self.subject = subject
         self.properties = properties
         self.message = message

@@ -23,7 +23,7 @@ REMOTE_OBJECT_HASH_LENGTH = 128  # 512 bits
 REMOTE_OBJECT_MAX_SIZE = 1024 * 1024 * 100  # 100 MB
 
 
-@node(MNT.RemoteObject)
+@node(MNT.REMOTE_OBJECT)
 class RemoteObject(Node):
     """
     A proxy to a remotely stored object behaving like a Python file on demand.
@@ -258,7 +258,7 @@ class Storage:
 SecretValueT = typing.TypeVar("SecretValueT")
 
 
-@node(MNT.Secret)
+@node(MNT.SECRET)
 class Secret(Node, typing.Generic[SecretValueT]):
     """A proxy to a remotely stored secret."""
 

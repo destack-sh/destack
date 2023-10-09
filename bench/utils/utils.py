@@ -100,7 +100,7 @@ def to_pyidentifier(name: str, type: IdentifierType) -> str:
         name = re.sub(r"[^a-zA-Z0-9_]", "_", name)
         name = _strip_alpha_num(name)
         return name.lower()
-    elif type in (IdentifierType.TYPE, IdentifierType.CONSTANT):
+    elif type in (IdentifierType.TYPE,):
         # if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
         if re.match(r"^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+", name):
             return name
@@ -109,6 +109,12 @@ def to_pyidentifier(name: str, type: IdentifierType) -> str:
         # split on existing uppercase characters and spaces
         name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
         return _strip_alpha_num(name).title().replace(" ", "")
+    elif type in (IdentifierType.CONSTANT,):
+        # ALL_CAPS, ignore non-alphanumeric characters and capitalize the next character
+        name = re.sub(r"[^a-zA-Z0-9]", " ", name)
+        # split on existing uppercase characters and spaces
+        name = " ".join(re.split(r"(?<=[a-z])(?=[A-Z0-9])", name))
+        return _strip_alpha_num(name).upper().replace(" ", "_")
     else:
         raise ValueError(f"unexpected identifier type: {type}")
 
